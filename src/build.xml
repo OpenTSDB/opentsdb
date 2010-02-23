@@ -14,6 +14,9 @@
   <property name="slf4j.dir" value="${root.dir}/third_party/slf4j"/>
   <property name="logback.dir" value="${root.dir}/third_party/logback"/>
   <property name="junit.dir" value="${root.dir}/third_party/junit"/>
+  <property name="mockito.dir" value="${root.dir}/third_party/mockito"/>
+  <property name="javassist.dir" value="${root.dir}/third_party/javassist"/>
+  <property name="powermock.dir" value="${root.dir}/third_party/powermock"/>
   <property name="dist.dir" value="${build.dir}/${final.name}"/>
   <property name="build.dir" location="${basedir}/build"/>
   <property name="build.classes" location="${build.dir}/classes"/>
@@ -37,6 +40,9 @@
   <path id="classpath.test">
     <path refid="classpath"/>
     <fileset dir="${junit.dir}" includes="**/*.jar"/>
+    <fileset dir="${mockito.dir}" includes="**/*.jar"/>
+    <fileset dir="${javassist.dir}" includes="**/*.jar"/>
+    <fileset dir="${powermock.dir}" includes="**/*.jar"/>
     <pathelement location="${build.test.classes}"/>
     <pathelement location="${build.classes}"/>
   </path>
@@ -61,6 +67,9 @@
 
   <target name="jar" depends="compile" description="Build jar">
     <jar jarfile="${jarfile}" basedir="${build.classes}">
+      <path>
+        <pathelement location="logback.xml"/>
+      </path>
       <manifest>
         <attribute name="Main-Class" value="${main-class}"/>
       </manifest>
