@@ -47,7 +47,18 @@
     <pathelement location="${build.classes}"/>
   </path>
 
-  <target name="init">
+  <uptodate property="build.uptodate.builddata" targetfile="BuildData.java">
+    <srcfiles dir="${src.dir}"/>
+  </uptodate>
+  <target name="gen_build_data" description="Generates the BuildData"
+          unless="build.uptodate.builddata">
+    <exec executable="${root.dir}/buildtools/gen_build_data.sh">
+      <arg value="BuildData.java"/>
+      <arg value="net.opentsdb"/>
+    </exec>
+  </target>
+
+  <target name="init" depends="gen_build_data">
     <mkdir dir="${build.dir}"/>
     <mkdir dir="${build.classes}"/>
   </target>
@@ -103,7 +114,8 @@
     <fail message="OMG some tests failed!" if="test.failure"/>
   </target>
 
-  <target name="javadoc" description="Generate the documentation">
+  <target name="javadoc" depends="gen_build_data"
+          description="Generate the documentation">
     <mkdir dir="${build.docs}"/>
     <javadoc packagenames="net.opentsdb.*"
              destdir="${build.docs}"
