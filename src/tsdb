@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -e
+me=${0##*/}
+mydir=`dirname "$0"`
+cd "$mydir"
+
+usage() {
+  echo >&2 "usage: $me <command> [args]"
+  echo "Valid commands: import"
+  exit 1
+}
+
+case $1 in
+  (import)
+    MAINCLASS=TextImporter
+    ;;
+  (*)
+    echo >&2 "$me: error: unknown command '$1'"
+    usage
+    ;;
+esac
+shift
+
+CLASSPATH=`ant -noinput -nouserlib -q printcp | sed -n 's/^ *\[echo\] //p'`
+cd - >/dev/null
+
+JAVA=${JAVA-'java'}
+JVMARGS=${JVMARGS-'-enableassertions -enablesystemassertions'}
+test -r "$mydir/tsdb.local" && . "$mydir/tsdb.local"
+exec $JAVA $JVMARGS -classpath "$CLASSPATH" net.opentsdb.tools.$MAINCLASS "$@"

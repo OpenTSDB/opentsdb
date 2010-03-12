@@ -138,4 +138,9 @@
   <target name="clean" description="Clean everything">
     <delete dir="${build.dir}"/>
   </target>
+
+  <target name="printcp" description="Print the classpath">
+    <property name="cp" refid="classpath"/>
+    <echo message="${cp}:${jarfile}" />
+  </target>
 </project>
