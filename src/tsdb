@@ -7,13 +7,16 @@ cd "$mydir"
 
 usage() {
   echo >&2 "usage: $me <command> [args]"
-  echo "Valid commands: import"
+  echo "Valid commands: import, query"
   exit 1
 }
 
 case $1 in
   (import)
     MAINCLASS=TextImporter
+    ;;
+  (query)
+    MAINCLASS=CliQuery
     ;;
   (*)
     echo >&2 "$me: error: unknown command '$1'"

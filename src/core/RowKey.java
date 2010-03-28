@@ -50,4 +50,15 @@ final class RowKey {
     return result & 0x00000000FFFFFFFFL;
   }
 
+  /**
+   * Extracts the name of the metric ID contained in a row key.
+   * @param tsdb The TSDB to use.
+   * @param row The actual row key.
+   * @return The name of the metric.
+   */
+  static String metricName(final TSDB tsdb, final byte[] row) {
+    final byte[] id = Arrays.copyOfRange(row, 0, tsdb.metrics.width());
+    return tsdb.metrics.getName(id);
+  }
+
 }

@@ -121,7 +121,7 @@ public final class TSDB implements TSDBInterface {
   }
 
   public Query newQuery() {
-    return null;
+    return new TsdbQuery(this);
   }
 
   public WritableDataPoints newDataPoints() {
