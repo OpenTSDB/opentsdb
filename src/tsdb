@@ -7,7 +7,7 @@ cd "$mydir"
 
 usage() {
   echo >&2 "usage: $me <command> [args]"
-  echo "Valid commands: import, query"
+  echo 'Valid commands: import, query, uid'
   exit 1
 }
 
@@ -17,6 +17,9 @@ case $1 in
     ;;
   (query)
     MAINCLASS=CliQuery
+    ;;
+  (uid)
+    MAINCLASS=UidManager
     ;;
   (*)
     echo >&2 "$me: error: unknown command '$1'"
