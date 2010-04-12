@@ -296,4 +296,239 @@ final class Span implements DataPoints {
 
   }
 
+  /** Package private iterator method to access it as a DownsamplingIterator. */
+  Span.DownsamplingIterator downsampler(final int interval,
+                                        final Aggregator downsampler) {
+    return new Span.DownsamplingIterator(interval, downsampler);
+  }
+
+  /**
+   * Iterator that downsamples the data using an {@link Aggregator}.
+   * <p>
+   * This implementation relies on the fact that the {@link RowSeq}s in this
+   * {@link Span} have {@code O(1)} access to individual data points, in order
+   * to be efficient.
+   */
+  final class DownsamplingIterator
+    implements SeekableView, DataPoint,
+               Aggregator.Longs, Aggregator.Doubles {
+
+    /** Extra bit we set on the timestamp of floating point values. */
+    private static final long FLAG_FLOAT = 0x8000000000000000L;
+
+    /** Mask to use in order to get rid of the flag above. */
+    private static final long TIME_MASK  = 0x7FFFFFFFFFFFFFFFL;
+
+    /** The "sampling" interval, in seconds. */
+    private final int interval;
+
+    /** Function to use to for downsampling. */
+    private final Aggregator downsampler;
+
+    /** Index of the {@link RowSeq} we're currently at, in {@code rows}. */
+    private int row_index;
+
+    /** The row we're currently at. */
+    private RowSeq current_row;
+
+    /** Index of data point we're at, in {@code current_row}. */
+    private int pos = -1;
+
+    /**
+     * Current timestamp (unsigned 32 bits).
+     * The most significant bit is used to store FLAG_FLOAT.
+     */
+    private long time;
+
+    /** Current value (either an actual long or a double encoded in a long). */
+    private long value;
+
+    /**
+     * Ctor.
+     * @param interval The interval in seconds wanted between each data point.
+     * @param downsampler The downsampling function to use.
+     * @param iterator The iterator to access the underlying data.
+     */
+    DownsamplingIterator(final int interval,
+                         final Aggregator downsampler) {
+      this.interval = interval;
+      this.downsampler = downsampler;
+      this.current_row = rows.get(0);
+    }
+
+    // ------------------ //
+    // Iterator interface //
+    // ------------------ //
+
+    public boolean hasNext() {
+      return (pos < current_row.size() - 1      // more points in this row
+              || row_index < rows.size() - 1);  // or more rows
+    }
+
+    private boolean moveToNext() {
+      if (pos == current_row.size() - 1) {  // Have we finished this row?
+        // Yes, move on to the next one.
+        if (row_index < rows.size() - 1) {  // Do we have more rows?
+          current_row = rows.get(++row_index);
+          pos = 0;
+          return true;
+        } else {  // No more rows, can't go further.
+          pos = -42;  // Safeguard to catch bugs earlier.
+          return false;
+        }
+      }
+      pos++;
+      return true;
+    }
+
+    public DataPoint next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException("no more data points in " + this);
+      }
+
+      // Look ahead to see if all the data points that fall within the next
+      // interval turn out to be integers.  While we do this, compute the
+      // average timestamp of all the datapoints in that interval.
+      long newtime = 0;
+      final int saved_row_index = row_index;
+      final int saved_pos = pos;
+      // Since we know hasNext() returned true, we have at least 1 point.
+      moveToNext();
+      time = current_row.timestamp(pos) + interval;  // end of this interval.
+      boolean integer = true;
+      int npoints = 0;
+      do {
+        npoints++;
+        newtime += current_row.timestamp(pos);
+        //LOG.info("Downsampling @ time " + current_row.timestamp(pos));
+        integer &= current_row.isInteger(pos);
+      } while (moveToNext() && current_row.timestamp(pos) < time);
+      newtime /= npoints;
+
+      // Now that we're done looking ahead, let's go back where we were.
+      pos = saved_pos;
+      if (row_index != saved_row_index) {
+        row_index = saved_row_index;
+        current_row = rows.get(row_index);
+      }
+
+      // Compute `value'.  This will rely on `time' containing the end time of
+      // this interval...
+      if (integer) {
+        value = downsampler.runLong(this);
+      } else {
+        value = Double.doubleToRawLongBits(downsampler.runDouble(this));
+      }
+      // ... so update the time only here.
+      time = newtime;
+      //LOG.info("Downsampled avg time " + time);
+      if (!integer) {
+        time |= FLAG_FLOAT;
+      }
+      return this;
+    }
+
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
+
+    // ---------------------- //
+    // SeekableView interface //
+    // ---------------------- //
+
+    public void seek(final long timestamp) {
+      row_index = seekRow(timestamp);
+      current_row = rows.get(row_index);
+      final DataPointsIterator it = current_row.internalIterator();
+      it.seek(timestamp);
+      pos = it.index();
+    }
+
+    // ------------------- //
+    // DataPoint interface //
+    // ------------------- //
+
+    public long timestamp() {
+      return time & TIME_MASK;
+    }
+
+    public boolean isInteger() {
+      return (time & FLAG_FLOAT) == 0;
+    }
+
+    public long longValue() {
+      if (isInteger()) {
+        return value;
+      }
+      throw new ClassCastException("this value is not a long in " + this);
+    }
+
+    public double doubleValue() {
+      if (!isInteger()) {
+        return Double.longBitsToDouble(value);
+      }
+      throw new ClassCastException("this value is not a float in " + this);
+    }
+
+    public double toDouble() {
+      return isInteger() ? longValue() : doubleValue();
+    }
+
+    // -------------------------- //
+    // Aggregator.Longs interface //
+    // -------------------------- //
+
+    public boolean hasNextValue() {
+      if (pos == current_row.size() - 1) {
+        if (row_index < rows.size() - 1) {
+          //LOG.info("hasNextValue: next row? " + (rows.get(row_index + 1).timestamp(0) < time));
+          return rows.get(row_index + 1).timestamp(0) < time;
+        } else {
+          //LOG.info("hasNextValue: false, this is the end");
+          return false;
+        }
+      }
+      //LOG.info("hasNextValue: next point? " + (current_row.timestamp(pos+1) < time));
+      return current_row.timestamp(pos + 1) < time;
+    }
+
+    public long nextLongValue() {
+      if (hasNextValue()) {
+        moveToNext();
+        return current_row.longValue(pos);
+      }
+      throw new NoSuchElementException("no more longs in interval of " + this);
+    }
+
+    // ---------------------------- //
+    // Aggregator.Doubles interface //
+    // ---------------------------- //
+
+    public double nextDoubleValue() {
+      if (hasNextValue()) {
+        moveToNext();
+        return current_row.doubleValue(pos);
+      }
+      throw new NoSuchElementException("no more floats in interval of " + this);
+    }
+
+    public String toString() {
+      final StringBuilder buf = new StringBuilder();
+      buf.append("Span.DownsamplingIterator(interval=").append(interval)
+         .append(", downsampler=").append(downsampler)
+         .append(", row_index=").append(row_index)
+         .append(", pos=").append(pos)
+         .append(", current time=").append(timestamp())
+         .append(", current value=");
+     if (isInteger()) {
+       buf.append("long:").append(longValue());
+     } else {
+       buf.append("double:").append(doubleValue());
+     }
+     buf.append(", rows=").append(rows).append(')');
+     return buf.toString();
+    }
+
+  }
+
 }

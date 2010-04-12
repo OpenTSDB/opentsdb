@@ -77,6 +77,21 @@ public interface Query {
                      Aggregator function, boolean rate) throws NoSuchUniqueName;
 
   /**
+   * Downsamples the results by specifying a fixed interval between points.
+   * <p>
+   * Technically, downsampling means reducing the sampling interval.  Here
+   * the idea is similar.  Instead of returning every single data point that
+   * matched the query, we want one data point per fixed time interval.  The
+   * way we get this one data point is by aggregating all the data points of
+   * that interval together using an {@link Aggregator}.  This enables you
+   * to compute things like the 5-minute average or 10 minute 99th percentile.
+   * @param interval Number of seconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   */
+  void downsample(int interval, Aggregator downsampler);
+
+  /**
    * Runs this query.
    * @return The data points matched by this query.
    * <p>

@@ -94,6 +94,15 @@ final class TsdbQuery implements Query {
   /** Aggregator function to use. */
   private Aggregator aggregator;
 
+  /**
+   * Downsampling function to use, if any (can be {@code null}).
+   * If this is non-null, {@code sample_interval} must be strictly positive.
+   */
+  private Aggregator downsampler;
+
+  /** Minimum time interval (in seconds) wanted between each data point. */
+  private int sample_interval;
+
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -144,6 +153,16 @@ final class TsdbQuery implements Query {
     this.tags = Tags.resolveAll(tsdb, tags);
     aggregator = function;
     this.rate = rate;
+  }
+
+  public void downsample(final int interval, final Aggregator downsampler) {
+    if (downsampler == null) {
+      throw new NullPointerException("downsampler");
+    } else if (interval <= 0) {
+      throw new IllegalArgumentException("interval not > 0: " + interval);
+    }
+    this.downsampler = downsampler;
+    this.sample_interval = interval;
   }
 
   /**
@@ -262,7 +281,8 @@ final class TsdbQuery implements Query {
                                             getStartTime(), getEndTime(),
                                             spans.values(),
                                             rate,
-                                            aggregator);
+                                            aggregator,
+                                            sample_interval, downsampler);
       return new SpanGroup[] { group };
     }
     final TreeMap<byte[], SpanGroup> groups =
@@ -295,7 +315,8 @@ final class TsdbQuery implements Query {
       SpanGroup thegroup = groups.get(group);
       if (thegroup == null) {
         thegroup = new SpanGroup(tsdb, getStartTime(), getEndTime(),
-                                 null, rate, aggregator);
+                                 null, rate, aggregator,
+                                 sample_interval, downsampler);
         final byte[] group_copy = new byte[group.length];
         System.arraycopy(group, 0, group_copy, 0, group.length);
         groups.put(group_copy, thegroup);
@@ -317,13 +338,14 @@ final class TsdbQuery implements Query {
     final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
     // We search MAX_TIMESPAN seconds before and after the end time as it's
     // quite likely that the exact timestamp we're looking for is in the
-    // middle of a row.
+    // middle of a row.  Additionally, in case our sample_interval is large,
+    // we need to look even further before/after, so use that too.
     Bytes.putInt(start_row, metric_width,
-                 start_time - Const.MAX_TIMESPAN);
+                 start_time - Const.MAX_TIMESPAN - sample_interval);
     Bytes.putInt(end_row, metric_width,
                  end_time == 0
                  ? -1  // Will scan until the end (0xFFF...).
-                 : end_time + Const.MAX_TIMESPAN);
+                 : end_time + Const.MAX_TIMESPAN + sample_interval);
     System.arraycopy(metric, 0, start_row, 0, metric_width);
     System.arraycopy(metric, 0, end_row, 0, metric_width);
 

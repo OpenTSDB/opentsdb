@@ -85,6 +85,15 @@ final class SpanGroup implements DataPoints {
   private final Aggregator aggregator;
 
   /**
+   * Downsampling function to use, if any (can be {@code null}).
+   * If this is non-null, {@code sample_interval} must be strictly positive.
+   */
+  private final Aggregator downsampler;
+
+  /** Minimum time interval (in seconds) wanted between each data point. */
+  private final int sample_interval;
+
+  /**
    * Ctor.
    * @param tsdb The TSDB we belong to.
    * @param start_time Any data point strictly before this timestamp will be
@@ -96,12 +105,16 @@ final class SpanGroup implements DataPoints {
    * @param rate If {@code true}, the rate of the series will be used instead
    * of the actual values.
    * @param aggregator The aggregation function to use.
+   * @param interval Number of seconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
    */
   SpanGroup(final TSDB tsdb,
             final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate,
-            final Aggregator aggregator) {
+            final Aggregator aggregator,
+            final int interval, final Aggregator downsampler) {
     this.tsdb = tsdb;
     this.start_time = start_time;
     this.end_time = end_time;
@@ -112,6 +125,8 @@ final class SpanGroup implements DataPoints {
     }
     this.rate = rate;
     this.aggregator = aggregator;
+    this.downsampler = downsampler;
+    this.sample_interval = interval;
   }
 
   /**
@@ -433,7 +448,10 @@ final class SpanGroup implements DataPoints {
       // Initialize every Iterator, fetch their first values that fall
       // within our time range.
       for (int i = 0; i < size; i++) {
-        final SeekableView it = spans.get(i).spanIterator();
+        final SeekableView it =
+          (downsampler == null
+           ? spans.get(i).spanIterator()
+           : spans.get(i).downsampler(sample_interval, downsampler));
         iterators[i] = it;
         it.seek(start_time);
         if (!it.hasNext()) {
@@ -779,6 +797,8 @@ final class SpanGroup implements DataPoints {
       + ", aggregated_tags=" + aggregated_tags
       + ", rate=" + rate
       + ", aggregator=" + aggregator
+      + ", downsampler=" + downsampler
+      + ", sample_interval=" + sample_interval
       + ')';
   }
 
