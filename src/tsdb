@@ -18,6 +18,9 @@ case $1 in
   (query)
     MAINCLASS=CliQuery
     ;;
+  (scan)
+    MAINCLASS=DumpSeries
+    ;;
   (uid)
     MAINCLASS=UidManager
     ;;
