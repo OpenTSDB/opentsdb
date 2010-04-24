@@ -18,6 +18,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.ResultScanner;
 
 import net.opentsdb.uid.UniqueId;
@@ -139,6 +140,16 @@ final class Core {
       return (Long) extractLValue.invoke(null, qualifier, kv);
     } catch (Exception e) {
       throw new RuntimeException("extractLValue=" + extractLValue, e);
+    }
+  }
+
+  static HTable getHTable(final TSDB tsdb) {
+    try {
+      final Field table = TSDB.class.getDeclaredField("timeseries_table");
+      table.setAccessible(true);
+      return (HTable) table.get(tsdb);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to get the timeseries_table", e);
     }
   }
 

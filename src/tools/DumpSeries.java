@@ -12,18 +12,23 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.client.Delete;
+import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import net.opentsdb.HBaseException;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 
@@ -40,9 +45,15 @@ final class DumpSeries {
                             final int retval) {
     System.err.println(errmsg);
     System.err.println("Usage: scan"
-        + " START-DATE [END-DATE] query [queries...]\n"
+        + " [--delete|--import] START-DATE [END-DATE] query [queries...]\n"
         + "To see the format in which queries should be written, see the help"
-        + " of the 'query' command.");
+        + " of the 'query' command.\n"
+        + "The --import flag changes the format in which the output is printed"
+        + " to use a format suiteable for the 'import' command instead of the"
+        + " default output format, which better represents how the data is"
+        + " stored in HBase.\n"
+        + "The --delete flag will delete every row matched by the query."
+        + "  This flag implies --import.");
     System.err.print(argp.usage());
     System.exit(retval);
   }
@@ -50,6 +61,9 @@ final class DumpSeries {
   public static void main(String[] args) {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
+    argp.addOption("--import", "Prints the rows in a format suitable for"
+                   + " the 'import' command.");
+    argp.addOption("--delete", "Deletes rows as they are scanned.");
     args = CliOptions.parse(argp, args);
     if (args == null) {
       usage(argp, "Invalid usage.", 1);
@@ -59,11 +73,17 @@ final class DumpSeries {
 
     final TSDB tsdb = new TSDB(argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
+    final boolean delete = argp.has("--delete");
+    final boolean importformat = delete || argp.has("--import");
     argp = null;
-    doDump(tsdb, args);
+    doDump(tsdb, delete, importformat, args);
   }
 
-  private static void doDump(final TSDB tsdb, final String[] args) {
+  private static void doDump(final TSDB tsdb,
+                             final boolean delete,
+                             final boolean importformat,
+                             final String[] args) {
+    final HTable table = delete ? Core.getHTable(tsdb) : null;
     final ArrayList<Query> queries = new ArrayList<Query>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
 
@@ -75,7 +95,7 @@ final class DumpSeries {
         final byte[] row = result.getRow();
         final long base_time = Core.baseTime(tsdb, row);
         // Print the row key.
-        {
+        if (!importformat) {
           buf.append(Arrays.toString(row))
             .append(' ')
             .append(Core.metricName(tsdb, row))
@@ -89,15 +109,22 @@ final class DumpSeries {
 
         // Print individual cells.
         buf.setLength(0);
-        buf.append("  ");
+        if (!importformat) {
+          buf.append("  ");
+        }
         for (final KeyValue kv : result.raw()) {
-          buf.setLength(2);
+          buf.setLength(importformat ? 0 : 2);
+          if (importformat) {
+            buf.append(Core.metricName(tsdb, row)).append(' ');
+          }
           final byte[] qualifier = kv.getQualifier();
           final short deltaflags = Bytes.toShort(qualifier);
           final short delta = (short) (deltaflags >>> 4);
           final byte[] cell = kv.getValue();
           final long lvalue = Core.extractLValue(deltaflags, kv);
-          {
+          if (importformat) {
+            buf.append(base_time + delta).append(' ');
+          } else {
             buf.append(Arrays.toString(qualifier))
               .append(' ')
               .append(Arrays.toString(cell))
@@ -106,17 +133,35 @@ final class DumpSeries {
               .append('\t');
           }
           if ((deltaflags & 0x8) == 0x8) {
-            buf.append("f ").append(Float.intBitsToFloat((int) lvalue));
+            buf.append(importformat ? "" : "f ")
+               .append(Float.intBitsToFloat((int) lvalue));
           } else {
-            buf.append("l ").append(lvalue);
+            buf.append(importformat ? "" : "l ")
+               .append(lvalue);
           }
-          {
+          if (importformat) {
+            for (final Map.Entry<String, String> tag
+                 : Core.getTags(tsdb, row).entrySet()) {
+              buf.append(' ').append(tag.getKey())
+                 .append('=').append(tag.getValue());
+            }
+          } else {
             buf.append('\t')
               .append(base_time + delta)
               .append(" (").append(date(base_time + delta)).append(')');
           }
           buf.append('\n');
           System.out.print(buf);
+        }
+
+        if (delete) {
+          final Delete del = new Delete(row);
+          try {
+            table.delete(del);
+          } catch (IOException e) {
+            throw new HBaseException("Failed to delete row="
+                                     + Arrays.toString(row), e);
+          }
         }
       }
     }
