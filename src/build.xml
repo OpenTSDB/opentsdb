@@ -13,6 +13,7 @@
   <property name="zookeeper.dir" value="${root.dir}/third_party/zookeeper"/>
   <property name="slf4j.dir" value="${root.dir}/third_party/slf4j"/>
   <property name="logback.dir" value="${root.dir}/third_party/logback"/>
+  <property name="netty.dir" value="${root.dir}/third_party/netty"/>
   <property name="junit.dir" value="${root.dir}/third_party/junit"/>
   <property name="mockito.dir" value="${root.dir}/third_party/mockito"/>
   <property name="javassist.dir" value="${root.dir}/third_party/javassist"/>
@@ -35,6 +36,7 @@
     <fileset dir="${zookeeper.dir}" includes="**/*.jar"/>
     <fileset dir="${slf4j.dir}" includes="**/*.jar"/>
     <fileset dir="${logback.dir}" includes="**/*.jar"/>
+    <fileset dir="${netty.dir}" includes="**/*.jar"/>
   </path>
 
   <path id="classpath.test">
@@ -132,6 +134,7 @@
       <!-- Well, actually we don't depent on the "current" version of HBase
            but on 0.21 and ATM its Javadoc isn't available online. -->
       <link href="http://hadoop.apache.org/hbase/docs/current/api/"/>
+      <link href="http://docs.jboss.org/netty/3.1/api/"/>
     </javadoc>
   </target>
 

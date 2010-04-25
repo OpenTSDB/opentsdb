@@ -17,8 +17,15 @@ import ch.qos.logback.classic.Level;
 
 import org.slf4j.LoggerFactory;
 
+import org.jboss.netty.logging.InternalLoggerFactory;
+import org.jboss.netty.logging.Slf4JLoggerFactory;
+
 /** Helper functions to parse arguments passed to {@code main}.  */
 final class CliOptions {
+
+  static {
+    InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
+  }
 
   /** Adds common TSDB options to the given {@code argp}.  */
   static void addCommon(final ArgP argp) {

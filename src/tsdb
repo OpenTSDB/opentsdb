@@ -18,6 +18,9 @@ case $1 in
   (query)
     MAINCLASS=CliQuery
     ;;
+  (tsd)
+    MAINCLASS=TSDMain
+    ;;
   (scan)
     MAINCLASS=DumpSeries
     ;;
