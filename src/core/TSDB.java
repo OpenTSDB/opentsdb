@@ -23,6 +23,7 @@ import org.apache.hadoop.hbase.client.HTable;
 
 import net.opentsdb.HBaseException;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.stats.StatsCollector;
 
 /**
  * Thread-safe implementation of the {@link TSDBInterface}.
@@ -118,6 +119,34 @@ public final class TSDB implements TSDBInterface {
   public int uidCacheSize() {
     return (metrics.cacheSize() + tag_names.cacheSize()
             + tag_values.cacheSize());
+  }
+
+  /**
+   * Collects the stats and metrics tracked by this instance.
+   * @param collector The collector to use.
+   */
+  public void collectStats(final StatsCollector collector) {
+    collectUidStats(metrics, collector);
+    collectUidStats(tag_names, collector);
+    collectUidStats(tag_values, collector);
+
+    {
+      final Runtime runtime = Runtime.getRuntime();
+      collector.record("jvm.ramfree", runtime.freeMemory());
+      collector.record("jvm.ramused", runtime.totalMemory());
+    }
+  }
+
+  /**
+   * Collects the stats for a {@link UniqueId}.
+   * @param uid The instance from which to collect stats.
+   * @param collector The collector to use.
+   */
+  private static void collectUidStats(final UniqueId uid,
+                                      final StatsCollector collector) {
+    collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.kind());
+    collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.kind());
+    collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
   }
 
   public Query newQuery() {

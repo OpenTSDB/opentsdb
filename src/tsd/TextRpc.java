@@ -16,8 +16,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -26,13 +26,14 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.StatsCollector;
 
 /**
  * Stateless handler for simple, text-only RPCs.
  */
 final class TextRpc extends SimpleChannelUpstreamHandler {
 
-  private static final Log LOG = LogFactory.getLog(TextRpc.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TextRpc.class);
 
   private static final AtomicInteger rpcs_received
     = new AtomicInteger();
@@ -77,6 +78,15 @@ final class TextRpc extends SimpleChannelUpstreamHandler {
       exceptions_caught.incrementAndGet();
     }
     rpcs_received.incrementAndGet();
+  }
+
+  /**
+   * Collects the stats and metrics tracked by this instance.
+   * @param collector The collector to use.
+   */
+  public static void collectStats(final StatsCollector collector) {
+    collector.record("textrpc.rpcs", rpcs_received);
+    collector.record("textrpc.exceptions", exceptions_caught);
   }
 
   /**
@@ -138,7 +148,19 @@ final class TextRpc extends SimpleChannelUpstreamHandler {
     public void process(final ChannelHandlerContext ctx,
                         final MessageEvent e) {
       final Channel chan = e.getChannel();
-      chan.write("stats: not implemented.\n");
+      final StringBuilder buf = new StringBuilder(1024);
+      final StatsCollector collector = new StatsCollector("tsd") {
+        @Override
+        public final void emit(final String line) {
+          buf.append(line);
+        }
+      };
+
+      collector.addHostTag();
+      ConnectionManager.collectStats(collector);
+      TextRpc.collectStats(collector);
+      tsdb.collectStats(collector);
+      chan.write(buf.toString());
     }
   }
 

@@ -15,8 +15,8 @@ package net.opentsdb.tsd;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelEvent;
@@ -26,12 +26,14 @@ import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
 
+import net.opentsdb.stats.StatsCollector;
+
 /**
  * Keeps track of all existing connections.
  */
 final class ConnectionManager extends SimpleChannelHandler {
 
-  private static final Log LOG = LogFactory.getLog(ConnectionManager.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ConnectionManager.class);
 
   private static final AtomicInteger connections_established
     = new AtomicInteger();
@@ -47,6 +49,15 @@ final class ConnectionManager extends SimpleChannelHandler {
 
   /** Constructor. */
   public ConnectionManager() {
+  }
+
+  /**
+   * Collects the stats and metrics tracked by this instance.
+   * @param collector The collector to use.
+   */
+  public static void collectStats(final StatsCollector collector) {
+    collector.record("connectionmgr.connections", connections_established);
+    collector.record("connectionmgr.exceptions", exceptions_caught);
   }
 
   @Override
