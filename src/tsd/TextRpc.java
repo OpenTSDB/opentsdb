@@ -15,6 +15,7 @@ package net.opentsdb.tsd;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,11 @@ import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 
 import net.opentsdb.BuildData;
+import net.opentsdb.HBaseException;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.Tags;
+import net.opentsdb.core.WritableDataPoints;
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.stats.StatsCollector;
 
 /**
@@ -49,6 +54,46 @@ final class TextRpc extends SimpleChannelUpstreamHandler {
   private final TSDB tsdb;
 
   /**
+   * Dirty rows for time series that are being written to.
+   *
+   * The key in the map is a string that uniquely identifies a time series.
+   * Right now we use the time series name concatenated with the stringified
+   * version of the map that stores all the tags, e.g. "foo{bar=a,quux=42}".
+   *
+   * TODO(tsuna): Need a shutdown hook and a fix for HBASE-2669 to ensure that
+   * all dirty rows are flushed to HBase when we get a SIGTERM.  Right now a
+   * SIGTERM causes data loss! XXX
+   */
+  private ConcurrentHashMap<String, WritableDataPoints> dirty_rows
+    = new ConcurrentHashMap<String, WritableDataPoints>();
+
+  /**
+   * Returns the dirty row for the given time series or creates a new one.
+   * @param metric The metric of the time series.
+   * @param tags The tags of the time series.
+   * @return the dirty row in which data points for the given time series
+   * should be appended.
+   */
+  private WritableDataPoints getDirtyRow(final String metric,
+                                         final HashMap<String, String> tags) {
+    final String key = metric + tags;
+    WritableDataPoints row = dirty_rows.get(key);
+    if (row == null) {  // Try to create a new row.
+      // TODO(tsuna): Properly evict old rows to save memory.
+      if (dirty_rows.size() >= 20000) {
+        dirty_rows.clear();  // free some RAM.
+      }
+      final WritableDataPoints new_row = tsdb.newDataPoints();
+      new_row.setSeries(metric, tags);
+      row = dirty_rows.putIfAbsent(key, new_row);
+      if (row == null) {  // We've just inserted a new row.
+        return new_row;   // So use that.
+      }
+    }
+    return row;
+  }
+
+  /**
    * Constructor.
    * @param tsdb The TSDB to use.
    */
@@ -58,6 +103,7 @@ final class TextRpc extends SimpleChannelUpstreamHandler {
     commands = new HashMap<String, Command>(5);
     commands.put("diediedie", new DieDieDie());
     commands.put("help", new Help());
+    commands.put("put", new Put());
     commands.put("stats", new Stats());
     commands.put("version", new Version());
   }
@@ -140,6 +186,66 @@ final class TextRpc extends SimpleChannelUpstreamHandler {
       }
       buf.append('\n');
       e.getChannel().write(buf.toString());
+    }
+  }
+
+  /** The "put" command. */
+  private final class Put implements Command {
+    public void process(final ChannelHandlerContext ctx,
+                        final MessageEvent e) {
+      try {
+        importDataPoint((String[]) e.getMessage());
+      } catch (NumberFormatException x) {
+        e.getChannel().write("put: invalid value: " + x.getMessage() + '\n');
+      } catch (IllegalArgumentException x) {
+        e.getChannel().write("put: illegal argument: " + x.getMessage() + '\n');
+      } catch (HBaseException x) {
+        e.getChannel().write("put: HBase error: " + x.getMessage() + '\n');
+      } catch (NoSuchUniqueName x) {
+        e.getChannel().write("put: unknown metric: " + x.getMessage() + '\n');
+      }
+    }
+
+    /**
+     * Imports a single data point.
+     * @param words The words describing the data point to import, in
+     * the following format: {@code [metric, timestamp, value, ..tags..]}
+     * @throws NumberFormatException if the timestamp or value is invalid.
+     * @throws IllegalArgumentException if any other argument is invalid.
+     * @throws HBaseException if there's a problem when writing to HBase.
+     * @throws NoSuchUniqueName if the metric isn't registered.
+     */
+    private void importDataPoint(final String[] words) {
+      words[0] = null; // Ditch the "put".
+      if (words.length < 5) {  // Need at least: metric timestamp value tag
+        //               ^ 5 and not 4 because words[0] is "put".
+        throw new IllegalArgumentException("not enough arguments"
+            + " (need least 4, got " + (words.length - 1) + ')');
+      }
+      final String metric = words[1];
+      if (metric.length() <= 0) {
+        throw new IllegalArgumentException("empty metric name");
+      }
+      final long timestamp = Long.parseLong(words[2]);
+      if (timestamp <= 0) {
+        throw new IllegalArgumentException("invalid timestamp: " + timestamp);
+      }
+      final String value = words[3];
+      if (value.length() <= 0) {
+        throw new IllegalArgumentException("empty value");
+      }
+      final HashMap<String, String> tags = new HashMap<String, String>();
+      for (int i = 4; i < words.length; i++) {
+        if (!words[i].isEmpty()) {
+          Tags.parse(tags, words[i]);
+        }
+      }
+      final WritableDataPoints dp = getDirtyRow(metric, tags);
+      if (value.indexOf('.') < 0) {  // integer value
+        dp.addPoint(timestamp, Long.parseLong(value));
+      } else {  // floating point value
+        dp.addPoint(timestamp, Float.parseFloat(value));
+      }
     }
   }
 
