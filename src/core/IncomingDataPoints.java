@@ -26,6 +26,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import net.opentsdb.HBaseException;
+import net.opentsdb.stats.Histogram;
 
 /**
  * Receives new data points and stores them in HBase.
@@ -36,6 +37,13 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   /** Default number of {@link Put}s to group together for batch imports. */
   private static final short DEFAULT_BATCH_SIZE = 1024;
+
+  /**
+   * Keep track of the latency (in ms) we perceive when doing a Put in HBase.
+   * We want buckets up to 16s, with 2 ms interval between each bucket up to
+   * 100 ms after we which we switch to exponential buckets.
+   */
+  static final Histogram putlatency = new Histogram(16000, (short) 2, 100);
 
   /** The {@code TSDB} instance we belong to. */
   private final TSDB tsdb;
@@ -191,9 +199,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     }
     point.add(TSDB.FAMILY, Bytes.toBytes(qualifier), Bytes.toBytes(value));
     try {
+      final long start_put = System.nanoTime();
       synchronized (tsdb.timeseries_table) {
         tsdb.timeseries_table.put(point);
       }
+      putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
     } catch (IOException e) {
       final String errmsg = "Error while storing data in HBase.  Last Put="
         + point + ", there are "

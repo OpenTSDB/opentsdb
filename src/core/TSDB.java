@@ -23,6 +23,7 @@ import org.apache.hadoop.hbase.client.HTable;
 
 import net.opentsdb.HBaseException;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
 /**
@@ -135,6 +136,18 @@ public final class TSDB implements TSDBInterface {
       collector.record("jvm.ramfree", runtime.freeMemory());
       collector.record("jvm.ramused", runtime.totalMemory());
     }
+
+    collector.addExtraTag("class", "IncomingDataPoints");
+    try {
+      collector.record("hbase.latency", IncomingDataPoints.putlatency, "method=put");
+    } finally {
+      collector.clearExtraTag("class");
+    }
+  }
+
+  /** Returns a latency histogram for Put RPCs used to store data points. */
+  public Histogram getPutLatencyHistogram() {
+    return IncomingDataPoints.putlatency;
   }
 
   /**

@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
+import net.opentsdb.stats.StatsCollector;
 
 final class TextImporter {
 
@@ -56,6 +57,13 @@ final class TextImporter {
       importFile(tsdb, path);
     }
     tsdb.flush();
+    // TODO(tsuna): Figure out something better than just writing to stderr.
+    tsdb.collectStats(new StatsCollector("tsd") {
+      @Override
+      public final void emit(final String line) {
+        System.err.print(line);
+      }
+    });
   }
 
   private static void importFile(final TSDB tsdb,
