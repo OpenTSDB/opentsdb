@@ -265,6 +265,7 @@ final class TextRpc extends SimpleChannelUpstreamHandler {
       collector.addHostTag();
       ConnectionManager.collectStats(collector);
       TextRpc.collectStats(collector);
+      HttpHandler.collectStats(collector);
       tsdb.collectStats(collector);
       chan.write(buf.toString());
     }

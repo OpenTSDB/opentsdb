@@ -14,11 +14,16 @@ package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.handler.codec.frame.DelimiterBasedFrameDecoder;
 import org.jboss.netty.handler.codec.frame.Delimiters;
+import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
+import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
+import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 
 import net.opentsdb.core.TSDB;
 
@@ -36,11 +41,14 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   // Those are sharable but maintain some state, so a single instance per
   // PipelineFactory is needed.
   private final ConnectionManager connmgr = new ConnectionManager();
+  private final DetectHttpOrRpc HTTP_OR_RPC = new DetectHttpOrRpc();
 
   /** The TSDB to use. */
   private final TSDB tsdb;
   /** Stateless handler to use for simple text RPCs (not HTTP RPCs). */
   private final TextRpc textrpc;
+  /** Stateless handler to use for HTTP requests (not RPCs). */
+  private final HttpHandler httphandler;
 
   /**
    * Constructor.
@@ -49,6 +57,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   public PipelineFactory(final TSDB tsdb) {
     this.tsdb = tsdb;
     this.textrpc = new TextRpc(tsdb);
+    this.httphandler = new HttpHandler(tsdb);
   }
 
   @Override
@@ -56,13 +65,47 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    final ChannelPipeline pipeline = pipeline();
 
     pipeline.addLast("connmgr", connmgr);
-    pipeline.addLast("framer",
-                     new DelimiterBasedFrameDecoder(1024, DELIMITERS));
-    pipeline.addLast("encoder", ENCODER);
-    pipeline.addLast("decoder", DECODER);
-    pipeline.addLast("handler", textrpc);
-
+    pipeline.addLast("detect", HTTP_OR_RPC);
     return pipeline;
+  }
+
+  /**
+   * Dynamically changes the {@link ChannelPipeline} based on the request.
+   * If a request uses HTTP, then this changes the pipeline to process HTTP.
+   * Otherwise, the pipeline is changed to processes an RPC.
+   */
+  final class DetectHttpOrRpc extends FrameDecoder {
+
+    @Override
+    protected Object decode(final ChannelHandlerContext ctx,
+                            final Channel chan,
+                            final ChannelBuffer buffer) throws Exception {
+      if (buffer.readableBytes() < 1) {  // Yes sometimes we can be called
+        return null;                     // with an empty buffer...
+      }
+
+      final int firstbyte = buffer.getUnsignedByte(buffer.readerIndex());
+      final ChannelPipeline pipeline = ctx.getPipeline();
+      // None of the commands in the RPC protocol start with a capital ASCII
+      // letter for the time being, and all HTTP commands do (GET, POST, etc.)
+      // so use this as a cheap way to differentiate the two.
+      if ('A' <= firstbyte && firstbyte <= 'Z') {
+        pipeline.addLast("decoder", new HttpRequestDecoder());
+        pipeline.addLast("encoder", new HttpResponseEncoder());
+        pipeline.addLast("handler", httphandler);
+      } else {
+        pipeline.addLast("framer",
+                         new DelimiterBasedFrameDecoder(1024, DELIMITERS));
+        pipeline.addLast("encoder", ENCODER);
+        pipeline.addLast("decoder", DECODER);
+        pipeline.addLast("handler", textrpc);
+      }
+      pipeline.remove(this);
+
+      // Forward the buffer to the next handler.
+      return buffer.readBytes(buffer.readableBytes());
+    }
+
   }
 
 }
