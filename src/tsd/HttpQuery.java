@@ -12,6 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.List;
+import java.util.Map;
+
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 
@@ -23,11 +30,13 @@ import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
+import org.jboss.netty.channel.DefaultFileRegion;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
+import org.jboss.netty.handler.codec.http.QueryStringDecoder;
 import org.jboss.netty.util.CharsetUtil;
 
 /**
@@ -50,6 +59,9 @@ final class HttpQuery {
 
   /** The channel on which the request was received. */
   private final Channel chan;
+
+  /** Parsed query string (lazily built on first access). */
+  private Map<String, List<String>> querystring;
 
   /**
    * Constructor.
@@ -78,6 +90,71 @@ final class HttpQuery {
   /** Returns how many ms have elapsed since this query was created. */
   public int processingTimeMillis() {
     return (int) ((System.nanoTime() - start_time) / 1000000);
+  }
+
+  /**
+   * Returns the query string parameters passed in the URI.
+   */
+  public Map<String, List<String>> getQueryString() {
+    if (querystring == null) {
+      querystring = new QueryStringDecoder(request.getUri()).getParameters();
+    }
+    return querystring;
+  }
+
+  /**
+   * Returns the value of the given query string parameter.
+   * <p>
+   * If this parameter occurs multiple times in the URL, only the last value
+   * is returned and others are silently ignored.
+   * @param paramname Name of the query string parameter to get.
+   * @return The value of the parameter or {@code null} if this parameter
+   * wasn't passed in the URI.
+   */
+  public String getQueryStringParam(final String paramname) {
+    final List<String> params = getQueryString().get(paramname);
+    return params == null ? null : params.get(params.size() - 1);
+  }
+
+  /**
+   * Returns the non-empty value of the given required query string parameter.
+   * <p>
+   * If this parameter occurs multiple times in the URL, only the last value
+   * is returned and others are silently ignored.
+   * @param paramname Name of the query string parameter to get.
+   * @return The value of the parameter.
+   * @throws BadRequestException if this query string parameter wasn't passed
+   * or if its last occurrence had an empty value ({@code &amp;a=}).
+   */
+  public String getRequiredQueryStringParam(final String paramname)
+    throws BadRequestException {
+    final String value = getQueryStringParam(paramname);
+    if (value == null || value.isEmpty()) {
+      throw BadRequestException.missingParameter(paramname);
+    }
+    return value;
+  }
+
+  /**
+   * Returns whether or not the given query string parameter was passed.
+   * @param paramname Name of the query string parameter to get.
+   * @return {@code true} if the parameter
+   */
+  public boolean hasQueryStringParam(final String paramname) {
+    return getQueryString().get(paramname) != null;
+  }
+
+  /**
+   * Returns all the values of the given query string parameter.
+   * <p>
+   * In case this parameter occurs multiple times in the URL, this method is
+   * useful to get all the values.
+   * @param paramname Name of the query string parameter to get.
+   * @return The values of the parameter or {@code null} if this parameter
+   * wasn't passed in the URI.
+   */
+  public List<String> getQueryStringParams(final String paramname) {
+    return getQueryString().get(paramname);
   }
 
   /**
@@ -128,6 +205,46 @@ final class HttpQuery {
     sendReply(HttpResponseStatus.NOT_FOUND, PAGE_NOT_FOUND);
   }
 
+  /** An empty JSON array ready to be sent. */
+  private static final byte[] EMPTY_JSON_ARRAY = new byte[] { '[', ']' };
+
+  /**
+   * Sends the given sequence of strings as a JSON array.
+   * @param strings A possibly empty sequence of strings.
+   */
+  public void sendJsonArray(final Iterable<String> strings) {
+    int nstrings = 0;
+    int sz = 0;  // Pre-compute the buffer size to avoid re-allocations.
+    for (final String string : strings) {
+      sz += string.length();
+      nstrings++;
+    }
+    if (nstrings == 0) {
+      sendReply(EMPTY_JSON_ARRAY);
+      return;
+    }
+    final StringBuilder buf = new StringBuilder(sz // All the strings
+                                                + nstrings * 3  // "",
+                                                + 1);  // Leading `['
+    toJsonArray(strings, buf);
+    sendReply(buf);
+  }
+
+  /**
+   * Transforms a non-empty sequence of strings into a JSON array.
+   * The behavior of this method is undefined if the input sequence is empty.
+   * @param strings The strings to transform into a JSON array.
+   * @param buf The buffer where to write the JSON array.
+   */
+  public static void toJsonArray(final Iterable<String> strings,
+                                 final StringBuilder buf) {
+    buf.append('[');
+    for (final String string : strings) {
+      buf.append('"').append(string).append("\",");
+    }
+    buf.setCharAt(buf.length() - 1, ']');
+  }
+
   /**
    * Sends data in an HTTP "200 OK" reply to the client.
    * @param data Raw byte array to send as-is after the HTTP headers.
@@ -151,17 +268,6 @@ final class HttpQuery {
 
   /**
    * Sends an HTTP reply to the client.
-   * @param status The status of the request (e.g. 200 OK or 404 Not Found).
-   * @param buf The content of the reply to send.
-   */
-  public void sendReply(final HttpResponseStatus status,
-                        final StringBuilder buf) {
-    sendBuffer(status, ChannelBuffers.copiedBuffer(buf.toString(),
-                                                   CharsetUtil.UTF_8));
-  }
-
-  /**
-   * Sends an HTTP reply to the client.
    * <p>
    * This is equivalent of
    * <code>{@link sendReply(HttpResponseStatus, StringBuilder)
@@ -172,6 +278,67 @@ final class HttpQuery {
   public void sendReply(final String buf) {
     sendBuffer(HttpResponseStatus.OK,
                ChannelBuffers.copiedBuffer(buf, CharsetUtil.UTF_8));
+  }
+
+  /**
+   * Sends an HTTP reply to the client.
+   * @param status The status of the request (e.g. 200 OK or 404 Not Found).
+   * @param buf The content of the reply to send.
+   */
+  public void sendReply(final HttpResponseStatus status,
+                        final StringBuilder buf) {
+    sendBuffer(status, ChannelBuffers.copiedBuffer(buf.toString(),
+                                                   CharsetUtil.UTF_8));
+  }
+
+  /**
+   * Send a file (with zero-copy) to the client.
+   * This method doesn't provide any security guarantee.  The caller is
+   * responsible for the argument they pass in.
+   * @param path The path to the file to send to the client.
+   */
+  public void sendFile(final String path) throws IOException {
+    RandomAccessFile file;
+    try {
+      file = new RandomAccessFile(path, "r");
+    } catch (FileNotFoundException e) {
+      logWarn("File not found: " + e.getMessage());
+      notFound();
+      return;
+    }
+    final long length = file.length();
+    {
+      final DefaultHttpResponse response =
+        new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+      final String mimetype = guessMimeTypeFromUri(path);
+      response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
+                         mimetype == null ? "text/plain" : mimetype);
+      final long mtime = new File(path).lastModified();
+      if (mtime > 0) {
+        response.setHeader(HttpHeaders.Names.AGE,
+                           (System.currentTimeMillis() - mtime) / 1000);
+      } else {
+        logWarn("Found a file with mtime=" + mtime + ": " + path);
+      }
+      // Right now, all our images can be cached.
+      if (mimetype != null && mimetype.startsWith("image/")) {
+        response.setHeader(HttpHeaders.Names.CACHE_CONTROL,
+                           "max-age=31536000");
+      }
+      HttpHeaders.setContentLength(response, length);
+      chan.write(response);
+    }
+    final DefaultFileRegion region = new DefaultFileRegion(file.getChannel(),
+                                                           0, length);
+    final ChannelFuture future = chan.write(region);
+    future.addListener(new ChannelFutureListener() {
+      public void operationComplete(final ChannelFuture future) {
+        region.releaseExternalResources();
+      }
+    });
+    if (!HttpHeaders.isKeepAlive(request)) {
+      future.addListener(ChannelFutureListener.CLOSE);
+    }
   }
 
   /**
@@ -316,6 +483,7 @@ final class HttpQuery {
       + "(start_time=" + start_time
       + ", request=" + request
       + ", chan=" + chan
+      + ", querystring=" + querystring
       + ')';
   }
 

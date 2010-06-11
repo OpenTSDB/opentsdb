@@ -21,6 +21,11 @@ final class BadRequestException extends RuntimeException {
     super(message);
   }
 
+  public static BadRequestException missingParameter(final String paramname) {
+    return new BadRequestException("Missing parameter <code>" + paramname
+                                   + "</code>");
+  }
+
   static final long serialVersionUID = 1276251669;
 
 }
