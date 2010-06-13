@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
@@ -34,12 +35,39 @@ final class TSDMain {
   /** Prints usage and exits with the given retval. */
   static void usage(final ArgP argp, final String errmsg, final int retval) {
     System.err.println(errmsg);
-    System.err.println("Usage: tsd --port=PORT\n"
+    System.err.println("Usage: tsd --port=PORT"
+      + " --staticroot=PATH\n"
       + "Starts the TSD, the Time Series Daemon");
     if (argp != null) {
       System.err.print(argp.usage());
     }
     System.exit(retval);
+  }
+
+  private static final boolean DONT_CREATE = false;
+  private static final boolean CREATE_IF_NEEDED = true;
+
+  /**
+   * Ensures the given directory path is usable and set it as a system prop.
+   * In case of problem, this function calls {@code System.exit}.
+   * @param prop The name of the system property to set.
+   * @param dir The path to the directory that needs to be checked.
+   * @param create If {@code true}, the directory {@code dir} will be created
+   * if it doesn't exist.
+   */
+  private static void setDirectoryInSystemProps(final String prop,
+                                                final String dir,
+                                                final boolean create) {
+    final File f = new File(dir);
+    final String path = f.getPath();
+    if (!f.exists() && !(create && f.mkdirs())) {
+      usage(null, "No such directory: " + path, 3);
+    } else if (!f.isDirectory()) {
+      usage(null, "Not a directory: " + path, 3);
+    } else if (!f.canWrite()) {
+      usage(null, "Cannot write to directory: " + path, 3);
+    }
+    System.setProperty(prop, path + '/');
   }
 
   public static void main(String[] args) throws IOException {
@@ -56,13 +84,19 @@ final class TSDMain {
     final ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     argp.addOption("--port", "NUM", "TCP port to listen on.");
+    argp.addOption("--staticroot", "PATH",
+                   "Web root from which to serve static files (/s URLs).");
     args = CliOptions.parse(argp, args);
-    if (args == null || !argp.has("--port")) {
+    if (args == null || !argp.has("--port")
+        || !argp.has("--staticroot")) {
       usage(argp, "Invalid usage.", 1);
     } else if (args.length != 0) {
       usage(argp, "Too many arguments.", 2);
     }
     args = null;  // free().
+
+    setDirectoryInSystemProps("tsd.http.staticroot", argp.get("--staticroot"),
+                              DONT_CREATE);
 
     final NioServerSocketChannelFactory factory =
         new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),

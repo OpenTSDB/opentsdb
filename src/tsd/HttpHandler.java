@@ -54,8 +54,11 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
   public HttpHandler(final TSDB tsdb) {
     this.tsdb = tsdb;
 
+    final StaticFile staticfile = new StaticFile();
     commands = new HashMap<String, Command>(10);
     commands.put("diediedie", new DieDieDie());
+    commands.put("favicon.ico", staticfile);
+    commands.put("s", staticfile);
     commands.put("stats", new Stats());
     commands.put("version", new Version());
   }
@@ -174,6 +177,64 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
         }
       }
       new ShutdownNetty().start();
+    }
+  }
+
+  /**
+   * Returns the directory path stored in the given system property.
+   * @param prop The name of the system property.
+   * @return The directory path.
+   * @throws IllegalStateException if the system property is not set
+   * or has an invalid value.
+   */
+  static String getDirectoryFromSystemProp(final String prop) {
+    final String dir = System.getProperty(prop);
+    String err = null;
+    if (dir == null) {
+      err = "' is not set.";
+    } else if (dir.isEmpty()) {
+      err = "' is empty.";
+    } else if (dir.charAt(dir.length() - 1) != '/') {  // Screw Windows.
+      err = "' is not terminated with `/'.";
+    }
+    if (err != null) {
+      throw new IllegalStateException("System property `" + prop + err);
+    }
+    return dir;
+  }
+
+  /** The "/s" endpoint. */
+  private final class StaticFile implements Command {
+    /**
+     * The path to the directory where to find static files
+     * (for the {@code /s} URLs).
+     */
+    private final String staticroot;
+
+    /**
+     * Constructor.
+     */
+    public StaticFile() {
+      staticroot = getDirectoryFromSystemProp("tsd.http.staticroot");
+    }
+
+    public void process(final HttpQuery query) throws IOException {
+      final String uri = query.request().getUri();
+      if ("/favicon.ico".equals(uri)) {
+        query.sendFile(staticroot + "/favicon.ico");
+        return;
+      }
+      if (uri.length() < 3) {  // Must be at least 3 because of the "/s/".
+        throw new BadRequestException("URI too short <code>" + uri + "</code>");
+      }
+      // Cheap security check to avoid directory traversal attacks.
+      // TODO(tsuna): This is certainly not sufficient.
+      if (uri.indexOf("..", 3) > 0) {
+        throw new BadRequestException("Malformed URI <code>" + uri + "</code>");
+      }
+      final int questionmark = uri.indexOf('?', 3);
+      final int pathend = questionmark > 0 ? questionmark : uri.length();
+      query.sendFile(staticroot + uri.substring(3, pathend));
     }
   }
 
