@@ -21,8 +21,20 @@
   <property name="dist.dir" value="${build.dir}/${final.name}"/>
   <property name="build.dir" location="${basedir}/build"/>
   <property name="build.classes" location="${build.dir}/classes"/>
+  <property name="build.dir.gwt" location="${build.dir}/gwt"/>
   <property name="build.test.classes" location="${build.dir}/test/classes"/>
   <property name="build.docs" value="${build.dir}/docs"/>
+
+  <property name="gwt.args" value="-ea"/>
+  <property name="gwt.dev.args" value=""/>
+  <property name="gwt.dev.tsd.port" value="4242"/>
+  <property name="gwt.dev.tsd.staticroot" value="${build.dir}/staticroot"/>
+  <property name="gwt.dev.tsd.cachedir" value="/tmp/tsd"/>
+  <property name="gwt.dev.tsd.args"
+    value="--tsdb=tsdb --uidtable=tsdb-uid --port=${gwt.dev.tsd.port}
+    --staticroot=${gwt.dev.tsd.staticroot} --cachedir=${gwt.dev.tsd.cachedir}"/>
+  <property name="gwt.dev.url" value="http://127.0.0.1:${gwt.dev.tsd.port}/"/>
+  <property name="gwt.sdk" location="${root.dir}/third_party/gwt"/>
 
   <property name="javac.debug" value="on"/>
   <property name="ant.build.javac.source" value="6"/>
@@ -37,6 +49,12 @@
     <fileset dir="${slf4j.dir}" includes="**/*.jar"/>
     <fileset dir="${logback.dir}" includes="**/*.jar"/>
     <fileset dir="${netty.dir}" includes="**/*.jar"/>
+  </path>
+
+  <path id="classpath.gwt">
+    <path refid="classpath"/>
+    <pathelement location="."/>
+    <fileset dir="${gwt.sdk}" includes="**/*.jar"/>
   </path>
 
   <path id="classpath.test">
@@ -71,11 +89,53 @@
   <target name="compile" depends="init" description="Compile the code"
           unless="build.uptodate.javac">
     <javac srcdir="${src.dir}" destdir="${build.classes}"
-           excludes="**/Test*.java"
+           excludes="**/Test*.java,tsd/client/*"
            debug="${javac.debug}" deprecation="on">
       <classpath refid="classpath"/>
       <compilerarg value="-Xlint"/>
     </javac>
+    <touch file="${build.dir}/.javac"/>
+  </target>
+
+  <!-- The GWT compiler isn't very Googley and easily takes over 36s to do
+       anything on my MacBook Pro.  It's unbelievable but true.  -->
+  <uptodate property="build.uptodate.gwtc" targetfile="${build.dir}/.gwtc">
+    <!-- TODO(tsuna): Find how to depend on the gwt .jar's and *.gwt.xml -->
+    <srcfiles dir="tsd/client"/>
+  </uptodate>
+  <target name="gwtc" description="GWT compile to JavaScript"
+          unless="build.uptodate.gwtc">
+    <java failonerror="true" fork="true" classname="com.google.gwt.dev.Compiler">
+      <classpath refid="classpath.gwt"/>
+      <!-- add jvmarg -Xss16M or similar if you see a StackOverflowError -->
+      <!-- <jvmarg value="-Xmx256M"/> -->
+      <!-- Additional arguments like -style PRETTY or -logLevel DEBUG -->
+      <arg line="${gwt.args}"/>
+      <arg value="-war"/><arg value="${build.dir.gwt}"/>
+      <arg value="tsd.QueryUi"/>
+    </java>
+    <touch file="${build.dir}/.gwtc"/>
+  </target>
+
+  <target name="gwtdev" description="GWT in dev mode">
+    <java failonerror="true" fork="true" classname="com.google.gwt.dev.DevMode">
+      <classpath refid="classpath.gwt"/>
+      <!-- <jvmarg value="-Xmx256M"/> -->
+      <arg value="-startupUrl"/>
+      <arg value="${gwt.dev.url}"/>
+      <!-- Additional arguments like -style PRETTY or -logLevel DEBUG -->
+      <arg value="-noserver"/>
+      <arg line="${gwt.dev.args}"/>
+      <arg value="-war"/><arg value="${build.dir.gwt}"/>
+      <arg value="tsd.QueryUi"/>
+    </java>
+  </target>
+
+  <target name="gwttsd" depends="jar" description="TSD for GWT in dev mode">
+    <exec dir="${src.dir}" executable="${src.dir}/tsdb" failonerror="true">
+      <arg value="tsd"/>
+      <arg line="${gwt.dev.tsd.args}"/>
+    </exec>
   </target>
 
   <target name="jar" depends="compile" description="Build jar">
@@ -87,6 +147,10 @@
         <attribute name="Main-Class" value="${main-class}"/>
       </manifest>
     </jar>
+    <copy todir="${gwt.dev.tsd.staticroot}">
+      <fileset dir="tsd/static"/>
+      <fileset dir="${build.dir.gwt}/queryui"/>
+    </copy>
   </target>
 
   <target name="compile-test" depends="compile" description="Compile the tests">
@@ -129,6 +193,7 @@
       <fileset dir="${src.dir}">
         <include name="**/*.java"/>
         <exclude name="**/Test*"/>
+        <exclude name="tsd/client/**"/>
       </fileset>
       <link href="http://java.sun.com/javase/6/docs/api/"/>
       <!-- Well, actually we don't depent on the "current" version of HBase

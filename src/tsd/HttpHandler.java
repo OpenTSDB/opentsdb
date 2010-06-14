@@ -25,6 +25,7 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 import net.opentsdb.BuildData;
+import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 
@@ -56,8 +57,11 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
 
     final StaticFile staticfile = new StaticFile();
     commands = new HashMap<String, Command>(10);
+    commands.put("", new HomePage());
+    commands.put("aggregators", new ListAggregators());
     commands.put("diediedie", new DieDieDie());
     commands.put("favicon.ico", staticfile);
+    commands.put("q", new GraphHandler(tsdb));
     commands.put("s", staticfile);
     commands.put("stats", new Stats());
     commands.put("version", new Version());
@@ -235,6 +239,29 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
       final int questionmark = uri.indexOf('?', 3);
       final int pathend = questionmark > 0 ? questionmark : uri.length();
       query.sendFile(staticroot + uri.substring(3, pathend));
+    }
+  }
+
+  /** The home page ("GET /"). */
+  private final class HomePage implements Command {
+    public void process(final HttpQuery query) {
+      final StringBuilder buf = new StringBuilder(2048);
+      buf.append("<div id=queryuimain></div>"
+                 + "<noscript>You must have JavaScript enabled.</noscript>"
+                 + "<iframe src=javascript:'' id=__gwt_historyFrame tabIndex=-1"
+                 + " style=position:absolute;width:0;height:0;border:0>"
+                 + "</iframe>");
+      query.sendReply(query.makePage(
+        "<script type=text/javascript language=javascript"
+        + " src=/s/queryui.nocache.js></script>",
+        "TSD", "Time Series DataBase", buf.toString()));
+    }
+  }
+
+  /** The "/aggregators" endpoint. */
+  private final class ListAggregators implements Command {
+    public void process(final HttpQuery query) {
+      query.sendJsonArray(Aggregators.set());
     }
   }
 

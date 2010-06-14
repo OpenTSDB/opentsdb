@@ -36,7 +36,7 @@ final class TSDMain {
   static void usage(final ArgP argp, final String errmsg, final int retval) {
     System.err.println(errmsg);
     System.err.println("Usage: tsd --port=PORT"
-      + " --staticroot=PATH\n"
+      + " --staticroot=PATH --cachedir=PATH\n"
       + "Starts the TSD, the Time Series Daemon");
     if (argp != null) {
       System.err.print(argp.usage());
@@ -86,9 +86,11 @@ final class TSDMain {
     argp.addOption("--port", "NUM", "TCP port to listen on.");
     argp.addOption("--staticroot", "PATH",
                    "Web root from which to serve static files (/s URLs).");
+    argp.addOption("--cachedir", "PATH",
+                   "Directory under which to cache result of requests.");
     args = CliOptions.parse(argp, args);
     if (args == null || !argp.has("--port")
-        || !argp.has("--staticroot")) {
+        || !argp.has("--staticroot") || !argp.has("--cachedir")) {
       usage(argp, "Invalid usage.", 1);
     } else if (args.length != 0) {
       usage(argp, "Too many arguments.", 2);
@@ -97,6 +99,8 @@ final class TSDMain {
 
     setDirectoryInSystemProps("tsd.http.staticroot", argp.get("--staticroot"),
                               DONT_CREATE);
+    setDirectoryInSystemProps("tsd.http.cachedir", argp.get("--cachedir"),
+                              CREATE_IF_NEEDED);
 
     final NioServerSocketChannelFactory factory =
         new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
