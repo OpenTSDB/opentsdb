@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,8 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.graph.Plot;
+import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 /**
@@ -43,6 +46,21 @@ final class GraphHandler implements HttpHandler.Command {
 
   private static final Logger LOG =
     LoggerFactory.getLogger(GraphHandler.class);
+
+  /** Number of times we had to do all the work up to running Gnuplot. */
+  private static final AtomicInteger graphs_generated
+    = new AtomicInteger();
+  /** Number of times a graph request was served from disk, no work needed. */
+  private static final AtomicInteger graphs_diskcache_hit
+    = new AtomicInteger();
+
+  /** Keep track of the latency of graphing requests. */
+  private static final Histogram graphlatency =
+    new Histogram(16000, (short) 2, 100);
+
+  /** Keep track of the latency (in ms) introduced by running Gnuplot. */
+  private static final Histogram gnuplotlatency =
+    new Histogram(16000, (short) 2, 100);
 
   /** The TSDB to use. */
   private final TSDB tsdb;
@@ -164,7 +182,20 @@ final class GraphHandler implements HttpHandler.Command {
       }
 
       // TODO(tsuna): Expire old files from the on-disk cache.
+      graphlatency.add(query.processingTimeMillis());
+      graphs_generated.incrementAndGet();
     }
+  }
+
+  /**
+   * Collects the stats and metrics tracked by this instance.
+   * @param collector The collector to use.
+   */
+  public static void collectStats(final StatsCollector collector) {
+    collector.record("http.latency", graphlatency, "type=graph");
+    collector.record("http.latency", gnuplotlatency, "type=gnuplot");
+    collector.record("http.graph.requests", graphs_diskcache_hit, "cache=disk");
+    collector.record("http.graph.requests", graphs_generated, "cache=miss");
   }
 
   /** Returns the base path to use for the Gnuplot files. */
@@ -223,6 +254,7 @@ final class GraphHandler implements HttpHandler.Command {
             "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
             + "<small>(served from disk cache)</small>"));
       }
+      graphs_diskcache_hit.incrementAndGet();
       return true;
     }
     // We didn't find an image.  Do a negative cache check.  If we've seen
@@ -245,6 +277,7 @@ final class GraphHandler implements HttpHandler.Command {
             "Sorry, your query didn't return anything.<br/>"
             + "<small>(served from disk cache)</small>"));
     }
+    graphs_diskcache_hit.incrementAndGet();
     return true;
   }
 
@@ -428,6 +461,7 @@ final class GraphHandler implements HttpHandler.Command {
   private static int runGnuplot(final String basepath,
                                 final Plot plot) throws IOException {
     final int nplotted = plot.dumpToFiles(basepath);
+    final long start_time = System.nanoTime();
     final Process gnuplot = new ProcessBuilder(
         // XXX Java Kludge XXX
         "./graph/mygnuplot.sh", basepath + ".out", basepath + ".err",
@@ -440,6 +474,7 @@ final class GraphHandler implements HttpHandler.Command {
       Thread.currentThread().interrupt();  // Restore the interrupted status.
       throw new IOException("interrupted", e);  // I hate checked exceptions.
     }
+    gnuplotlatency.add((int) ((System.nanoTime() - start_time) / 1000000));
     if (rv != 0) {
       throw new RuntimeException("Gnuplot returned " + rv);
     }

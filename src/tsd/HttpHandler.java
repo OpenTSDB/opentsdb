@@ -27,6 +27,7 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
 /**
@@ -41,6 +42,12 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
     = new AtomicInteger();
   private static final AtomicInteger exceptions_caught
     = new AtomicInteger();
+
+  /**
+   * Keep track of the latency of HTTP requests.
+   */
+  private static final Histogram httplatency =
+    new Histogram(16000, (short) 2, 100);
 
   /** The TSDB to use. */
   private final TSDB tsdb;
@@ -81,8 +88,10 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
       final Command cmd = commands.get(getEndPoint(query));
       if (cmd != null) {
         cmd.process(query);
+        final int processing_time = query.processingTimeMillis();
+        httplatency.add(processing_time);
         logInfo(query, "HTTP " + query.request().getUri() + " done in "
-                + query.processingTimeMillis() + "ms");
+                + processing_time + "ms");
       } else {
         query.notFound();
       }
@@ -102,6 +111,8 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
   public static void collectStats(final StatsCollector collector) {
     collector.record("http.queries", queries_received);
     collector.record("http.exceptions", exceptions_caught);
+    collector.record("http.latency", httplatency, "type=all");
+    GraphHandler.collectStats(collector);
   }
 
   /**

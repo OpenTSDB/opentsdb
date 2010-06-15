@@ -143,11 +143,23 @@ public final class TSDB implements TSDBInterface {
     } finally {
       collector.clearExtraTag("class");
     }
+
+    collector.addExtraTag("class", "TsdbQuery");
+    try {
+      collector.record("hbase.latency", TsdbQuery.scanlatency, "method=scan");
+    } finally {
+      collector.clearExtraTag("class");
+    }
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
   public Histogram getPutLatencyHistogram() {
     return IncomingDataPoints.putlatency;
+  }
+
+  /** Returns a latency histogram for Scan RPCs used to fetch data points.  */
+  public Histogram getScanLatencyHistogram() {
+    return TsdbQuery.scanlatency;
   }
 
   /**

@@ -33,6 +33,7 @@ import org.apache.hadoop.hbase.filter.RowFilter;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import net.opentsdb.HBaseException;
+import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 
@@ -45,6 +46,13 @@ final class TsdbQuery implements Query {
 
   /** Used whenever there are no results. */
   private static final DataPoints[] NO_RESULT = new DataPoints[0];
+
+  /**
+   * Keep track of the latency we perceive when doing Scans on HBase.
+   * We want buckets up to 16s, with 2 ms interval between each bucket up to
+   * 100 ms after we which we switch to exponential buckets.
+   */
+  static final Histogram scanlatency = new Histogram(16000, (short) 2, 100);
 
   /**
    * Charset to use with our {@link RegexStringComparator}.
@@ -232,10 +240,13 @@ final class TsdbQuery implements Query {
     final TreeMap<byte[], Span> spans =  // The key is a row key from HBase.
       new TreeMap<byte[], Span>(new SpanCmp(metric_width));
     int nrows = 0;
+    int hbase_time = 0;  // milliseconds.
+    long starttime = System.nanoTime();
     final ResultScanner scanner = getScanner();
     try {
       Result result;
       while ((result = scanner.next()) != null) {
+        hbase_time += (System.nanoTime() - starttime) / 1000000;
         final byte[] row = result.getRow();
         if (Bytes.compareTo(metric, 0, metric_width,
                             row, 0, metric_width) != 0) {
@@ -251,12 +262,15 @@ final class TsdbQuery implements Query {
         }
         datapoints.addRow(result);
         nrows++;
+        starttime = System.nanoTime();
       }
     } catch (IOException e) {
       throw new HBaseException("Error while scanning HBase, scanner="
                                + scanner, e);
     } finally {
       scanner.close();
+      hbase_time += (System.nanoTime() - starttime) / 1000000;
+      scanlatency.add(hbase_time);
     }
     LOG.info(this + " matched " + nrows + " rows in " + spans.size() + " spans");
     if (nrows == 0) {
