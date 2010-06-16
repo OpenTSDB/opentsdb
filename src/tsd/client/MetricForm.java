@@ -25,7 +25,7 @@ import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.ListBox;
-import com.google.gwt.user.client.ui.TextBox;
+import com.google.gwt.user.client.ui.SuggestBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 
@@ -74,7 +74,10 @@ final class MetricForm extends HorizontalPanel {
       final InlineLabel l = new InlineLabel();
       l.setText("Metric:");
       hbox.add(l);
-      hbox.add(metric);
+      final SuggestBox suggest = RemoteOracle.newSuggestBox("metrics",
+                                                            metric);
+      suggest.setLimit(40);
+      hbox.add(suggest);
       hbox.setWidth("100%");
       metric.setWidth("100%");
 
@@ -147,26 +150,28 @@ final class MetricForm extends HorizontalPanel {
   }
 
   private String getTagName(final int i) {
-    return ((TextBox) tagtable.getWidget(i + 1, 1)).getValue();
+    return ((SuggestBox) tagtable.getWidget(i + 1, 1)).getValue();
   }
 
   private String getTagValue(final int i) {
-    return ((TextBox) tagtable.getWidget(i + 1, 2)).getValue();
+    return ((SuggestBox) tagtable.getWidget(i + 1, 2)).getValue();
   }
 
   private void setTagName(final int i, final String value) {
-    ((TextBox) tagtable.getWidget(i + 1, 1)).setValue(value);
+    ((SuggestBox) tagtable.getWidget(i + 1, 1)).setValue(value);
   }
 
   private void setTagValue(final int i, final String value) {
-    ((TextBox) tagtable.getWidget(i + 1, 2)).setValue(value);
+    ((SuggestBox) tagtable.getWidget(i + 1, 2)).setValue(value);
   }
 
   private void addTag(final String default_tagname) {
     final int row = tagtable.getRowCount();
 
     final ValidatedTextBox tagname = new ValidatedTextBox();
+    final SuggestBox suggesttagk = RemoteOracle.newSuggestBox("tagk", tagname);
     final ValidatedTextBox tagvalue = new ValidatedTextBox();
+    final SuggestBox suggesttagv = RemoteOracle.newSuggestBox("tagv", tagvalue);
     tagname.setValidationRegexp(TSDB_ID_RE);
     tagvalue.setValidationRegexp(TSDB_TAGVALUE_RE);
     tagname.setWidth("100%");
@@ -178,8 +183,8 @@ final class MetricForm extends HorizontalPanel {
     tagvalue.addBlurHandler(events_handler);
     tagvalue.addKeyPressHandler(events_handler);
 
-    tagtable.setWidget(row, 1, tagname);
-    tagtable.setWidget(row, 2, tagvalue);
+    tagtable.setWidget(row, 1, suggesttagk);
+    tagtable.setWidget(row, 2, suggesttagv);
     if (row > 2) {
       final Button remove = new Button("x");
       remove.addClickHandler(removetag);
@@ -196,8 +201,8 @@ final class MetricForm extends HorizontalPanel {
     final int nrows = tagtable.getRowCount();
     int unused_row = -1;
     for (int row = 1; row < nrows; row++) {
-      final TextBox tagname = ((TextBox) tagtable.getWidget(row, 1));
-      final TextBox tagvalue = ((TextBox) tagtable.getWidget(row, 2));
+      final SuggestBox tagname = ((SuggestBox) tagtable.getWidget(row, 1));
+      final SuggestBox tagvalue = ((SuggestBox) tagtable.getWidget(row, 2));
       final String thistag = tagname.getValue();
       if (thistag.equals(tag)) {
         return;  // This tag is already in the table.
@@ -206,7 +211,7 @@ final class MetricForm extends HorizontalPanel {
       }
     }
     if (unused_row >= 0) {
-      ((TextBox) tagtable.getWidget(unused_row, 1)).setValue(tag);
+      ((SuggestBox) tagtable.getWidget(unused_row, 1)).setValue(tag);
     } else {
       addTag(tag);
     }

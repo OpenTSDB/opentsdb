@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -71,6 +72,7 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
     commands.put("q", new GraphHandler(tsdb));
     commands.put("s", staticfile);
     commands.put("stats", new Stats());
+    commands.put("suggest", new Suggest());
     commands.put("version", new Version());
   }
 
@@ -294,6 +296,28 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
       HttpHandler.collectStats(collector);
       tsdb.collectStats(collector);
       query.sendReply(buf);
+    }
+  }
+
+  /** The "/suggest" endpoint. */
+  private final class Suggest implements Command {
+    public void process(final HttpQuery query) {
+      final String type = query.getRequiredQueryStringParam("type");
+      final String q = query.getQueryStringParam("q");
+      if (q == null) {
+        throw BadRequestException.missingParameter("q");
+      }
+      List<String> suggestions;
+      if ("metrics".equals(type)) {
+        suggestions = tsdb.suggestMetrics(q);
+      } else if ("tagk".equals(type)) {
+        suggestions = tsdb.suggestTagNames(q);
+      } else if ("tagv".equals(type)) {
+        suggestions = tsdb.suggestTagValues(q);
+      } else {
+        throw new BadRequestException("Invalid 'type' parameter:" + type);
+      }
+      query.sendJsonArray(suggestions);
     }
   }
 

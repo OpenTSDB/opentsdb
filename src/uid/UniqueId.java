@@ -15,6 +15,8 @@ package net.opentsdb.uid;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -23,7 +25,10 @@ import org.slf4j.LoggerFactory;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.RowLock;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import net.opentsdb.HBaseException;
@@ -53,6 +58,8 @@ public final class UniqueId implements UniqueIdInterface {
   private static final short MAX_ATTEMPTS_PUT = 6;
   /** Initial delay in ms for exponential backoff to retry failed RPCs. */
   private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
+  /** Maximum number of results to return in suggest(). */
+  private static final short MAX_SUGGESTIONS = 25;
 
   /** HTable to use. */
   private final HTableInterface table;
@@ -359,6 +366,74 @@ public final class UniqueId implements UniqueIdInterface {
     }
     throw new HBaseException("Failed to assign an ID for kind='"
                              + kind() + "' name='" + name + "'", ioe);
+  }
+
+  /**
+   * Attempts to find suggestions of names given a search term.
+   * @param search The search term (possibly empty).
+   * @return A list of known valid names that have UIDs that sort of match
+   * the search term.  If the search term is empty, returns the first few
+   * terms.
+   * @throws HBaseException if there was a problem getting suggestions from
+   * HBase.
+   */
+  public List<String> suggest(final String search) throws HBaseException {
+    // TODO(tsuna): Add caching to try to avoid re-scanning the same thing.
+    final ResultScanner scanner = getSuggestScanner(search);
+    final LinkedList<String> suggestions = new LinkedList<String>();
+    try {
+      Result result;
+      while ((result = scanner.next()) != null) {
+        final byte[] row = result.getRow();
+        final String name = fromBytes(row);
+        final byte[] id = result.getValue(ID_FAMILY, kind);
+        final String cached_name = idCache.get(id);
+        if (cached_name == null) {
+          addIdToCache(name, id);
+          addNameToCache(id, name);
+        } else if (!cached_name.equals(name)) {
+          throw new IllegalStateException("WTF?  For kind=" + kind()
+            + " id=" + Arrays.toString(id) + " I already have name="
+            + cached_name + " in cache, but I just scanned name=" + name);
+        }
+        suggestions.add(name);
+        if ((short) suggestions.size() > MAX_SUGGESTIONS) {
+          break;
+        }
+      }
+    } catch (IOException e) {
+      throw new HBaseException("Error while scanning HBase, scanner="
+                               + scanner, e);
+    } finally {
+      scanner.close();
+    }
+    return suggestions;
+  }
+
+  /** The start row to scan on empty search strings.  `!' = first ASCII char. */
+  private static final byte[] START_ROW = new byte[] { '!' };
+
+  /** The end row to scan on empty search strings.  `~' = last ASCII char. */
+  private static final byte[] END_ROW = new byte[] { '~' };
+
+  /**
+   * Creates a scanner that scans the right range of rows for suggestions.
+   * @throws HBaseException if there was a problem when creating the scanner.
+   */
+  private ResultScanner getSuggestScanner(final String search) {
+    final byte[] start_row = search.isEmpty() ? START_ROW : toBytes(search);
+    final byte[] end_row = (search.isEmpty() ? END_ROW
+                            : Arrays.copyOf(start_row, start_row.length));
+    end_row[start_row.length - 1]++;
+    final Scan scan = new Scan(start_row, end_row);
+    scan.addColumn(ID_FAMILY, kind);
+    scan.setCaching(MAX_SUGGESTIONS);
+    try {
+      return table.getScanner(scan);
+    } catch (IOException e) {
+      throw new HBaseException("Failed to obtain a scanner from "
+          + Arrays.toString(start_row) + " to " + Arrays.toString(end_row), e);
+    }
   }
 
   /** Gets an exclusive lock for on the table using the MAXID_ROW.

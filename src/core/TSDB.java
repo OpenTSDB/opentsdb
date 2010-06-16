@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -195,6 +196,30 @@ public final class TSDB implements TSDBInterface {
       LOG.error(errmsg, e);
       throw new HBaseException(errmsg, e);
     }
+  }
+
+  /**
+   * Given a prefix search, returns a few matching metric names.
+   * @param search A prefix to search.
+   */
+  public List<String> suggestMetrics(final String search) {
+    return metrics.suggest(search);
+  }
+
+  /**
+   * Given a prefix search, returns a few matching tag names.
+   * @param search A prefix to search.
+   */
+  public List<String> suggestTagNames(final String search) {
+    return tag_names.suggest(search);
+  }
+
+  /**
+   * Given a prefix search, returns a few matching tag values.
+   * @param search A prefix to search.
+   */
+  public List<String> suggestTagValues(final String search) {
+    return tag_values.suggest(search);
   }
 
 }
