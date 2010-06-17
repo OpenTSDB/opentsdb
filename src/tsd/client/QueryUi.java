@@ -66,6 +66,7 @@ import com.google.gwt.user.datepicker.client.DateBox;
 public class QueryUi implements EntryPoint {
   // Some URLs we use to fetch data from the TSD.
   private static final String AGGREGATORS_URL = "/aggregators";
+  private static final String LOGS_URL = "/logs?json";
   private static final String VERSION_URL = "/version?json";
 
   private static final String HHMMSS_RE =  // Empty string or valid time.
@@ -286,7 +287,45 @@ public class QueryUi implements EntryPoint {
   }
 
   private void refreshLogs() {
-    // TODO(tsuna): Implement.
+    asyncGetJson(LOGS_URL, new GotJsonCallback() {
+      public void got(final JSONValue json) {
+        final JSONArray logmsgs = json.isArray();
+        final int nmsgs = logmsgs.size();
+        final FlexTable.FlexCellFormatter fcf = logs.getFlexCellFormatter();
+        final FlexTable.RowFormatter rf = logs.getRowFormatter();
+        for (int i = 0; i < nmsgs; i++) {
+          final String msg = logmsgs.get(i).isString().stringValue();
+          String part = msg.substring(0, msg.indexOf('\t'));
+          logs.setText(i * 2, 0,
+                       new Date(Integer.valueOf(part) * 1000L).toString());
+          int pos = part.length() + 1;
+          part = msg.substring(pos, msg.indexOf('\t', pos));
+          pos += part.length() + 1;
+          logs.setText(i * 2, 1, part); // level
+          part = msg.substring(pos, msg.indexOf('\t', pos));
+          pos += part.length() + 1;
+          logs.setText(i * 2, 2, part); // thread
+          part = msg.substring(pos, msg.indexOf('\t', pos));
+          pos += part.length() + 1;
+          if (part.startsWith("net.opentsdb.")) {
+            part = part.substring(13);
+          } else if (part.startsWith("org.apache.")) {
+            if (part.startsWith("org.apache.hadoop.")) {
+              part = part.substring(18);
+            } else {
+              part = part.substring(11);
+            }
+          }
+          logs.setText(i * 2, 3, part); // logger
+          logs.setText(i * 2 + 1, 0, msg.substring(pos)); // message
+          fcf.setColSpan(i * 2 + 1, 0, 4);
+          if ((i % 2) == 0) {
+            rf.addStyleName(i * 2, "subg");
+            rf.addStyleName(i * 2 + 1, "subg");
+          }
+        }
+      }
+    });
   }
 
   private void refreshGraph() {

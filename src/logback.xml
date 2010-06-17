@@ -8,10 +8,14 @@
       </pattern>
     </encoder>
   </appender>
+  <appender name="CYCLIC" class="ch.qos.logback.core.read.CyclicBufferAppender">
+    <MaxSize>1024</MaxSize>
+  </appender>
 
   <logger name="org.apache.zookeeper" level="info"/>
   <logger name="org.apache.hadoop.hbase" level="debug"/>
   <root level="info">
     <appender-ref ref="STDOUT"/>
+    <appender-ref ref="CYCLIC"/>
   </root>
 </configuration>

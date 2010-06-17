@@ -14,8 +14,13 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.CyclicBufferAppender;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +74,7 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
     commands.put("aggregators", new ListAggregators());
     commands.put("diediedie", new DieDieDie());
     commands.put("favicon.ico", staticfile);
+    commands.put("logs", new Logs());
     commands.put("q", new GraphHandler(tsdb));
     commands.put("s", staticfile);
     commands.put("stats", new Stats());
@@ -197,6 +203,92 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
     }
   }
 
+  /** The "/logs" endpoint. */
+  private final class Logs implements Command {
+    public void process(final HttpQuery query) {
+      LogIterator logmsgs = new LogIterator();
+      if (query.hasQueryStringParam("json")) {
+        query.sendJsonArray(logmsgs);
+      } else {
+        final StringBuilder buf = new StringBuilder(512);
+        for (final String logmsg : logmsgs) {
+          buf.append(logmsg).append('\n');
+        }
+        logmsgs = null;
+        query.sendReply(buf);
+      }
+    }
+  }
+
+  /** Helper class to iterate over logback's recent log messages. */
+  private static final class LogIterator implements Iterator<String>,
+                                                    Iterable<String> {
+
+    private final CyclicBufferAppender<ILoggingEvent> logbuf;
+    private final StringBuilder buf = new StringBuilder(64);
+    private int nevents;
+
+    public LogIterator() {
+      // Must use the FQN due to name clash with org.slf4j.Logger
+      final ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)
+        LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+      logbuf = (CyclicBufferAppender<ILoggingEvent>) root.getAppender("CYCLIC");
+    }
+
+    public Iterator<String> iterator() {
+      nevents = logbuf.getLength();
+      return this;
+    }
+
+    public boolean hasNext() {
+      return nevents > 0;
+    }
+
+    public String next() {
+      if (hasNext()) {
+        nevents--;
+        final ILoggingEvent event = (ILoggingEvent) logbuf.get(nevents);
+        final String msg = event.getFormattedMessage();
+        buf.setLength(0);
+        buf.append(event.getTimeStamp() / 1000)
+          .append('\t').append(event.getLevel().toString())
+          .append('\t').append(event.getThreadName())
+          .append('\t').append(event.getLoggerName())
+          .append('\t').append(msg.replace("\"", "\\\""));
+        return buf.toString();
+      }
+      throw new NoSuchElementException("no more elements");
+    }
+
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
+
+  }
+
+  /** The home page ("GET /"). */
+  private final class HomePage implements Command {
+    public void process(final HttpQuery query) {
+      final StringBuilder buf = new StringBuilder(2048);
+      buf.append("<div id=queryuimain></div>"
+                 + "<noscript>You must have JavaScript enabled.</noscript>"
+                 + "<iframe src=javascript:'' id=__gwt_historyFrame tabIndex=-1"
+                 + " style=position:absolute;width:0;height:0;border:0>"
+                 + "</iframe>");
+      query.sendReply(query.makePage(
+        "<script type=text/javascript language=javascript"
+        + " src=/s/queryui.nocache.js></script>",
+        "TSD", "Time Series DataBase", buf.toString()));
+    }
+  }
+
+  /** The "/aggregators" endpoint. */
+  private final class ListAggregators implements Command {
+    public void process(final HttpQuery query) {
+      query.sendJsonArray(Aggregators.set());
+    }
+  }
+
   /**
    * Returns the directory path stored in the given system property.
    * @param prop The name of the system property.
@@ -252,29 +344,6 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
       final int questionmark = uri.indexOf('?', 3);
       final int pathend = questionmark > 0 ? questionmark : uri.length();
       query.sendFile(staticroot + uri.substring(3, pathend));
-    }
-  }
-
-  /** The home page ("GET /"). */
-  private final class HomePage implements Command {
-    public void process(final HttpQuery query) {
-      final StringBuilder buf = new StringBuilder(2048);
-      buf.append("<div id=queryuimain></div>"
-                 + "<noscript>You must have JavaScript enabled.</noscript>"
-                 + "<iframe src=javascript:'' id=__gwt_historyFrame tabIndex=-1"
-                 + " style=position:absolute;width:0;height:0;border:0>"
-                 + "</iframe>");
-      query.sendReply(query.makePage(
-        "<script type=text/javascript language=javascript"
-        + " src=/s/queryui.nocache.js></script>",
-        "TSD", "Time Series DataBase", buf.toString()));
-    }
-  }
-
-  /** The "/aggregators" endpoint. */
-  private final class ListAggregators implements Command {
-    public void process(final HttpQuery query) {
-      query.sendJsonArray(Aggregators.set());
     }
   }
 
