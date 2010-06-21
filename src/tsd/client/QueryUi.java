@@ -67,6 +67,7 @@ public class QueryUi implements EntryPoint {
   // Some URLs we use to fetch data from the TSD.
   private static final String AGGREGATORS_URL = "/aggregators";
   private static final String LOGS_URL = "/logs?json";
+  private static final String STATS_URL = "/stats?json";
   private static final String VERSION_URL = "/version?json";
 
   private static final String HHMMSS_RE =  // Empty string or valid time.
@@ -111,6 +112,7 @@ public class QueryUi implements EntryPoint {
 
   // Other misc panels.
   private final FlexTable logs = new FlexTable();
+  private final FlexTable stats_table = new FlexTable();
   private final HTML build_data = new HTML("Loading...");
 
   /**
@@ -238,7 +240,7 @@ public class QueryUi implements EntryPoint {
     final DecoratedTabPanel mainpanel = new DecoratedTabPanel();
     mainpanel.setWidth("100%");
     mainpanel.add(graphpanel, "Graph");
-    mainpanel.add(new Label("TBD..."), "Stats");
+    mainpanel.add(stats_table, "Stats");
     mainpanel.add(logs, "Logs");
     mainpanel.add(build_data, "Version");
     mainpanel.selectTab(0);
@@ -263,7 +265,25 @@ public class QueryUi implements EntryPoint {
   }
 
   private void refreshStats() {
-    // TODO(tsuna): Implement.
+    asyncGetJson(STATS_URL, new GotJsonCallback() {
+      public void got(final JSONValue json) {
+        final JSONArray stats = json.isArray();
+        final int nstats = stats.size();
+        for (int i = 0; i < nstats; i++) {
+          final String stat = stats.get(i).isString().stringValue();
+          String part = stat.substring(0, stat.indexOf(' '));
+          stats_table.setText(i, 0, part);  // metric
+          int pos = part.length() + 1;
+          part = stat.substring(pos, stat.indexOf(' ', pos));
+          stats_table.setText(i, 1, part);  // timestamp
+          pos += part.length() + 1;
+          part = stat.substring(pos, stat.indexOf(' ', pos));
+          stats_table.setText(i, 2, part);  // value
+          pos += part.length() + 1;
+          stats_table.setText(i, 3, stat.substring(pos));  // tags
+        }
+      }
+    });
   }
 
   private void refreshVersion() {

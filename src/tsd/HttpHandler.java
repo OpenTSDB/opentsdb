@@ -13,6 +13,7 @@
 package net.opentsdb.tsd;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -350,11 +351,17 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
   /** The "/stats" endpoint. */
   private final class Stats implements Command {
     public void process(final HttpQuery query) {
-      final StringBuilder buf = new StringBuilder(2048);
+      final boolean json = query.hasQueryStringParam("json");
+      final StringBuilder buf = json ? null : new StringBuilder(2048);
+      final ArrayList<String> stats = json ? new ArrayList<String>(64) : null;
       final StatsCollector collector = new StatsCollector("tsd") {
         @Override
         public final void emit(final String line) {
-          buf.append(line);
+          if (json) {
+            stats.add(line.substring(0, line.length() - 1));  // strip the '\n'
+          } else {
+            buf.append(line);
+          }
         }
       };
 
@@ -364,7 +371,11 @@ final class HttpHandler extends SimpleChannelUpstreamHandler {
       TextRpc.collectStats(collector);
       HttpHandler.collectStats(collector);
       tsdb.collectStats(collector);
-      query.sendReply(buf);
+      if (json) {
+        query.sendJsonArray(stats);
+      } else {
+        query.sendReply(buf);
+      }
     }
   }
 
