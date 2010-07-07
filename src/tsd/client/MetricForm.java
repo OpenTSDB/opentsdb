@@ -19,9 +19,12 @@ import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.BlurHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.event.dom.client.DomEvent;
+import com.google.gwt.event.shared.EventHandler;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.FlexTable;
+import com.google.gwt.user.client.ui.Focusable;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.ListBox;
@@ -29,7 +32,11 @@ import com.google.gwt.user.client.ui.SuggestBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 
-final class MetricForm extends HorizontalPanel {
+final class MetricForm extends HorizontalPanel implements Focusable {
+
+  public static interface MetricChangeHandler extends EventHandler {
+    void onMetricChange(MetricForm widget);
+  }
 
   private static final String TSDB_ID_CLASS = "[-_.a-zA-Z0-9]";
   private static final String TSDB_ID_RE = "^" + TSDB_ID_CLASS + "*$";
@@ -38,6 +45,7 @@ final class MetricForm extends HorizontalPanel {
     + "|" + TSDB_ID_CLASS + "+(\\|" + TSDB_ID_CLASS + "+)*)$"; // `foo|bar|...'
 
   private final EventsHandler events_handler;
+  private MetricChangeHandler metric_change_handler;
 
   private final CheckBox downsample = new CheckBox("Downsample");
   private final ListBox downsampler = new ListBox();
@@ -58,6 +66,17 @@ final class MetricForm extends HorizontalPanel {
     aggregators.addChangeHandler(handler);
     metric.addBlurHandler(handler);
     metric.addKeyPressHandler(handler);
+    {
+      final EventsHandler metric_handler = new EventsHandler() {
+        protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
+          if (metric_change_handler != null) {
+            metric_change_handler.onMetricChange(MetricForm.this);
+          }
+        }
+      };
+      metric.addBlurHandler(metric_handler);
+      metric.addKeyPressHandler(metric_handler);
+    }
 
     metric.setValidationRegexp(TSDB_ID_RE);
     assembleUi();
@@ -109,6 +128,10 @@ final class MetricForm extends HorizontalPanel {
     }
   }
 
+  public void setMetricChangeHandler(final MetricChangeHandler handler) {
+    metric_change_handler = handler;
+  }
+
   public void setAggregators(final ArrayList<String> aggs) {
     for (final String agg : aggs) {
       aggregators.addItem(agg);
@@ -123,24 +146,34 @@ final class MetricForm extends HorizontalPanel {
     if (metric.isEmpty()) {
       return false;
     }
-    url.append("&m=").append(metric);
+    url.append("&m=");
+    url.append(selectedValue(aggregators));
     if (downsample.getValue()) {
-      url.append("&df=").append(selectedValue(downsampler))
-        .append("&di=").append(interval.getValue());
+      url.append(':').append(interval.getValue())
+        .append('-').append(selectedValue(downsampler));
     }
     if (rate.getValue()) {
-      url.append("&rate");
+      url.append(":rate");
     }
-    url.append("&af=").append(selectedValue(aggregators));
-    final int ntags = getNumTags();
-    for (int tag = 0; tag < ntags; tag++) {
-      final String tagname = getTagName(tag);
-      final String tagvalue = getTagValue(tag);
-      if (tagname.isEmpty() || tagvalue.isEmpty()) {
-        continue;
+    url.append(':').append(metric);
+    {
+      final int ntags = getNumTags();
+      url.append('{');
+      for (int tag = 0; tag < ntags; tag++) {
+        final String tagname = getTagName(tag);
+        final String tagvalue = getTagValue(tag);
+        if (tagname.isEmpty() || tagvalue.isEmpty()) {
+          continue;
+        }
+        url.append(tagname).append('=').append(tagvalue)
+          .append(',');
       }
-      url.append("&tag=").append(tagname)
-        .append('=').append(tagvalue);
+      final int last = url.length() - 1;
+      if (url.charAt(last) == '{') {  // There was no tag.
+        url.setLength(last);          // So remove the `{'.
+      } else {  // Need to replace the last `,' with a `}'.
+        url.setCharAt(url.length() - 1, '}');
+      }
     }
     return true;
   }
@@ -302,6 +335,26 @@ final class MetricForm extends HorizontalPanel {
         return;
       }
     }
+  }
+
+  // ------------------- //
+  // Focusable interface //
+  // ------------------- //
+
+  public int getTabIndex() {
+    return metric.getTabIndex();
+  }
+
+  public void setTabIndex(final int index) {
+    metric.setTabIndex(index);
+  }
+
+  public void setAccessKey(final char key) {
+    metric.setAccessKey(key);
+  }
+
+  public void setFocus(final boolean focused) {
+    metric.setFocus(focused);
   }
 
 }

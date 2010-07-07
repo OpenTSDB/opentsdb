@@ -57,6 +57,7 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
+import com.google.gwt.user.client.ui.Widget;
 import com.google.gwt.user.datepicker.client.DateBox;
 
 /**
@@ -103,7 +104,7 @@ public class QueryUi implements EntryPoint {
   /** List of known aggregation functions.  Fetched once from the server. */
   private final ArrayList<String> aggregators = new ArrayList<String>();
 
-  private final MetricForm metricform = new MetricForm(refreshgraph);
+  private final DecoratedTabPanel metrics = new DecoratedTabPanel();
 
   private final Image graph = new Image();
   private final Label graphstatus = new Label();
@@ -127,7 +128,7 @@ public class QueryUi implements EntryPoint {
         for (int i = 0; i < aggs.size(); i++) {
           aggregators.add(aggs.get(i).isString().stringValue());
         }
-        metricform.setAggregators(aggregators);
+        ((MetricForm) metrics.getWidget(0)).setAggregators(aggregators);
       }
     });
 
@@ -218,7 +219,44 @@ public class QueryUi implements EntryPoint {
       hbox.add(wxh);
       table.setWidget(2, 1, hbox);
     }
-    table.setWidget(3, 0, metricform);
+    {
+      final MetricForm.MetricChangeHandler metric_change_handler =
+        new MetricForm.MetricChangeHandler() {
+          public void onMetricChange(final MetricForm metric) {
+            final int index = metrics.getWidgetIndex(metric);
+            metrics.getTabBar().setTabText(index, getTabTitle(metric));
+          }
+          private String getTabTitle(final MetricForm metric) {
+            final String metrictext = metric.getMetric();
+            final int last_period = metrictext.lastIndexOf('.');
+            if (last_period < 0) {
+              return metrictext;
+            }
+            return metrictext.substring(last_period + 1);
+          }
+        };
+      final MetricForm metric = new MetricForm(refreshgraph);
+      metric.setMetricChangeHandler(metric_change_handler);
+      metrics.add(metric, "metric 1");
+      metrics.selectTab(0);
+      metrics.add(new InlineLabel("Loading..."), "+");
+      metrics.addBeforeSelectionHandler(new BeforeSelectionHandler<Integer>() {
+        public void onBeforeSelection(final BeforeSelectionEvent<Integer> event) {
+          final int item = event.getItem();
+          final int nitems = metrics.getWidgetCount();
+          if (item == nitems - 1) {  // Last item: the "+" was clicked.
+            event.cancel();
+            final MetricForm metric = new MetricForm(refreshgraph);
+            metric.setMetricChangeHandler(metric_change_handler);
+            metric.setAggregators(aggregators);
+            metrics.insert(metric, "metric " + nitems, item);
+            metrics.selectTab(item);
+            metric.setFocus(true);
+          }
+        }
+      });
+      table.setWidget(3, 0, metrics);
+    }
     table.getFlexCellFormatter().setColSpan(3, 0, 2);
 
     final DecoratorPanel decorator = new DecoratorPanel();
@@ -369,9 +407,7 @@ public class QueryUi implements EntryPoint {
     if (end != null) {
       url.append("&end=").append(FULLDATE.format(end));
     }
-    boolean found_metric = metricform.buildQueryString(url);
-    if (!found_metric) {
-      graphstatus.setText("Please specify a metric.");
+    if (!addAllMetrics(url)) {
       return;
     }
     {
@@ -431,11 +467,38 @@ public class QueryUi implements EntryPoint {
           final JSONArray etags = result.get("etags").isArray();
           final int netags = etags.size();
           for (int i = 0; i < netags; i++) {
-            metricform.autoSuggestTag(etags.get(i).isString().stringValue());
+            if (i >= metrics.getWidgetCount()) {
+              break;
+            }
+            final Widget widget = metrics.getWidget(i);
+            if (!(widget instanceof MetricForm)) {
+              break;
+            }
+            final MetricForm metric = (MetricForm) widget;
+            final JSONArray tags = etags.get(i).isArray();
+            final int ntags = tags.size();
+            for (int j = 0; j < ntags; j++) {
+              metric.autoSuggestTag(tags.get(j).isString().stringValue());
+            }
           }
         }
       }
     });
+  }
+
+  private boolean addAllMetrics(final StringBuilder url) {
+    boolean found_metric = false;
+    for (final Widget widget : metrics) {
+      if (!(widget instanceof MetricForm)) {
+        continue;
+      }
+      final MetricForm metric = (MetricForm) widget;
+      found_metric |= metric.buildQueryString(url);
+    }
+    if (!found_metric) {
+      graphstatus.setText("Please specify a metric.");
+    }
+    return found_metric;
   }
 
   @SuppressWarnings(/* Required to use Date API with GWT */{"deprecation"})

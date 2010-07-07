@@ -90,9 +90,9 @@ final class GraphHandler implements HttpHandler.Command {
     if (isDiskCacheHit(query, start_time, end_time, basepath)) {
       return;
     }
-    Query tsdbquery;
+    Query[] tsdbqueries;
     try {
-      tsdbquery = parseQuery(query);
+      tsdbqueries = parseQuery(query);
     } catch (BadRequestException e) {
       if (query.hasQueryStringParam("json")) {
         final String err = e.getMessage();
@@ -105,35 +105,44 @@ final class GraphHandler implements HttpHandler.Command {
         throw e;
       }
     }
-    try {
-      tsdbquery.setStartTime(start_time);
-    } catch (IllegalArgumentException e) {
-      throw new BadRequestException("start time: " + e.getMessage());
-    }
-    try {
-      tsdbquery.setEndTime(end_time);
-    } catch (IllegalArgumentException e) {
-      throw new BadRequestException("end time: " + e.getMessage());
+    for (final Query tsdbquery : tsdbqueries) {
+      try {
+        tsdbquery.setStartTime(start_time);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("start time: " + e.getMessage());
+      }
+      try {
+        tsdbquery.setEndTime(end_time);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("end time: " + e.getMessage());
+      }
     }
     final Plot plot = new Plot(start_time, end_time);
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
-    final HashSet<String> aggregated_tags = new HashSet<String>();
+    final int nqueries = tsdbqueries.length;
+    @SuppressWarnings("unchecked")
+    final HashSet<String>[] aggregated_tags = new HashSet[nqueries];
     int npoints = 0;
-    try {  // execute the TSDB query!
-      // XXX This is slow and will block Netty.  TODO(tsuna): Don't block.
-      final DataPoints[] series = tsdbquery.run();
-      tsdbquery = null;  // free()
-      for (final DataPoints datapoints : series) {
-        plot.add(datapoints, "");
-        aggregated_tags.addAll(datapoints.getAggregatedTags());
-        npoints += datapoints.aggregatedSize();
+    for (int i = 0; i < nqueries; i++) {
+      try {  // execute the TSDB query!
+        // XXX This is slow and will block Netty.  TODO(tsuna): Don't block.
+        // TODO(tsuna): Optimization: run each query in parallel.
+        final DataPoints[] series = tsdbqueries[i].run();
+        for (final DataPoints datapoints : series) {
+          plot.add(datapoints, "");
+          aggregated_tags[i] = new HashSet<String>();
+          aggregated_tags[i].addAll(datapoints.getAggregatedTags());
+          npoints += datapoints.aggregatedSize();
+        }
+      } catch (RuntimeException e) {
+        logInfo(query, "Query failed (stack trace coming): "
+                + tsdbqueries[i]);
+        throw e;
       }
-    } catch (RuntimeException e) {
-      logInfo(query, "Query failed (stack trace coming): " + tsdbquery);
-      throw e;
+      tsdbqueries[i] = null;  // free()
     }
-
+    tsdbqueries = null;  // free()
     {
       final int nplotted = runGnuplot(basepath, plot);
 
@@ -141,12 +150,16 @@ final class GraphHandler implements HttpHandler.Command {
         final StringBuilder buf = new StringBuilder(64);
         buf.append("{\"plotted\":").append(nplotted)
           .append(",\"points\":").append(npoints)
-          .append(",\"etags\":");
-        if (aggregated_tags.isEmpty()) {
-          buf.append("[]");
-        } else {
-          query.toJsonArray(aggregated_tags, buf);
+          .append(",\"etags\":[");
+        for (final HashSet<String> tags : aggregated_tags) {
+          if (tags == null || tags.isEmpty()) {
+            buf.append("[]");
+          } else {
+            query.toJsonArray(tags, buf);
+          }
+          buf.append(',');
         }
+        buf.setCharAt(buf.length() - 1, ']');
         // The "timing" field must remain last, loadCachedJson relies this.
         buf.append(",\"timing\":").append(query.processingTimeMillis())
           .append('}');
@@ -482,51 +495,96 @@ final class GraphHandler implements HttpHandler.Command {
   }
 
   /**
-   * Parses the {@code /q} query in a {@link Query} object.
+   * Parses the {@code /q} query in a list of {@link Query} objects.
    * @param query The HTTP query for {@code /q}.
-   * @return The corresponding {@link Query} object.
+   * @return The corresponding {@link Query} objects.
    * @throws BadRequestException if the query was malformed.
    */
-  private final Query parseQuery(final HttpQuery query) {
-    final Query tsdbquery = tsdb.newQuery();
-    {  // metric, tags, aggregator, rate.
-      final List<String> tags = query.getQueryStringParams("tag");
-      final HashMap<String, String> parsedtags =
-        new HashMap<String, String>(tags == null ? 0 : tags.size());
-      if (tags != null) {
-        for (final String tag : tags) {
-          try {
-            Tags.parse(parsedtags, tag);
-          } catch (IllegalArgumentException e) {
-            throw new BadRequestException("When parsing tag '" + tag
-                                          + "': " + e.getMessage());
-          }
-        }
+  private final Query[] parseQuery(final HttpQuery query) {
+    final List<String> ms = query.getQueryStringParams("m");
+    if (ms == null) {
+      throw BadRequestException.missingParameter("m");
+    }
+    final Query[] tsdbqueries = new Query[ms.size()];
+    int nqueries = 0;
+    for (final String m : ms) {
+      // m is of the following forms:
+      //   agg:[interval-agg:][rate:]metric[{tag=value,...}]
+      // Where the parts in square brackets `[' .. `]' are optional.
+      final String[] parts = Tags.splitString(m, ':');
+      int i = parts.length;
+      if (i < 2 || i > 4) {
+        throw new BadRequestException("Invalid parameter m=" + m + " ("
+          + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
       }
-      final Aggregator agg =
-        getAggregator(query.getRequiredQueryStringParam("af"));
-      final String metric = query.getRequiredQueryStringParam("m");
-      final boolean rate = query.hasQueryStringParam("rate");
+      final Aggregator agg = getAggregator(parts[0]);
+      i--;  // Move to the last part (the metric name).
+      final HashMap<String, String> parsedtags = new HashMap<String, String>();
+      final String metric = parseMetricAndTags(parts[i], parsedtags);
+      final boolean rate = "rate".equals(parts[--i]);
+      if (rate) {
+        i--;  // Move to the next part.
+      }
+      final Query tsdbquery = tsdb.newQuery();
       try {
         tsdbquery.setTimeSeries(metric, parsedtags, agg, rate);
       } catch (NoSuchUniqueName e) {
         throw new BadRequestException(e.getMessage());
       }
-    }
-    {  // downsampling function & interval.
-      final String df = query.getQueryStringParam("df");
-      if (df != null) {
+      // downsampling function & interval.
+      if (i > 0) {
+        final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
+        if (dash < 0) {
+          throw new BadRequestException("Invalid downsampling specifier '"
+                                        + parts[1] + "' in m=" + m);
+        }
         Aggregator downsampler;
         try {
-          downsampler = Aggregators.get(df);
+          downsampler = Aggregators.get(parts[1].substring(dash + 1));
         } catch (NoSuchElementException e) {
-          throw new BadRequestException("No such downsampling function: " + df);
+          throw new BadRequestException("No such downsampling function: "
+                                        + parts[1].substring(dash + 1));
         }
-        final int interval = parseDuration(query.getQueryStringParam("di"));
+        final int interval = parseDuration(parts[1].substring(0, dash));
         tsdbquery.downsample(interval, downsampler);
       }
+      tsdbqueries[nqueries++] = tsdbquery;
     }
-    return tsdbquery;
+    return tsdbqueries;
+  }
+
+  /**
+   * Parses the metric and tags out of the given string.
+   * @param metric A string of the form "metric" or "metric{tag=value,...}".
+   * @param tags The map to populate with the tags parsed out of the first
+   * argument.
+   * @return The name of the metric.
+   * @throws BadRequestException if the metric is malformed.
+   */
+  private static String parseMetricAndTags(final String metric,
+                                           final HashMap<String, String> tags) {
+    final int curly = metric.indexOf('{');
+    if (curly < 0) {
+      return metric;
+    }
+    final int len = metric.length();
+    if (metric.charAt(len - 1) != '}') {  // "foo{"
+      throw new BadRequestException("Missing '}' at the end of: " + metric);
+    } else if (curly == len - 1) {  // "foo{}"
+      return metric.substring(0, len - 2);
+    }
+    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
+    for (final String tag
+         : Tags.splitString(metric.substring(curly + 1, len - 1), ',')) {
+      try {
+        Tags.parse(tags, tag);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("When parsing tag '" + tag
+                                      + "': " + e.getMessage());
+      }
+    }
+    // Return the "foo" part of "foo{a=b,...,x=y}"
+    return metric.substring(0, curly);
   }
 
   /**
