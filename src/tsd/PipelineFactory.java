@@ -45,10 +45,8 @@ public final class PipelineFactory implements ChannelPipelineFactory {
 
   /** The TSDB to use. */
   private final TSDB tsdb;
-  /** Stateless handler to use for simple text RPCs (not HTTP RPCs). */
-  private final TextRpc textrpc;
-  /** Stateless handler to use for HTTP requests (not RPCs). */
-  private final HttpHandler httphandler;
+  /** Stateless handler for RPCs. */
+  private final RpcHandler rpchandler;
 
   /**
    * Constructor.
@@ -56,8 +54,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    */
   public PipelineFactory(final TSDB tsdb) {
     this.tsdb = tsdb;
-    this.textrpc = new TextRpc(tsdb);
-    this.httphandler = new HttpHandler(tsdb);
+    this.rpchandler = new RpcHandler(tsdb);
   }
 
   @Override
@@ -92,15 +89,14 @@ public final class PipelineFactory implements ChannelPipelineFactory {
       if ('A' <= firstbyte && firstbyte <= 'Z') {
         pipeline.addLast("decoder", new HttpRequestDecoder());
         pipeline.addLast("encoder", new HttpResponseEncoder());
-        pipeline.addLast("handler", httphandler);
       } else {
         pipeline.addLast("framer",
                          new DelimiterBasedFrameDecoder(1024, DELIMITERS));
         pipeline.addLast("encoder", ENCODER);
         pipeline.addLast("decoder", DECODER);
-        pipeline.addLast("handler", textrpc);
       }
       pipeline.remove(this);
+      pipeline.addLast("handler", rpchandler);
 
       // Forward the buffer to the next handler.
       return buffer.readBytes(buffer.readableBytes());

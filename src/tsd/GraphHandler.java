@@ -42,7 +42,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
  */
-final class GraphHandler implements HttpHandler.Command {
+final class GraphHandler implements HttpRpc {
 
   private static final Logger LOG =
     LoggerFactory.getLogger(GraphHandler.class);
@@ -62,9 +62,6 @@ final class GraphHandler implements HttpHandler.Command {
   private static final Histogram gnuplotlatency =
     new Histogram(16000, (short) 2, 100);
 
-  /** The TSDB to use. */
-  private final TSDB tsdb;
-
   /** Directory where to cache query results. */
   private final String cachedir;
 
@@ -72,12 +69,12 @@ final class GraphHandler implements HttpHandler.Command {
    * Constructor.
    * @param tsdb The TSDB to use.
    */
-  public GraphHandler(final TSDB tsdb) {
-    this.tsdb = tsdb;
-    cachedir = HttpHandler.getDirectoryFromSystemProp("tsd.http.cachedir");
+  public GraphHandler() {
+    cachedir = RpcHandler.getDirectoryFromSystemProp("tsd.http.cachedir");
   }
 
-  public void process(final HttpQuery query) throws IOException {
+  public void execute(final TSDB tsdb, final HttpQuery query)
+    throws IOException {
     final String basepath = getGnuplotBasePath(query);
     final long start_time = getQueryStringDate(query, "start");
     if (start_time == -1) {
@@ -92,7 +89,7 @@ final class GraphHandler implements HttpHandler.Command {
     }
     Query[] tsdbqueries;
     try {
-      tsdbqueries = parseQuery(query);
+      tsdbqueries = parseQuery(tsdb, query);
     } catch (BadRequestException e) {
       if (query.hasQueryStringParam("json")) {
         final String err = e.getMessage();
@@ -496,11 +493,12 @@ final class GraphHandler implements HttpHandler.Command {
 
   /**
    * Parses the {@code /q} query in a list of {@link Query} objects.
+   * @param tsdb The TSDB to use.
    * @param query The HTTP query for {@code /q}.
    * @return The corresponding {@link Query} objects.
    * @throws BadRequestException if the query was malformed.
    */
-  private final Query[] parseQuery(final HttpQuery query) {
+  private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
     final List<String> ms = query.getQueryStringParams("m");
     if (ms == null) {
       throw BadRequestException.missingParameter("m");
