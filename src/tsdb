@@ -3,11 +3,19 @@
 set -e
 me=${0##*/}
 mydir=`dirname "$0"`
-cd "$mydir"
+for make in $MAKE make gmake; do
+  # Try to weed out BSD make and such (they don't support those flags).
+  $make --version --quiet >/dev/null 2>&1 && break
+done
+CLASSPATH=`$make --quiet -C $(dirname "$mydir") printcp` || {
+  echo >&2 "$make returned $?"
+  echo >&2 'Please make sure you have GNU make installed in your PATH'
+  exit 42
+}
 
 usage() {
   echo >&2 "usage: $me <command> [args]"
-  echo 'Valid commands: import, query, uid'
+  echo 'Valid commands: import, query, tsd, scan, uid'
   exit 1
 }
 
@@ -33,9 +41,6 @@ case $1 in
     ;;
 esac
 shift
-
-CLASSPATH=`ant -noinput -nouserlib -q printcp | sed -n 's/^ *\[echo\] //p'`
-cd - >/dev/null
 
 JAVA=${JAVA-'java'}
 JVMARGS=${JVMARGS-'-enableassertions -enablesystemassertions'}
