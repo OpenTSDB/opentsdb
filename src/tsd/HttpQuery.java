@@ -19,6 +19,8 @@ import java.io.RandomAccessFile;
 import java.util.List;
 import java.util.Map;
 
+import com.stumbleupon.async.Deferred;
+
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 
@@ -39,6 +41,9 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.jboss.netty.handler.codec.http.QueryStringDecoder;
 import org.jboss.netty.util.CharsetUtil;
 
+import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.StatsCollector;
+
 /**
  * Binds together an HTTP request and the channel on which it was received.
  *
@@ -50,6 +55,12 @@ final class HttpQuery {
   private static final Logger LOG = LoggerFactory.getLogger(HttpQuery.class);
 
   private static final String HTML_CONTENT_TYPE = "text/html; charset=UTF-8";
+
+  /**
+   * Keep track of the latency of HTTP requests.
+   */
+  private static final Histogram httplatency =
+    new Histogram(16000, (short) 2, 100);
 
   /** When the query was started (useful for timing). */
   private final long start_time = System.nanoTime();
@@ -63,6 +74,9 @@ final class HttpQuery {
   /** Parsed query string (lazily built on first access). */
   private Map<String, List<String>> querystring;
 
+  /** Deferred result of this query, to allow asynchronous processing.  */
+  private final Deferred<Object> deferred = new Deferred<Object>();
+
   /**
    * Constructor.
    * @param request The request in this HTTP query.
@@ -71,6 +85,14 @@ final class HttpQuery {
   public HttpQuery(final HttpRequest request, final Channel chan) {
     this.request = request;
     this.chan = chan;
+  }
+
+  /**
+   * Collects the stats and metrics tracked by this instance.
+   * @param collector The collector to use.
+   */
+  public static void collectStats(final StatsCollector collector) {
+    collector.record("http.latency", httplatency, "type=all");
   }
 
   /**
@@ -85,6 +107,13 @@ final class HttpQuery {
    */
   public Channel channel() {
     return chan;
+  }
+
+  /**
+   * Return the {@link Deferred} associated with this query.
+   */
+  public Deferred<Object> getDeferred() {
+    return deferred;
   }
 
   /** Returns how many ms have elapsed since this query was created. */
@@ -334,11 +363,22 @@ final class HttpQuery {
     future.addListener(new ChannelFutureListener() {
       public void operationComplete(final ChannelFuture future) {
         region.releaseExternalResources();
+        done();
       }
     });
     if (!HttpHeaders.isKeepAlive(request)) {
       future.addListener(ChannelFutureListener.CLOSE);
     }
+  }
+
+  /**
+   * Method to call after writing the HTTP response to the wire.
+   */
+  private void done() {
+    final int processing_time = processingTimeMillis();
+    httplatency.add(processing_time);
+    logInfo("HTTP " + request.getUri() + " done in " + processing_time + "ms");
+    deferred.callback(null);
   }
 
   /**
@@ -364,6 +404,7 @@ final class HttpQuery {
     if (!keepalive) {
       future.addListener(ChannelFutureListener.CLOSE);
     }
+    done();
   }
 
   /**
@@ -490,6 +531,10 @@ final class HttpQuery {
   // ---------------- //
   // Logging helpers. //
   // ---------------- //
+
+  private void logInfo(final String msg) {
+    LOG.info(chan.toString() + ' ' + msg);
+  }
 
   private void logWarn(final String msg) {
     LOG.warn(chan.toString() + ' ' + msg);

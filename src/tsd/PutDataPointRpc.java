@@ -15,6 +15,8 @@ package net.opentsdb.tsd;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.stumbleupon.async.Deferred;
+
 import org.jboss.netty.channel.Channel;
 
 import org.hbase.async.HBaseException;
@@ -69,7 +71,8 @@ final class PutDataPointRpc implements TelnetRpc {
     return row;
   }
 
-  public void execute(final TSDB tsdb, final Channel chan, final String[] cmd) {
+  public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                  final String[] cmd) {
     String errmsg = null;
     try {
       importDataPoint(tsdb, cmd);
@@ -85,6 +88,7 @@ final class PutDataPointRpc implements TelnetRpc {
     if (errmsg != null && chan.isConnected()) {
       chan.write(errmsg);
     }
+    return Deferred.fromResult(null);
   }
 
   /**

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +33,6 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
 /**
@@ -48,12 +48,6 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     = new AtomicInteger();
   private static final AtomicInteger exceptions_caught
     = new AtomicInteger();
-
-  /**
-   * Keep track of the latency of HTTP requests.
-   */
-  private static final Histogram httplatency =
-    new Histogram(16000, (short) 2, 100);
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
   private final HashMap<String, TelnetRpc> telnet_commands;
@@ -136,8 +130,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     if (rpc == null) {
       rpc = unknown_cmd;
     }
-    rpc.execute(tsdb, chan, command);
     telnet_rpcs_received.incrementAndGet();
+    rpc.execute(tsdb, chan, command);
   }
 
   /**
@@ -158,10 +152,6 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       final HttpRpc rpc = http_commands.get(getEndPoint(query));
       if (rpc != null) {
         rpc.execute(tsdb, query);
-        final int processing_time = query.processingTimeMillis();
-        httplatency.add(processing_time);
-        logInfo(query, "HTTP " + req.getUri() + " done in "
-                + processing_time + "ms");
       } else {
         query.notFound();
       }
@@ -224,7 +214,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     collector.record("rpc.received", telnet_rpcs_received, "type=telnet");
     collector.record("rpc.received", http_rpcs_received, "type=http");
     collector.record("rpc.exceptions", exceptions_caught);
-    collector.record("http.latency", httplatency, "type=all");
+    HttpQuery.collectStats(collector);
     GraphHandler.collectStats(collector);
   }
 
@@ -234,11 +224,11 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "diediedie" command and "/diediedie" endpoint. */
   private final class DieDieDie implements TelnetRpc, HttpRpc {
-    public void execute(final TSDB tsdb, final Channel chan,
-                        final String[] cmd) {
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
       logWarn(chan, "shutdown requested");
       chan.write("Cleaning up and exiting now.\n");
-      doShutdown(tsdb, chan);
+      return doShutdown(tsdb, chan);
     }
 
     public void execute(final TSDB tsdb, final HttpQuery query) {
@@ -248,7 +238,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       doShutdown(tsdb, query.channel());
     }
 
-    private void doShutdown(final TSDB tsdb, final Channel chan) {
+    private Deferred<Object> doShutdown(final TSDB tsdb, final Channel chan) {
       ConnectionManager.closeAllConnections();
       // Netty gets stuck in an infinite loop if we shut it down from within a
       // NIO thread.  So do this from a newly created thread.
@@ -278,14 +268,14 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
           return "shutdown callback";
         }
       }
-      tsdb.shutdown().addBoth(new ShutdownTSDB());
+      return tsdb.shutdown().addBoth(new ShutdownTSDB());
     }
   }
 
   /** The "help" command. */
   private final class Help implements TelnetRpc {
-    public void execute(final TSDB tsdb, final Channel chan,
-                        final String[] cmd) {
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
       final StringBuilder buf = new StringBuilder();
       buf.append("available commands: ");
       // TODO(tsuna): Maybe sort them?
@@ -294,6 +284,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
       buf.append('\n');
       chan.write(buf.toString());
+      return Deferred.fromResult(null);
     }
   }
 
@@ -322,8 +313,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "stats" command and the "/stats" endpoint. */
   private static final class Stats implements TelnetRpc, HttpRpc {
-    public void execute(final TSDB tsdb, final Channel chan,
-                        final String[] cmd) {
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
       final StringBuilder buf = new StringBuilder(1024);
       final StatsCollector collector = new StatsCollector("tsd") {
         @Override
@@ -333,6 +324,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       };
       doCollectStats(tsdb, collector);
       chan.write(buf.toString());
+      return Deferred.fromResult(null);
     }
 
     public void execute(final TSDB tsdb, final HttpQuery query) {
@@ -390,21 +382,23 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** For unknown commands. */
   private static final class Unknown implements TelnetRpc {
-    public void execute(final TSDB tsdb, final Channel chan,
-                        final String[] cmd) {
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
       logWarn(chan, "unknown command : " + Arrays.toString(cmd));
       chan.write("unknown command: " + cmd[0] + ".  Try `help'.\n");
+      return Deferred.fromResult(null);
     }
   }
 
   /** The "version" command. */
   private static final class Version implements TelnetRpc, HttpRpc {
-    public void execute(final TSDB tsdb, final Channel chan,
-                        final String[] cmd) {
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
       if (chan.isConnected()) {
         chan.write(BuildData.revisionString() + '\n'
                    + BuildData.buildString() + '\n');
       }
+      return Deferred.fromResult(null);
     }
 
     public void execute(final TSDB tsdb, final HttpQuery query) {
@@ -460,9 +454,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   // Logging helpers. //
   // ---------------- //
 
-  private static void logInfo(final HttpQuery query, final String msg) {
-    LOG.info(query.channel().toString() + ' ' + msg);
-  }
+  //private static void logInfo(final HttpQuery query, final String msg) {
+  //  LOG.info(query.channel().toString() + ' ' + msg);
+  //}
 
   private static void logWarn(final HttpQuery query, final String msg) {
     LOG.warn(query.channel().toString() + ' ' + msg);

@@ -22,8 +22,8 @@ interface HttpRpc {
   /**
    * Executes this RPC.
    * @param tsdb The TSDB to use.
-   * @param chan The channel on which the RPC was received.
-   * @param command The command received, split.
+   * @param query The HTTP query to execute.
+   * @return A deferred result.
    */
   void execute(TSDB tsdb, HttpQuery query) throws IOException;
 

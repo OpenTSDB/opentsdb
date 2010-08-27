@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import com.stumbleupon.async.Deferred;
+
 import org.jboss.netty.channel.Channel;
 
 import net.opentsdb.core.TSDB;
@@ -24,7 +26,8 @@ interface TelnetRpc {
    * @param tsdb The TSDB to use.
    * @param chan The channel on which the RPC was received.
    * @param command The command received, split.
+   * @return A deferred result.
    */
-  void execute(TSDB tsdb, Channel chan, String[] command);
+  Deferred<Object> execute(TSDB tsdb, Channel chan, String[] command);
 
 }

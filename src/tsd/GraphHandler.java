@@ -73,7 +73,15 @@ final class GraphHandler implements HttpRpc {
     cachedir = RpcHandler.getDirectoryFromSystemProp("tsd.http.cachedir");
   }
 
-  public void execute(final TSDB tsdb, final HttpQuery query)
+  public void execute(final TSDB tsdb, final HttpQuery query) {
+    try {
+      doGraph(tsdb, query);
+    } catch (IOException e) {
+      query.internalError(e);
+    }
+  }
+
+  private void doGraph(final TSDB tsdb, final HttpQuery query)
     throws IOException {
     final String basepath = getGnuplotBasePath(query);
     final long start_time = getQueryStringDate(query, "start");
