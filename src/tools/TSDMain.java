@@ -45,6 +45,7 @@ final class TSDMain {
     System.exit(retval);
   }
 
+  private static final short DEFAULT_FLUSH_INTERVAL = 1000;
   private static final boolean DONT_CREATE = false;
   private static final boolean CREATE_IF_NEEDED = true;
 
@@ -89,6 +90,9 @@ final class TSDMain {
                    "Web root from which to serve static files (/s URLs).");
     argp.addOption("--cachedir", "PATH",
                    "Directory under which to cache result of requests.");
+    argp.addOption("--flush-interval", "MSEC",
+                   "Maximum time for which a new data point can be buffered"
+                   + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
     args = CliOptions.parse(argp, args);
     if (args == null || !argp.has("--port")
         || !argp.has("--staticroot") || !argp.has("--cachedir")) {
@@ -97,6 +101,7 @@ final class TSDMain {
       usage(argp, "Too many arguments.", 2);
     }
     args = null;  // free().
+    final short flush_interval = getFlushInterval(argp);
 
     setDirectoryInSystemProps("tsd.http.staticroot", argp.get("--staticroot"),
                               DONT_CREATE);
@@ -114,8 +119,9 @@ final class TSDMain {
       client.ensureTableExists(table).joinUninterruptibly();
       client.ensureTableExists(uidtable).joinUninterruptibly();
 
-      client.setFlushInterval((short) 1000);  // XXX
+      client.setFlushInterval(flush_interval);
       final TSDB tsdb = new TSDB(client, table, uidtable);
+      registerShutdownHook(tsdb);
       final ServerBootstrap server = new ServerBootstrap(factory);
 
       server.setPipelineFactory(new PipelineFactory(tsdb));
@@ -137,6 +143,41 @@ final class TSDMain {
       throw new RuntimeException("Initialization failed", e);
     }
     // The server is now running in separate threads, we can exit main.
+  }
+
+  /**
+   * Parses the value of the --flush-interval parameter.
+   * @throws IllegalArgumentException if the flush interval is negative.
+   * @return The flush interval.
+   */
+  private static short getFlushInterval(final ArgP argp) {
+    final String flush_arg = argp.get("--flush-interval");
+    if (flush_arg == null) {
+      return DEFAULT_FLUSH_INTERVAL;
+    }
+    final short flush_interval = Short.parseShort(flush_arg);
+    if (flush_interval < 0) {
+      throw new IllegalArgumentException("Negative --flush-interval: "
+                                         + flush_interval);
+    }
+    return flush_interval;
+  }
+
+  private static void registerShutdownHook(final TSDB tsdb) {
+    final class TSDBShutdown extends Thread {
+      public TSDBShutdown() {
+        super("TSDBShutdown");
+      }
+      public void run() {
+        try {
+          tsdb.shutdown().join();
+        } catch (Exception e) {
+          LoggerFactory.getLogger(TSDBShutdown.class)
+            .error("Uncaught exception during shutdown", e);
+        }
+      }
+    }
+    Runtime.getRuntime().addShutdownHook(new TSDBShutdown());
   }
 
 }

@@ -34,10 +34,6 @@ final class PutDataPointRpc implements TelnetRpc {
    * The key in the map is a string that uniquely identifies a time series.
    * Right now we use the time series name concatenated with the stringified
    * version of the map that stores all the tags, e.g. "foo{bar=a,quux=42}".
-   *
-   * TODO(tsuna): Need a shutdown hook and a fix for HBASE-2669 to ensure that
-   * all dirty rows are flushed to HBase when we get a SIGTERM.  Right now a
-   * SIGTERM causes data loss! XXX
    */
   private ConcurrentHashMap<String, WritableDataPoints> dirty_rows
     = new ConcurrentHashMap<String, WritableDataPoints>();
