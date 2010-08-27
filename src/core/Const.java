@@ -37,31 +37,4 @@ public final class Const {
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final int MAX_TIMESPAN = 600;
 
-  /**
-   * The size in bytes of the smallest Put possible for a data point.
-   * This is the size returned by
-   * {@link org.apache.hadoop.hbase.client.Put#heapSize Put#heapSize}
-   * for a data point with no tag.
-   */
-  static final short MIN_PUT_SIZE = 448;
-
-  /** How many tags do we typically expect to see on each data point. */
-  static final short AVG_NUM_TAGS = 4;
-
-  /**
-   * How many extra bytes do we use per tag in a Put.
-   * This is the increment in the size returned by
-   * {@link org.apache.hadoop.hbase.client.Put#heapSize Put#heapSize}
-   * when adding a tag in the row key.
-   */
-  static final short TAG_PUT_SIZE = 16;
-
-  /**
-   * The typical size in bytes of a Put for a typical data point.
-   * This is the size returned by
-   * {@link org.apache.hadoop.hbase.client.Put#heapSize Put#heapSize}
-   * for a data point with {@link #AVG_NUM_TAGS}.
-   */
-  static final int AVG_PUT_SIZE = MIN_PUT_SIZE + AVG_NUM_TAGS * TAG_PUT_SIZE;
-
 }

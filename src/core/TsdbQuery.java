@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,14 +24,12 @@ import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.filter.RegexStringComparator;
-import org.apache.hadoop.hbase.filter.RowFilter;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.hbase.async.Bytes;
+import org.hbase.async.HBaseException;
+import org.hbase.async.KeyValue;
+import org.hbase.async.Scanner;
+import static org.hbase.async.Bytes.ByteMap;
 
-import net.opentsdb.HBaseException;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -55,7 +52,7 @@ final class TsdbQuery implements Query {
   static final Histogram scanlatency = new Histogram(16000, (short) 2, 100);
 
   /**
-   * Charset to use with our {@link RegexStringComparator}.
+   * Charset to use with our server-side row-filter.
    * We use this one because it preserves every possible byte unchanged.
    */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
@@ -94,7 +91,7 @@ final class TsdbQuery implements Query {
    * is an element of {@code group_bys} (so a tag name ID) and the values are
    * tag value IDs (at least two).
    */
-  private TreeMap<byte[], byte[][]> group_by_values;
+  private ByteMap<byte[][]> group_by_values;
 
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
@@ -208,8 +205,7 @@ final class TsdbQuery implements Query {
         // to group on and store their IDs in group_by_values.
         final String[] values = Tags.splitString(tagvalue, '|');
         if (group_by_values == null) {
-          group_by_values =
-            new TreeMap<byte[], byte[][]>(Bytes.BYTES_COMPARATOR);
+          group_by_values = new ByteMap<byte[][]>();
         }
         final short value_width = tsdb.tag_values.width();
         final byte[][] value_ids = new byte[values.length][value_width];
@@ -234,6 +230,9 @@ final class TsdbQuery implements Query {
    * @return A map from HBase row key to the {@link Span} for that row key.
    * Since a {@link Span} actually contains multiple HBase rows, the row key
    * stored in the map has its timestamp zero'ed out.
+   * @throws HBaseException if there was a problem communicating with HBase to
+   * perform the search.
+   * @throws IllegalArgumentException if bad data was retreived from HBase.
    */
   private TreeMap<byte[], Span> findSpans() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
@@ -242,33 +241,35 @@ final class TsdbQuery implements Query {
     int nrows = 0;
     int hbase_time = 0;  // milliseconds.
     long starttime = System.nanoTime();
-    final ResultScanner scanner = getScanner();
+    final Scanner scanner = getScanner();
     try {
-      Result result;
-      while ((result = scanner.next()) != null) {
+      ArrayList<ArrayList<KeyValue>> rows;
+      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         hbase_time += (System.nanoTime() - starttime) / 1000000;
-        final byte[] row = result.getRow();
-        if (Bytes.compareTo(metric, 0, metric_width,
-                            row, 0, metric_width) != 0) {
-          throw new AssertionError("HBase returned a row that doesn't match"
-              + " our scanner! row=" + Arrays.toString(row) + " does not start"
-              + " with " + Arrays.toString(metric) + ", from result="
-              + result + " when scanning with " + scanner);
+        for (final ArrayList<KeyValue> row : rows) {
+          final byte[] key = row.get(0).key();
+          if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
+            throw new AssertionError("HBase returned a row that doesn't match"
+                + " our scanner (" + scanner + ")! " + row + " does not start"
+                + " with " + Arrays.toString(metric));
+          }
+          Span datapoints = spans.get(key);
+          if (datapoints == null) {
+            datapoints = new Span(tsdb);
+            spans.put(key, datapoints);
+          }
+          datapoints.addRow(row);
+          nrows++;
+          starttime = System.nanoTime();
         }
-        Span datapoints = spans.get(row);
-        if (datapoints == null) {
-          datapoints = new Span(tsdb);
-          spans.put(row, datapoints);
-        }
-        datapoints.addRow(result);
-        nrows++;
-        starttime = System.nanoTime();
       }
-    } catch (IOException e) {
-      throw new HBaseException("Error while scanning HBase, scanner="
-                               + scanner, e);
+    } catch (HBaseException e) {
+      throw e;
+    } catch (IllegalArgumentException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
     } finally {
-      scanner.close();
       hbase_time += (System.nanoTime() - starttime) / 1000000;
       scanlatency.add(hbase_time);
     }
@@ -299,8 +300,7 @@ final class TsdbQuery implements Query {
                                             sample_interval, downsampler);
       return new SpanGroup[] { group };
     }
-    final TreeMap<byte[], SpanGroup> groups =
-      new TreeMap<byte[], SpanGroup>(Bytes.BYTES_COMPARATOR);
+    final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
     final short metric_ts_bytes = (short) (tsdb.metrics.width()
                                            + Const.TIMESTAMP_BYTES);
     final short name_width = tsdb.tag_names.width();
@@ -337,16 +337,16 @@ final class TsdbQuery implements Query {
       }
       thegroup.add(entry.getValue());
     }
-    //for (final Map.Entry<byte[], SpanGroup> entry : groups.entrySet()) {
+    //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
     //  LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
     //}
     return groups.values().toArray(new SpanGroup[groups.size()]);
   }
 
   /**
-   * Creates the {@link ResultScanner} to use for this query.
+   * Creates the {@link Scanner} to use for this query.
    */
-  private ResultScanner getScanner() throws HBaseException {
+  private Scanner getScanner() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
     final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
@@ -354,38 +354,34 @@ final class TsdbQuery implements Query {
     // quite likely that the exact timestamp we're looking for is in the
     // middle of a row.  Additionally, in case our sample_interval is large,
     // we need to look even further before/after, so use that too.
-    Bytes.putInt(start_row, metric_width,
-                 start_time - Const.MAX_TIMESPAN - sample_interval);
-    Bytes.putInt(end_row, metric_width,
-                 end_time == 0
-                 ? -1  // Will scan until the end (0xFFF...).
-                 : end_time + Const.MAX_TIMESPAN + sample_interval);
+    Bytes.setInt(start_row, start_time - Const.MAX_TIMESPAN - sample_interval,
+                 metric_width);
+    Bytes.setInt(end_row, (end_time == 0
+                           ? -1  // Will scan until the end (0xFFF...).
+                           : end_time + Const.MAX_TIMESPAN + sample_interval),
+                 metric_width);
     System.arraycopy(metric, 0, start_row, 0, metric_width);
     System.arraycopy(metric, 0, end_row, 0, metric_width);
 
-    final Scan scan = new Scan(start_row, end_row);
+    final Scanner scanner = tsdb.client.newScanner(tsdb.table);
+    scanner.setStartKey(start_row);
+    scanner.setStopKey(end_row);
     if (tags.size() > 0 || group_bys != null) {
-      createAndSetFilter(scan);
+      createAndSetFilter(scanner);
     }
-    scan.addFamily(TSDB.FAMILY);
-    try {
-      return tsdb.timeseries_table.getScanner(scan);
-    } catch (IOException e) {
-      throw new HBaseException("Failed to obtain a scanner from "
-          + Arrays.toString(start_row) + " to " + Arrays.toString(end_row), e);
-    }
+    scanner.setFamily(TSDB.FAMILY);
+    return scanner;
   }
 
   /**
-   * Creates the server-side filter and sets it on the scanner.
+   * Sets the server-side regexp filter on the scanner.
    * In order to find the rows with the relevant tags, we use a
-   * {@link RegexStringComparator} on a {@link RowFilter} so the
-   * filter is done on the server-side by the region servers.
-   * @param scan The scanner on which to add the filter.
+   * server-side filter that matches a regular expression on the row key.
+   * @param scanner The scanner on which to add the filter.
    */
-  void createAndSetFilter(final Scan scan) {
+  void createAndSetFilter(final Scanner scanner) {
     if (group_bys != null) {
-      Collections.sort(group_bys, Bytes.BYTES_COMPARATOR);
+      Collections.sort(group_bys, Bytes.MEMCMP);
     }
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
@@ -441,12 +437,7 @@ final class TsdbQuery implements Query {
     } while (tag != group_by);  // Stop when they both become null.
     // Skip any number of tags before the end.
     buf.append("(?:.{").append(tagsize).append("})*$");
-
-    final RegexStringComparator r = new RegexStringComparator(buf.toString());
-    // The setCharset method comes from HBASE-2323.
-    r.setCharset(CHARSET);
-    final RowFilter filter = new RowFilter(RowFilter.CompareOp.EQUAL, r);
-    scan.setFilter(filter);
+    scanner.setKeyRegexp(buf.toString(), CHARSET);
    }
 
   /**
@@ -465,8 +456,7 @@ final class TsdbQuery implements Query {
     } else if (group_by == null) {
       return true;
     }
-    final int cmp = Bytes.compareTo(tag, 0, name_width,
-                                    group_by, 0, name_width);
+    final int cmp = Bytes.memcmp(tag, group_by, 0, name_width);
     if (cmp == 0) {
       throw new AssertionError("invariant violation: tag ID "
           + Arrays.toString(group_by) + " is both in 'tags' and"

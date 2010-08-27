@@ -17,9 +17,9 @@ import java.lang.reflect.Method;
 
 import java.util.Map;
 
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.ResultScanner;
+import org.hbase.async.Bytes;
+import org.hbase.async.KeyValue;
+import org.hbase.async.Scanner;
 
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.core.Query;
@@ -52,9 +52,9 @@ final class Core {
     }
   }
 
-  static ResultScanner getScanner(final Query query) {
+  static Scanner getScanner(final Query query) {
     try {
-      return (ResultScanner) getScanner.invoke(query);
+      return (Scanner) getScanner.invoke(query);
     } catch (Exception e) {
       throw new RuntimeException("getScanner=" + getScanner, e);
     }
@@ -62,16 +62,11 @@ final class Core {
 
   /** Access to the package-private helper class for row keys. */
   static final Class<?> RowKey;
-  /** Access to the private method that extract the base timestamp. */
-  static final Method baseTime;
   /** Access to the private method that extract the name of a metric. */
   static final Method metricName;
   static {
     try {
       RowKey = Class.forName("net.opentsdb.core.RowKey");
-      baseTime = RowKey.getDeclaredMethod("baseTime",
-                                          short.class, byte[].class);
-      baseTime.setAccessible(true);
       metricName = RowKey.getDeclaredMethod("metricName",
                                             TSDB.class, byte[].class);
       metricName.setAccessible(true);
@@ -85,9 +80,9 @@ final class Core {
       final Field metrics = TSDB.class.getDeclaredField("metrics");
       metrics.setAccessible(true);
       final short metric_width = ((UniqueId) metrics.get(tsdb)).width();
-      return (Long) baseTime.invoke(null, metric_width, row);
+      return Bytes.getUnsignedInt(row, metric_width);
     } catch (Exception e) {
-      throw new RuntimeException("baseTime=" + baseTime, e);
+      throw new RuntimeException("in baseTime", e);
     }
   }
 
@@ -140,16 +135,6 @@ final class Core {
       return (Long) extractLValue.invoke(null, qualifier, kv);
     } catch (Exception e) {
       throw new RuntimeException("extractLValue=" + extractLValue, e);
-    }
-  }
-
-  static HTable getHTable(final TSDB tsdb) {
-    try {
-      final Field table = TSDB.class.getDeclaredField("timeseries_table");
-      table.setAccessible(true);
-      return (HTable) table.get(tsdb);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to get the timeseries_table", e);
     }
   }
 

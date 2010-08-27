@@ -474,8 +474,8 @@ final class GraphHandler implements HttpRpc {
     final long start_time = System.nanoTime();
     final Process gnuplot = new ProcessBuilder(
         // XXX Java Kludge XXX
-        "./graph/mygnuplot.sh", basepath + ".out", basepath + ".err",
-                                basepath + ".gnuplot").start();
+        "./src/graph/mygnuplot.sh", basepath + ".out", basepath + ".err",
+                                    basepath + ".gnuplot").start();
     int rv;
     try {
       rv = gnuplot.waitFor();  // TODO(tsuna): How to do this asynchronously.

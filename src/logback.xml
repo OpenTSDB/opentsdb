@@ -13,7 +13,7 @@
   </appender>
 
   <logger name="org.apache.zookeeper" level="info"/>
-  <logger name="org.apache.hadoop.hbase" level="debug"/>
+  <logger name="org.hbase.async" level="info"/>
   <root level="info">
     <appender-ref ref="STDOUT"/>
     <appender-ref ref="CYCLIC"/>

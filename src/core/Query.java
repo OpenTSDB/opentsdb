@@ -14,7 +14,8 @@ package net.opentsdb.core;
 
 import java.util.Map;
 
-import net.opentsdb.HBaseException;
+import org.hbase.async.HBaseException;
+
 import net.opentsdb.uid.NoSuchUniqueName;
 
 /**

@@ -7,7 +7,17 @@ for make in $MAKE make gmake; do
   # Try to weed out BSD make and such (they don't support those flags).
   $make --version --quiet >/dev/null 2>&1 && break
 done
-CLASSPATH=`$make --quiet -C $(dirname "$mydir") printcp` || {
+# TODO(tsuna): This is an ugly hack.  The TSD needs to execute
+# src/graph/mygnuplot.sh and does so with a relative path to keep things
+# simpler.  So we need to `cd' in the right directory...  This means that
+# relative paths can't be given in argument to any of the commands.  XXX
+cd "$mydir/.."
+# TODO(tsuna): This is an ugly hack (sigh).  First of all, `printcp' leaves
+# a trailing colon at the end of the classpath it prints.  We append `src'
+# because that's where logback.xml is and it needs to be on the classpath
+# for logback-core to find it (not the file itself but the directory
+# containing it...)
+CLASSPATH=`$make --quiet printcp`src || {
   echo >&2 "$make returned $?"
   echo >&2 'Please make sure you have GNU make installed in your PATH'
   exit 42

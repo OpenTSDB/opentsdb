@@ -22,9 +22,8 @@ import java.util.NoSuchElementException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.hbase.async.Bytes;
+import org.hbase.async.KeyValue;
 
 /**
  * Represents a read-only sequence of continuous data points.
@@ -78,60 +77,58 @@ final class Span implements DataPoints {
   }
 
   /**
-   * Adds an HBase row to this span, using a Result from a scanner.
-   * @param result The HBase row to add to this span.
+   * Adds an HBase row to this span, using a row from a scanner.
+   * @param row The HBase row to add to this span.
    * @throws IllegalArgumentException if the argument and this span are for
    * two different time series.
    * @throws IllegalArgumentException if the argument represents a row for
    * data points that are older than those already added to this span.
    */
-  void addRow(final Result result) {
+  void addRow(final ArrayList<KeyValue> row) {
     long last_ts = 0;
     if (rows.size() != 0) {
       // Verify that we have the same metric id and tags.
-      final byte[] row = result.getRow();
+      final byte[] key = row.get(0).key();
       final RowSeq last = rows.get(rows.size() - 1);
       final short metric_width = tsdb.metrics.width();
       final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
-      final short tags_bytes = (short) (row.length - tags_offset);
+      final short tags_bytes = (short) (key.length - tags_offset);
       String error = null;
-      if (row.length != last.row.length) {
-        error = "row length mismatch";
-      } else if (Bytes.compareTo(row, 0, metric_width,
-                          last.row, 0, metric_width) != 0) {
+      if (key.length != last.key.length) {
+        error = "row key length mismatch";
+      } else if (Bytes.memcmp(key, last.key, 0, metric_width) != 0) {
         error = "metric ID mismatch";
-      } else if (Bytes.compareTo(row, tags_offset, tags_bytes,
-                                 last.row, tags_offset, tags_bytes) != 0) {
+      } else if (Bytes.memcmp(key, last.key, tags_offset, tags_bytes) != 0) {
         error = "tags mismatch";
       }
       if (error != null) {
         throw new IllegalArgumentException(error + ". "
-            + "This Span's last row is " + Arrays.toString(last.row)
-            + " whereas the row being added is " + Arrays.toString(row)
+            + "This Span's last row key is " + Arrays.toString(last.key)
+            + " whereas the row key being added is " + Arrays.toString(key)
             + " and metric_width=" + metric_width);
       }
       last_ts = last.timestamp(last.size() - 1);
-      // Optimization: check whether we can put all the data points of
-      // `result' into the last RowSeq object we created, instead of making a
-      // new RowSeq.  If the time delta between the timestamp encoded in the
-      // row key of the last RowSeq we created and the timestamp of the last
-      // data point in `result' is small enough, we can merge `result' into
+      // Optimization: check whether we can put all the data points of `row'
+      // into the last RowSeq object we created, instead of making a new
+      // RowSeq.  If the time delta between the timestamp encoded in the
+      // row key of the last RowSeq we created and the timestamp of the
+      // last data point in `row' is small enough, we can merge `row' into
       // the last RowSeq.
-      if (RowSeq.canTimeDeltaFit(lastTimestampInRow(metric_width, result)
+      if (RowSeq.canTimeDeltaFit(lastTimestampInRow(metric_width, row)
                                  - last.baseTime())) {
-        last.addRow(result);
+        last.addRow(row);
         return;
       }
     }
 
-    final RowSeq row = new RowSeq(tsdb);
-    row.setRow(result);
-    if (last_ts >= row.timestamp(0)) {
+    final RowSeq rowseq = new RowSeq(tsdb);
+    rowseq.setRow(row);
+    if (last_ts >= rowseq.timestamp(0)) {
       throw new IllegalArgumentException("New RowSeq added out of order to this"
           + " Span! Last RowSeq = " + rows.get(rows.size() - 1)
-          + ", new RowSeq = " + row);
+          + ", new RowSeq = " + rowseq);
     }
-    rows.add(row);
+    rows.add(rowseq);
   }
 
   /**
@@ -141,15 +138,16 @@ final class Span implements DataPoints {
    * @return A strictly positive 32-bit timestamp.
    * @throws IllegalArgumentException if {@code row} doesn't contain any cell.
    */
-  static long lastTimestampInRow(final short metric_width, final Result row) {
-    final KeyValue[] kvs = row.raw();
-    if (kvs.length < 1) {
+  static long lastTimestampInRow(final short metric_width,
+                                 final ArrayList<KeyValue> row) {
+    final int size = row.size();
+    if (size < 1) {
       throw new IllegalArgumentException("empty row: " + row);
     }
-    final KeyValue lastkv = kvs[kvs.length - 1];
-    final long base_time = RowKey.baseTime(metric_width, row.getRow());
+    final KeyValue lastkv = row.get(size - 1);
+    final long base_time = Bytes.getUnsignedInt(lastkv.key(), metric_width);
     final short last_delta = (short)
-      ((Bytes.toShort(lastkv.getQualifier()) & 0xFFFF) >>> Const.FLAG_BITS);
+      (Bytes.getUnsignedShort(lastkv.qualifier()) >>> Const.FLAG_BITS);
     return base_time + last_delta;
   }
 

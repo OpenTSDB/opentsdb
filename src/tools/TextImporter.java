@@ -23,6 +23,8 @@ import java.util.zip.GZIPInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.hbase.async.HBaseClient;
+
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
@@ -50,20 +52,29 @@ final class TextImporter {
       usage(argp, 2);
     }
 
-    final TSDB tsdb = new TSDB(argp.get("--table", "tsdb"),
+    final HBaseClient client = CliOptions.clientFromOptions(argp);
+    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     argp = null;
-    for (final String path : args) {
-      importFile(tsdb, path);
-    }
-    tsdb.flush();
-    // TODO(tsuna): Figure out something better than just writing to stderr.
-    tsdb.collectStats(new StatsCollector("tsd") {
-      @Override
-      public final void emit(final String line) {
-        System.err.print(line);
+    try {
+      for (final String path : args) {
+        importFile(tsdb, path);
       }
-    });
+      // TODO(tsuna): Figure out something better than just writing to stderr.
+      tsdb.collectStats(new StatsCollector("tsd") {
+        @Override
+        public final void emit(final String line) {
+          System.err.print(line);
+        }
+      });
+    } finally {
+      try {
+        tsdb.shutdown().joinUninterruptibly();
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        System.exit(1);
+      }
+    }
   }
 
   private static void importFile(final TSDB tsdb,

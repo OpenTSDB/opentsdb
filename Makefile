@@ -23,7 +23,6 @@ spec_vendor = StumbleUpon, Inc.
 spec_version = 1.0
 BUILT_SOURCES = src/BuildData.java
 tsdb_JAVA = \
-	src/HBaseException.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
 	src/core/Const.java	\
@@ -71,14 +70,14 @@ tsdb_JAVA = \
 	src/uid/UniqueIdInterface.java	\
 
 tsdb_LIBADD = \
-	third_party/hadoop/hadoop-core-0.20.2-with-200-826.jar	\
-	third_party/hbase/hbase-0.89.0-SNAPSHOT.jar	\
+	third_party/hbase/hbaseasync-1.0.jar	\
 	third_party/logback/logback-classic-0.9.24.jar	\
 	third_party/logback/logback-core-0.9.24.jar	\
 	third_party/netty/netty-3.2.3.Final.jar	\
 	third_party/slf4j/jcl-over-slf4j-1.6.1.jar	\
 	third_party/slf4j/log4j-over-slf4j-1.6.1.jar	\
 	third_party/slf4j/slf4j-api-1.6.1.jar	\
+	third_party/suasync/suasync-1.0.jar	\
 	third_party/zookeeper/zookeeper-3.3.1.jar	\
 
 test_JAVA = \

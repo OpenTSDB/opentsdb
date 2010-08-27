@@ -367,12 +367,8 @@ public class QueryUi implements EntryPoint {
           pos += part.length() + 1;
           if (part.startsWith("net.opentsdb.")) {
             part = part.substring(13);
-          } else if (part.startsWith("org.apache.")) {
-            if (part.startsWith("org.apache.hadoop.")) {
-              part = part.substring(18);
-            } else {
-              part = part.substring(11);
-            }
+          } else if (part.startsWith("org.hbase.")) {
+            part = part.substring(10);
           }
           logs.setText(i * 2, 3, part); // logger
           logs.setText(i * 2 + 1, 0, msg.substring(pos)); // message

@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -22,10 +21,10 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.hbase.async.Bytes;
+import org.hbase.async.HBaseException;
+import org.hbase.async.PutRequest;
 
-import net.opentsdb.HBaseException;
 import net.opentsdb.stats.Histogram;
 
 /**
@@ -35,11 +34,11 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   private static final Logger LOG = LoggerFactory.getLogger(IncomingDataPoints.class);
 
-  /** Default number of {@link Put}s to group together for batch imports. */
-  private static final short DEFAULT_BATCH_SIZE = 1024;
+  /** For how long to buffer edits when doing batch imports (in ms).  */
+  private static final short DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL = 5000;
 
   /**
-   * Keep track of the latency (in ms) we perceive when doing a Put in HBase.
+   * Keep track of the latency (in ms) we perceive sending edits to HBase.
    * We want buckets up to 16s, with 2 ms interval between each bucket up to
    * 100 ms after we which we switch to exponential buckets.
    */
@@ -125,11 +124,23 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   /**
    * Copies the specified byte array at the specified offset in the row key.
-   * @param offset The offset in the row key to start copying at.
+   * @param offset The offset in the row key to start writing at.
    * @param bytes The bytes to copy.
    */
-  private void copyInRowKey(short offset, byte[] bytes) {
+  private void copyInRowKey(final short offset, final byte[] bytes) {
     System.arraycopy(bytes, 0, row, offset, bytes.length);
+  }
+
+  /**
+   * Copies the specified integer at the specified offset in the row key.
+   * @param offset The offset in the row key to start writing at.
+   * @param n The value to copy.
+   */
+  private void copyInRowKey(final short offset, final int n) {
+    row[offset + 0] = (byte) (n >>> 24);
+    row[offset + 1] = (byte) (n >>> 16);
+    row[offset + 2] = (byte) (n >>>  8);
+    row[offset + 3] = (byte) (n >>>  0);
   }
 
   /**
@@ -170,8 +181,11 @@ final class IncomingDataPoints implements WritableDataPoints {
         // we'd need to coordinate TSDs to avoid creating rows that cover
         // overlapping time periods.
         base_time = timestamp - (timestamp % Const.MAX_TIMESPAN);
-        // XXX use putInt XXX
-        copyInRowKey(tsdb.metrics.width(), Bytes.toBytes((int) base_time));
+        // Clone the row key since we're going to change it.  We must clone it
+        // because the HBase client may still hold a reference to it in its
+        // internal datastructures.
+        row = Arrays.copyOf(row, row.length);
+        copyInRowKey(tsdb.metrics.width(), (int) base_time);
         size = 0;
         //LOG.info("Starting a new row @ " + this);
       }
@@ -179,7 +193,11 @@ final class IncomingDataPoints implements WritableDataPoints {
       // This is the first data point, let's record the starting timestamp.
       // See comment above regarding overlapping rows to understand the modulo.
       base_time = timestamp - (timestamp % Const.MAX_TIMESPAN);
-      copyInRowKey(tsdb.metrics.width(), Bytes.toBytes((int) base_time));
+      // Clone the row key since we're going to change it.  We must clone it
+      // because the HBase client may still hold a reference to it in its
+      // internal datastructures.
+      row = Arrays.copyOf(row, row.length);
+      copyInRowKey(tsdb.metrics.width(), (int) base_time);
     }
 
     if (values.length == size) {
@@ -193,24 +211,23 @@ final class IncomingDataPoints implements WritableDataPoints {
     values[size] = value;
     size++;
 
-    final Put point = new Put(row);
-    if (batch_import) {
-      point.setWriteToWAL(false);  // Risky but much faster.
-    }
-    point.add(TSDB.FAMILY, Bytes.toBytes(qualifier), Bytes.toBytes(value));
+    final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
+                                            Bytes.fromShort(qualifier),
+                                            Bytes.fromLong(value));
     try {
       final long start_put = System.nanoTime();
-      synchronized (tsdb.timeseries_table) {
-        tsdb.timeseries_table.put(point);
-      }
+      point.setBufferable(false);  // TODO(tsuna): Remove once we write async.
+      point.setDurable(!batch_import);
+      tsdb.client.put(point).joinUninterruptibly();
       putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
-    } catch (IOException e) {
-      final String errmsg = "Error while storing data in HBase.  Last Put="
-        + point + ", there are "
-        + tsdb.timeseries_table.getWriteBuffer().size()
-        + " Puts currently in the write buffer.";
+    } catch (HBaseException e) {
+      LOG.error("Error while storing data in HBase.  Last point=" + point, e);
+      throw e;
+    } catch (Exception e) {
+      final String errmsg = "WTF?  Unexpected exception type while storing"
+        + " data in HBase.  Last point = " + point;
       LOG.error(errmsg, e);
-      throw new HBaseException(errmsg, e);
+      throw new RuntimeException(errmsg, e);
     }
   }
 
@@ -226,7 +243,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   /** Extracts the base timestamp from the row key. */
   private long baseTime() {
-    return RowKey.baseTime(tsdb.metrics.width(), row);
+    return Bytes.getUnsignedInt(row, tsdb.metrics.width());
   }
 
   public void addPoint(final long timestamp,
@@ -246,38 +263,30 @@ final class IncomingDataPoints implements WritableDataPoints {
                      flags);
   }
 
-  public void groupCommit(final short commits) throws HBaseException {
-    if (commits < 0) {
-      throw new IllegalArgumentException("invalid size: " + commits);
+  public void setBufferingTime(final short time) {
+    if (time < 0) {
+      throw new IllegalArgumentException("negative time: " + time);
     }
-    try {
-      tsdb.timeseries_table.setWriteBufferSize(commits * Const.AVG_PUT_SIZE);
-    } catch (IOException e) {
-      final String errmsg = "Error while auto-flushing Puts.  There are"
-        + tsdb.timeseries_table.getWriteBuffer().size()
-        + " Puts left in the write buffer.";
-      LOG.error(errmsg, e);
-      throw new HBaseException(errmsg, e);
-    }
+    tsdb.client.setFlushInterval(time);
   }
 
   public void setBatchImport(final boolean batchornot) {
     if (batch_import == batchornot) {
       return;
     }
-    final long current_size = tsdb.timeseries_table.getWriteBufferSize();
-    final int new_size = DEFAULT_BATCH_SIZE * Const.AVG_PUT_SIZE;
+    final long current_interval = tsdb.client.getFlushInterval();
     if (batchornot) {
       batch_import = true;
-      // If we already were given a larger groupCommit size, don't override it.
-      if (new_size > current_size) {
-        groupCommit(DEFAULT_BATCH_SIZE);
+      // If we already were given a larger interval, don't override it.
+      if (DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL > current_interval) {
+        setBufferingTime(DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL);
       }
     } else {
       batch_import = false;
-      // If we're using the DEFAULT_BATCH_SIZE, revert back to 0.
-      if (current_size == new_size) {
-        groupCommit((short) 0);
+      // If we're using the default batch import buffer interval,
+      // revert back to 0.
+      if (current_interval == DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL) {
+        setBufferingTime((short) 0);
       }
     }
   }

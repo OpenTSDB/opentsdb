@@ -12,7 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.uid;
 
-import net.opentsdb.HBaseException;
+import org.hbase.async.HBaseException;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.

@@ -21,7 +21,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.hbase.util.Bytes;
+import org.hbase.async.Bytes;
 
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -250,7 +250,7 @@ public final class Tags {
       tag_ids.add(thistag);
     }
     // Now sort the tags.
-    Collections.sort(tag_ids, Bytes.BYTES_COMPARATOR);
+    Collections.sort(tag_ids, Bytes.MEMCMP);
     return tag_ids;
   }
 

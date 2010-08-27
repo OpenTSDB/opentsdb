@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -21,14 +20,12 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Delete;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.hbase.async.Scanner;
 
-import net.opentsdb.HBaseException;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 
@@ -58,7 +55,7 @@ final class DumpSeries {
     System.exit(retval);
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     argp.addOption("--import", "Prints the rows in a format suitable for"
@@ -71,96 +68,102 @@ final class DumpSeries {
       usage(argp, "Not enough arguments.", 2);
     }
 
-    final TSDB tsdb = new TSDB(argp.get("--table", "tsdb"),
+    final HBaseClient client = CliOptions.clientFromOptions(argp);
+    final byte[] table = argp.get("--table", "tsdb").getBytes();
+    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     final boolean delete = argp.has("--delete");
     final boolean importformat = delete || argp.has("--import");
     argp = null;
-    doDump(tsdb, delete, importformat, args);
+    try {
+      doDump(tsdb, client, table, delete, importformat, args);
+    } finally {
+      tsdb.shutdown().joinUninterruptibly();
+    }
   }
 
   private static void doDump(final TSDB tsdb,
+                             final HBaseClient client,
+                             final byte[] table,
                              final boolean delete,
                              final boolean importformat,
-                             final String[] args) {
-    final HTable table = delete ? Core.getHTable(tsdb) : null;
+                             final String[] args) throws Exception {
     final ArrayList<Query> queries = new ArrayList<Query>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
 
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
-      final ResultScanner scanner = Core.getScanner(query);
-      for (final Result result : scanner) {
-        buf.setLength(0);
-        final byte[] row = result.getRow();
-        final long base_time = Core.baseTime(tsdb, row);
-        // Print the row key.
-        if (!importformat) {
-          buf.append(Arrays.toString(row))
-            .append(' ')
-            .append(Core.metricName(tsdb, row))
-            .append(' ')
-            .append(base_time)
-            .append(" (").append(date(base_time)).append(") ")
-            .append(Core.getTags(tsdb, row))
-            .append('\n');
-          System.out.print(buf);
-        }
-
-        // Print individual cells.
-        buf.setLength(0);
-        if (!importformat) {
-          buf.append("  ");
-        }
-        for (final KeyValue kv : result.raw()) {
-          buf.setLength(importformat ? 0 : 2);
-          if (importformat) {
-            buf.append(Core.metricName(tsdb, row)).append(' ');
-          }
-          final byte[] qualifier = kv.getQualifier();
-          final short deltaflags = Bytes.toShort(qualifier);
-          final short delta = (short) (deltaflags >>> 4);
-          final byte[] cell = kv.getValue();
-          final long lvalue = Core.extractLValue(deltaflags, kv);
-          if (importformat) {
-            buf.append(base_time + delta).append(' ');
-          } else {
-            buf.append(Arrays.toString(qualifier))
+      final Scanner scanner = Core.getScanner(query);
+      ArrayList<ArrayList<KeyValue>> rows;
+      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+        for (final ArrayList<KeyValue> row : rows) {
+          buf.setLength(0);
+          final byte[] key = row.get(0).key();
+          final long base_time = Core.baseTime(tsdb, key);
+          final String metric = Core.metricName(tsdb, key);
+          // Print the row key.
+          if (!importformat) {
+            buf.append(Arrays.toString(key))
               .append(' ')
-              .append(Arrays.toString(cell))
-              .append('\t')
-              .append(delta)
-              .append('\t');
+              .append(metric)
+              .append(' ')
+              .append(base_time)
+              .append(" (").append(date(base_time)).append(") ")
+              .append(Core.getTags(tsdb, key)).append('\n');
+            System.out.print(buf);
           }
-          if ((deltaflags & 0x8) == 0x8) {
-            buf.append(importformat ? "" : "f ")
-               .append(Float.intBitsToFloat((int) lvalue));
-          } else {
-            buf.append(importformat ? "" : "l ")
-               .append(lvalue);
-          }
-          if (importformat) {
-            for (final Map.Entry<String, String> tag
-                 : Core.getTags(tsdb, row).entrySet()) {
-              buf.append(' ').append(tag.getKey())
-                 .append('=').append(tag.getValue());
-            }
-          } else {
-            buf.append('\t')
-              .append(base_time + delta)
-              .append(" (").append(date(base_time + delta)).append(')');
-          }
-          buf.append('\n');
-          System.out.print(buf);
-        }
 
-        if (delete) {
-          final Delete del = new Delete(row);
-          try {
-            table.delete(del);
-          } catch (IOException e) {
-            throw new HBaseException("Failed to delete row="
-                                     + Arrays.toString(row), e);
+          // Print individual cells.
+          buf.setLength(0);
+          if (!importformat) {
+            buf.append("  ");
+          }
+          for (final KeyValue kv : row) {
+            // Discard everything or keep initial spaces.
+            buf.setLength(importformat ? 0 : 2);
+            if (importformat) {
+              buf.append(metric).append(' ');
+            }
+            final byte[] qualifier = kv.qualifier();
+            final short deltaflags = Bytes.getShort(qualifier);
+            final short delta = (short) (deltaflags >>> 4);
+            final byte[] cell = kv.value();
+            final long lvalue = Core.extractLValue(deltaflags, kv);
+            if (importformat) {
+              buf.append(base_time + delta).append(' ');
+            } else {
+              buf.append(Arrays.toString(qualifier))
+                 .append(' ')
+                 .append(Arrays.toString(cell))
+                 .append('\t')
+                 .append(delta)
+                 .append('\t');
+            }
+            if ((deltaflags & 0x8) == 0x8) {
+              buf.append(importformat ? "" : "f ")
+                 .append(Float.intBitsToFloat((int) lvalue));
+            } else {
+              buf.append(importformat ? "" : "l ")
+                 .append(lvalue);
+            }
+            if (importformat) {
+              for (final Map.Entry<String, String> tag
+                   : Core.getTags(tsdb, key).entrySet()) {
+                buf.append(' ').append(tag.getKey())
+                   .append('=').append(tag.getValue());
+              }
+            } else {
+              buf.append('\t')
+                 .append(base_time + delta)
+                 .append(" (").append(date(base_time + delta)).append(')');
+            }
+            buf.append('\n');
+            System.out.print(buf);
+          }
+
+          if (delete) {
+            final DeleteRequest del = new DeleteRequest(table, key);
+            client.delete(del);
           }
         }
       }

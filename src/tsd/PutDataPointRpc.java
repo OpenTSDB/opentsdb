@@ -17,7 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.jboss.netty.channel.Channel;
 
-import net.opentsdb.HBaseException;
+import org.hbase.async.HBaseException;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.WritableDataPoints;

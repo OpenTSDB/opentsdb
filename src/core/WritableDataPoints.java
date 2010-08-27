@@ -14,7 +14,7 @@ package net.opentsdb.core;
 
 import java.util.Map;
 
-import net.opentsdb.HBaseException;
+import org.hbase.async.HBaseException;
 
 /**
  * Represents a mutable sequence of continuous data points.
@@ -28,7 +28,7 @@ public interface WritableDataPoints extends DataPoints {
    * <p>
    * This method can be called multiple times on the same instance to start
    * adding data points to another time series without having to create a new
-   * instance.  This particularly helps when using {@link #groupCommit}.
+   * instance.
    * @param metric A non-empty string.
    * @param tags The tags on this series.  This non-empty list must have an
    * even number of elements.  The elements in the list must be alternating
@@ -44,8 +44,8 @@ public interface WritableDataPoints extends DataPoints {
   /**
    * Adds a {@code long} data point to the TSDB.
    * <p>
-   * The data point is immediately persisted unless {@link #groupCommit} is
-   * used.  Data points must be added in chronological order.
+   * The data point is immediately persisted unless {@link #setBufferingTime}
+   * is used.  Data points must be added in chronological order.
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
    * @throws IllegalArgumentException if the timestamp is less than or equal
@@ -58,8 +58,8 @@ public interface WritableDataPoints extends DataPoints {
   /**
    * Appends a {@code float} data point to this sequence.
    * <p>
-   * The data point is immediately persisted unless {@link #groupCommit} is
-   * used.  Data points must be added in chronological order.
+   * The data point is immediately persisted unless {@link #setBufferingTime}
+   * is used.  Data points must be added in chronological order.
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
    * @throws IllegalArgumentException if the timestamp is less than or equal
@@ -72,23 +72,21 @@ public interface WritableDataPoints extends DataPoints {
   void addPoint(long timestamp, float value);
 
   /**
-   * Changes the size of the group commits.
+   * Specifies for how long to buffer edits, in milliseconds.
    * <p>
-   * By calling this method, one can set the <i>approximate</i> size of the
-   * group commits.  {@code 0} (the default) means data points are persisted
-   * immediately.
+   * By calling this method, you're allowing new data points to be buffered
+   * before being sent to HBase.  {@code 0} (the default) means data points
+   * are persisted immediately.
    * <p>
-   * Calling this method with a lower value than what was previously set may
-   * cause it to persist uncommitted data points.
-   * @param size The approximate number of data points that should be
-   * accumulated client-side before being sent to HBase.  The actual size of
-   * the commits is defined in bytes not in data points, so the number of data
-   * points grouped per commit will vary slightly depending on the size of
-   * each data point.
-   * @throws IllegalArgumentException if the argument is negative or zero.
-   * @throws HBaseException if there was a problem while persisting data.
+   * Buffering improves performance, reduces the number of RPCs sent to HBase,
+   * but can cause data loss if we die before we get a chance to send buffered
+   * edits to HBase.  It also entails that buffered data points aren't visible
+   * to other applications using the TSDB until they're flushed to HBase.
+   * @param time The approximate maximum number of milliseconds for which data
+   * points should be buffered before being sent to HBase.  This deadline will
+   * be honored on a "best effort" basis.
    */
-  void groupCommit(short size);
+  void setBufferingTime(short time);
 
   /**
    * Specifies whether or not this is a batch import.
@@ -101,7 +99,7 @@ public interface WritableDataPoints extends DataPoints {
    * <li>Data points may not be persisted immediately.  In the event of an
    * outage in HBase during or slightly after the import, un-persisted data
    * points will be lost.</li>
-   * <li>{@link #groupCommit groupCommit} may be called with an argument
+   * <li>{@link #setBufferingTime} may be called with an argument
    * chosen by the implementation.</li>
    * </ul>
    * @param batchornot if true, then this is a batch import.

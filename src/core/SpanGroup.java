@@ -159,6 +159,7 @@ final class SpanGroup implements DataPoints {
     if (spans.isEmpty()) {
       tags = new HashMap<String, String>(0);
       aggregated_tags = new ArrayList<String>(0);
+      return;
     }
     final Iterator<Span> it = spans.iterator();
     tags = new HashMap<String, String>(it.next().getTags());

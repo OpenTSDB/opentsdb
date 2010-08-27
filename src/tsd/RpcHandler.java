@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.stumbleupon.async.Callback;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -248,12 +250,6 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
     private void doShutdown(final TSDB tsdb, final Channel chan) {
       ConnectionManager.closeAllConnections();
-      // Attempt to commit any data point still only in RAM.
-      // TODO(tsuna): Need a way of ensuring we don't spend more than X
-      // seconds doing this.  If we're asked to die, we should do so
-      // promptly.  Right now I believe we can spend an indefinite and
-      // unbounded amount of time in the HBase client library.
-      tsdb.flush();
       // Netty gets stuck in an infinite loop if we shut it down from within a
       // NIO thread.  So do this from a newly created thread.
       final class ShutdownNetty extends Thread {
@@ -264,7 +260,25 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
           chan.getFactory().releaseExternalResources();
         }
       }
-      new ShutdownNetty().start();
+      // Attempt to commit any data point still only in RAM.
+      // TODO(tsuna): Need a way of ensuring we don't spend more than X
+      // seconds doing this.  If we're asked to die, we should do so
+      // promptly.  Right now I believe we can spend an indefinite and
+      // unbounded amount of time in the HBase client library.
+      final class ShutdownTSDB implements Callback<Object, Object> {
+        public Object call(final Object arg) {
+          if (arg instanceof Exception) {
+            LOG.error("Unexpected exception while shutting down",
+                      (Exception) arg);
+          }
+          new ShutdownNetty().start();
+          return arg;
+        }
+        public String toString() {
+          return "shutdown callback";
+        }
+      }
+      tsdb.shutdown().addBoth(new ShutdownTSDB());
     }
   }
 

@@ -21,6 +21,8 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.hbase.async.HBaseClient;
+
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Query;
@@ -100,12 +102,23 @@ final class CliQuery {
       usage(argp, "Not enough arguments.", 2);
     }
 
-    final TSDB tsdb = new TSDB(argp.get("--table", "tsdb"),
+    final HBaseClient client = CliOptions.clientFromOptions(argp);
+    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     final String basepath = argp.get("--graph");
     argp = null;
 
-    final Plot plot = doQuery(tsdb, args, basepath != null);
+    Plot plot = null;
+    try {
+      plot = doQuery(tsdb, args, basepath != null);
+    } finally {
+      try {
+        tsdb.shutdown().joinUninterruptibly();
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        System.exit(1);
+      }
+    }
 
     if (plot != null) {
       try {

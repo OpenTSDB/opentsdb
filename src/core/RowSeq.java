@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
@@ -21,9 +22,8 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.hbase.async.Bytes;
+import org.hbase.async.KeyValue;
 
 /**
  * Represents a read-only sequence of continuous HBase rows.
@@ -39,7 +39,7 @@ final class RowSeq implements DataPoints {
   private final TSDB tsdb;
 
   /** First row key. */
-  byte[] row;
+  byte[] key;
 
   /**
    * Qualifiers for individual data points.
@@ -62,18 +62,17 @@ final class RowSeq implements DataPoints {
   }
 
   /**
-   * Sets the row this instance holds in RAM using a Result from a scanner.
-   * @param result The HBase row to set.
+   * Sets the row this instance holds in RAM using a row from a scanner.
+   * @param row The HBase row to set.
    * @throws IllegalStateException if this method was already called.
    */
-  void setRow(final Result result) {
-    final byte[] row = result.getRow();
-    final long base_time = RowKey.baseTime(tsdb.metrics.width(), row);
-    final KeyValue[] kvs = result.raw();
+  void setRow(final ArrayList<KeyValue> row) {
+    final byte[] key = row.get(0).key();
+    final long base_time = Bytes.getUnsignedInt(key, tsdb.metrics.width());
 
-    if (this.row == null) {
-      this.row = row;
-      final int npoints = kvs.length;
+    if (this.key == null) {
+      this.key = key;
+      final int npoints = row.size();
       values = new long[npoints];
       qualifiers = new short[npoints];
     } else {
@@ -81,7 +80,7 @@ final class RowSeq implements DataPoints {
     }
 
     int index = 0;  // position in `values'.
-    for (final KeyValue kv : kvs) {
+    for (final KeyValue kv : row) {
       final short qualifier = extractQualifier(kv);
       qualifiers[index] = qualifier;
       values[index] = extractLValue(qualifier, kv);
@@ -100,20 +99,19 @@ final class RowSeq implements DataPoints {
    * together that they could be stored into the same row, it makes sense to
    * merge them into the same {@link RowSeq} instance in memory in order to save
    * RAM.
-   * @param result The HBase row to merge into this instance.
+   * @param row The HBase row to merge into this instance.
    * @throws IllegalStateException if {@link #setRow} wasn't called first.
    * @throws IllegalArgumentException if the data points in the argument
    * aren't close enough to those in this instance time-wise to be all merged
    * together.
    */
-  void addRow(final Result result) {
-    final byte[] row = result.getRow();
-    final long base_time = RowKey.baseTime(tsdb.metrics.width(), row);
-    final KeyValue[] kvs = result.raw();
+  void addRow(final ArrayList<KeyValue> row) {
+    final byte[] key = row.get(0).key();
+    final long base_time = Bytes.getUnsignedInt(key, tsdb.metrics.width());
 
     int index = values.length;  // position in `values'.
-    if (this.row != null) {
-      final int new_length = values.length + kvs.length;
+    if (this.key != null) {
+      final int new_length = values.length + row.size();
       values = Arrays.copyOf(values, new_length);
       qualifiers = Arrays.copyOf(qualifiers, new_length);
     } else {
@@ -125,7 +123,7 @@ final class RowSeq implements DataPoints {
       throw new AssertionError("attempt to add a row with a base_time="
           + base_time + " <= baseTime()=" + baseTime());
     }
-    for (final KeyValue kv : kvs) {
+    for (final KeyValue kv : row) {
       short qualifier = extractQualifier(kv);
       final int time_delta = (qualifier & 0xFFFF) >>> Const.FLAG_BITS;
       if (!canTimeDeltaFit(time_delta)) {
@@ -163,16 +161,16 @@ final class RowSeq implements DataPoints {
    * @return The qualifier, on a short, since it's expected to be on 2 bytes.
    */
   private short extractQualifier(final KeyValue kv) {
-    if (!Bytes.equals(TSDB.FAMILY, kv.getFamily())) {
+    if (!Bytes.equals(TSDB.FAMILY, kv.family())) {
       throw new AssertionError("unexpected KeyValue family: "
-                                 + Arrays.toString(kv.getFamily()));
+                                 + Bytes.pretty(kv.family()));
     }
-    final byte[] qual = kv.getQualifier();
+    final byte[] qual = kv.qualifier();
     if (qual.length != 2) {
       throw new AssertionError("Invalid qualifier length: "
-                                 + Arrays.toString(qual));
+                                 + Bytes.pretty(qual));
     }
-    return Bytes.toShort(qual);
+    return Bytes.getShort(qual);
   }
 
   /**
@@ -185,7 +183,7 @@ final class RowSeq implements DataPoints {
    * bits of the {@code long} represent some kind of a floating point value.
    */
   private static long extractLValue(final short qualifier, final KeyValue kv) {
-    final byte[] value = kv.getValue();
+    final byte[] value = kv.value();
     if ((qualifier & Const.FLAG_FLOAT) != 0) {
       if ((qualifier & 0x3) != 0x3) {
         throw new AssertionError("Float value qualifier size != 4: " + kv);
@@ -195,26 +193,26 @@ final class RowSeq implements DataPoints {
                  || value[2] != 0 || value[3] != 0) {
         throw new AssertionError("Float value with nonzero byte MSBs: " + kv);
       }
-      return Bytes.toInt(value, 4);
+      return Bytes.getInt(value, 4);
     } else {
       if ((qualifier & 0x7) != 0x7) {
         throw new AssertionError("Integer value qualifier size != 4: " + kv);
       } else if (value.length != 8) {
         throw new AssertionError("Integer value not on 8 bytes: " + kv);
       }
-      return Bytes.toLong(value);
+      return Bytes.getLong(value);
     }
   }
 
   public String metricName() {
-    if (row == null) {
-      throw new IllegalStateException("row is null!");
+    if (key == null) {
+      throw new IllegalStateException("the row key is null!");
     }
-    return RowKey.metricName(tsdb, row);
+    return RowKey.metricName(tsdb, key);
   }
 
   public Map<String, String> getTags() {
-    return Tags.getTags(tsdb, row);
+    return Tags.getTags(tsdb, key);
   }
 
   public List<String> getAggregatedTags() {
@@ -240,7 +238,7 @@ final class RowSeq implements DataPoints {
 
   /** Extracts the base timestamp from the row key. */
   long baseTime() {
-    return RowKey.baseTime(tsdb.metrics.width(), row);
+    return Bytes.getUnsignedInt(key, tsdb.metrics.width());
   }
 
   /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */
@@ -289,11 +287,11 @@ final class RowSeq implements DataPoints {
     final String metric = metricName();
     final int size = size();
     final StringBuilder buf = new StringBuilder(80 + metric.length()
-                                                + row.length * 4
+                                                + key.length * 4
                                                 + size * 16);
     final long base_time = baseTime();
     buf.append("RowSeq(")
-       .append(row == null ? "<null>" : Arrays.toString(row))
+       .append(key == null ? "<null>" : Arrays.toString(key))
        .append(" (metric=")
        .append(metric)
        .append("), base_time=")

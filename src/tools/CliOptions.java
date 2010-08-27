@@ -20,6 +20,8 @@ import org.slf4j.LoggerFactory;
 import org.jboss.netty.logging.InternalLoggerFactory;
 import org.jboss.netty.logging.Slf4JLoggerFactory;
 
+import org.hbase.async.HBaseClient;
+
 /** Helper functions to parse arguments passed to {@code main}.  */
 final class CliOptions {
 
@@ -35,6 +37,12 @@ final class CliOptions {
     argp.addOption("--uidtable", "TABLE",
                    "Name of the HBase table to use for Unique IDs"
                    + " (default: tsdb-uid).");
+    argp.addOption("--zkquorum", "SPEC",
+                   "Specification of the ZooKeeper quorum to use"
+                   + " (default: localhost).");
+    argp.addOption("--zkbasedir", "PATH",
+                   "Path under which is the znode for the -ROOT- region"
+                   + " (default: /hbase).");
   }
 
   /** Adds a --verbose flag.  */
@@ -74,6 +82,15 @@ final class CliOptions {
              .getLoggerContext().getLoggerList()) {
         logger.setLevel(Level.WARN);
       }
+    }
+  }
+
+  static HBaseClient clientFromOptions(final ArgP argp) {
+    final String zkq = argp.get("--zkquorum", "localhost");
+    if (argp.has("--zkbasedir")) {
+      return new HBaseClient(zkq, argp.get("--zkbasedir"));
+    } else {
+      return new HBaseClient(zkq);
     }
   }
 

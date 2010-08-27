@@ -12,28 +12,22 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.filter.RegexStringComparator;
-import org.apache.hadoop.hbase.filter.RowFilter;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.hbase.async.Bytes;
+import org.hbase.async.GetRequest;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.HBaseException;
+import org.hbase.async.KeyValue;
+import org.hbase.async.Scanner;
 
-import net.opentsdb.HBaseException;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -122,7 +116,7 @@ final class UidManager {
       usage(argp, "Not enough arguments");
       System.exit(2);
     }
-    final HTable htable = createHTable(argp);
+    final byte[] table = argp.get("--uidtable", "tsdb-uid").getBytes();
     final short idwidth = (argp.has("--idwidth")
                            ? Short.parseShort(argp.get("--idwidth"))
                            : 3);
@@ -131,11 +125,24 @@ final class UidManager {
       System.exit(3);
     }
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
+    final HBaseClient client = CliOptions.clientFromOptions(argp);
     argp = null;
-    System.exit(runCommand(htable, idwidth, ignorecase, args));
+    int rc;
+    try {
+      rc = runCommand(client, table, idwidth, ignorecase, args);
+    } finally {
+      try {
+        client.shutdown().joinUninterruptibly();
+      } catch (Exception e) {
+        LOG.error("Unexpected exception while shutting down", e);
+        rc = 42;
+      }
+    }
+    System.exit(rc);
   }
 
-  private static int runCommand(final HTable htable,
+  private static int runCommand(final HBaseClient client,
+                                final byte[] table,
                                 final short idwidth,
                                 final boolean ignorecase,
                                 final String[] args) {
@@ -143,8 +150,8 @@ final class UidManager {
     if (args[0].equals("grep")) {
       if (2 <= nargs && nargs <= 3) {
         try {
-          return grep(htable, ignorecase, args);
-        } catch (IOException e) {
+          return grep(client, table, ignorecase, args);
+        } catch (HBaseException e) {
           return 3;
         }
       } else {
@@ -156,15 +163,15 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return assign(htable, idwidth, args);
+      return assign(client, table, idwidth, args);
     } else {
       if (1 <= nargs && nargs <= 2) {
         final String kind = nargs == 2 ? args[0] : null;
         try {
           final long id = Long.parseLong(args[nargs - 1]);
-          return lookupId(htable, idwidth, id, kind);
+          return lookupId(client, table, idwidth, id, kind);
         } catch (NumberFormatException e) {
-          return lookupName(htable, idwidth, args[nargs - 1], kind);
+          return lookupName(client, table, idwidth, args[nargs - 1], kind);
         }
       } else {
         usage("Wrong number of arguments");
@@ -174,116 +181,97 @@ final class UidManager {
   }
 
   /**
-   * Using the command line options, creates the right {@link HTable}.
-   * @param argp The parsed arguments from the command line.
-   * @return A {@link HTable} for the given {@code --uidtable}.
-   */
-  private static HTable createHTable(final ArgP argp) {
-    final Configuration conf = HBaseConfiguration.create();
-    conf.setInt("hbase.client.scanner.caching", 1024);
-    final String uidtable = argp.get("--uidtable", "tsdb-uid");
-    try {
-      return new HTable(conf, uidtable);
-    } catch (IOException e) {
-      LOG.error("Failed to create an HTable for " + uidtable, e);
-      System.exit(3);
-      return null;  // Unreachable, stupid javac.
-    }
-  }
-
-  /**
    * Implements the {@code grep} subcommand.
-   * @param htable The table where the UIDs are.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
    * @param ignorecase Whether or not to ignore the case while grepping.
    * @param args Command line arguments ({@code [kind] RE}).
    * @return The exit status of the command (0 means at least 1 match).
    */
-  private static int grep(final HTable htable,
+  private static int grep(final HBaseClient client,
+                          final byte[] table,
                           final boolean ignorecase,
-                          final String[] args) throws IOException {
-    final Scan scan = new Scan();
+                          final String[] args) {
+    final Scanner scanner = client.newScanner(table);
+    scanner.setMaxNumRows(1024);
     String regexp;
-    final byte[] id_fam = ID_FAMILY;
+    scanner.setFamily(ID_FAMILY);
     if (args.length == 3) {
-      scan.addColumn(id_fam, toBytes(args[1]));
+      scanner.setQualifier(toBytes(args[1]));
       regexp = args[2];
     } else {
-      scan.addFamily(id_fam);
       regexp = args[1];
     }
     if (ignorecase) {
       regexp = "(?i)" + regexp;
     }
-    {
-      final RegexStringComparator r = new RegexStringComparator(regexp);
-      r.setCharset(CHARSET);
-      final RowFilter filter = new RowFilter(RowFilter.CompareOp.EQUAL, r);
-      scan.setFilter(filter);
-    }
-    final ResultScanner scanner = htable.getScanner(scan);
+    scanner.setKeyRegexp(regexp, CHARSET);
     boolean found = false;
     try {
-      Result result;
-      while ((result = scanner.next()) != null) {
-        found |= printResult(result, id_fam, true);
+      ArrayList<ArrayList<KeyValue>> rows;
+      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+        for (final ArrayList<KeyValue> row : rows) {
+          found |= printResult(row, ID_FAMILY, true);
+        }
       }
-    } catch (IOException e) {
+    } catch (HBaseException e) {
       LOG.error("Error while scanning HBase, scanner=" + scanner, e);
       throw e;
-    } finally {
-      scanner.close();
+    } catch (Exception e) {
+      LOG.error("WTF?  Unexpected exception type, scanner=" + scanner, e);
+      throw new AssertionError("Should never happen");
     }
     return found ? 0 : 1;
   }
 
   /**
    * Helper to print the cells in a given family for a given row, if any.
-   * @param result The row to print.
+   * @param row The row to print.
    * @param family Only cells in this family (if any) will be printed.
    * @param formard If true, this row contains a forward mapping (name to ID).
    * Otherwise the row is assumed to contain a reverse mapping (ID to name).
    * @return {@code true} if at least one cell was printed.
    */
-  private static boolean printResult(final Result result,
+  private static boolean printResult(final ArrayList<KeyValue> row,
                                      final byte[] family,
                                      final boolean formard) {
-    final byte[] row = result.getRow();
-    if (row == null) {
-      return false;
-    }
-    String name = formard ? fromBytes(row) : null;
-    String id = formard ? null : Arrays.toString(row);
+    final byte[] key = row.get(0).key();
+    String name = formard ? fromBytes(key) : null;
+    String id = formard ? null : Arrays.toString(key);
     boolean printed = false;
-    for (final Map.Entry<byte[], byte[]> entry
-         : result.getFamilyMap(family).entrySet()) {
+    for (final KeyValue kv : row) {
+      if (!Bytes.equals(kv.family(), family)) {
+        continue;
+      }
       printed = true;
       if (formard) {
-        id = Arrays.toString(entry.getValue());
+        id = Arrays.toString(kv.value());
       } else {
-        name = fromBytes(entry.getValue());
+        name = fromBytes(kv.value());
       }
-      System.out.println(fromBytes(entry.getKey())
-                         + ' ' + name + ": " + id);
+      System.out.println(fromBytes(kv.qualifier()) + ' ' + name + ": " + id);
     }
     return printed;
   }
 
   /**
    * Implements the {@code assign} subcommand.
-   * @param htable The table where the UIDs are.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param args Command line arguments ({@code assign name [names]}).
    * @return The exit status of the command (0 means success).
    */
-  private static int assign(final HTable htable,
+  private static int assign(final HBaseClient client,
+                            final byte[] table,
                             final short idwidth,
                             final String[] args) {
-    final UniqueId uid = new UniqueId(htable, args[1], (int) idwidth);
+    final UniqueId uid = new UniqueId(client, table, args[1], (int) idwidth);
     for (int i = 2; i < args.length; i++) {
       try {
         uid.getOrCreateId(args[i]);
         // Lookup again the ID we've just created and print it.
-        extactLookupName(htable, idwidth, args[1], args[i]);
+        extactLookupName(client, table, idwidth, args[1], args[i]);
       } catch (HBaseException e) {
         LOG.error("error while processing " + args[i], e);
         return 3;
@@ -294,13 +282,15 @@ final class UidManager {
 
   /**
    * Looks up an ID and finds the corresponding name(s), if any.
-   * @param htable The table where the UIDs are.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param lid The ID to look for.
    * @param kind The 'kind' of the ID (can be {@code null}).
    * @return The exit status of the command (0 means at least 1 found).
    */
-  private static int lookupId(final HTable htable,
+  private static int lookupId(final HBaseClient client,
+                              final byte[] table,
                               final short idwidth,
                               final long lid,
                               final String kind) {
@@ -308,47 +298,54 @@ final class UidManager {
     if (id == null) {
       return 1;
     } else if (kind != null) {
-      return extactLookupId(htable, idwidth, kind, id);
+      return extactLookupId(client, table, idwidth, kind, id);
     }
-    return findAndPrintRow(htable, id, NAME_FAMILY, false);
+    return findAndPrintRow(client, table, id, NAME_FAMILY, false);
   }
 
   /**
    * Gets a given row in HBase and prints it on standard output.
-   * @param htable The table to use.
-   * @param row The row to attempt to get from HBase.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
+   * @param key The row key to attempt to get from HBase.
    * @param family The family in which we're interested.
    * @return 0 if at least one cell was found and printed, 1 otherwise.
    */
-  private static int findAndPrintRow(final HTable htable,
-                                     final byte[] row,
+  private static int findAndPrintRow(final HBaseClient client,
+                                     final byte[] table,
+                                     final byte[] key,
                                      final byte[] family,
                                      boolean formard) {
-    final Get get = new Get(row);
-    get.addFamily(family);
-    Result result;
+    final GetRequest get = new GetRequest(table, key);
+    get.family(family);
+    ArrayList<KeyValue> row;
     try {
-      result = htable.get(get);
-    } catch (IOException e) {
+      row = client.get(get).joinUninterruptibly();
+    } catch (HBaseException e) {
       LOG.error("Get failed: " + get, e);
       return 1;
+    } catch (Exception e) {
+      LOG.error("WTF?  Unexpected exception type, get=" + get, e);
+      return 42;
     }
-    return printResult(result, family, formard) ? 0 : 1;
+    return printResult(row, family, formard) ? 0 : 1;
   }
 
   /**
    * Looks up an ID for a given kind, and prints it if found.
-   * @param htable The table where the UIDs are.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param kind The 'kind' of the ID (must not be {@code null}).
    * @param id The ID to look for.
    * @return 0 if the ID for this kind was found, 1 otherwise.
    */
-  private static int extactLookupId(final HTable htable,
+  private static int extactLookupId(final HBaseClient client,
+                                    final byte[] table,
                                     final short idwidth,
                                     final String kind,
                                     final byte[] id) {
-    final UniqueId uid = new UniqueId(htable, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
     try {
       final String name = uid.getName(id);
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));
@@ -370,7 +367,7 @@ final class UidManager {
     if (idwidth <= 0) {
       throw new AssertionError("negative idwidth: " + idwidth);
     }
-    final byte[] id = Bytes.toBytes(lid);
+    final byte[] id = Bytes.fromLong(lid);
     for (int i = 0; i < id.length - idwidth; i++) {
       if (id[i] != 0) {
         System.err.println(lid + " is too large to fit on " + idwidth
@@ -383,35 +380,38 @@ final class UidManager {
 
   /**
    * Looks up a name and finds the corresponding UID(s), if any.
-   * @param htable The table where the UIDs are.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param name The name to look for.
    * @param kind The 'kind' of the ID (can be {@code null}).
    * @return The exit status of the command (0 means at least 1 found).
    */
-  private static int lookupName(final HTable htable,
+  private static int lookupName(final HBaseClient client,
+                                final byte[] table,
                                 final short idwidth,
                                 final String name,
                                 final String kind) {
     if (kind != null) {
-      return extactLookupName(htable, idwidth, kind, name);
+      return extactLookupName(client, table, idwidth, kind, name);
     }
-    return findAndPrintRow(htable, toBytes(name), ID_FAMILY, true);
+    return findAndPrintRow(client, table, toBytes(name), ID_FAMILY, true);
   }
 
   /**
    * Looks up a name for a given kind, and prints it if found.
-   * @param htable The table where the UIDs are.
+   * @param client The HBase client to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param kind The 'kind' of the ID (must not be {@code null}).
    * @param name The name to look for.
    * @return 0 if the name for this kind was found, 1 otherwise.
    */
-  private static int extactLookupName(final HTable htable,
+  private static int extactLookupName(final HBaseClient client,
+                                      final byte[] table,
                                       final short idwidth,
                                       final String kind,
                                       final String name) {
-    final UniqueId uid = new UniqueId(htable, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
     try {
       final byte[] id = uid.getId(name);
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));

@@ -12,17 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.io.IOException;
 import java.util.List;
+
+import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.HTable;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.HBaseException;
 
-import net.opentsdb.HBaseException;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
@@ -43,8 +42,11 @@ public final class TSDB implements TSDBInterface {
   private static final String TAG_VALUE_QUAL = "tagv";
   private static final short TAG_VALUE_WIDTH = 3;
 
-  /** HTable in which timeseries are stored. */
-  final HTable timeseries_table;
+  /** Client for the HBase cluster to use.  */
+  final HBaseClient client;
+
+  /** Name of the table in which timeseries are stored.  */
+  final byte[] table;
 
   /** Unique IDs for the metric names. */
   final UniqueId metrics;
@@ -55,54 +57,23 @@ public final class TSDB implements TSDBInterface {
 
   /**
    * Constructor.
+   * @param client The HBase client to use.
    * @param timeseries_table The name of the HBase table where time series
    * data is stored.
    * @param uniqueids_table The name of the HBase table where the unique IDs
    * are stored.
    */
-  public TSDB(final String timeseries_table, final String uniqueids_table)
-    throws HBaseException {
-    final Configuration conf = getHbaseConfiguration();
-    try {
-      this.timeseries_table = new HTable(conf, timeseries_table);
-    } catch (IOException e) {
-      throw new HBaseException("Failed to make a HTable for "
-                               + timeseries_table, e);
-    }
-    this.timeseries_table.setAutoFlush(false);
+  public TSDB(final HBaseClient client,
+              final String timeseries_table,
+              final String uniqueids_table) {
+    this.client = client;
+    table = timeseries_table.getBytes();
 
-    try {
-      metrics = new UniqueId(new HTable(conf, uniqueids_table),
-                             METRICS_QUAL, METRICS_WIDTH);
-      tag_names = new UniqueId(new HTable(conf, uniqueids_table),
-                               TAG_NAME_QUAL, TAG_NAME_WIDTH);
-      tag_values = new UniqueId(new HTable(conf, uniqueids_table),
-                                TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
-    } catch (IOException e) {
-      throw new HBaseException("Failed to make a HTable for "
-                               + uniqueids_table, e);
-    }
-  }
-
-  /**
-   * Create a configuration object to use HBase.
-   * Screw the whole {@code hbase-site.xml} crap.  XML sucks.
-   */
-  private static Configuration getHbaseConfiguration() {
-    final Configuration conf = HBaseConfiguration.create();
-    // Try to fetch this many rows at a time when scanning.
-    conf.setInt("hbase.client.scanner.caching", 1024);
-    // Set the size of the write buffer in order to keep this many data points
-    // in memory before persisting them in HBase and making them available to the
-    // rest of the world.
-    conf.setInt("hbase.client.write.buffer", Const.AVG_PUT_SIZE * 64);
-    conf.set("hbase.zookeeper.quorum",
-             System.getProperty("hbase.zookeeper.quorum", "127.0.0.1"));
-    final String rootzknode = System.getProperty("zookeeper.znode.parent");
-    if (rootzknode != null) {
-      conf.set("zookeeper.znode.parent", rootzknode);
-    }
-    return conf;
+    final byte[] uidtable = uniqueids_table.getBytes();
+    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
+    tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL,
+                              TAG_VALUE_WIDTH);
   }
 
   /** Number of cache hits during lookups involving UIDs. */
@@ -183,19 +154,12 @@ public final class TSDB implements TSDBInterface {
     return new IncomingDataPoints(this);
   }
 
-  public void flush() throws HBaseException {
-    if (timeseries_table.getWriteBuffer().isEmpty()) {
-      return;
-    }
-    try {
-      timeseries_table.flushCommits();
-    } catch (IOException e) {
-      final String errmsg = "Error while flushing Puts.  There are"
-        + timeseries_table.getWriteBuffer().size()
-        + " Puts left in the write buffer.";
-      LOG.error(errmsg, e);
-      throw new HBaseException(errmsg, e);
-    }
+  public Deferred<Object> flush() throws HBaseException {
+    return client.flush();
+  }
+
+  public Deferred<Object> shutdown() {
+    return client.shutdown();
   }
 
   /**
