@@ -18,11 +18,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes;
-import org.hbase.async.HBaseException;
 import org.hbase.async.PutRequest;
 
 import net.opentsdb.stats.Histogram;
@@ -152,9 +154,10 @@ final class IncomingDataPoints implements WritableDataPoints {
    * then cast the resulting 32 bit int to a 64 bit long.
    * @param flags Flags to store in the qualifier (size and type of the data
    * point).
+   * @return A deferred object that indicates the completion of the request.
    */
-  private void addPointInternal(final long timestamp, final long value,
-                                final short flags) throws HBaseException {
+  private Deferred<Object> addPointInternal(final long timestamp, final long value,
+                                            final short flags) {
     if (row == null) {
       throw new IllegalStateException("setSeries() never called!");
     }
@@ -214,21 +217,19 @@ final class IncomingDataPoints implements WritableDataPoints {
     final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
                                             Bytes.fromShort(qualifier),
                                             Bytes.fromLong(value));
-    try {
-      final long start_put = System.nanoTime();
-      point.setBufferable(false);  // TODO(tsuna): Remove once we write async.
-      point.setDurable(!batch_import);
-      tsdb.client.put(point).joinUninterruptibly();
-      putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
-    } catch (HBaseException e) {
-      LOG.error("Error while storing data in HBase.  Last point=" + point, e);
-      throw e;
-    } catch (Exception e) {
-      final String errmsg = "WTF?  Unexpected exception type while storing"
-        + " data in HBase.  Last point = " + point;
-      LOG.error(errmsg, e);
-      throw new RuntimeException(errmsg, e);
-    }
+    final long start_put = System.nanoTime();
+    final Callback<Object, Object> cb = new Callback<Object, Object>() {
+      public Object call(final Object arg) {
+        putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
+        return arg;
+      }
+      public String toString() {
+        return "time put request";
+      }
+    };
+    // TODO(tsuna): Add an errback to handle some error cases here.
+    point.setDurable(!batch_import);
+    return tsdb.client.put(point).addBoth(cb);
   }
 
   private void grow() {
@@ -246,21 +247,20 @@ final class IncomingDataPoints implements WritableDataPoints {
     return Bytes.getUnsignedInt(row, tsdb.metrics.width());
   }
 
-  public void addPoint(final long timestamp,
-                       final long value) throws HBaseException {
+  public Deferred<Object> addPoint(final long timestamp, final long value) {
     final short flags = 0x7;  // An int stored on 8 bytes.
-    addPointInternal(timestamp, value, flags);
+    return addPointInternal(timestamp, value, flags);
   }
 
-  public void addPoint(long timestamp, float value) throws HBaseException {
+  public Deferred<Object> addPoint(final long timestamp, final float value) {
     if (Float.isNaN(value) || Float.isInfinite(value)) {
       throw new IllegalArgumentException("value is NaN or Infinite: " + value
                                          + " for timestamp=" + timestamp);
     }
     final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
-    addPointInternal(timestamp,
-                     Float.floatToRawIntBits(value) & 0x00000000FFFFFFFFL,
-                     flags);
+    return addPointInternal(timestamp,
+                            Float.floatToRawIntBits(value) & 0x00000000FFFFFFFFL,
+                            flags);
   }
 
   public void setBufferingTime(final short time) {

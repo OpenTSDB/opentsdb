@@ -15,11 +15,10 @@ package net.opentsdb.tsd;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import org.jboss.netty.channel.Channel;
-
-import org.hbase.async.HBaseException;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
@@ -75,13 +74,22 @@ final class PutDataPointRpc implements TelnetRpc {
                                   final String[] cmd) {
     String errmsg = null;
     try {
-      importDataPoint(tsdb, cmd);
+      final class PutErrback implements Callback<Exception, Exception> {
+        public Exception call(final Exception arg) {
+          if (chan.isConnected()) {
+            chan.write("put: HBase error: " + arg.getMessage() + '\n');
+          }
+          return arg;
+        }
+        public String toString() {
+          return "report error to channel";
+        }
+      }
+      return importDataPoint(tsdb, cmd).addErrback(new PutErrback());
     } catch (NumberFormatException x) {
       errmsg = "put: invalid value: " + x.getMessage() + '\n';
     } catch (IllegalArgumentException x) {
       errmsg = "put: illegal argument: " + x.getMessage() + '\n';
-    } catch (HBaseException x) {
-      errmsg = "put: HBase error: " + x.getMessage() + '\n';
     } catch (NoSuchUniqueName x) {
       errmsg = "put: unknown metric: " + x.getMessage() + '\n';
     }
@@ -96,12 +104,12 @@ final class PutDataPointRpc implements TelnetRpc {
    * @param tsdb The TSDB to import the data point into.
    * @param words The words describing the data point to import, in
    * the following format: {@code [metric, timestamp, value, ..tags..]}
+   * @return A deferred object that indicates the completion of the request.
    * @throws NumberFormatException if the timestamp or value is invalid.
    * @throws IllegalArgumentException if any other argument is invalid.
-   * @throws HBaseException if there's a problem when writing to HBase.
    * @throws NoSuchUniqueName if the metric isn't registered.
    */
-  private void importDataPoint(final TSDB tsdb, final String[] words) {
+  private Deferred<Object> importDataPoint(final TSDB tsdb, final String[] words) {
     words[0] = null; // Ditch the "put".
     if (words.length < 5) {  // Need at least: metric timestamp value tag
       //               ^ 5 and not 4 because words[0] is "put".
@@ -128,9 +136,9 @@ final class PutDataPointRpc implements TelnetRpc {
     }
     final WritableDataPoints dp = getDirtyRow(tsdb, metric, tags);
     if (value.indexOf('.') < 0) {  // integer value
-      dp.addPoint(timestamp, Long.parseLong(value));
+      return dp.addPoint(timestamp, Long.parseLong(value));
     } else {  // floating point value
-      dp.addPoint(timestamp, Float.parseFloat(value));
+      return dp.addPoint(timestamp, Float.parseFloat(value));
     }
   }
 }

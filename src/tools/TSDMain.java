@@ -114,7 +114,7 @@ final class TSDMain {
       client.ensureTableExists(table).joinUninterruptibly();
       client.ensureTableExists(uidtable).joinUninterruptibly();
 
-      client.setFlushInterval((short) 100);  // XXX
+      client.setFlushInterval((short) 1000);  // XXX
       final TSDB tsdb = new TSDB(client, table, uidtable);
       final ServerBootstrap server = new ServerBootstrap(factory);
 

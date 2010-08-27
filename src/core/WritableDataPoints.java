@@ -14,6 +14,8 @@ package net.opentsdb.core;
 
 import java.util.Map;
 
+import com.stumbleupon.async.Deferred;
+
 import org.hbase.async.HBaseException;
 
 /**
@@ -48,12 +50,17 @@ public interface WritableDataPoints extends DataPoints {
    * is used.  Data points must be added in chronological order.
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
    * @throws IllegalArgumentException if the timestamp is less than or equal
    * to the previous timestamp added or 0 for the first timestamp, or if the
    * difference with the previous timestamp is too large.
-   * @throws HBaseException if there was a problem while persisting data.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
    */
-  void addPoint(long timestamp, long value);
+  Deferred<Object> addPoint(long timestamp, long value);
 
   /**
    * Appends a {@code float} data point to this sequence.
@@ -62,14 +69,19 @@ public interface WritableDataPoints extends DataPoints {
    * is used.  Data points must be added in chronological order.
    * @param timestamp The timestamp associated with the value.
    * @param value The value of the data point.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
    * @throws IllegalArgumentException if the timestamp is less than or equal
    * to the previous timestamp added or 0 for the first timestamp, or if the
    * difference with the previous timestamp is too large.
    * @throws IllegalArgumentException if the value is {@code NaN} or
    * {@code Infinite}.
-   * @throws HBaseException if there was a problem while persisting data.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
    */
-  void addPoint(long timestamp, float value);
+  Deferred<Object> addPoint(long timestamp, float value);
 
   /**
    * Specifies for how long to buffer edits, in milliseconds.

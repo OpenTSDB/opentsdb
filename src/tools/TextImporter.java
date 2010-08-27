@@ -20,10 +20,16 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.zip.GZIPInputStream;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.HBaseClient;
+import org.hbase.async.HBaseRpc;
+import org.hbase.async.PleaseThrottleException;
+import org.hbase.async.PutRequest;
 
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
@@ -53,13 +59,21 @@ final class TextImporter {
     }
 
     final HBaseClient client = CliOptions.clientFromOptions(argp);
+    // Flush more frequently since we read very fast from the files.
+    client.setFlushInterval((short) 500);  // ms
     final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     argp = null;
     try {
+      int points = 0;
+      final long start_time = System.nanoTime();
       for (final String path : args) {
-        importFile(tsdb, path);
+        points += importFile(client, tsdb, path);
       }
+      final double time_delta = (System.nanoTime() - start_time) / 1000000000.0;
+      LOG.info(String.format("Total: imported %d data points in %.3fs"
+                             + " (%.1f points/s)",
+                             points, time_delta, (points / time_delta)));
       // TODO(tsuna): Figure out something better than just writing to stderr.
       tsdb.collectStats(new StatsCollector("tsd") {
         @Override
@@ -77,13 +91,39 @@ final class TextImporter {
     }
   }
 
-  private static void importFile(final TSDB tsdb,
-                                 final String path) throws IOException {
+  static volatile boolean throttle = false;
+
+  private static int importFile(final HBaseClient client,
+                                final TSDB tsdb,
+                                final String path) throws IOException {
     final long start_time = System.nanoTime();
+    long ping_start_time = start_time;
     final BufferedReader in = open(path);
     String line = null;
     int points = 0;
     try {
+      final class Errback implements Callback<Object, Exception> {
+        public Object call(final Exception arg) {
+          if (arg instanceof PleaseThrottleException) {
+            final PleaseThrottleException e = (PleaseThrottleException) arg;
+            LOG.warn("Need to throttle, HBase isn't keeping up.", e);
+            throttle = true;
+            final HBaseRpc rpc = e.getFailedRpc();
+            if (rpc instanceof PutRequest) {
+              client.put((PutRequest) rpc);  // Don't lose edits.
+            }
+            return null;
+          }
+          LOG.error("Exception caught while processing file "
+                    + path, arg);
+          System.exit(2);
+          return arg;
+        }
+        public String toString() {
+          return "importFile errback";
+        }
+      };
+      final Errback errback = new Errback();
       while ((line = in.readLine()) != null) {
         final String[] words = Tags.splitString(line, ' ');
         final String metric = words[0];
@@ -105,12 +145,38 @@ final class TextImporter {
           }
         }
         final WritableDataPoints dp = getDataPoints(tsdb, metric, tags);
+        Deferred<Object> d;
         if (value.indexOf('.') < 0) {  // integer value
-          dp.addPoint(timestamp, Long.parseLong(value));
+          d = dp.addPoint(timestamp, Long.parseLong(value));
         } else {  // floating point value
-          dp.addPoint(timestamp, Float.parseFloat(value));
+          d = dp.addPoint(timestamp, Float.parseFloat(value));
         }
+        d.addErrback(errback);
         points++;
+        if (points % 1000000 == 0) {
+          final long now = System.nanoTime();
+          ping_start_time = (now - ping_start_time) / 1000000;
+          LOG.info(String.format("... %d data points in %dms (%.1f points/s)",
+                                 points, ping_start_time,
+                                 (1000000 * 1000.0 / ping_start_time)));
+          ping_start_time = now;
+        }
+        if (throttle) {
+          LOG.info("Throttling...");
+          long throttle_time = System.nanoTime();
+          try {
+            d.joinUninterruptibly();
+          } catch (Exception e) {
+            throw new RuntimeException("Should never happen", e);
+          }
+          throttle_time = System.nanoTime() - throttle_time;
+          if (throttle_time < 1000000000L) {
+            LOG.info("Got throttled for only " + throttle_time + "ns, sleeping a bit now");
+            try { Thread.sleep(1000); } catch (InterruptedException e) { throw new RuntimeException("interrupted", e); }
+          }
+          LOG.info("Done throttling...");
+          throttle = false;
+        }
       }
     } catch (RuntimeException e) {
         LOG.error("Exception caught while processing file "
@@ -124,6 +190,7 @@ final class TextImporter {
                            + " (%.1f points/s)",
                            path, time_delta, points,
                            (points * 1000.0 / time_delta)));
+    return points;
   }
 
   /**
