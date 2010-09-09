@@ -142,6 +142,14 @@ public final class Plot {
   }
 
   /**
+   * Returns a view on the datapoints in this plot.
+   * Do not attempt to modify the return value.
+   */
+  public Iterable<DataPoints> getDataPoints() {
+    return datapoints;
+  }
+
+  /**
    * Generates the Gnuplot script and data files.
    * @param basepath The base path to use.  A number of new files will be
    * created and their names will all start with this string.

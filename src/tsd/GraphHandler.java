@@ -17,11 +17,13 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
@@ -148,6 +151,11 @@ final class GraphHandler implements HttpRpc {
       tsdbqueries[i] = null;  // free()
     }
     tsdbqueries = null;  // free()
+
+    if (query.hasQueryStringParam("ascii")) {
+      respondAsciiQuery(query, basepath, plot);
+      return;
+    }
     {
       final int nplotted = runGnuplot(basepath, plot);
 
@@ -223,6 +231,7 @@ final class GraphHandler implements HttpRpc {
       new HashMap<String, List<String>>(query.getQueryString());
     // But first remove the parameters that don't influence the output.
     qs.remove("json");
+    qs.remove("ascii");
     return cachedir + Integer.toHexString(qs.hashCode());
   }
 
@@ -242,11 +251,13 @@ final class GraphHandler implements HttpRpc {
                                  final long start_time,
                                  final long end_time,
                                  final String basepath) throws IOException {
-    final String cachepath = basepath + ".png";
+    final String cachepath = basepath + (query.hasQueryStringParam("ascii")
+                                         ? ".dat" : ".png");
     final File cachedfile = new File(cachepath);
     if (cachedfile.exists()) {
       final long bytes = cachedfile.length();
       if (bytes < 21) {  // Minimum possible size for a PNG: 21 bytes.
+                         // For .dat files, <21 bytes is almost impossible.
         logWarn(query, "Cached " + cachepath + " is too small ("
                 + bytes + " bytes) to be valid.  Ignoring it.");
         return false;
@@ -265,7 +276,8 @@ final class GraphHandler implements HttpRpc {
         json.append(query.processingTimeMillis())
           .append(",\"cachehit\":\"disk\"}");
         query.sendReply(json);
-      } else if (query.hasQueryStringParam("png")) {
+      } else if (query.hasQueryStringParam("png")
+                 || query.hasQueryStringParam("ascii")) {
         query.sendFile(cachepath);
       } else {
         query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
@@ -497,6 +509,64 @@ final class GraphHandler implements HttpRpc {
       throw new RuntimeException("Gnuplot returned " + rv);
     }
     return nplotted;
+  }
+
+  /**
+   * Respond to a query that wants the output in ASCII.
+   * <p>
+   * When a query specifies the "ascii" query string parameter, we send the
+   * data points back to the client in plain text instead of sending a PNG.
+   * @param query The query we're currently serving.
+   * @param basepath The base path used for the Gnuplot files.
+   * @param plot The plot object to generate Gnuplot's input files.
+   */
+  private static void respondAsciiQuery(final HttpQuery query,
+                                        final String basepath,
+                                        final Plot plot) {
+    final String path = basepath + ".dat";
+    PrintWriter asciifile;
+    try {
+      asciifile = new PrintWriter(path);
+    } catch (IOException e) {
+      query.internalError(e);
+      return;
+    }
+    try {
+      final StringBuilder tagbuf = new StringBuilder();
+      for (final DataPoints dp : plot.getDataPoints()) {
+        final String metric = dp.metricName();
+        tagbuf.setLength(0);
+        for (final Map.Entry<String, String> tag : dp.getTags().entrySet()) {
+          tagbuf.append(' ').append(tag.getKey())
+            .append('=').append(tag.getValue());
+        }
+        for (final DataPoint d : dp) {
+          asciifile.print(metric);
+          asciifile.print(' ');
+          asciifile.print(d.timestamp());
+          asciifile.print(' ');
+          if (d.isInteger()) {
+            asciifile.print(d.longValue());
+          } else {
+            final double value = d.doubleValue();
+            if (value != value || Double.isInfinite(value)) {
+              throw new IllegalStateException("NaN or Infinity:" + value
+                + " d=" + d + ", query=" + query);
+            }
+            asciifile.print(value);
+          }
+          asciifile.print(tagbuf);
+          asciifile.print('\n');
+        }
+      }
+    } finally {
+      asciifile.close();
+    }
+    try {
+      query.sendFile(path);
+    } catch (IOException e) {
+      query.internalError(e);
+    }
   }
 
   /**
