@@ -216,6 +216,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     collector.record("rpc.exceptions", exceptions_caught);
     HttpQuery.collectStats(collector);
     GraphHandler.collectStats(collector);
+    PutDataPointRpc.collectStats(collector);
   }
 
   // ---------------------------- //

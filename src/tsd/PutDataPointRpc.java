@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -23,10 +24,16 @@ import org.jboss.netty.channel.Channel;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.WritableDataPoints;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 /** Implements the "put" telnet-style command. */
 final class PutDataPointRpc implements TelnetRpc {
+
+  private static final AtomicInteger hbase_errors = new AtomicInteger();
+  private static final AtomicInteger invalid_values = new AtomicInteger();
+  private static final AtomicInteger illegal_arguments = new AtomicInteger();
+  private static final AtomicInteger unknown_metrics = new AtomicInteger();
 
   /**
    * Dirty rows for time series that are being written to.
@@ -75,6 +82,7 @@ final class PutDataPointRpc implements TelnetRpc {
           if (chan.isConnected()) {
             chan.write("put: HBase error: " + arg.getMessage() + '\n');
           }
+          hbase_errors.incrementAndGet();
           return arg;
         }
         public String toString() {
@@ -84,15 +92,29 @@ final class PutDataPointRpc implements TelnetRpc {
       return importDataPoint(tsdb, cmd).addErrback(new PutErrback());
     } catch (NumberFormatException x) {
       errmsg = "put: invalid value: " + x.getMessage() + '\n';
+      invalid_values.incrementAndGet();
     } catch (IllegalArgumentException x) {
       errmsg = "put: illegal argument: " + x.getMessage() + '\n';
+      illegal_arguments.incrementAndGet();
     } catch (NoSuchUniqueName x) {
       errmsg = "put: unknown metric: " + x.getMessage() + '\n';
+      unknown_metrics.incrementAndGet();
     }
     if (errmsg != null && chan.isConnected()) {
       chan.write(errmsg);
     }
     return Deferred.fromResult(null);
+  }
+
+  /**
+   * Collects the stats and metrics tracked by this instance.
+   * @param collector The collector to use.
+   */
+  public static void collectStats(final StatsCollector collector) {
+    collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
+    collector.record("rpc.errors", invalid_values, "type=invalid_values");
+    collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
+    collector.record("rpc.errors", unknown_metrics, "type=unknown_metrics");
   }
 
   /**
