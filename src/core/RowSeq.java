@@ -109,6 +109,10 @@ final class RowSeq implements DataPoints {
     final byte[] key = row.get(0).key();
     final long base_time = Bytes.getUnsignedInt(key, tsdb.metrics.width());
 
+    // Save the old arrays in case we need to revert what we've done.
+    final short old_qualifiers[] = qualifiers;
+    final long old_values[] = values;
+
     int index = values.length;  // position in `values'.
     if (this.key != null) {
       final int new_length = values.length + row.size();
@@ -136,8 +140,12 @@ final class RowSeq implements DataPoints {
       values[index] = extractLValue(qualifier, kv);
       if (index > 0 && timestamp(index - 1) >= timestamp(index)) {
         LOG.error("new timestamp = " + timestamp(index)
-                                 + " is < previous=" + timestamp(index -1)
-                                 + " in addRow with kv=" + kv);
+                  + " is < previous=" + timestamp(index -1)
+                  + " in addRow with kv=" + kv + " in row=" + row);
+        // Undo what we've done so far.
+        qualifiers = old_qualifiers;
+        values = old_values;
+        return;  // Ignore this row, it came out of order.
       }
       index++;
     }
