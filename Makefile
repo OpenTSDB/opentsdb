@@ -94,6 +94,7 @@ test_LIBADD = \
         $(jar)
 
 httpui_JAVA = \
+	src/tsd/client/DateTimeBox.java	\
 	src/tsd/client/EventsHandler.java	\
 	src/tsd/client/GotJsonCallback.java	\
 	src/tsd/client/MetricForm.java	\
@@ -155,8 +156,9 @@ DEV_TSD_STATICROOT = $(top_builddir)/staticroot
 DEV_TSD_CACHEDIR = /tmp/tsd
 GWT_DEV_URL = http://127.0.0.1:$(DEV_TSD_PORT)/
 
+GWT_DEV_ARGS = -Xmx512m  # The development mode is a memory hog.
 gwtdev: $(top_builddir)/.gwtc-stamp
-	java -ea -cp $(GWT_DEV):$(GWT_SDK):src com.google.gwt.dev.DevMode \
+	java $(GWT_DEV_ARGS) -ea -cp $(GWT_DEV):$(GWT_SDK):src com.google.gwt.dev.DevMode \
 	  -startupUrl $(GWT_DEV_URL) -noserver -war $(top_builddir)/gwt tsd.QueryUi
 
 gwttsd: jar $(top_builddir)/.staticroot-stamp

@@ -58,7 +58,6 @@ import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.user.datepicker.client.DateBox;
 
 /**
  * Root class for the 'query UI'.
@@ -71,21 +70,13 @@ public class QueryUi implements EntryPoint {
   private static final String STATS_URL = "/stats?json";
   private static final String VERSION_URL = "/version?json";
 
-  private static final String HHMMSS_RE =  // Empty string or valid time.
-    "^(|(2[0-3]|[01][0-9])(:[0-5][0-9]){1,2})$";
-  private static final DateTimeFormat HHMMSS =
-    DateTimeFormat.getFormat("HH:mm:ss");
-  private static final DateTimeFormat HHMM =
-    DateTimeFormat.getFormat("HH:mm");
   private static final DateTimeFormat FULLDATE =
     DateTimeFormat.getFormat("yyyy/MM/dd-HH:mm:ss");
 
   private final Label current_error = new Label();
 
-  private final DateBox start_datebox = new DateBox();
-  private final TextBox start_time = newTimeTextBox();
-  private final DateBox end_datebox = new DateBox();
-  private final TextBox end_time = newTimeTextBox();
+  private final DateTimeBox start_datebox = new DateTimeBox();
+  private final DateTimeBox end_datebox = new DateTimeBox();
 
   private final ValidatedTextBox yrange = new ValidatedTextBox();
   private final ValidatedTextBox wxh = new ValidatedTextBox();
@@ -148,10 +139,6 @@ public class QueryUi implements EntryPoint {
       tb.addKeyPressHandler(refreshgraph);
       end_datebox.addValueChangeHandler(vch);
     }
-    start_time.addBlurHandler(refreshgraph);
-    start_time.addKeyPressHandler(refreshgraph);
-    end_time.addBlurHandler(refreshgraph);
-    end_time.addKeyPressHandler(refreshgraph);
     yrange.addBlurHandler(refreshgraph);
     yrange.addKeyPressHandler(refreshgraph);
     wxh.addBlurHandler(refreshgraph);
@@ -178,9 +165,7 @@ public class QueryUi implements EntryPoint {
       final Anchor now = new Anchor("(now)");
       now.addClickHandler(new ClickHandler() {
         public void onClick(final ClickEvent event) {
-          final Date d = new Date();
-          end_datebox.setValue(d);
-          end_time.setText(HHMMSS.format(d));
+          end_datebox.setValue(new Date());
           refreshGraph();
         }
       });
@@ -189,24 +174,8 @@ public class QueryUi implements EntryPoint {
       table.setWidget(0, 1, hbox);
     }
 
-    {
-      final DateBox.DefaultFormat format = new DateBox.DefaultFormat(
-        DateTimeFormat.getFormat("yyyy/MM/dd"));
-      start_datebox.setFormat(format);
-      end_datebox.setFormat(format);
-    }
-    {
-      final HorizontalPanel hbox = new HorizontalPanel();
-      hbox.add(start_datebox);
-      hbox.add(start_time);
-      table.setWidget(1, 0, hbox);
-    }
-    {
-      final HorizontalPanel hbox = new HorizontalPanel();
-      hbox.add(end_datebox);
-      hbox.add(end_time);
-      table.setWidget(1, 1, hbox);
-    }
+    table.setWidget(1, 0, start_datebox);
+    table.setWidget(1, 1, end_datebox);
     {
       final HorizontalPanel hbox = new HorizontalPanel();
       hbox.add(new InlineLabel("Y Range:"));
@@ -388,10 +357,8 @@ public class QueryUi implements EntryPoint {
       graphstatus.setText("Please specify a start time.");
       return;
     }
-    addTimeTo(start, start_time.getText());
     final Date end = end_datebox.getValue();
     if (end != null) {
-      addTimeTo(end, end_time.getText());
       if (end.getTime() <= start.getTime()) {
         end_datebox.addStyleName("dateBoxFormatError");
         graphstatus.setText("End time must be after start time!");
@@ -495,37 +462,6 @@ public class QueryUi implements EntryPoint {
       graphstatus.setText("Please specify a metric.");
     }
     return found_metric;
-  }
-
-  @SuppressWarnings(/* Required to use Date API with GWT */{"deprecation"})
-  private static void addTimeTo(final Date date, final String time) {
-    if (time.isEmpty()) {
-      date.setHours(0);    // The Date object originates from a DateBox and
-      date.setMinutes(0);  // we can't guarantee what time will be set.  So
-      date.setSeconds(0);  // let's reset it.
-      return;
-    }
-    Date hhmmss;
-    try {
-      hhmmss = (time.length() == 8 ? HHMMSS : HHMM).parse(time);
-    } catch (IllegalArgumentException e) {
-      return;
-    }
-    // Am I the only one to find the whole Date vs Calendar API retarded?
-    // GWT forces us to use the deprecated Date API because Calendar is
-    // not implemented.  Probably not a bad thing given how stupid the
-    // Java Calendar API is.
-    date.setHours(hhmmss.getHours());
-    date.setMinutes(hhmmss.getMinutes());
-    date.setSeconds(hhmmss.getSeconds());
-  }
-
-  private ValidatedTextBox newTimeTextBox() {
-    final ValidatedTextBox tb = new ValidatedTextBox();
-    tb.setMaxLength(8);
-    tb.setVisibleLength(8);
-    tb.setValidationRegexp(HHMMSS_RE);
-    return tb;
   }
 
   private void asyncGetJson(final String url, final GotJsonCallback callback) {
