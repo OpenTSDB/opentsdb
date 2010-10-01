@@ -105,8 +105,9 @@ final class GraphHandler implements HttpRpc {
       if (query.hasQueryStringParam("json")) {
         final String err = e.getMessage();
         final StringBuilder buf = new StringBuilder(10 + err.length());
-        // TODO(tsuna): JSON-escape.
-        buf.append("{\"err\":\"").append(err).append("\"}");
+        buf.append("{\"err\":\"");
+        HttpQuery.escapeJson(err, buf);
+        buf.append("\"}");
         query.sendReply(buf);
         return;
       } else {

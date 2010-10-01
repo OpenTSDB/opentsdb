@@ -259,6 +259,64 @@ final class HttpQuery {
     sendReply(buf);
   }
 
+  private static final byte[] HEX = {
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    'A', 'B', 'C', 'D', 'E', 'F'
+  };
+
+  /**
+   * Escapes a string appropriately to be a valid in JSON.
+   * Valid JSON strings are defined in RFC 4627, Section 2.5.
+   * @param s The string to escape, which is assumed to be in .
+   * @param buf The buffer into which to write the escaped string.
+   */
+  static void escapeJson(final String s, final StringBuilder buf) {
+    final int length = s.length();
+    int extra = 0;
+    // First count how many extra chars we'll need, if any.
+    for (int i = 0; i < length; i++) {
+      final char c = s.charAt(i);
+      switch (c) {
+        case '"':
+        case '\\':
+        case '\b':
+        case '\f':
+        case '\n':
+        case '\r':
+        case '\t':
+          extra++;
+          continue;
+      }
+      if (c < 0x001F) {
+        extra += 4;
+      }
+    }
+    if (extra == 0) {
+      buf.append(s);  // Nothing to escape.
+      return;
+    }
+    buf.ensureCapacity(buf.length() + length + extra);
+    for (int i = 0; i < length; i++) {
+      final char c = s.charAt(i);
+      switch (c) {
+        case '"':  buf.append('\\').append('"');  continue;
+        case '\\': buf.append('\\').append('\\'); continue;
+        case '\b': buf.append('\\').append('b');  continue;
+        case '\f': buf.append('\\').append('f');  continue;
+        case '\n': buf.append('\\').append('n');  continue;
+        case '\r': buf.append('\\').append('r');  continue;
+        case '\t': buf.append('\\').append('t');  continue;
+      }
+      if (c < 0x001F) {
+        buf.append('\\').append('u').append('0').append('0')
+          .append((char) HEX[(c >>> 4) & 0x0F])
+          .append((char) HEX[c & 0x0F]);
+      } else {
+        buf.append(c);
+      }
+    }
+  }
+
   /**
    * Transforms a non-empty sequence of strings into a JSON array.
    * The behavior of this method is undefined if the input sequence is empty.
@@ -269,7 +327,9 @@ final class HttpQuery {
                                  final StringBuilder buf) {
     buf.append('[');
     for (final String string : strings) {
-      buf.append('"').append(string).append("\",");
+      buf.append('"');
+      escapeJson(string, buf);
+      buf.append("\",");
     }
     buf.setCharAt(buf.length() - 1, ']');
   }
