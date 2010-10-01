@@ -30,6 +30,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 /** Implements the "put" telnet-style command. */
 final class PutDataPointRpc implements TelnetRpc {
 
+  private static final AtomicInteger requests = new AtomicInteger();
   private static final AtomicInteger hbase_errors = new AtomicInteger();
   private static final AtomicInteger invalid_values = new AtomicInteger();
   private static final AtomicInteger illegal_arguments = new AtomicInteger();
@@ -75,6 +76,7 @@ final class PutDataPointRpc implements TelnetRpc {
 
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
+    requests.incrementAndGet();
     String errmsg = null;
     try {
       final class PutErrback implements Callback<Exception, Exception> {
@@ -111,6 +113,7 @@ final class PutDataPointRpc implements TelnetRpc {
    * @param collector The collector to use.
    */
   public static void collectStats(final StatsCollector collector) {
+    collector.record("rpc.received", requests, "type=put");
     collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
     collector.record("rpc.errors", invalid_values, "type=invalid_values");
     collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
