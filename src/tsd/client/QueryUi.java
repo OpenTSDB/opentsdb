@@ -325,8 +325,23 @@ public class QueryUi implements EntryPoint {
           String part = msg.substring(0, msg.indexOf('\t'));
           logs.setText(i * 2, 0,
                        new Date(Integer.valueOf(part) * 1000L).toString());
+          logs.setText(i * 2 + 1, 0, "");  // So we can change the style ahead.
           int pos = part.length() + 1;
           part = msg.substring(pos, msg.indexOf('\t', pos));
+          if ("WARN".equals(part)) {
+            rf.getElement(i * 2).getStyle().setBackgroundColor("#FCC");
+            rf.getElement(i * 2 + 1).getStyle().setBackgroundColor("#FCC");
+          } else if ("ERROR".equals(part)) {
+            rf.getElement(i * 2).getStyle().setBackgroundColor("#F99");
+            rf.getElement(i * 2 + 1).getStyle().setBackgroundColor("#F99");
+          } else {
+            rf.getElement(i * 2).getStyle().clearBackgroundColor();
+            rf.getElement(i * 2 + 1).getStyle().clearBackgroundColor();
+            if ((i % 2) == 0) {
+              rf.addStyleName(i * 2, "subg");
+              rf.addStyleName(i * 2 + 1, "subg");
+            }
+          }
           pos += part.length() + 1;
           logs.setText(i * 2, 1, part); // level
           part = msg.substring(pos, msg.indexOf('\t', pos));
@@ -342,10 +357,8 @@ public class QueryUi implements EntryPoint {
           logs.setText(i * 2, 3, part); // logger
           logs.setText(i * 2 + 1, 0, msg.substring(pos)); // message
           fcf.setColSpan(i * 2 + 1, 0, 4);
-          if ((i % 2) == 0) {
-            rf.addStyleName(i * 2, "subg");
-            rf.addStyleName(i * 2 + 1, "subg");
-          }
+          rf.addStyleName(i * 2, "fwf");
+          rf.addStyleName(i * 2 + 1, "fwf");
         }
       }
     });

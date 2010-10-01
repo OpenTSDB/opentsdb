@@ -20,6 +20,8 @@ import java.util.NoSuchElementException;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.IThrowableProxy;
+import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import ch.qos.logback.core.read.CyclicBufferAppender;
 
 import net.opentsdb.core.TSDB;
@@ -102,7 +104,11 @@ final class LogsRpc implements HttpRpc {
           .append('\t').append(event.getLevel().toString())
           .append('\t').append(event.getThreadName())
           .append('\t').append(event.getLoggerName())
-          .append('\t').append(msg.replace("\"", "\\\""));
+          .append('\t').append(msg);
+        final IThrowableProxy thrown = event.getThrowableProxy();
+        if (thrown != null) {
+          buf.append('\t').append(ThrowableProxyUtil.asString(thrown));
+        }
         return buf.toString();
       }
       throw new NoSuchElementException("no more elements");

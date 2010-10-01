@@ -621,6 +621,7 @@ final class HttpQuery {
     + "A.l:link{color:#6f6f6f}"
     + "A.u:link{color:green}"
     + ".subg{background-color:#e2f4f7}"
+    + ".fwf{font-family:monospace;white-space:pre-wrap}"
     + "//--></style>";
 
   private static final String PAGE_HEADER_END_BODY_START =
