@@ -716,11 +716,14 @@ final class GraphHandler implements HttpRpc {
    * or -1 if there was no query string parameter named {@code paramname}.
    * @throws BadRequestException if the date is invalid.
    */
-  private long getQueryStringDate(final HttpQuery query,
-                                  final String paramname) {
+  private static long getQueryStringDate(final HttpQuery query,
+                                         final String paramname) {
     final String date = query.getQueryStringParam(paramname);
     if (date == null) {
       return -1;
+    } else if (date.endsWith("-ago")) {
+      return (System.currentTimeMillis() / 1000
+              - parseDuration(date.substring(0, date.length() - 4)));
     }
     try {
       final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
