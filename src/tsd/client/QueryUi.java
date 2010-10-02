@@ -44,8 +44,10 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Anchor;
+import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DecoratedTabPanel;
 import com.google.gwt.user.client.ui.DecoratorPanel;
 import com.google.gwt.user.client.ui.FlexTable;
@@ -77,6 +79,9 @@ public class QueryUi implements EntryPoint {
 
   private final DateTimeBox start_datebox = new DateTimeBox();
   private final DateTimeBox end_datebox = new DateTimeBox();
+  private final CheckBox autoreoload = new CheckBox("Autoreload");
+  private final ValidatedTextBox autoreoload_interval = new ValidatedTextBox();
+  private Timer autoreoload_timer;
 
   private final ValidatedTextBox yrange = new ValidatedTextBox();
   private final ValidatedTextBox wxh = new ValidatedTextBox();
@@ -101,6 +106,8 @@ public class QueryUi implements EntryPoint {
   private final Label graphstatus = new Label();
   /** Remember the last URI requested to avoid requesting twice the same. */
   private String lastgraphuri;
+  /** How many graph requests we make.  */
+  private int nrequests = 0;
 
   // Other misc panels.
   private final FlexTable logs = new FlexTable();
@@ -139,6 +146,8 @@ public class QueryUi implements EntryPoint {
       tb.addKeyPressHandler(refreshgraph);
       end_datebox.addValueChangeHandler(vch);
     }
+    autoreoload_interval.addBlurHandler(refreshgraph);
+    autoreoload_interval.addKeyPressHandler(refreshgraph);
     yrange.addBlurHandler(refreshgraph);
     yrange.addKeyPressHandler(refreshgraph);
     wxh.addBlurHandler(refreshgraph);
@@ -170,9 +179,33 @@ public class QueryUi implements EntryPoint {
         }
       });
       hbox.add(now);
+      hbox.add(autoreoload);
       hbox.setWidth("100%");
       table.setWidget(0, 1, hbox);
     }
+    autoreoload.addClickHandler(new ClickHandler() {
+      public void onClick(final ClickEvent event) {
+        if (autoreoload.isChecked()) {
+          final HorizontalPanel hbox = new HorizontalPanel();
+          hbox.setWidth("100%");
+          hbox.add(new InlineLabel("Every:"));
+          hbox.add(autoreoload_interval);
+          hbox.add(new InlineLabel("seconds"));
+          table.setWidget(1, 1, hbox);
+          if (autoreoload_interval.getValue().isEmpty()) {
+            autoreoload_interval.setValue("15");
+          }
+          autoreoload_interval.setFocus(true);
+          lastgraphuri = "";  // Force refreshGraph.
+          refreshGraph();     // Trigger the 1st auto-reload
+        } else {
+          table.setWidget(1, 1, end_datebox);
+        }
+      }
+    });
+    autoreoload_interval.setValidationRegexp("^([5-9]|[1-9][0-9]+)$");  // >=5s
+    autoreoload_interval.setMaxLength(4);
+    autoreoload_interval.setVisibleLength(8);
 
     table.setWidget(1, 0, start_datebox);
     table.setWidget(1, 1, end_datebox);
@@ -371,7 +404,7 @@ public class QueryUi implements EntryPoint {
       return;
     }
     final Date end = end_datebox.getValue();
-    if (end != null) {
+    if (end != null && !autoreoload.isChecked()) {
       if (end.getTime() <= start.getTime()) {
         end_datebox.addStyleName("dateBoxFormatError");
         graphstatus.setText("End time must be after start time!");
@@ -380,8 +413,17 @@ public class QueryUi implements EntryPoint {
     }
     final StringBuilder url = new StringBuilder();
     url.append("/q?start=").append(FULLDATE.format(start));
-    if (end != null) {
+    if (end != null && !autoreoload.isChecked()) {
       url.append("&end=").append(FULLDATE.format(end));
+    } else {
+      // If there's no end-time, the graph may change while the URL remains
+      // the same.  No browser seems to re-fetch an image once it's been
+      // fetched, even if we destroy the DOM object and re-created it with the
+      // same src attribute.  This has nothing to do with caching headers sent
+      // by the server.  The browsers simply won't retrieve the same URL again
+      // through JavaScript manipulations, period.  So as a workaround, we add
+      // a special parameter that the server will delete from the query.
+      url.append("&ignore=" + nrequests++);
     }
     if (!addAllMetrics(url)) {
       return;
@@ -401,6 +443,10 @@ public class QueryUi implements EntryPoint {
     graphstatus.setText("Loading graph...");
     asyncGetJson(uri + "&json", new GotJsonCallback() {
       public void got(final JSONValue json) {
+        if (autoreoload_timer != null) {
+          autoreoload_timer.cancel();
+          autoreoload_timer = null;
+        }
         final JSONObject result = json.isObject();
         final JSONValue err = result.get("err");
         String msg = "";
@@ -456,6 +502,23 @@ public class QueryUi implements EntryPoint {
             for (int j = 0; j < ntags; j++) {
               metric.autoSuggestTag(tags.get(j).isString().stringValue());
             }
+          }
+        }
+        if (autoreoload.isChecked()) {
+          final int reload_in = Integer.parseInt(autoreoload_interval.getValue());
+          if (reload_in >= 5) {
+            autoreoload_timer = new Timer() {
+              public void run() {
+                // Verify that we still want auto reload and that the graph
+                // hasn't been updated in the mean time.
+                if (autoreoload.isChecked() && lastgraphuri == uri) {
+                  // Force refreshGraph to believe that we want a new graph.
+                  lastgraphuri = "";
+                  refreshGraph();
+                }
+              }
+            };
+            autoreoload_timer.schedule(reload_in * 1000);
           }
         }
       }

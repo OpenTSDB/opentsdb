@@ -227,9 +227,11 @@ final class GraphHandler implements HttpRpc {
 
   /** Returns the base path to use for the Gnuplot files. */
   private String getGnuplotBasePath(final HttpQuery query) {
+    final Map<String, List<String>> q = query.getQueryString();
+    q.remove("ignore");
     // Super cheap caching mechanism: hash the query string.
     final HashMap<String, List<String>> qs =
-      new HashMap<String, List<String>>(query.getQueryString());
+      new HashMap<String, List<String>>(q);
     // But first remove the parameters that don't influence the output.
     qs.remove("json");
     qs.remove("ascii");
