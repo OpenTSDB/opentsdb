@@ -124,9 +124,9 @@ final class Span implements DataPoints {
     final RowSeq rowseq = new RowSeq(tsdb);
     rowseq.setRow(row);
     if (last_ts >= rowseq.timestamp(0)) {
-      throw new IllegalArgumentException("New RowSeq added out of order to this"
-          + " Span! Last RowSeq = " + rows.get(rows.size() - 1)
-          + ", new RowSeq = " + rowseq);
+      LOG.error("New RowSeq added out of order to this Span! Last = " +
+                rows.get(rows.size() - 1) + ", new = " + rowseq);
+      return;
     }
     rows.add(rowseq);
   }
