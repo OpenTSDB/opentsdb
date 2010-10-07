@@ -385,8 +385,17 @@ final class HttpQuery {
    * This method doesn't provide any security guarantee.  The caller is
    * responsible for the argument they pass in.
    * @param path The path to the file to send to the client.
+   * @param max_age The expiration time of this entity, in seconds.  This is
+   * not a timestamp, it's how old the resource is allowed to be in the client
+   * cache.  See rfc2616 section 14.9 for more information.  Use 0 to disable
+   * caching.
    */
-  public void sendFile(final String path) throws IOException {
+  public void sendFile(final String path,
+                       final int max_age) throws IOException {
+    if (max_age < 0) {
+      throw new IllegalArgumentException("Negative max_age=" + max_age
+                                         + " for path=" + path);
+    }
     RandomAccessFile file;
     try {
       file = new RandomAccessFile(path, "r");
@@ -409,11 +418,8 @@ final class HttpQuery {
       } else {
         logWarn("Found a file with mtime=" + mtime + ": " + path);
       }
-      // Right now, all our images can be cached.
-      if (mimetype != null && mimetype.startsWith("image/")) {
-        response.setHeader(HttpHeaders.Names.CACHE_CONTROL,
-                           "max-age=31536000");
-      }
+      response.setHeader(HttpHeaders.Names.CACHE_CONTROL,
+                         max_age == 0 ? "no-cache" : "max-age=" + max_age);
       HttpHeaders.setContentLength(response, length);
       chan.write(response);
     }

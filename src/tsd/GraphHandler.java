@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
@@ -92,10 +93,22 @@ final class GraphHandler implements HttpRpc {
       throw BadRequestException.missingParameter("start");
     }
     long end_time = getQueryStringDate(query, "end");
+    final long now = System.currentTimeMillis() / 1000;
     if (end_time == -1) {
-      end_time = System.currentTimeMillis() / 1000;
+      end_time = now;
     }
-    if (isDiskCacheHit(query, start_time, end_time, basepath)) {
+    // If the end time is in the future (1), make the graph uncacheable.
+    // Otherwise, if the end time is far enough in the past (2) such that
+    // no TSD can still be writing to rows for that time span, make the graph
+    // cacheable for a day since it's very unlikely that any data will change
+    // for this time span.
+    // Otherwise (3), allow the client to cache the graph for ~0.1% of the
+    // time span covered by the request e.g., for 1h of data, it's OK to
+    // serve something 3s stale, for 1d of data, 84s stale.
+    final int max_age = (end_time > now ? 0                              // (1)
+                         : (end_time < now - Const.MAX_TIMESPAN ? 86400  // (2)
+                            : (int) (end_time - start_time) >> 10));     // (3)
+    if (isDiskCacheHit(query, max_age, end_time, basepath)) {
       return;
     }
     Query[] tsdbqueries;
@@ -154,7 +167,7 @@ final class GraphHandler implements HttpRpc {
     tsdbqueries = null;  // free()
 
     if (query.hasQueryStringParam("ascii")) {
-      respondAsciiQuery(query, basepath, plot);
+      respondAsciiQuery(query, max_age, basepath, plot);
       return;
     }
     {
@@ -193,7 +206,7 @@ final class GraphHandler implements HttpRpc {
         }
       } else {
           if (query.hasQueryStringParam("png")) {
-            query.sendFile(basepath + ".png");
+            query.sendFile(basepath + ".png", max_age);
           } else {
             if (nplotted > 0) {
               query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
@@ -241,8 +254,8 @@ final class GraphHandler implements HttpRpc {
   /**
    * Checks whether or not it's possible to re-serve this query from disk.
    * @param query The query to serve.
-   * @param start_time The UNIX timestamp corresponding to the {@code start}
-   * query string parameter.
+   * @param max_age The maximum time (in seconds) we wanna allow clients to
+   * cache the result in case of a cache hit.
    * @param end_time The UNIX timestamp corresponding to the {@code end}
    * query string parameter, or corresponding to "now" if it wasn't given.
    * @param basepath The base path used for the Gnuplot files.
@@ -251,7 +264,7 @@ final class GraphHandler implements HttpRpc {
    * the query needs to be processed).
    */
   private boolean isDiskCacheHit(final HttpQuery query,
-                                 final long start_time,
+                                 final int max_age,
                                  final long end_time,
                                  final String basepath) throws IOException {
     final String cachepath = basepath + (query.hasQueryStringParam("ascii")
@@ -266,11 +279,11 @@ final class GraphHandler implements HttpRpc {
         return false;
       }
       logInfo(query, "Found cached file @ " + cachepath + " bytes: " + bytes);
-      if (staleCacheFile(query, start_time, end_time, cachedfile)) {
+      if (staleCacheFile(query, max_age, end_time, cachedfile)) {
         return false;
       }
       if (query.hasQueryStringParam("json")) {
-        StringBuilder json = loadCachedJson(query, start_time, end_time,
+        StringBuilder json = loadCachedJson(query, max_age, end_time,
                                             basepath);
         if (json == null) {
           json = new StringBuilder(32);
@@ -281,7 +294,7 @@ final class GraphHandler implements HttpRpc {
         query.sendReply(json);
       } else if (query.hasQueryStringParam("png")
                  || query.hasQueryStringParam("ascii")) {
-        query.sendFile(cachepath);
+        query.sendFile(cachepath, max_age);
       } else {
         query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
             "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
@@ -292,7 +305,7 @@ final class GraphHandler implements HttpRpc {
     }
     // We didn't find an image.  Do a negative cache check.  If we've seen
     // this query before but there was no result, we at least wrote the JSON.
-    final StringBuilder json = loadCachedJson(query, start_time, end_time,
+    final StringBuilder json = loadCachedJson(query, max_age, end_time,
                                               basepath);
     // If we don't have a JSON file it's a complete cache miss.  If we have
     // one, and it says 0 data points were plotted, it's a negative cache hit.
@@ -317,14 +330,14 @@ final class GraphHandler implements HttpRpc {
   /**
    * Returns whether or not the given cache file can be used or is stale.
    * @param query The query to serve.
-   * @param start_time The UNIX timestamp corresponding to the {@code start}
-   * query string parameter.
+   * @param max_age The maximum time (in seconds) we wanna allow clients to
+   * cache the result in case of a cache hit.
    * @param end_time The UNIX timestamp corresponding to the {@code end}
    * query string parameter, or corresponding to "now" if it wasn't given.
    * @param cachedfile The file to check for staleness.
    */
   private boolean staleCacheFile(final HttpQuery query,
-                                 final long start_time,
+                                 final long max_age,
                                  final long end_time,
                                  final File cachedfile) {
     // Queries that don't specify an end-time must be handled carefully,
@@ -338,7 +351,6 @@ final class GraphHandler implements HttpRpc {
                 + " mtime=" + mtime + " > request end_time=" + end_time);
         return true;
       }
-      final long max_age = (end_time - start_time) >> 10;  // 0.1%
       // If our graph is older than 0.1% of the duration of the request,
       // let's regenerate it in order to avoid service data that's too
       // stale, e.g., for 1h of data, it's OK to serve something 3s stale.
@@ -397,8 +409,8 @@ final class GraphHandler implements HttpRpc {
   /**
    * Attempts to read the cached {@code .json} file for this query.
    * @param query The query to serve.
-   * @param start_time The UNIX timestamp corresponding to the {@code start}
-   * query string parameter.
+   * @param max_age The maximum time (in seconds) we wanna allow clients to
+   * cache the result in case of a cache hit.
    * @param end_time The UNIX timestamp corresponding to the {@code end}
    * query string parameter, or corresponding to "now" if it wasn't given.
    * @param basepath The base path used for the Gnuplot files.
@@ -408,12 +420,12 @@ final class GraphHandler implements HttpRpc {
    * the time taken to serve by the request and other JSON elements if wanted.
    */
   private StringBuilder loadCachedJson(final HttpQuery query,
-                                       final long start_time,
+                                       final long max_age,
                                        final long end_time,
                                        final String basepath) {
     final String json_path = basepath + ".json";
     File json_cache = new File(json_path);
-    if (!json_cache.exists() || staleCacheFile(query, start_time, end_time,
+    if (!json_cache.exists() || staleCacheFile(query, max_age, end_time,
                                                json_cache)) {
       return null;
     }
@@ -520,10 +532,13 @@ final class GraphHandler implements HttpRpc {
    * When a query specifies the "ascii" query string parameter, we send the
    * data points back to the client in plain text instead of sending a PNG.
    * @param query The query we're currently serving.
+   * @param max_age The maximum time (in seconds) we wanna allow clients to
+   * cache the result in case of a cache hit.
    * @param basepath The base path used for the Gnuplot files.
    * @param plot The plot object to generate Gnuplot's input files.
    */
   private static void respondAsciiQuery(final HttpQuery query,
+                                        final int max_age,
                                         final String basepath,
                                         final Plot plot) {
     final String path = basepath + ".dat";
@@ -566,7 +581,7 @@ final class GraphHandler implements HttpRpc {
       asciifile.close();
     }
     try {
-      query.sendFile(path);
+      query.sendFile(path, max_age);
     } catch (IOException e) {
       query.internalError(e);
     }
