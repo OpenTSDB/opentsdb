@@ -84,6 +84,7 @@ public class QueryUi implements EntryPoint {
   private Timer autoreoload_timer;
 
   private final ValidatedTextBox yrange = new ValidatedTextBox();
+  private final ValidatedTextBox y2range = new ValidatedTextBox();
   private final ValidatedTextBox wxh = new ValidatedTextBox();
 
   /**
@@ -150,6 +151,8 @@ public class QueryUi implements EntryPoint {
     autoreoload_interval.addKeyPressHandler(refreshgraph);
     yrange.addBlurHandler(refreshgraph);
     yrange.addKeyPressHandler(refreshgraph);
+    y2range.addBlurHandler(refreshgraph);
+    y2range.addKeyPressHandler(refreshgraph);
     wxh.addBlurHandler(refreshgraph);
     wxh.addKeyPressHandler(refreshgraph);
 
@@ -159,6 +162,14 @@ public class QueryUi implements EntryPoint {
     yrange.setVisibleLength(5);
     yrange.setMaxLength(44);  // MAX=2^26=20 chars: "[-$MAX:$MAX]"
     yrange.setText("[0:]");
+
+    y2range.setValidationRegexp("^("                            // Nothing or
+                                + "|\\[([-+.0-9eE]+|\\*)?"      // "[start
+                                + ":([-+.0-9eE]+|\\*)?\\])$");  //   :end]"
+    y2range.setVisibleLength(5);
+    y2range.setMaxLength(44);  // MAX=2^26=20 chars: "[-$MAX:$MAX]"
+    y2range.setText("[0:]");
+    y2range.setEnabled(false);
 
     wxh.setValidationRegexp("^[1-9][0-9]{2,}x[1-9][0-9]{2,}$");  // 100x100
     wxh.setVisibleLength(9);
@@ -213,6 +224,8 @@ public class QueryUi implements EntryPoint {
       final HorizontalPanel hbox = new HorizontalPanel();
       hbox.add(new InlineLabel("Y Range:"));
       hbox.add(yrange);
+      hbox.add(new InlineLabel(". Y2:"));
+      hbox.add(y2range);
       table.setWidget(2, 0, hbox);
     }
     {
@@ -237,7 +250,22 @@ public class QueryUi implements EntryPoint {
             return metrictext.substring(last_period + 1);
           }
         };
+      final EventsHandler updatey2range = new EventsHandler() {
+        protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
+          for (final Widget metric : metrics) {
+            if (!(metric instanceof MetricForm)) {
+              continue;
+            }
+            if (((MetricForm) metric).x1y2().getValue()) {
+              y2range.setEnabled(true);
+              return;
+            }
+          }
+          y2range.setEnabled(false);
+        }
+      };
       final MetricForm metric = new MetricForm(refreshgraph);
+      metric.x1y2().addClickHandler(updatey2range);
       metric.setMetricChangeHandler(metric_change_handler);
       metrics.add(metric, "metric 1");
       metrics.selectTab(0);
@@ -249,6 +277,7 @@ public class QueryUi implements EntryPoint {
           if (item == nitems - 1) {  // Last item: the "+" was clicked.
             event.cancel();
             final MetricForm metric = new MetricForm(refreshgraph);
+            metric.x1y2().addClickHandler(updatey2range);
             metric.setMetricChangeHandler(metric_change_handler);
             metric.setAggregators(aggregators);
             metrics.insert(metric, "metric " + nitems, item);
@@ -432,6 +461,12 @@ public class QueryUi implements EntryPoint {
       final String yrange = this.yrange.getText();
       if (!yrange.isEmpty()) {
         url.append("&yrange=").append(yrange);
+      }
+      if (y2range.isEnabled()) {
+        final String y2range = this.y2range.getText();
+        if (!y2range.isEmpty()) {
+          url.append("&y2range=").append(y2range);
+        }
       }
     }
     url.append("&wxh=").append(wxh.getText());

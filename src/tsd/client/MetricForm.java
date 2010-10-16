@@ -51,6 +51,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final ListBox downsampler = new ListBox();
   private final ValidatedTextBox interval = new ValidatedTextBox();
   private final CheckBox rate = new CheckBox("Rate");
+  private final CheckBox x1y2 = new CheckBox("Right Axis");
   private final ListBox aggregators = new ListBox();
   private final ValidatedTextBox metric = new ValidatedTextBox();
   private final FlexTable tagtable = new FlexTable();
@@ -63,6 +64,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     interval.addBlurHandler(handler);
     interval.addKeyPressHandler(handler);
     rate.addClickHandler(handler);
+    x1y2.addClickHandler(handler);
     aggregators.addChangeHandler(handler);
     metric.addBlurHandler(handler);
     metric.addKeyPressHandler(handler);
@@ -84,6 +86,10 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
   public String getMetric() {
     return metric.getText();
+  }
+
+  public CheckBox x1y2() {
+    return x1y2;
   }
 
   private void assembleUi() {
@@ -108,7 +114,12 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     {  // Right hand-side panel.
       final VerticalPanel vbox = new VerticalPanel();
-      vbox.add(rate);
+      {
+        final HorizontalPanel hbox = new HorizontalPanel();
+        hbox.add(rate);
+        hbox.add(x1y2);
+        vbox.add(hbox);
+      }
       {
         final HorizontalPanel hbox = new HorizontalPanel();
         final InlineLabel l = new InlineLabel();
@@ -174,6 +185,10 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       } else {  // Need to replace the last `,' with a `}'.
         url.setCharAt(url.length() - 1, '}');
       }
+    }
+    url.append("&o=");
+    if (x1y2.getValue()) {
+      url.append("axis x1y2");
     }
     return true;
   }

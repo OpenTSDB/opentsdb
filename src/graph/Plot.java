@@ -250,6 +250,13 @@ public final class Plot {
             .write('\n');
         }
       }
+      for (final String opts : options) {
+        if (opts.contains("x1y2")) {
+          // Create a second scale for the y-axis on the right-hand side.
+          gp.write("set y2tics border\n");
+          break;
+        }
+      }
 
       gp.write("plot ");
       for (int i = 0; i < nseries; i++) {

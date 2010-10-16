@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -112,8 +113,19 @@ final class GraphHandler implements HttpRpc {
       return;
     }
     Query[] tsdbqueries;
+    List<String> options;
     try {
       tsdbqueries = parseQuery(tsdb, query);
+      options = query.getQueryStringParams("o");
+      if (options == null) {
+        options = new ArrayList<String>(tsdbqueries.length);
+        for (int i = 0; i < tsdbqueries.length; i++) {
+          options.add("");
+        }
+      } else if (options.size() != tsdbqueries.length) {
+        throw new BadRequestException(options.size() + " `o' parameters, but "
+          + tsdbqueries.length + " `m' parameters.");
+      }
     } catch (BadRequestException e) {
       if (query.hasQueryStringParam("json")) {
         final String err = e.getMessage();
@@ -152,7 +164,7 @@ final class GraphHandler implements HttpRpc {
         // TODO(tsuna): Optimization: run each query in parallel.
         final DataPoints[] series = tsdbqueries[i].run();
         for (final DataPoints datapoints : series) {
-          plot.add(datapoints, "");
+          plot.add(datapoints, options.get(i));
           aggregated_tags[i] = new HashSet<String>();
           aggregated_tags[i].addAll(datapoints.getAggregatedTags());
           npoints += datapoints.aggregatedSize();
@@ -487,9 +499,12 @@ final class GraphHandler implements HttpRpc {
   static void setPlotParams(final HttpQuery query, final Plot plot) {
     final HashMap<String, String> params = new HashMap<String, String>();
     // XXX Global and per-graph Gnuplot parameters.  Just doing yrange now.
-    final String yrange = query.getQueryStringParam("yrange");
-    if (yrange != null) {
-      params.put("yrange", yrange);
+    String value;
+    if ((value = query.getQueryStringParam("yrange")) != null) {
+      params.put("yrange", value);
+    }
+    if ((value = query.getQueryStringParam("y2range")) != null) {
+      params.put("y2range", value);
     }
     plot.setParams(params);
   }
