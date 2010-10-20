@@ -26,7 +26,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +72,9 @@ final class GraphHandler implements HttpRpc {
   private static final Histogram gnuplotlatency =
     new Histogram(16000, (short) 2, 100);
 
+  /** Executor to run Gnuplot in separate bounded thread pool. */
+  private final ThreadPoolExecutor gnuplot;
+
   /** Directory where to cache query results. */
   private final String cachedir;
 
@@ -75,6 +83,22 @@ final class GraphHandler implements HttpRpc {
    * @param tsdb The TSDB to use.
    */
   public GraphHandler() {
+    // Gnuplot is mostly CPU bound and does only a little bit of IO at the
+    // beginning to read the input data and at the end to write its output.
+    // We don't want to avoid running too many Gnuplot instances concurrently
+    // as it can steal a significant number of CPU cycles from us.  Instead,
+    // we allow only one per core, and we nice it (the nicing is done in the
+    // shell script we use to start Gnuplot).  Similarly, the queue we use
+    // is sized so as to have a fixed backlog per core.
+    final int ncores = Runtime.getRuntime().availableProcessors();
+    gnuplot = new ThreadPoolExecutor(
+      ncores, ncores,  // Thread pool of a fixed size.
+      /* 5m = */ 300000, MILLISECONDS,        // How long to keep idle threads.
+      new ArrayBlockingQueue<Runnable>(20 * ncores),  // XXX Don't hardcode?
+      thread_factory);
+    // ArrayBlockingQueue does not scale as much as LinkedBlockingQueue in terms
+    // of throughput but we don't need high throughput here.  We use ABQ instead
+    // of LBQ because it creates far fewer references.
     cachedir = RpcHandler.getDirectoryFromSystemProp("tsd.http.cachedir");
   }
 
@@ -182,9 +206,54 @@ final class GraphHandler implements HttpRpc {
       respondAsciiQuery(query, max_age, basepath, plot);
       return;
     }
-    {
-      final int nplotted = runGnuplot(basepath, plot);
 
+    try {
+      gnuplot.execute(new RunGnuplot(query, max_age, plot, basepath,
+                                     aggregated_tags, npoints));
+    } catch (RejectedExecutionException e) {
+      query.internalError(new Exception("Too many requests pending,"
+                                        + " please try again later", e));
+    }
+  }
+
+  // Runs Gnuplot in a subprocess to generate the graph.
+  private static final class RunGnuplot implements Runnable {
+
+    private final HttpQuery query;
+    private final int max_age;
+    private final Plot plot;
+    private final String basepath;
+    private final HashSet<String>[] aggregated_tags;
+    private final int npoints;
+
+    public RunGnuplot(final HttpQuery query,
+                      final int max_age,
+                      final Plot plot,
+                      final String basepath,
+                      final HashSet<String>[] aggregated_tags,
+                      final int npoints) {
+      this.query = query;
+      this.max_age = max_age;
+      this.plot = plot;
+      this.basepath = basepath;
+      this.aggregated_tags = aggregated_tags;
+      this.npoints = npoints;
+    }
+
+    public void run() {
+      try {
+        execute();
+      } catch (BadRequestException e) {
+        query.badRequest(e.getMessage());
+      } catch (RuntimeException e) {
+        query.internalError(e);
+      } catch (IOException e) {
+        query.internalError(e);
+      }
+    }
+
+    private void execute() throws IOException {
+      final int nplotted = runGnuplot(basepath, plot);
       if (query.hasQueryStringParam("json")) {
         final StringBuilder buf = new StringBuilder(64);
         buf.append("{\"plotted\":").append(nplotted)
@@ -237,6 +306,12 @@ final class GraphHandler implements HttpRpc {
       graphlatency.add(query.processingTimeMillis());
       graphs_generated.incrementAndGet();
     }
+
+  }
+
+  /** Shuts down the thread pool used to run Gnuplot.  */
+  public void shutdown() {
+    gnuplot.shutdown();
   }
 
   /**
@@ -511,6 +586,7 @@ final class GraphHandler implements HttpRpc {
 
   /**
    * Runs Gnuplot in a subprocess to generate the graph.
+   * <strong>This function will block</strong> while Gnuplot is running.
    * @param basepath The base path used for the Gnuplot files.
    * @param plot The plot object to generate Gnuplot's input files.
    * @return The number of points plotted by Gnuplot (0 or more).
@@ -528,7 +604,7 @@ final class GraphHandler implements HttpRpc {
                                     basepath + ".gnuplot").start();
     int rv;
     try {
-      rv = gnuplot.waitFor();  // TODO(tsuna): How to do this asynchronously.
+      rv = gnuplot.waitFor();  // Couldn't find how to do this asynchronously.
     } catch (InterruptedException e) {
       gnuplot.destroy();
       Thread.currentThread().interrupt();  // Restore the interrupted status.
@@ -770,6 +846,16 @@ final class GraphHandler implements HttpRpc {
     } catch (NumberFormatException e) {
       throw new BadRequestException("Invalid " + paramname + " date: " + date
                                     + ". " + e.getMessage());
+    }
+  }
+
+  private static final PlotThdFactory thread_factory = new PlotThdFactory();
+
+  private static final class PlotThdFactory implements ThreadFactory {
+    private final AtomicInteger id = new AtomicInteger(0);
+
+    public Thread newThread(final Runnable r) {
+      return new Thread(r, "Gnuplot #" + id.incrementAndGet());
     }
   }
 

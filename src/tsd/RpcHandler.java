@@ -240,6 +240,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     }
 
     private Deferred<Object> doShutdown(final TSDB tsdb, final Channel chan) {
+      ((GraphHandler) http_commands.get("q")).shutdown();
       ConnectionManager.closeAllConnections();
       // Netty gets stuck in an infinite loop if we shut it down from within a
       // NIO thread.  So do this from a newly created thread.
