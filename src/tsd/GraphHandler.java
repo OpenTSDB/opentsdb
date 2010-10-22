@@ -245,6 +245,8 @@ final class GraphHandler implements HttpRpc {
         execute();
       } catch (BadRequestException e) {
         query.badRequest(e.getMessage());
+      } catch (GnuplotException e) {
+        query.badRequest("<pre>" + e.getMessage() + "</pre>");
       } catch (RuntimeException e) {
         query.internalError(e);
       } catch (IOException e) {
@@ -253,7 +255,7 @@ final class GraphHandler implements HttpRpc {
     }
 
     private void execute() throws IOException {
-      final int nplotted = runGnuplot(basepath, plot);
+      final int nplotted = runGnuplot(query, basepath, plot);
       if (query.hasQueryStringParam("json")) {
         final StringBuilder buf = new StringBuilder(64);
         buf.append("{\"plotted\":").append(nplotted)
@@ -587,14 +589,17 @@ final class GraphHandler implements HttpRpc {
   /**
    * Runs Gnuplot in a subprocess to generate the graph.
    * <strong>This function will block</strong> while Gnuplot is running.
+   * @param query The query being handled (for logging purposes).
    * @param basepath The base path used for the Gnuplot files.
    * @param plot The plot object to generate Gnuplot's input files.
    * @return The number of points plotted by Gnuplot (0 or more).
    * @throws IOException if the Gnuplot files can't be written, or
    * the Gnuplot subprocess fails to start, or we can't read the
    * graph from the file it produces, or if we have been interrupted.
+   * @throws GnuplotException if Gnuplot returns non-zero.
    */
-  private static int runGnuplot(final String basepath,
+  private static int runGnuplot(final HttpQuery query,
+                                final String basepath,
                                 final Plot plot) throws IOException {
     final int nplotted = plot.dumpToFiles(basepath);
     final long start_time = System.nanoTime();
@@ -612,7 +617,14 @@ final class GraphHandler implements HttpRpc {
     }
     gnuplotlatency.add((int) ((System.nanoTime() - start_time) / 1000000));
     if (rv != 0) {
-      throw new RuntimeException("Gnuplot returned " + rv);
+      final byte[] stderr = readFile(query, new File(basepath + ".err"),
+                                     4096);
+      // Sometimes Gnuplot will error out but still create the file.
+      new File(basepath + ".png").delete();
+      if (stderr == null) {
+        throw new GnuplotException(rv);
+      }
+      throw new GnuplotException(new String(stderr));
     }
     return nplotted;
   }
