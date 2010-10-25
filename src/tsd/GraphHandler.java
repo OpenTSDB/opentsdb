@@ -138,30 +138,16 @@ final class GraphHandler implements HttpRpc {
     }
     Query[] tsdbqueries;
     List<String> options;
-    try {
-      tsdbqueries = parseQuery(tsdb, query);
-      options = query.getQueryStringParams("o");
-      if (options == null) {
-        options = new ArrayList<String>(tsdbqueries.length);
-        for (int i = 0; i < tsdbqueries.length; i++) {
-          options.add("");
-        }
-      } else if (options.size() != tsdbqueries.length) {
-        throw new BadRequestException(options.size() + " `o' parameters, but "
-          + tsdbqueries.length + " `m' parameters.");
+    tsdbqueries = parseQuery(tsdb, query);
+    options = query.getQueryStringParams("o");
+    if (options == null) {
+      options = new ArrayList<String>(tsdbqueries.length);
+      for (int i = 0; i < tsdbqueries.length; i++) {
+        options.add("");
       }
-    } catch (BadRequestException e) {
-      if (query.hasQueryStringParam("json")) {
-        final String err = e.getMessage();
-        final StringBuilder buf = new StringBuilder(10 + err.length());
-        buf.append("{\"err\":\"");
-        HttpQuery.escapeJson(err, buf);
-        buf.append("\"}");
-        query.sendReply(buf);
-        return;
-      } else {
-        throw e;
-      }
+    } else if (options.size() != tsdbqueries.length) {
+      throw new BadRequestException(options.size() + " `o' parameters, but "
+        + tsdbqueries.length + " `m' parameters.");
     }
     for (final Query tsdbquery : tsdbqueries) {
       try {

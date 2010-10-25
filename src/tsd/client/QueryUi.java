@@ -50,6 +50,7 @@ import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DecoratedTabPanel;
 import com.google.gwt.user.client.ui.DecoratorPanel;
+import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HorizontalPanel;
@@ -591,8 +592,37 @@ public class QueryUi implements EntryPoint {
             callback.got(JSONParser.parse(response.getText()));
             return;
           } else if (code >= Response.SC_BAD_REQUEST) {  // 400+ => Oops.
-            displayError("Request failed while getting " + url + ": "
-                         + response.getStatusText());
+            String err = response.getText();
+            // If the response looks like a JSON object, it probably contains
+            // an error message.
+            if (!err.isEmpty() && err.charAt(0) == '{') {
+              final JSONValue json = JSONParser.parse(err);
+              final JSONObject result = json == null ? null : json.isObject();
+              final JSONValue jerr = result == null ? null : result.get("err");
+              final JSONString serr = jerr == null ? null : jerr.isString();
+              err = serr.stringValue();
+              // If the error message has multiple lines (which is common if
+              // it contains a stack trace), show only the first line and
+              // hide the rest in a panel users can expand.
+              final int newline = err.indexOf('\n', 1);
+              final String msg = "Request failed: " + response.getStatusText();
+              if (newline < 0) {
+                displayError(msg + ": " + err);
+              } else {
+                displayError(msg);
+                final DisclosurePanel dp =
+                  new DisclosurePanel(err.substring(0, newline));
+                RootPanel.get("queryuimain").add(dp);  // Attach the widget.
+                final InlineLabel content =
+                  new InlineLabel(err.substring(newline, err.length()));
+                content.addStyleName("fwf");  // For readable stack traces.
+                dp.setContent(content);
+                current_error.getElement().appendChild(dp.getElement());
+              }
+            } else {
+              displayError("Request failed while getting " + url + ": "
+                           + response.getStatusText());
+            }
             graphstatus.setText("");
           }
         }

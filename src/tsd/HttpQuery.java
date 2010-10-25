@@ -195,7 +195,14 @@ final class HttpQuery {
     tp.calculatePackagingData();
     final String pretty_exc = ThrowableProxyUtil.asString(tp);
     tp = null;
-    {
+    if (hasQueryStringParam("json")) {
+      // 32 = 10 + some extra space as exceptions always have \t's to escape.
+      final StringBuilder buf = new StringBuilder(32 + pretty_exc.length());
+      buf.append("{\"err\":\"");
+      HttpQuery.escapeJson(pretty_exc, buf);
+      buf.append("\"}");
+      sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, buf);
+    } else {
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
                 makePage("Internal Server Error", "Houston, we have a problem",
                          "<blockquote>"
@@ -214,7 +221,13 @@ final class HttpQuery {
    * @param explain The string describing why the request is bad.
    */
   public void badRequest(final String explain) {
-    {
+    if (hasQueryStringParam("json")) {
+      final StringBuilder buf = new StringBuilder(10 + explain.length());
+      buf.append("{\"err\":\"");
+      HttpQuery.escapeJson(explain, buf);
+      buf.append("\"}");
+      sendReply(HttpResponseStatus.BAD_REQUEST, buf);
+    } else {
       sendReply(HttpResponseStatus.BAD_REQUEST,
                 makePage("Bad Request", "Looks like it's your fault this time",
                          "<blockquote>"
@@ -231,7 +244,12 @@ final class HttpQuery {
   /** Sends a 404 error page to the client. */
   public void notFound() {
     logWarn("Not Found: " + request.getUri());
-    sendReply(HttpResponseStatus.NOT_FOUND, PAGE_NOT_FOUND);
+    if (hasQueryStringParam("json")) {
+      sendReply(HttpResponseStatus.NOT_FOUND,
+                new StringBuilder("{\"err\":\"Page Not Found\"}"));
+    } else {
+      sendReply(HttpResponseStatus.NOT_FOUND, PAGE_NOT_FOUND);
+    }
   }
 
   /** An empty JSON array ready to be sent. */
