@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,6 +42,7 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.jboss.netty.handler.codec.http.QueryStringDecoder;
 import org.jboss.netty.util.CharsetUtil;
 
+import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
@@ -202,6 +204,8 @@ final class HttpQuery {
       HttpQuery.escapeJson(pretty_exc, buf);
       buf.append("\"}");
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, buf);
+    } else if (hasQueryStringParam("png")) {
+      sendAsPNG(HttpResponseStatus.INTERNAL_SERVER_ERROR, pretty_exc, 30);
     } else {
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
                 makePage("Internal Server Error", "Houston, we have a problem",
@@ -227,6 +231,8 @@ final class HttpQuery {
       HttpQuery.escapeJson(explain, buf);
       buf.append("\"}");
       sendReply(HttpResponseStatus.BAD_REQUEST, buf);
+    } else if (hasQueryStringParam("png")) {
+      sendAsPNG(HttpResponseStatus.BAD_REQUEST, explain, 3600);
     } else {
       sendReply(HttpResponseStatus.BAD_REQUEST,
                 makePage("Bad Request", "Looks like it's your fault this time",
@@ -247,6 +253,8 @@ final class HttpQuery {
     if (hasQueryStringParam("json")) {
       sendReply(HttpResponseStatus.NOT_FOUND,
                 new StringBuilder("{\"err\":\"Page Not Found\"}"));
+    } else if (hasQueryStringParam("png")) {
+      sendAsPNG(HttpResponseStatus.NOT_FOUND, "Page Not Found", 3600);
     } else {
       sendReply(HttpResponseStatus.NOT_FOUND, PAGE_NOT_FOUND);
     }
@@ -399,16 +407,74 @@ final class HttpQuery {
   }
 
   /**
-   * Send a file (with zero-copy) to the client.
+   * Sends the given message as a PNG image.
+   * <strong>This method will block</strong> while image is being generated.
+   * It's only recommended for cases where we want to report an error back to
+   * the user and the user's browser expects a PNG image.  Don't abuse it.
+   * @param status The status of the request (e.g. 200 OK or 404 Not Found).
+   * @param msg The message to send as an image.
+   * @param max_age The expiration time of this entity, in seconds.  This is
+   * not a timestamp, it's how old the resource is allowed to be in the client
+   * cache.  See RFC 2616 section 14.9 for more information.  Use 0 to disable
+   * caching.
+   */
+  public void sendAsPNG(final HttpResponseStatus status,
+                        final String msg,
+                        final int max_age) {
+    try {
+      final long now = System.currentTimeMillis() / 1000;
+      Plot plot = new Plot(now - 1, now);
+      HashMap<String, String> params = new HashMap<String, String>(1);
+      StringBuilder buf = new StringBuilder(1 + msg.length() + 18);
+
+      buf.append('"');
+      escapeJson(msg, buf);
+      buf.append("\" at graph 0.02,0.97");
+      params.put("label", buf.toString());
+      buf = null;
+      plot.setParams(params);
+      params = null;
+      final String basepath =
+        RpcHandler.getDirectoryFromSystemProp("tsd.http.cachedir")
+        + Integer.toHexString(msg.hashCode());
+      GraphHandler.runGnuplot(this, basepath, plot);
+      plot = null;
+      sendFile(status, basepath + ".png", max_age);
+    } catch (Exception e) {
+      getQueryString().remove("png");  // Avoid recursion.
+      internalError(new RuntimeException("Failed to generate a PNG with the"
+                                         + " following message: " + msg, e));
+    }
+  }
+
+  /**
+   * Send a file (with zero-copy) to the client with a 200 OK status.
    * This method doesn't provide any security guarantee.  The caller is
    * responsible for the argument they pass in.
    * @param path The path to the file to send to the client.
    * @param max_age The expiration time of this entity, in seconds.  This is
    * not a timestamp, it's how old the resource is allowed to be in the client
-   * cache.  See rfc2616 section 14.9 for more information.  Use 0 to disable
+   * cache.  See RFC 2616 section 14.9 for more information.  Use 0 to disable
    * caching.
    */
   public void sendFile(final String path,
+                       final int max_age) throws IOException {
+    sendFile(HttpResponseStatus.OK, path, max_age);
+  }
+
+  /**
+   * Send a file (with zero-copy) to the client.
+   * This method doesn't provide any security guarantee.  The caller is
+   * responsible for the argument they pass in.
+   * @param status The status of the request (e.g. 200 OK or 404 Not Found).
+   * @param path The path to the file to send to the client.
+   * @param max_age The expiration time of this entity, in seconds.  This is
+   * not a timestamp, it's how old the resource is allowed to be in the client
+   * cache.  See RFC 2616 section 14.9 for more information.  Use 0 to disable
+   * caching.
+   */
+  public void sendFile(final HttpResponseStatus status,
+                       final String path,
                        final int max_age) throws IOException {
     if (max_age < 0) {
       throw new IllegalArgumentException("Negative max_age=" + max_age
@@ -419,13 +485,16 @@ final class HttpQuery {
       file = new RandomAccessFile(path, "r");
     } catch (FileNotFoundException e) {
       logWarn("File not found: " + e.getMessage());
+      if (querystring != null) {
+        querystring.remove("png");  // Avoid potential recursion.
+      }
       notFound();
       return;
     }
     final long length = file.length();
     {
       final DefaultHttpResponse response =
-        new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
       final String mimetype = guessMimeTypeFromUri(path);
       response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
                          mimetype == null ? "text/plain" : mimetype);

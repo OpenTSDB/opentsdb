@@ -584,9 +584,9 @@ final class GraphHandler implements HttpRpc {
    * graph from the file it produces, or if we have been interrupted.
    * @throws GnuplotException if Gnuplot returns non-zero.
    */
-  private static int runGnuplot(final HttpQuery query,
-                                final String basepath,
-                                final Plot plot) throws IOException {
+  static int runGnuplot(final HttpQuery query,
+                        final String basepath,
+                        final Plot plot) throws IOException {
     final int nplotted = plot.dumpToFiles(basepath);
     final long start_time = System.nanoTime();
     final Process gnuplot = new ProcessBuilder(
