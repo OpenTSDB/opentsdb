@@ -162,7 +162,9 @@ gwtdev: $(top_builddir)/.gwtc-stamp
 	java $(GWT_DEV_ARGS) -ea -cp $(GWT_DEV):$(GWT_SDK):src com.google.gwt.dev.DevMode \
 	  -startupUrl $(GWT_DEV_URL) -noserver -war $(top_builddir)/gwt tsd.QueryUi
 
-gwttsd: jar $(top_builddir)/.staticroot-stamp
+staticroot: jar $(top_builddir)/.staticroot-stamp
+
+gwttsd: staticroot
 	./src/tsdb tsd $(DEV_TSD_ARGS)
 
 $(top_builddir)/.staticroot-stamp: $(dist_pkgdata_DATA) $(top_builddir)/.gwtc-stamp
@@ -235,4 +237,4 @@ distclean: clean
 	rm -rf $(top_builddir)/api
 	test ! -d $(top_builddir) || rmdir $(top_builddir)
 
-.PHONY: all jar clean distclean doc check gwtc gwtdev gwttsd printcp
+.PHONY: all jar clean distclean doc check gwtc gwtdev staticroot gwttsd printcp
