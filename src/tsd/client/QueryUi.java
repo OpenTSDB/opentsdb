@@ -108,6 +108,14 @@ public class QueryUi implements EntryPoint {
   private final Label graphstatus = new Label();
   /** Remember the last URI requested to avoid requesting twice the same. */
   private String lastgraphuri;
+
+  /**
+   * We only send one request at a time, how many have we not sent yet?.
+   * Note that we don't buffer pending requests.  When there are multiple
+   * ones pending, we will only execute the last one and discard the other
+   * intermediate ones, since the user is no longer interested in them.
+   */
+  private int pending_requests = 0;
   /** How many graph requests we make.  */
   private int nrequests = 0;
 
@@ -474,6 +482,8 @@ public class QueryUi implements EntryPoint {
     final String uri = url.toString();
     if (uri.equals(lastgraphuri)) {
       return;  // Don't re-request the same graph.
+    } else if (pending_requests++ > 0) {
+      return;
     }
     lastgraphuri = uri;
     graphstatus.setText("Loading graph...");
@@ -557,6 +567,10 @@ public class QueryUi implements EntryPoint {
             autoreoload_timer.schedule(reload_in * 1000);
           }
         }
+        if (--pending_requests > 0) {
+          pending_requests = 0;
+          refreshGraph();
+        }
       }
     });
   }
@@ -582,6 +596,9 @@ public class QueryUi implements EntryPoint {
       builder.sendRequest(null, new RequestCallback() {
         public void onError(final Request request, final Throwable e) {
           displayError("Failed to get " + url + ": " + e.getMessage());
+          // Since we don't call the callback we've been given, reset this
+          // bit of state as we're not going to retry anything right now.
+          pending_requests = 0;
         }
 
         public void onResponseReceived(final Request request,
@@ -592,6 +609,9 @@ public class QueryUi implements EntryPoint {
             callback.got(JSONParser.parse(response.getText()));
             return;
           } else if (code >= Response.SC_BAD_REQUEST) {  // 400+ => Oops.
+            // Since we don't call the callback we've been given, reset this
+            // bit of state as we're not going to retry anything right now.
+            pending_requests = 0;
             String err = response.getText();
             // If the response looks like a JSON object, it probably contains
             // an error message.
@@ -622,6 +642,9 @@ public class QueryUi implements EntryPoint {
             } else {
               displayError("Request failed while getting " + url + ": "
                            + response.getStatusText());
+              // Since we don't call the callback we've been given, reset this
+              // bit of state as we're not going to retry anything right now.
+              pending_requests = 0;
             }
             graphstatus.setText("");
           }
