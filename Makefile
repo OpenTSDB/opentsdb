@@ -225,7 +225,7 @@ clean:
 	cd $(top_builddir) || exit 0 && rm -f $(classes_with_nested_classes) $(test_classes_with_nested_classes)
 	cd $(top_builddir) || exit 0 \
 	  && test -d $(package_dir) || exit 0 \
-	  && find $(package_dir) -type d -depth -exec rmdir {} ';' \
+	  && find $(package_dir) -depth -type d -exec rmdir {} ';' \
 	  && dir=$(package_dir) && dir=$${dir%/*} \
 	  && while test x"$$dir" != x"$${dir%/*}"; do \
 	       rmdir "$$dir" && dir=$${dir%/*} || break; \
