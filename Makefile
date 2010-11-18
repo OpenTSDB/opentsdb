@@ -219,7 +219,7 @@ $(top_builddir)/api/index.html: $(tsdb_JAVA) $(BUILT_SOURCES)
           -link $(JDK_JAVADOC) -link $(NETTY_JAVADOC) $(tsdb_JAVA) $(BUILT_SOURCES)
 
 clean:
-	@rm -f $(top_builddir)/{.javac-stamp,.gwtc-stamp*,.staticroot-stamp}
+	@rm -f $(top_builddir)/.javac-stamp $(top_builddir)/.gwtc-stamp* $(top_builddir)/.staticroot-stamp
 	rm -rf $(top_builddir)/gwt $(top_builddir)/staticroot
 	rm -f $(top_builddir)/manifest $(BUILT_SOURCES)
 	cd $(top_builddir) || exit 0 && rm -f $(classes_with_nested_classes) $(test_classes_with_nested_classes)
