@@ -48,17 +48,20 @@ final class TSDMain {
   private static final short DEFAULT_FLUSH_INTERVAL = 1000;
   private static final boolean DONT_CREATE = false;
   private static final boolean CREATE_IF_NEEDED = true;
+  private static final boolean MUST_BE_WRITEABLE = true;
 
   /**
    * Ensures the given directory path is usable and set it as a system prop.
    * In case of problem, this function calls {@code System.exit}.
    * @param prop The name of the system property to set.
    * @param dir The path to the directory that needs to be checked.
+   * @param need_write Whether or not the directory must be writeable.
    * @param create If {@code true}, the directory {@code dir} will be created
    * if it doesn't exist.
    */
   private static void setDirectoryInSystemProps(final String prop,
                                                 final String dir,
+                                                final boolean need_write,
                                                 final boolean create) {
     final File f = new File(dir);
     final String path = f.getPath();
@@ -66,7 +69,7 @@ final class TSDMain {
       usage(null, "No such directory: " + path, 3);
     } else if (!f.isDirectory()) {
       usage(null, "Not a directory: " + path, 3);
-    } else if (!f.canWrite()) {
+    } else if (need_write && !f.canWrite()) {
       usage(null, "Cannot write to directory: " + path, 3);
     }
     System.setProperty(prop, path + '/');
@@ -104,9 +107,9 @@ final class TSDMain {
     final short flush_interval = getFlushInterval(argp);
 
     setDirectoryInSystemProps("tsd.http.staticroot", argp.get("--staticroot"),
-                              DONT_CREATE);
+                              DONT_CREATE, !MUST_BE_WRITEABLE);
     setDirectoryInSystemProps("tsd.http.cachedir", argp.get("--cachedir"),
-                              CREATE_IF_NEEDED);
+                              CREATE_IF_NEEDED, MUST_BE_WRITEABLE);
 
     final NioServerSocketChannelFactory factory =
         new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
