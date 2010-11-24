@@ -292,6 +292,8 @@ final class TsdbQuery implements Query {
       return NO_RESULT;
     }
     if (group_bys == null) {
+      // We haven't been asked to find groups, so let's put all the spans
+      // together in the same group.
       final SpanGroup group = new SpanGroup(tsdb,
                                             getStartTime(), getEndTime(),
                                             spans.values(),
@@ -300,6 +302,18 @@ final class TsdbQuery implements Query {
                                             sample_interval, downsampler);
       return new SpanGroup[] { group };
     }
+
+    // Maps group value IDs to the SpanGroup for those values.  Say we've
+    // been asked to group by two things: foo=* bar=* Then the keys in this
+    // map will contain all the value IDs combinations we've seen.  If the
+    // name IDs for `foo' and `bar' are respectively [0, 0, 7] and [0, 0, 2]
+    // then we'll have group_bys=[[0, 0, 2], [0, 0, 7]] (notice it's sorted
+    // by ID, so bar is first) and say we find foo=LOL bar=OMG as well as
+    // foo=LOL bar=WTF and that the IDs of the tag values are:
+    //   LOL=[0, 0, 1]  OMG=[0, 0, 4]  WTF=[0, 0, 3]
+    // then the map will have two keys:
+    //   - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
+    //   - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
     final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
     final short metric_ts_bytes = (short) (tsdb.metrics.width()
                                            + Const.TIMESTAMP_BYTES);
@@ -331,6 +345,8 @@ final class TsdbQuery implements Query {
         thegroup = new SpanGroup(tsdb, getStartTime(), getEndTime(),
                                  null, rate, aggregator,
                                  sample_interval, downsampler);
+        // Copy the array because we're going to keep `group' and overwrite
+        // its contents.  So we want the collection to have an immutable copy.
         final byte[] group_copy = new byte[group.length];
         System.arraycopy(group, 0, group_copy, 0, group.length);
         groups.put(group_copy, thegroup);
