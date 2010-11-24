@@ -295,7 +295,8 @@ final class TsdbQuery implements Query {
       // We haven't been asked to find groups, so let's put all the spans
       // together in the same group.
       final SpanGroup group = new SpanGroup(tsdb,
-                                            getStartTime(), getEndTime(),
+                                            getScanStartTime(),
+                                            getScanEndTime(),
                                             spans.values(),
                                             rate,
                                             aggregator,
@@ -344,7 +345,7 @@ final class TsdbQuery implements Query {
       //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
       SpanGroup thegroup = groups.get(group);
       if (thegroup == null) {
-        thegroup = new SpanGroup(tsdb, getStartTime(), getEndTime(),
+        thegroup = new SpanGroup(tsdb, getScanStartTime(), getScanEndTime(),
                                  null, rate, aggregator,
                                  sample_interval, downsampler);
         // Copy the array because we're going to keep `group' and overwrite
@@ -368,15 +369,16 @@ final class TsdbQuery implements Query {
     final short metric_width = tsdb.metrics.width();
     final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
     final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
-    // We search MAX_TIMESPAN seconds before and after the end time as it's
-    // quite likely that the exact timestamp we're looking for is in the
-    // middle of a row.  Additionally, in case our sample_interval is large,
-    // we need to look even further before/after, so use that too.
-    Bytes.setInt(start_row, start_time - Const.MAX_TIMESPAN - sample_interval,
-                 metric_width);
+    // We search at least one row before and one row after the start & end
+    // time we've been given as it's quite likely that the exact timestamp
+    // we're looking for is in the middle of a row.  Plus, a number of things
+    // rely on having a few extra data points before & after the exact start
+    // & end dates in order to do proper rate calculation or downsampling near
+    // the "edges" of the graph.
+    Bytes.setInt(start_row, (int) getScanStartTime(), metric_width);
     Bytes.setInt(end_row, (end_time == 0
                            ? -1  // Will scan until the end (0xFFF...).
-                           : end_time + Const.MAX_TIMESPAN + sample_interval),
+                           : (int) getScanEndTime()),
                  metric_width);
     System.arraycopy(metric, 0, start_row, 0, metric_width);
     System.arraycopy(metric, 0, end_row, 0, metric_width);
@@ -389,6 +391,36 @@ final class TsdbQuery implements Query {
     }
     scanner.setFamily(TSDB.FAMILY);
     return scanner;
+  }
+
+  /** Returns the UNIX timestamp from which we must start scanning.  */
+  private long getScanStartTime() {
+    // The reason we look before by `MAX_TIMESPAN * 2' seconds is because of
+    // the following.  Let's assume MAX_TIMESPAN = 600 (10 minutes) and the
+    // start_time = ... 12:31:00.  If we initialize the scanner to look
+    // only 10 minutes before, we'll start scanning at time=12:21, which will
+    // give us the row that starts at 12:30 (remember: rows are always aligned
+    // on MAX_TIMESPAN boundaries -- so in this example, on 10m boundaries).
+    // But we need to start scanning at least 1 row before, so we actually
+    // look back by twice MAX_TIMESPAN.  Only when start_time is aligned on a
+    // MAX_TIMESPAN boundary then we'll mistakenly scan back by an extra row,
+    // but this doesn't really matter.
+    // Additionally, in case our sample_interval is large, we need to look
+    // even further before/after, so use that too.
+    return getStartTime() - Const.MAX_TIMESPAN * 2 - sample_interval;
+  }
+
+  /** Returns the UNIX timestamp at which we must stop scanning.  */
+  private long getScanEndTime() {
+    // For the end_time, we have a different problem.  For instance if our
+    // end_time = ... 12:30:00, we'll stop scanning when we get to 12:40, but
+    // once again we wanna try to look ahead one more row, so to avoid this
+    // problem we always add 1 second to the end_time.  Only when the end_time
+    // is of the form HH:59:59 then we will scan ahead an extra row, but once
+    // again that doesn't really matter.
+    // Additionally, in case our sample_interval is large, we need to look
+    // even further before/after, so use that too.
+    return getEndTime() + Const.MAX_TIMESPAN + 1 + sample_interval;
   }
 
   /**
