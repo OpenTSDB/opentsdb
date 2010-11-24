@@ -169,7 +169,7 @@ final class CliQuery {
               buf.append(String.format("%f", datapoint.doubleValue()));
             }
             buf.append(' ').append(tagz).append('\n');
-            System.err.print(buf);
+            System.out.print(buf);
             buf.delete(0, buf.length());
           }
         }
