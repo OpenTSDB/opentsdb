@@ -336,7 +336,9 @@ final class TsdbQuery implements Query {
         i += value_width;
       }
       if (value_id == null) {
-        LOG.info("Dropping span: " + Arrays.toString(row));
+        LOG.error("WTF?  Dropping span for row " + Arrays.toString(row)
+                 + " as it had no matching tag from the requested groups,"
+                 + " which is unexpected.  Query=" + this);
         continue;
       }
       //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
