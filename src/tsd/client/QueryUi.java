@@ -37,6 +37,7 @@ import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
+import com.google.gwt.http.client.URL;
 import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONNumber;
@@ -44,6 +45,7 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
+import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Anchor;
@@ -52,6 +54,7 @@ import com.google.gwt.user.client.ui.DecoratedTabPanel;
 import com.google.gwt.user.client.ui.DecoratorPanel;
 import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlexTable;
+import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
@@ -86,6 +89,12 @@ public class QueryUi implements EntryPoint {
 
   private final ValidatedTextBox yrange = new ValidatedTextBox();
   private final ValidatedTextBox y2range = new ValidatedTextBox();
+  private final CheckBox ylog = new CheckBox();
+  private final CheckBox y2log = new CheckBox();
+  private final TextBox ylabel = new TextBox();
+  private final TextBox y2label = new TextBox();
+  private final ValidatedTextBox yformat = new ValidatedTextBox();
+  private final ValidatedTextBox y2format = new ValidatedTextBox();
   private final ValidatedTextBox wxh = new ValidatedTextBox();
 
   /**
@@ -162,6 +171,18 @@ public class QueryUi implements EntryPoint {
     yrange.addKeyPressHandler(refreshgraph);
     y2range.addBlurHandler(refreshgraph);
     y2range.addKeyPressHandler(refreshgraph);
+    ylog.addClickHandler(new AdjustYRangeCheckOnClick(ylog, yrange));
+    y2log.addClickHandler(new AdjustYRangeCheckOnClick(y2log, y2range));
+    ylog.addClickHandler(refreshgraph);
+    y2log.addClickHandler(refreshgraph);
+    ylabel.addBlurHandler(refreshgraph);
+    ylabel.addKeyPressHandler(refreshgraph);
+    y2label.addBlurHandler(refreshgraph);
+    y2label.addKeyPressHandler(refreshgraph);
+    yformat.addBlurHandler(refreshgraph);
+    yformat.addKeyPressHandler(refreshgraph);
+    y2format.addBlurHandler(refreshgraph);
+    y2format.addKeyPressHandler(refreshgraph);
     wxh.addBlurHandler(refreshgraph);
     wxh.addKeyPressHandler(refreshgraph);
 
@@ -179,6 +200,21 @@ public class QueryUi implements EntryPoint {
     y2range.setMaxLength(44);  // MAX=2^26=20 chars: "[-$MAX:$MAX]"
     y2range.setText("[0:]");
     y2range.setEnabled(false);
+    y2log.setEnabled(false);
+
+    ylabel.setVisibleLength(10);
+    ylabel.setMaxLength(50);  // Arbitrary limit.
+    y2label.setVisibleLength(10);
+    y2label.setMaxLength(50);  // Arbitrary limit.
+    y2label.setEnabled(false);
+
+    yformat.setValidationRegexp("^(|.*%..*)$");  // Nothing or at least one %?
+    yformat.setVisibleLength(10);
+    yformat.setMaxLength(10);  // Arbitrary limit.
+    y2format.setValidationRegexp("^(|.*%..*)$");  // Nothing or at least one %?
+    y2format.setVisibleLength(10);
+    y2format.setMaxLength(10);  // Arbitrary limit.
+    y2format.setEnabled(false);
 
     wxh.setValidationRegexp("^[1-9][0-9]{2,}x[1-9][0-9]{2,}$");  // 100x100
     wxh.setVisibleLength(9);
@@ -231,17 +267,9 @@ public class QueryUi implements EntryPoint {
     table.setWidget(1, 1, end_datebox);
     {
       final HorizontalPanel hbox = new HorizontalPanel();
-      hbox.add(new InlineLabel("Y Range:"));
-      hbox.add(yrange);
-      hbox.add(new InlineLabel(". Y2:"));
-      hbox.add(y2range);
-      table.setWidget(2, 0, hbox);
-    }
-    {
-      final HorizontalPanel hbox = new HorizontalPanel();
       hbox.add(new InlineLabel("WxH:"));
       hbox.add(wxh);
-      table.setWidget(2, 1, hbox);
+      table.setWidget(0, 3, hbox);
     }
     {
       final MetricForm.MetricChangeHandler metric_change_handler =
@@ -267,10 +295,16 @@ public class QueryUi implements EntryPoint {
             }
             if (((MetricForm) metric).x1y2().getValue()) {
               y2range.setEnabled(true);
+              y2log.setEnabled(true);
+              y2label.setEnabled(true);
+              y2format.setEnabled(true);
               return;
             }
           }
           y2range.setEnabled(false);
+          y2log.setEnabled(false);
+          y2label.setEnabled(false);
+          y2format.setEnabled(false);
         }
       };
       final MetricForm metric = new MetricForm(refreshgraph);
@@ -295,9 +329,14 @@ public class QueryUi implements EntryPoint {
           }
         }
       });
-      table.setWidget(3, 0, metrics);
+      table.setWidget(2, 0, metrics);
     }
-    table.getFlexCellFormatter().setColSpan(3, 0, 2);
+    table.getFlexCellFormatter().setColSpan(2, 0, 2);
+    table.getFlexCellFormatter().setRowSpan(1, 3, 2);
+    final DecoratedTabPanel optpanel = new DecoratedTabPanel();
+    optpanel.add(makeAxesPanel(), "Axes");
+    optpanel.selectTab(0);
+    table.setWidget(1, 3, optpanel);
 
     final DecoratorPanel decorator = new DecoratorPanel();
     decorator.setWidget(table);
@@ -340,6 +379,31 @@ public class QueryUi implements EntryPoint {
     current_error.addStyleName("dateBoxFormatError");
     root.add(mainpanel);
     RootPanel.get("queryuimain").add(root);
+  }
+
+  /**
+   * Builds the panel containing customizations for the axes of the graph.
+   */
+  private Grid makeAxesPanel() {
+    final Grid grid = new Grid(5, 3);
+    grid.setText(0, 1, "Y");
+    grid.setText(0, 2, "Y2");
+    setTextAlignCenter(grid.getRowFormatter().getElement(0));
+    grid.setText(1, 0, "Label");
+    grid.setWidget(1, 1, ylabel);
+    grid.setWidget(1, 2, y2label);
+    grid.setText(2, 0, "Format");
+    grid.setWidget(2, 1, yformat);
+    grid.setWidget(2, 2, y2format);
+    grid.setText(3, 0, "Range");
+    grid.setWidget(3, 1, yrange);
+    grid.setWidget(3, 2, y2range);
+    grid.setText(4, 0, "Log scale");
+    grid.setWidget(4, 1, ylog);
+    grid.setWidget(4, 2, y2log);
+    setTextAlignCenter(grid.getCellFormatter().getElement(4, 1));
+    setTextAlignCenter(grid.getCellFormatter().getElement(4, 2));
+    return grid;
   }
 
   private void refreshStats() {
@@ -435,6 +499,54 @@ public class QueryUi implements EntryPoint {
     });
   }
 
+  private void addLabels(final StringBuilder url) {
+    final String ylabel = this.ylabel.getText();
+    if (!ylabel.isEmpty()) {
+      url.append("&ylabel=").append(URL.encodeComponent(ylabel));
+    }
+    if (y2label.isEnabled()) {
+      final String y2label = this.y2label.getText();
+      if (!y2label.isEmpty()) {
+        url.append("&y2label=").append(URL.encodeComponent(y2label));
+      }
+    }
+  }
+
+  private void addFormats(final StringBuilder url) {
+    final String yformat = this.yformat.getText();
+    if (!yformat.isEmpty()) {
+      url.append("&yformat=").append(URL.encodeComponent(yformat));
+    }
+    if (y2format.isEnabled()) {
+      final String y2format = this.y2format.getText();
+      if (!y2format.isEmpty()) {
+        url.append("&y2format=").append(URL.encodeComponent(y2format));
+      }
+    }
+  }
+
+  private void addYRanges(final StringBuilder url) {
+    final String yrange = this.yrange.getText();
+    if (!yrange.isEmpty()) {
+      url.append("&yrange=").append(yrange);
+    }
+    if (y2range.isEnabled()) {
+      final String y2range = this.y2range.getText();
+      if (!y2range.isEmpty()) {
+        url.append("&y2range=").append(y2range);
+      }
+    }
+  }
+
+  private void addLogscales(final StringBuilder url) {
+    if (ylog.isChecked()) {
+      url.append("&ylog");
+    }
+    if (y2log.isEnabled() && y2log.isChecked()) {
+      url.append("&y2log");
+    }
+  }
+
   private void refreshGraph() {
     final Date start = start_datebox.getValue();
     if (start == null) {
@@ -466,18 +578,10 @@ public class QueryUi implements EntryPoint {
     if (!addAllMetrics(url)) {
       return;
     }
-    {
-      final String yrange = this.yrange.getText();
-      if (!yrange.isEmpty()) {
-        url.append("&yrange=").append(yrange);
-      }
-      if (y2range.isEnabled()) {
-        final String y2range = this.y2range.getText();
-        if (!y2range.isEmpty()) {
-          url.append("&y2range=").append(y2range);
-        }
-      }
-    }
+    addLabels(url);
+    addFormats(url);
+    addYRanges(url);
+    addLogscales(url);
     url.append("&wxh=").append(wxh.getText());
     final String uri = url.toString();
     if (uri.equals(lastgraphuri)) {
@@ -663,5 +767,32 @@ public class QueryUi implements EntryPoint {
   private void clearError() {
     current_error.setVisible(false);
   }
+
+  static void setTextAlignCenter(final Element element) {
+    element.getStyle().setProperty("textAlign", "center");
+  }
+
+  private final class AdjustYRangeCheckOnClick implements ClickHandler {
+
+    private final CheckBox box;
+    private final ValidatedTextBox range;
+
+    public AdjustYRangeCheckOnClick(final CheckBox box,
+                                    final ValidatedTextBox range) {
+      this.box = box;
+      this.range = range;
+    }
+
+    public void onClick(final ClickEvent event) {
+      if (box.isEnabled() && box.isChecked()
+          && "[0:]".equals(range.getValue())) {
+        range.setValue("[1:]");
+      } else if (box.isEnabled() && !box.isChecked()
+                 && "[1:]".equals(range.getValue())) {
+        range.setValue("[0:]");
+      }
+    }
+
+  };
 
 }

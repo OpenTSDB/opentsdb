@@ -549,15 +549,67 @@ final class GraphHandler implements HttpRpc {
     }
   }
 
+  /**
+   * Formats and quotes the given string so it's a suitable Gnuplot string.
+   * @param s The string to stringify.
+   * @return A string suitable for use as a literal string in Gnuplot.
+   */
+  private static String stringify(final String s) {
+    final StringBuilder buf = new StringBuilder(1 + s.length() + 1);
+    buf.append('"');
+    HttpQuery.escapeJson(s, buf);  // Abusing this function gets the job done.
+    buf.append('"');
+    return buf.toString();
+  }
+
+  /**
+   * Pops out of the query string the given parameter.
+   * @param querystring The query string.
+   * @param param The name of the parameter to pop out.
+   * @return {@code null} if the parameter wasn't passed, otherwise the
+   * value of the last occurrence of the parameter.
+   */
+  private static String popParam(final Map<String, List<String>> querystring,
+                                     final String param) {
+    final List<String> params = querystring.remove(param);
+    if (params == null) {
+      return null;
+    }
+    return params.get(params.size() - 1);
+  }
+
+  /**
+   * Applies the plot parameters from the query to the given plot.
+   * @param query The query from which to get the query string.
+   * @param plot The plot on which to apply the parameters.
+   */
   static void setPlotParams(final HttpQuery query, final Plot plot) {
     final HashMap<String, String> params = new HashMap<String, String>();
-    // XXX Global and per-graph Gnuplot parameters.  Just doing yrange now.
+    final Map<String, List<String>> querystring = query.getQueryString();
     String value;
-    if ((value = query.getQueryStringParam("yrange")) != null) {
+    if ((value = popParam(querystring, "yrange")) != null) {
       params.put("yrange", value);
     }
-    if ((value = query.getQueryStringParam("y2range")) != null) {
+    if ((value = popParam(querystring, "y2range")) != null) {
       params.put("y2range", value);
+    }
+    if ((value = popParam(querystring, "ylabel")) != null) {
+      params.put("ylabel", stringify(value));
+    }
+    if ((value = popParam(querystring, "y2label")) != null) {
+      params.put("y2label", stringify(value));
+    }
+    if ((value = popParam(querystring, "yformat")) != null) {
+      params.put("format y", stringify(value));
+    }
+    if ((value = popParam(querystring, "y2format")) != null) {
+      params.put("format y2", stringify(value));
+    }
+    if ((value = popParam(querystring, "ylog")) != null) {
+      params.put("logscale", "y");
+    }
+    if ((value = popParam(querystring, "y2log")) != null) {
+      params.put("logscale", "y2");
     }
     plot.setParams(params);
   }
