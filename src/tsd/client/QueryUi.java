@@ -60,6 +60,7 @@ import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.RadioButton;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
@@ -96,6 +97,11 @@ public class QueryUi implements EntryPoint {
   private final ValidatedTextBox yformat = new ValidatedTextBox();
   private final ValidatedTextBox y2format = new ValidatedTextBox();
   private final ValidatedTextBox wxh = new ValidatedTextBox();
+
+  private String keypos = "";  // Position of the key on the graph.
+  private final CheckBox horizontalkey = new CheckBox("Horizontal layout");
+  private final CheckBox keybox = new CheckBox("Box");
+  private final CheckBox nokey = new CheckBox("No key (overrides others)");
 
   /**
    * Handles every change to the query form and gets a new graph.
@@ -185,6 +191,9 @@ public class QueryUi implements EntryPoint {
     y2format.addKeyPressHandler(refreshgraph);
     wxh.addBlurHandler(refreshgraph);
     wxh.addKeyPressHandler(refreshgraph);
+    horizontalkey.addClickHandler(refreshgraph);
+    keybox.addClickHandler(refreshgraph);
+    nokey.addClickHandler(refreshgraph);
 
     yrange.setValidationRegexp("^("                            // Nothing or
                                + "|\\[([-+.0-9eE]+|\\*)?"      // "[start
@@ -335,6 +344,7 @@ public class QueryUi implements EntryPoint {
     table.getFlexCellFormatter().setRowSpan(1, 3, 2);
     final DecoratedTabPanel optpanel = new DecoratedTabPanel();
     optpanel.add(makeAxesPanel(), "Axes");
+    optpanel.add(makeKeyPanel(), "Key");
     optpanel.selectTab(0);
     table.setWidget(1, 3, optpanel);
 
@@ -379,6 +389,8 @@ public class QueryUi implements EntryPoint {
     current_error.addStyleName("dateBoxFormatError");
     root.add(mainpanel);
     RootPanel.get("queryuimain").add(root);
+    // Must be done at the end, once all the widgets are attached.
+    ensureSameWidgetSize(optpanel);
   }
 
   /**
@@ -404,6 +416,69 @@ public class QueryUi implements EntryPoint {
     setTextAlignCenter(grid.getCellFormatter().getElement(4, 1));
     setTextAlignCenter(grid.getCellFormatter().getElement(4, 2));
     return grid;
+  }
+
+  /**
+   * Small helper to build a radio button used to change the position of the
+   * key of the graph.
+   */
+  private RadioButton addKeyRadioButton(final Grid grid,
+                                        final int row, final int col,
+                                        final String pos) {
+    final RadioButton rb = new RadioButton("keypos");
+    rb.addClickHandler(new ClickHandler() {
+      public void onClick(final ClickEvent event) {
+        keypos = pos;
+      }
+    });
+    rb.addClickHandler(refreshgraph);
+    grid.setWidget(row, col, rb);
+    return rb;
+  }
+
+  /**
+   * Builds the panel containing the customizations for the key of the graph.
+   */
+  private Widget makeKeyPanel() {
+    final Grid grid = new Grid(5, 5);
+    addKeyRadioButton(grid, 0, 0, "out left top");
+    addKeyRadioButton(grid, 0, 2, "out center top");
+    addKeyRadioButton(grid, 0, 4, "out right top");
+    addKeyRadioButton(grid, 1, 1, "top left");
+    addKeyRadioButton(grid, 1, 2, "top center");
+    addKeyRadioButton(grid, 1, 3, "top right").setChecked(true);
+    addKeyRadioButton(grid, 2, 0, "out center left");
+    addKeyRadioButton(grid, 2, 1, "center left");
+    addKeyRadioButton(grid, 2, 2, "center");
+    addKeyRadioButton(grid, 2, 3, "center right");
+    addKeyRadioButton(grid, 2, 4, "out center right");
+    addKeyRadioButton(grid, 3, 1, "bottom left");
+    addKeyRadioButton(grid, 3, 2, "bottom center");
+    addKeyRadioButton(grid, 3, 3, "bottom right");
+    addKeyRadioButton(grid, 4, 0, "out bottom left");
+    addKeyRadioButton(grid, 4, 2, "out bottom center");
+    addKeyRadioButton(grid, 4, 4, "out bottom right");
+    final Grid.CellFormatter cf = grid.getCellFormatter();
+    cf.getElement(1, 1).getStyle().setProperty("borderLeft", "1px solid #000");
+    cf.getElement(1, 1).getStyle().setProperty("borderTop", "1px solid #000");
+    cf.getElement(1, 2).getStyle().setProperty("borderTop", "1px solid #000");
+    cf.getElement(1, 3).getStyle().setProperty("borderTop", "1px solid #000");
+    cf.getElement(1, 3).getStyle().setProperty("borderRight", "1px solid #000");
+    cf.getElement(2, 1).getStyle().setProperty("borderLeft", "1px solid #000");
+    cf.getElement(2, 3).getStyle().setProperty("borderRight", "1px solid #000");
+    cf.getElement(3, 1).getStyle().setProperty("borderLeft", "1px solid #000");
+    cf.getElement(3, 1).getStyle().setProperty("borderBottom", "1px solid #000");
+    cf.getElement(3, 2).getStyle().setProperty("borderBottom", "1px solid #000");
+    cf.getElement(3, 3).getStyle().setProperty("borderBottom", "1px solid #000");
+    cf.getElement(3, 3).getStyle().setProperty("borderRight", "1px solid #000");
+    final VerticalPanel vbox = new VerticalPanel();
+    vbox.add(new InlineLabel("Key location:"));
+    vbox.add(grid);
+    vbox.add(horizontalkey);
+    keybox.setChecked(true);
+    vbox.add(keybox);
+    vbox.add(nokey);
+    return vbox;
   }
 
   private void refreshStats() {
@@ -582,6 +657,20 @@ public class QueryUi implements EntryPoint {
     addFormats(url);
     addYRanges(url);
     addLogscales(url);
+    if (nokey.isChecked()) {
+      url.append("&nokey");
+    } else if (!keypos.isEmpty() || horizontalkey.isChecked()) {
+      url.append("&key=");
+      if (!keypos.isEmpty()) {
+        url.append(keypos);
+      }
+      if (horizontalkey.isChecked()) {
+        url.append(" horiz");
+      }
+      if (keybox.isChecked()) {
+        url.append(" box");
+      }
+    }
     url.append("&wxh=").append(wxh.getText());
     final String uri = url.toString();
     if (uri.equals(lastgraphuri)) {
@@ -794,5 +883,67 @@ public class QueryUi implements EntryPoint {
     }
 
   };
+
+  /**
+   * Ensures all the widgets in the given panel have the same size.
+   * Otherwise by default the panel will automatically resize itself to the
+   * contents of the currently active panel's widget, which is annoying
+   * because it makes a number of things move around in the UI.
+   * @param panel The panel containing the widgets to resize.
+   */
+  private static void ensureSameWidgetSize(final DecoratedTabPanel panel) {
+    if (!panel.isAttached()) {
+      throw new IllegalArgumentException("panel not attached: " + panel);
+    }
+    int maxw = 0;
+    int maxh = 0;
+    for (final Widget widget : panel) {
+      final int w = widget.getOffsetWidth();
+      final int h = widget.getOffsetHeight();
+      if (w > maxw) {
+        maxw = w;
+      }
+      if (h > maxh) {
+        maxh = h;
+      }
+    }
+    if (maxw == 0 || maxh == 0) {
+      throw new IllegalArgumentException("maxw=" + maxw + " maxh=" + maxh);
+    }
+    for (final Widget widget : panel) {
+      setOffsetWidth(widget, maxw);
+      setOffsetHeight(widget, maxh);
+    }
+  }
+
+  /**
+   * Properly sets the total width of a widget.
+   * This takes into account decorations such as border, margin, and padding.
+   */
+  private static void setOffsetWidth(final Widget widget, int width) {
+    widget.setWidth(width + "px");
+    final int offset = widget.getOffsetWidth();
+    if (offset > 0) {
+      width -= offset - width;
+      if (width > 0) {
+        widget.setWidth(width + "px");
+      }
+    }
+  }
+
+  /**
+   * Properly sets the total height of a widget.
+   * This takes into account decorations such as border, margin, and padding.
+   */
+  private static void setOffsetHeight(final Widget widget, int height) {
+    widget.setHeight(height + "px");
+    final int offset = widget.getOffsetHeight();
+    if (offset > 0) {
+      height -= offset - height;
+      if (height > 0) {
+        widget.setHeight(height + "px");
+      }
+    }
+  }
 
 }

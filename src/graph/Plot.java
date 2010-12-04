@@ -102,6 +102,8 @@ public final class Plot {
    * Sets the global parameters for this plot.
    * @param params Each entry is a Gnuplot setting that will be written as-is
    * in the Gnuplot script file: {@code set KEY VALUE}.
+   * When the value is {@code null} the script will instead contain
+   * {@code unset KEY}.
    */
   public void setParams(final Map<String, String> params) {
     this.params = params;
@@ -233,8 +235,10 @@ public final class Plot {
       final int nseries = datapoints.size();
       if (nseries > 0) {
         gp.write("set grid\n"
-                 + "set key right box\n"
                  + "set style data linespoints\n");
+        if (!params.containsKey("key")) {
+          gp.write("set key right box\n");
+        }
       } else {
         gp.write("unset key\n");
         if (params == null || !params.containsKey("label")) {
@@ -244,9 +248,14 @@ public final class Plot {
 
       if (params != null) {
         for (final Map.Entry<String, String> entry : params.entrySet()) {
-          gp.append("set ").append(entry.getKey())
-            .append(' ').append(entry.getValue())
-            .write('\n');
+          final String key = entry.getKey();
+          final String value = entry.getValue();
+          if (value != null) {
+            gp.append("set ").append(key)
+              .append(' ').append(value).write('\n');
+          } else {
+            gp.append("unset ").append(key).write('\n');
+          }
         }
       }
       for (final String opts : options) {

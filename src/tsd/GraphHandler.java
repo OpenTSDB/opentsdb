@@ -611,6 +611,14 @@ final class GraphHandler implements HttpRpc {
     if ((value = popParam(querystring, "y2log")) != null) {
       params.put("logscale", "y2");
     }
+    if ((value = popParam(querystring, "key")) != null) {
+      params.put("key", value);
+    }
+    // This must remain after the previous `if' in order to properly override
+    // any previous `key' parameter if a `nokey' parameter is given.
+    if ((value = popParam(querystring, "nokey")) != null) {
+      params.put("key", null);
+    }
     plot.setParams(params);
   }
 
