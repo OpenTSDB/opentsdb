@@ -395,13 +395,16 @@ final class GraphHandler implements HttpRpc {
   private boolean staleCacheFile(final HttpQuery query,
                                  final long max_age,
                                  final File cachedfile) {
+    final long mtime = cachedfile.lastModified() / 1000;
+    if (mtime <= 0) {
+      return true;  // File doesn't exist, or can't be read.
+    }
     // Queries that don't specify an end-time must be handled carefully,
     // since time passes and we may need to regenerate the results in case
     // new data points have arrived in the mean time.
     final String end = query.getQueryStringParam("end");
     if (end == null || end.endsWith("ago")) {
       // How many seconds stale?
-      final long mtime = cachedfile.lastModified() / 1000;
       final long staleness = System.currentTimeMillis() / 1000 - mtime;
       if (staleness < 0) {  // Can happen if the mtime is "in the future".
         logWarn(query, "Not using file @ " + cachedfile + " with weird"
@@ -503,7 +506,7 @@ final class GraphHandler implements HttpRpc {
                                        final String basepath) {
     final String json_path = basepath + ".json";
     File json_cache = new File(json_path);
-    if (!json_cache.exists() || staleCacheFile(query, max_age, json_cache)) {
+    if (staleCacheFile(query, max_age, json_cache)) {
       return null;
     }
     final byte[] json = readFile(query, json_cache, 4096);
