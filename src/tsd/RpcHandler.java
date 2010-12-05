@@ -66,7 +66,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   public RpcHandler(final TSDB tsdb) {
     this.tsdb = tsdb;
 
-    telnet_commands = new HashMap<String, TelnetRpc>(5);
+    telnet_commands = new HashMap<String, TelnetRpc>(6);
     http_commands = new HashMap<String, HttpRpc>(10);
     {
       final DieDieDie diediedie = new DieDieDie();
@@ -89,6 +89,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("version", version);
     }
 
+    telnet_commands.put("exit", new Exit());
     telnet_commands.put("help", new Help());
     telnet_commands.put("put", new PutDataPointRpc());
 
@@ -271,6 +272,15 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         }
       }
       return tsdb.shutdown().addBoth(new ShutdownTSDB());
+    }
+  }
+
+  /** The "exit" command. */
+  private final class Exit implements TelnetRpc {
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
+      chan.disconnect();
+      return Deferred.fromResult(null);
     }
   }
 
