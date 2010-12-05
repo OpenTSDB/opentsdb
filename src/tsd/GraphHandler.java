@@ -321,6 +321,7 @@ final class GraphHandler implements HttpRpc {
     final HashMap<String, List<String>> qs =
       new HashMap<String, List<String>>(q);
     // But first remove the parameters that don't influence the output.
+    qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
     return cachedir + Integer.toHexString(qs.hashCode());
