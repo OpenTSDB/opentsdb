@@ -480,6 +480,10 @@ final class HttpQuery {
       throw new IllegalArgumentException("Negative max_age=" + max_age
                                          + " for path=" + path);
     }
+    if (!chan.isConnected()) {
+      done();
+      return;
+    }
     RandomAccessFile file;
     try {
       file = new RandomAccessFile(path, "r");
@@ -541,6 +545,10 @@ final class HttpQuery {
    */
   private void sendBuffer(final HttpResponseStatus status,
                           final ChannelBuffer buf) {
+    if (!chan.isConnected()) {
+      done();
+      return;
+    }
     final DefaultHttpResponse response =
       new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
     response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
