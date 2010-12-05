@@ -674,7 +674,17 @@ final class GraphHandler implements HttpRpc {
       }
       throw new GnuplotException(new String(stderr));
     }
+    // Remove the files for stderr/stdout if they're empty.
+    deleteFileIfEmpty(basepath + ".out");
+    deleteFileIfEmpty(basepath + ".err");
     return nplotted;
+  }
+
+  private static void deleteFileIfEmpty(final String path) {
+    final File file = new File(path);
+    if (file.length() <= 0) {
+      file.delete();
+    }
   }
 
   /**
