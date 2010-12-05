@@ -260,19 +260,7 @@ final class GraphHandler implements HttpRpc {
         buf.append(",\"timing\":").append(query.processingTimeMillis())
           .append('}');
         query.sendReply(buf);
-        final String json_path = basepath + ".json";
-        try {
-          final FileOutputStream json_cache = new FileOutputStream(json_path);
-          try {
-            json_cache.write(buf.toString().getBytes());
-          } finally {
-            json_cache.close();
-          }
-        } catch (FileNotFoundException e) {
-          logError(query, "Failed to create JSON cache file " + json_path, e);
-        } catch (IOException e) {
-          logError(query, "Failed to write JSON cache file " + json_path, e);
-        }
+        writeFile(query, basepath + ".json", buf.toString().getBytes());
       } else {
           if (query.hasQueryStringParam("png")) {
             query.sendFile(basepath + ".png", max_age);
@@ -431,6 +419,30 @@ final class GraphHandler implements HttpRpc {
       }
     }
     return false;
+  }
+
+  /**
+   * Writes the given byte array into a file.
+   * This function logs an error but doesn't throw if it fails.
+   * @param query The query being handled (for logging purposes).
+   * @param path The path to write to.
+   * @param contents The contents to write into the file.
+   */
+  private static void writeFile(final HttpQuery query,
+                                final String path,
+                                final byte[] contents) {
+    try {
+      final FileOutputStream out = new FileOutputStream(path);
+      try {
+        out.write(contents);
+      } finally {
+        out.close();
+      }
+    } catch (FileNotFoundException e) {
+      logError(query, "Failed to create file " + path, e);
+    } catch (IOException e) {
+      logError(query, "Failed to write file " + path, e);
+    }
   }
 
   /**
