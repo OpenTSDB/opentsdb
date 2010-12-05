@@ -37,4 +37,14 @@ public final class Const {
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final int MAX_TIMESPAN = 600;
 
+  /**
+   * Array containing the hexadecimal characters (0 to 9, A to F).
+   * This array is read-only, changing its contents leads to an undefined
+   * behavior.
+   */
+  public static final byte[] HEX = {
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    'A', 'B', 'C', 'D', 'E', 'F'
+  };
+
 }
