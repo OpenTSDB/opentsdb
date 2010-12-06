@@ -234,8 +234,7 @@ public final class Plot {
       if (nseries > 0) {
         gp.write("set grid\n"
                  + "set key right box\n"
-                 + "set style data linespoints\n"
-                 + "set datafile missing '-'\n");
+                 + "set style data linespoints\n");
       } else {
         gp.write("unset key\n");
         if (params == null || !params.containsKey("label")) {
