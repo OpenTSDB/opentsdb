@@ -288,6 +288,17 @@ final class RowSeq implements DataPoints {
     throw new ClassCastException("value #" + i + " is not a float in " + this);
   }
 
+  /**
+   * Returns the {@code i}th data point as a double value.
+   */
+  double toDouble(final int i) {
+    if (isInteger(i)) {
+      return values[i];
+    } else {
+      return Float.intBitsToFloat((int) values[i]);
+    }
+  }
+
   /** Returns a human readable string representation of the object. */
   public String toString() {
     // The argument passed to StringBuilder is a pretty good estimate of the
