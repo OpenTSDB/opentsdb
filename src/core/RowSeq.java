@@ -273,7 +273,7 @@ final class RowSeq implements DataPoints {
   }
 
   public long longValue(final int i) {
-    checkIndex(i);
+    // Don't call checkIndex(i) because isInteger(i) already calls it.
     if (isInteger(i)) {
       return values[i];
     }
@@ -281,7 +281,7 @@ final class RowSeq implements DataPoints {
   }
 
   public double doubleValue(final int i) {
-    checkIndex(i);
+    // Don't call checkIndex(i) because isInteger(i) already calls it.
     if (!isInteger(i)) {
       return Float.intBitsToFloat((int) values[i]);
     }
