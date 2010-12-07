@@ -25,13 +25,18 @@ CLASSPATH=`$make --quiet printcp`src || {
 
 usage() {
   echo >&2 "usage: $me <command> [args]"
-  echo 'Valid commands: import, query, tsd, scan, uid'
+  echo 'Valid commands: import, mkmetric, query, tsd, scan, uid'
   exit 1
 }
 
 case $1 in
   (import)
     MAINCLASS=TextImporter
+    ;;
+  (mkmetric)
+    shift
+    set uid assign metrics "$@"
+    MAINCLASS=UidManager
     ;;
   (query)
     MAINCLASS=CliQuery
