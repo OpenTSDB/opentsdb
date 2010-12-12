@@ -107,6 +107,8 @@ final class GraphHandler implements HttpRpc {
       doGraph(tsdb, query);
     } catch (IOException e) {
       query.internalError(e);
+    } catch (IllegalArgumentException e) {
+      query.badRequest(e.getMessage());
     }
   }
 
@@ -757,6 +759,7 @@ final class GraphHandler implements HttpRpc {
    * @param query The HTTP query for {@code /q}.
    * @return The corresponding {@link Query} objects.
    * @throws BadRequestException if the query was malformed.
+   * @throws IllegalArgumentException if the metric or tags were malformed.
    */
   private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
     final List<String> ms = query.getQueryStringParams("m");
@@ -778,7 +781,7 @@ final class GraphHandler implements HttpRpc {
       final Aggregator agg = getAggregator(parts[0]);
       i--;  // Move to the last part (the metric name).
       final HashMap<String, String> parsedtags = new HashMap<String, String>();
-      final String metric = parseMetricAndTags(parts[i], parsedtags);
+      final String metric = Tags.parseWithMetric(parts[i], parsedtags);
       final boolean rate = "rate".equals(parts[--i]);
       if (rate) {
         i--;  // Move to the next part.
@@ -809,40 +812,6 @@ final class GraphHandler implements HttpRpc {
       tsdbqueries[nqueries++] = tsdbquery;
     }
     return tsdbqueries;
-  }
-
-  /**
-   * Parses the metric and tags out of the given string.
-   * @param metric A string of the form "metric" or "metric{tag=value,...}".
-   * @param tags The map to populate with the tags parsed out of the first
-   * argument.
-   * @return The name of the metric.
-   * @throws BadRequestException if the metric is malformed.
-   */
-  private static String parseMetricAndTags(final String metric,
-                                           final HashMap<String, String> tags) {
-    final int curly = metric.indexOf('{');
-    if (curly < 0) {
-      return metric;
-    }
-    final int len = metric.length();
-    if (metric.charAt(len - 1) != '}') {  // "foo{"
-      throw new BadRequestException("Missing '}' at the end of: " + metric);
-    } else if (curly == len - 1) {  // "foo{}"
-      return metric.substring(0, len - 2);
-    }
-    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
-    for (final String tag
-         : Tags.splitString(metric.substring(curly + 1, len - 1), ',')) {
-      try {
-        Tags.parse(tags, tag);
-      } catch (IllegalArgumentException e) {
-        throw new BadRequestException("When parsing tag '" + tag
-                                      + "': " + e.getMessage());
-      }
-    }
-    // Return the "foo" part of "foo{a=b,...,x=y}"
-    return metric.substring(0, curly);
   }
 
   /**

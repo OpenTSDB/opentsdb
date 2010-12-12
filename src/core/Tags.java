@@ -88,6 +88,40 @@ public final class Tags {
   }
 
   /**
+   * Parses the metric and tags out of the given string.
+   * @param metric A string of the form "metric" or "metric{tag=value,...}".
+   * @param tags The map to populate with the tags parsed out of the first
+   * argument.
+   * @return The name of the metric.
+   * @throws IllegalArgumentException if the metric is malformed.
+   */
+  public static String parseWithMetric(final String metric,
+                                       final HashMap<String, String> tags) {
+    final int curly = metric.indexOf('{');
+    if (curly < 0) {
+      return metric;
+    }
+    final int len = metric.length();
+    if (metric.charAt(len - 1) != '}') {  // "foo{"
+      throw new IllegalArgumentException("Missing '}' at the end of: " + metric);
+    } else if (curly == len - 1) {  // "foo{}"
+      return metric.substring(0, len - 2);
+    }
+    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
+    for (final String tag : splitString(metric.substring(curly + 1, len - 1),
+                                        ',')) {
+      try {
+        parse(tags, tag);
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException("When parsing tag '" + tag
+                                           + "': " + e.getMessage());
+      }
+    }
+    // Return the "foo" part of "foo{a=b,...,x=y}"
+    return metric.substring(0, curly);
+  }
+
+  /**
    * Extracts the value of the given tag name from the given row key.
    * @param tsdb The TSDB instance to use for UniqueId lookups.
    * @param row The row key in which to search the tag name.
