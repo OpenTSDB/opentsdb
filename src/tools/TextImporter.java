@@ -130,7 +130,7 @@ final class TextImporter {
         if (metric.length() <= 0) {
           throw new RuntimeException("invalid metric: " + metric);
         }
-        final long timestamp = Long.parseLong(words[1]);
+        final long timestamp = Tags.parseLong(words[1]);
         if (timestamp <= 0) {
           throw new RuntimeException("invalid timestamp: " + timestamp);
         }
@@ -147,7 +147,7 @@ final class TextImporter {
         final WritableDataPoints dp = getDataPoints(tsdb, metric, tags);
         Deferred<Object> d;
         if (value.indexOf('.') < 0) {  // integer value
-          d = dp.addPoint(timestamp, Long.parseLong(value));
+          d = dp.addPoint(timestamp, Tags.parseLong(value));
         } else {  // floating point value
           d = dp.addPoint(timestamp, Float.parseFloat(value));
         }

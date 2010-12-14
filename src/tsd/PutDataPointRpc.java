@@ -141,7 +141,7 @@ final class PutDataPointRpc implements TelnetRpc {
     if (metric.length() <= 0) {
       throw new IllegalArgumentException("empty metric name");
     }
-    final long timestamp = Long.parseLong(words[2]);
+    final long timestamp = Tags.parseLong(words[2]);
     if (timestamp <= 0) {
       throw new IllegalArgumentException("invalid timestamp: " + timestamp);
     }
@@ -157,7 +157,7 @@ final class PutDataPointRpc implements TelnetRpc {
     }
     final WritableDataPoints dp = getDirtyRow(tsdb, metric, tags);
     if (value.indexOf('.') < 0) {  // integer value
-      return dp.addPoint(timestamp, Long.parseLong(value));
+      return dp.addPoint(timestamp, Tags.parseLong(value));
     } else {  // floating point value
       return dp.addPoint(timestamp, Float.parseFloat(value));
     }
