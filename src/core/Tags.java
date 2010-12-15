@@ -104,7 +104,7 @@ public final class Tags {
     final int len = metric.length();
     if (metric.charAt(len - 1) != '}') {  // "foo{"
       throw new IllegalArgumentException("Missing '}' at the end of: " + metric);
-    } else if (curly == len - 1) {  // "foo{}"
+    } else if (curly == len - 2) {  // "foo{}"
       return metric.substring(0, len - 2);
     }
     // substring the tags out of "foo{a=b,...,x=y}" and parse them.
