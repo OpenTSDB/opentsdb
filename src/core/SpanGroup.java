@@ -304,9 +304,9 @@ final class SpanGroup implements DataPoints {
    *   pos: 0
    *   iterators: [ it0, it1 ]
    * </pre>
-   * Since {@code current == 0}, the current data point is has the value V1
+   * Since {@code current == 0}, the current data point has the value V1
    * and time T1.  Let's note that (V1, T1).  Now this group has 2 Spans,
-   * which means we're trying to aggregate 2 different metrics (same metric ID
+   * which means we're trying to aggregate 2 different series (same metric ID
    * but different tags).  So The next value that this iterator returns needs
    * to be a combination of V1 and V2 (assuming that T2 is less than T1).
    * If our aggregation function is "sum", we sort of want to sum up V1 and
@@ -348,7 +348,7 @@ final class SpanGroup implements DataPoints {
    * floating point value.  The way we keep track of the type is by using the
    * most significant bit of the timestamp (to avoid an extra array).  This is
    * fine since our timestamps only really use 32 of the 64 bits of the long
-   * in which they're stored.  When there is not "current" value (1st half of
+   * in which they're stored.  When there is no "current" value (1st half of
    * the arrays depicted above), the timestamp will be set to 0.  When there
    * is no "next" value (2nd half of the arrays), the timestamp will be set
    * to a special, really large value (too large to be a valid timestamp).
@@ -462,10 +462,12 @@ final class SpanGroup implements DataPoints {
         DataPoint dp = it.next();
         //LOG.debug("Creating iterator #" + i);
         if (dp.timestamp() >= start_time) {
-          //LOG.debug("First DP in range for #" + i);
+          //LOG.debug("First DP in range for #" + i + ": "
+          //          + dp.timestamp() + " >= " + start_time);
           putDataPoint(size + i, dp);
         } else {
-          //LOG.debug("No DP in range for #" + i);
+          //LOG.debug("No DP in range for #" + i + ": "
+          //          + dp.timestamp() + " < " + start_time);
           endReached(i);
           continue;
         }
@@ -530,11 +532,14 @@ final class SpanGroup implements DataPoints {
       final int size = iterators.length;
       long min_ts = Long.MAX_VALUE;
 
-      // If we've just used the very last data point of a given Span, let's
-      // clean up everything related to the iterator of that Span.
-      if (timestamps[current + size] == TIME_MASK) {
-        //LOG.debug("Expiring last DP for #" + current);
-        timestamps[current] = 0;
+      // In case we reached the end of one or more Spans, we need to make sure
+      // we mark them as such by zeroing their current timestamp.  There may
+      // be multiple Spans that reached their end at once, so check them all.
+      for (int i = current; i < size; i++) {
+        if (timestamps[i + size] == TIME_MASK) {
+          //LOG.debug("Expiring last DP for #" + current);
+          timestamps[i] = 0;
+        }
       }
 
       // Now we need to find which Span we'll consume next.  We'll pick the
@@ -591,14 +596,16 @@ final class SpanGroup implements DataPoints {
         //LOG.debug("Saving #" + i + " -> #" + (next + size)
         //          + ((timestamps[i] & FLAG_FLOAT) == FLAG_FLOAT
         //             ? " float " + Double.longBitsToDouble(values[i])
-        //             : " long " + values[i]) + " @ time " + timestamp());
+        //             : " long " + values[i])
+        //          + " @ time " + (timestamps[i] & TIME_MASK));
       }
       timestamps[i] = timestamps[next];
       values[i] = values[next];
       //LOG.debug("Moving #" + next + " -> #" + i
       //          + ((timestamps[i] & FLAG_FLOAT) == FLAG_FLOAT
       //             ? " float " + Double.longBitsToDouble(values[i])
-      //             : " long " + values[i]) + " @ time " + timestamps[i]);
+      //             : " long " + values[i])
+      //          + " @ time " + (timestamps[i] & TIME_MASK));
       final SeekableView it = iterators[i];
       if (it.hasNext()) {
         putDataPoint(next, it.next());
@@ -656,6 +663,7 @@ final class SpanGroup implements DataPoints {
       if (!isInteger()) {
         pos = -1;
         final double value = aggregator.runDouble(this);
+        //LOG.debug("aggregator returned " + value);
         if (value != value || Double.isInfinite(value)) {
           throw new IllegalStateException("Got NaN or Infinity: "
              + value + " in this " + this);
@@ -720,6 +728,9 @@ final class SpanGroup implements DataPoints {
         final long r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
         //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
         //          + " -> " + y1 + " @ " + x1 + " => " + r);
+        if ((x1 & 0xFFFFFFFF00000000L) != 0) {
+          throw new AssertionError("x1=" + x1 + " in " + this);
+        }
         return r;
       }
       throw new NoSuchElementException("no more longs in " + this);
@@ -768,6 +779,9 @@ final class SpanGroup implements DataPoints {
         final double r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
         //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
         //          + " -> " + y1 + " @ " + x1 + " => " + r);
+        if ((x1 & 0xFFFFFFFF00000000L) != 0) {
+          throw new AssertionError("x1=" + x1 + " in " + this);
+        }
         return r;
       }
       throw new NoSuchElementException("no more doubles in " + this);
