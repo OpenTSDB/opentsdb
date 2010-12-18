@@ -341,12 +341,12 @@ final class GraphHandler implements HttpRpc {
                                  final int max_age,
                                  final String basepath) throws IOException {
     final String cachepath = basepath + (query.hasQueryStringParam("ascii")
-                                         ? ".dat" : ".png");
+                                         ? ".txt" : ".png");
     final File cachedfile = new File(cachepath);
     if (cachedfile.exists()) {
       final long bytes = cachedfile.length();
       if (bytes < 21) {  // Minimum possible size for a PNG: 21 bytes.
-                         // For .dat files, <21 bytes is almost impossible.
+                         // For .txt files, <21 bytes is almost impossible.
         logWarn(query, "Cached " + cachepath + " is too small ("
                 + bytes + " bytes) to be valid.  Ignoring it.");
         return false;
@@ -620,7 +620,7 @@ final class GraphHandler implements HttpRpc {
                                         final int max_age,
                                         final String basepath,
                                         final Plot plot) {
-    final String path = basepath + ".dat";
+    final String path = basepath + ".txt";
     PrintWriter asciifile;
     try {
       asciifile = new PrintWriter(path);
