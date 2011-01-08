@@ -112,8 +112,12 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         exceptions_caught.incrementAndGet();
       }
     } catch (Exception e) {
+      Object pretty_message = msgevent.getMessage();
+      if (pretty_message instanceof String[]) {
+        pretty_message = Arrays.toString((String[]) pretty_message);
+      }
       logError(msgevent.getChannel(), "Unexpected exception caught"
-               + " while serving " + msgevent.getMessage(), e);
+               + " while serving " + pretty_message, e);
       exceptions_caught.incrementAndGet();
     }
   }
