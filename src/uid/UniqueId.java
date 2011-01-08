@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
@@ -413,6 +414,95 @@ public final class UniqueId implements UniqueIdInterface {
       throw new RuntimeException("Should never be here", e);
     }
     return suggestions;
+  }
+
+  /**
+   * Reassigns the UID to a different name (non-atomic).
+   * <p>
+   * Whatever was the UID of {@code oldname} will be given to {@code newname}.
+   * {@code oldname} will no longer be assigned a UID.
+   * <p>
+   * Beware that the assignment change is <b>not atommic</b>.  If two threads
+   * or processes attempt to rename the same UID differently, the result is
+   * unspecified and might even be inconsistent.  This API is only here for
+   * administrative purposes, not for normal programmatic interactions.
+   * @param oldname The old name to rename.
+   * @param newname The new name.
+   * @throws NoSuchUniqueName if {@code oldname} wasn't assigned.
+   * @throws IllegalArgumentException if {@code newname} was already assigned.
+   * @throws HBaseException if there was a problem with HBase while trying to
+   * update the mapping.
+   */
+  public void rename(final String oldname, final String newname) {
+    final byte[] row = getId(oldname);
+    {
+      byte[] id = null;
+      try {
+        id = getId(newname);
+      } catch (NoSuchUniqueName e) {
+        // OK, we don't want the new name to be assigned.
+      }
+      if (id != null) {
+        throw new IllegalArgumentException("When trying rename(\"" + oldname
+          + "\", \"" + newname + "\") on " + this + ": new name already"
+          + " assigned ID=" + Arrays.toString(id));
+      }
+    }
+
+    final byte[] newnameb = toBytes(newname);
+
+    // Update the reverse mapping first, so that if we die before updating
+    // the forward mapping we don't run the risk of "publishing" a
+    // partially assigned ID.  The reverse mapping on its own is harmless
+    // but the forward mapping without reverse mapping is bad.
+    try {
+      final PutRequest reverse_mapping = new PutRequest(
+        table, row, NAME_FAMILY, kind, newnameb);
+      hbasePutWithRetry(reverse_mapping, MAX_ATTEMPTS_PUT,
+                        INITIAL_EXP_BACKOFF_DELAY);
+    } catch (HBaseException e) {
+      LOG.error("When trying rename(\"" + oldname
+        + "\", \"" + newname + "\") on " + this + ": Failed to update reverse"
+        + " mapping for ID=" + Arrays.toString(row), e);
+      throw e;
+    }
+
+    // Now create the new forward mapping.
+    try {
+      final PutRequest forward_mapping = new PutRequest(
+        table, newnameb, ID_FAMILY, kind, row);
+      hbasePutWithRetry(forward_mapping, MAX_ATTEMPTS_PUT,
+                        INITIAL_EXP_BACKOFF_DELAY);
+    } catch (HBaseException e) {
+      LOG.error("When trying rename(\"" + oldname
+        + "\", \"" + newname + "\") on " + this + ": Failed to create the"
+        + " new forward mapping with ID=" + Arrays.toString(row), e);
+      throw e;
+    }
+
+    // Update cache.
+    addIdToCache(newname, row);            // add     new name -> ID
+    idCache.put(fromBytes(row), newname);  // update  ID -> new name
+    nameCache.remove(oldname);             // remove  old name -> ID
+
+    // Delete the old forward mapping.
+    try {
+      final DeleteRequest old_forward_mapping = new DeleteRequest(
+        table, toBytes(oldname), ID_FAMILY, kind);
+      client.delete(old_forward_mapping).joinUninterruptibly();
+    } catch (HBaseException e) {
+      LOG.error("When trying rename(\"" + oldname
+        + "\", \"" + newname + "\") on " + this + ": Failed to remove the"
+        + " old forward mapping for ID=" + Arrays.toString(row), e);
+      throw e;
+    } catch (Exception e) {
+      final String msg = "Unexpected exception when trying rename(\"" + oldname
+        + "\", \"" + newname + "\") on " + this + ": Failed to remove the"
+        + " old forward mapping for ID=" + Arrays.toString(row);
+      LOG.error("WTF?  " + msg, e);
+      throw new RuntimeException(msg, e);
+    }
+    // Success!
   }
 
   /** The start row to scan on empty search strings.  `!' = first ASCII char. */

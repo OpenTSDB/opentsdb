@@ -90,6 +90,7 @@ final class UidManager {
         + "  grep [kind] <RE>: Finds matching IDs.\n"
         + "  assign <kind> <name> [names]:"
         + " Assign an ID for the given name(s).\n"
+        + "  rename <kind> <name> <newname>: Renames this UID.\n"
         + "  [kind] <name>: Lookup the ID of this name.\n"
         + "  [kind] <ID>: Lookup the name of this ID.\n\n"
         + "Example values for [kind]:"
@@ -164,6 +165,12 @@ final class UidManager {
         return 2;
       }
       return assign(client, table, idwidth, args);
+    } else if (args[0].equals("rename")) {
+      if (nargs != 4) {
+        usage("Wrong number of arguments");
+        return 2;
+      }
+      return rename(client, table, idwidth, args);
     } else {
       if (1 <= nargs && nargs <= 2) {
         final String kind = nargs == 2 ? args[0] : null;
@@ -277,6 +284,36 @@ final class UidManager {
         return 3;
       }
     }
+    return 0;
+  }
+
+  /**
+   * Implements the {@code rename} subcommand.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
+   * @param idwidth Number of bytes on which the UIDs should be.
+   * @param args Command line arguments ({@code assign name [names]}).
+   * @return The exit status of the command (0 means success).
+   */
+  private static int rename(final HBaseClient client,
+                            final byte[] table,
+                            final short idwidth,
+                            final String[] args) {
+    final String kind = args[1];
+    final String oldname = args[2];
+    final String newname = args[3];
+    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
+    try {
+      uid.rename(oldname, newname);
+    } catch (HBaseException e) {
+      LOG.error("error while processing renaming " + oldname
+                + " to " + newname, e);
+      return 3;
+    } catch (NoSuchUniqueName e) {
+      LOG.error(e.getMessage());
+      return 1;
+    }
+    System.out.println(kind + ' ' + oldname + " -> " + newname);
     return 0;
   }
 
