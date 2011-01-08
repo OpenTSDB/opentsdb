@@ -13,7 +13,7 @@
 package net.opentsdb.tsd;
 
 import java.nio.channels.ClosedChannelException;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,10 +35,8 @@ final class ConnectionManager extends SimpleChannelHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConnectionManager.class);
 
-  private static final AtomicInteger connections_established
-    = new AtomicInteger();
-  private static final AtomicInteger exceptions_caught
-    = new AtomicInteger();
+  private static final AtomicLong connections_established = new AtomicLong();
+  private static final AtomicLong exceptions_caught = new AtomicLong();
 
   private static final DefaultChannelGroup channels =
     new DefaultChannelGroup("all-channels");

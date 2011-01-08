@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -42,12 +42,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(RpcHandler.class);
 
-  private static final AtomicInteger telnet_rpcs_received
-    = new AtomicInteger();
-  private static final AtomicInteger http_rpcs_received
-    = new AtomicInteger();
-  private static final AtomicInteger exceptions_caught
-    = new AtomicInteger();
+  private static final AtomicLong telnet_rpcs_received = new AtomicLong();
+  private static final AtomicLong http_rpcs_received = new AtomicLong();
+  private static final AtomicLong exceptions_caught = new AtomicLong();
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
   private final HashMap<String, TelnetRpc> telnet_commands;

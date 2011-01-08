@@ -14,7 +14,7 @@ package net.opentsdb.tsd;
 
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -30,11 +30,11 @@ import net.opentsdb.uid.NoSuchUniqueName;
 /** Implements the "put" telnet-style command. */
 final class PutDataPointRpc implements TelnetRpc {
 
-  private static final AtomicInteger requests = new AtomicInteger();
-  private static final AtomicInteger hbase_errors = new AtomicInteger();
-  private static final AtomicInteger invalid_values = new AtomicInteger();
-  private static final AtomicInteger illegal_arguments = new AtomicInteger();
-  private static final AtomicInteger unknown_metrics = new AtomicInteger();
+  private static final AtomicLong requests = new AtomicLong();
+  private static final AtomicLong hbase_errors = new AtomicLong();
+  private static final AtomicLong invalid_values = new AtomicLong();
+  private static final AtomicLong illegal_arguments = new AtomicLong();
+  private static final AtomicLong unknown_metrics = new AtomicLong();
 
   /**
    * Dirty rows for time series that are being written to.
