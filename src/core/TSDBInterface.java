@@ -17,7 +17,7 @@ import com.stumbleupon.async.Deferred;
 import org.hbase.async.HBaseException;
 
 /**
- * Interface to a TSDB (Time Series DataBase).
+ * Interface to a TSDB (Time Series Database).
  */
 public interface TSDBInterface {
 
