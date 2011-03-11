@@ -316,11 +316,7 @@ final class TsdbQuery implements Query {
     //   - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
     //   - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
     final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
-    final short metric_ts_bytes = (short) (tsdb.metrics.width()
-                                           + Const.TIMESTAMP_BYTES);
-    final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
-    final short tag_bytes = (short) (name_width + value_width);
     final byte[] group = new byte[group_bys.size() * value_width];
     for (final Map.Entry<byte[], Span> entry : spans.entrySet()) {
       final byte[] row = entry.getKey();

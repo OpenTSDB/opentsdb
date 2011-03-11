@@ -276,7 +276,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   }
 
   /** The "exit" command. */
-  private final class Exit implements TelnetRpc {
+  private static final class Exit implements TelnetRpc {
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
       chan.disconnect();
@@ -483,10 +483,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     LOG.error(query.channel().toString() + ' ' + msg);
   }
 
-  private static void logError(final HttpQuery query, final String msg,
-                               final Exception e) {
-    LOG.error(query.channel().toString() + ' ' + msg, e);
-  }
+  //private static void logError(final HttpQuery query, final String msg,
+  //                             final Exception e) {
+  //  LOG.error(query.channel().toString() + ' ' + msg, e);
+  //}
 
   //private void logInfo(final Channel chan, final String msg) {
   //  LOG.info(chan.toString() + ' ' + msg);

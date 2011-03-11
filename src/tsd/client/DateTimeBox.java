@@ -108,7 +108,7 @@ final class DateTimeBox extends DateBox {
   /**
    * A {@link DatePicker} with a customized UI for time support.
    */
-  private final static class DateTimePicker extends DatePicker {
+  private static final class DateTimePicker extends DatePicker {
 
     /** DateTimeBox this picker belongs to.  */
     private DateTimeBox box;
