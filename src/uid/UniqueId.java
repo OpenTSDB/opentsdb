@@ -392,7 +392,7 @@ public final class UniqueId implements UniqueIdInterface {
           final byte[] key = row.get(0).key();
           final String name = fromBytes(key);
           final byte[] id = row.get(0).value();
-          final String cached_name = idCache.get(id);
+          final String cached_name = idCache.get(new String(id));
           if (cached_name == null) {
             addIdToCache(name, id);
             addNameToCache(id, name);

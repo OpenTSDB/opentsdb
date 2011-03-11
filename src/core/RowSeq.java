@@ -68,7 +68,6 @@ final class RowSeq implements DataPoints {
    */
   void setRow(final ArrayList<KeyValue> row) {
     final byte[] key = row.get(0).key();
-    final long base_time = Bytes.getUnsignedInt(key, tsdb.metrics.width());
 
     if (this.key == null) {
       this.key = key;
