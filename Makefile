@@ -186,11 +186,14 @@ printcp:
 classes_with_nested_classes = $(classes:$(top_builddir)/%.class=%*.class)
 test_classes_with_nested_classes = $(test_classes:$(top_builddir)/%.class=%*.class)
 
+# Little set script to make a pretty-ish banner.
+BANNER = sed 's/^.*/  &  /;h;s/./=/g;p;x;p;x'
 check: $(TESTS)
 	classes=`cd $(top_builddir) && echo $(test_classes_with_nested_classes)` && \
         success=: && cp="$(get_runtime_dep_classpath):$(top_builddir)" && \
         for i in $$classes; do \
           case $$i in (*[$$]*) continue;; esac; \
+	  echo "Running tests for `basename $$i .class`" | $(BANNER); \
           java -ea $(JVM_ARGS) -cp "$$cp" org.junit.runner.JUnitCore `echo $${i%.class} | tr / .` $(ARGS) || success=false; \
         done && $$success
 
