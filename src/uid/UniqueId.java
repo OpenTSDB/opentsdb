@@ -392,14 +392,14 @@ public final class UniqueId implements UniqueIdInterface {
           final byte[] key = row.get(0).key();
           final String name = fromBytes(key);
           final byte[] id = row.get(0).value();
-          final String cached_name = idCache.get(new String(id));
-          if (cached_name == null) {
+          final byte[] cached_id = nameCache.get(name);
+          if (cached_id == null) {
             addIdToCache(name, id);
             addNameToCache(id, name);
-          } else if (!cached_name.equals(name)) {
+          } else if (!Arrays.equals(id, cached_id)) {
             throw new IllegalStateException("WTF?  For kind=" + kind()
-              + " id=" + Arrays.toString(id) + " I already have name="
-              + cached_name + " in cache, but I just scanned name=" + name);
+              + " name=" + name + ", we have id=" + Arrays.toString(cached_id)
+              + " in cache, but just scanned id=" + Arrays.toString(id));
           }
           suggestions.add(name);
           if ((short) suggestions.size() > MAX_SUGGESTIONS) {
