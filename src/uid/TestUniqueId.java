@@ -15,6 +15,7 @@ package net.opentsdb.uid;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import com.stumbleupon.async.Deferred;
 
@@ -28,6 +29,7 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.RowLock;
 import org.hbase.async.RowLockRequest;
+import org.hbase.async.Scanner;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -476,6 +478,75 @@ public final class TestUniqueId {
     order.verify(client).put(putForRow(row));
     order.verify(client).unlockRow(fake_lock);     // The .maxid row.
   }
+
+  @PrepareForTest({HBaseClient.class, Scanner.class})
+  @Test
+  public void suggestWithNoMatch() {
+    uid = new UniqueId(client, table, kind, 3);
+
+    final Scanner fake_scanner = mock(Scanner.class);
+    when(client.newScanner(table))
+      .thenReturn(fake_scanner);
+
+    when(fake_scanner.nextRows())
+      .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    // Watch this! ______,^   I'm writing C++ in Java!
+
+    final List<String> suggestions = uid.suggest("nomatch");
+    assertEquals(0, suggestions.size());  // No results.
+
+    verify(fake_scanner).setStartKey("nomatch".getBytes());
+    verify(fake_scanner).setStopKey("nomatci".getBytes());
+    verify(fake_scanner).setFamily(ID);
+    verify(fake_scanner).setQualifier(kind_array);
+  }
+
+  @PrepareForTest({HBaseClient.class, Scanner.class})
+  @Test
+  public void suggestWithMatches() {
+    uid = new UniqueId(client, table, kind, 3);
+
+    final Scanner fake_scanner = mock(Scanner.class);
+    when(client.newScanner(table))
+      .thenReturn(fake_scanner);
+
+    final ArrayList<ArrayList<KeyValue>> rows = new ArrayList<ArrayList<KeyValue>>(2);
+    final byte[] foo_bar_id = { 0, 0, 1 };
+    {
+      ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
+      row.add(new KeyValue("foo.bar".getBytes(), ID, kind_array, foo_bar_id));
+      rows.add(row);
+      row = new ArrayList<KeyValue>(1);
+      row.add(new KeyValue("foo.baz".getBytes(), ID, kind_array,
+                           new byte[] { 0, 0, 2 }));
+      rows.add(row);
+    }
+    when(fake_scanner.nextRows())
+      .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(rows))
+      .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    // Watch this! ______,^   I'm writing C++ in Java!
+
+    final List<String> suggestions = uid.suggest("foo");
+    final ArrayList<String> expected = new ArrayList<String>(2);
+    expected.add("foo.bar");
+    expected.add("foo.baz");
+    assertEquals(expected, suggestions);
+    // Verify that we cached the forward + backwards mapping for both results
+    // we "discovered" as a result of the scan.
+    assertEquals(4, uid.cacheSize());
+    assertEquals(0, uid.cacheHits());
+
+    // Verify that the cached results are usable.
+    // Should be a cache hit ...
+    assertArrayEquals(foo_bar_id, uid.getOrCreateId("foo.bar"));
+    assertEquals(1, uid.cacheHits());
+    // ... so verify there was no HBase Get.
+    verify(client, never()).get(anyGet());
+  }
+
+  // ----------------- //
+  // Helper functions. //
+  // ----------------- //
 
   private static GetRequest anyGet() {
     return any(GetRequest.class);
