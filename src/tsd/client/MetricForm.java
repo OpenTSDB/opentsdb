@@ -38,7 +38,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     void onMetricChange(MetricForm widget);
   }
 
-  private static final String TSDB_ID_CLASS = "[-_.a-zA-Z0-9]";
+  private static final String TSDB_ID_CLASS = "[-_./a-zA-Z0-9]";
   private static final String TSDB_ID_RE = "^" + TSDB_ID_CLASS + "*$";
   private static final String TSDB_TAGVALUE_RE =
     "^(\\*?"                                       // a `*' wildcard or nothing
