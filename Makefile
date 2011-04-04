@@ -20,7 +20,7 @@ top_builddir = build
 package = net.opentsdb
 spec_title = OpenTSDB
 spec_vendor = StumbleUpon, Inc.
-spec_version = 1.0
+spec_version = 1.0-tch.01
 BUILT_SOURCES = src/BuildData.java
 tsdb_JAVA = \
 	src/core/Aggregator.java	\
@@ -71,15 +71,15 @@ tsdb_JAVA = \
 	src/uid/UniqueIdInterface.java	\
 
 tsdb_LIBADD = \
-	third_party/hbase/hbaseasync-1.0.jar	\
-	third_party/logback/logback-classic-0.9.24.jar	\
-	third_party/logback/logback-core-0.9.24.jar	\
+	third_party/hbase/hbaseasync-1.0-tch.01.jar	\
+	third_party/logback/logback-classic-0.9.28.jar	\
+	third_party/logback/logback-core-0.9.28.jar	\
 	third_party/netty/netty-3.2.3.Final.jar	\
 	third_party/slf4j/jcl-over-slf4j-1.6.1.jar	\
 	third_party/slf4j/log4j-over-slf4j-1.6.1.jar	\
 	third_party/slf4j/slf4j-api-1.6.1.jar	\
 	third_party/suasync/suasync-1.0.jar	\
-	third_party/zookeeper/zookeeper-3.3.1.jar	\
+	third_party/zookeeper/zookeeper-3.3.2.jar	\
 
 test_JAVA = \
 	src/stats/TestHistogram.java	\
@@ -215,6 +215,9 @@ $(jar): $(top_builddir)/manifest $(top_builddir)/.javac-stamp $(classes)
 
 doc: $(top_builddir)/api/index.html
 
+maven_install: jar
+	mvn install:install-file -Dfile=build/tsdb-$(spec_version) -DgroupId=$(package) -DartifactId=opentsdb -Dversion=$(spec_version) -Dpackaging=jar
+
 JDK_JAVADOC=http://download.oracle.com/javase/6/docs/api
 NETTY_JAVADOC=http://docs.jboss.org/netty/3.2/api
 $(top_builddir)/api/index.html: $(tsdb_JAVA) $(BUILT_SOURCES)
@@ -240,4 +243,4 @@ distclean: clean
 	rm -rf $(top_builddir)/api
 	test ! -d $(top_builddir) || rmdir $(top_builddir)
 
-.PHONY: all jar clean distclean doc check gwtc gwtdev staticroot gwttsd printcp
+.PHONY: all jar clean distclean doc check gwtc gwtdev staticroot gwttsd printcp maven_install
