@@ -35,6 +35,8 @@ import net.opentsdb.stats.Histogram;
 final class IncomingDataPoints implements WritableDataPoints {
 
   private static final Logger LOG = LoggerFactory.getLogger(IncomingDataPoints.class);
+  private static final boolean AUTO_METRIC =
+      Boolean.getBoolean(System.getProperty("tsd.core.auto_create_metrics"));
 
   /** For how long to buffer edits when doing batch imports (in ms).  */
   private static final short DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL = 5000;
@@ -113,7 +115,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     size = 0;
 
     short pos = 0;
-    copyInRowKey(pos, tsdb.metrics.getId(metric));
+    if(AUTO_METRIC){
+    	copyInRowKey(pos, tsdb.metrics.getOrCreateId(metric));
+    } else {
+    	copyInRowKey(pos, tsdb.metrics.getId(metric));
+    }
     pos += metric_width;
 
     pos += Const.TIMESTAMP_BYTES;
