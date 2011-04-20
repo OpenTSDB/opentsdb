@@ -36,6 +36,10 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   private static final Logger LOG = LoggerFactory.getLogger(IncomingDataPoints.class);
 
+  /** For auto create metrics mode, set by --auto-metric flag in TSDMain.  */
+  private static final boolean AUTO_METRIC =
+    System.getProperty("tsd.core.auto_create_metrics") != null;
+
   /** For how long to buffer edits when doing batch imports (in ms).  */
   private static final short DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL = 5000;
 
@@ -113,7 +117,9 @@ final class IncomingDataPoints implements WritableDataPoints {
     size = 0;
 
     short pos = 0;
-    copyInRowKey(pos, tsdb.metrics.getId(metric));
+
+    copyInRowKey(pos, (AUTO_METRIC ? tsdb.metrics.getOrCreateId(metric)
+                       : tsdb.metrics.getId(metric)));
     pos += metric_width;
 
     pos += Const.TIMESTAMP_BYTES;
