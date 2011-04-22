@@ -140,7 +140,7 @@ $(top_builddir)/.javac-stamp: $(tsdb_JAVA) $(BUILT_SOURCES) $(tsdb_LIBADD)
 # or whether it's just a file that was touched (which happens frequently when
 # using Git while rebasing and whatnot).
 gwtc: $(top_builddir)/.gwtc-stamp
-MD5 = md5sum  # TODO(tsuna): Detect the right command to use at configure time.
+MD5 = md5  # TODO(tsuna): Detect the right command to use at configure time.
 $(top_builddir)/.gwtc-stamp: $(httpui_JAVA) $(httpui_DEPENDENCIES)
 	@mkdir -p $(top_builddir)/gwt
 	cat $(httpui_JAVA) | $(MD5) >"$@-t"
