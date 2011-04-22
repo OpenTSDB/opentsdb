@@ -20,58 +20,58 @@ top_builddir = build
 package = net.opentsdb
 spec_title = OpenTSDB
 spec_vendor = StumbleUpon, Inc.
-spec_version = 1.0-tch.01
-BUILT_SOURCES = src/BuildData.java
+spec_version = 1.0
+BUILT_SOURCES = src/net/opentsdb/BuildData.java
 tsdb_JAVA = \
-	src/core/Aggregator.java	\
-	src/core/Aggregators.java	\
-	src/core/Const.java	\
-	src/core/DataPoint.java	\
-	src/core/DataPoints.java	\
-	src/core/DataPointsIterator.java	\
-	src/core/IncomingDataPoints.java	\
-	src/core/Query.java	\
-	src/core/RowKey.java	\
-	src/core/RowSeq.java	\
-	src/core/SeekableView.java	\
-	src/core/Span.java	\
-	src/core/SpanGroup.java	\
-	src/core/TSDB.java	\
-	src/core/TSDBInterface.java	\
-	src/core/Tags.java	\
-	src/core/TsdbQuery.java	\
-	src/core/WritableDataPoints.java	\
-	src/graph/Plot.java	\
-	src/stats/Histogram.java	\
-	src/stats/StatsCollector.java	\
-	src/tools/ArgP.java	\
-	src/tools/CliOptions.java	\
-	src/tools/CliQuery.java	\
-	src/tools/Core.java	\
-	src/tools/DumpSeries.java	\
-	src/tools/TSDMain.java	\
-	src/tools/TextImporter.java	\
-	src/tools/UidManager.java	\
-	src/tsd/BadRequestException.java	\
-	src/tsd/ConnectionManager.java	\
-	src/tsd/GnuplotException.java	\
-	src/tsd/GraphHandler.java	\
-	src/tsd/HttpQuery.java	\
-	src/tsd/HttpRpc.java	\
-	src/tsd/LogsRpc.java	\
-	src/tsd/PipelineFactory.java	\
-	src/tsd/PutDataPointRpc.java	\
-	src/tsd/RpcHandler.java	\
-	src/tsd/StaticFileRpc.java	\
-	src/tsd/TelnetRpc.java	\
-	src/tsd/WordSplitter.java	\
-	src/uid/NoSuchUniqueId.java	\
-	src/uid/NoSuchUniqueName.java	\
-	src/uid/UniqueId.java	\
-	src/uid/UniqueIdInterface.java	\
+	src/net/opentsdb/core/Aggregator.java	\
+	src/net/opentsdb/core/Aggregators.java	\
+	src/net/opentsdb/core/Const.java	\
+	src/net/opentsdb/core/DataPoint.java	\
+	src/net/opentsdb/core/DataPoints.java	\
+	src/net/opentsdb/core/DataPointsIterator.java	\
+	src/net/opentsdb/core/IncomingDataPoints.java	\
+	src/net/opentsdb/core/Query.java	\
+	src/net/opentsdb/core/RowKey.java	\
+	src/net/opentsdb/core/RowSeq.java	\
+	src/net/opentsdb/core/SeekableView.java	\
+	src/net/opentsdb/core/Span.java	\
+	src/net/opentsdb/core/SpanGroup.java	\
+	src/net/opentsdb/core/TSDB.java	\
+	src/net/opentsdb/core/TSDBInterface.java	\
+	src/net/opentsdb/core/Tags.java	\
+	src/net/opentsdb/core/TsdbQuery.java	\
+	src/net/opentsdb/core/WritableDataPoints.java	\
+	src/net/opentsdb/graph/Plot.java	\
+	src/net/opentsdb/stats/Histogram.java	\
+	src/net/opentsdb/stats/StatsCollector.java	\
+	src/net/opentsdb/tools/ArgP.java	\
+	src/net/opentsdb/tools/CliOptions.java	\
+	src/net/opentsdb/tools/CliQuery.java	\
+	src/net/opentsdb/tools/Core.java	\
+	src/net/opentsdb/tools/DumpSeries.java	\
+	src/net/opentsdb/tools/TSDMain.java	\
+	src/net/opentsdb/tools/TextImporter.java	\
+	src/net/opentsdb/tools/UidManager.java	\
+	src/net/opentsdb/tsd/BadRequestException.java	\
+	src/net/opentsdb/tsd/ConnectionManager.java	\
+	src/net/opentsdb/tsd/GnuplotException.java	\
+	src/net/opentsdb/tsd/GraphHandler.java	\
+	src/net/opentsdb/tsd/HttpQuery.java	\
+	src/net/opentsdb/tsd/HttpRpc.java	\
+	src/net/opentsdb/tsd/LogsRpc.java	\
+	src/net/opentsdb/tsd/PipelineFactory.java	\
+	src/net/opentsdb/tsd/PutDataPointRpc.java	\
+	src/net/opentsdb/tsd/RpcHandler.java	\
+	src/net/opentsdb/tsd/StaticFileRpc.java	\
+	src/net/opentsdb/tsd/TelnetRpc.java	\
+	src/net/opentsdb/tsd/WordSplitter.java	\
+	src/net/opentsdb/uid/NoSuchUniqueId.java	\
+	src/net/opentsdb/uid/NoSuchUniqueName.java	\
+	src/net/opentsdb/uid/UniqueId.java	\
+	src/net/opentsdb/uid/UniqueIdInterface.java	\
 
 tsdb_LIBADD = \
-	third_party/hbase/hbaseasync-1.0-tch.01.jar	\
+	third_party/hbase/hbaseasync-1.0.jar	\
 	third_party/logback/logback-classic-0.9.28.jar	\
 	third_party/logback/logback-core-0.9.28.jar	\
 	third_party/netty/netty-3.2.3.Final.jar	\
@@ -82,9 +82,9 @@ tsdb_LIBADD = \
 	third_party/zookeeper/zookeeper-3.3.2.jar	\
 
 test_JAVA = \
-	src/stats/TestHistogram.java	\
-	src/uid/TestNoSuchUniqueId.java	\
-	src/uid/TestUniqueId.java	\
+	src/net/opentsdb/stats/TestHistogram.java	\
+	src/net/opentsdb/uid/TestNoSuchUniqueId.java	\
+	src/net/opentsdb/uid/TestUniqueId.java	\
 
 test_LIBADD = \
 	$(tsdb_LIBADD) \
@@ -113,17 +113,17 @@ GWT_SDK = third_party/gwt/gwt-user-2.0.4.jar
 GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
 GWTC_ARGS = -ea  # Additional arguments like -style PRETTY or -logLevel DEBUG
 
-TESTS = $(test_JAVA:src/%.java=$(top_builddir)/$(package_dir)/%.class)
+TESTS = $(test_JAVA:src/net/opentsdb/%.java=$(top_builddir)/$(package_dir)/%.class)
 AM_JAVACFLAGS = -Xlint -source 6
 JVM_ARGS =
 package_dir = $(subst .,/,$(package))
-classes=$(tsdb_JAVA:src/%.java=$(top_builddir)/$(package_dir)/%.class) \
-	$(BUILT_SOURCES:src/%.java=$(top_builddir)/$(package_dir)/%.class)
+classes=$(tsdb_JAVA:src/net/opentsdb/%.java=$(top_builddir)/$(package_dir)/%.class) \
+	$(BUILT_SOURCES:src/net/opentsdb/%.java=$(top_builddir)/$(package_dir)/%.class)
 jar = $(top_builddir)/tsdb-$(spec_version).jar
-test_classes=$(test_JAVA:src/%.java=$(top_builddir)/$(package_dir)/%.class)
+test_classes=$(test_JAVA:src/net/opentsdb/%.java=$(top_builddir)/$(package_dir)/%.class)
 
-src/BuildData.java: .git/HEAD $(tsdb_JAVA) ./buildtools/gen_build_data.sh
-	./buildtools/gen_build_data.sh src/BuildData.java $(package)
+src/net/opentsdb/BuildData.java: .git/HEAD $(tsdb_JAVA) ./buildtools/gen_build_data.sh
+	./buildtools/gen_build_data.sh src/net/opentsdb/BuildData.java $(package)
 
 jar: $(jar) $(TESTS) $(BUILT_SOURCES) $(top_builddir)/.gwtc-stamp
 
@@ -140,7 +140,7 @@ $(top_builddir)/.javac-stamp: $(tsdb_JAVA) $(BUILT_SOURCES) $(tsdb_LIBADD)
 # or whether it's just a file that was touched (which happens frequently when
 # using Git while rebasing and whatnot).
 gwtc: $(top_builddir)/.gwtc-stamp
-MD5 = md5  # TODO(tsuna): Detect the right command to use at configure time.
+MD5 = md5sum  # TODO(tsuna): Detect the right command to use at configure time.
 $(top_builddir)/.gwtc-stamp: $(httpui_JAVA) $(httpui_DEPENDENCIES)
 	@mkdir -p $(top_builddir)/gwt
 	cat $(httpui_JAVA) | $(MD5) >"$@-t"
