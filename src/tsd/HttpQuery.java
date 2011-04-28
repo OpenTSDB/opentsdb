@@ -547,10 +547,7 @@ final class HttpQuery {
     }
     final DefaultHttpResponse response =
       new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
-    response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
-                       (status == HttpResponseStatus.OK
-                        ? guessMimeType(buf)
-                        : HTML_CONTENT_TYPE));  // Error pages are in HTML.
+    response.setHeader(HttpHeaders.Names.CONTENT_TYPE, guessMimeType(buf));
     // TODO(tsuna): Server, X-Backend, etc. headers.
     response.setContent(buf);
     final boolean keepalive = HttpHeaders.isKeepAlive(request);
