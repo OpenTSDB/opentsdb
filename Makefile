@@ -82,6 +82,7 @@ tsdb_LIBADD = \
 	third_party/zookeeper/zookeeper-3.3.1.jar	\
 
 test_JAVA = \
+	src/core/TestTags.java	\
 	src/stats/TestHistogram.java	\
 	src/uid/TestNoSuchUniqueId.java	\
 	src/uid/TestUniqueId.java	\
