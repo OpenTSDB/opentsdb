@@ -85,9 +85,9 @@ final class GraphHandler implements HttpRpc {
   public GraphHandler() {
     // Gnuplot is mostly CPU bound and does only a little bit of IO at the
     // beginning to read the input data and at the end to write its output.
-    // We don't want to avoid running too many Gnuplot instances concurrently
-    // as it can steal a significant number of CPU cycles from us.  Instead,
-    // we allow only one per core, and we nice it (the nicing is done in the
+    // We want to avoid running too many Gnuplot instances concurrently as
+    // it can steal a significant number of CPU cycles from us.  Instead, we
+    // allow only one per core, and we nice it (the nicing is done in the
     // shell script we use to start Gnuplot).  Similarly, the queue we use
     // is sized so as to have a fixed backlog per core.
     final int ncores = Runtime.getRuntime().availableProcessors();
@@ -116,6 +116,7 @@ final class GraphHandler implements HttpRpc {
     throws IOException {
     final String basepath = getGnuplotBasePath(query);
     final long start_time = getQueryStringDate(query, "start");
+    final boolean nocache = query.hasQueryStringParam("nocache");
     if (start_time == -1) {
       throw BadRequestException.missingParameter("start");
     }
@@ -135,7 +136,7 @@ final class GraphHandler implements HttpRpc {
     final int max_age = (end_time > now ? 0                              // (1)
                          : (end_time < now - Const.MAX_TIMESPAN ? 86400  // (2)
                             : (int) (end_time - start_time) >> 10));     // (3)
-    if (isDiskCacheHit(query, max_age, basepath)) {
+    if (!nocache && isDiskCacheHit(query, max_age, basepath)) {
       return;
     }
     Query[] tsdbqueries;
