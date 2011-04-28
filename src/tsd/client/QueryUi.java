@@ -219,10 +219,10 @@ public class QueryUi implements EntryPoint {
 
     yformat.setValidationRegexp("^(|.*%..*)$");  // Nothing or at least one %?
     yformat.setVisibleLength(10);
-    yformat.setMaxLength(10);  // Arbitrary limit.
+    yformat.setMaxLength(16);  // Arbitrary limit.
     y2format.setValidationRegexp("^(|.*%..*)$");  // Nothing or at least one %?
     y2format.setVisibleLength(10);
-    y2format.setMaxLength(10);  // Arbitrary limit.
+    y2format.setMaxLength(16);  // Arbitrary limit.
     y2format.setEnabled(false);
 
     wxh.setValidationRegexp("^[1-9][0-9]{2,}x[1-9][0-9]{2,}$");  // 100x100
