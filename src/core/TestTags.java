@@ -71,4 +71,19 @@ public final class TestTags {
     assertEquals("bar", tags.get("foo"));
   }
 
+  @Test
+  public void validateGoodString() {
+    Tags.validateString("test", "omg-TSDB/42._foo_");
+  }
+
+  @Test(expected=IllegalArgumentException.class)
+  public void validateNullString() {
+    Tags.validateString("test", null);
+  }
+
+  @Test(expected=IllegalArgumentException.class)
+  public void validateBadString() {
+    Tags.validateString("test", "this is a test!");
+  }
+
 }
