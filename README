@@ -1,0 +1,14 @@
+
+compile
+-------
+	make || make MD5=md5sum
+	make staticroot
+
+setup
+-----
+	env COMPRESSION=none HBASE_HOME=path/to/hbase ./src/create_table.sh
+
+start
+-----
+	mkdir /tmp/tsdb
+	./src/tsdb tsd --port=4242 --staticroot=build/staticroot --cachedir=/tmp/tsdb
