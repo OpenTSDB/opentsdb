@@ -295,8 +295,8 @@ final class TsdbQuery implements Query {
       // We haven't been asked to find groups, so let's put all the spans
       // together in the same group.
       final SpanGroup group = new SpanGroup(tsdb,
-                                            getScanStartTime(),
-                                            getScanEndTime(),
+                                            start_time,
+                                            end_time,
                                             spans.values(),
                                             rate,
                                             aggregator,
