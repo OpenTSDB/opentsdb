@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -20,6 +21,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
@@ -28,7 +30,7 @@ import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 /** Implements the "put" telnet-style command. */
-final class PutDataPointRpc implements TelnetRpc {
+final class PutDataPointRpc implements TelnetRpc, HttpRpc {
 
   private static final AtomicLong requests = new AtomicLong();
   private static final AtomicLong hbase_errors = new AtomicLong();
@@ -72,6 +74,47 @@ final class PutDataPointRpc implements TelnetRpc {
       }
     }
     return row;
+  }
+  
+  public void execute(final TSDB tsdb, final HttpQuery query) {
+    if (query.request().getMethod() != HttpMethod.POST) {
+        query.badRequest("Must use HTTP method POST");
+        return;
+    }
+    
+    // build a String[] named cmd with the data from the contents split on
+    // newlines...
+    final String[] cmd = query.request().getContent().toString(Charset.forName("ISO-8859-1")).split("\n");
+
+    requests.incrementAndGet();
+    String errmsg = null;
+    try {
+      final class PutErrback implements Callback<Exception, Exception> {
+        public Exception call(final Exception arg) {
+          query.internalError(arg);
+          hbase_errors.incrementAndGet();
+          return arg;
+        }
+        public String toString() {
+          return "report error to user";
+        }
+      }
+      importDataPoint(tsdb, cmd).addErrback(new PutErrback());
+    } catch (NumberFormatException x) {
+      errmsg = "put: invalid value: " + x.getMessage() + '\n';
+      invalid_values.incrementAndGet();
+    } catch (IllegalArgumentException x) {
+      errmsg = "put: illegal argument: " + x.getMessage() + '\n';
+      illegal_arguments.incrementAndGet();
+    } catch (NoSuchUniqueName x) {
+      errmsg = "put: unknown metric: " + x.getMessage() + '\n';
+      unknown_metrics.incrementAndGet();
+    }
+    if (errmsg != null) {
+      query.badRequest(errmsg);
+    } else {
+      query.sendReply("Data points imported.");
+    }
   }
 
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
