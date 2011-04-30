@@ -56,12 +56,16 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   /** The TSDB to use. */
   private final TSDB tsdb;
 
+  /** Cached webroot */
+  private final String webRoot;
+
   /**
    * Constructor.
    * @param tsdb The TSDB to use.
    */
-  public RpcHandler(final TSDB tsdb) {
+  public RpcHandler(final TSDB tsdb, String webRoot) {
     this.tsdb = tsdb;
+    this.webRoot = webRoot;
 
     telnet_commands = new HashMap<String, TelnetRpc>(6);
     http_commands = new HashMap<String, HttpRpc>(10);
@@ -71,7 +75,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("diediedie", diediedie);
     }
     {
-      final StaticFileRpc staticfile = new StaticFileRpc();
+      final StaticFileRpc staticfile = new StaticFileRpc(webRoot);
       http_commands.put("favicon.ico", staticfile);
       http_commands.put("s", staticfile);
     }
@@ -180,7 +184,14 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
    * @param query The HTTP query.
    */
   private String getEndPoint(final HttpQuery query) {
-    final String uri = query.request().getUri();
+    final String absoluteUri = query.request().getUri();
+    // Strip web root
+    if (webRoot.length() > 0) {
+      if (!absoluteUri.startsWith(webRoot)) {
+        return null; // will trigger a 404
+      }
+    }
+    final String uri = absoluteUri.substring(webRoot.length());
     if (uri.length() < 1) {
       throw new BadRequestException("Empty query");
     }
@@ -312,7 +323,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
                  + "</iframe>");
       query.sendReply(query.makePage(
         "<script type=text/javascript language=javascript"
-        + " src=/s/queryui.nocache.js></script>",
+        + " src=./s/queryui.nocache.js></script>",
         "TSD", "Time Series Database", buf.toString()));
     }
   }

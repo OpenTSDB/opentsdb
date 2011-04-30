@@ -145,7 +145,7 @@ final class RemoteOracle extends SuggestOracle {
     }
 
     final RequestBuilder builder = new RequestBuilder(RequestBuilder.GET,
-      SUGGEST_URL + type + "&q=" + last_query);
+      QueryUi.addWebRoot(SUGGEST_URL) + type + "&q=" + last_query);
     try {
       builder.sendRequest(null, new RequestCallback() {
         public void onError(final com.google.gwt.http.client.Request r,

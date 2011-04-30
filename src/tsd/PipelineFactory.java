@@ -51,10 +51,11 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   /**
    * Constructor.
    * @param tsdb The TSDB to use.
+   * @param webRoot The web root to use.
    */
-  public PipelineFactory(final TSDB tsdb) {
+  public PipelineFactory(final TSDB tsdb, final String webRoot) {
     this.tsdb = tsdb;
-    this.rpchandler = new RpcHandler(tsdb);
+    this.rpchandler = new RpcHandler(tsdb, webRoot);
   }
 
   @Override

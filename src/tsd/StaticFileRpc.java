@@ -25,10 +25,14 @@ final class StaticFileRpc implements HttpRpc {
    */
   private final String staticroot;
 
+  /** The webroot to be stripped from the query url */
+  private final int uriPrefixLength;
+
   /**
    * Constructor.
    */
-  public StaticFileRpc() {
+  public StaticFileRpc(final String webRoot) {
+    uriPrefixLength = webRoot.length() + 3;
     staticroot = RpcHandler.getDirectoryFromSystemProp("tsd.http.staticroot");
   }
 
@@ -39,17 +43,17 @@ final class StaticFileRpc implements HttpRpc {
       query.sendFile(staticroot + "/favicon.ico", 31536000 /*=1yr*/);
       return;
     }
-    if (uri.length() < 3) {  // Must be at least 3 because of the "/s/".
+    if (uri.length() < uriPrefixLength) {  // Must be at least 3 because of the "/s/".
       throw new BadRequestException("URI too short <code>" + uri + "</code>");
     }
     // Cheap security check to avoid directory traversal attacks.
     // TODO(tsuna): This is certainly not sufficient.
-    if (uri.indexOf("..", 3) > 0) {
+    if (uri.indexOf("..", uriPrefixLength) > 0) {
       throw new BadRequestException("Malformed URI <code>" + uri + "</code>");
     }
-    final int questionmark = uri.indexOf('?', 3);
+    final int questionmark = uri.indexOf('?', uriPrefixLength);
     final int pathend = questionmark > 0 ? questionmark : uri.length();
-    query.sendFile(staticroot + uri.substring(3, pathend),
+    query.sendFile(staticroot + uri.substring(uriPrefixLength, pathend),
                    uri.contains("nocache") ? 0 : 31536000 /*=1yr*/);
   }
 }

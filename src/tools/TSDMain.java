@@ -99,6 +99,8 @@ final class TSDMain {
     argp.addOption("--auto-metric", "Automatically add metrics to tsdb as they"
                    + " are inserted.  Warning: this may cause unexpected"
                    + " metrics to be tracked");
+    argp.addOption("--webroot", "WEBROOT",
+                   "Web root path for all requests.");
     args = CliOptions.parse(argp, args);
     if (args == null || !argp.has("--port")
         || !argp.has("--staticroot") || !argp.has("--cachedir")) {
@@ -110,6 +112,11 @@ final class TSDMain {
 
     if (argp.has("--auto-metric")) {
       System.setProperty("tsd.core.auto_create_metrics", "true");
+    }
+
+    final String webRoot = argp.get("--webroot", "");
+    if (webRoot.length() > 0 && !webRoot.matches("^(/[a-zA-Z0-9_-]+)+$")) {
+      usage(argp, "Invalid webroot: " + webRoot, 3);
     }
 
     final short flush_interval = getFlushInterval(argp);
@@ -135,7 +142,7 @@ final class TSDMain {
       registerShutdownHook(tsdb);
       final ServerBootstrap server = new ServerBootstrap(factory);
 
-      server.setPipelineFactory(new PipelineFactory(tsdb));
+      server.setPipelineFactory(new PipelineFactory(tsdb, webRoot));
       server.setOption("child.tcpNoDelay", true);
       server.setOption("child.keepAlive", true);
       server.setOption("reuseAddress", true);

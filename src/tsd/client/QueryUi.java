@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Date;
 
 import com.google.gwt.core.client.EntryPoint;
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.DomEvent;
@@ -701,7 +702,7 @@ public class QueryUi implements EntryPoint {
             msg += "Cache hit (" + cachehit.isString().stringValue() + "). ";
           }
           if (nplotted != null && nplotted.isNumber().doubleValue() > 0) {
-            graph.setUrl(uri + "&png");
+            graph.setUrl(addWebRoot(uri) + "&png");
             graph.setVisible(true);
             msg += result.get("points").isNumber() + " points retrieved, "
               + nplotted + " points plotted";
@@ -783,8 +784,13 @@ public class QueryUi implements EntryPoint {
     return found_metric;
   }
 
+  static String addWebRoot(final String url) {
+    // URLs passed to this method always begin with a slash
+    return GWT.getHostPageBaseURL() + url.substring(1);
+  }
+
   private void asyncGetJson(final String url, final GotJsonCallback callback) {
-    final RequestBuilder builder = new RequestBuilder(RequestBuilder.GET, url);
+    final RequestBuilder builder = new RequestBuilder(RequestBuilder.GET, addWebRoot(url));
     try {
       builder.sendRequest(null, new RequestCallback() {
         public void onError(final Request request, final Throwable e) {
