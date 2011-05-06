@@ -116,7 +116,7 @@ final class GraphHandler implements HttpRpc {
     throws IOException {
     final String basepath = getGnuplotBasePath(query);
     final long start_time = getQueryStringDate(query, "start");
-    final boolean ignore_cache = query.hasQueryStringParam("nocache");
+    final boolean nocache = query.hasQueryStringParam("nocache");
     if (start_time == -1) {
       throw BadRequestException.missingParameter("start");
     }
@@ -136,7 +136,7 @@ final class GraphHandler implements HttpRpc {
     final int max_age = (end_time > now ? 0                              // (1)
                          : (end_time < now - Const.MAX_TIMESPAN ? 86400  // (2)
                             : (int) (end_time - start_time) >> 10));     // (3)
-    if (!ignore_cache && isDiskCacheHit(query, max_age, basepath)) {
+    if (!nocache && isDiskCacheHit(query, max_age, basepath)) {
       return;
     }
     Query[] tsdbqueries;
