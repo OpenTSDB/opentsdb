@@ -152,6 +152,15 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     setSelectedItem(downsampler, "avg");
   }
 
+  public String getTabTitle() {
+    final String metrictext = getMetric();
+    final int last_period = metrictext.lastIndexOf('.');
+    if (last_period < 0) {
+      return metrictext;
+    }
+    return metrictext.substring(last_period + 1);
+  }
+
   public boolean buildQueryString(final StringBuilder url) {
     final String metric = getMetric();
     if (metric.isEmpty()) {
@@ -191,6 +200,93 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       url.append("axis x1y2");
     }
     return true;
+  }
+
+  public void unbuildQueryString(String m, String o) {
+    // aggregator(:interval-downsampler)?(:rate)?:metric({tagname=tagvalue(,tagname=tagvalue)*)?
+    String[] parts = m.split(":");
+    if (parts.length < 2) return;
+    int i = parts.length;
+    if (i < 2 || i > 4) {
+      return;
+    }
+    // The aggregator
+    setSelectedItem(aggregators, parts[0]);
+    i--;  // Move to the last part (the metric name).
+    final ArrayList<String> taglist = new ArrayList<String>();
+    final String metric = parseWithMetric(parts[i], taglist);
+    this.metric.setValue(metric);
+    final int tagCount = taglist.size();
+    int delta = tagtable.getRowCount() - 2 - tagCount;
+    if (delta < 0) {
+      for (int j = 0; j > delta; j--) {
+        addTag(null);
+      }
+    } else if (delta > 0) {
+      for (int j = 0; j < delta; j++) {
+        tagtable.removeRow(2);
+      }
+    }
+    for (int j = 0; j < tagCount; j++) {
+      final String[] kv = taglist.get(j).split("=");
+      setTagName(j, kv[0]);
+      if (kv.length == 2) {
+        setTagValue(j, kv[1]);
+      }
+    }
+    setTagName(tagCount, "");
+    setTagValue(tagCount, "");
+    // rate
+    final boolean rate = "rate".equals(parts[--i]);
+    this.rate.setValue(rate);
+    if (rate) {
+      i--;  // Move to the next part.
+    }
+    // downsampling function & interval.
+    boolean downsample = false;
+    if (i > 0) {
+      final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
+      if (dash >= 0) {
+        final String downsampler = parts[1].substring(dash + 1);
+        final String interval = parts[1].substring(0, dash);
+        setSelectedItem(this.downsampler, downsampler);
+        this.interval.setValue(interval);
+        downsample = true;
+      }
+    }
+    this.downsample.setValue(downsample);
+    updateDownsampleWidgets(downsample);
+    // options - x1y2
+    x1y2.setValue(o.contains("axis x1y2"));
+  }
+
+  /**
+   * Parses the metric and tags out of the given string.
+   * @param metric A string of the form "metric" or "metric{tag=value,...}".
+   * @param tags The map to populate with the tags parsed out of the first
+   * argument.
+   * @return The name of the metric.
+   * @throws IllegalArgumentException if the metric is malformed.
+   */
+  public static String parseWithMetric(final String metric,
+                                       final ArrayList<String> tags) {
+    final int curly = metric.indexOf('{');
+    if (curly < 0) {
+      return metric;
+    }
+    final String metricOnly = metric.substring(0, curly);
+    final int len = metric.length();
+    if (metric.charAt(len - 1) != '}') {  // "foo{"
+      return metricOnly;
+    } else if (curly == len - 2) {  // "foo{}"
+      return metricOnly;
+    }
+    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
+    for (final String tag : metric.substring(curly + 1, len - 1).split(",")) {
+      tags.add(tag);
+    }
+    // Return the "foo" part of "foo{a=b,...,x=y}"
+    return metricOnly;
   }
 
   private int getNumTags() {
@@ -324,13 +420,17 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     downsample.addClickHandler(new ClickHandler() {
       public void onClick(final ClickEvent event) {
         final boolean checked = ((CheckBox) event.getSource()).getValue();
-        downsampler.setEnabled(checked);
-        interval.setEnabled(checked);
+        updateDownsampleWidgets(checked);
         if (checked) {
           downsampler.setFocus(true);
         }
       }
     });
+  }
+
+  private void updateDownsampleWidgets(final boolean checked) {
+    downsampler.setEnabled(checked);
+    interval.setEnabled(checked);
   }
 
   private static String selectedValue(final ListBox list) {  // They should add
