@@ -402,27 +402,35 @@ final class GraphHandler implements HttpRpc {
     if (mtime <= 0) {
       return true;  // File doesn't exist, or can't be read.
     }
+    final long staleness = System.currentTimeMillis() / 1000 - mtime;
     // Queries that don't specify an end-time must be handled carefully,
     // since time passes and we may need to regenerate the results in case
     // new data points have arrived in the mean time.
     final String end = query.getQueryStringParam("end");
     if (end == null || end.endsWith("ago")) {
       // How many seconds stale?
-      final long staleness = System.currentTimeMillis() / 1000 - mtime;
       if (staleness < 0) {  // Can happen if the mtime is "in the future".
         logWarn(query, "Not using file @ " + cachedfile + " with weird"
                 + " mtime in the future: " + mtime);
         return true;
       }
-      // If our graph is older than 0.1% of the duration of the request,
-      // let's regenerate it in order to avoid service data that's too
-      // stale, e.g., for 1h of data, it's OK to serve something 3s stale.
-      if (staleness > max_age) {
-        logInfo(query, "Cached file @ " + cachedfile.getPath() + " is "
-                + staleness + "s stale, which is more than its limit of "
-                + max_age + "s, and needs to be regenerated.");
+    } else {
+      final long end_time = getQueryStringDate(query, "end");
+      if (mtime < end_time) {
+        logInfo(query, "Not using file @ " + cachedfile.getPath() + " "
+                + ". It was generated at " + mtime
+                + ", but the query ends at " + end_time);
         return true;
       }
+    }
+    // If our graph is older than 0.1% of the duration of the request,
+    // let's regenerate it in order to avoid service data that's too
+    // stale, e.g., for 1h of data, it's OK to serve something 3s stale.
+    if (staleness > max_age) {
+      logInfo(query, "Cached file @ " + cachedfile.getPath() + " is "
+              + staleness + "s stale, which is more than its limit of "
+              + max_age + "s, and needs to be regenerated.");
+      return true;
     }
     return false;
   }
