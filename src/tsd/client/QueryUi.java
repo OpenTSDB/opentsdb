@@ -20,6 +20,7 @@ package tsd.client;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -46,6 +47,7 @@ import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
 import com.google.gwt.user.client.Element;
+import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Anchor;
@@ -98,7 +100,8 @@ public class QueryUi implements EntryPoint {
   private final ValidatedTextBox y2format = new ValidatedTextBox();
   private final ValidatedTextBox wxh = new ValidatedTextBox();
 
-  private String keypos = "";  // Position of the key on the graph.
+  private final HashMap<String, RadioButton> keyRadioMap = new HashMap<String, RadioButton>();
+  private String keypos = "top right";  // Position of the key on the graph.
   private final CheckBox horizontalkey = new CheckBox("Horizontal layout");
   private final CheckBox keybox = new CheckBox("Box");
   private final CheckBox nokey = new CheckBox("No key (overrides others)");
@@ -138,6 +141,7 @@ public class QueryUi implements EntryPoint {
   private final FlexTable logs = new FlexTable();
   private final FlexTable stats_table = new FlexTable();
   private final HTML build_data = new HTML("Loading...");
+  private final FlexTable table = new FlexTable();
 
   /**
    * This is the entry point method.
@@ -152,6 +156,14 @@ public class QueryUi implements EntryPoint {
           aggregators.add(aggs.get(i).isString().stringValue());
         }
         ((MetricForm) metrics.getWidget(0)).setAggregators(aggregators);
+        // Module initialized now... read history token
+        parseHistory(History.getToken(), false);
+      }
+    });
+    // Add history listener
+    History.addValueChangeHandler(new ValueChangeHandler<String>() {
+      public void onValueChange(ValueChangeEvent<String> event) {
+        parseHistory(event.getValue(), true);
       }
     });
 
@@ -231,7 +243,6 @@ public class QueryUi implements EntryPoint {
     wxh.setText((Window.getClientWidth() - 20) + "x"
                 + (Window.getClientHeight() * 4 / 5));
 
-    final FlexTable table = new FlexTable();
     table.setText(0, 0, "From");
     {
       final HorizontalPanel hbox = new HorizontalPanel();
@@ -250,22 +261,12 @@ public class QueryUi implements EntryPoint {
     }
     autoreoload.addClickHandler(new ClickHandler() {
       public void onClick(final ClickEvent event) {
+        updateAutoreloadWidgets();
         if (autoreoload.isChecked()) {
-          final HorizontalPanel hbox = new HorizontalPanel();
-          hbox.setWidth("100%");
-          hbox.add(new InlineLabel("Every:"));
-          hbox.add(autoreoload_interval);
-          hbox.add(new InlineLabel("seconds"));
-          table.setWidget(1, 1, hbox);
-          if (autoreoload_interval.getValue().isEmpty()) {
-            autoreoload_interval.setValue("15");
-          }
           autoreoload_interval.setFocus(true);
           lastgraphuri = "";  // Force refreshGraph.
-          refreshGraph();     // Trigger the 1st auto-reload
-        } else {
-          table.setWidget(1, 1, end_datebox);
         }
+        refreshGraph();     // Trigger the 1st auto-reload
       }
     });
     autoreoload_interval.setValidationRegexp("^([5-9]|[1-9][0-9]+)$");  // >=5s
@@ -281,44 +282,7 @@ public class QueryUi implements EntryPoint {
       table.setWidget(0, 3, hbox);
     }
     {
-      final MetricForm.MetricChangeHandler metric_change_handler =
-        new MetricForm.MetricChangeHandler() {
-          public void onMetricChange(final MetricForm metric) {
-            final int index = metrics.getWidgetIndex(metric);
-            metrics.getTabBar().setTabText(index, getTabTitle(metric));
-          }
-          private String getTabTitle(final MetricForm metric) {
-            final String metrictext = metric.getMetric();
-            final int last_period = metrictext.lastIndexOf('.');
-            if (last_period < 0) {
-              return metrictext;
-            }
-            return metrictext.substring(last_period + 1);
-          }
-        };
-      final EventsHandler updatey2range = new EventsHandler() {
-        protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
-          for (final Widget metric : metrics) {
-            if (!(metric instanceof MetricForm)) {
-              continue;
-            }
-            if (((MetricForm) metric).x1y2().getValue()) {
-              y2range.setEnabled(true);
-              y2log.setEnabled(true);
-              y2label.setEnabled(true);
-              y2format.setEnabled(true);
-              return;
-            }
-          }
-          y2range.setEnabled(false);
-          y2log.setEnabled(false);
-          y2label.setEnabled(false);
-          y2format.setEnabled(false);
-        }
-      };
-      final MetricForm metric = new MetricForm(refreshgraph);
-      metric.x1y2().addClickHandler(updatey2range);
-      metric.setMetricChangeHandler(metric_change_handler);
+      final MetricForm metric = createMetricForm();
       metrics.add(metric, "metric 1");
       metrics.selectTab(0);
       metrics.add(new InlineLabel("Loading..."), "+");
@@ -328,10 +292,7 @@ public class QueryUi implements EntryPoint {
           final int nitems = metrics.getWidgetCount();
           if (item == nitems - 1) {  // Last item: the "+" was clicked.
             event.cancel();
-            final MetricForm metric = new MetricForm(refreshgraph);
-            metric.x1y2().addClickHandler(updatey2range);
-            metric.setMetricChangeHandler(metric_change_handler);
-            metric.setAggregators(aggregators);
+            final MetricForm metric = createMetricForm();
             metrics.insert(metric, "metric " + nitems, item);
             metrics.selectTab(item);
             metric.setFocus(true);
@@ -393,6 +354,67 @@ public class QueryUi implements EntryPoint {
     ensureSameWidgetSize(optpanel);
   }
 
+  private void parseHistory(final String token, final boolean refresh) {
+    if (token.length() > 0 || refresh) {
+      unbuildQueryString(token);
+      refreshGraph(false);
+    }
+  }
+
+  private void updateY2RangeWidgets() {
+    for (final Widget metric : metrics) {
+      if (!(metric instanceof MetricForm)) {
+        continue;
+      }
+      if (((MetricForm) metric).x1y2().getValue()) {
+        y2range.setEnabled(true);
+        y2log.setEnabled(true);
+        y2label.setEnabled(true);
+        y2format.setEnabled(true);
+        return;
+      }
+    }
+    y2range.setEnabled(false);
+    y2log.setEnabled(false);
+    y2label.setEnabled(false);
+    y2format.setEnabled(false);
+  }
+
+  private void updateAutoreloadWidgets() {
+    if (autoreoload.isChecked()) {
+      final HorizontalPanel hbox = new HorizontalPanel();
+      hbox.setWidth("100%");
+      hbox.add(new InlineLabel("Every:"));
+      hbox.add(autoreoload_interval);
+      hbox.add(new InlineLabel("seconds"));
+      table.setWidget(1, 1, hbox);
+      if (autoreoload_interval.getValue().isEmpty()) {
+        autoreoload_interval.setValue("15");
+      }
+    } else {
+      table.setWidget(1, 1, end_datebox);
+    }
+  }
+
+  private MetricForm createMetricForm() {
+    final MetricForm.MetricChangeHandler metric_change_handler = new MetricForm.MetricChangeHandler() {
+      public void onMetricChange(final MetricForm metric) {
+        final int index = metrics.getWidgetIndex(metric);
+        metrics.getTabBar().setTabText(index, metric.getTabTitle());
+      }
+    };
+    final EventsHandler updatey2range = new EventsHandler() {
+      protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
+        updateY2RangeWidgets();
+      }
+    };
+    final MetricForm metric = new MetricForm(refreshgraph);
+    metric.x1y2().addClickHandler(updatey2range);
+    metric.setMetricChangeHandler(metric_change_handler);
+    metric.setAggregators(aggregators);
+    return metric;
+  }
+
   /**
    * Builds the panel containing customizations for the axes of the graph.
    */
@@ -433,6 +455,7 @@ public class QueryUi implements EntryPoint {
     });
     rb.addClickHandler(refreshgraph);
     grid.setWidget(row, col, rb);
+    keyRadioMap.put(pos, rb);
     return rb;
   }
 
@@ -446,7 +469,7 @@ public class QueryUi implements EntryPoint {
     addKeyRadioButton(grid, 0, 4, "out right top");
     addKeyRadioButton(grid, 1, 1, "top left");
     addKeyRadioButton(grid, 1, 2, "top center");
-    addKeyRadioButton(grid, 1, 3, "top right").setChecked(true);
+    addKeyRadioButton(grid, 1, 3, "top right");
     addKeyRadioButton(grid, 2, 0, "out center left");
     addKeyRadioButton(grid, 2, 1, "center left");
     addKeyRadioButton(grid, 2, 2, "center");
@@ -458,6 +481,7 @@ public class QueryUi implements EntryPoint {
     addKeyRadioButton(grid, 4, 0, "out bottom left");
     addKeyRadioButton(grid, 4, 2, "out bottom center");
     addKeyRadioButton(grid, 4, 4, "out bottom right");
+    keyRadioMap.get(keypos).setValue(true);
     final Grid.CellFormatter cf = grid.getCellFormatter();
     cf.getElement(1, 1).getStyle().setProperty("borderLeft", "1px solid #000");
     cf.getElement(1, 1).getStyle().setProperty("borderTop", "1px solid #000");
@@ -623,63 +647,26 @@ public class QueryUi implements EntryPoint {
   }
 
   private void refreshGraph() {
-    final Date start = start_datebox.getValue();
-    if (start == null) {
-      graphstatus.setText("Please specify a start time.");
-      return;
-    }
-    final Date end = end_datebox.getValue();
-    if (end != null && !autoreoload.isChecked()) {
-      if (end.getTime() <= start.getTime()) {
-        end_datebox.addStyleName("dateBoxFormatError");
-        graphstatus.setText("End time must be after start time!");
-        return;
-      }
-    }
+    refreshGraph(true);
+  }
+
+  private void refreshGraph(boolean addToHistory) {
     final StringBuilder url = new StringBuilder();
-    url.append("/q?start=").append(FULLDATE.format(start));
-    if (end != null && !autoreoload.isChecked()) {
-      url.append("&end=").append(FULLDATE.format(end));
-    } else {
-      // If there's no end-time, the graph may change while the URL remains
-      // the same.  No browser seems to re-fetch an image once it's been
-      // fetched, even if we destroy the DOM object and re-created it with the
-      // same src attribute.  This has nothing to do with caching headers sent
-      // by the server.  The browsers simply won't retrieve the same URL again
-      // through JavaScript manipulations, period.  So as a workaround, we add
-      // a special parameter that the server will delete from the query.
-      url.append("&ignore=" + nrequests++);
-    }
-    if (!addAllMetrics(url)) {
+    if (!buildQueryString(url)) {
       return;
     }
-    addLabels(url);
-    addFormats(url);
-    addYRanges(url);
-    addLogscales(url);
-    if (nokey.isChecked()) {
-      url.append("&nokey");
-    } else if (!keypos.isEmpty() || horizontalkey.isChecked()) {
-      url.append("&key=");
-      if (!keypos.isEmpty()) {
-        url.append(keypos);
-      }
-      if (horizontalkey.isChecked()) {
-        url.append(" horiz");
-      }
-      if (keybox.isChecked()) {
-        url.append(" box");
-      }
-    }
-    url.append("&wxh=").append(wxh.getText());
-    final String uri = url.toString();
-    if (uri.equals(lastgraphuri)) {
+    final String graphuri = url.toString();
+    if (graphuri.equals(lastgraphuri)) {
       return;  // Don't re-request the same graph.
     } else if (pending_requests++ > 0) {
       return;
     }
-    lastgraphuri = uri;
+    lastgraphuri = graphuri;
+    if (addToHistory) {
+      History.newItem(graphuri, false);
+    }
     graphstatus.setText("Loading graph...");
+    final String uri = "/q?" + graphuri;
     asyncGetJson(uri + "&json", new GotJsonCallback() {
       public void got(final JSONValue json) {
         if (autoreoload_timer != null) {
@@ -750,10 +737,10 @@ public class QueryUi implements EntryPoint {
               public void run() {
                 // Verify that we still want auto reload and that the graph
                 // hasn't been updated in the mean time.
-                if (autoreoload.isChecked() && lastgraphuri == uri) {
+                if (autoreoload.isChecked() && lastgraphuri == graphuri) {
                   // Force refreshGraph to believe that we want a new graph.
                   lastgraphuri = "";
-                  refreshGraph();
+                  refreshGraph(false);
                 }
               }
             };
@@ -768,6 +755,184 @@ public class QueryUi implements EntryPoint {
     });
   }
 
+  private boolean buildQueryString(final StringBuilder url) {
+    final Date start = start_datebox.getValue();
+    if (start == null) {
+      graphstatus.setText("Please specify a start time.");
+      return false;
+    }
+    final Date end = end_datebox.getValue();
+    if (end != null && !autoreoload.isChecked()) {
+      if (end.getTime() <= start.getTime()) {
+        end_datebox.addStyleName("dateBoxFormatError");
+        graphstatus.setText("End time must be after start time!");
+        return false;
+      }
+    }
+    url.append("start=").append(FULLDATE.format(start));
+    if (end != null && !autoreoload.isChecked()) {
+      url.append("&end=").append(FULLDATE.format(end));
+    } else {
+      // If there's no end-time, the graph may change while the URL remains
+      // the same.  No browser seems to re-fetch an image once it's been
+      // fetched, even if we destroy the DOM object and re-created it with the
+      // same src attribute.  This has nothing to do with caching headers sent
+      // by the server.  The browsers simply won't retrieve the same URL again
+      // through JavaScript manipulations, period.  So as a workaround, we add
+      // a special parameter that the server will delete from the query.
+      url.append("&ignore=" + nrequests++);
+      if (autoreoload.isChecked()) {
+        url.append("&autoreload=" + autoreoload_interval.getValue());
+      }
+    }
+    if (!addAllMetrics(url)) {
+      return false;
+    }
+    addLabels(url);
+    addFormats(url);
+    addYRanges(url);
+    addLogscales(url);
+    if (nokey.isChecked()) {
+      url.append("&nokey");
+    } else if (!keypos.isEmpty() || horizontalkey.isChecked()) {
+      url.append("&key=");
+      if (!keypos.isEmpty()) {
+        url.append(keypos);
+      }
+      if (horizontalkey.isChecked()) {
+        url.append(" horiz");
+      }
+      if (keybox.isChecked()) {
+        url.append(" box");
+      }
+    }
+    url.append("&wxh=").append(wxh.getText());
+    return true;
+  }
+
+  private static class HistoryTokenArgs {
+
+    private final HashMap<String, ArrayList<String>> args;
+  
+    public HistoryTokenArgs(final String token) {
+      final String[] tuples = token.split("&");
+      args = new HashMap<String, ArrayList<String>>();
+      for (String tuple : tuples) {
+        final int equals = tuple.indexOf('=');
+        final String key = equals > 0 ? tuple.substring(0, equals) : tuple;
+        ArrayList<String> values = args.get(key);
+        if (values == null) {
+          values = new ArrayList<String>();
+          args.put(key, values);
+        }
+        final String value = equals > 0 ? tuple.substring(equals + 1) : "";
+        values.add(URL.decodeComponent(value, true));
+      }
+    }
+
+    public boolean contains(String name) {
+      return args.containsKey(name);
+    }
+
+    public String get(String name) {
+      final ArrayList<String> vals = args.get(name);
+      return vals == null ? "" : vals.get(0);
+    }
+
+    public ArrayList<String> getAll(String name) {
+      final ArrayList<String> vals = args.get(name);
+      return vals == null ? new ArrayList<String>() : vals;
+    }
+
+  }
+
+  private void unbuildQueryString(final String token) {
+    HistoryTokenArgs args = new HistoryTokenArgs(token);
+    // Add Dates
+    start_datebox.setValue(start_datebox.getFormat().parse(start_datebox, args.get("start"), false));
+    end_datebox.setValue(end_datebox.getFormat().parse(end_datebox, args.get("end"), false));
+    // Add Autoreload
+    final String autoreloadInterval = args.get("autoreload");
+    boolean autoreloading = autoreloadInterval.length() > 0;
+    if (autoreloading) {
+      // validate autoreload interval
+      try {
+        if (Integer.parseInt(autoreloadInterval) < 5) {
+          autoreloading = false;
+        }
+      } catch (NumberFormatException nex) {
+        autoreloading = false;
+      }
+    }
+    autoreoload.setValue(autoreloading);
+    if (autoreloading) {
+      autoreoload_interval.setText(autoreloadInterval);
+    }
+    updateAutoreloadWidgets();
+    // Add Metrics
+    ArrayList<String> ms = args.getAll("m");
+    ArrayList<String> os = args.getAll("o");
+    final int metricCount = ms.size();
+    if (metricCount == os.size()) {
+      final int delta = metrics.getWidgetCount() - 1 - metricCount;
+      if (delta < 0) {
+        for (int i = 0; i > delta; i--) {
+          metrics.insert(createMetricForm(), "", 0);
+        }
+      } else {
+        for (int i = 0; i < delta; i++) {
+          metrics.remove(0);
+        }
+      }
+      if (metricCount == 0) {
+        // This should never happen, but ...
+        metrics.insert(createMetricForm(), "metric 1", 0);
+      } else {
+        for (int i = 0; i < metricCount; i++) {
+          final MetricForm metricForm = (MetricForm) metrics.getWidget(i);
+          metricForm.unbuildQueryString(ms.get(i), os.get(i));
+          metrics.getTabBar().setTabText(i, metricForm.getTabTitle());
+        }
+      }
+      if (metrics.getTabBar().getSelectedTab() == -1) {
+        metrics.selectTab(0);
+      }
+    }
+    updateY2RangeWidgets();
+    // Add Axes Tab Values
+    // labels
+    this.ylabel.setText(args.get("ylabel"));
+    this.y2label.setText(args.get("y2label"));
+    // formats
+    this.yformat.setText(args.get("yformat"));
+    this.y2format.setText(args.get("y2format"));
+    // y ranges
+    this.yrange.setText(args.get("yrange"));
+    this.y2range.setText(args.get("y2range"));
+    // log scales
+    ylog.setValue(args.contains("ylog"));
+    y2log.setValue(args.contains("y2log"));
+    // Add Key Tab Values
+    nokey.setValue(args.contains("nokey"));
+    final String key = args.get("key");
+    final int keyHorizIndex = key.indexOf(" horiz");
+    final int keyBoxIndex = key.indexOf(" box");
+    final int keyLocationEnd = keyHorizIndex != -1 ? keyHorizIndex : keyBoxIndex;
+    this.keypos = (keyLocationEnd != -1 ? key.substring(0, keyLocationEnd) : key);
+    final RadioButton keyRadio = keyRadioMap.get(this.keypos);
+    if (keyRadio != null) {
+      keyRadio.setValue(true);
+    } else {
+      for (RadioButton radio : keyRadioMap.values()) {
+        radio.setValue(false);
+      }
+    }
+    horizontalkey.setValue(keyHorizIndex != -1);
+    keybox.setValue(keyBoxIndex != -1);
+    // Add widthxheight
+    wxh.setText(args.get("wxh"));
+  }
+  
   private boolean addAllMetrics(final StringBuilder url) {
     boolean found_metric = false;
     for (final Widget widget : metrics) {
