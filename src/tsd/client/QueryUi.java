@@ -121,6 +121,7 @@ public class QueryUi implements EntryPoint {
 
   private final Image graph = new Image();
   private final Label graphstatus = new Label();
+  private final Anchor graphsvglink = new Anchor("Download SVG", "javascript:;", "_blank");
   /** Remember the last URI requested to avoid requesting twice the same. */
   private String lastgraphuri;
 
@@ -354,12 +355,18 @@ public class QueryUi implements EntryPoint {
     graphpanel.add(decorator);
     {
       final VerticalPanel graphvbox = new VerticalPanel();
-      graphvbox.add(graphstatus);
+      final HorizontalPanel graphstatushbox = new HorizontalPanel();
+      graphstatushbox.setSpacing(3);
+      graphvbox.add(graphstatushbox);
+      graphstatushbox.add(graphstatus);
+      graphsvglink.setVisible(false);
+      graphstatushbox.add(graphsvglink);
       graph.setVisible(false);
       graphvbox.add(graph);
       graph.addErrorHandler(new ErrorHandler() {
         public void onError(final ErrorEvent event) {
           graphstatus.setText("Oops, failed to load the graph.");
+          graphsvglink.setVisible(false);
         }
       });
       graphpanel.add(graphvbox);
@@ -697,16 +704,20 @@ public class QueryUi implements EntryPoint {
           clearError();
           final JSONValue nplotted = result.get("plotted");
           final JSONValue cachehit = result.get("cachehit");
+          final JSONValue terminal = result.get("terminal");
           if (cachehit != null) {
             msg += "Cache hit (" + cachehit.isString().stringValue() + "). ";
           }
           if (nplotted != null && nplotted.isNumber().doubleValue() > 0) {
-            graph.setUrl(uri + "&png");
+            graph.setUrl(uri + "&" + terminal.isString().stringValue());
             graph.setVisible(true);
             msg += result.get("points").isNumber() + " points retrieved, "
               + nplotted + " points plotted";
+            graphsvglink.setHref(uri + "&svg");
+            graphsvglink.setVisible(true);
           } else {
             graph.setVisible(false);
+            graphsvglink.setVisible(false);
             msg += "Your query didn't return anything";
           }
           final JSONValue timing = result.get("timing");
@@ -840,6 +851,7 @@ public class QueryUi implements EntryPoint {
               pending_requests = 0;
             }
             graphstatus.setText("");
+            graphsvglink.setVisible(false);
           }
         }
       });

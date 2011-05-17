@@ -15,6 +15,8 @@ package net.opentsdb.graph;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
@@ -34,18 +36,42 @@ public final class Plot {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plot.class);
 
+  /** All supported Gnuplot terminal types. **/
+  public static final List<String> SUPPORTED_TERMINALS = Arrays.asList("png", "svg");
+
+  /** The default Gnuplot terminal type to use if the client does not request one explicitly **/
+  public static final String DEFAULT_TERMINAL = "png";
+
+  /**
+   * Maps a Gnuplot terminal type to a file extension.
+   * @param terminal a supported Gnuplot terminal type (see {@link Plot#SUPPORTED_TERMINALS})
+   * @return the file extension used for this terminal type.
+   */
+  public static String getFileExtensionForTerminal(String terminal) {
+    if (!SUPPORTED_TERMINALS.contains(terminal)) {
+      throw new IllegalArgumentException("Invalid terminal type: " + terminal);
+    }
+    return terminal;
+  }
+
+  /** Gnuplot terminal type (png/svg etc) **/
+  private final String terminal;
+
+  /** File extension corresponding to the format specified in terminal. **/
+  private final String fileExtension;
+  
   /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int start_time;
+  private final int start_time;
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int end_time;
+  private final int end_time;
 
   /** All the DataPoints we want to plot. */
-  private ArrayList<DataPoints> datapoints =
+  private final ArrayList<DataPoints> datapoints =
     new ArrayList<DataPoints>();
 
   /** Per-DataPoints Gnuplot options. */
-  private ArrayList<String> options = new ArrayList<String>();
+  private final ArrayList<String> options = new ArrayList<String>();
 
   /** Global Gnuplot parameters. */
   private Map<String, String> params;
@@ -77,7 +103,7 @@ public final class Plot {
    * @throws IllegalArgumentException if either timestamp is 0 or negative.
    * @throws IllegalArgumentException if {@code start_time >= end_time}.
    */
-  public Plot(final long start_time, final long end_time) {
+  public Plot(final long start_time, final long end_time, String terminal) {
     if ((start_time & 0xFFFFFFFF00000000L) != 0) {
       throw new IllegalArgumentException("Invalid start time: " + start_time);
     } else if ((end_time & 0xFFFFFFFF00000000L) != 0) {
@@ -86,8 +112,13 @@ public final class Plot {
       throw new IllegalArgumentException("start time (" + start_time
         + ") is greater than or equal to end time: " + end_time);
     }
+    if (!SUPPORTED_TERMINALS.contains(terminal)) {
+    	throw new IllegalArgumentException("Invalid terminal: " + terminal);
+    }
     this.start_time = (int) start_time;
     this.end_time = (int) end_time;
+    this.terminal = terminal;
+    this.fileExtension = getFileExtensionForTerminal(terminal);
   }
 
   private long startTime() {
@@ -143,6 +174,21 @@ public final class Plot {
     this.options.add(options);
   }
 
+  /**
+   * Returns the terminal type this Plot was created with.
+   */
+  public String getTerminal() {
+	  return terminal;
+  }
+
+  /**
+   * Returns the file extension of the generated
+   * image file.
+   */
+  public String getFileExtension() {
+    return fileExtension;
+  }
+  
   /**
    * Returns a view on the datapoints in this plot.
    * Do not attempt to modify the return value.
@@ -217,7 +263,7 @@ public final class Plot {
     final PrintWriter gp = new PrintWriter(script_path);
     try {
       // XXX don't hardcode all those settings.  At least not like that.
-      gp.append("set terminal png size ")
+      gp.append("set terminal ").append(terminal).append(" size ")
         // Why the fuck didn't they also add methods for numbers?
         .append(Short.toString(width)).append(",")
         .append(Short.toString(height)).append("\n"
@@ -226,7 +272,7 @@ public final class Plot {
                 + "set format x \"").append(xFormat())
                                     .append("\"\n"
                 + "set xtic rotate\n"
-                + "set output \"").append(basepath + ".png").append("\"\n"
+                + "set output \"").append(basepath + "." + fileExtension).append("\"\n"
                 + "set xrange [\"")
         .append(String.valueOf(start_time + utc_offset))
         .append("\":\"")

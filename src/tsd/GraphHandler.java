@@ -136,7 +136,9 @@ final class GraphHandler implements HttpRpc {
     final int max_age = (end_time > now ? 0                              // (1)
                          : (end_time < now - Const.MAX_TIMESPAN ? 86400  // (2)
                             : (int) (end_time - start_time) >> 10));     // (3)
-    if (!nocache && isDiskCacheHit(query, max_age, basepath)) {
+    final String terminalFromQuery = query.hasAnyQueryStringParam(Plot.SUPPORTED_TERMINALS);
+    final String terminal = terminalFromQuery == null ? Plot.DEFAULT_TERMINAL : terminalFromQuery;
+    if (!nocache && isDiskCacheHit(query, max_age, basepath, terminal)) {
       return;
     }
     Query[] tsdbqueries;
@@ -164,7 +166,7 @@ final class GraphHandler implements HttpRpc {
         throw new BadRequestException("end time: " + e.getMessage());
       }
     }
-    final Plot plot = new Plot(start_time, end_time);
+    final Plot plot = new Plot(start_time, end_time, terminal);
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
     final int nqueries = tsdbqueries.length;
@@ -249,6 +251,7 @@ final class GraphHandler implements HttpRpc {
         final StringBuilder buf = new StringBuilder(64);
         buf.append("{\"plotted\":").append(nplotted)
           .append(",\"points\":").append(npoints)
+          .append(",\"terminal\":\"").append(plot.getTerminal()).append("\"")
           .append(",\"etags\":[");
         for (final HashSet<String> tags : aggregated_tags) {
           if (tags == null || tags.isEmpty()) {
@@ -265,12 +268,12 @@ final class GraphHandler implements HttpRpc {
         query.sendReply(buf);
         writeFile(query, basepath + ".json", buf.toString().getBytes());
       } else {
-          if (query.hasQueryStringParam("png")) {
-            query.sendFile(basepath + ".png", max_age);
+    	    if (query.hasAnyQueryStringParam(Plot.SUPPORTED_TERMINALS) != null) {
+            query.sendFile(basepath + "." + plot.getFileExtension(), max_age);
           } else {
             if (nplotted > 0) {
               query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
-                "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
+                "<img src=\"" + query.request().getUri() + "&amp;" + plot.getTerminal() + "\"/><br/>"
                 + "<small>(" + nplotted + " points plotted in "
                 + query.processingTimeMillis() + "ms)</small>"));
             } else {
@@ -312,7 +315,6 @@ final class GraphHandler implements HttpRpc {
     final HashMap<String, List<String>> qs =
       new HashMap<String, List<String>>(q);
     // But first remove the parameters that don't influence the output.
-    qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
     return cachedir + Integer.toHexString(qs.hashCode());
@@ -330,9 +332,10 @@ final class GraphHandler implements HttpRpc {
    */
   private boolean isDiskCacheHit(final HttpQuery query,
                                  final int max_age,
-                                 final String basepath) throws IOException {
+                                 final String basepath,
+                                 final String terminal) throws IOException {
     final String cachepath = basepath + (query.hasQueryStringParam("ascii")
-                                         ? ".txt" : ".png");
+                                         ? ".txt" : "." + Plot.getFileExtensionForTerminal(terminal));
     final File cachedfile = new File(cachepath);
     if (cachedfile.exists()) {
       final long bytes = cachedfile.length();
@@ -354,12 +357,12 @@ final class GraphHandler implements HttpRpc {
         json.append(query.processingTimeMillis())
           .append(",\"cachehit\":\"disk\"}");
         query.sendReply(json);
-      } else if (query.hasQueryStringParam("png")
+      } else if (query.hasAnyQueryStringParam(Plot.SUPPORTED_TERMINALS) != null
                  || query.hasQueryStringParam("ascii")) {
         query.sendFile(cachepath, max_age);
       } else {
         query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
-            "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
+            "<img src=\"" + query.request().getUri() + "&amp;" + terminal + "\"/><br/>"
             + "<small>(served from disk cache)</small>"));
       }
       graphs_diskcache_hit.incrementAndGet();
@@ -377,7 +380,7 @@ final class GraphHandler implements HttpRpc {
       json.append(query.processingTimeMillis())
         .append(",\"cachehit\":\"disk\"}");
       query.sendReply(json);
-    } else if (query.hasQueryStringParam("png")) {
+    } else if (query.hasAnyQueryStringParam(Plot.SUPPORTED_TERMINALS) != null) {
       query.sendReply(" ");  // Send back an empty response...
     } else {
         query.sendReply(query.makePage("TSDB Query", "No results",
@@ -674,7 +677,7 @@ final class GraphHandler implements HttpRpc {
       final byte[] stderr = readFile(query, new File(basepath + ".err"),
                                      4096);
       // Sometimes Gnuplot will error out but still create the file.
-      new File(basepath + ".png").delete();
+      new File(basepath + "." + plot.getFileExtension()).delete();
       if (stderr == null) {
         throw new GnuplotException(rv);
       }
@@ -697,7 +700,7 @@ final class GraphHandler implements HttpRpc {
    * Respond to a query that wants the output in ASCII.
    * <p>
    * When a query specifies the "ascii" query string parameter, we send the
-   * data points back to the client in plain text instead of sending a PNG.
+   * data points back to the client in plain text instead of sending an image.
    * @param query The query we're currently serving.
    * @param max_age The maximum time (in seconds) we wanna allow clients to
    * cache the result in case of a cache hit.

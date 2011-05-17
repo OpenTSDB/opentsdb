@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -177,6 +178,19 @@ final class HttpQuery {
   }
 
   /**
+   * Returns the first of the given query string parameters that was passed.
+   * If none of the parameters are passed, returns null.
+   * @param paramnames A list of parameter names to check.
+   * @return the first parameter name passed, or null.
+   */
+  public String hasAnyQueryStringParam(final Collection<String> paramnames) {
+	  for (String paramname : paramnames) {
+		  if (hasQueryStringParam(paramname)) return paramname;
+	  }
+	  return null;
+  }
+
+  /**
    * Returns all the values of the given query string parameter.
    * <p>
    * In case this parameter occurs multiple times in the URL, this method is
@@ -198,6 +212,7 @@ final class HttpQuery {
     tp.calculatePackagingData();
     final String pretty_exc = ThrowableProxyUtil.asString(tp);
     tp = null;
+    String terminalType;
     if (hasQueryStringParam("json")) {
       // 32 = 10 + some extra space as exceptions always have \t's to escape.
       final StringBuilder buf = new StringBuilder(32 + pretty_exc.length());
@@ -205,8 +220,8 @@ final class HttpQuery {
       HttpQuery.escapeJson(pretty_exc, buf);
       buf.append("\"}");
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, buf);
-    } else if (hasQueryStringParam("png")) {
-      sendAsPNG(HttpResponseStatus.INTERNAL_SERVER_ERROR, pretty_exc, 30);
+    } else if ((terminalType = hasAnyQueryStringParam(Plot.SUPPORTED_TERMINALS)) != null) {
+      sendAsImage(HttpResponseStatus.INTERNAL_SERVER_ERROR, pretty_exc, 30, terminalType);
     } else {
       sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
                 makePage("Internal Server Error", "Houston, we have a problem",
@@ -226,14 +241,15 @@ final class HttpQuery {
    * @param explain The string describing why the request is bad.
    */
   public void badRequest(final String explain) {
+    String terminalType;
     if (hasQueryStringParam("json")) {
       final StringBuilder buf = new StringBuilder(10 + explain.length());
       buf.append("{\"err\":\"");
       HttpQuery.escapeJson(explain, buf);
       buf.append("\"}");
       sendReply(HttpResponseStatus.BAD_REQUEST, buf);
-    } else if (hasQueryStringParam("png")) {
-      sendAsPNG(HttpResponseStatus.BAD_REQUEST, explain, 3600);
+    } else if ((terminalType = hasAnyQueryStringParam(Plot.SUPPORTED_TERMINALS)) != null) {
+      sendAsImage(HttpResponseStatus.BAD_REQUEST, explain, 3600, terminalType);
     } else {
       sendReply(HttpResponseStatus.BAD_REQUEST,
                 makePage("Bad Request", "Looks like it's your fault this time",
@@ -251,11 +267,12 @@ final class HttpQuery {
   /** Sends a 404 error page to the client. */
   public void notFound() {
     logWarn("Not Found: " + request.getUri());
+    String terminalType;
     if (hasQueryStringParam("json")) {
       sendReply(HttpResponseStatus.NOT_FOUND,
                 new StringBuilder("{\"err\":\"Page Not Found\"}"));
-    } else if (hasQueryStringParam("png")) {
-      sendAsPNG(HttpResponseStatus.NOT_FOUND, "Page Not Found", 3600);
+    } else if ((terminalType = hasAnyQueryStringParam(Plot.SUPPORTED_TERMINALS)) != null) {
+      sendAsImage(HttpResponseStatus.NOT_FOUND, "Page Not Found", 3600, terminalType);
     } else {
       sendReply(HttpResponseStatus.NOT_FOUND, PAGE_NOT_FOUND);
     }
@@ -403,10 +420,10 @@ final class HttpQuery {
   }
 
   /**
-   * Sends the given message as a PNG image.
+   * Sends the given message as an image.
    * <strong>This method will block</strong> while image is being generated.
    * It's only recommended for cases where we want to report an error back to
-   * the user and the user's browser expects a PNG image.  Don't abuse it.
+   * the user and the user's browser expects an image.  Don't abuse it.
    * @param status The status of the request (e.g. 200 OK or 404 Not Found).
    * @param msg The message to send as an image.
    * @param max_age The expiration time of this entity, in seconds.  This is
@@ -414,12 +431,13 @@ final class HttpQuery {
    * cache.  See RFC 2616 section 14.9 for more information.  Use 0 to disable
    * caching.
    */
-  public void sendAsPNG(final HttpResponseStatus status,
+  public void sendAsImage(final HttpResponseStatus status,
                         final String msg,
-                        final int max_age) {
+                        final int max_age,
+                        final String terminalType) {
     try {
       final long now = System.currentTimeMillis() / 1000;
-      Plot plot = new Plot(now - 1, now);
+      Plot plot = new Plot(now - 1, now, terminalType);
       HashMap<String, String> params = new HashMap<String, String>(1);
       StringBuilder buf = new StringBuilder(1 + msg.length() + 18);
 
@@ -435,10 +453,11 @@ final class HttpQuery {
         + Integer.toHexString(msg.hashCode());
       GraphHandler.runGnuplot(this, basepath, plot);
       plot = null;
-      sendFile(status, basepath + ".png", max_age);
+      sendFile(status, basepath + "." + plot.getFileExtension(), max_age);
     } catch (Exception e) {
-      getQueryString().remove("png");  // Avoid recursion.
-      internalError(new RuntimeException("Failed to generate a PNG with the"
+      getQueryString().remove(terminalType);  // Avoid recursion.
+      internalError(new RuntimeException("Failed to generate an image of type "
+                                         + terminalType + " with the"
                                          + " following message: " + msg, e));
     }
   }
@@ -486,7 +505,7 @@ final class HttpQuery {
     } catch (FileNotFoundException e) {
       logWarn("File not found: " + e.getMessage());
       if (querystring != null) {
-        querystring.remove("png");  // Avoid potential recursion.
+        querystring.keySet().removeAll(Plot.SUPPORTED_TERMINALS);  // Avoid potential recursion.
       }
       notFound();
       return;
@@ -585,7 +604,8 @@ final class HttpQuery {
     final char c = uri.charAt(end - 1);
     switch (uri.charAt(end)) {
       case 'g':
-        return a == '.' && b == 'p' && c == 'n' ? "image/png" : null;
+        return a == '.' && b == 'p' && c == 'n' ? "image/png" : 
+            (a == '.' && b == 's' && c == 'v' ? "image/svg+xml" : null);
       case 'l':
         return a == 'h' && b == 't' && c == 'm' ? HTML_CONTENT_TYPE : null;
       case 's':

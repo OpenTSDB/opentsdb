@@ -95,6 +95,9 @@ final class CliQuery {
                    "Output data points to a set of files for gnuplot."
                    + "  The path of the output files will start with"
                    + " BASEPATH.");
+    argp.addOption("--format", "IMGFORMAT",
+                   "Format of the graph image."
+                   + " One of png or svg.");
     args = CliOptions.parse(argp, args);
     if (args == null) {
       usage(argp, "Invalid usage.", 1);
@@ -106,11 +109,22 @@ final class CliQuery {
     final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     final String basepath = argp.get("--graph");
+    final String formatArg = argp.get("--format");
+    final String format;
+    if (formatArg == null) {
+    	format = Plot.DEFAULT_TERMINAL;
+    } else {
+    	format = formatArg;
+    	if (!Plot.SUPPORTED_TERMINALS.contains(formatArg)) {
+    		usage(argp, "Invalid image format " + formatArg
+    		    + ". Only png and svg are supported at this time.", 3);
+    	}
+    }
     argp = null;
 
     Plot plot = null;
     try {
-      plot = doQuery(tsdb, args, basepath != null);
+      plot = doQuery(tsdb, args, basepath != null, format);
     } finally {
       try {
         tsdb.shutdown().joinUninterruptibly();
@@ -133,7 +147,8 @@ final class CliQuery {
 
   private static Plot doQuery(final TSDB tsdb,
                               final String args[],
-                              final boolean want_plot) {
+                              final boolean want_plot,
+                              final String format) {
     final ArrayList<String> plotparams = new ArrayList<String>();
     final ArrayList<Query> queries = new ArrayList<Query>();
     final ArrayList<String> plotoptions = new ArrayList<String>();
@@ -143,7 +158,7 @@ final class CliQuery {
     }
 
     final Plot plot = (want_plot ? new Plot(queries.get(0).getStartTime(),
-                                            queries.get(0).getEndTime())
+                                            queries.get(0).getEndTime(), format)
                        : null);
     if (want_plot) {
       plot.setParams(parsePlotParams(plotparams));
