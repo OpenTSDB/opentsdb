@@ -35,7 +35,7 @@ public final class Const {
   static final short FLAG_FLOAT = 0x8;
 
   /** Max time delta (in seconds) we can store in a column qualifier.  */
-  public static final int MAX_TIMESPAN = 600;
+  public static final short MAX_TIMESPAN = 3600;
 
   /**
    * Array containing the hexadecimal characters (0 to 9, A to F).

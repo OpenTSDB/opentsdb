@@ -182,8 +182,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     long base_time;
     if (size > 0) {
       base_time = baseTime();
-      final long last_ts = (base_time
-                            + (qualifiers[size - 1] >>> Const.FLAG_BITS));
+      final long last_ts = base_time + (delta(qualifiers[size - 1]));
       if (timestamp <= last_ts) {
         throw new IllegalArgumentException("New timestamp=" + timestamp
             + " is less than previous=" + last_ts
@@ -351,9 +350,13 @@ final class IncomingDataPoints implements WritableDataPoints {
     }
   }
 
+  private static short delta(final short qualifier) {
+    return (short) ((qualifier & 0xFFFF) >>> Const.FLAG_BITS);
+  }
+
   public long timestamp(final int i) {
     checkIndex(i);
-    return baseTime() + ((qualifiers[i] >>> Const.FLAG_BITS) & 0xFFFF);
+    return baseTime() + (delta(qualifiers[i]) & 0xFFFF);
   }
 
   public boolean isInteger(final int i) {
@@ -395,7 +398,7 @@ final class IncomingDataPoints implements WritableDataPoints {
        .append(base_time > 0 ? new Date(base_time * 1000) : "no date")
        .append("), [");
     for (short i = 0; i < size; i++) {
-      buf.append('+').append(qualifiers[i] >>> Const.FLAG_BITS);
+      buf.append('+').append(delta(qualifiers[i]));
       if (isInteger(i)) {
         buf.append(":long(").append(longValue(i));
       } else {
