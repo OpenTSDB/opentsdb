@@ -157,6 +157,25 @@ final class IncomingDataPoints implements WritableDataPoints {
   }
 
   /**
+   * Updates the base time in the row key.
+   * @param timestamp The timestamp from which to derive the new base time.
+   * @return The updated base time.
+   */
+  private long updateBaseTime(final long timestamp) {
+    // We force the starting timestamp to be on a MAX_TIMESPAN boundary
+    // so that all TSDs create rows with the same base time.  Otherwise
+    // we'd need to coordinate TSDs to avoid creating rows that cover
+    // overlapping time periods.
+    final long base_time = timestamp - (timestamp % Const.MAX_TIMESPAN);
+    // Clone the row key since we're going to change it.  We must clone it
+    // because the HBase client may still hold a reference to it in its
+    // internal datastructures.
+    row = Arrays.copyOf(row, row.length);
+    Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
+    return base_time;
+  }
+
+  /**
    * Implements {@link #addPoint} by storing a value with a specific flag.
    * @param timestamp The timestamp to associate with the value.
    * @param value The value to store, converted to a 64 bit representation and
@@ -189,27 +208,13 @@ final class IncomingDataPoints implements WritableDataPoints {
             + " when trying to add value=" + value + " to " + this);
       } else if (timestamp - base_time >= Const.MAX_TIMESPAN) {
         // Need to start a new row as we've exceeded Const.MAX_TIMESPAN.
-        // We force the starting timestamp to be on a MAX_TIMESPAN boundary
-        // so that all TSDs create rows with the same base time.  Otherwise
-        // we'd need to coordinate TSDs to avoid creating rows that cover
-        // overlapping time periods.
-        base_time = timestamp - (timestamp % Const.MAX_TIMESPAN);
-        // Clone the row key since we're going to change it.  We must clone it
-        // because the HBase client may still hold a reference to it in its
-        // internal datastructures.
-        row = Arrays.copyOf(row, row.length);
-        Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
+        base_time = updateBaseTime(timestamp);
         size = 0;
         //LOG.info("Starting a new row @ " + this);
       }
     } else {
       // This is the first data point, let's record the starting timestamp.
-      // See comment above regarding overlapping rows to understand the modulo.
-      base_time = timestamp - (timestamp % Const.MAX_TIMESPAN);
-      // Clone the row key since we're going to change it.  We must clone it
-      // because the HBase client may still hold a reference to it in its
-      // internal datastructures.
-      row = Arrays.copyOf(row, row.length);
+      base_time = updateBaseTime(timestamp);
       Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
     }
 
