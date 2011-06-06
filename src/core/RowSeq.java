@@ -192,22 +192,25 @@ final class RowSeq implements DataPoints {
   private static long extractLValue(final short qualifier, final KeyValue kv) {
     final byte[] value = kv.value();
     if ((qualifier & Const.FLAG_FLOAT) != 0) {
-      if ((qualifier & 0x3) != 0x3) {
-        throw new AssertionError("Float value qualifier size != 4: " + kv);
-      } else if (value.length != 8) {
-        throw new AssertionError("Float value not on 8 bytes: " + kv);
-      } else if (value[0] != 0 || value[1] != 0
-                 || value[2] != 0 || value[3] != 0) {
-        throw new AssertionError("Float value with nonzero byte MSBs: " + kv);
+      if (value.length == 4) {
+        return Bytes.getInt(value);
+      } else if (value.length == 8) {
+        if (value[0] != 0 || value[1] != 0
+            || value[2] != 0 || value[3] != 0) {
+          throw new IllegalStateException("Float value with nonzero byte MSBs: " + kv);
+        }
+        return Bytes.getInt(value, 4);
+      } else {
+        throw new IllegalStateException("Float value not on 4 or 8 bytes: " + kv);
       }
-      return Bytes.getInt(value, 4);
     } else {
-      if ((qualifier & 0x7) != 0x7) {
-        throw new AssertionError("Integer value qualifier size != 4: " + kv);
-      } else if (value.length != 8) {
-        throw new AssertionError("Integer value not on 8 bytes: " + kv);
+      switch (value.length) {
+        case 8: return Bytes.getLong(value);
+        case 4: return Bytes.getInt(value);
+        case 2: return Bytes.getShort(value);
+        case 1: return value[0];
       }
-      return Bytes.getLong(value);
+      throw new AssertionError("Integer value not on 8/4/2/1 bytes: " + kv);
     }
   }
 
