@@ -36,44 +36,6 @@ final class PutDataPointRpc implements TelnetRpc {
   private static final AtomicLong illegal_arguments = new AtomicLong();
   private static final AtomicLong unknown_metrics = new AtomicLong();
 
-  /**
-   * Dirty rows for time series that are being written to.
-   *
-   * The key in the map is a string that uniquely identifies a time series.
-   * Right now we use the time series name concatenated with the stringified
-   * version of the map that stores all the tags, e.g. "foo{bar=a,quux=42}".
-   */
-  private ConcurrentHashMap<String, WritableDataPoints> dirty_rows
-    = new ConcurrentHashMap<String, WritableDataPoints>();
-
-  /**
-   * Returns the dirty row for the given time series or creates a new one.
-   * @param tsdb The TSDB in which the data point should be created.
-   * @param metric The metric of the time series.
-   * @param tags The tags of the time series.
-   * @return the dirty row in which data points for the given time series
-   * should be appended.
-   */
-  private WritableDataPoints getDirtyRow(final TSDB tsdb,
-                                         final String metric,
-                                         final HashMap<String, String> tags) {
-    final String key = metric + tags;
-    WritableDataPoints row = dirty_rows.get(key);
-    if (row == null) {  // Try to create a new row.
-      // TODO(tsuna): Properly evict old rows to save memory.
-      if (dirty_rows.size() >= 20000) {
-        dirty_rows.clear();  // free some RAM.
-      }
-      final WritableDataPoints new_row = tsdb.newDataPoints();
-      new_row.setSeries(metric, tags);
-      row = dirty_rows.putIfAbsent(key, new_row);
-      if (row == null) {  // We've just inserted a new row.
-        return new_row;   // So use that.
-      }
-    }
-    return row;
-  }
-
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
     requests.incrementAndGet();
@@ -155,11 +117,10 @@ final class PutDataPointRpc implements TelnetRpc {
         Tags.parse(tags, words[i]);
       }
     }
-    final WritableDataPoints dp = getDirtyRow(tsdb, metric, tags);
     if (value.indexOf('.') < 0) {  // integer value
-      return dp.addPoint(timestamp, Tags.parseLong(value));
+      return tsdb.addPoint(metric, timestamp, Tags.parseLong(value), tags);
     } else {  // floating point value
-      return dp.addPoint(timestamp, Float.parseFloat(value));
+      return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);
     }
   }
 }

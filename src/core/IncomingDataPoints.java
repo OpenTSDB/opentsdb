@@ -88,7 +88,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     this.values = new long[3];
   }
 
-  public void setSeries(final String metric, final Map<String, String> tags) {
+  /**
+   * Validates the given metric and tags.
+   * @throws IllegalArgumentException if any of the arguments aren't valid.
+   */
+  static void checkMetricAndTags(final String metric, final Map<String, String> tags) {
     if (tags.size() <= 0) {
       throw new IllegalArgumentException("Need at least one tags (metric="
           + metric + ", tags=" + tags + ')');
@@ -102,7 +106,15 @@ final class IncomingDataPoints implements WritableDataPoints {
       Tags.validateString("tag name", tag.getKey());
       Tags.validateString("tag name", tag.getValue());
     }
+  }
 
+  /**
+   * Returns a partially initialized row key for this metric and these tags.
+   * The only thing left to fill in is the base timestamp.
+   */
+  static byte[] rowKeyTemplate(final TSDB tsdb,
+                               final String metric,
+                               final Map<String, String> tags) {
     final short metric_width = tsdb.metrics.width();
     final short tag_name_width = tsdb.tag_names.width();
     final short tag_value_width = tsdb.tag_values.width();
@@ -111,44 +123,37 @@ final class IncomingDataPoints implements WritableDataPoints {
     int row_size = (metric_width + Const.TIMESTAMP_BYTES
                     + tag_name_width * num_tags
                     + tag_value_width * num_tags);
-    if (row == null || row.length != row_size) {
-      row = new byte[row_size];
-    }
-    size = 0;
+    final byte[] row = new byte[row_size];
 
     short pos = 0;
 
-    copyInRowKey(pos, (AUTO_METRIC ? tsdb.metrics.getOrCreateId(metric)
+    copyInRowKey(row, pos, (AUTO_METRIC ? tsdb.metrics.getOrCreateId(metric)
                        : tsdb.metrics.getId(metric)));
     pos += metric_width;
 
     pos += Const.TIMESTAMP_BYTES;
 
     for(final byte[] tag : Tags.resolveOrCreateAll(tsdb, tags)) {
-      copyInRowKey(pos, tag);
+      copyInRowKey(row, pos, tag);
       pos += tag.length;
     }
+    return row;
+  }
+
+  public void setSeries(final String metric, final Map<String, String> tags) {
+    checkMetricAndTags(metric, tags);
+    row = rowKeyTemplate(tsdb, metric, tags);
+    size = 0;
   }
 
   /**
    * Copies the specified byte array at the specified offset in the row key.
+   * @param row The row key into which to copy the bytes.
    * @param offset The offset in the row key to start writing at.
    * @param bytes The bytes to copy.
    */
-  private void copyInRowKey(final short offset, final byte[] bytes) {
+  private static void copyInRowKey(final byte[] row, final short offset, final byte[] bytes) {
     System.arraycopy(bytes, 0, row, offset, bytes.length);
-  }
-
-  /**
-   * Copies the specified integer at the specified offset in the row key.
-   * @param offset The offset in the row key to start writing at.
-   * @param n The value to copy.
-   */
-  private void copyInRowKey(final short offset, final int n) {
-    row[offset + 0] = (byte) (n >>> 24);
-    row[offset + 1] = (byte) (n >>> 16);
-    row[offset + 2] = (byte) (n >>>  8);
-    row[offset + 3] = (byte) (n >>>  0);
   }
 
   /**
@@ -194,7 +199,7 @@ final class IncomingDataPoints implements WritableDataPoints {
         // because the HBase client may still hold a reference to it in its
         // internal datastructures.
         row = Arrays.copyOf(row, row.length);
-        copyInRowKey(tsdb.metrics.width(), (int) base_time);
+        Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
         size = 0;
         //LOG.info("Starting a new row @ " + this);
       }
@@ -206,7 +211,7 @@ final class IncomingDataPoints implements WritableDataPoints {
       // because the HBase client may still hold a reference to it in its
       // internal datastructures.
       row = Arrays.copyOf(row, row.length);
-      copyInRowKey(tsdb.metrics.width(), (int) base_time);
+      Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
     }
 
     if (values.length == size) {

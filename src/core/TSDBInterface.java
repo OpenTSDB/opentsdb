@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Map;
+
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.HBaseException;
@@ -27,7 +29,61 @@ public interface TSDBInterface {
   Query newQuery();
 
   /**
+   * Adds a single integer value data point in the TSDB.
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   */
+  Deferred<Object> addPoint(String metric,
+                            long timestamp,
+                            long value,
+                            Map<String, String> tags);
+
+  /**
+   * Adds a single floating-point value data point in the TSDB.
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the value is NaN or infinite.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   */
+  Deferred<Object> addPoint(String metric,
+                            long timestamp,
+                            float value,
+                            Map<String, String> tags);
+
+  /**
    * Returns a new {@link WritableDataPoints} instance suitable for this TSDB.
+   * <p>
+   * If you want to add a single data-point, consider using {@link #addPoint}
+   * instead.
    */
   WritableDataPoints newDataPoints();
 

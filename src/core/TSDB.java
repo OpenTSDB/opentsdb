@@ -12,15 +12,19 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
+import org.hbase.async.PutRequest;
 
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.stats.Histogram;
@@ -152,6 +156,57 @@ public final class TSDB implements TSDBInterface {
 
   public WritableDataPoints newDataPoints() {
     return new IncomingDataPoints(this);
+  }
+
+  public Deferred<Object> addPoint(final String metric,
+                                   final long timestamp,
+                                   final long value,
+                                   final Map<String, String> tags) {
+    final short flags = 0x7;  // An int stored on 8 bytes.
+    return addPointInternal(metric, timestamp, Bytes.fromLong(value),
+                            tags, flags);
+  }
+
+  public Deferred<Object> addPoint(final String metric,
+                                   final long timestamp,
+                                   final float value,
+                                   final Map<String, String> tags) {
+    if (Float.isNaN(value) || Float.isInfinite(value)) {
+      throw new IllegalArgumentException("value is NaN or Infinite: " + value
+                                         + " for metric=" + metric
+                                         + " timestamp=" + timestamp);
+    }
+    final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
+    return addPointInternal(metric, timestamp,
+                            // Note: this is actually on 8 bytes :(
+                            Bytes.fromLong(Float.floatToRawIntBits(value)),
+                            tags, flags);
+  }
+
+  private Deferred<Object> addPointInternal(final String metric,
+                                            final long timestamp,
+                                            final byte[] value,
+                                            final Map<String, String> tags,
+                                            final short flags) {
+    if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
+      // => timestamp < 0 || timestamp > Integer.MAX_VALUE
+      throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
+          + " timestamp=" + timestamp
+          + " when trying to add value=" + Arrays.toString(value) + '/' + flags
+          + " to metric=" + metric + ", tags=" + tags);
+    }
+
+    IncomingDataPoints.checkMetricAndTags(metric, tags);
+    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    final long base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    Bytes.setInt(row, (int) base_time, metrics.width());
+    final short qualifier = (short) ((timestamp - base_time) << Const.FLAG_BITS
+                                     | flags);
+    final PutRequest point = new PutRequest(table, row, FAMILY,
+                                            Bytes.fromShort(qualifier), value);
+    // TODO(tsuna): Add a callback to time the latency of HBase and store the
+    // timing in a moving Histogram (once we have a class for this).
+    return client.put(point);
   }
 
   public Deferred<Object> flush() throws HBaseException {
