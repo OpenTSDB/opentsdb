@@ -84,6 +84,7 @@ tsdb_LIBADD = \
 test_JAVA = \
 	src/core/TestTags.java	\
 	src/stats/TestHistogram.java	\
+	src/tsd/TestGraphHandler.java	\
 	src/uid/TestNoSuchUniqueId.java	\
 	src/uid/TestUniqueId.java	\
 
