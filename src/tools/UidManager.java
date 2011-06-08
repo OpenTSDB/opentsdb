@@ -17,6 +17,8 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +52,8 @@ final class UidManager {
   private static final byte[] ID_FAMILY;
   /** The single column family used by this class. */
   private static final byte[] NAME_FAMILY;
+  /** Row key of the special row used to track the max ID already assigned. */
+  private static final byte[] MAXID_ROW;
   static {
     final Class<UniqueId> uidclass = UniqueId.class;
     try {
@@ -68,6 +72,9 @@ final class UidManager {
       f = uidclass.getDeclaredField("NAME_FAMILY");
       f.setAccessible(true);
       NAME_FAMILY = (byte[]) f.get(null);
+      f = uidclass.getDeclaredField("MAXID_ROW");
+      f.setAccessible(true);
+      MAXID_ROW = (byte[]) f.get(null);
       toBytes = uidclass.getDeclaredMethod("toBytes", String.class);
       toBytes.setAccessible(true);
       fromBytes = uidclass.getDeclaredMethod("fromBytes", byte[].class);
@@ -91,6 +98,7 @@ final class UidManager {
         + "  assign <kind> <name> [names]:"
         + " Assign an ID for the given name(s).\n"
         + "  rename <kind> <name> <newname>: Renames this UID.\n"
+        + "  fsck: Checks the consistency of UIDs.\n"
         + "  [kind] <name>: Lookup the ID of this name.\n"
         + "  [kind] <ID>: Lookup the name of this ID.\n\n"
         + "Example values for [kind]:"
@@ -171,6 +179,8 @@ final class UidManager {
         return 2;
       }
       return rename(client, table, idwidth, args);
+    } else if (args[0].equals("fsck")) {
+      return fsck(client, table);
     } else {
       if (1 <= nargs && nargs <= 2) {
         final String kind = nargs == 2 ? args[0] : null;
@@ -315,6 +325,185 @@ final class UidManager {
     }
     System.out.println(kind + ' ' + oldname + " -> " + newname);
     return 0;
+  }
+
+  /**
+   * Implements the {@code fsck} subcommand.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
+   * @return The exit status of the command (0 means success).
+   */
+  private static int fsck(final HBaseClient client, final byte[] table) {
+
+    final class Uids {
+      int errors;
+      long maxid;
+      short width;
+      final HashMap<String, String> id2name = new HashMap<String, String>();
+      final HashMap<String, String> name2id = new HashMap<String, String>();
+
+      void error(final KeyValue kv, final String msg) {
+        error(msg + ".  kv=" + kv);
+      }
+
+      void error(final String msg) {
+        LOG.error(msg);
+        errors++;
+      }
+    }
+
+    final long start_time = System.nanoTime();
+    final HashMap<String, Uids> name2uids = new HashMap<String, Uids>();
+    final Scanner scanner = client.newScanner(table);
+    scanner.setMaxNumRows(1024);
+    int kvcount = 0;
+    try {
+      ArrayList<ArrayList<KeyValue>> rows;
+      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+        for (final ArrayList<KeyValue> row : rows) {
+          for (final KeyValue kv : row) {
+            kvcount++;
+            final String kind = fromBytes(kv.qualifier());
+            Uids uids = name2uids.get(kind);
+            if (uids == null) {
+              uids = new Uids();
+              name2uids.put(kind, uids);
+            }
+            final byte[] key = kv.key();
+            final byte[] family = kv.family();
+            final byte[] value = kv.value();
+            if (Bytes.equals(key, MAXID_ROW)) {
+              if (value.length != 8) {
+                uids.error(kv, "Invalid maximum ID for " + kind
+                           + ": should be on 8 bytes: ");
+              } else {
+                uids.maxid = Bytes.getLong(value);
+                LOG.info("Maximum ID for " + kind + ": " + uids.maxid);
+              }
+            } else {
+              short idwidth = 0;
+              if (Bytes.equals(family, ID_FAMILY)) {
+                idwidth = (short) value.length;
+                final String skey = fromBytes(key);
+                final String svalue = Arrays.toString(value);
+                final String id = uids.name2id.put(skey, svalue);
+                if (id != null) {
+                  uids.error(kv, "Duplicate forward " + kind + " mapping: "
+                             + skey + " -> " + id
+                             + " and " + skey + " -> " + svalue);
+                }
+              } else if (Bytes.equals(family, NAME_FAMILY)) {
+                final String skey = Arrays.toString(key);
+                final String svalue = fromBytes(value);
+                idwidth = (short) key.length;
+                final String name = uids.id2name.put(skey, svalue);
+                if (name != null) {
+                  uids.error(kv, "Duplicate reverse " + kind + "  mapping: "
+                             + svalue + " -> " + name
+                             + " and " + svalue + " -> " + skey);
+                }
+              }
+              if (uids.width == 0) {
+                uids.width = idwidth;
+              } else if (uids.width != idwidth) {
+                uids.error(kv, "Invalid " + kind + " ID of length " + idwidth
+                           + " (expected: " + uids.width + ')');
+              }
+            }
+          }
+        }
+      }
+    } catch (HBaseException e) {
+      LOG.error("Error while scanning HBase, scanner=" + scanner, e);
+      throw e;
+    } catch (Exception e) {
+      LOG.error("WTF?  Unexpected exception type, scanner=" + scanner, e);
+      throw new AssertionError("Should never happen");
+    }
+
+    // Match up all forward mappings with their reverse mappings and vice
+    // versa and make sure they agree.
+    int errors = 0;
+    for (final Map.Entry<String, Uids> entry : name2uids.entrySet()) {
+      final String kind = entry.getKey();
+      final Uids uids = entry.getValue();
+
+      // Look for forward mappings without the corresponding reverse mappings.
+      // These are harmful and shouldn't exist.
+      for (final Map.Entry<String, String> nameid : uids.name2id.entrySet()) {
+        final String name = nameid.getKey();
+        final String id = nameid.getValue();
+        final String found = uids.id2name.get(id);
+        if (found == null) {
+          uids.error("Forward " + kind + " mapping is missing reverse"
+                     + " mapping: " + name + " -> " + id);
+        } else if (!found.equals(name)) {
+          uids.error("Forward " + kind + " mapping " + name + " -> " + id
+                     + " is different than reverse mapping: "
+                     + id + " -> " + found);
+          final String id2 = uids.name2id.get(found);
+          if (id2 != null) {
+            uids.error("Inconsistent forward " + kind + " mapping "
+                       + name + " -> " + id
+                       + " vs " + name + " -> " + found
+                       + " / " + found + " -> " + id2);
+          } else {
+            uids.error("Duplicate forward " + kind + " mapping "
+                       + name + " -> " + id
+                       + " and " + id2 + " -> " + found);
+          }
+        }
+      }
+
+      // Look for reverse mappings without the corresponding forward mappings.
+      // These are harmless but shouldn't frequently occur.
+      for (final Map.Entry<String, String> idname : uids.id2name.entrySet()) {
+        final String name = idname.getValue();
+        final String id = idname.getKey();
+        final String found = uids.name2id.get(name);
+        if (found == null) {
+          LOG.warn("Reverse " + kind + " mapping is missing forward"
+                   + " mapping: " + name + " -> " + id);
+        } else if (!found.equals(id)) {
+          final String name2 = uids.id2name.get(found);
+          if (name2 != null) {
+            uids.error("Inconsistent reverse " + kind + " mapping "
+                       + id + " -> " + name
+                       + " vs " + found + " -> " + name
+                       + " / " + name2 + " -> " + found);
+          } else {
+            uids.error("Duplicate reverse " + kind + " mapping "
+                       + id + " -> " + name
+                       + " and " + found + " -> " + name2);
+          }
+        }
+      }
+
+      final int maxsize = Math.max(uids.id2name.size(), uids.name2id.size());
+      if (uids.maxid > maxsize) {
+        LOG.warn("Max ID for " + kind + " is " + uids.maxid + " but only "
+                 + maxsize + " entries were found.  Maybe "
+                 + (uids.maxid - maxsize) + " IDs were deleted?");
+      } else if (uids.maxid < maxsize) {
+        uids.error("We found " + maxsize + ' ' + kind + " but the max ID is"
+                   + " only " + uids.maxid + "!  Future IDs may be"
+                   + " double-assigned!");
+      }
+
+      if (uids.errors > 0) {
+        LOG.error(kind + ": Found " + uids.errors + " errors.");
+        errors += uids.errors;
+      }
+    }
+    final long timing = (System.nanoTime() - start_time) / 1000000;
+    System.out.println(kvcount + " KVs analyzed in " + timing + "ms (~"
+                       + (kvcount * 1000 / timing) + " KV/s)");
+    if (errors == 0) {
+      System.out.println("No errors found.");
+      return 0;
+    }
+    System.err.println(errors + " errors found.");
+    return 1;
   }
 
   /**
