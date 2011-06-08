@@ -223,19 +223,28 @@ final class IncomingDataPoints implements WritableDataPoints {
     final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
                                             Bytes.fromShort(qualifier),
                                             Bytes.fromLong(value));
-    final long start_put = System.nanoTime();
-    final Callback<Object, Object> cb = new Callback<Object, Object>() {
-      public Object call(final Object arg) {
-        putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
-        return arg;
-      }
-      public String toString() {
-        return "time put request";
-      }
-    };
+    // TODO(tsuna): The following timing is rather useless.  First of all,
+    // the histogram never resets, so it tends to converge to a certain
+    // distribution and never changes.  What we really want is a moving
+    // histogram so we can see how the latency distribution varies over time.
+    // The other problem is that the Histogram class isn't thread-safe and
+    // here we access it from a callback that runs in an unknown thread, so
+    // we might miss some increments.  So let's comment this out until we
+    // have a proper thread-safe moving histogram.
+    //final long start_put = System.nanoTime();
+    //final Callback<Object, Object> cb = new Callback<Object, Object>() {
+    //  public Object call(final Object arg) {
+    //    putlatency.add((int) ((System.nanoTime() - start_put) / 1000000));
+    //    return arg;
+    //  }
+    //  public String toString() {
+    //    return "time put request";
+    //  }
+    //};
+
     // TODO(tsuna): Add an errback to handle some error cases here.
     point.setDurable(!batch_import);
-    return tsdb.client.put(point).addBoth(cb);
+    return tsdb.client.put(point)/*.addBoth(cb)*/;
   }
 
   private void grow() {
