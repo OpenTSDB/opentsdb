@@ -108,8 +108,13 @@ final class DumpSeries {
               .append(metric)
               .append(' ')
               .append(base_time)
-              .append(" (").append(date(base_time)).append(") ")
-              .append(Core.getTags(tsdb, key)).append('\n');
+              .append(" (").append(date(base_time)).append(") ");
+            try {
+              buf.append(Core.getTags(tsdb, key));
+            } catch (RuntimeException e) {
+              buf.append(e.getClass().getName() + ": " + e.getMessage());
+            }
+            buf.append('\n');
             System.out.print(buf);
           }
 
