@@ -51,6 +51,7 @@ final class TextImporter {
   public static void main(String[] args) throws IOException {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
+    CliOptions.addAutoMetricFlag(argp);
     args = CliOptions.parse(argp, args);
     if (args == null) {
       usage(argp, 1);

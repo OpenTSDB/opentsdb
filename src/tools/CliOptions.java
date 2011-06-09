@@ -52,6 +52,13 @@ final class CliOptions {
     argp.addOption("-v", "Short for --verbose.");
   }
 
+  /** Adds the --auto-metric flag.  */
+  static void addAutoMetricFlag(final ArgP argp) {
+    argp.addOption("--auto-metric", "Automatically add metrics to tsdb as they"
+                   + " are inserted.  Warning: this may cause unexpected"
+                   + " metrics to be tracked");
+  }
+
   /**
    * Parse the command line arguments with the given options.
    * @param options Options to parse in the given args.
@@ -86,6 +93,9 @@ final class CliOptions {
   }
 
   static HBaseClient clientFromOptions(final ArgP argp) {
+    if (argp.optionExists("--auto-metric") && argp.has("--auto-metric")) {
+      System.setProperty("tsd.core.auto_create_metrics", "true");
+    }
     final String zkq = argp.get("--zkquorum", "localhost");
     if (argp.has("--zkbasedir")) {
       return new HBaseClient(zkq, argp.get("--zkbasedir"));

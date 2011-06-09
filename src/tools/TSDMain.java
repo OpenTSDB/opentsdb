@@ -96,9 +96,7 @@ final class TSDMain {
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
-    argp.addOption("--auto-metric", "Automatically add metrics to tsdb as they"
-                   + " are inserted.  Warning: this may cause unexpected"
-                   + " metrics to be tracked");
+    CliOptions.addAutoMetricFlag(argp);
     args = CliOptions.parse(argp, args);
     if (args == null || !argp.has("--port")
         || !argp.has("--staticroot") || !argp.has("--cachedir")) {
@@ -107,10 +105,6 @@ final class TSDMain {
       usage(argp, "Too many arguments.", 2);
     }
     args = null;  // free().
-
-    if (argp.has("--auto-metric")) {
-      System.setProperty("tsd.core.auto_create_metrics", "true");
-    }
 
     final short flush_interval = getFlushInterval(argp);
 
