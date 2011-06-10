@@ -84,9 +84,9 @@ final class RowSeq implements DataPoints {
       qualifiers[index] = qualifier;
       values[index] = extractLValue(qualifier, kv);
       if (index > 0 && timestamp(index - 1) >= timestamp(index)) {
-        throw new AssertionError("new timestamp = " + timestamp(index)
-                                 + " is < previous=" + timestamp(index -1)
-                                 + " in setRow with kv=" + kv);
+        throw new IllegalDataException("new timestamp = " + timestamp(index)
+            + " is < previous=" + timestamp(index -1)
+            + " in setRow with kv=" + kv);
       }
       index++;
     }
@@ -123,7 +123,7 @@ final class RowSeq implements DataPoints {
 
     final int time_adj = (int) (base_time - baseTime());
     if (time_adj <= 0) {
-      throw new AssertionError("attempt to add a row with a base_time="
+      throw new IllegalDataException("attempt to add a row with a base_time="
           + base_time + " <= baseTime()=" + baseTime());
     }
     for (final KeyValue kv : row) {
@@ -169,13 +169,13 @@ final class RowSeq implements DataPoints {
    */
   private short extractQualifier(final KeyValue kv) {
     if (!Bytes.equals(TSDB.FAMILY, kv.family())) {
-      throw new AssertionError("unexpected KeyValue family: "
-                                 + Bytes.pretty(kv.family()));
+      throw new IllegalDataException("unexpected KeyValue family: "
+                                     + Bytes.pretty(kv.family()));
     }
     final byte[] qual = kv.qualifier();
     if (qual.length != 2) {
-      throw new AssertionError("Invalid qualifier length: "
-                                 + Bytes.pretty(qual));
+      throw new IllegalDataException("Invalid qualifier length: "
+                                     + Bytes.pretty(qual));
     }
     return Bytes.getShort(qual);
   }
@@ -197,11 +197,11 @@ final class RowSeq implements DataPoints {
       } else if (value.length == 8) {
         if (value[0] != 0 || value[1] != 0
             || value[2] != 0 || value[3] != 0) {
-          throw new IllegalStateException("Float value with nonzero byte MSBs: " + kv);
+          throw new IllegalDataException("Float value with nonzero byte MSBs: " + kv);
         }
         return Bytes.getInt(value, 4);
       } else {
-        throw new IllegalStateException("Float value not on 4 or 8 bytes: " + kv);
+        throw new IllegalDataException("Float value not on 4 or 8 bytes: " + kv);
       }
     } else {
       switch (value.length) {
@@ -210,7 +210,7 @@ final class RowSeq implements DataPoints {
         case 2: return Bytes.getShort(value);
         case 1: return value[0];
       }
-      throw new AssertionError("Integer value not on 8/4/2/1 bytes: " + kv);
+      throw new IllegalDataException("Integer value not on 8/4/2/1 bytes: " + kv);
     }
   }
 

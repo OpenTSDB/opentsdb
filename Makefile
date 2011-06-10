@@ -30,6 +30,7 @@ tsdb_JAVA = \
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
 	src/core/IncomingDataPoints.java	\
+	src/core/IllegalDataException.java	\
 	src/core/Query.java	\
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\

@@ -249,7 +249,7 @@ final class TsdbQuery implements Query {
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] key = row.get(0).key();
           if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
-            throw new AssertionError("HBase returned a row that doesn't match"
+            throw new IllegalDataException("HBase returned a row that doesn't match"
                 + " our scanner (" + scanner + ")! " + row + " does not start"
                 + " with " + Arrays.toString(metric));
           }
@@ -263,9 +263,7 @@ final class TsdbQuery implements Query {
           starttime = System.nanoTime();
         }
       }
-    } catch (HBaseException e) {
-      throw e;
-    } catch (IllegalArgumentException e) {
+    } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
