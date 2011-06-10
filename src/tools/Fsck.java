@@ -144,6 +144,8 @@ final class Fsck {
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
       final long start_time = System.nanoTime();
+      long ping_start_time = start_time;
+      LOG.info("Starting to fsck data covered by " + query);
       long kvcount = 0;
       long rowcount = 0;
       final Bytes.ByteMap<Seen> seen = new Bytes.ByteMap<Seen>();
@@ -166,6 +168,13 @@ final class Fsck {
           }
           for (final KeyValue kv : row) {
             kvcount++;
+            if (kvcount % 100000 == 0) {
+              final long now = System.nanoTime();
+              ping_start_time = (now - ping_start_time) / 1000000;
+              LOG.info("... " + kvcount + " KV analyzed in " + ping_start_time
+                       + "ms (" + (100000 * 1000 / ping_start_time) + " KVs/s)");
+              ping_start_time = now;
+            }
             if (kv.qualifier().length != 2) {
               LOG.warn("Ignoring unsupported KV with a qualifier of "
                        + kv.qualifier().length + " bytes:" + kv);
