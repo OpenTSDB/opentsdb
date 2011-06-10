@@ -18,12 +18,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
+import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.Const;
@@ -40,6 +45,8 @@ final class Fsck {
 
   /** Number of LSBs in time_deltas reserved for flags.  */
   static final short FLAG_BITS;
+  /** Mask to select all the FLAG_BITS.  */
+  static final short FLAGS_MASK;
   static {
     final Class<UniqueId> uidclass = UniqueId.class;
     try {
@@ -52,6 +59,9 @@ final class Fsck {
       f = Const.class.getDeclaredField("FLAG_BITS");
       f.setAccessible(true);
       FLAG_BITS = (Short) f.get(null);
+      f = Const.class.getDeclaredField("FLAGS_MASK");
+      f.setAccessible(true);
+      FLAGS_MASK = (Short) f.get(null);
     } catch (Exception e) {
       throw new RuntimeException("static initializer failed", e);
     }
@@ -102,6 +112,26 @@ final class Fsck {
                            final byte[] table,
                            final boolean fix,
                            final String[] args) throws Exception {
+
+    /** Callback to asynchronously delete a specific {@link KeyValue}.  */
+    final class DeleteOutOfOrder implements Callback<Deferred<Object>, Object> {
+
+        private final KeyValue kv;
+
+        public DeleteOutOfOrder(final KeyValue kv) {
+          this.kv = kv;
+        }
+
+        public Deferred<Object> call(final Object arg) {
+          return client.delete(new DeleteRequest(table, kv.key(),
+                                                 kv.family(), kv.qualifier()));
+        }
+
+        public String toString() {
+          return "delete out-of-order data";
+        }
+      }
+
     int errors = 0;
     int correctable = 0;
 
@@ -153,7 +183,17 @@ final class Fsck {
               errors++;
               correctable++;
               if (fix) {
-                // TODO(tsuna): Implement.
+                final byte[] newkey = kv.key().clone();
+                // Fix the timestamp in the row key.
+                final long new_base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+                Bytes.setInt(newkey, (int) new_base_time, metric_width);
+                final short newqual = (short) ((timestamp - new_base_time) << FLAG_BITS
+                                               | (qualifier & FLAGS_MASK));
+                client.put(new PutRequest(table, newkey, kv.family(),
+                                          Bytes.fromShort(newqual), kv.value()))
+                  // Only delete the offending KV once we're sure that the new
+                  // KV has been persisted in HBase.
+                  .addCallbackDeferring(new DeleteOutOfOrder(kv));
               } else {
                 buf.setLength(0);
                 buf.append("Out of order data.\n\t").append(timestamp)
