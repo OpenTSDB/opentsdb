@@ -126,42 +126,7 @@ final class DumpSeries {
           for (final KeyValue kv : row) {
             // Discard everything or keep initial spaces.
             buf.setLength(importformat ? 0 : 2);
-            if (importformat) {
-              buf.append(metric).append(' ');
-            }
-            final byte[] qualifier = kv.qualifier();
-            final short deltaflags = Bytes.getShort(qualifier);
-            final short delta = (short) (deltaflags >>> 4);
-            final byte[] cell = kv.value();
-            final long lvalue = Core.extractLValue(deltaflags, kv);
-            if (importformat) {
-              buf.append(base_time + delta).append(' ');
-            } else {
-              buf.append(Arrays.toString(qualifier))
-                 .append(' ')
-                 .append(Arrays.toString(cell))
-                 .append('\t')
-                 .append(delta)
-                 .append('\t');
-            }
-            if ((deltaflags & 0x8) == 0x8) {
-              buf.append(importformat ? "" : "f ")
-                 .append(Float.intBitsToFloat((int) lvalue));
-            } else {
-              buf.append(importformat ? "" : "l ")
-                 .append(lvalue);
-            }
-            if (importformat) {
-              for (final Map.Entry<String, String> tag
-                   : Core.getTags(tsdb, key).entrySet()) {
-                buf.append(' ').append(tag.getKey())
-                   .append('=').append(tag.getValue());
-              }
-            } else {
-              buf.append('\t')
-                 .append(base_time + delta)
-                 .append(" (").append(date(base_time + delta)).append(')');
-            }
+            formatKeyValue(buf, tsdb, importformat, kv, base_time, metric);
             buf.append('\n');
             System.out.print(buf);
           }
@@ -175,7 +140,60 @@ final class DumpSeries {
     }
   }
 
-  private static String date(final long timestamp) {
+  static void formatKeyValue(final StringBuilder buf,
+                             final TSDB tsdb,
+                             final KeyValue kv,
+                             final long base_time) {
+    formatKeyValue(buf, tsdb, true, kv, base_time,
+                   Core.metricName(tsdb, kv.key()));
+  }
+
+  private static void formatKeyValue(final StringBuilder buf,
+                                     final TSDB tsdb,
+                                     final boolean importformat,
+                                     final KeyValue kv,
+                                     final long base_time,
+                                     final String metric) {
+    if (importformat) {
+      buf.append(metric).append(' ');
+    }
+    final byte[] qualifier = kv.qualifier();
+    final short deltaflags = Bytes.getShort(qualifier);
+    final short delta = (short) (deltaflags >>> 4);
+    final byte[] cell = kv.value();
+    final long lvalue = Core.extractLValue(deltaflags, kv);
+    if (importformat) {
+      buf.append(base_time + delta).append(' ');
+    } else {
+      buf.append(Arrays.toString(qualifier))
+         .append(' ')
+         .append(Arrays.toString(cell))
+         .append('\t')
+         .append(delta)
+         .append('\t');
+    }
+    if ((deltaflags & 0x8) == 0x8) {
+      buf.append(importformat ? "" : "f ")
+         .append(Float.intBitsToFloat((int) lvalue));
+    } else {
+      buf.append(importformat ? "" : "l ")
+         .append(lvalue);
+    }
+    if (importformat) {
+      for (final Map.Entry<String, String> tag
+           : Core.getTags(tsdb, kv.key()).entrySet()) {
+        buf.append(' ').append(tag.getKey())
+           .append('=').append(tag.getValue());
+      }
+    } else {
+      buf.append('\t')
+         .append(base_time + delta)
+         .append(" (").append(date(base_time + delta)).append(')');
+    }
+  }
+
+  /** Transforms a UNIX timestamp into a human readable date.  */
+  static String date(final long timestamp) {
     return new Date(timestamp * 1000).toString();
   }
 

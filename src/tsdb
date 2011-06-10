@@ -25,11 +25,14 @@ CLASSPATH=`$make --quiet printcp`src || {
 
 usage() {
   echo >&2 "usage: $me <command> [args]"
-  echo 'Valid commands: import, mkmetric, query, tsd, scan, uid'
+  echo 'Valid commands: fsck, import, mkmetric, query, tsd, scan, uid'
   exit 1
 }
 
 case $1 in
+  (fsck)
+    MAINCLASS=Fsck
+    ;;
   (import)
     MAINCLASS=TextImporter
     ;;

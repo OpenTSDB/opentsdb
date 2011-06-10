@@ -50,6 +50,7 @@ tsdb_JAVA = \
 	src/tools/CliQuery.java	\
 	src/tools/Core.java	\
 	src/tools/DumpSeries.java	\
+	src/tools/Fsck.java	\
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/UidManager.java	\
