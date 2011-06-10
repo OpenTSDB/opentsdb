@@ -198,14 +198,28 @@ final class Fsck {
                 Bytes.setInt(newkey, (int) new_base_time, metric_width);
                 final short newqual = (short) ((timestamp - new_base_time) << FLAG_BITS
                                                | (qualifier & FLAGS_MASK));
-                client.put(new PutRequest(table, newkey, kv.family(),
-                                          Bytes.fromShort(newqual), kv.value()))
-                  // Only delete the offending KV once we're sure that the new
-                  // KV has been persisted in HBase.
-                  .addCallbackDeferring(new DeleteOutOfOrder(kv));
+                final DeleteOutOfOrder delooo = new DeleteOutOfOrder(kv);
+                if (timestamp < prev.timestamp()) {
+                  client.put(new PutRequest(table, newkey, kv.family(),
+                                            Bytes.fromShort(newqual), kv.value()))
+                    // Only delete the offending KV once we're sure that the new
+                    // KV has been persisted in HBase.
+                    .addCallbackDeferring(delooo);
+                } else {
+                  // We have two data points at exactly the same timestamp.
+                  // This can happen when only the flags differ.  This is
+                  // typically caused by one data point being an integer and
+                  // the other being a floating point value.  In this case
+                  // we just delete the duplicate data point and keep the
+                  // first one we saw.
+                  delooo.call(null);
+                }
               } else {
                 buf.setLength(0);
-                buf.append("Out of order data.\n\t").append(timestamp)
+                buf.append(timestamp < prev.timestamp()
+                           ? "Out of order data.\n\t"
+                           : "Duplicate data point with different flags.\n\t")
+                  .append(timestamp)
                   .append(" (").append(DumpSeries.date(timestamp))
                   .append(") @ ").append(kv).append("\n\t");
                 DumpSeries.formatKeyValue(buf, tsdb, kv, base_time);
