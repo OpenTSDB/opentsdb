@@ -476,10 +476,11 @@ public final class Bytes {
    * @throws IndexOutOfBoundsException if either array isn't large enough.
    */
   public static int memcmp(final byte[] a, final byte[] b,
-                           final int offset, final int length) {
+                           final int offset, int length) {
     if (a == b && a != null) {
       return 0;
     }
+    length += offset;
     for (int i = offset; i < length; i++) {
       if (a[i] != b[i]) {
         return (a[i] & 0xFF) - (b[i] & 0xFF);  // "promote" to unsigned.
