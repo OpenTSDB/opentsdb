@@ -176,6 +176,7 @@ $(top_builddir)/.staticroot-stamp: $(dist_pkgdata_DATA) $(top_builddir)/.gwtc-st
 	find -L $(DEV_TSD_STATICROOT) -type l -delete
 	p=`pwd`/$(top_builddir)/gwt/queryui && cd $(DEV_TSD_STATICROOT) \
 	  && for i in $$p/*; do ln -s -f "$$i" || break; done
+	find -L $(DEV_TSD_STATICROOT)/gwt -type f | xargs touch
 	@touch $(top_builddir)/.staticroot-stamp
 
 get_runtime_dep_classpath = `echo $(test_LIBADD) | tr ' ' ':'`
