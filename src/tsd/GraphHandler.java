@@ -676,13 +676,21 @@ final class GraphHandler implements HttpRpc {
         // XXX Java Kludge XXX
         "./src/graph/mygnuplot.sh", basepath + ".out", basepath + ".err",
                                     basepath + ".gnuplot").start();
-    int rv;
+    final int rv;
     try {
       rv = gnuplot.waitFor();  // Couldn't find how to do this asynchronously.
     } catch (InterruptedException e) {
-      gnuplot.destroy();
       Thread.currentThread().interrupt();  // Restore the interrupted status.
       throw new IOException("interrupted", e);  // I hate checked exceptions.
+    } finally {
+      // We need to always destroy() the Process, otherwise we "leak" file
+      // descriptors and pipes.  Unless I'm blind, this isn't actually
+      // documented in the Javadoc of the !@#$%^ JDK, and in Java 6 there's no
+      // way to ask the stupid-ass ProcessBuilder to not create fucking pipes.
+      // I think when the GC kicks in the JVM may run some kind of a finalizer
+      // that closes the pipes, because I've never seen this issue on long
+      // running TSDs, except where ulimit -n was low (the default, 1024).
+      gnuplot.destroy();
     }
     gnuplotlatency.add((int) ((System.nanoTime() - start_time) / 1000000));
     if (rv != 0) {
