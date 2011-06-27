@@ -18,7 +18,6 @@ import java.lang.reflect.Method;
 import java.util.Map;
 
 import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.uid.UniqueId;
@@ -118,23 +117,39 @@ final class Core {
   }
 
   static final Class<?> RowSeq;
-  static final Method extractLValue;
+  static final Method extractIntegerValue;
+  static final Method extractFloatingPointValue;
   static {
     try {
       RowSeq = Class.forName("net.opentsdb.core.RowSeq");
-      extractLValue = RowSeq.getDeclaredMethod("extractLValue",
-                                               short.class, KeyValue.class);
-      extractLValue.setAccessible(true);
+      extractIntegerValue = RowSeq.getDeclaredMethod("extractIntegerValue",
+                                                     byte[].class, int.class, byte.class);
+      extractIntegerValue.setAccessible(true);
+      extractFloatingPointValue = RowSeq.getDeclaredMethod("extractFloatingPointValue",
+                                                           byte[].class, int.class, byte.class);
+      extractFloatingPointValue.setAccessible(true);
     } catch (Exception e) {
       throw new RuntimeException("static initializer failed", e);
     }
   }
 
-  static long extractLValue(final short qualifier, final KeyValue kv) {
+  static long extractIntegerValue(final byte[] values,
+                                  final int value_idx,
+                                  final byte flags) {
     try {
-      return (Long) extractLValue.invoke(null, qualifier, kv);
+      return (Long) extractIntegerValue.invoke(null, values, value_idx, flags);
     } catch (Exception e) {
-      throw new RuntimeException("extractLValue=" + extractLValue, e);
+      throw new RuntimeException("extractIntegerValue=" + extractIntegerValue, e);
+    }
+  }
+
+  static double extractFloatingPointValue(final byte[] values,
+                                          final int value_idx,
+                                          final byte flags) {
+    try {
+      return (Double) extractFloatingPointValue.invoke(null, values, value_idx, flags);
+    } catch (Exception e) {
+      throw new RuntimeException("extractFloatingPointValue=" + extractFloatingPointValue, e);
     }
   }
 

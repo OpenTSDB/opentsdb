@@ -173,9 +173,10 @@ final class Fsck {
                        + "ms (" + (100000 * 1000 / ping_start_time) + " KVs/s)");
               ping_start_time = now;
             }
+            // TODO(tsuna): Add support for compacted cells.
             if (kv.qualifier().length != 2) {
               LOG.warn("Ignoring unsupported KV with a qualifier of "
-                       + kv.qualifier().length + " bytes:" + kv);
+                       + kv.qualifier().length + " bytes: " + kv);
               continue;
             }
             final short qualifier = Bytes.getShort(kv.qualifier());

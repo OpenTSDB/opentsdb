@@ -29,6 +29,7 @@ dist_pkgdata_SCRIPTS = src/mygnuplot.sh
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
@@ -90,6 +91,7 @@ tsdb_DEPS = \
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
 
 test_SRC := \
+	src/core/TestCompactionQueue.java	\
 	src/core/TestTags.java	\
 	src/stats/TestHistogram.java	\
 	src/tsd/TestGraphHandler.java	\

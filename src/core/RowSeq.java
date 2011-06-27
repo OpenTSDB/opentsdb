@@ -43,15 +43,16 @@ final class RowSeq implements DataPoints {
 
   /**
    * Qualifiers for individual data points.
-   * The last Const.FLAG_BITS bits are used to store flags (the type of the
-   * data point - integer or floating point - and the size of the data point
-   * in bytes).  The remaining MSBs store a delta in seconds from the base
-   * timestamp stored in the row key.
+   * <p>
+   * Each qualifier is on 2 bytes.  The last {@link Const#FLAG_BITS} bits are
+   * used to store flags (the type of the data point - integer or floating
+   * point - and the size of the data point in bytes).  The remaining MSBs
+   * store a delta in seconds from the base timestamp stored in the row key.
    */
-  private short[] qualifiers;
+  private byte[] qualifiers;
 
-  /** Each value in the row. */
-  private long[] values;
+  /** Values in the row.  */
+  private byte[] values;
 
   /**
    * Constructor.
@@ -63,33 +64,17 @@ final class RowSeq implements DataPoints {
 
   /**
    * Sets the row this instance holds in RAM using a row from a scanner.
-   * @param row The HBase row to set.
+   * @param row The compacted HBase row to set.
    * @throws IllegalStateException if this method was already called.
    */
-  void setRow(final ArrayList<KeyValue> row) {
-    final byte[] key = row.get(0).key();
-
-    if (this.key == null) {
-      this.key = key;
-      final int npoints = row.size();
-      values = new long[npoints];
-      qualifiers = new short[npoints];
-    } else {
+  void setRow(final KeyValue row) {
+    if (this.key != null) {
       throw new IllegalStateException("setRow was already called on " + this);
     }
 
-    int index = 0;  // position in `values'.
-    for (final KeyValue kv : row) {
-      final short qualifier = extractQualifier(kv);
-      qualifiers[index] = qualifier;
-      values[index] = extractLValue(qualifier, kv);
-      if (index > 0 && timestamp(index - 1) >= timestamp(index)) {
-        throw new IllegalDataException("new timestamp = " + timestamp(index)
-            + " is < previous=" + timestamp(index -1)
-            + " in setRow with kv=" + kv);
-      }
-      index++;
-    }
+    this.key = row.key();
+    this.qualifiers = row.qualifier();
+    this.values = row.value();
   }
 
   /**
@@ -98,29 +83,19 @@ final class RowSeq implements DataPoints {
    * together that they could be stored into the same row, it makes sense to
    * merge them into the same {@link RowSeq} instance in memory in order to save
    * RAM.
-   * @param row The HBase row to merge into this instance.
+   * @param row The compacted HBase row to merge into this instance.
    * @throws IllegalStateException if {@link #setRow} wasn't called first.
    * @throws IllegalArgumentException if the data points in the argument
    * aren't close enough to those in this instance time-wise to be all merged
    * together.
    */
-  void addRow(final ArrayList<KeyValue> row) {
-    final byte[] key = row.get(0).key();
-    final long base_time = Bytes.getUnsignedInt(key, tsdb.metrics.width());
-
-    // Save the old arrays in case we need to revert what we've done.
-    final short old_qualifiers[] = qualifiers;
-    final long old_values[] = values;
-
-    int index = values.length;  // position in `values'.
-    if (this.key != null) {
-      final int new_length = values.length + row.size();
-      values = Arrays.copyOf(values, new_length);
-      qualifiers = Arrays.copyOf(qualifiers, new_length);
-    } else {
+  void addRow(final KeyValue row) {
+    if (this.key == null) {
       throw new IllegalStateException("setRow was never called on " + this);
     }
 
+    final byte[] key = row.key();
+    final long base_time = Bytes.getUnsignedInt(key, tsdb.metrics.width());
     final int time_adj = (int) (base_time - baseTime());
     if (time_adj <= 0) {
       // Corner case: if the time difference is 0 and the key is the same, it
@@ -143,28 +118,49 @@ final class RowSeq implements DataPoints {
       setRow(row);
       return;
     }
-    for (final KeyValue kv : row) {
-      short qualifier = extractQualifier(kv);
-      final int time_delta = (qualifier & 0xFFFF) >>> Const.FLAG_BITS;
+
+    final byte[] qual = row.qualifier();
+    final int len = qual.length;
+    int last_delta = Bytes.getUnsignedShort(qualifiers, qualifiers.length - 2);
+    last_delta >>= Const.FLAG_BITS;
+
+    final int old_qual_len = qualifiers.length;
+    final byte[] newquals = new byte[old_qual_len + len];
+    System.arraycopy(qualifiers, 0, newquals, 0, old_qual_len);
+    // Adjust the delta in all the qualifiers.
+    for (int i = 0; i < len; i += 2) {
+      short qualifier = Bytes.getShort(qual, i);
+      final int time_delta = time_adj + ((qualifier & 0xFFFF) >>> Const.FLAG_BITS);
       if (!canTimeDeltaFit(time_delta)) {
-        throw new IllegalArgumentException("time_delta too large " + time_delta
-                                           + " to be added to " + this);
+         throw new IllegalDataException("time_delta at index " + i
+           + " is too large: " + time_delta
+           + " (qualifier=0x" + Integer.toHexString(qualifier & 0xFFFF)
+           + " baseTime()=" + baseTime() + ", base_time=" + base_time
+           + ", time_adj=" + time_adj
+           + ") for " + row + " to be added to " + this);
       }
-      qualifier = (short) (((time_delta + time_adj) << Const.FLAG_BITS)
-                           | (qualifier & Const.FLAGS_MASK));
-      qualifiers[index] = qualifier;
-      values[index] = extractLValue(qualifier, kv);
-      if (index > 0 && timestamp(index - 1) >= timestamp(index)) {
-        LOG.error("new timestamp = " + timestamp(index) + " (index=" + index
-                  + ") is < previous=" + timestamp(index - 1)
-                  + " in addRow with kv=" + kv + " in row=" + row);
-        // Undo what we've done so far.
-        qualifiers = old_qualifiers;
-        values = old_values;
+      if (last_delta >= time_delta) {
+        LOG.error("new timestamp = " + (baseTime() + time_delta)
+                  + " (index=" + i
+                  + ") is < previous=" + (baseTime() + last_delta)
+                  + " in addRow with row=" + row + " in this=" + this);
         return;  // Ignore this row, it came out of order.
       }
-      index++;
+      qualifier = (short) ((time_delta << Const.FLAG_BITS)
+                           | (qualifier & Const.FLAGS_MASK));
+      Bytes.setShort(newquals, qualifier, old_qual_len + i);
     }
+    this.qualifiers = newquals;
+
+    final byte[] val = row.value();
+    // We need to subtract 1 from the value length because both `values' and
+    // `val' have an extra byte of meta-data at the end, but only need one of
+    // them, not both.
+    final int old_val_len = values.length - 1;
+    final byte[] newvals = new byte[old_val_len + val.length];
+    System.arraycopy(values, 0, newvals, 0, old_val_len);
+    System.arraycopy(val, 0, newvals, old_val_len, val.length);
+    this.values = newvals;
   }
 
   /**
@@ -180,55 +176,45 @@ final class RowSeq implements DataPoints {
   }
 
   /**
-   * Extracts the qualifier of a cell containing a data point.
-   * @param kv The cell.
-   * @return The qualifier, on a short, since it's expected to be on 2 bytes.
+   * Extracts the value of a cell containing a data point.
+   * @param value The contents of a cell in HBase.
+   * @param value_idx The offset inside {@code values} at which the value
+   * starts.
+   * @param flags The flags for this value.
+   * @return The value of the cell.
    */
-  private short extractQualifier(final KeyValue kv) {
-    if (!Bytes.equals(TSDB.FAMILY, kv.family())) {
-      throw new IllegalDataException("unexpected KeyValue family: "
-                                     + Bytes.pretty(kv.family()));
+  private static long extractIntegerValue(final byte[] values,
+                                          final int value_idx,
+                                          final byte flags) {
+    switch (flags & Const.LENGTH_MASK) {
+      case 7: return Bytes.getLong(values, value_idx);
+      case 3: return Bytes.getInt(values, value_idx);
+      case 1: return Bytes.getShort(values, value_idx);
+      case 0: return values[value_idx];
     }
-    final byte[] qual = kv.qualifier();
-    if (qual.length != 2) {
-      throw new IllegalDataException("Invalid qualifier length: "
-                                     + Bytes.pretty(qual));
-    }
-    return Bytes.getShort(qual);
+    throw new IllegalDataException("Integer value @ " + value_idx
+                                   + " not on 8/4/2/1 bytes in "
+                                   + Arrays.toString(values));
   }
 
   /**
    * Extracts the value of a cell containing a data point.
-   * @param qualifier The qualifier of that cell, as returned by
-   * {@link #extractQualifier}.
-   * @param kv The cell.
-   * @return The value of the cell, as a {@code long}, since it's expected to
-   * be on 8 bytes at most.  If the cell contains a floating point value, the
-   * bits of the {@code long} represent some kind of a floating point value.
+   * @param value The contents of a cell in HBase.
+   * @param value_idx The offset inside {@code values} at which the value
+   * starts.
+   * @param flags The flags for this value.
+   * @return The value of the cell.
    */
-  private static long extractLValue(final short qualifier, final KeyValue kv) {
-    final byte[] value = kv.value();
-    if ((qualifier & Const.FLAG_FLOAT) != 0) {
-      if (value.length == 4) {
-        return Bytes.getInt(value);
-      } else if (value.length == 8) {
-        if (value[0] != 0 || value[1] != 0
-            || value[2] != 0 || value[3] != 0) {
-          throw new IllegalDataException("Float value with nonzero byte MSBs: " + kv);
-        }
-        return Bytes.getInt(value, 4);
-      } else {
-        throw new IllegalDataException("Float value not on 4 or 8 bytes: " + kv);
-      }
-    } else {
-      switch (value.length) {
-        case 8: return Bytes.getLong(value);
-        case 4: return Bytes.getInt(value);
-        case 2: return Bytes.getShort(value);
-        case 1: return value[0];
-      }
-      throw new IllegalDataException("Integer value not on 8/4/2/1 bytes: " + kv);
+  private static double extractFloatingPointValue(final byte[] values,
+                                                  final int value_idx,
+                                                  final byte flags) {
+    switch (flags & Const.LENGTH_MASK) {
+      case 7: return Double.longBitsToDouble(Bytes.getLong(values, value_idx));
+      case 3: return Float.intBitsToFloat(Bytes.getInt(values, value_idx));
     }
+    throw new IllegalDataException("Floating point value @ " + value_idx
+                                   + " not on 8 or 4 bytes in "
+                                   + Arrays.toString(values));
   }
 
   public String metricName() {
@@ -247,7 +233,7 @@ final class RowSeq implements DataPoints {
   }
 
   public int size() {
-    return values.length;
+    return qualifiers.length / 2;
   }
 
   public int aggregatedSize() {
@@ -260,6 +246,7 @@ final class RowSeq implements DataPoints {
 
   /** Package private iterator method to access it as a DataPointsIterator. */
   DataPointsIterator internalIterator() {
+    // XXX this is now grossly inefficient, need to walk the arrays once.
     return new DataPointsIterator(this);
   }
 
@@ -282,29 +269,49 @@ final class RowSeq implements DataPoints {
 
   public long timestamp(final int i) {
     checkIndex(i);
-    // Stupid Java without unsigned integers and auto-promotion to int.
-    return baseTime() + ((qualifiers[i] & 0xFFFF) >>> Const.FLAG_BITS);
+    return baseTime()
+      + (Bytes.getUnsignedShort(qualifiers, i * 2) >>> Const.FLAG_BITS);
   }
 
   public boolean isInteger(final int i) {
     checkIndex(i);
-    return (qualifiers[i] & Const.FLAG_FLOAT) == 0x0;
+    return (qualifiers[i * 2 + 1] & Const.FLAG_FLOAT) == 0x0;
+  }
+
+  /**
+   * Finds the offset of the {@code i}th value in {@link #values}.
+   * <p>
+   * Because values can have varying lengths, we need to walk the
+   * {@link #qualifiers} array to sum up the length of all the values
+   * up to the {@code i}th one, so we can tell where it starts.
+   */
+  private int findValueOffset(final int i) {
+    int value_idx = 0;  // Need to find the index of the ith value.
+    for (int j = 0; j < i; j++) {
+      final byte flags = qualifiers[j * 2 + 1];
+      value_idx += (flags & Const.LENGTH_MASK) + 1;
+    }
+    return value_idx;
   }
 
   public long longValue(final int i) {
-    // Don't call checkIndex(i) because isInteger(i) already calls it.
-    if (isInteger(i)) {
-      return values[i];
+    checkIndex(i);
+    final int value_idx = findValueOffset(i);
+    final byte flags = qualifiers[i * 2 + 1];
+    if ((flags & Const.FLAG_FLOAT) != 0x0) {
+      throw new ClassCastException("value #" + i + " is not a long in " + this);
     }
-    throw new ClassCastException("value #" + i + " is not a long in " + this);
+    return extractIntegerValue(values, value_idx, flags);
   }
 
   public double doubleValue(final int i) {
-    // Don't call checkIndex(i) because isInteger(i) already calls it.
-    if (!isInteger(i)) {
-      return Float.intBitsToFloat((int) values[i]);
+    checkIndex(i);
+    final int value_idx = findValueOffset(i);
+    final byte flags = qualifiers[i * 2 + 1];
+    if ((flags & Const.FLAG_FLOAT) == 0x0) {
+      throw new ClassCastException("value #" + i + " is not a float in " + this);
     }
-    throw new ClassCastException("value #" + i + " is not a float in " + this);
+    return extractFloatingPointValue(values, value_idx, flags);
   }
 
   /**
@@ -312,9 +319,9 @@ final class RowSeq implements DataPoints {
    */
   double toDouble(final int i) {
     if (isInteger(i)) {
-      return values[i];
+      return longValue(i);
     } else {
-      return Float.intBitsToFloat((int) values[i]);
+      return doubleValue(i);
     }
   }
 
@@ -338,7 +345,8 @@ final class RowSeq implements DataPoints {
        .append(base_time > 0 ? new Date(base_time * 1000) : "no date")
        .append("), [");
     for (short i = 0; i < size; i++) {
-      buf.append('+').append(qualifiers[i] >>> Const.FLAG_BITS);
+      final short qual = Bytes.getShort(qualifiers, i * 2);
+      buf.append('+').append((qual & 0xFFFF) >>> Const.FLAG_BITS);
       if (isInteger(i)) {
         buf.append(":long(").append(longValue(i));
       } else {

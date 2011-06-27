@@ -261,7 +261,7 @@ final class TsdbQuery implements Query {
             datapoints = new Span(tsdb);
             spans.put(key, datapoints);
           }
-          datapoints.addRow(row);
+          datapoints.addRow(tsdb.compact(row));
           nrows++;
           starttime = System.nanoTime();
         }

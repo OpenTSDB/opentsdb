@@ -78,17 +78,17 @@ final class Span implements DataPoints {
 
   /**
    * Adds an HBase row to this span, using a row from a scanner.
-   * @param row The HBase row to add to this span.
+   * @param row The compacted HBase row to add to this span.
    * @throws IllegalArgumentException if the argument and this span are for
    * two different time series.
    * @throws IllegalArgumentException if the argument represents a row for
    * data points that are older than those already added to this span.
    */
-  void addRow(final ArrayList<KeyValue> row) {
+  void addRow(final KeyValue row) {
     long last_ts = 0;
     if (rows.size() != 0) {
       // Verify that we have the same metric id and tags.
-      final byte[] key = row.get(0).key();
+      final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
       final short metric_width = tsdb.metrics.width();
       final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
@@ -134,20 +134,16 @@ final class Span implements DataPoints {
   /**
    * Package private helper to access the last timestamp in an HBase row.
    * @param metric_width The number of bytes on which metric IDs are stored.
-   * @param row The row coming straight out of HBase.
+   * @param row A compacted HBase row.
    * @return A strictly positive 32-bit timestamp.
    * @throws IllegalArgumentException if {@code row} doesn't contain any cell.
    */
   static long lastTimestampInRow(final short metric_width,
-                                 final ArrayList<KeyValue> row) {
-    final int size = row.size();
-    if (size < 1) {
-      throw new IllegalArgumentException("empty row: " + row);
-    }
-    final KeyValue lastkv = row.get(size - 1);
-    final long base_time = Bytes.getUnsignedInt(lastkv.key(), metric_width);
+                                 final KeyValue row) {
+    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width);
+    final byte[] qual = row.qualifier();
     final short last_delta = (short)
-      (Bytes.getUnsignedShort(lastkv.qualifier()) >>> Const.FLAG_BITS);
+      (Bytes.getUnsignedShort(qual, qual.length - 2) >>> Const.FLAG_BITS);
     return base_time + last_delta;
   }
 
