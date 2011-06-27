@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010  The OpenTSDB Authors.
+// Copyright (C) 2010, 2011  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -12,12 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,13 +153,21 @@ final class RowSeq implements DataPoints {
     this.qualifiers = newquals;
 
     final byte[] val = row.value();
-    // We need to subtract 1 from the value length because both `values' and
-    // `val' have an extra byte of meta-data at the end, but only need one of
-    // them, not both.
-    final int old_val_len = values.length - 1;
-    final byte[] newvals = new byte[old_val_len + val.length];
+    // If both the current `values' and the new `val' are single values, then
+    // we neither of them has a meta data byte so we need to add one to be
+    // consistent with what we expect from compacted values.  Otherwise, we
+    // need to subtract 1 from the value length.
+    final int old_val_len = values.length - (old_qual_len == 2 ? 0 : 1);
+    final byte[] newvals = new byte[old_val_len + val.length
+      // Only add a meta-data byte if the new values don't have it.
+      + (len == 2 ? 1 : 0)];
     System.arraycopy(values, 0, newvals, 0, old_val_len);
     System.arraycopy(val, 0, newvals, old_val_len, val.length);
+    assert newvals[newvals.length - 1] == 0:
+      "Incorrect meta data byte after merge of " + row
+      + " resulting qualifiers=" + Arrays.toString(qualifiers)
+      + ", values=" + Arrays.toString(newvals)
+      + ", old values=" + Arrays.toString(values);
     this.values = newvals;
   }
 
@@ -244,10 +252,10 @@ final class RowSeq implements DataPoints {
     return internalIterator();
   }
 
-  /** Package private iterator method to access it as a DataPointsIterator. */
-  DataPointsIterator internalIterator() {
+  /** Package private iterator method to access it as a {@link Iterator}. */
+  Iterator internalIterator() {
     // XXX this is now grossly inefficient, need to walk the arrays once.
-    return new DataPointsIterator(this);
+    return new Iterator();
   }
 
   /** Extracts the base timestamp from the row key. */
@@ -269,6 +277,7 @@ final class RowSeq implements DataPoints {
 
   public long timestamp(final int i) {
     checkIndex(i);
+    // Important: Span.addRow assumes this method to work in O(1).
     return baseTime()
       + (Bytes.getUnsignedShort(qualifiers, i * 2) >>> Const.FLAG_BITS);
   }
@@ -278,40 +287,26 @@ final class RowSeq implements DataPoints {
     return (qualifiers[i * 2 + 1] & Const.FLAG_FLOAT) == 0x0;
   }
 
-  /**
-   * Finds the offset of the {@code i}th value in {@link #values}.
-   * <p>
-   * Because values can have varying lengths, we need to walk the
-   * {@link #qualifiers} array to sum up the length of all the values
-   * up to the {@code i}th one, so we can tell where it starts.
-   */
-  private int findValueOffset(final int i) {
-    int value_idx = 0;  // Need to find the index of the ith value.
-    for (int j = 0; j < i; j++) {
-      final byte flags = qualifiers[j * 2 + 1];
-      value_idx += (flags & Const.LENGTH_MASK) + 1;
-    }
-    return value_idx;
-  }
-
-  public long longValue(final int i) {
-    checkIndex(i);
-    final int value_idx = findValueOffset(i);
-    final byte flags = qualifiers[i * 2 + 1];
-    if ((flags & Const.FLAG_FLOAT) != 0x0) {
+  public long longValue(int i) {
+    if (!isInteger(i)) {
       throw new ClassCastException("value #" + i + " is not a long in " + this);
     }
-    return extractIntegerValue(values, value_idx, flags);
+    final Iterator it = new Iterator();
+    while (i-- >= 0) {
+      it.next();
+    }
+    return it.longValue();
   }
 
-  public double doubleValue(final int i) {
-    checkIndex(i);
-    final int value_idx = findValueOffset(i);
-    final byte flags = qualifiers[i * 2 + 1];
-    if ((flags & Const.FLAG_FLOAT) == 0x0) {
+  public double doubleValue(int i) {
+    if (isInteger(i)) {
       throw new ClassCastException("value #" + i + " is not a float in " + this);
     }
-    return extractFloatingPointValue(values, value_idx, flags);
+    final Iterator it = new Iterator();
+    while (i-- >= 0) {
+      it.next();
+    }
+    return it.doubleValue();
   }
 
   /**
@@ -361,4 +356,143 @@ final class RowSeq implements DataPoints {
     return buf.toString();
   }
 
+  /** Iterator for {@link RowSeq}s.  */
+  final class Iterator implements SeekableView, DataPoint {
+
+    /** Current qualifier.  */
+    private short qualifier;
+
+    /** Next index in {@link #qualifiers}.  */
+    private short qual_index;
+
+    /** Next index in {@link #values}.  */
+    private short value_index;
+
+    /** Pre-extracted base time of this row sequence.  */
+    private final long base_time = baseTime();
+
+    Iterator() {
+    }
+
+    // ------------------ //
+    // Iterator interface //
+    // ------------------ //
+
+    public boolean hasNext() {
+      return qual_index < qualifiers.length;
+    }
+
+    public DataPoint next() {
+      if (!hasNext()) {
+        throw new NoSuchElementException("no more elements");
+      }
+      qualifier = Bytes.getShort(qualifiers, qual_index);
+      qual_index += 2;
+      final byte flags = (byte) qualifier;
+      value_index += (flags & Const.LENGTH_MASK) + 1;
+      //LOG.debug("next -> now=" + toStringSummary());
+      return this;
+    }
+
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
+
+    // ---------------------- //
+    // SeekableView interface //
+    // ---------------------- //
+
+    public void seek(final long timestamp) {
+      if ((timestamp & 0xFFFFFFFF00000000L) != 0) {  // negative or not 32 bits
+        throw new IllegalArgumentException("invalid timestamp: " + timestamp);
+      }
+      qual_index = 0;
+      value_index = 0;
+      final int len = qualifiers.length;
+      while (qual_index < len && peekNextTimestamp() < timestamp) {
+        qual_index += 2;
+        final byte flags = (byte) qualifier;
+        value_index += (flags & Const.LENGTH_MASK) + 1;
+      }
+      if (qual_index > 0) {
+        qualifier = Bytes.getShort(qualifiers, qual_index - 2);
+      }
+      //LOG.debug("seek to " + timestamp + " -> now=" + toStringSummary());
+    }
+
+    // ------------------- //
+    // DataPoint interface //
+    // ------------------- //
+
+    public long timestamp() {
+      assert qualifier != 0: "not initialized: " + this;
+      return base_time + ((qualifier & 0xFFFF) >>> Const.FLAG_BITS);
+    }
+
+    public boolean isInteger() {
+      assert qualifier != 0: "not initialized: " + this;
+      return (qualifier & Const.FLAG_FLOAT) == 0x0;
+    }
+
+    public long longValue() {
+      if (!isInteger()) {
+        throw new ClassCastException("value #"
+          + ((qual_index - 2) / 2) + " is not a long in " + this);
+      }
+      final byte flags = (byte) qualifier;
+      final byte vlen = (byte) ((flags & Const.LENGTH_MASK) + 1);
+      return extractIntegerValue(values, value_index - vlen, flags);
+    }
+
+    public double doubleValue() {
+      if (isInteger()) {
+        throw new ClassCastException("value #"
+          + ((qual_index - 2) / 2) + " is not a float in " + this);
+      }
+      final byte flags = (byte) qualifier;
+      final byte vlen = (byte) ((flags & Const.LENGTH_MASK) + 1);
+      return extractFloatingPointValue(values, value_index - vlen, flags);
+    }
+
+    public double toDouble() {
+      return isInteger() ? longValue() : doubleValue();
+    }
+
+    // ---------------- //
+    // Helpers for Span //
+    // ---------------- //
+
+    /** Helper to take a snapshot of the state of this iterator.  */
+    int saveState() {
+      return (qual_index << 16) | (value_index & 0xFFFF);
+    }
+
+    /** Helper to restore a snapshot of the state of this iterator.  */
+    void restoreState(int state) {
+      value_index = (short) (state & 0xFFFF);
+      state >>>= 16;
+      qual_index = (short) state;
+      qualifier = 0;
+    }
+
+    /**
+     * Look a head to see the next timestamp.
+     * @throws IndexOutOfBoundsException if we reached the end already.
+     */
+    long peekNextTimestamp() {
+      return base_time
+        + (Bytes.getUnsignedShort(qualifiers, qual_index) >>> Const.FLAG_BITS);
+    }
+
+    /** Only returns internal state for the iterator itself.  */
+    String toStringSummary() {
+      return "RowSeq.Iterator(qual_index=" + qual_index
+        + ", value_index=" + value_index;
+    }
+
+    public String toString() {
+      return toStringSummary() + ", seq=" + RowSeq.this + ')';
+    }
+
+  }
 }
