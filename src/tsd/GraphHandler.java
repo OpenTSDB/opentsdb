@@ -125,17 +125,7 @@ final class GraphHandler implements HttpRpc {
     if (end_time == -1) {
       end_time = now;
     }
-    // If the end time is in the future (1), make the graph uncacheable.
-    // Otherwise, if the end time is far enough in the past (2) such that
-    // no TSD can still be writing to rows for that time span, make the graph
-    // cacheable for a day since it's very unlikely that any data will change
-    // for this time span.
-    // Otherwise (3), allow the client to cache the graph for ~0.1% of the
-    // time span covered by the request e.g., for 1h of data, it's OK to
-    // serve something 3s stale, for 1d of data, 84s stale.
-    final int max_age = (end_time > now ? 0                              // (1)
-                         : (end_time < now - Const.MAX_TIMESPAN ? 86400  // (2)
-                            : (int) (end_time - start_time) >> 10));     // (3)
+    final int max_age = computeMaxAge(query, start_time, end_time, now);
     if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
       return;
     }
@@ -202,6 +192,40 @@ final class GraphHandler implements HttpRpc {
     } catch (RejectedExecutionException e) {
       query.internalError(new Exception("Too many requests pending,"
                                         + " please try again later", e));
+    }
+  }
+
+  /**
+   * Decides how long we're going to allow the client to cache our response.
+   * <p>
+   * Based on the query, we'll decide whether or not we want to allow the
+   * client to cache our response and for how long.
+   * @param query The query to serve.
+   * @param start_time The start time on the query (32-bit unsigned int, secs).
+   * @param end_time The end time on the query (32-bit unsigned int, seconds).
+   * @param now The current time (32-bit unsigned int, seconds).
+   * @return A positive integer, in seconds.
+   */
+  private static int computeMaxAge(final HttpQuery query,
+                                   final long start_time, final long end_time,
+                                   final long now) {
+    // If the end time is in the future (1), make the graph uncacheable.
+    // Otherwise, if the end time is far enough in the past (2) such that
+    // no TSD can still be writing to rows for that time span and it's not
+    // specified in a relative fashion (3) (e.g. "1d-ago"), make the graph
+    // cacheable for a day since it's very unlikely that any data will change
+    // for this time span.
+    // Otherwise (4), allow the client to cache the graph for ~0.1% of the
+    // time span covered by the request e.g., for 1h of data, it's OK to
+    // serve something 3s stale, for 1d of data, 84s stale.
+    if (end_time > now) {                            // (1)
+      return 0;
+    } else if (end_time < now - Const.MAX_TIMESPAN   // (2)
+               && !isRelativeDate(query, "start")    // (3)
+               && !isRelativeDate(query, "end")) {
+      return 86400;
+    } else {                                         // (4)
+      return (int) (end_time - start_time) >> 10;
     }
   }
 
@@ -880,6 +904,24 @@ final class GraphHandler implements HttpRpc {
       case 'y': return interval * 3600 * 24 * 365;  // years (screw leap years)
     }
     throw new BadRequestException("Invalid duration (suffix): " + duration);
+  }
+
+  /**
+   * Returns whether or not a date is specified in a relative fashion.
+   * <p>
+   * A date is specified in a relative fashion if it ends in "-ago",
+   * e.g. "1d-ago" is the same as "24h-ago".
+   * @param query The HTTP query from which to get the query string parameter.
+   * @param paramname The name of the query string parameter.
+   * @return {@code true} if the parameter is passed and is a relative date.
+   * Note the method doesn't attempt to validate the relative date.  So this
+   * function can return true on something that looks like a relative date,
+   * but is actually invalid once we really try to parse it.
+   */
+  private static boolean isRelativeDate(final HttpQuery query,
+                                        final String paramname) {
+    final String date = query.getQueryStringParam(paramname);
+    return date == null || date.endsWith("-ago");
   }
 
   /**
