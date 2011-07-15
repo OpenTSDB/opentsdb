@@ -78,16 +78,16 @@ tsdb_SRC := \
 
 tsdb_SRC_srcdir := $(tsdb_SRC:%=$(srcdir)/%)
 
-tsdb_DEPS := \
-	$(srcdir)/third_party/hbase/hbaseasync-1.0.jar	\
-	$(srcdir)/third_party/logback/logback-classic-0.9.24.jar	\
-	$(srcdir)/third_party/logback/logback-core-0.9.24.jar	\
-	$(srcdir)/third_party/netty/netty-3.2.3.Final.jar	\
-	$(srcdir)/third_party/slf4j/jcl-over-slf4j-1.6.1.jar	\
-	$(srcdir)/third_party/slf4j/log4j-over-slf4j-1.6.1.jar	\
-	$(srcdir)/third_party/slf4j/slf4j-api-1.6.1.jar	\
-	$(srcdir)/third_party/suasync/suasync-1.0.jar	\
-	$(srcdir)/third_party/zookeeper/zookeeper-3.3.1.jar
+tsdb_DEPS = \
+	$(HBASEASYNC)	\
+	$(JCL_OVER_SLF4J)	\
+	$(LOG4J_OVER_SLF4J)	\
+	$(LOGBACK_CLASSIC)	\
+	$(LOGBACK_CORE)	\
+	$(NETTY)	\
+	$(SLF4J_API)	\
+	$(SUASYNC)	\
+	$(ZOOKEEPER)
 
 # Install all the .jar files in pkgdatadir.
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
@@ -99,12 +99,12 @@ test_SRC := \
 	src/uid/TestNoSuchUniqueId.java	\
 	src/uid/TestUniqueId.java
 
-test_DEPS := \
+test_DEPS = \
 	$(tsdb_DEPS) \
-	$(srcdir)/third_party/javassist/javassist-3.13.GA.jar	\
-	$(srcdir)/third_party/junit/junit-4.8.2.jar	\
-	$(srcdir)/third_party/mockito/mockito-1.8.5.jar	\
-	$(srcdir)/third_party/powermock/powermock-mockito-1.4.5.jar	\
+	$(JAVASSIST)	\
+	$(JUNIT)	\
+	$(MOCKITO)	\
+	$(POWERMOCK_MOCKITO)	\
         $(jar)
 
 httpui_SRC := \
@@ -121,12 +121,11 @@ httpui_DEPS = src/tsd/QueryUi.gwt.xml
 dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = src/tsd/static/favicon.ico
 
-EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) third_party \
+EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
+        $(THIRD_PARTY) $(THIRD_PARTY:=.md5) \
         $(httpui_SRC) $(httpui_DEPS) \
         bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
 
-GWT_DEV := $(srcdir)/third_party/gwt/gwt-dev-2.0.4.jar
-GWT_SDK := $(srcdir)/third_party/gwt/gwt-user-2.0.4.jar
 GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
 GWTC_ARGS = -ea  # Additional arguments like -style PRETTY or -logLevel DEBUG
 
@@ -171,23 +170,25 @@ jar: $(jar) $(UNITTESTS) .gwtc-stamp
 
 JAVA_COMPILE := $(JAVAC) $(AM_JAVACFLAGS) -d $(builddir)
 
-get_dep_classpath := `echo $(tsdb_DEPS) | tr ' ' ':'`
+find_jar = test -f "$$jar" && echo "$$jar" || echo "$(srcdir)/$$jar"
+get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'`
 .javac-stamp: $(tsdb_SRC) $(tsdb_DEPS)
 	@$(MKDIR_P) $(builddir)
 	$(JAVA_COMPILE) -cp $(get_dep_classpath) $(tsdb_SRC_srcdir) $(builddata_SRC)
 	@touch "$@"
 
+GWT_CLASSPATH = `jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(srcdir)/src
 # The GWT compiler is way too slow, that's not very Googley.  So we save the
 # MD5 of the files we compile in the stamp file and everytime `make' things it
 # needs to recompile the GWT code, we verify whether the code really changed
 # or whether it's just a file that was touched (which happens frequently when
 # using Git while rebasing and whatnot).
 gwtc: .gwtc-stamp
-.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS)
+.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(GWT_DEV) $(GWT_USER)
 	@$(MKDIR_P) gwt
 	{ cd $(srcdir) && cat $(httpui_SRC); } | $(MD5) >"$@-t"
 	cmp -s "$@" "$@-t" && exit 0; \
-        $(JAVA) $(GWTC_JVM_ARGS) -cp $(GWT_DEV):$(GWT_SDK):$(srcdir)/src com.google.gwt.dev.Compiler \
+        $(JAVA) $(GWTC_JVM_ARGS) -cp $(GWT_CLASSPATH) com.google.gwt.dev.Compiler \
             $(GWTC_ARGS) -war gwt tsd.QueryUi
 	@mv "$@-t" "$@"
 
@@ -201,7 +202,7 @@ GWT_DEV_URL = http://127.0.0.1:$(DEV_TSD_PORT)/
 
 GWT_DEV_ARGS = -Xmx512m  # The development mode is a memory hog.
 gwtdev: .gwtc-stamp
-	$(JAVA) $(GWT_DEV_ARGS) -ea -cp $(GWT_DEV):$(GWT_SDK):src com.google.gwt.dev.DevMode \
+	$(JAVA) $(GWT_DEV_ARGS) -ea -cp $(GWT_CLASSPATH) com.google.gwt.dev.DevMode \
 	  -startupUrl $(GWT_DEV_URL) -noserver -war gwt tsd.QueryUi
 
 staticroot: jar .staticroot-stamp
@@ -244,7 +245,7 @@ uninstall-local:
 uninstall-hook:
 	test ! -d "$(pkgdatadir)" || rmdir "$(pkgdatadir)"
 
-get_runtime_dep_classpath := `echo $(test_DEPS) | tr ' ' ':'`
+get_runtime_dep_classpath = `for jar in $(test_DEPS); do $(find_jar); done | tr '\n' ':'`
 $(test_classes): $(jar) $(test_SRC) $(test_DEPS)
 	$(JAVA_COMPILE) -cp $(get_runtime_dep_classpath) $(test_SRC:%=$(srcdir)/%)
 
@@ -290,7 +291,7 @@ JAVADOC_DIR = api
 doc: $(JAVADOC_DIR)/index.html
 
 JDK_JAVADOC = http://download.oracle.com/javase/6/docs/api
-NETTY_JAVADOC = http://docs.jboss.org/netty/3.2/api
+NETTY_JAVADOC = http://docs.jboss.org/netty/$(NETTY_MAJOR_VERSION)/api
 $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
 	$(JAVADOC) -d $(JAVADOC_DIR) -classpath $(get_dep_classpath) \
           -link $(JDK_JAVADOC) -link $(NETTY_JAVADOC) $(tsdb_SRC_srcdir)
@@ -317,3 +318,4 @@ clean-local:
 	rm -rf $(JAVADOC_DIR)
 
 .PHONY: jar doc check gwtc gwtdev staticroot gwttsd
+include third_party/include.mk
