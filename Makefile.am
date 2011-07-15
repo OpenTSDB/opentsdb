@@ -254,13 +254,21 @@ test_classes_with_nested_classes := $(test_classes:.class=*.class)
 # Little set script to make a pretty-ish banner.
 BANNER := sed 's/^.*/  &  /;h;s/./=/g;p;x;p;x'
 check-local: $(UNITTESTS)
-	classes=`cd $(builddir) && echo $(test_classes_with_nested_classes)` && \
-        success=: && cp="$(get_runtime_dep_classpath):$(builddir)" && \
+	classes=`cd $(builddir) && echo $(test_classes_with_nested_classes)` \
+        && tests=0 && failures=0 \
+        && cp="$(get_runtime_dep_classpath):$(builddir)" && \
         for i in $$classes; do \
           case $$i in (*[$$]*) continue;; esac; \
-	  echo "Running tests for `basename $$i .class`" | $(BANNER); \
-          $(JAVA) -ea $(JVM_ARGS) -cp "$$cp" org.junit.runner.JUnitCore `echo $${i%.class} | tr / .` $(ARGS) || success=false; \
-        done && $$success
+          tests=$$((tests + 1)); \
+          echo "Running tests for `basename $$i .class`" | $(BANNER); \
+          $(JAVA) -ea $(JVM_ARGS) -cp "$$cp" org.junit.runner.JUnitCore `echo $${i%.class} | tr / .` $(ARGS) \
+          || failures=$$((failures + 1)); \
+        done; \
+        if test "$$failures" -eq 0; then \
+          echo "All $$tests tests passed" | $(BANNER); \
+        else \
+          echo "$$failures out of $$tests failed, please send a report to $(PACKAGE_BUGREPORT)" | $(BANNER); \
+        fi
 
 git_version := \
   `git rev-list --pretty=format:%h HEAD --max-count=1 | sed 1d || echo unknown`
