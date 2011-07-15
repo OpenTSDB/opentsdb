@@ -18,6 +18,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -696,10 +697,8 @@ final class GraphHandler implements HttpRpc {
                         final Plot plot) throws IOException {
     final int nplotted = plot.dumpToFiles(basepath);
     final long start_time = System.nanoTime();
-    final Process gnuplot = new ProcessBuilder(
-        // XXX Java Kludge XXX
-        "./src/graph/mygnuplot.sh", basepath + ".out", basepath + ".err",
-                                    basepath + ".gnuplot").start();
+    final Process gnuplot = new ProcessBuilder(GNUPLOT,
+      basepath + ".out", basepath + ".err", basepath + ".gnuplot").start();
     final int rv;
     try {
       rv = gnuplot.waitFor();  // Couldn't find how to do this asynchronously.
@@ -965,6 +964,42 @@ final class GraphHandler implements HttpRpc {
     public Thread newThread(final Runnable r) {
       return new Thread(r, "Gnuplot #" + id.incrementAndGet());
     }
+  }
+
+  /** Name of the wrapper script we use to execute Gnuplot.  */
+  private static final String WRAPPER = "mygnuplot.sh";
+  /** Path to the wrapper script.  */
+  private static final String GNUPLOT;
+  static {
+    GNUPLOT = findGnuplotHelperScript();
+  }
+
+  /**
+   * Iterate through the class path and look for the Gnuplot helper script.
+   * @return The path to the wrapper script.
+   */
+  private static String findGnuplotHelperScript() {
+    final URL url = GraphHandler.class.getClassLoader().getResource(WRAPPER);
+    if (url == null) {
+      throw new RuntimeException("Couldn't find " + WRAPPER + " on the"
+        + " CLASSPATH: " + System.getProperty("java.class.path"));
+    }
+    final String path = url.getFile();
+    LOG.debug("Using Gnuplot wrapper at {}", path);
+    final File file = new File(path);
+    final String error;
+    if (!file.exists()) {
+      error = "non-existent";
+    } else if (!file.canExecute()) {
+      error = "non-executable";
+    } else if (!file.canRead()) {
+      error = "unreadable";
+    } else {
+      return path;
+    }
+    throw new RuntimeException("The " + WRAPPER + " found on the"
+      + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
+      + "  CLASSPATH=" + System.getProperty("java.class.path"));
   }
 
   // ---------------- //
