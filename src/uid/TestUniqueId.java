@@ -52,11 +52,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 @RunWith(PowerMockRunner.class)
+// "Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
+// because they fiddle with the class loader.  We don't test them anyway.
+@PowerMockIgnore({"javax.management.*", "javax.xml.*",
+                  "ch.qos.*", "org.slf4j.*",
+                  "com.sum.*", "org.xml.*"})
 @PrepareForTest({ HBaseClient.class, RowLock.class })
 public final class TestUniqueId {
 

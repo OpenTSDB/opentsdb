@@ -257,7 +257,7 @@ BANNER := sed 's/^.*/  &  /;h;s/./=/g;p;x;p;x'
 check-local: $(UNITTESTS)
 	classes=`cd $(builddir) && echo $(test_classes_with_nested_classes)` \
         && tests=0 && failures=0 \
-        && cp="$(get_runtime_dep_classpath):$(builddir)" && \
+        && cp="$(get_runtime_dep_classpath):$(srcdir)/src" && \
         for i in $$classes; do \
           case $$i in (*[$$]*) continue;; esac; \
           tests=$$((tests + 1)); \
