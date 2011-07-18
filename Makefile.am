@@ -233,8 +233,8 @@ install-data-local: staticroot
           dstdir=`dirname "$(DESTDIR)$(staticdir)/$$p"`; \
           if test -d "$$dstdir"; then :; else \
             echo " $(MKDIR_P) '$$dstdir'"; $(MKDIR_P) "$$dstdir"; fi; \
-	  echo " $(dist_staticDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(staticdir)/$$p'"; \
-	  $(dist_staticDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(staticdir)/$$p"; \
+	  echo " $(INSTALL_DATA) '$$d$$p' '$(DESTDIR)$(staticdir)/$$p'"; \
+	  $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(staticdir)/$$p"; \
 	done
 
 uninstall-local:
