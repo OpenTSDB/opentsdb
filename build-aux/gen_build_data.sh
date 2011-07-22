@@ -20,6 +20,9 @@ fatal() {
 [ -n "$CLASS" ] || fatal 'bad destination path'
 
 echo "Generating $DST"
+# Make sure the directory where we'll put `$DST' exists.
+dir=`dirname "$DST"`
+mkdir -p "$dir"
 
 export TZ=UTC
 # Can't use the system `date' tool because it's not portable.
