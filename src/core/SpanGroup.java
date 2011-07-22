@@ -455,11 +455,13 @@ final class SpanGroup implements DataPoints {
            : spans.get(i).downsampler(sample_interval, downsampler));
         iterators[i] = it;
         it.seek(start_time);
-        if (!it.hasNext()) {
+        final DataPoint dp;
+        try {
+          dp = it.next();
+        } catch (NoSuchElementException e) {
           throw new AssertionError("Span #" + i + " is empty! span="
                                    + spans.get(i));
         }
-        DataPoint dp = it.next();
         //LOG.debug("Creating iterator #" + i);
         if (dp.timestamp() >= start_time) {
           //LOG.debug("First DP in range for #" + i + ": "
