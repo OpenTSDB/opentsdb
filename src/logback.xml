@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-  <jmxConfigurator/>
+  <!--<jmxConfigurator/>-->
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>
@@ -14,6 +14,7 @@
 
   <logger name="org.apache.zookeeper" level="info"/>
   <logger name="org.hbase.async" level="info"/>
+  <logger name="com.stumbleupon.async" level="info"/>
   <root level="info">
     <appender-ref ref="STDOUT"/>
     <appender-ref ref="CYCLIC"/>
