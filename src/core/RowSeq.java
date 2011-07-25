@@ -123,8 +123,25 @@ final class RowSeq implements DataPoints {
 
     final int time_adj = (int) (base_time - baseTime());
     if (time_adj <= 0) {
-      throw new IllegalDataException("attempt to add a row with a base_time="
-          + base_time + " <= baseTime()=" + baseTime());
+      // Corner case: if the time difference is 0 and the key is the same, it
+      // means we've already added this row, possibly parts of it.  This
+      // doesn't normally happen but can happen if the scanner we're using
+      // timed out (its lease expired for whatever reason), in which case
+      // asynchbase will transparently re-open the scanner and start scanning
+      // from the row key we were on at the time the timeout happened.  In
+      // that case, the easiest thing to do is to discard everything we know
+      // about this row and start over, since we're going to get the full row
+      // again anyway.
+      if (time_adj != 0 || !Bytes.equals(this.key, key)) {
+        throw new IllegalDataException("Attempt to add a row with a base_time="
+          + base_time + " <= baseTime()=" + baseTime() + "; Row added=" + row
+          + ", this=" + this);
+      }
+      this.key = null;  // To keep setRow happy.
+      this.qualifiers = null;  // Throw away our previous work.
+      this.values = null;      // free();
+      setRow(row);
+      return;
     }
     for (final KeyValue kv : row) {
       short qualifier = extractQualifier(kv);
