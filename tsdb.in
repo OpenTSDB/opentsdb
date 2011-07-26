@@ -25,10 +25,19 @@ if test -n "$pkgdatadir"; then
   CLASSPATH="$CLASSPATH:$pkgdatadir"
 else
   localdir="$abs_builddir"
-  for jar in "$abs_builddir"/third_party/*/*.jar \
-             "$abs_srcdir"/third_party/*/*.jar \
-             "$abs_builddir"/*.jar; do
-    test -f "$jar" && CLASSPATH="$CLASSPATH:$jar"
+  # If we're running out of the build tree, it's especially important that we
+  # know exactly what jars we need to build the CLASSPATH.  Otherwise people
+  # cannot easily pick up new dependencies as we might mix multiple versions
+  # of the same dependencies on the CLASSPATH, which is bad.  Looking for a
+  # specific version of each jar prevents this problem.
+  # TODO(tsuna): Once we jarjar all the dependencies together, this will no
+  # longer be an issue.  See issue #23.
+  for jar in `make -C "$abs_builddir" printdeps | sed '$!d'`; do
+    for dir in "$abs_builddir" "$abs_srcdir"; do
+      test -f "$dir/$jar" && CLASSPATH="$CLASSPATH:$dir/$jar" && continue 2
+    done
+    echo >&2 "$me: error: Couldn't find \`$jar' either under \`$abs_builddir' or \`$abs_srcdir'."
+    exit 2
   done
   # Add the src dir so we can find logback.xml
   CLASSPATH="$CLASSPATH:$abs_srcdir/src"
