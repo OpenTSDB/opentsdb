@@ -32,7 +32,7 @@ else
   # specific version of each jar prevents this problem.
   # TODO(tsuna): Once we jarjar all the dependencies together, this will no
   # longer be an issue.  See issue #23.
-  for jar in `make -C "$abs_builddir" printdeps | sed '$!d'`; do
+  for jar in `make -C "$abs_builddir" printdeps | sed '/third_party.*jar/!d'`; do
     for dir in "$abs_builddir" "$abs_srcdir"; do
       test -f "$dir/$jar" && CLASSPATH="$CLASSPATH:$dir/$jar" && continue 2
     done
