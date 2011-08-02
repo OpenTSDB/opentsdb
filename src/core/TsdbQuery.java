@@ -401,7 +401,8 @@ final class TsdbQuery implements Query {
     // but this doesn't really matter.
     // Additionally, in case our sample_interval is large, we need to look
     // even further before/after, so use that too.
-    return getStartTime() - Const.MAX_TIMESPAN * 2 - sample_interval;
+    final long ts = getStartTime() - Const.MAX_TIMESPAN * 2 - sample_interval;
+    return ts > 0 ? ts : 0;
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.  */
