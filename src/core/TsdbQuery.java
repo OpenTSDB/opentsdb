@@ -60,11 +60,14 @@ final class TsdbQuery implements Query {
   /** The TSDB we belong to. */
   private final TSDB tsdb;
 
+  /** Value used for timestamps that are uninitialized.  */
+  private static final int UNSET = -1;
+
   /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int start_time;
+  private int start_time = UNSET;
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int end_time;
+  private int end_time = UNSET;
 
   /** ID of the metric being looked up. */
   private byte[] metric;
@@ -116,7 +119,7 @@ final class TsdbQuery implements Query {
   public void setStartTime(final long timestamp) {
     if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
-    } else if (end_time != 0 && timestamp >= getEndTime()) {
+    } else if (end_time != UNSET && timestamp >= getEndTime()) {
       throw new IllegalArgumentException("new start time (" + timestamp
           + ") is greater than or equal to end time: " + getEndTime());
     }
@@ -125,7 +128,7 @@ final class TsdbQuery implements Query {
   }
 
   public long getStartTime() {
-    if (start_time == 0) {
+    if (start_time == UNSET) {
       throw new IllegalStateException("setStartTime was never called!");
     }
     return start_time & 0x00000000FFFFFFFFL;
@@ -134,7 +137,7 @@ final class TsdbQuery implements Query {
   public void setEndTime(final long timestamp) {
     if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
-    } else if (start_time != 0 && timestamp <= getStartTime()) {
+    } else if (start_time != UNSET && timestamp <= getStartTime()) {
       throw new IllegalArgumentException("new end time (" + timestamp
           + ") is less than or equal to start time: " + getStartTime());
     }
@@ -143,7 +146,7 @@ final class TsdbQuery implements Query {
   }
 
   public long getEndTime() {
-    if (end_time == 0) {
+    if (end_time == UNSET) {
       setEndTime(System.currentTimeMillis() / 1000);
     }
     return end_time;
@@ -370,7 +373,7 @@ final class TsdbQuery implements Query {
     // & end dates in order to do proper rate calculation or downsampling near
     // the "edges" of the graph.
     Bytes.setInt(start_row, (int) getScanStartTime(), metric_width);
-    Bytes.setInt(end_row, (end_time == 0
+    Bytes.setInt(end_row, (end_time == UNSET
                            ? -1  // Will scan until the end (0xFFF...).
                            : (int) getScanEndTime()),
                  metric_width);

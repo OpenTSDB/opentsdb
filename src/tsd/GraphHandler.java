@@ -943,7 +943,7 @@ final class GraphHandler implements HttpRpc {
     try {
       final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
       final long timestamp = fmt.parse(date).getTime() / 1000;
-      if (timestamp <= 0) {
+      if (timestamp < 0) {
         throw new BadRequestException("Bad " + paramname + " date: " + date);
       }
       return timestamp;
