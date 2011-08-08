@@ -75,8 +75,6 @@ tsdb_SRC := \
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java
 
-tsdb_SRC_srcdir := $(tsdb_SRC:%=$(srcdir)/%)
-
 tsdb_DEPS = \
 	$(HBASEASYNC)	\
 	$(JCL_OVER_SLF4J)	\
@@ -134,7 +132,6 @@ AM_JAVACFLAGS = -Xlint -source 6
 JVM_ARGS =
 classes := $(tsdb_SRC:src/%.java=$(package_dir)/%.class) \
         $(builddata_SRC:src/%.java=$(package_dir)/%.class)
-test_classes := $(test_SRC:src/%.java=$(package_dir)/%.class)
 
 edit_tsdb_script := srcdir=''; test -f ./$$script.in || srcdir=$(srcdir)/; \
         sed -e "s:@pkgdatadir[@]:$$pkgdatadir:g" \
@@ -167,15 +164,42 @@ install-exec-hook:
 $(builddata_SRC): .git/HEAD $(tsdb_SRC) $(top_srcdir)/build-aux/gen_build_data.sh
 	$(srcdir)/build-aux/gen_build_data.sh $(builddata_SRC) $(package)
 
-jar: $(jar) $(UNITTESTS) .gwtc-stamp
+jar: $(jar) .javac-unittests-stamp .gwtc-stamp
 
 JAVA_COMPILE := $(JAVAC) $(AM_JAVACFLAGS) -d $(builddir)
 
+# Sets the shell variable $src to the list of `.java' files we depend on
+# that need to be recompiled.  Runs "exit 0" if there's nothing to compile,
+# which can happen if only non-.java dependencies have been updated.
+filter_src = \
+ src=''; \
+ for i in $?; do \
+   case $$i in (*.java) \
+     test -f "$(srcdir)/$$i" && i="$(srcdir)/$$i"; \
+     src="$$src $$i";; \
+   esac; \
+ done; \
+ test -n "$$src" || exit 0
+# Touches all the targets if any of the dependencies are newer.
+# This is useful to force-recompile all files if one of the
+# dependent libraries gets updated.
+refresh_src = \
+ for i in $@; do \
+   test -f "$$i" && touch "$$i" && continue; \
+   i="$(srcdir)/$$i"; \
+   test -f "$$i" && touch "$$i" && continue; \
+ done; :
+
+$(tsdb_SRC): $(tsdb_DEPS)
+	@$(refresh_src)
+
 find_jar = test -f "$$jar" && echo "$$jar" || echo "$(srcdir)/$$jar"
 get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'`
-.javac-stamp: $(tsdb_SRC) $(tsdb_DEPS)
+.javac-stamp: $(tsdb_SRC) $(builddata_SRC)
 	@$(MKDIR_P) $(builddir)
-	$(JAVA_COMPILE) -cp $(get_dep_classpath) $(tsdb_SRC_srcdir) $(builddata_SRC)
+	@$(filter_src); cp=$(get_dep_classpath); \
+          echo "$(JAVA_COMPILE) -cp $$cp $$src"; \
+                $(JAVA_COMPILE) -cp $$cp $$src
 	@touch "$@"
 
 GWT_CLASSPATH = `jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(srcdir)/src
@@ -247,15 +271,21 @@ uninstall-hook:
 	test ! -d "$(pkgdatadir)" || rmdir "$(pkgdatadir)"
 
 get_runtime_dep_classpath = `for jar in $(test_DEPS); do $(find_jar); done | tr '\n' ':'`
-$(test_classes): $(jar) $(test_SRC) $(test_DEPS)
-	$(JAVA_COMPILE) -cp $(get_runtime_dep_classpath) $(test_SRC:%=$(srcdir)/%)
+$(test_SRC): $(test_DEPS)
+	@$(refresh_src)
+.javac-unittests-stamp: $(jar) $(test_SRC)
+	@$(filter_src); cp=$(get_runtime_dep_classpath); \
+          echo "$(JAVA_COMPILE) -cp $$cp $$src"; \
+                $(JAVA_COMPILE) -cp $$cp $$src
+	@touch "$@"
+	@touch .javac-unittests-stamp
 
 classes_with_nested_classes := $(classes:.class=*.class)
-test_classes_with_nested_classes := $(test_classes:.class=*.class)
+test_classes_with_nested_classes := $(UNITTESTS:.class=*.class)
 
 # Little set script to make a pretty-ish banner.
 BANNER := sed 's/^.*/  &  /;h;s/./=/g;p;x;p;x'
-check-local: $(UNITTESTS)
+check-local: .javac-unittests-stamp
 	classes=`cd $(builddir) && echo $(test_classes_with_nested_classes)` \
         && tests=0 && failures=0 \
         && cp="$(get_runtime_dep_classpath):$(srcdir)/src" && \
@@ -295,14 +325,14 @@ JDK_JAVADOC = http://download.oracle.com/javase/6/docs/api
 NETTY_JAVADOC = http://docs.jboss.org/netty/$(NETTY_MAJOR_VERSION)/api
 $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
 	$(JAVADOC) -d $(JAVADOC_DIR) -classpath $(get_dep_classpath) \
-          -link $(JDK_JAVADOC) -link $(NETTY_JAVADOC) $(tsdb_SRC_srcdir)
+          -link $(JDK_JAVADOC) -link $(NETTY_JAVADOC) $? $(builddata_SRC)
 
 dist-hook:
 	$(MKDIR_P) $(distdir)/.git
 	echo $(git_version) >$(distdir)/.git/HEAD
 
 mostlyclean-local:
-	@rm -f .javac-stamp .gwtc-stamp* .staticroot-stamp
+	@rm -f .javac-stamp .javac-unittests-stamp .gwtc-stamp* .staticroot-stamp
 	rm -rf gwt staticroot
 	rm -f manifest $(BUILT_SOURCES)
 	rm -f $(classes_with_nested_classes) $(test_classes_with_nested_classes)
