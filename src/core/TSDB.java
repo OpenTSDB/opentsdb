@@ -31,9 +31,12 @@ import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
 /**
- * Thread-safe implementation of the {@link TSDBInterface}.
+ * Thread-safe implementation of the TSDB client.
+ * <p>
+ * This class is the central class of OpenTSDB.  You use it to add new data
+ * points or query the database.
  */
-public final class TSDB implements TSDBInterface {
+public final class TSDB {
 
   private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
 
@@ -150,14 +153,43 @@ public final class TSDB implements TSDBInterface {
     collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
   }
 
+  /**
+   * Returns a new {@link Query} instance suitable for this TSDB.
+   */
   public Query newQuery() {
     return new TsdbQuery(this);
   }
 
+  /**
+   * Returns a new {@link WritableDataPoints} instance suitable for this TSDB.
+   * <p>
+   * If you want to add a single data-point, consider using {@link #addPoint}
+   * instead.
+   */
   public WritableDataPoints newDataPoints() {
     return new IncomingDataPoints(this);
   }
 
+  /**
+   * Adds a single integer value data point in the TSDB.
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   */
   public Deferred<Object> addPoint(final String metric,
                                    final long timestamp,
                                    final long value,
@@ -167,6 +199,27 @@ public final class TSDB implements TSDBInterface {
                             tags, flags);
   }
 
+  /**
+   * Adds a single floating-point value data point in the TSDB.
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the value is NaN or infinite.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   */
   public Deferred<Object> addPoint(final String metric,
                                    final long timestamp,
                                    final float value,
@@ -209,10 +262,36 @@ public final class TSDB implements TSDBInterface {
     return client.put(point);
   }
 
+  /**
+   * Forces a flush of any un-committed in memory data.
+   * <p>
+   * For instance, any data point not persisted will be sent to HBase.
+   * @return A {@link Deferred} that will be called once all the un-committed
+   * data has been successfully and durably stored.  The value of the deferred
+   * object return is meaningless and unspecified, and can be {@code null}.
+   * @throws HBaseException (deferred) if there was a problem sending
+   * un-committed data to HBase.  Please refer to the {@link HBaseException}
+   * hierarchy to handle the possible failures.  Some of them are easily
+   * recoverable by retrying, some are not.
+   */
   public Deferred<Object> flush() throws HBaseException {
     return client.flush();
   }
 
+  /**
+   * Gracefully shuts down this instance.
+   * <p>
+   * This does the same thing as {@link #flush} and also releases all other
+   * resources.
+   * @return A {@link Deferred} that will be called once all the un-committed
+   * data has been successfully and durably stored, and all resources used by
+   * this instance have been released.  The value of the deferred object
+   * return is meaningless and unspecified, and can be {@code null}.
+   * @throws HBaseException (deferred) if there was a problem sending
+   * un-committed data to HBase.  Please refer to the {@link HBaseException}
+   * hierarchy to handle the possible failures.  Some of them are easily
+   * recoverable by retrying, some are not.
+   */
   public Deferred<Object> shutdown() {
     return client.shutdown();
   }

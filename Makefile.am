@@ -42,7 +42,6 @@ tsdb_SRC := \
 	src/core/Span.java	\
 	src/core/SpanGroup.java	\
 	src/core/TSDB.java	\
-	src/core/TSDBInterface.java	\
 	src/core/Tags.java	\
 	src/core/TsdbQuery.java	\
 	src/core/WritableDataPoints.java	\
