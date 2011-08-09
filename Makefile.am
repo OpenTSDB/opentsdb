@@ -76,7 +76,7 @@ tsdb_SRC := \
 	src/uid/UniqueIdInterface.java
 
 tsdb_DEPS = \
-	$(HBASEASYNC)	\
+	$(ASYNCHBASE)	\
 	$(JCL_OVER_SLF4J)	\
 	$(LOG4J_OVER_SLF4J)	\
 	$(LOGBACK_CLASSIC)	\

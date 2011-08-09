@@ -124,6 +124,11 @@ public final class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
+    collector.record("hbase.root_lookups", client.rootLookupCount());
+    collector.record("hbase.meta_lookups",
+                     client.uncontendedMetaLookupCount(), "type=uncontended");
+    collector.record("hbase.meta_lookups",
+                     client.contendedMetaLookupCount(), "type=contended");
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
