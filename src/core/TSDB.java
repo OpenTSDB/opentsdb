@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -19,8 +20,11 @@ import java.util.Map;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
+import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 
 import net.opentsdb.uid.UniqueId;
@@ -319,6 +323,27 @@ public final class TSDB {
    */
   public List<String> suggestTagValues(final String search) {
     return tag_values.suggest(search);
+  }
+
+  // ------------------------ //
+  // HBase operations helpers //
+  // ------------------------ //
+
+  /** Gets the entire given row from the data table. */
+  final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
+    return client.get(new GetRequest(table, key));
+  }
+
+  /** Puts the given value into the data table. */
+  final Deferred<Object> put(final byte[] key,
+                             final byte[] qualifier,
+                             final byte[] value) {
+    return client.put(new PutRequest(table, key, FAMILY, qualifier, value));
+  }
+
+  /** Deletes the given cells from the data table. */
+  final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
+    return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
   }
 
 }
