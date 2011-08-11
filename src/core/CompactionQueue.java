@@ -60,6 +60,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   private final AtomicLong trivial_compactions = new AtomicLong();
   private final AtomicLong complex_compactions = new AtomicLong();
+  private final AtomicLong written_cells = new AtomicLong();
+  private final AtomicLong deleted_cells = new AtomicLong();
 
   /** The {@code TSDB} instance we belong to. */
   private final TSDB tsdb;
@@ -102,7 +104,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    */
   public Deferred<ArrayList<Object>> flush() {
     LOG.info("Flushing all " + size() + " outstanding rows");
-    return flush(Long.MAX_VALUE);
+    return flush(Long.MAX_VALUE, Integer.MAX_VALUE);
   }
 
   /**
@@ -121,15 +123,28 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     collector.record("compaction.errors", handle_write_error.errors, "rpc=put");
     collector.record("compaction.errors",
                      DeleteCompactedCB.handle_delete_error.errors, "rpc=delete");
+    collector.record("compaction.writes", written_cells);
+    collector.record("compaction.deletes", deleted_cells);
   }
 
   /**
    * Flushes all the rows in the compaction queue older than the cutoff time.
    * @param cut_off A UNIX timestamp in seconds (unsigned 32-bit integer).
+   * @param maxflushes How many rows to flush off the queue at once.
+   * This integer is expected to be strictly positive.
+   * @return A deferred that will be called back once everything has been
+   * flushed.
    */
-  private Deferred<ArrayList<Object>> flush(final long cut_off) {
-    final ArrayList<Deferred<Object>> ds = new ArrayList<Deferred<Object>>();
+  private Deferred<ArrayList<Object>> flush(final long cut_off, int maxflushes) {
+    assert maxflushes > 0: "maxflushes must be > 0, but I got " + maxflushes;
+    // We can't possibly flush more entries than size().
+    maxflushes = Math.min(maxflushes, size());
+    final ArrayList<Deferred<Object>> ds =
+      new ArrayList<Deferred<Object>>(maxflushes);
     for (final byte[] row : this.keySet()) {
+      if (maxflushes-- == 0) {
+        break;
+      }
       final long base_time = Bytes.getUnsignedInt(row, metric_width);
       if (base_time > cut_off) {
         break;
@@ -329,9 +344,11 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
     final byte[] key = compact.key();
     //LOG.debug("Compacting row " + Arrays.toString(key));
+    deleted_cells.addAndGet(row.size());  // We're going to delete this.
     if (write) {
       final byte[] qual = compact.qualifier();
       final byte[] value = compact.value();
+      written_cells.incrementAndGet();
       return tsdb.put(key, qual, value)
         .addCallbacks(new DeleteCompactedCB(tsdb, row), handle_write_error);
     } else {
@@ -740,11 +757,18 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       while (true) {
         try {
           final long now = System.currentTimeMillis();
+          final int size = size();
           // Flush if either (1) it's been too long since the last flush
           // or (2) we have too many rows to recompact already.
           if (last_flush - now > Const.MAX_TIMESPAN  // (1)
               || size() > FLUSH_THRESHOLD) {         // (2)
-            flush(now / 1000 - Const.MAX_TIMESPAN - 1);
+            flush(now / 1000 - Const.MAX_TIMESPAN - 1, FLUSH_THRESHOLD);
+            if (LOG.isDebugEnabled()) {
+              final int newsize = size();
+              LOG.debug("flush() took " + (System.currentTimeMillis() - now)
+                        + "ms, new queue size=" + newsize
+                        + " (" + (newsize - size) + ')');
+            }
           }
         } catch (Exception e) {
           LOG.error("Uncaught exception in compaction thread", e);
