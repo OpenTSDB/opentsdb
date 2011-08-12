@@ -183,10 +183,45 @@ final class Fsck {
             final short qualifier = Bytes.getShort(kv.qualifier());
             final short delta = (short) ((qualifier & 0xFFFF) >>> FLAG_BITS);
             final long timestamp = base_time + delta;
-            if (kv.value().length > 8) {
+            byte[] value = kv.value();
+            if (value.length > 8) {
               errors++;
               LOG.error("Value more than 8 byte long with a 2-byte"
                         + " qualifier.\n\t" + kv);
+            }
+            // TODO(tsuna): Don't hardcode 0x8 / 0x3 here.
+            if ((qualifier & (0x8 | 0x3)) == (0x8 | 0x3)) {  // float | 4 bytes
+              // The qualifier says the value is on 4 bytes, and the value is
+              // on 8 bytes, then the 4 MSBs must be 0s.  Old versions of the
+              // code were doing this.  It's kinda sad.  Some versions had a
+              // bug whereby the value would be sign-extended, so we can
+              // detect these values and fix them here.
+              if (value.length == 8) {
+                if (value[0] == -1 && value[1] == -1
+                    && value[2] == -1 && value[3] == -1) {
+                  errors++;
+                  correctable++;
+                  if (fix) {
+                    value = value.clone();  // We're going to change it.
+                    value[0] = value[1] = value[2] = value[3] = 0;
+                    client.put(new PutRequest(table, kv.key(), kv.family(),
+                                              kv.qualifier(), value));
+                  } else {
+                    LOG.error("Floating point value with 0xFF most significant"
+                              + " bytes, probably caused by sign extension bug"
+                              + " present in revisions [96908436..607256fc].\n"
+                              + "\t" + kv);
+                  }
+                } else if (value[0] != 0 || value[1] != 0
+                           || value[2] != 0 || value[3] != 0) {
+                  errors++;
+                }
+              } else if (value.length != 4) {
+                errors++;
+                LOG.error("This floating point value must be encoded either on"
+                          + " 4 or 8 bytes, but it's on " + value.length
+                          + " bytes.\n\t" + kv);
+              }
             }
             if (timestamp <= prev.timestamp()) {
               errors++;
@@ -201,7 +236,7 @@ final class Fsck {
                 final DeleteOutOfOrder delooo = new DeleteOutOfOrder(kv);
                 if (timestamp < prev.timestamp()) {
                   client.put(new PutRequest(table, newkey, kv.family(),
-                                            Bytes.fromShort(newqual), kv.value()))
+                                            Bytes.fromShort(newqual), value))
                     // Only delete the offending KV once we're sure that the new
                     // KV has been persisted in HBase.
                     .addCallbackDeferring(delooo);

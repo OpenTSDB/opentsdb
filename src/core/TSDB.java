@@ -232,7 +232,8 @@ public final class TSDB {
     final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
     return addPointInternal(metric, timestamp,
                             // Note: this is actually on 8 bytes :(
-                            Bytes.fromLong(Float.floatToRawIntBits(value)),
+                            Bytes.fromLong(Float.floatToRawIntBits(value)
+                                           & 0x00000000FFFFFFFFL),
                             tags, flags);
   }
 
