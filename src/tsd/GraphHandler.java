@@ -279,7 +279,7 @@ final class GraphHandler implements HttpRpc {
           if (tags == null || tags.isEmpty()) {
             buf.append("[]");
           } else {
-            query.toJsonArray(tags, buf);
+            HttpQuery.toJsonArray(tags, buf);
           }
           buf.append(',');
         }
@@ -294,12 +294,12 @@ final class GraphHandler implements HttpRpc {
             query.sendFile(basepath + ".png", max_age);
           } else {
             if (nplotted > 0) {
-              query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
+              query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
                 "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
                 + "<small>(" + nplotted + " points plotted in "
                 + query.processingTimeMillis() + "ms)</small>"));
             } else {
-              query.sendReply(query.makePage("TSDB Query", "No results found",
+              query.sendReply(HttpQuery.makePage("TSDB Query", "No results found",
                 "<blockquote><h1>No results</h1>Your query didn't return"
                 + " anything.  Try changing some parameters.</blockquote>"));
             }
@@ -385,7 +385,7 @@ final class GraphHandler implements HttpRpc {
                  || query.hasQueryStringParam("ascii")) {
         query.sendFile(cachepath, max_age);
       } else {
-        query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
+        query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
             "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
             + "<small>(served from disk cache)</small>"));
       }
@@ -407,7 +407,7 @@ final class GraphHandler implements HttpRpc {
     } else if (query.hasQueryStringParam("png")) {
       query.sendReply(" ");  // Send back an empty response...
     } else {
-        query.sendReply(query.makePage("TSDB Query", "No results",
+        query.sendReply(HttpQuery.makePage("TSDB Query", "No results",
             "Sorry, your query didn't return anything.<br/>"
             + "<small>(served from disk cache)</small>"));
     }
