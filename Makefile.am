@@ -293,7 +293,7 @@ check-local: .javac-unittests-stamp
           case $$i in (*[$$]*) continue;; esac; \
           tests=$$((tests + 1)); \
           echo "Running tests for `basename $$i .class`" | $(BANNER); \
-          $(JAVA) -ea $(JVM_ARGS) -cp "$$cp" org.junit.runner.JUnitCore `echo $${i%.class} | tr / .` $(ARGS) \
+          $(JAVA) -ea -esa $(JVM_ARGS) -cp "$$cp" org.junit.runner.JUnitCore `echo $${i%.class} | tr / .` $(ARGS) \
           || failures=$$((failures + 1)); \
         done; \
         if test "$$failures" -eq 0; then \
