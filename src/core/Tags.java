@@ -25,7 +25,6 @@ import org.hbase.async.Bytes;
 
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 
 /** Helper functions to deal with tags. */
 public final class Tags {
