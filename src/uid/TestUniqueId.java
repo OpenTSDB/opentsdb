@@ -327,7 +327,7 @@ public final class TestUniqueId {
     when(client.get(anyGet()))
       .thenReturn(d);
 
-    final Answer the_race = new Answer<byte[]>() {
+    final Answer<byte[]> the_race = new Answer<byte[]>() {
       public byte[] answer(final InvocationOnMock unused_invocation) {
         // While answering A's first Get, B doest a full getOrCreateId.
         assertArrayEquals(id, uid_b.getOrCreateId("foo"));
