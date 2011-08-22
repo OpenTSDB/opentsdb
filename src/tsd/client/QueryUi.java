@@ -250,7 +250,7 @@ public class QueryUi implements EntryPoint {
     }
     autoreoload.addClickHandler(new ClickHandler() {
       public void onClick(final ClickEvent event) {
-        if (autoreoload.isChecked()) {
+        if (autoreoload.getValue()) {
           final HorizontalPanel hbox = new HorizontalPanel();
           hbox.setWidth("100%");
           hbox.add(new InlineLabel("Every:"));
@@ -446,7 +446,7 @@ public class QueryUi implements EntryPoint {
     addKeyRadioButton(grid, 0, 4, "out right top");
     addKeyRadioButton(grid, 1, 1, "top left");
     addKeyRadioButton(grid, 1, 2, "top center");
-    addKeyRadioButton(grid, 1, 3, "top right").setChecked(true);
+    addKeyRadioButton(grid, 1, 3, "top right").setValue(true);
     addKeyRadioButton(grid, 2, 0, "out center left");
     addKeyRadioButton(grid, 2, 1, "center left");
     addKeyRadioButton(grid, 2, 2, "center");
@@ -475,7 +475,7 @@ public class QueryUi implements EntryPoint {
     vbox.add(new InlineLabel("Key location:"));
     vbox.add(grid);
     vbox.add(horizontalkey);
-    keybox.setChecked(true);
+    keybox.setValue(true);
     vbox.add(keybox);
     vbox.add(nokey);
     return vbox;
@@ -614,10 +614,10 @@ public class QueryUi implements EntryPoint {
   }
 
   private void addLogscales(final StringBuilder url) {
-    if (ylog.isChecked()) {
+    if (ylog.getValue()) {
       url.append("&ylog");
     }
-    if (y2log.isEnabled() && y2log.isChecked()) {
+    if (y2log.isEnabled() && y2log.getValue()) {
       url.append("&y2log");
     }
   }
@@ -629,7 +629,7 @@ public class QueryUi implements EntryPoint {
       return;
     }
     final Date end = end_datebox.getValue();
-    if (end != null && !autoreoload.isChecked()) {
+    if (end != null && !autoreoload.getValue()) {
       if (end.getTime() <= start.getTime()) {
         end_datebox.addStyleName("dateBoxFormatError");
         graphstatus.setText("End time must be after start time!");
@@ -638,7 +638,7 @@ public class QueryUi implements EntryPoint {
     }
     final StringBuilder url = new StringBuilder();
     url.append("/q?start=").append(FULLDATE.format(start));
-    if (end != null && !autoreoload.isChecked()) {
+    if (end != null && !autoreoload.getValue()) {
       url.append("&end=").append(FULLDATE.format(end));
     } else {
       // If there's no end-time, the graph may change while the URL remains
@@ -657,17 +657,17 @@ public class QueryUi implements EntryPoint {
     addFormats(url);
     addYRanges(url);
     addLogscales(url);
-    if (nokey.isChecked()) {
+    if (nokey.getValue()) {
       url.append("&nokey");
-    } else if (!keypos.isEmpty() || horizontalkey.isChecked()) {
+    } else if (!keypos.isEmpty() || horizontalkey.getValue()) {
       url.append("&key=");
       if (!keypos.isEmpty()) {
         url.append(keypos);
       }
-      if (horizontalkey.isChecked()) {
+      if (horizontalkey.getValue()) {
         url.append(" horiz");
       }
-      if (keybox.isChecked()) {
+      if (keybox.getValue()) {
         url.append(" box");
       }
     }
@@ -743,14 +743,14 @@ public class QueryUi implements EntryPoint {
             }
           }
         }
-        if (autoreoload.isChecked()) {
+        if (autoreoload.getValue()) {
           final int reload_in = Integer.parseInt(autoreoload_interval.getValue());
           if (reload_in >= 5) {
             autoreoload_timer = new Timer() {
               public void run() {
                 // Verify that we still want auto reload and that the graph
                 // hasn't been updated in the mean time.
-                if (autoreoload.isChecked() && lastgraphuri == uri) {
+                if (autoreoload.getValue() && lastgraphuri == uri) {
                   // Force refreshGraph to believe that we want a new graph.
                   lastgraphuri = "";
                   refreshGraph();
@@ -873,10 +873,10 @@ public class QueryUi implements EntryPoint {
     }
 
     public void onClick(final ClickEvent event) {
-      if (box.isEnabled() && box.isChecked()
+      if (box.isEnabled() && box.getValue()
           && "[0:]".equals(range.getValue())) {
         range.setValue("[1:]");
-      } else if (box.isEnabled() && !box.isChecked()
+      } else if (box.isEnabled() && !box.getValue()
                  && "[1:]".equals(range.getValue())) {
         range.setValue("[0:]");
       }
