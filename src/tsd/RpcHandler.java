@@ -236,8 +236,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
     public void execute(final TSDB tsdb, final HttpQuery query) {
       logWarn(query, "shutdown requested");
-      query.sendReply(query.makePage("TSD Exiting", "You killed me",
-                                     "Cleaning up and exiting now."));
+      query.sendReply(HttpQuery.makePage("TSD Exiting", "You killed me",
+                                         "Cleaning up and exiting now."));
       doShutdown(tsdb, query.channel());
     }
 
@@ -310,7 +310,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
                  + "<iframe src=javascript:'' id=__gwt_historyFrame tabIndex=-1"
                  + " style=position:absolute;width:0;height:0;border:0>"
                  + "</iframe>");
-      query.sendReply(query.makePage(
+      query.sendReply(HttpQuery.makePage(
         "<script type=text/javascript language=javascript"
         + " src=/s/queryui.nocache.js></script>",
         "TSD", "Time Series Database", buf.toString()));
