@@ -24,7 +24,8 @@ echo "Generating $DST"
 dir=`dirname "$DST"`
 mkdir -p "$dir"
 
-export TZ=UTC
+TZ=UTC
+export TZ
 # Can't use the system `date' tool because it's not portable.
 sh=`python <<EOF
 import time
