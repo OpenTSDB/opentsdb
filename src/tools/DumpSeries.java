@@ -17,9 +17,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
@@ -34,8 +31,6 @@ import net.opentsdb.core.TSDB;
  * Useful for debugging data induced problems.
  */
 final class DumpSeries {
-
-  private static final Logger LOG = LoggerFactory.getLogger(DumpSeries.class);
 
   /** Prints usage and exits with the given retval. */
   private static void usage(final ArgP argp, final String errmsg,

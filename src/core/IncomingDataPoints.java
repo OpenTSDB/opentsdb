@@ -20,9 +20,6 @@ import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 
@@ -32,8 +29,6 @@ import net.opentsdb.stats.Histogram;
  * Receives new data points and stores them in HBase.
  */
 final class IncomingDataPoints implements WritableDataPoints {
-
-  private static final Logger LOG = LoggerFactory.getLogger(IncomingDataPoints.class);
 
   /** For auto create metrics mode, set by --auto-metric flag in TSDMain.  */
   private static final boolean AUTO_METRIC =

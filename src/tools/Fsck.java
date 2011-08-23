@@ -45,7 +45,6 @@ final class Fsck {
   /** Mask to select all the FLAG_BITS.  */
   static final short FLAGS_MASK;
   static {
-    final Class<UniqueId> uidclass = UniqueId.class;
     try {
       // Those are all implementation details so they're not part of the
       // interface.  We access them anyway using reflection.  I think this
@@ -133,7 +132,9 @@ final class Fsck {
     int correctable = 0;
 
     final short metric_width = width(tsdb, "metrics");
+    @SuppressWarnings("unused")
     final short name_width = width(tsdb, "tag_names");
+    @SuppressWarnings("unused")
     final short value_width = width(tsdb, "tag_values");
 
     final ArrayList<Query> queries = new ArrayList<Query>();

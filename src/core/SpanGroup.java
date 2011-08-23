@@ -21,9 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
  * <p>
@@ -47,11 +44,6 @@ import org.slf4j.LoggerFactory;
  * iterator when using the {@link Span.DownsamplingIterator}.
  */
 final class SpanGroup implements DataPoints {
-
-  private static final Logger LOG = LoggerFactory.getLogger(SpanGroup.class);
-
-  /** The TSDB we belong to. */
-  private final TSDB tsdb;
 
   /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
   private final long start_time;
@@ -115,7 +107,6 @@ final class SpanGroup implements DataPoints {
             final boolean rate,
             final Aggregator aggregator,
             final int interval, final Aggregator downsampler) {
-    this.tsdb = tsdb;
     this.start_time = start_time;
     this.end_time = end_time;
     if (spans != null) {

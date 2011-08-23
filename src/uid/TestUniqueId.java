@@ -598,10 +598,6 @@ public final class TestUniqueId {
     return any(RowLockRequest.class);
   }
 
-  private static byte[] anyBytes() {
-    return any(byte[].class);
-  }
-
   private static HBaseException fakeHBaseException() {
     final HBaseException hbe = mock(HBaseException.class);
     when(hbe.getStackTrace())

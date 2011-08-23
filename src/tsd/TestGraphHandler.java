@@ -13,8 +13,6 @@
 package net.opentsdb.tsd;
 
 import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 import org.jboss.netty.channel.Channel;
 
@@ -163,11 +161,6 @@ public final class TestGraphHandler {
     verify(cachedfile).lastModified();  // Ensure we do a single stat() call.
     PowerMockito.verifyStatic(); // Verify that ...
     System.currentTimeMillis();  // ... this was called only once.
-  }
-
-  private static String mktime(final long millis) {
-    final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
-    return fmt.format(new Date(millis));
   }
 
   /**

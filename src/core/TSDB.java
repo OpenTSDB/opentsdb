@@ -18,9 +18,6 @@ import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
@@ -37,8 +34,6 @@ import net.opentsdb.stats.StatsCollector;
  * points or query the database.
  */
 public final class TSDB {
-
-  private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
 
   static final byte[] FAMILY = { 't' };
 

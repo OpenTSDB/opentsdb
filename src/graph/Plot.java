@@ -90,14 +90,6 @@ public final class Plot {
     this.end_time = (int) end_time;
   }
 
-  private long startTime() {
-    return start_time & 0x00000000FFFFFFFFL;
-  }
-
-  private long endTime() {
-    return end_time & 0x00000000FFFFFFFFL;
-  }
-
   /**
    * Sets the global parameters for this plot.
    * @param params Each entry is a Gnuplot setting that will be written as-is
