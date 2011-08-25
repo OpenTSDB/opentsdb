@@ -663,6 +663,9 @@ final class GraphHandler implements HttpRpc {
     if ((value = popParam(querystring, "y2format")) != null) {
       params.put("format y2", stringify(value));
     }
+    if ((value = popParam(querystring, "xformat")) != null) {
+      params.put("format x", stringify(value));
+    }
     if ((value = popParam(querystring, "ylog")) != null) {
       params.put("logscale", "y");
     }

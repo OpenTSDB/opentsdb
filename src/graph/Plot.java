@@ -223,8 +223,6 @@ public final class Plot {
         .append(Short.toString(height)).append("\n"
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
-                + "set format x \"").append(xFormat())
-                                    .append("\"\n"
                 + "set xtic rotate\n"
                 + "set output \"").append(basepath + ".png").append("\"\n"
                 + "set xrange [\"")
@@ -232,6 +230,9 @@ public final class Plot {
         .append("\":\"")
         .append(String.valueOf(end_time + utc_offset))
         .append("\"]\n");
+      if (!params.containsKey("format x")) {
+        gp.append("set format x \"").append(xFormat()).append("\"\n");
+      }
       final int nseries = datapoints.size();
       if (nseries > 0) {
         gp.write("set grid\n"
