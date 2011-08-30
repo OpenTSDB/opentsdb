@@ -7,6 +7,10 @@ CURL="@CURL@"
 # The ".." is because we need to go out of the build-aux directory.
 srcdir="@abs_srcdir@/.."
 
+case $MKDIR_P in
+  .*) MKDIR_P=`dirname $0`/$MKDIR_P ;;
+esac
+
 f=`basename "$2"`
 d=`dirname "$2"`
 
