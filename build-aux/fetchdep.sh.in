@@ -24,6 +24,8 @@ test -f "$2" && validate_checksum "$2" && touch "$2" && exit
 
 rm -f "$2"
 $MKDIR_P "$d"
+# Make sure we clean up after ourselves when we exit.
+trap "rv=\$?; rm -f '$2-t'; exit \$rv" 0
 
 if test -n "$WGET"; then
   $WGET "$1/$f" -O "$2-t"
@@ -43,6 +45,5 @@ else
   echo >&2 "error: invalid checksum for $2"
   echo >&2 "error: expected: $valid"
   echo >&2 "error:    found: $cksum"
-  rm -f "$2-t"
   exit 1
 fi
