@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
-MKDIR_P="@MKDIR_P@"
+# Getting this value out of Autoconf is not a good idea, because it might be
+# set to a relative path to install-sh.  We don't install `install-sh' during
+# `make install' anyway, so...  See bug #74.
+MKDIR_P='mkdir -p'
 MD5="@MD5@"
 WGET="@WGET@"
 CURL="@CURL@"
