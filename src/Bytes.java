@@ -310,18 +310,10 @@ public final class Bytes {
       if (' ' <= b && b <= '~') {
         ascii++;
         outbuf.append((char) b);
-      } else if (0 < b && b < '!') {
-        switch (b) {
-          case '\n':
-            outbuf.append('\\').append('n');
-            break;
-          case '\t':
-            outbuf.append('\\').append('t');
-            break;
-          default:
-            outbuf.append('^').append((char) ('@' + b));
-            break;
-        }
+      } else if (b == '\n') {
+        outbuf.append('\\').append('n');
+      } else if (b == '\t') {
+        outbuf.append('\\').append('t');
       } else {
         outbuf.append("\\x")
           .append((char) HEX[(b >>> 4) & 0x0F])
