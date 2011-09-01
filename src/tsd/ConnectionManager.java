@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -81,6 +82,12 @@ final class ConnectionManager extends SimpleChannelHandler {
     final Channel chan = ctx.getChannel();
     if (cause instanceof ClosedChannelException) {
       LOG.warn("Attempt to write to closed channel " + chan);
+    } else if (cause instanceof IOException
+               && "Connection reset by peer".equals(cause.getMessage())) {
+      // Do nothing.  A client disconnecting isn't really our problem.  Oh,
+      // and I'm not kidding you, there's no better way to detect ECONNRESET
+      // in Java.  Like, people have been bitching about errno for years,
+      // and Java managed to do something *far* worse.  That's quite a feat.
     } else {
       LOG.error("Unexpected exception from downstream for " + chan, cause);
       e.getChannel().close();
