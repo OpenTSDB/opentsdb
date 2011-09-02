@@ -27,7 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.HBaseRpc;
 import org.hbase.async.KeyValue;
+import org.hbase.async.PleaseThrottleException;
 
 import net.opentsdb.stats.StatsCollector;
 
@@ -121,8 +123,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     collector.record("compaction.queue.size", size);
     collector.record("compaction.errors", handle_read_error.errors, "rpc=read");
     collector.record("compaction.errors", handle_write_error.errors, "rpc=put");
-    collector.record("compaction.errors",
-                     DeleteCompactedCB.handle_delete_error.errors, "rpc=delete");
+    collector.record("compaction.errors", handle_delete_error.errors,
+                     "rpc=delete");
     collector.record("compaction.writes", written_cells);
     collector.record("compaction.deletes", deleted_cells);
   }
@@ -350,12 +352,12 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       final byte[] value = compact.value();
       written_cells.incrementAndGet();
       return tsdb.put(key, qual, value)
-        .addCallbacks(new DeleteCompactedCB(tsdb, row), handle_write_error);
+        .addCallbacks(new DeleteCompactedCB(row), handle_write_error);
     } else {
       // We had nothing to write, because one of the cells is already the
       // correctly compacted version, so we can go ahead and delete the
       // individual cells directly.
-      new DeleteCompactedCB(tsdb, row).call(null);
+      new DeleteCompactedCB(row).call(null);
       return null;
     }
   }
@@ -671,21 +673,14 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   /**
    * Callback to delete a row that's been successfully compacted.
    */
-  private static final class DeleteCompactedCB implements Callback<Object, Object> {
-
-    /** The {@code TSDB} instance we belong to.  */
-    private final TSDB tsdb;
+  private final class DeleteCompactedCB implements Callback<Object, Object> {
 
     /** What we're going to delete.  */
     private final byte[] key;
     private final byte[] family;
     private final byte[][] qualifiers;
 
-    private static final HandleErrorCB handle_delete_error =
-      new HandleErrorCB("delete");
-
-    public DeleteCompactedCB(final TSDB tsdb, final ArrayList<KeyValue> cells) {
-      this.tsdb = tsdb;
+    public DeleteCompactedCB(final ArrayList<KeyValue> cells) {
       final KeyValue first = cells.get(0);
       key = first.key();
       family = first.family();
@@ -707,11 +702,12 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   private final HandleErrorCB handle_read_error = new HandleErrorCB("read");
   private final HandleErrorCB handle_write_error = new HandleErrorCB("write");
+  private final HandleErrorCB handle_delete_error = new HandleErrorCB("delete");
 
   /**
    * Callback to handle exceptions during the compaction process.
    */
-  private static final class HandleErrorCB implements Callback<Exception, Exception> {
+  private final class HandleErrorCB implements Callback<Object, Exception> {
 
     private volatile int errors;
 
@@ -725,7 +721,20 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       this.what = what;
     }
 
-    public Exception call(final Exception e) {
+    public Object call(final Exception e) {
+      if (e instanceof PleaseThrottleException) {  // HBase isn't keeping up.
+        final HBaseRpc rpc = ((PleaseThrottleException) e).getFailedRpc();
+        if (rpc instanceof HBaseRpc.HasKey) {
+          // We failed to compact this row.  Whether it's because of a failed
+          // get, put or delete, we should re-schedule this row for a future
+          // compaction.
+          add(((HBaseRpc.HasKey) rpc).key());
+          return Boolean.TRUE;  // We handled it, so don't return an exception.
+        } else {  // Should never get in this clause.
+          LOG.error("WTF?  Cannot retry this RPC, and this shouldn't happen: "
+                    + rpc);
+        }
+      }
       // `++' is not atomic but doesn't matter if we miss some increments.
       if (++errors % 100 == 1) {  // Basic rate-limiting to not flood logs.
         LOG.error("Failed to " + what + " a row to re-compact", e);
