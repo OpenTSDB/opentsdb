@@ -928,6 +928,10 @@ final class GraphHandler implements HttpRpc {
 
   /**
    * Returns a timestamp from a date specified in a query string parameter.
+   * Formats accepted are:
+   *   - Relative: "5m-ago", "1h-ago", etc.  See {@link #parseDuration}.
+   *   - Absolute human readable date: "yyyy/MM/dd-HH:mm:ss".
+   *   - UNIX timestamp (seconds since Epoch): "1234567890".
    * @param query The HTTP query from which to get the query string parameter.
    * @param paramname The name of the query string parameter.
    * @return A UNIX timestamp in seconds (strictly positive 32-bit "unsigned")
@@ -943,20 +947,25 @@ final class GraphHandler implements HttpRpc {
       return (System.currentTimeMillis() / 1000
               - parseDuration(date.substring(0, date.length() - 4)));
     }
+    long timestamp;
     try {
-      final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
-      final long timestamp = fmt.parse(date).getTime() / 1000;
-      if (timestamp < 0) {
-        throw new BadRequestException("Bad " + paramname + " date: " + date);
+      timestamp = Long.parseLong(date);   // Is it already a timestamp?
+    } catch (NumberFormatException ne) {  // Nope, try to parse a date then.
+      try {
+        final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
+        timestamp = fmt.parse(date).getTime() / 1000;
+      } catch (ParseException e) {
+        throw new BadRequestException("Invalid " + paramname + " date: " + date
+                                      + ". " + e.getMessage());
+      } catch (NumberFormatException e) {
+        throw new BadRequestException("Invalid " + paramname + " date: " + date
+                                      + ". " + e.getMessage());
       }
-      return timestamp;
-    } catch (ParseException e) {
-      throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                    + ". " + e.getMessage());
-    } catch (NumberFormatException e) {
-      throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                    + ". " + e.getMessage());
     }
+    if (timestamp < 0) {
+      throw new BadRequestException("Bad " + paramname + " date: " + date);
+    }
+    return timestamp;
   }
 
   private static final PlotThdFactory thread_factory = new PlotThdFactory();
