@@ -323,9 +323,11 @@ doc: $(JAVADOC_DIR)/index.html
 
 JDK_JAVADOC = http://download.oracle.com/javase/6/docs/api
 NETTY_JAVADOC = http://docs.jboss.org/netty/$(NETTY_MAJOR_VERSION)/api
+SUASYNC_JAVADOC = http://tsunanet.net/~tsuna/async/$(SUASYNC_VERSION)
 $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
 	$(JAVADOC) -d $(JAVADOC_DIR) -classpath $(get_dep_classpath) \
-          -link $(JDK_JAVADOC) -link $(NETTY_JAVADOC) $? $(builddata_SRC)
+          -link $(JDK_JAVADOC) -link $(NETTY_JAVADOC) -link $(SUASYNC_JAVADOC) \
+          $? $(builddata_SRC)
 
 dist-hook:
 	$(MKDIR_P) $(distdir)/.git
