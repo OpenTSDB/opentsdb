@@ -749,9 +749,17 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   static final long serialVersionUID = 1307386642;
 
+  /** How frequently the compaction thread wakes up flush stuff.  */
   // TODO(tsuna): Make configurable?
-  /** If we have more than this many rows to compact, we'll trigger a flush.  */
-  private static final int FLUSH_THRESHOLD = 1000;
+  private static final int FLUSH_INTERVAL = 10;  // seconds
+
+  /** Minimum number of rows we'll attempt to compact at once.  */
+  // TODO(tsuna): Make configurable?
+  private static final int MIN_FLUSH_THRESHOLD = 100;  // rows
+
+  /** If this is X then we'll flush X times faster than we really need.  */
+  // TODO(tsuna): Make configurable?
+  private static final int FLUSH_SPEED = 2;  // multiplicative factor
 
   /**
    * Background thread to trigger periodic compactions.
@@ -767,11 +775,30 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         try {
           final long now = System.currentTimeMillis();
           final int size = size();
+          // Let's suppose MAX_TIMESPAN = 1h.  We have `size' rows to compact,
+          // and we better compact them all before in less than 1h, otherwise
+          // we're going to "fall behind" when a new hour start (as we'll be
+          // creating a ton of new rows then).  So slice MAX_TIMESPAN using
+          // FLUSH_INTERVAL to compute what fraction of `size' we need to
+          // flush at each iteration.  Note that `size' will usually account
+          // for many rows that can't be flushed yet (not old enough) so we're
+          // overshooting a bit (flushing more aggressively than necessary).
+          // This isn't a problem at all.  The only thing that matters is that
+          // the rate at which we flush stuff is proportional to how much work
+          // is sitting in the queue.  The multiplicative factor FLUSH_SPEED
+          // is added to make flush even faster than we need.  For example, if
+          // FLUSH_SPEED is 2, then instead of taking 1h to flush what we have
+          // for the previous hour, we'll take only 30m.  This is desirable so
+          // that we evict old entries from the queue a bit faster.
+          final int maxflushes = Math.max(MIN_FLUSH_THRESHOLD,
+            size * FLUSH_INTERVAL * FLUSH_SPEED / Const.MAX_TIMESPAN);
           // Flush if either (1) it's been too long since the last flush
           // or (2) we have too many rows to recompact already.
+          // Note that in the case (2) we might not be able to flush anything
+          // if the rows aren't old enough.
           if (last_flush - now > Const.MAX_TIMESPAN  // (1)
-              || size() > FLUSH_THRESHOLD) {         // (2)
-            flush(now / 1000 - Const.MAX_TIMESPAN - 1, FLUSH_THRESHOLD);
+              || size > maxflushes) {                // (2)
+            flush(now / 1000 - Const.MAX_TIMESPAN - 1, maxflushes);
             if (LOG.isDebugEnabled()) {
               final int newsize = size();
               LOG.debug("flush() took " + (System.currentTimeMillis() - now)
@@ -783,8 +810,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           LOG.error("Uncaught exception in compaction thread", e);
         }
         try {
-          // TODO(tsuna): Make configurable?
-          Thread.sleep(10 * 1000);
+          Thread.sleep(FLUSH_INTERVAL * 1000);
         } catch (InterruptedException e) {
           LOG.error("Compaction thread interrupted, doing one last flush", e);
           flush();
