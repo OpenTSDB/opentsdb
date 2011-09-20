@@ -515,10 +515,16 @@ public final class UniqueId implements UniqueIdInterface {
    * Creates a scanner that scans the right range of rows for suggestions.
    */
   private Scanner getSuggestScanner(final String search) {
-    final byte[] start_row = search.isEmpty() ? START_ROW : toBytes(search);
-    final byte[] end_row = (search.isEmpty() ? END_ROW
-                            : Arrays.copyOf(start_row, start_row.length));
-    end_row[start_row.length - 1]++;
+    final byte[] start_row;
+    final byte[] end_row;
+    if (search.isEmpty()) {
+      start_row = START_ROW;
+      end_row = END_ROW;
+    } else {
+      start_row = toBytes(search);
+      end_row = Arrays.copyOf(start_row, start_row.length);
+      end_row[start_row.length - 1]++;
+    }
     final Scanner scanner = client.newScanner(table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
