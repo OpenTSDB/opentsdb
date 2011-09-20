@@ -80,9 +80,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     this.tsdb = tsdb;
     metric_width = tsdb.metrics.width();
     if (TSDB.enable_compactions) {
-      final Thrd thread = new Thrd();
-      thread.setDaemon(true);
-      thread.start();
+      startCompactionThread();
     }
   }
 
@@ -749,6 +747,13 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   static final long serialVersionUID = 1307386642;
 
+  /** Starts a compaction thread.  Only one such thread is needed.  */
+  private void startCompactionThread() {
+    final Thrd thread = new Thrd();
+    thread.setDaemon(true);
+    thread.start();
+  }
+
   /** How frequently the compaction thread wakes up flush stuff.  */
   // TODO(tsuna): Make configurable?
   private static final int FLUSH_INTERVAL = 10;  // seconds
@@ -808,6 +813,30 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           }
         } catch (Exception e) {
           LOG.error("Uncaught exception in compaction thread", e);
+        } catch (OutOfMemoryError e) {
+          // Let's free up some memory by throwing away the compaction queue.
+          final int sz = size.get();
+          CompactionQueue.super.clear();
+          size.set(0);
+          LOG.error("Discarded the compaction queue, size=" + sz, e);
+        } catch (Throwable e) {
+          LOG.error("Uncaught *Throwable* in compaction thread", e);
+          // Catching this kind of error is totally unexpected and is really
+          // bad.  If we do nothing and let this thread die, we'll run out of
+          // memory as new entries are added to the queue.  We could always
+          // commit suicide, but it's kind of drastic and nothing else in the
+          // code does this.  If `enable_compactions' wasn't final, we could
+          // always set it to false, but that's not an option.  So in order to
+          // try to get a fresh start, let this compaction thread terminate
+          // and spin off a new one instead.
+          try {
+            Thread.sleep(1000);  // Avoid busy looping creating new threads.
+          } catch (InterruptedException i) {
+            LOG.error("Compaction thread interrupted in error handling", i);
+            return;  // Don't flush, we're truly hopeless.
+          }
+          startCompactionThread();
+          return;
         }
         try {
           Thread.sleep(FLUSH_INTERVAL * 1000);
