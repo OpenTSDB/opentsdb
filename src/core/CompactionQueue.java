@@ -96,7 +96,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   }
 
   /**
-   * Forces a flush of the entire compaction queue.
+   * Forces a flush of the all old entries in the compaction queue.
    * @return A deferred that will be called back once everything has been
    * flushed (or something failed, in which case the deferred will carry the
    * exception).  In case of success, the kind of object returned is
@@ -105,9 +105,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   public Deferred<ArrayList<Object>> flush() {
     final int size = size();
     if (size > 0) {
-      LOG.info("Flushing all " + size + " outstanding rows");
+      LOG.info("Flushing all old outstanding rows out of " + size + " rows");
     }
-    return flush(Long.MAX_VALUE, Integer.MAX_VALUE);
+    final long now = System.currentTimeMillis();
+    return flush(now / 1000 - Const.MAX_TIMESPAN - 1, Integer.MAX_VALUE);
   }
 
   /**
