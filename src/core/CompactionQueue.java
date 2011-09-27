@@ -103,7 +103,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * unspecified.
    */
   public Deferred<ArrayList<Object>> flush() {
-    LOG.info("Flushing all " + size() + " outstanding rows");
+    final int size = size();
+    if (size > 0) {
+      LOG.info("Flushing all " + size + " outstanding rows");
+    }
     return flush(Long.MAX_VALUE, Integer.MAX_VALUE);
   }
 
@@ -139,14 +142,23 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     assert maxflushes > 0: "maxflushes must be > 0, but I got " + maxflushes;
     // We can't possibly flush more entries than size().
     maxflushes = Math.min(maxflushes, size());
+    if (maxflushes == 0) {  // Because size() might be 0.
+      return Deferred.fromResult(new ArrayList<Object>(0));
+    }
     final ArrayList<Deferred<Object>> ds =
-      new ArrayList<Deferred<Object>>(maxflushes);
+      new ArrayList<Deferred<Object>>(Math.min(maxflushes,
+                                               MAX_CONCURRENT_FLUSHES));
+    int nflushes = 0;
     for (final byte[] row : this.keySet()) {
-      if (maxflushes-- == 0) {
+      if (maxflushes == 0) {
         break;
       }
       final long base_time = Bytes.getUnsignedInt(row, metric_width);
       if (base_time > cut_off) {
+        break;
+      } else if (nflushes == MAX_CONCURRENT_FLUSHES) {
+        // We kicked off the compaction of too many rows already, let's wait
+        // until they're done before kicking off more.
         break;
       }
       // You'd think that it would be faster to grab an iterator on the map
@@ -156,10 +168,30 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       if (super.remove(row) == null) {  // We didn't remove anything.
         continue;  // So someone else already took care of this entry.
       }
+      nflushes++;
+      maxflushes--;
       size.decrementAndGet();
       ds.add(tsdb.get(row).addCallbacks(compactcb, handle_read_error));
     }
-    return Deferred.group(ds);
+    final Deferred<ArrayList<Object>> group = Deferred.group(ds);
+    if (nflushes == MAX_CONCURRENT_FLUSHES && maxflushes > 0) {
+      // We're not done yet.  Once this group of flushes completes, we need
+      // to kick off more.
+      tsdb.flush();  // Speed up this batch by telling the client to flush.
+      final int maxflushez = maxflushes;  // Make it final for closure.
+      final class FlushMoreCB implements Callback<Deferred<ArrayList<Object>>,
+                                                  ArrayList<Object>> {
+        public Deferred<ArrayList<Object>> call(final ArrayList<Object> arg) {
+          return flush(cut_off, maxflushez);
+        }
+        public String toString() {
+          return "Continue flushing with cut_off=" + cut_off
+            + ", maxflushes=" + maxflushez;
+        }
+      }
+      group.addCallbackDeferring(new FlushMoreCB());
+    }
+    return group;
   }
 
   private final CompactCB compactcb = new CompactCB();
@@ -761,6 +793,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   /** Minimum number of rows we'll attempt to compact at once.  */
   // TODO(tsuna): Make configurable?
   private static final int MIN_FLUSH_THRESHOLD = 100;  // rows
+
+  /** Maximum number of rows we'll compact concurrently.  */
+  // TODO(tsuna): Make configurable?
+  private static final int MAX_CONCURRENT_FLUSHES = 10000;  // rows
 
   /** If this is X then we'll flush X times faster than we really need.  */
   // TODO(tsuna): Make configurable?
