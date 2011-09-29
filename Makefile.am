@@ -209,7 +209,7 @@ GWT_CLASSPATH = `jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(s
 # using Git while rebasing and whatnot).
 gwtc: .gwtc-stamp
 .gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(GWT_DEV) $(GWT_USER)
-	@$(MKDIR_P) gwt
+	@$(mkdir_p) gwt
 	{ cd $(srcdir) && cat $(httpui_SRC); } | $(MD5) >"$@-t"
 	cmp -s "$@" "$@-t" && exit 0; \
         $(JAVA) $(GWTC_JVM_ARGS) -cp $(GWT_CLASSPATH) com.google.gwt.dev.Compiler \
@@ -235,7 +235,7 @@ gwttsd: staticroot
 	./tsdb tsd $(DEV_TSD_ARGS)
 
 .staticroot-stamp: $(dist_static_DATA) .gwtc-stamp
-	$(MKDIR_P) $(DEV_TSD_STATICROOT)
+	$(mkdir_p) $(DEV_TSD_STATICROOT)
 	cp $(dist_static_DATA:%=$(srcdir)/%) $(DEV_TSD_STATICROOT)
 	find -L $(DEV_TSD_STATICROOT) -type l -exec rm {} \;
 	p=`pwd`/gwt/queryui && cd $(DEV_TSD_STATICROOT) \
@@ -249,14 +249,14 @@ gwttsd: staticroot
 # know ahead of time what the file names are.
 install-data-local: staticroot
 	@$(NORMAL_INSTALL)
-	test -z "$(staticdir)" || $(MKDIR_P) "$(DESTDIR)$(staticdir)"
+	test -z "$(staticdir)" || $(mkdir_p) "$(DESTDIR)$(staticdir)"
 	@set -e; pwd; ls -lFh; cd "$(DEV_TSD_STATICROOT)"; \
           list=`find -L . ! -type d`; for p in $$list; do \
           p=$${p#./}; \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
           dstdir=`dirname "$(DESTDIR)$(staticdir)/$$p"`; \
           if test -d "$$dstdir"; then :; else \
-            echo " $(MKDIR_P) '$$dstdir'"; $(MKDIR_P) "$$dstdir"; fi; \
+            echo " $(mkdir_p) '$$dstdir'"; $(mkdir_p) "$$dstdir"; fi; \
 	  echo " $(INSTALL_DATA) '$$d$$p' '$(DESTDIR)$(staticdir)/$$p'"; \
 	  $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(staticdir)/$$p"; \
 	done
@@ -329,7 +329,7 @@ $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
           $? $(builddata_SRC)
 
 dist-hook:
-	$(MKDIR_P) $(distdir)/.git
+	$(mkdir_p) $(distdir)/.git
 	echo $(git_version) >$(distdir)/.git/HEAD
 
 mostlyclean-local:
