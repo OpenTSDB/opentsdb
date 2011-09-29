@@ -317,6 +317,11 @@ $(jar): manifest .javac-stamp $(classes)
 #                       ^^^^^^^^^^^^^^^^^^^^^^^
 # I've seen cases where `jar' exits with an error but leaves a partially built .jar file!
 
+# Generate the file for those who get a tarball without it.  This happens if
+# you download a tarball off GitHub for instance.
+.git/HEAD:
+	echo unknown >$@
+
 JAVADOC_DIR = api
 doc: $(JAVADOC_DIR)/index.html
 
