@@ -166,7 +166,7 @@ $(builddata_SRC): .git/HEAD $(tsdb_SRC) $(top_srcdir)/build-aux/gen_build_data.s
 
 jar: $(jar) .javac-unittests-stamp .gwtc-stamp
 
-JAVA_COMPILE := $(JAVAC) $(AM_JAVACFLAGS) -d $(builddir)
+JAVA_COMPILE := $(JAVAC) $(AM_JAVACFLAGS) -d .
 
 # Sets the shell variable $src to the list of `.java' files we depend on
 # that need to be recompiled.  Runs "exit 0" if there's nothing to compile,
@@ -196,7 +196,6 @@ $(tsdb_SRC): $(tsdb_DEPS)
 find_jar = test -f "$$jar" && echo "$$jar" || echo "$(srcdir)/$$jar"
 get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'`
 .javac-stamp: $(tsdb_SRC) $(builddata_SRC)
-	@$(MKDIR_P) $(builddir)
 	@$(filter_src); cp=$(get_dep_classpath); \
           echo "$(JAVA_COMPILE) -cp $$cp $$src"; \
                 $(JAVA_COMPILE) -cp $$cp $$src
@@ -286,7 +285,7 @@ test_classes_with_nested_classes := $(UNITTESTS:.class=*.class)
 # Little set script to make a pretty-ish banner.
 BANNER := sed 's/^.*/  &  /;h;s/./=/g;p;x;p;x'
 check-local: .javac-unittests-stamp
-	classes=`cd $(builddir) && echo $(test_classes_with_nested_classes)` \
+	classes=`echo $(test_classes_with_nested_classes)` \
         && tests=0 && failures=0 \
         && cp="$(get_runtime_dep_classpath):$(srcdir)/src" && \
         for i in $$classes; do \
