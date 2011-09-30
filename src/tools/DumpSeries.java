@@ -24,6 +24,7 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 
@@ -89,14 +90,14 @@ final class DumpSeries {
 
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
-      final Scanner scanner = Core.getScanner(query);
+      final Scanner scanner = Internal.getScanner(query);
       ArrayList<ArrayList<KeyValue>> rows;
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
           buf.setLength(0);
           final byte[] key = row.get(0).key();
-          final long base_time = Core.baseTime(tsdb, key);
-          final String metric = Core.metricName(tsdb, key);
+          final long base_time = Internal.baseTime(tsdb, key);
+          final String metric = Internal.metricName(tsdb, key);
           // Print the row key.
           if (!importformat) {
             buf.append(Arrays.toString(key))
@@ -106,7 +107,7 @@ final class DumpSeries {
               .append(base_time)
               .append(" (").append(date(base_time)).append(") ");
             try {
-              buf.append(Core.getTags(tsdb, key));
+              buf.append(Internal.getTags(tsdb, key));
             } catch (RuntimeException e) {
               buf.append(e.getClass().getName() + ": " + e.getMessage());
             }
@@ -141,7 +142,7 @@ final class DumpSeries {
                              final KeyValue kv,
                              final long base_time) {
     formatKeyValue(buf, tsdb, true, kv, base_time,
-                   Core.metricName(tsdb, kv.key()));
+                   Internal.metricName(tsdb, kv.key()));
   }
 
   private static void formatKeyValue(final StringBuilder buf,
@@ -173,7 +174,7 @@ final class DumpSeries {
     if (importformat) {
       final StringBuilder tagsbuf = new StringBuilder();
       for (final Map.Entry<String, String> tag
-           : Core.getTags(tsdb, kv.key()).entrySet()) {
+           : Internal.getTags(tsdb, kv.key()).entrySet()) {
         tagsbuf.append(' ').append(tag.getKey())
           .append('=').append(tag.getValue());
       }
@@ -206,10 +207,10 @@ final class DumpSeries {
       }
       if ((qual & 0x8) == 0x8) {
         buf.append(importformat ? "" : "f ")
-           .append(Core.extractFloatingPointValue(cell, value_offset, flags));
+           .append(Internal.extractFloatingPointValue(cell, value_offset, flags));
       } else {
         buf.append(importformat ? "" : "l ")
-           .append(Core.extractIntegerValue(cell, value_offset, flags));
+           .append(Internal.extractIntegerValue(cell, value_offset, flags));
       }
       if (importformat) {
         buf.append(tags);

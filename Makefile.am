@@ -36,6 +36,7 @@ tsdb_SRC := \
 	src/core/DataPointsIterator.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
+	src/core/Internal.java	\
 	src/core/Query.java	\
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
@@ -52,7 +53,6 @@ tsdb_SRC := \
 	src/tools/ArgP.java	\
 	src/tools/CliOptions.java	\
 	src/tools/CliQuery.java	\
-	src/tools/Core.java	\
 	src/tools/DumpSeries.java	\
 	src/tools/Fsck.java	\
 	src/tools/TSDMain.java	\

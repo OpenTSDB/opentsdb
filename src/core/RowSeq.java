@@ -191,9 +191,9 @@ final class RowSeq implements DataPoints {
    * @param flags The flags for this value.
    * @return The value of the cell.
    */
-  private static long extractIntegerValue(final byte[] values,
-                                          final int value_idx,
-                                          final byte flags) {
+  static long extractIntegerValue(final byte[] values,
+                                  final int value_idx,
+                                  final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
       case 7: return Bytes.getLong(values, value_idx);
       case 3: return Bytes.getInt(values, value_idx);
@@ -213,9 +213,9 @@ final class RowSeq implements DataPoints {
    * @param flags The flags for this value.
    * @return The value of the cell.
    */
-  private static double extractFloatingPointValue(final byte[] values,
-                                                  final int value_idx,
-                                                  final byte flags) {
+  static double extractFloatingPointValue(final byte[] values,
+                                          final int value_idx,
+                                          final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
       case 7: return Double.longBitsToDouble(Bytes.getLong(values, value_idx));
       case 3: return Float.intBitsToFloat(Bytes.getInt(values, value_idx));

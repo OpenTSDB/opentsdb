@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 
 import com.stumbleupon.async.Callback;
@@ -29,6 +28,7 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
@@ -39,29 +39,6 @@ import net.opentsdb.uid.UniqueId;
 final class Fsck {
 
   private static final Logger LOG = LoggerFactory.getLogger(Fsck.class);
-
-  /** Number of LSBs in time_deltas reserved for flags.  */
-  static final short FLAG_BITS;
-  /** Mask to select all the FLAG_BITS.  */
-  static final short FLAGS_MASK;
-  static {
-    try {
-      // Those are all implementation details so they're not part of the
-      // interface.  We access them anyway using reflection.  I think this
-      // is better than marking those public and adding a javadoc comment
-      // "THIS IS INTERNAL DO NOT USE".  If only Java had C++'s "friend" or
-      // a less stupid notion of a package.
-      Field f;
-      f = Const.class.getDeclaredField("FLAG_BITS");
-      f.setAccessible(true);
-      FLAG_BITS = (Short) f.get(null);
-      f = Const.class.getDeclaredField("FLAGS_MASK");
-      f.setAccessible(true);
-      FLAGS_MASK = (Short) f.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("static initializer failed", e);
-    }
-  }
 
   /** Prints usage and exits with the given retval. */
   private static void usage(final ArgP argp, final String errmsg,
@@ -131,11 +108,7 @@ final class Fsck {
     int errors = 0;
     int correctable = 0;
 
-    final short metric_width = width(tsdb, "metrics");
-    @SuppressWarnings("unused")
-    final short name_width = width(tsdb, "tag_names");
-    @SuppressWarnings("unused")
-    final short value_width = width(tsdb, "tag_values");
+    final short metric_width = Internal.metricWidth(tsdb);
 
     final ArrayList<Query> queries = new ArrayList<Query>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
@@ -147,7 +120,7 @@ final class Fsck {
       long kvcount = 0;
       long rowcount = 0;
       final Bytes.ByteMap<Seen> seen = new Bytes.ByteMap<Seen>();
-      final Scanner scanner = Core.getScanner(query);
+      final Scanner scanner = Internal.getScanner(query);
       ArrayList<ArrayList<KeyValue>> rows;
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
@@ -180,7 +153,7 @@ final class Fsck {
               continue;
             }
             final short qualifier = Bytes.getShort(kv.qualifier());
-            final short delta = (short) ((qualifier & 0xFFFF) >>> FLAG_BITS);
+            final short delta = (short) ((qualifier & 0xFFFF) >>> Internal.FLAG_BITS);
             final long timestamp = base_time + delta;
             byte[] value = kv.value();
             if (value.length > 8) {
@@ -230,8 +203,8 @@ final class Fsck {
                 // Fix the timestamp in the row key.
                 final long new_base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
                 Bytes.setInt(newkey, (int) new_base_time, metric_width);
-                final short newqual = (short) ((timestamp - new_base_time) << FLAG_BITS
-                                               | (qualifier & FLAGS_MASK));
+                final short newqual = (short) ((timestamp - new_base_time) << Internal.FLAG_BITS
+                                               | (qualifier & Internal.FLAGS_MASK));
                 final DeleteOutOfOrder delooo = new DeleteOutOfOrder(kv);
                 if (timestamp < prev.timestamp()) {
                   client.put(new PutRequest(table, newkey, kv.family(),
@@ -286,20 +259,6 @@ final class Fsck {
                          + " know what you're doing before using --fix.");
     }
     return errors;
-  }
-
-  /**
-   * Returns the width (in bytes) of a given kind of Unique IDs.
-   */
-  private static short width(final TSDB tsdb, final String idkind) {
-    try {
-      final Field metrics = TSDB.class.getDeclaredField(idkind);
-      metrics.setAccessible(true);
-      final short width = ((UniqueId) metrics.get(tsdb)).width();
-      return width;
-    } catch (Exception e) {
-      throw new RuntimeException("in width " + idkind, e);
-    }
   }
 
   /**

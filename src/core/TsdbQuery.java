@@ -362,7 +362,7 @@ final class TsdbQuery implements Query {
   /**
    * Creates the {@link Scanner} to use for this query.
    */
-  private Scanner getScanner() throws HBaseException {
+  Scanner getScanner() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
     final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
