@@ -28,6 +28,7 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
@@ -146,16 +147,79 @@ final class Fsck {
                        + "ms (" + (100000 * 1000 / ping_start_time) + " KVs/s)");
               ping_start_time = now;
             }
-            // TODO(tsuna): Add support for compacted cells.
-            if (kv.qualifier().length != 2) {
-              LOG.warn("Ignoring unsupported KV with a qualifier of "
-                       + kv.qualifier().length + " bytes: " + kv);
+            byte[] value = kv.value();
+            final byte[] qual = kv.qualifier();
+            if (qual.length < 2) {
+              errors++;
+              LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t"
+                        + kv);
               continue;
-            }
-            final short qualifier = Bytes.getShort(kv.qualifier());
+            } else if (qual.length > 2) {
+              if (qual.length % 2 != 0) {
+                errors++;
+                LOG.error("Invalid qualifier for a compacted row, length ("
+                          + qual.length + ") must be even.\n\t" + kv);
+              }
+              if (value[value.length - 1] != 0) {
+                errors++;
+                LOG.error("The last byte of the value should be 0.  Either"
+                          + " this value is corrupted or it was written by a"
+                          + " future version of OpenTSDB.\n\t" + kv);
+                continue;
+              }
+              // Check all the compacted values.
+              short last_delta = -1;
+              short val_idx = 0;  // Where are we in `value'?
+              boolean ooo = false;  // Did we find out of order data?
+              for (int i = 0; i < qual.length; i += 2) {
+                final short qualifier = Bytes.getShort(qual, i);
+                final short delta = (short) ((qualifier & 0xFFFF)
+                                             >>> Internal.FLAG_BITS);
+                if (delta <= last_delta) {
+                  ooo = true;
+                } else {
+                  last_delta = delta;
+                }
+                val_idx += (qualifier & Internal.LENGTH_MASK) + 1;
+              }
+              prev.setTimestamp(base_time + last_delta);
+              prev.kv = kv;
+              // Check we consumed all the bytes of the value.  The last byte
+              // is metadata, so it's normal that we didn't consume it.
+              if (val_idx != value.length - 1) {
+                errors++;
+                LOG.error("Corrupted value: consumed " + val_idx
+                          + " bytes, but was expecting to consume "
+                          + (value.length - 1) + "\n\t" + kv);
+              } else if (ooo) {
+                final KeyValue ordered;
+                try {
+                  ordered = Internal.complexCompact(kv);
+                } catch (IllegalDataException e) {
+                  errors++;
+                  LOG.error("Two or more values in a compacted cell have the"
+                            + " same time delta but different values.  "
+                            + e.getMessage() + "\n\t" + kv);
+                  continue;
+                }
+                errors++;
+                correctable++;
+                if (fix) {
+                  client.put(new PutRequest(table, ordered.key(),
+                                            ordered.family(),
+                                            ordered.qualifier(),
+                                            ordered.value()))
+                    .addCallbackDeferring(new DeleteOutOfOrder(kv));
+                } else {
+                  LOG.error("Two or more values in a compacted cell are"
+                            + " out of order within that cell.\n\t" + kv);
+                }
+              }
+              continue;  // We done checking a compacted value.
+            } // else: qualifier is on 2 bytes, it's an individual value.
+            final short qualifier = Bytes.getShort(qual);
             final short delta = (short) ((qualifier & 0xFFFF) >>> Internal.FLAG_BITS);
             final long timestamp = base_time + delta;
-            byte[] value = kv.value();
             if (value.length > 8) {
               errors++;
               LOG.error("Value more than 8 byte long with a 2-byte"
@@ -177,7 +241,7 @@ final class Fsck {
                     value = value.clone();  // We're going to change it.
                     value[0] = value[1] = value[2] = value[3] = 0;
                     client.put(new PutRequest(table, kv.key(), kv.family(),
-                                              kv.qualifier(), value));
+                                              qual, value));
                   } else {
                     LOG.error("Floating point value with 0xFF most significant"
                               + " bytes, probably caused by sign extension bug"

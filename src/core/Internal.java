@@ -12,9 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
 import org.slf4j.Logger;
@@ -63,6 +65,9 @@ public final class Internal {
   /** @see Const#FLAG_BITS  */
   public static final short FLAG_BITS = Const.FLAG_BITS;
 
+  /** @see Const#LENGTH_MASK  */
+  public static final short LENGTH_MASK = Const.LENGTH_MASK;
+
   /** @see Const#FLAGS_MASK  */
   public static final short FLAGS_MASK = Const.FLAGS_MASK;
 
@@ -106,6 +111,13 @@ public final class Internal {
 
   public static short metricWidth(final TSDB tsdb) {
     return tsdb.metrics.width();
+  }
+
+  /** @see CompactionQueue#complexCompact  */
+  public static KeyValue complexCompact(final KeyValue kv) {
+    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(kv);
+    return CompactionQueue.complexCompact(kvs, kv.qualifier().length / 2);
   }
 
 }

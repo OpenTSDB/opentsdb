@@ -556,8 +556,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * @throws IllegalDataException if one of the cells cannot be read because
    * it's corrupted or in a format we don't understand.
    */
-  private static KeyValue complexCompact(final ArrayList<KeyValue> row,
-                                         final int estimated_nvalues) {
+  static KeyValue complexCompact(final ArrayList<KeyValue> row,
+                                 final int estimated_nvalues) {
     // We know at least one of the cells contains multiple values, and we need
     // to merge all the cells together in a sorted fashion.  We use a simple
     // strategy: split all the cells into individual objects, sort them,
