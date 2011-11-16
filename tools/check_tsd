@@ -100,8 +100,8 @@ def main(argv):
         downsampling = ''
     else:
         downsampling = '%ds-%s:' % (options.duration, options.downsample)
-    url = ('/q?start=%ss-ago&m=%s%s:%s%s&ascii&nagios'
-           % (options.duration, downsampling, options.aggregator, options.metric,
+    url = ('/q?start=%ss-ago&m=%s:%s%s%s&ascii&nagios'
+           % (options.duration, options.aggregator, downsampling, options.metric,
               tags))
     tsd = '%s:%d' % (options.host, options.port)
     if sys.version_info[0] * 10 + sys.version_info[1] >= 26:  # Python >2.6
