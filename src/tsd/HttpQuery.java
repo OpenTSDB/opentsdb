@@ -129,7 +129,11 @@ final class HttpQuery {
    */
   public Map<String, List<String>> getQueryString() {
     if (querystring == null) {
-      querystring = new QueryStringDecoder(request.getUri()).getParameters();
+      try {
+        querystring = new QueryStringDecoder(request.getUri()).getParameters();
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Bad query string: " + e.getMessage());
+      }
     }
     return querystring;
   }
