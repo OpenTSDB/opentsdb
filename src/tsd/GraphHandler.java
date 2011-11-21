@@ -186,7 +186,11 @@ final class GraphHandler implements HttpRpc {
       respondAsciiQuery(query, max_age, basepath, plot);
       return;
     }
-
+    if (query.hasQueryStringParam("json-data") || query.hasQueryStringParam("jsonp-data")) {
+        respondJSONQuery(query, max_age, basepath, plot);
+        return;
+    }
+    
     try {
       gnuplot.execute(new RunGnuplot(query, max_age, plot, basepath,
                                      aggregated_tags, npoints));
@@ -358,8 +362,7 @@ final class GraphHandler implements HttpRpc {
                                  final long end_time,
                                  final int max_age,
                                  final String basepath) throws IOException {
-    final String cachepath = basepath + (query.hasQueryStringParam("ascii")
-                                         ? ".txt" : ".png");
+    final String cachepath = basepath + findPathExtension(query);
     final File cachedfile = new File(cachepath);
     if (cachedfile.exists()) {
       final long bytes = cachedfile.length();
@@ -760,7 +763,7 @@ final class GraphHandler implements HttpRpc {
                                         final int max_age,
                                         final String basepath,
                                         final Plot plot) {
-    final String path = basepath + ".txt";
+    final String path = basepath + findPathExtension(query);
     PrintWriter asciifile;
     try {
       asciifile = new PrintWriter(path);
@@ -799,6 +802,55 @@ final class GraphHandler implements HttpRpc {
     } finally {
       asciifile.close();
     }
+    try {
+      query.sendFile(path, max_age);
+    } catch (IOException e) {
+      query.internalError(e);
+    }
+  }
+
+  private static void respondJSONQuery(final HttpQuery query,
+                                       final int max_age,
+                                       final String basepath,
+                                       final Plot plot) {
+    final String path = basepath + findPathExtension(query);
+    FileOutputStream out;
+    final Boolean jsonp = query.hasQueryStringParam("jsonp-data") && query.getQueryStringParam("jsonp-data").length() > 0;
+
+    try {
+      final File file = new File(path);
+      out = new FileOutputStream(file);
+      PrintWriter pw = null;
+
+      if (jsonp) {
+        /* Wrap a function invocation around the JSON data in case of
+         * a JSONP request. The function name probably needs to be 
+         * validated here. 
+         */
+        pw = new PrintWriter(out);
+        pw.print(query.getQueryStringParam("jsonp-data") + "(");
+        pw.flush();
+      }
+
+      final JSONWriter writer = new JSONWriter(out);
+
+      writer.start();
+      for (final DataPoints dp : plot.getDataPoints()) {
+        writer.writeDataPoints(dp);
+      }
+      writer.finish();
+
+      if (jsonp) {
+        pw.print(")");
+        pw.flush();
+      }
+
+      out.close();
+    } catch (IOException e) {
+      query.internalError(e);
+      return;
+    }
+
     try {
       query.sendFile(path, max_age);
     } catch (IOException e) {
@@ -1017,6 +1069,20 @@ final class GraphHandler implements HttpRpc {
       + "  CLASSPATH=" + System.getProperty("java.class.path"));
   }
 
+  private static String findPathExtension(final HttpQuery query) {
+    if (query.hasQueryStringParam("ascii")) {
+      return ".txt";
+    }
+    if (query.hasQueryStringParam("json-data")) {
+      return ".json";
+    }
+    if (query.hasQueryStringParam("jsonp-data")) {
+      return ".jsonp";
+    }
+
+    return ".png";
+  }
+  	
   // ---------------- //
   // Logging helpers. //
   // ---------------- //

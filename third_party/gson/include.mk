@@ -13,20 +13,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-OPENTSDB_THIRD_PARTY_BASE_URL := http://opentsdb.googlecode.com/files
-FETCH_DEPENDENCY := ./build-aux/fetchdep.sh "$$@"
-all-am: build-aux/fetchdep.sh
-THIRD_PARTY =
+GSON_VERSION := 2.0
+GSON := third_party/gson/google-gson-stream-$(GSON_VERSION).jar
+GSON_BASE_URL := http://google-gson.googlecode.com/files/
 
-include third_party/gwt/include.mk
-include third_party/hbase/include.mk
-include third_party/javassist/include.mk
-include third_party/junit/include.mk
-include third_party/logback/include.mk
-include third_party/mockito/include.mk
-include third_party/netty/include.mk
-include third_party/powermock/include.mk
-include third_party/slf4j/include.mk
-include third_party/suasync/include.mk
-include third_party/zookeeper/include.mk
-include third_party/gson/include.mk
+$(GSON): $(GSON).md5
+	set dummy "$(GSON_BASE_URL)" "$(GSON)"; shift; $(FETCH_DEPENDENCY)
+
+THIRD_PARTY += $(GSON)
