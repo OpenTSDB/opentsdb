@@ -48,6 +48,7 @@ import com.google.gwt.json.client.JSONValue;
 import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DecoratedTabPanel;
@@ -703,6 +704,10 @@ public class QueryUi implements EntryPoint {
           if (nplotted != null && nplotted.isNumber().doubleValue() > 0) {
             graph.setUrl(uri + "&png");
             graph.setVisible(true);
+
+            String historyUri = uri.substring(2);
+            History.newItem(historyUri, false);
+
             msg += result.get("points").isNumber() + " points retrieved, "
               + nplotted + " points plotted";
           } else {
