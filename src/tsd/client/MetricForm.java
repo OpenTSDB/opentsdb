@@ -87,6 +87,42 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     return metric.getText();
   }
 
+  public void updateFromQueryString(final String m) {
+    /* format of m is:
+     *   agg:[interval-agg:][rate:]metric[{tag=value,...}]
+     */
+    final String[] parts = m.split(":");
+    final int numParts = parts.length;
+    if (numParts < 2 || numParts > 4)
+      return;
+
+    setSelectedItem(aggregators, parts[0]);
+
+    int index = numParts - 1;
+
+    final String metricString = parts[index];
+    final String[] metricParts = metricString.split("{");
+    metric.setText(metricParts[0]);
+    metric_change_handler.onMetricChange(this);
+    index--;
+
+    if (parts[index].equals("rate")) {
+        rate.setValue(true, false);
+        index--;
+    }
+
+    if (index != 0) {
+        final String[] downsampleParts = parts[index].split("-");
+        downsample.setValue(true, false);
+
+        interval.setText(downsampleParts[0]);
+        interval.setEnabled(true);
+
+        setSelectedItem(downsampler, downsampleParts[1]);
+        downsampler.setEnabled(true);
+    }
+  }
+
   public CheckBox x1y2() {
     return x1y2;
   }
