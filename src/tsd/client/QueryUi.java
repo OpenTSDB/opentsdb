@@ -720,6 +720,15 @@ public class QueryUi implements EntryPoint, HistoryListener {
       metrics.remove(i);
     }
     updatey2range.onEvent(null);
+
+    maybeSetTextbox(qs, "ylabel", ylabel);
+    maybeSetTextbox(qs, "y2label", y2label);
+    maybeSetTextbox(qs, "yformat", yformat);
+    maybeSetTextbox(qs, "y2format", y2format);
+    maybeSetTextbox(qs, "yrange", yrange);
+    maybeSetTextbox(qs, "y2range", y2range);
+    ylog.setValue(qs.containsKey("ylog"));
+    y2log.setValue(qs.containsKey("y2log"));
   }
 
   private void refreshGraph() {
