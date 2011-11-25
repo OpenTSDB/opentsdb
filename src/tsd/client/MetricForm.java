@@ -308,35 +308,39 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
   }
 
-  private final BlurHandler recompact_tagtable = new BlurHandler() {
-    public void onBlur(final BlurEvent event) {
-      int ntags = getNumTags();
-      // Is the first line empty?  If yes, move everything up by 1 line.
-      if (getTagName(0).isEmpty() && getTagValue(0).isEmpty()) {
-        for (int tag = 1; tag < ntags; tag++) {
-          final String tagname = getTagName(tag);
-          final String tagvalue = getTagValue(tag);
-          setTagName(tag - 1, tagname);
-          setTagValue(tag - 1, tagvalue);
-        }
-      }
-      // Try to remove empty lines from the tag table (but never remove the
-      // first line or last line, even if they're empty).  Walk the table
-      // from the end to make it easier to delete rows as we iterate.
-      for (int tag = ntags - 1; tag >= 1; tag--) {
+  private void recompactTagTable() {
+    int ntags = getNumTags();
+    // Is the first line empty?  If yes, move everything up by 1 line.
+    if (getTagName(0).isEmpty() && getTagValue(0).isEmpty()) {
+      for (int tag = 1; tag < ntags; tag++) {
         final String tagname = getTagName(tag);
         final String tagvalue = getTagValue(tag);
-        if (tagname.isEmpty() && tagvalue.isEmpty()) {
-          tagtable.removeRow(tag + 1);
-        }
+        setTagName(tag - 1, tagname);
+        setTagValue(tag - 1, tagvalue);
       }
-      ntags = getNumTags();  // How many lines are left?
-      // If the last line isn't empty, add another one.
-      final String tagname = getTagName(ntags - 1);
-      final String tagvalue = getTagValue(ntags - 1);
-      if (!tagname.isEmpty() && !tagvalue.isEmpty()) {
-        addTag();
+    }
+    // Try to remove empty lines from the tag table (but never remove the
+    // first line or last line, even if they're empty).  Walk the table
+    // from the end to make it easier to delete rows as we iterate.
+    for (int tag = ntags - 1; tag >= 1; tag--) {
+      final String tagname = getTagName(tag);
+      final String tagvalue = getTagValue(tag);
+      if (tagname.isEmpty() && tagvalue.isEmpty()) {
+        tagtable.removeRow(tag + 1);
       }
+    }
+    ntags = getNumTags();  // How many lines are left?
+    // If the last line isn't empty, add another one.
+    final String tagname = getTagName(ntags - 1);
+    final String tagvalue = getTagValue(ntags - 1);
+    if (!tagname.isEmpty() && !tagvalue.isEmpty()) {
+      addTag();
+    }
+  }
+
+  private final BlurHandler recompact_tagtable = new BlurHandler() {
+    public void onBlur(final BlurEvent event) {
+        recompactTagTable();
     }
   };
 
