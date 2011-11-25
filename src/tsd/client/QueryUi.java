@@ -631,6 +631,9 @@ public class QueryUi implements EntryPoint {
   }
 
   static class QueryMap extends HashMap<String, ArrayList<String>> {
+    public String getOne(final String k) {
+      return get(k).get(0);
+    }
   }
 
   public static QueryMap getQueryMap(String query) {
@@ -652,10 +655,10 @@ public class QueryUi implements EntryPoint {
   private void parseQueryString() {
     QueryMap params = getQueryMap(History.getToken());
 
-    start_datebox.getTextBox().setText(params.get("start").get(0));
+    start_datebox.getTextBox().setText(params.getOne("start"));
     if (params.containsKey("end"))
-      end_datebox.getTextBox().setText(params.get("end").get(0));
-    wxh.setText(params.get("wxh").get(0));
+      end_datebox.getTextBox().setText(params.getOne("end"));
+    wxh.setText(params.getOne("wxh"));
 
     ArrayList<String> metricParams = params.get("m");
     ArrayList<String> optionsParams = params.get("o");
