@@ -308,6 +308,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
           final String tagvalue = getTagValue(tag);
           setTag(tag - 1, tagname, tagvalue);
         }
+        setTag(ntags - 1, "", "");
       }
       // Try to remove empty lines from the tag table (but never remove the
       // first line or last line, even if they're empty).  Walk the table
