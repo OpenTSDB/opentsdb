@@ -674,6 +674,15 @@ public class QueryUi implements EntryPoint {
       metric.updateFromQueryString(metricParams.get(i), optionsParams.get(i));
     }
     updatey2range.onEvent(null);
+
+    params.maybeSetTextbox(ylabel, "ylabel");
+    params.maybeSetTextbox(y2label, "y2label");
+    params.maybeSetTextbox(yformat, "yformat");
+    params.maybeSetTextbox(y2format, "y2format");
+    params.maybeSetTextbox(yrange, "yrange");
+    params.maybeSetTextbox(y2range, "y2range");
+    ylog.setValue(params.containsKey("ylog"));
+    y2log.setValue(params.containsKey("y2log"));
   }
 
   private void refreshGraph() {
