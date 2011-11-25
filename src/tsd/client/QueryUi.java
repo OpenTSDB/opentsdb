@@ -767,8 +767,9 @@ public class QueryUi implements EntryPoint {
             graph.setUrl(uri + "&png");
             graph.setVisible(true);
 
-            String historyUri = uri.substring(2);
-            History.newItem(historyUri, false);
+            String historyUri = uri.substring(2).replaceAll("ignore=[^&]*&", "");
+            if (!historyUri.equals(History.getToken()))
+                History.newItem(historyUri, false);
 
             msg += result.get("points").isNumber() + " points retrieved, "
               + nplotted + " points plotted";
