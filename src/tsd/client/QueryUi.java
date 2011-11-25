@@ -117,6 +117,43 @@ public class QueryUi implements EntryPoint, HistoryListener {
     }
   };
 
+  final MetricForm.MetricChangeHandler metric_change_handler =
+    new MetricForm.MetricChangeHandler() {
+      public void onMetricChange(final MetricForm metric) {
+        final int index = metrics.getWidgetIndex(metric);
+        metrics.getTabBar().setTabText(index, getTabTitle(metric));
+      }
+      private String getTabTitle(final MetricForm metric) {
+        final String metrictext = metric.getMetric();
+        final int last_period = metrictext.lastIndexOf('.');
+        if (last_period < 0) {
+          return metrictext;
+        }
+        return metrictext.substring(last_period + 1);
+      }
+    };
+
+  final EventsHandler updatey2range = new EventsHandler() {
+      protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
+        for (final Widget metric : metrics) {
+          if (!(metric instanceof MetricForm)) {
+            continue;
+          }
+          if (((MetricForm) metric).x1y2().getValue()) {
+            y2range.setEnabled(true);
+            y2log.setEnabled(true);
+            y2label.setEnabled(true);
+            y2format.setEnabled(true);
+            return;
+          }
+        }
+        y2range.setEnabled(false);
+        y2log.setEnabled(false);
+        y2label.setEnabled(false);
+        y2format.setEnabled(false);
+      }
+    };
+
   /** List of known aggregation functions.  Fetched once from the server. */
   private final ArrayList<String> aggregators = new ArrayList<String>();
 
@@ -286,45 +323,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
       table.setWidget(0, 3, hbox);
     }
     {
-      final MetricForm.MetricChangeHandler metric_change_handler =
-        new MetricForm.MetricChangeHandler() {
-          public void onMetricChange(final MetricForm metric) {
-            final int index = metrics.getWidgetIndex(metric);
-            metrics.getTabBar().setTabText(index, getTabTitle(metric));
-          }
-          private String getTabTitle(final MetricForm metric) {
-            final String metrictext = metric.getMetric();
-            final int last_period = metrictext.lastIndexOf('.');
-            if (last_period < 0) {
-              return metrictext;
-            }
-            return metrictext.substring(last_period + 1);
-          }
-        };
-      final EventsHandler updatey2range = new EventsHandler() {
-        protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
-          for (final Widget metric : metrics) {
-            if (!(metric instanceof MetricForm)) {
-              continue;
-            }
-            if (((MetricForm) metric).x1y2().getValue()) {
-              y2range.setEnabled(true);
-              y2log.setEnabled(true);
-              y2label.setEnabled(true);
-              y2format.setEnabled(true);
-              return;
-            }
-          }
-          y2range.setEnabled(false);
-          y2log.setEnabled(false);
-          y2label.setEnabled(false);
-          y2format.setEnabled(false);
-        }
-      };
-      final MetricForm metric = new MetricForm(refreshgraph);
-      metric.x1y2().addClickHandler(updatey2range);
-      metric.setMetricChangeHandler(metric_change_handler);
-      metrics.add(metric, "metric 1");
+      addMetricForm("metric 1", 0);
       metrics.selectTab(0);
       metrics.add(new InlineLabel("Loading..."), "+");
       metrics.addBeforeSelectionHandler(new BeforeSelectionHandler<Integer>() {
@@ -333,11 +332,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
           final int nitems = metrics.getWidgetCount();
           if (item == nitems - 1) {  // Last item: the "+" was clicked.
             event.cancel();
-            final MetricForm metric = new MetricForm(refreshgraph);
-            metric.x1y2().addClickHandler(updatey2range);
-            metric.setMetricChangeHandler(metric_change_handler);
-            metric.setAggregators(aggregators);
-            metrics.insert(metric, "metric " + nitems, item);
+            final MetricForm metric = addMetricForm("metric " + nitems, item);
             metrics.selectTab(item);
             metric.setFocus(true);
           }
@@ -429,6 +424,15 @@ public class QueryUi implements EntryPoint, HistoryListener {
     setTextAlignCenter(grid.getCellFormatter().getElement(4, 1));
     setTextAlignCenter(grid.getCellFormatter().getElement(4, 2));
     return grid;
+  }
+
+  private MetricForm addMetricForm(final String label, final int item) {
+    final MetricForm metric = new MetricForm(refreshgraph);
+    metric.x1y2().addClickHandler(updatey2range);
+    metric.setMetricChangeHandler(metric_change_handler);
+    metric.setAggregators(aggregators);
+    metrics.insert(metric, label, item);
+    return metric;
   }
 
   /**
