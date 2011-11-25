@@ -143,7 +143,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
       tagtable.setWidget(0, 0, hbox);
       tagtable.getFlexCellFormatter().setColSpan(0, 0, 3);
-      addTag(null);
+      addTag();
       tagtable.setText(1, 0, "Tags");
       add(tagtable);
     }
@@ -248,7 +248,13 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     ((SuggestBox) tagtable.getWidget(i + 1, 2)).setValue(value);
   }
 
+  private void addTag() {
+    addTag(null, null);
+  }
   private void addTag(final String default_tagname) {
+    addTag(default_tagname, null);
+  }
+  private void addTag(final String default_tagname, final String default_value) {
     final int row = tagtable.getRowCount();
 
     final ValidatedTextBox tagname = new ValidatedTextBox();
@@ -277,6 +283,8 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       tagname.setText(default_tagname);
       tagvalue.setFocus(true);
     }
+    if (default_value != null)
+      tagvalue.setText(default_value);
   }
 
   public void autoSuggestTag(final String tag) {
@@ -327,7 +335,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       final String tagname = getTagName(ntags - 1);
       final String tagvalue = getTagValue(ntags - 1);
       if (!tagname.isEmpty() && !tagvalue.isEmpty()) {
-        addTag(null);
+        addTag();
       }
     }
   };
