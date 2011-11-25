@@ -439,6 +439,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
    * Small helper to build a radio button used to change the position of the
    * key of the graph.
    */
+  private HashMap<String, RadioButton> keyRadioButtonMap = new HashMap<String, RadioButton>();
   private RadioButton addKeyRadioButton(final Grid grid,
                                         final int row, final int col,
                                         final String pos) {
@@ -450,6 +451,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     });
     rb.addClickHandler(refreshgraph);
     grid.setWidget(row, col, rb);
+    keyRadioButtonMap.put(pos, rb);
     return rb;
   }
 
@@ -694,6 +696,21 @@ public class QueryUi implements EntryPoint, HistoryListener {
     params.maybeSetTextbox(y2range, "y2range");
     ylog.setValue(params.containsKey("ylog"));
     y2log.setValue(params.containsKey("y2log"));
+
+    if (params.containsKey("key")) {
+      String keyPos = params.getOne("key");
+      if (keyPos.endsWith("box")) {
+        keybox.setValue(true);
+        keyPos = keyPos.substring(0, keyPos.length() - 4);
+      }
+      if (keyPos.endsWith("horiz")) {
+        horizontalkey.setValue(true);
+        keyPos = keyPos.substring(0, keyPos.length() - 6);
+      }
+      keyRadioButtonMap.get(keyPos).setChecked(true);
+      keypos = keyPos;
+    }
+    nokey.setValue(params.containsKey("nokey"));
   }
 
   private void refreshGraph() {
