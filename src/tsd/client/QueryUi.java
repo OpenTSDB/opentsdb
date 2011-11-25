@@ -634,6 +634,11 @@ public class QueryUi implements EntryPoint {
     public String getOne(final String k) {
       return get(k).get(0);
     }
+
+    public void maybeSetTextbox(TextBox tb, final String k) {
+    if (containsKey(k))
+      tb.setText(getOne(k));
+    }
   }
 
   public static QueryMap getQueryMap(String query) {
@@ -656,8 +661,7 @@ public class QueryUi implements EntryPoint {
     QueryMap params = getQueryMap(History.getToken());
 
     start_datebox.getTextBox().setText(params.getOne("start"));
-    if (params.containsKey("end"))
-      end_datebox.getTextBox().setText(params.getOne("end"));
+    params.maybeSetTextbox(end_datebox.getTextBox(), "end");
     wxh.setText(params.getOne("wxh"));
 
     ArrayList<String> metricParams = params.get("m");
