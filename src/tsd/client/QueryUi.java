@@ -652,6 +652,7 @@ public class QueryUi implements EntryPoint {
     start_datebox.getTextBox().setText(params.get("start").get(0));
     if (params.containsKey("end"))
       end_datebox.getTextBox().setText(params.get("end").get(0));
+    wxh.setText(params.get("wxh").get(0));
 
     ArrayList<String> metricParams = params.get("m");
     ArrayList<String> optionsParams = params.get("o");
