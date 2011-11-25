@@ -31,6 +31,8 @@ import com.google.gwt.user.client.ui.SuggestBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 
+import com.google.gwt.user.client.Window;
+
 final class MetricForm extends HorizontalPanel implements Focusable {
 
   public static interface MetricChangeHandler extends EventHandler {
@@ -87,7 +89,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     return metric.getText();
   }
 
-  public void updateFromQueryString(final String m) {
+  public void updateFromQueryString(final String m, final String o) {
     /* format of m is:
      *   agg:[interval-agg:][rate:]metric[{tag=value,...}]
      */
@@ -130,6 +132,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         setSelectedItem(downsampler, downsampleParts[1]);
         downsampler.setEnabled(true);
     }
+
+    if (o.equals("axis x1y2"))
+      x1y2.setValue(true, false);
   }
 
   public CheckBox x1y2() {

@@ -654,13 +654,15 @@ public class QueryUi implements EntryPoint {
       end_datebox.getTextBox().setText(params.get("end").get(0));
 
     ArrayList<String> metricParams = params.get("m");
+    ArrayList<String> optionsParams = params.get("o");
     for (int i = 0; i < metricParams.size(); ++i) {
       if (i == metrics.getWidgetCount() - 1)
         addMetricForm("", i);
 
       final MetricForm metric = (MetricForm) metrics.getWidget(i);
-      metric.updateFromQueryString(metricParams.get(i));
+      metric.updateFromQueryString(metricParams.get(i), optionsParams.get(i));
     }
+    updatey2range.onEvent(null);
   }
 
   private void refreshGraph() {
