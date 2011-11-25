@@ -50,6 +50,7 @@ import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.History;
+import com.google.gwt.user.client.HistoryListener;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DecoratedTabPanel;
@@ -72,7 +73,7 @@ import com.google.gwt.user.client.ui.Widget;
  * Root class for the 'query UI'.
  * Manages the entire UI, forms to query the TSDB and other misc panels.
  */
-public class QueryUi implements EntryPoint {
+public class QueryUi implements EntryPoint, HistoryListener {
   // Some URLs we use to fetch data from the TSD.
   private static final String AGGREGATORS_URL = "/aggregators";
   private static final String LOGS_URL = "/logs?json";
@@ -390,6 +391,14 @@ public class QueryUi implements EntryPoint {
     RootPanel.get("queryuimain").add(root);
     // Must be done at the end, once all the widgets are attached.
     ensureSameWidgetSize(optpanel);
+
+    History.addHistoryListener(this);
+  }
+
+  @Override
+  public void onHistoryChanged(String historyToken) {
+    parseQueryString();
+    refreshGraph();
   }
 
   /**
