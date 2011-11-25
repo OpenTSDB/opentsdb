@@ -638,6 +638,8 @@ public class QueryUi implements EntryPoint {
     public void maybeSetTextbox(TextBox tb, final String k) {
     if (containsKey(k))
       tb.setText(getOne(k));
+    else
+      tb.setText("");
     }
   }
 
