@@ -694,13 +694,21 @@ public class QueryUi implements EntryPoint, HistoryListener {
       return;
     }
     final int n = newmetrics.size();  // We want this many metrics.
+    ArrayList<String> options = qs.get("o");
+    if (options == null) {
+      options = new ArrayList<String>(n);
+    }
+    for (int i = options.size(); i < n; i++) {  // Make both arrays equal size.
+      options.add("");  // Add missing o's.
+    }
+
     for (int i = 0; i < newmetrics.size(); ++i) {
       if (i == metrics.getWidgetCount() - 1) {
         addMetricForm("", i);
       }
 
       final MetricForm metric = (MetricForm) metrics.getWidget(i);
-      metric.updateFromQueryString(newmetrics.get(i));
+      metric.updateFromQueryString(newmetrics.get(i), options.get(i));
     }
     // Remove extra metric forms.
     final int m = metrics.getWidgetCount() - 1; // We have this many metrics.
@@ -711,6 +719,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
       }
       metrics.remove(i);
     }
+    updatey2range.onEvent(null);
   }
 
   private void refreshGraph() {

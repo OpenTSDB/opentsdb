@@ -137,7 +137,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     return metric.substring(0, curly);
   }
 
-  public void updateFromQueryString(final String m) {
+  public void updateFromQueryString(final String m, final String o) {
     // TODO: Try to reduce code duplication with GraphHandler.parseQuery().
     // m is of the following forms:
     //   agg:[interval-agg:][rate:]metric[{tag=value,...}]
@@ -178,6 +178,8 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     } else {
       disableDownsample();
     }
+
+    x1y2.setValue(o.contains("axis x1y2"), false);
   }
 
   private void disableDownsample() {
