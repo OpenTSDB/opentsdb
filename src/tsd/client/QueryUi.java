@@ -19,6 +19,7 @@ package tsd.client;
  */
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Date;
 
 import com.google.gwt.core.client.EntryPoint;
@@ -153,6 +154,8 @@ public class QueryUi implements EntryPoint {
           aggregators.add(aggs.get(i).isString().stringValue());
         }
         ((MetricForm) metrics.getWidget(0)).setAggregators(aggregators);
+        parseQueryString();
+        refreshGraph();
       }
     });
 
@@ -621,6 +624,30 @@ public class QueryUi implements EntryPoint {
     if (y2log.isEnabled() && y2log.getValue()) {
       url.append("&y2log");
     }
+  }
+
+  public static HashMap<String, ArrayList<String>> getQueryMap(String query) {
+    String[] params = query.substring(1).split("&");
+    HashMap<String, ArrayList<String>> map = new HashMap<String, ArrayList<String>>();
+    for (String param : params) {
+      String[] kv = param.split("=", 2);
+      String key = kv[0];
+      String value = kv[1];
+
+      if (!map.containsKey(key))
+        map.put(key, new ArrayList<String>());
+
+      map.get(key).add(value);
+    }
+    return map;
+  }
+
+  private void parseQueryString() {
+    HashMap<String, ArrayList<String>> params = getQueryMap(History.getToken());
+
+    start_datebox.getTextBox().setText(params.get("start").get(0));
+    if (params.containsKey("end"))
+      end_datebox.getTextBox().setText(params.get("end").get(0));
   }
 
   private void refreshGraph() {
