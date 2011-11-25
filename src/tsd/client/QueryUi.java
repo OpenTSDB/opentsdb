@@ -630,9 +630,12 @@ public class QueryUi implements EntryPoint {
     }
   }
 
-  public static HashMap<String, ArrayList<String>> getQueryMap(String query) {
+  static class QueryMap extends HashMap<String, ArrayList<String>> {
+  }
+
+  public static QueryMap getQueryMap(String query) {
     String[] params = query.substring(1).split("&");
-    HashMap<String, ArrayList<String>> map = new HashMap<String, ArrayList<String>>();
+    QueryMap map = new QueryMap();
     for (String param : params) {
       String[] kv = param.split("=", 2);
       String key = kv[0];
@@ -647,7 +650,7 @@ public class QueryUi implements EntryPoint {
   }
 
   private void parseQueryString() {
-    HashMap<String, ArrayList<String>> params = getQueryMap(History.getToken());
+    QueryMap params = getQueryMap(History.getToken());
 
     start_datebox.getTextBox().setText(params.get("start").get(0));
     if (params.containsKey("end"))
