@@ -106,20 +106,33 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     final String[] metricParts = metricString.split("{");
     metric.setText(metricParts[0]);
     metric_change_handler.onMetricChange(this);
+    int clearStart = 0;
     if (metricParts.length > 1) {
       final String[] tags = metricParts[1].substring(0, metricParts[1].length() - 1).split(",");
+      final int numExisting = getNumTags();
 
-      for (String tag : tags) {
-        String[] kv = tag.split("=", 2);
-        addTag(kv[0], kv[1]);
+      for (int i = 0; i < tags.length; i++) {
+        String[] kv = tags[i].split("=", 2);
+
+        if (i < numExisting) {
+          setTagName(i, kv[0]);
+          setTagValue(i, kv[1]);
+        } else {
+          addTag(kv[0], kv[1]);
+        }
       }
-      recompactTagTable();
-      }
+      clearStart = tags.length;
+    }
+    for (int i = clearStart; i < getNumTags(); i++) {
+      setTagName(i, "");
+      setTagValue(i, "");
+    }
+    recompactTagTable();
     index--;
 
     if (parts[index].equals("rate")) {
-        rate.setValue(true, false);
-        index--;
+      rate.setValue(true, false);
+      index--;
     }
 
     if (index != 0) {
