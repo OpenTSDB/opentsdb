@@ -686,6 +686,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
       final MetricForm metric = (MetricForm) metrics.getWidget(i);
       metric.updateFromQueryString(metricParams.get(i), optionsParams.get(i));
     }
+    for (int i = metricParams.size(); i < metrics.getWidgetCount() - 1; i++)
+      metrics.remove(i);
+
     updatey2range.onEvent(null);
 
     params.maybeSetTextbox(ylabel, "ylabel");
