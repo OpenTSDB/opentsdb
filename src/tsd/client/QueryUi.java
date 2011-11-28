@@ -290,8 +290,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
       hbox.setWidth("100%");
       table.setWidget(0, 1, hbox);
     }
-    autoreload.addClickHandler(new ClickHandler() {
-      public void onClick(final ClickEvent event) {
+    autoreload.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+      @Override
+      public void onValueChange(final ValueChangeEvent<Boolean> event) {
         if (autoreload.getValue()) {
           final HorizontalPanel hbox = new HorizontalPanel();
           hbox.setWidth("100%");
@@ -686,6 +687,8 @@ public class QueryUi implements EntryPoint, HistoryListener {
     maybeSetTextbox(qs, "start", start_datebox.getTextBox());
     maybeSetTextbox(qs, "end", end_datebox.getTextBox());
     setTextbox(qs, "wxh", wxh);
+    autoreload.setValue(qs.containsKey("autoreload"), true);
+    maybeSetTextbox(qs, "autoreload", autoreoload_interval);
 
     final ArrayList<String> newmetrics = qs.get("m");
     if (newmetrics == null) {  // Clear all metric forms.
@@ -825,6 +828,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
           String history = uri.substring(3)      // Remove "/q?".
             .replaceFirst("ignore=[^&]*&", "");  // Unnecessary cruft.
+          if (autoreload.getValue()) {
+            history += "&autoreload=" + autoreoload_interval.getText();
+          }
           if (!history.equals(History.getToken())) {
             History.newItem(history, false);
           }
