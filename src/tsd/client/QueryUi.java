@@ -290,8 +290,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
       hbox.setWidth("100%");
       table.setWidget(0, 1, hbox);
     }
-    autoreoload.addClickHandler(new ClickHandler() {
-      public void onClick(final ClickEvent event) {
+    autoreoload.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+      @Override
+      public void onValueChange(final ValueChangeEvent<Boolean> event) {
         if (autoreoload.getValue()) {
           final HorizontalPanel hbox = new HorizontalPanel();
           hbox.setWidth("100%");
@@ -675,6 +676,8 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
     start_datebox.getTextBox().setText(params.getOne("start"));
     params.maybeSetTextbox(end_datebox.getTextBox(), "end");
+    autoreoload.setValue(params.containsKey("autoreoload"), true);
+    params.maybeSetTextbox(autoreoload_interval, "autoreoload");
     wxh.setText(params.getOne("wxh"));
 
     ArrayList<String> metricParams = params.get("m");
@@ -799,6 +802,8 @@ public class QueryUi implements EntryPoint, HistoryListener {
             graph.setVisible(true);
 
             String historyUri = uri.substring(2).replaceAll("ignore=[^&]*&", "");
+            if (autoreoload.getValue())
+                historyUri += "&autoreoload=" + autoreoload_interval.getText();
             if (!historyUri.equals(History.getToken()))
                 History.newItem(historyUri, false);
 
