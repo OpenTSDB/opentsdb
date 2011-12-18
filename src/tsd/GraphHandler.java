@@ -386,7 +386,9 @@ final class GraphHandler implements HttpRpc {
           .append(",\"cachehit\":\"disk\"}");
         query.sendReply(json);
       } else if (query.hasQueryStringParam("png")
-                 || query.hasQueryStringParam("ascii")) {
+                 || query.hasQueryStringParam("ascii")
+                 || query.hasQueryStringParam("json-data")
+                 || query.hasQueryStringParam("jsonp-data")) {
         query.sendFile(cachepath, max_age);
       } else {
         query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
