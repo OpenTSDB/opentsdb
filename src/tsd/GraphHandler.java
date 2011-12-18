@@ -842,7 +842,7 @@ final class GraphHandler implements HttpRpc {
       writer.finish();
 
       if (jsonp) {
-        pw.print(")");
+        pw.print(");");
         pw.flush();
       }
 
