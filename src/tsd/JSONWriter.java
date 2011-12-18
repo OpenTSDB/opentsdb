@@ -14,7 +14,6 @@
 package net.opentsdb.tsd;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.Map;
@@ -32,8 +31,8 @@ import com.google.gson.stream.JsonWriter;
 public class JSONWriter {
 	protected JsonWriter writer;
 
-	public JSONWriter(final OutputStream out) throws UnsupportedEncodingException {
-		writer = new JsonWriter(new OutputStreamWriter(out, "UTF-8"));
+	public JSONWriter(final OutputStreamWriter out) throws UnsupportedEncodingException {
+		writer = new JsonWriter(out);
 	}
 
 	public void start() throws IOException {

@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URL;
@@ -814,12 +815,12 @@ final class GraphHandler implements HttpRpc {
                                        final String basepath,
                                        final Plot plot) {
     final String path = basepath + findPathExtension(query);
-    FileOutputStream out;
+    FileWriter out;
     final Boolean jsonp = query.hasQueryStringParam("jsonp-data") && query.getQueryStringParam("jsonp-data").length() > 0;
 
     try {
       final File file = new File(path);
-      out = new FileOutputStream(file);
+      out = new FileWriter(file);
       PrintWriter pw = null;
 
       if (jsonp) {
