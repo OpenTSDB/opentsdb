@@ -15,6 +15,11 @@ package net.opentsdb.core;
 /** Constants used in various places.  */
 public final class Const {
 
+  /**
+   * Name of the annotation "metric"
+   */
+  public static final String ANNOTATION_NAME = "timelineannotation";
+
   /** Number of bytes on which a timestamp is encoded.  */
   public static final short TIMESTAMP_BYTES = 4;
 
@@ -25,14 +30,17 @@ public final class Const {
   /** Number of LSBs in time_deltas reserved for flags.  */
   static final short FLAG_BITS = 4;
 
-  /** Mask to select all the FLAG_BITS.  */
-  static final short FLAGS_MASK = 0xF;
-
   /**
    * When this bit is set, the value is a floating point value.
    * Otherwise it's an integer value.
    */
   static final short FLAG_FLOAT = 0x8;
+
+  /** Mask to select the size of a value from the qualifier.  */
+  static final short LENGTH_MASK = 0x7;
+
+  /** Mask to select all the FLAG_BITS.  */
+  static final short FLAGS_MASK = FLAG_FLOAT | LENGTH_MASK;
 
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final short MAX_TIMESPAN = 3600;

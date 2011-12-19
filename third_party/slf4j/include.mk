@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-SLF4J_VERSION = 1.6.1
+SLF4J_VERSION = 1.6.4
 
 JCL_OVER_SLF4J_VERSION := $(SLF4J_VERSION)
 JCL_OVER_SLF4J := third_party/slf4j/jcl-over-slf4j-$(JCL_OVER_SLF4J_VERSION).jar

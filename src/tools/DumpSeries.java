@@ -23,6 +23,8 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 
@@ -66,6 +68,7 @@ final class DumpSeries {
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     final byte[] table = argp.get("--table", "tsdb").getBytes();
     final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+                               argp.get("--annotationtable", "tsdb-annotation"), 
                                argp.get("--uidtable", "tsdb-uid"));
     final boolean delete = argp.has("--delete");
     final boolean importformat = delete || argp.has("--import");
@@ -88,14 +91,14 @@ final class DumpSeries {
 
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
-      final Scanner scanner = Core.getScanner(query);
+      final Scanner scanner = Internal.getScanner(query);
       ArrayList<ArrayList<KeyValue>> rows;
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
           buf.setLength(0);
           final byte[] key = row.get(0).key();
-          final long base_time = Core.baseTime(tsdb, key);
-          final String metric = Core.metricName(tsdb, key);
+          final long base_time = Internal.baseTime(tsdb, key);
+          final String metric = Internal.metricName(tsdb, key);
           // Print the row key.
           if (!importformat) {
             buf.append(Arrays.toString(key))
@@ -105,7 +108,7 @@ final class DumpSeries {
               .append(base_time)
               .append(" (").append(date(base_time)).append(") ");
             try {
-              buf.append(Core.getTags(tsdb, key));
+              buf.append(Internal.getTags(tsdb, key));
             } catch (RuntimeException e) {
               buf.append(e.getClass().getName() + ": " + e.getMessage());
             }
@@ -140,7 +143,7 @@ final class DumpSeries {
                              final KeyValue kv,
                              final long base_time) {
     formatKeyValue(buf, tsdb, true, kv, base_time,
-                   Core.metricName(tsdb, kv.key()));
+                   Internal.metricName(tsdb, kv.key()));
   }
 
   private static void formatKeyValue(final StringBuilder buf,
@@ -153,37 +156,74 @@ final class DumpSeries {
       buf.append(metric).append(' ');
     }
     final byte[] qualifier = kv.qualifier();
-    final short deltaflags = Bytes.getShort(qualifier);
-    final short delta = (short) ((0x0000FFFF & deltaflags) >>> 4);
     final byte[] cell = kv.value();
-    final long lvalue = Core.extractLValue(deltaflags, kv);
-    if (importformat) {
-      buf.append(base_time + delta).append(' ');
-    } else {
+    if (qualifier.length != 2 && cell[cell.length - 1] != 0) {
+      throw new IllegalDataException("Don't know how to read this value:"
+        + Arrays.toString(cell) + " found in " + kv
+        + " -- this compacted value might have been written by a future"
+        + " version of OpenTSDB, or could be corrupt.");
+    }
+    final int nvalues = qualifier.length / 2;
+    final boolean multi_val = nvalues != 1 && !importformat;
+    if (multi_val) {
       buf.append(Arrays.toString(qualifier))
-         .append(' ')
-         .append(Arrays.toString(cell))
-         .append('\t')
-         .append(delta)
-         .append('\t');
+        .append(' ').append(Arrays.toString(cell))
+        .append(" = ").append(nvalues).append(" values:");
     }
-    if ((deltaflags & 0x8) == 0x8) {
-      buf.append(importformat ? "" : "f ")
-         .append(Float.intBitsToFloat((int) lvalue));
-    } else {
-      buf.append(importformat ? "" : "l ")
-         .append(lvalue);
-    }
+
+    final String tags;
     if (importformat) {
+      final StringBuilder tagsbuf = new StringBuilder();
       for (final Map.Entry<String, String> tag
-           : Core.getTags(tsdb, kv.key()).entrySet()) {
-        buf.append(' ').append(tag.getKey())
-           .append('=').append(tag.getValue());
+           : Internal.getTags(tsdb, kv.key()).entrySet()) {
+        tagsbuf.append(' ').append(tag.getKey())
+          .append('=').append(tag.getValue());
       }
+      tags = tagsbuf.toString();
     } else {
-      buf.append('\t')
-         .append(base_time + delta)
-         .append(" (").append(date(base_time + delta)).append(')');
+      tags = null;
+    }
+
+    int value_offset = 0;
+    for (int i = 0; i < nvalues; i++) {
+      if (multi_val) {
+        buf.append("\n    ");
+      }
+      final short qual = Bytes.getShort(qualifier, i * 2);
+      final byte flags = (byte) qual;
+      final int value_len = (flags & 0x7) + 1;
+      final short delta = (short) ((0x0000FFFF & qual) >>> 4);
+      if (importformat) {
+        buf.append(base_time + delta).append(' ');
+      } else {
+        final byte[] v = multi_val
+          ? Arrays.copyOfRange(cell, value_offset, value_offset + value_len)
+          : cell;
+        buf.append(Arrays.toString(Bytes.fromShort(qual)))
+           .append(' ')
+           .append(Arrays.toString(v))
+           .append('\t')
+           .append(delta)
+           .append('\t');
+      }
+      if ((qual & 0x8) == 0x8) {
+        buf.append(importformat ? "" : "f ")
+           .append(Internal.extractFloatingPointValue(cell, value_offset, flags));
+      } else {
+        buf.append(importformat ? "" : "l ")
+           .append(Internal.extractIntegerValue(cell, value_offset, flags));
+      }
+      if (importformat) {
+        buf.append(tags);
+        if (nvalues > 1 && i + 1 < nvalues) {
+          buf.append('\n').append(metric).append(' ');
+        }
+      } else {
+        buf.append('\t')
+           .append(base_time + delta)
+           .append(" (").append(date(base_time + delta)).append(')');
+      }
+      value_offset += value_len;
     }
   }
 

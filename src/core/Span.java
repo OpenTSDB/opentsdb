@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010  The OpenTSDB Authors.
+// Copyright (C) 2010, 2011  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -78,17 +78,17 @@ final class Span implements DataPoints {
 
   /**
    * Adds an HBase row to this span, using a row from a scanner.
-   * @param row The HBase row to add to this span.
+   * @param row The compacted HBase row to add to this span.
    * @throws IllegalArgumentException if the argument and this span are for
    * two different time series.
    * @throws IllegalArgumentException if the argument represents a row for
    * data points that are older than those already added to this span.
    */
-  void addRow(final ArrayList<KeyValue> row) {
+  void addRow(final KeyValue row) {
     long last_ts = 0;
     if (rows.size() != 0) {
       // Verify that we have the same metric id and tags.
-      final byte[] key = row.get(0).key();
+      final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
       final short metric_width = tsdb.metrics.width();
       final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
@@ -107,7 +107,7 @@ final class Span implements DataPoints {
             + " whereas the row key being added is " + Arrays.toString(key)
             + " and metric_width=" + metric_width);
       }
-      last_ts = last.timestamp(last.size() - 1);
+      last_ts = last.timestamp(last.size() - 1);  // O(1)
       // Optimization: check whether we can put all the data points of `row'
       // into the last RowSeq object we created, instead of making a new
       // RowSeq.  If the time delta between the timestamp encoded in the
@@ -134,20 +134,16 @@ final class Span implements DataPoints {
   /**
    * Package private helper to access the last timestamp in an HBase row.
    * @param metric_width The number of bytes on which metric IDs are stored.
-   * @param row The row coming straight out of HBase.
+   * @param row A compacted HBase row.
    * @return A strictly positive 32-bit timestamp.
    * @throws IllegalArgumentException if {@code row} doesn't contain any cell.
    */
   static long lastTimestampInRow(final short metric_width,
-                                 final ArrayList<KeyValue> row) {
-    final int size = row.size();
-    if (size < 1) {
-      throw new IllegalArgumentException("empty row: " + row);
-    }
-    final KeyValue lastkv = row.get(size - 1);
-    final long base_time = Bytes.getUnsignedInt(lastkv.key(), metric_width);
+                                 final KeyValue row) {
+    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width);
+    final byte[] qual = row.qualifier();
     final short last_delta = (short)
-      (Bytes.getUnsignedShort(lastkv.qualifier()) >>> Const.FLAG_BITS);
+      (Bytes.getUnsignedShort(qual, qual.length - 2) >>> Const.FLAG_BITS);
     return base_time + last_delta;
   }
 
@@ -255,7 +251,7 @@ final class Span implements DataPoints {
     private short row_index;
 
     /** Iterator on the current row. */
-    private DataPointsIterator current_row;
+    private RowSeq.Iterator current_row;
 
     Iterator() {
       current_row = rows.get(0).internalIterator();
@@ -327,13 +323,10 @@ final class Span implements DataPoints {
     private final Aggregator downsampler;
 
     /** Index of the {@link RowSeq} we're currently at, in {@code rows}. */
-    private int row_index;
+    private short row_index;
 
     /** The row we're currently at. */
-    private RowSeq current_row;
-
-    /** Index of data point we're at, in {@code current_row}. */
-    private int pos = -1;
+    private RowSeq.Iterator current_row;
 
     /**
      * Current timestamp (unsigned 32 bits).
@@ -354,7 +347,7 @@ final class Span implements DataPoints {
                          final Aggregator downsampler) {
       this.interval = interval;
       this.downsampler = downsampler;
-      this.current_row = rows.get(0);
+      this.current_row = rows.get(0).internalIterator();
     }
 
     // ------------------ //
@@ -362,23 +355,22 @@ final class Span implements DataPoints {
     // ------------------ //
 
     public boolean hasNext() {
-      return (pos < current_row.size() - 1      // more points in this row
+      return (current_row.hasNext()             // more points in this row
               || row_index < rows.size() - 1);  // or more rows
     }
 
     private boolean moveToNext() {
-      if (pos == current_row.size() - 1) {  // Have we finished this row?
+      if (!current_row.hasNext()) {
         // Yes, move on to the next one.
         if (row_index < rows.size() - 1) {  // Do we have more rows?
-          current_row = rows.get(++row_index);
-          pos = 0;
+          current_row = rows.get(++row_index).internalIterator();
+          current_row.next();  // Position the iterator on the first element.
           return true;
         } else {  // No more rows, can't go further.
-          pos = -42;  // Safeguard to catch bugs earlier.
           return false;
         }
       }
-      pos++;
+      current_row.next();
       return true;
     }
 
@@ -391,27 +383,27 @@ final class Span implements DataPoints {
       // interval turn out to be integers.  While we do this, compute the
       // average timestamp of all the datapoints in that interval.
       long newtime = 0;
-      final int saved_row_index = row_index;
-      final int saved_pos = pos;
+      final short saved_row_index = row_index;
+      final int saved_state = current_row.saveState();
       // Since we know hasNext() returned true, we have at least 1 point.
       moveToNext();
-      time = current_row.timestamp(pos) + interval;  // end of this interval.
+      time = current_row.timestamp() + interval;  // end of this interval.
       boolean integer = true;
       int npoints = 0;
       do {
         npoints++;
-        newtime += current_row.timestamp(pos);
-        //LOG.info("Downsampling @ time " + current_row.timestamp(pos));
-        integer &= current_row.isInteger(pos);
-      } while (moveToNext() && current_row.timestamp(pos) < time);
+        newtime += current_row.timestamp();
+        //LOG.debug("Downsampling @ time " + current_row.timestamp());
+        integer &= current_row.isInteger();
+      } while (moveToNext() && current_row.timestamp() < time);
       newtime /= npoints;
 
       // Now that we're done looking ahead, let's go back where we were.
-      pos = saved_pos;
       if (row_index != saved_row_index) {
         row_index = saved_row_index;
-        current_row = rows.get(row_index);
+        current_row = rows.get(row_index).internalIterator();
       }
+      current_row.restoreState(saved_state);
 
       // Compute `value'.  This will rely on `time' containing the end time of
       // this interval...
@@ -438,11 +430,13 @@ final class Span implements DataPoints {
     // ---------------------- //
 
     public void seek(final long timestamp) {
-      row_index = seekRow(timestamp);
-      current_row = rows.get(row_index);
-      final DataPointsIterator it = current_row.internalIterator();
-      it.seek(timestamp);
-      pos = it.index();
+      short row_index = seekRow(timestamp);
+      if (row_index != this.row_index) {
+        //LOG.debug("seek from row #" + this.row_index + " to " + row_index);
+        this.row_index = row_index;
+        current_row = rows.get(row_index).internalIterator();
+      }
+      current_row.seek(timestamp);
     }
 
     // ------------------- //
@@ -480,7 +474,7 @@ final class Span implements DataPoints {
     // -------------------------- //
 
     public boolean hasNextValue() {
-      if (pos == current_row.size() - 1) {
+      if (!current_row.hasNext()) {
         if (row_index < rows.size() - 1) {
           //LOG.info("hasNextValue: next row? " + (rows.get(row_index + 1).timestamp(0) < time));
           return rows.get(row_index + 1).timestamp(0) < time;
@@ -489,14 +483,14 @@ final class Span implements DataPoints {
           return false;
         }
       }
-      //LOG.info("hasNextValue: next point? " + (current_row.timestamp(pos+1) < time));
-      return current_row.timestamp(pos + 1) < time;
+      //LOG.info("hasNextValue: next point? " + (current_row.peekNextTimestamp() < time));
+      return current_row.peekNextTimestamp() < time;
     }
 
     public long nextLongValue() {
       if (hasNextValue()) {
         moveToNext();
-        return current_row.longValue(pos);
+        return current_row.longValue();
       }
       throw new NoSuchElementException("no more longs in interval of " + this);
     }
@@ -511,7 +505,7 @@ final class Span implements DataPoints {
         // Use `toDouble' instead of `doubleValue' because we can get here if
         // there's a mix of integer values and floating point values in the
         // current downsampled interval.
-        return current_row.toDouble(pos);
+        return current_row.toDouble();
       }
       throw new NoSuchElementException("no more floats in interval of " + this);
     }
@@ -521,8 +515,8 @@ final class Span implements DataPoints {
       buf.append("Span.DownsamplingIterator(interval=").append(interval)
          .append(", downsampler=").append(downsampler)
          .append(", row_index=").append(row_index)
-         .append(", pos=").append(pos)
-         .append(", current time=").append(timestamp())
+         .append(", current_row=").append(current_row.toStringSummary())
+         .append("), current time=").append(timestamp())
          .append(", current value=");
      if (isInteger()) {
        buf.append("long:").append(longValue());

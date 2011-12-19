@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -32,13 +34,10 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.AnnotationQuery;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
@@ -49,6 +48,9 @@ import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -181,6 +183,9 @@ final class GraphHandler implements HttpRpc {
       tsdbqueries[i] = null;  // free()
     }
     tsdbqueries = null;  // free()
+    
+    AnnotationQuery annotationQuery = getAnnotationQuery(tsdb, start_time, end_time, query);
+    plot.setAnnotations(annotationQuery.run());
 
     if (query.hasQueryStringParam("ascii")) {
       respondAsciiQuery(query, max_age, basepath, plot);
@@ -865,6 +870,34 @@ final class GraphHandler implements HttpRpc {
       tsdbqueries[nqueries++] = tsdbquery;
     }
     return tsdbqueries;
+  }
+
+  private AnnotationQuery getAnnotationQuery(TSDB tsdb, long startTime,
+      long endTime, HttpQuery query) {
+    final HashMap<String, String> tags = new HashMap<String, String>();
+    final List<String> ms = query.getQueryStringParams("m");
+    if (ms == null) {
+      throw BadRequestException.missingParameter("m");
+    }
+
+    for (final String m : ms) {
+      // m is of the following forms:
+      // agg:[interval-agg:][rate:]metric[{tag=value,...}]
+      // Where the parts in square brackets `[' .. `]' are optional.
+      int indexOpeningCurlyBrace = m.indexOf('{');
+      int indexClosingCurlyBrace = m.indexOf('}');
+      if (indexOpeningCurlyBrace > -1 && indexClosingCurlyBrace > -1
+          && indexOpeningCurlyBrace < indexClosingCurlyBrace) {
+        String rawTags = m.substring(indexOpeningCurlyBrace, indexClosingCurlyBrace);
+        String[] splitTags = Tags.splitString(rawTags, ',');
+        
+        for(String splitTag : splitTags) {
+          Tags.parse(tags, splitTag);
+        }
+      }
+    }
+
+    return new AnnotationQuery(tsdb, startTime, endTime, tags);
   }
 
   /**

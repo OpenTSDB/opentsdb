@@ -57,3 +57,4 @@ class ValidatedTextBox extends TextBox implements BlurHandler {
   }
 
 }
+

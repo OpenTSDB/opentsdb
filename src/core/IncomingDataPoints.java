@@ -166,22 +166,23 @@ final class IncomingDataPoints implements WritableDataPoints {
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
     Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
+    tsdb.scheduleForCompaction(row, (int) base_time);
     return base_time;
   }
 
   /**
    * Implements {@link #addPoint} by storing a value with a specific flag.
    * @param timestamp The timestamp to associate with the value.
-   * @param value The value to store, converted to a 64 bit representation and
-   * stored in a long.  For instance, if the value is a floating point value,
-   * it's expected to be converted using {@link Float#floatToRawIntBits} and
-   * then cast the resulting 32 bit int to a 64 bit long.
+   * @param value The value to store.
    * @param flags Flags to store in the qualifier (size and type of the data
    * point).
    * @return A deferred object that indicates the completion of the request.
    */
-  private Deferred<Object> addPointInternal(final long timestamp, final long value,
+  private Deferred<Object> addPointInternal(final long timestamp, final byte[] value,
                                             final short flags) {
+    // This particular code path only expects integers on 8 bytes or floating
+    // point values on 4 bytes.
+    assert value.length == 8 || value.length == 4 : Bytes.pretty(value);
     if (row == null) {
       throw new IllegalStateException("setSeries() never called!");
     }
@@ -189,7 +190,7 @@ final class IncomingDataPoints implements WritableDataPoints {
       // => timestamp < 0 || timestamp > Integer.MAX_VALUE
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
           + " timestamp=" + timestamp
-          + " when trying to add value=" + value + " to " + this);
+          + " when trying to add value=" + Arrays.toString(value) + " to " + this);
     }
 
     long base_time;
@@ -199,7 +200,8 @@ final class IncomingDataPoints implements WritableDataPoints {
       if (timestamp <= last_ts) {
         throw new IllegalArgumentException("New timestamp=" + timestamp
             + " is less than previous=" + last_ts
-            + " when trying to add value=" + value + " to " + this);
+            + " when trying to add value=" + Arrays.toString(value)
+            + " to " + this);
       } else if (timestamp - base_time >= Const.MAX_TIMESPAN) {
         // Need to start a new row as we've exceeded Const.MAX_TIMESPAN.
         base_time = updateBaseTime(timestamp);
@@ -220,12 +222,14 @@ final class IncomingDataPoints implements WritableDataPoints {
     final short qualifier = (short) ((timestamp - base_time) << Const.FLAG_BITS
                                      | flags);
     qualifiers[size] = qualifier;
-    values[size] = value;
+    values[size] = (value.length == 8
+                    ? Bytes.getLong(value)
+                    : Bytes.getInt(value) & 0x00000000FFFFFFFFL);
     size++;
 
-    final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
+    final PutRequest point = new PutRequest(tsdb.tableTimeseries, row, TSDB.FAMILY_TIMESERIES,
                                             Bytes.fromShort(qualifier),
-                                            Bytes.fromLong(value));
+                                            value);
     // TODO(tsuna): The following timing is rather useless.  First of all,
     // the histogram never resets, so it tends to converge to a certain
     // distribution and never changes.  What we really want is a moving
@@ -267,7 +271,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   public Deferred<Object> addPoint(final long timestamp, final long value) {
     final short flags = 0x7;  // An int stored on 8 bytes.
-    return addPointInternal(timestamp, value, flags);
+    return addPointInternal(timestamp, Bytes.fromLong(value), flags);
   }
 
   public Deferred<Object> addPoint(final long timestamp, final float value) {
@@ -277,7 +281,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     }
     final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
     return addPointInternal(timestamp,
-                            Float.floatToRawIntBits(value) & 0x00000000FFFFFFFFL,
+                            Bytes.fromInt(Float.floatToRawIntBits(value)),
                             flags);
   }
 

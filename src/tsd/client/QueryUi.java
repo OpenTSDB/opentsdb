@@ -947,3 +947,4 @@ public class QueryUi implements EntryPoint {
   }
 
 }
+

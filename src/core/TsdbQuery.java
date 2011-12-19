@@ -261,7 +261,7 @@ final class TsdbQuery implements Query {
             datapoints = new Span(tsdb);
             spans.put(key, datapoints);
           }
-          datapoints.addRow(row);
+          datapoints.addRow(tsdb.compact(row));
           nrows++;
           starttime = System.nanoTime();
         }
@@ -362,7 +362,7 @@ final class TsdbQuery implements Query {
   /**
    * Creates the {@link Scanner} to use for this query.
    */
-  private Scanner getScanner() throws HBaseException {
+  Scanner getScanner() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
     final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
@@ -380,13 +380,13 @@ final class TsdbQuery implements Query {
     System.arraycopy(metric, 0, start_row, 0, metric_width);
     System.arraycopy(metric, 0, end_row, 0, metric_width);
 
-    final Scanner scanner = tsdb.client.newScanner(tsdb.table);
+    final Scanner scanner = tsdb.client.newScanner(tsdb.tableTimeseries);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     if (tags.size() > 0 || group_bys != null) {
       createAndSetFilter(scanner);
     }
-    scanner.setFamily(TSDB.FAMILY);
+    scanner.setFamily(TSDB.FAMILY_TIMESERIES);
     return scanner;
   }
 

@@ -372,3 +372,4 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   }
 
 }
+

@@ -234,3 +234,4 @@ final class RemoteOracle extends SuggestOracle {
   }
 
 }
+

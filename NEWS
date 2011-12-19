@@ -1,0 +1,34 @@
+OpenTSDB - User visible changes.
+
+* Version 1.1.0 (2012-??-??) [???????]
+
+
+* Version 1.0.0 (2011-12-23) [66a6b42]
+
+Initial release:
+  - Upload data points through a telnet-style protocol.
+  - HTTP interface to query data in ASCII and PNG.
+  - Efficient, fully asynchronous write path.
+  - Synchronous / blocking read path (to be rewritten).
+  - TSDB data compaction (disabled by default).
+
+-----
+
+Copyright (C) 2011  The OpenTSDB Authors.
+
+This library is free software: you can redistribute it and/or modify it
+under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This library is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this library.  If not, see <http://www.gnu.org/licenses/>.
+
+Local Variables:
+mode: outline
+End:

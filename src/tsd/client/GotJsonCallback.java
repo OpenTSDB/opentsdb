@@ -19,3 +19,4 @@ interface GotJsonCallback {
   void got(JSONValue json);
 
 }
+

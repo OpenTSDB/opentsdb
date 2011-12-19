@@ -34,6 +34,9 @@ final class CliOptions {
     argp.addOption("--table", "TABLE",
                    "Name of the HBase table where to store the time series"
                    + " (default: tsdb).");
+    argp.addOption("--annotationtable", "TABLE",
+            "Name of the HBase table where to store the annotations"
+            + " (default: tsdb-annotation).");
     argp.addOption("--uidtable", "TABLE",
                    "Name of the HBase table to use for Unique IDs"
                    + " (default: tsdb-uid).");

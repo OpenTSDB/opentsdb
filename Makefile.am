@@ -29,12 +29,16 @@ dist_pkgdata_SCRIPTS = src/mygnuplot.sh
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/Annotation.java	\
+	src/core/AnnotationQuery.java	\
+	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
+	src/core/Internal.java	\
 	src/core/Query.java	\
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
@@ -51,7 +55,6 @@ tsdb_SRC := \
 	src/tools/ArgP.java	\
 	src/tools/CliOptions.java	\
 	src/tools/CliQuery.java	\
-	src/tools/Core.java	\
 	src/tools/DumpSeries.java	\
 	src/tools/Fsck.java	\
 	src/tools/TSDMain.java	\
@@ -76,7 +79,7 @@ tsdb_SRC := \
 	src/uid/UniqueIdInterface.java
 
 tsdb_DEPS = \
-	$(HBASEASYNC)	\
+	$(ASYNCHBASE)	\
 	$(JCL_OVER_SLF4J)	\
 	$(LOG4J_OVER_SLF4J)	\
 	$(LOGBACK_CLASSIC)	\
@@ -90,6 +93,7 @@ tsdb_DEPS = \
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
 
 test_SRC := \
+	src/core/TestCompactionQueue.java	\
 	src/core/TestTags.java	\
 	src/stats/TestHistogram.java	\
 	src/tsd/TestGraphHandler.java	\
@@ -339,7 +343,7 @@ dist-hook:
 
 mostlyclean-local:
 	@rm -f .javac-stamp .javac-unittests-stamp .gwtc-stamp* .staticroot-stamp
-	rm -rf gwt staticroot
+	rm -rf gwt gwt-unitCache staticroot
 	rm -f manifest $(BUILT_SOURCES)
 	rm -f $(classes_with_nested_classes) $(test_classes_with_nested_classes)
 	test -d $(package_dir) || exit 0 \

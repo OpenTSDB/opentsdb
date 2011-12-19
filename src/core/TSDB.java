@@ -12,15 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
+import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 
 import net.opentsdb.uid.UniqueId;
@@ -35,7 +40,8 @@ import net.opentsdb.stats.StatsCollector;
  */
 public final class TSDB {
 
-  static final byte[] FAMILY = { 't' };
+  static final byte[] FAMILY_TIMESERIES = { 't' };
+  static final byte[] FAMILY_ANNOTATIONS = { 'a' };
 
   private static final String METRICS_QUAL = "metrics";
   private static final short METRICS_WIDTH = 3;
@@ -44,11 +50,20 @@ public final class TSDB {
   private static final String TAG_VALUE_QUAL = "tagv";
   private static final short TAG_VALUE_WIDTH = 3;
 
+  static final boolean enable_compactions;
+  static {
+    final String compactions = System.getProperty("tsd.feature.compactions");
+    enable_compactions = compactions != null && !"false".equals(compactions);
+  }
+
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
 
   /** Name of the table in which timeseries are stored.  */
-  final byte[] table;
+  final byte[] tableTimeseries;
+
+  /** Name of the table in which annotations are stored.  */
+  final byte[] tableAnnotations;
 
   /** Unique IDs for the metric names. */
   final UniqueId metrics;
@@ -56,6 +71,14 @@ public final class TSDB {
   final UniqueId tag_names;
   /** Unique IDs for the tag values. */
   final UniqueId tag_values;
+
+  /**
+   * Row keys that need to be compacted.
+   * Whenever we write a new data point to a row, we add the row key to this
+   * set.  Every once in a while, the compaction thread will go through old
+   * row keys and will read re-compact them.
+   */
+  private final CompactionQueue compactionq;
 
   /**
    * Constructor.
@@ -67,15 +90,18 @@ public final class TSDB {
    */
   public TSDB(final HBaseClient client,
               final String timeseries_table,
+              final String annotations_table,
               final String uniqueids_table) {
     this.client = client;
-    table = timeseries_table.getBytes();
+    tableTimeseries = timeseries_table.getBytes();
+    tableAnnotations = annotations_table.getBytes();
 
     final byte[] uidtable = uniqueids_table.getBytes();
     metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL,
                               TAG_VALUE_WIDTH);
+    compactionq = new CompactionQueue(this);
   }
 
   /** Number of cache hits during lookups involving UIDs. */
@@ -124,6 +150,13 @@ public final class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
+    collector.record("hbase.root_lookups", client.rootLookupCount());
+    collector.record("hbase.meta_lookups",
+                     client.uncontendedMetaLookupCount(), "type=uncontended");
+    collector.record("hbase.meta_lookups",
+                     client.contendedMetaLookupCount(), "type=contended");
+
+    compactionq.collectStats(collector);
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
@@ -226,10 +259,53 @@ public final class TSDB {
     }
     final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
     return addPointInternal(metric, timestamp,
-                            // Note: this is actually on 8 bytes :(
-                            Bytes.fromLong(Float.floatToRawIntBits(value)
-                                           & 0x00000000FFFFFFFFL),
+                            Bytes.fromInt(Float.floatToRawIntBits(value)),
                             tags, flags);
+  }
+
+  /**
+   * Adds a single annotation in the TSDB.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the value is empty.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   */
+  public Deferred<Object> addAnnotation(final long timestamp,
+                                   final String value,
+                                   final Map<String, String> tags) {
+    String metric = Const.ANNOTATION_NAME;
+    if (value == null || value.length() == 0) {
+      throw new IllegalArgumentException("value is empty: " + value
+                                         + " for metric=" + metric
+                                         + " timestamp=" + timestamp);
+    }
+    if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
+      // => timestamp < 0 || timestamp > Integer.MAX_VALUE
+      throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
+        + " timestamp=" + timestamp
+        + " when trying to add value=" + value
+        + " to metric=" + metric + ", tags=" + tags);
+    }
+    IncomingDataPoints.checkMetricAndTags(metric, tags);
+    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    final long base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    Bytes.setInt(row, (int) base_time, metrics.width());
+    final short qualifier = (short) (timestamp - base_time);
+    final byte[] bytes = value.replaceAll("_", " ").getBytes();
+    final PutRequest point = new PutRequest(tableAnnotations, row, FAMILY_ANNOTATIONS,
+                                            Bytes.fromShort(qualifier), bytes);
+    return client.put(point);
   }
 
   private Deferred<Object> addPointInternal(final String metric,
@@ -249,9 +325,10 @@ public final class TSDB {
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
     final long base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     Bytes.setInt(row, (int) base_time, metrics.width());
+    scheduleForCompaction(row, (int) base_time);
     final short qualifier = (short) ((timestamp - base_time) << Const.FLAG_BITS
                                      | flags);
-    final PutRequest point = new PutRequest(table, row, FAMILY,
+    final PutRequest point = new PutRequest(tableTimeseries, row, FAMILY_TIMESERIES,
                                             Bytes.fromShort(qualifier), value);
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
@@ -289,7 +366,18 @@ public final class TSDB {
    * recoverable by retrying, some are not.
    */
   public Deferred<Object> shutdown() {
-    return client.shutdown();
+    final class HClientShutdown implements Callback<Object, ArrayList<Object>> {
+      public Object call(final ArrayList<Object> args) {
+        return client.shutdown();
+      }
+      public String toString() {
+        return "shutdown HBase client";
+      }
+    }
+    // First flush the compaction queue, then shutdown the HBase client.
+    return enable_compactions
+      ? compactionq.flush().addBoth(new HClientShutdown())
+      : client.shutdown();
   }
 
   /**
@@ -314,6 +402,49 @@ public final class TSDB {
    */
   public List<String> suggestTagValues(final String search) {
     return tag_values.suggest(search);
+  }
+
+  // ------------------ //
+  // Compaction helpers //
+  // ------------------ //
+
+  final KeyValue compact(final ArrayList<KeyValue> row) {
+    return compactionq.compact(row);
+  }
+
+  /**
+   * Schedules the given row key for later re-compaction.
+   * Once this row key has become "old enough", we'll read back all the data
+   * points in that row, write them back to HBase in a more compact fashion,
+   * and delete the individual data points.
+   * @param row The row key to re-compact later.  Will not be modified.
+   * @param base_time The 32-bit unsigned UNIX timestamp.
+   */
+  final void scheduleForCompaction(final byte[] row, final int base_time) {
+    if (enable_compactions) {
+      compactionq.add(row);
+    }
+  }
+
+  // ------------------------ //
+  // HBase operations helpers //
+  // ------------------------ //
+
+  /** Gets the entire given row from the data table. */
+  final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
+    return client.get(new GetRequest(tableTimeseries, key));
+  }
+
+  /** Puts the given value into the data table. */
+  final Deferred<Object> put(final byte[] key,
+                             final byte[] qualifier,
+                             final byte[] value) {
+    return client.put(new PutRequest(tableTimeseries, key, FAMILY_TIMESERIES, qualifier, value));
+  }
+
+  /** Deletes the given cells from the data table. */
+  final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
+    return client.delete(new DeleteRequest(tableTimeseries, key, FAMILY_TIMESERIES, qualifiers));
   }
 
 }
