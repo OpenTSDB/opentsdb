@@ -49,8 +49,11 @@ public final class TSDB {
   private static final String TAG_VALUE_QUAL = "tagv";
   private static final short TAG_VALUE_WIDTH = 3;
 
-  static final boolean enable_compactions =
-    System.getProperty("tsd.feature.compactions") != null;
+  static final boolean enable_compactions;
+  static {
+    final String compactions = System.getProperty("tsd.feature.compactions");
+    enable_compactions = compactions != null && !"false".equals(compactions);
+  }
 
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
