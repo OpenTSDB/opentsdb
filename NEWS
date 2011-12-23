@@ -1,6 +1,9 @@
 OpenTSDB - User visible changes.
 
-* Version 1.0.0 (2011-12-23) [???????]
+* Version 1.1.0 (2012-??-??) [???????]
+
+
+* Version 1.0.0 (2011-12-23) [66a6b42]
 
 Initial release:
   - Upload data points through a telnet-style protocol.
