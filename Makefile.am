@@ -341,7 +341,7 @@ dist-hook:
 
 mostlyclean-local:
 	@rm -f .javac-stamp .javac-unittests-stamp .gwtc-stamp* .staticroot-stamp
-	rm -rf gwt staticroot
+	rm -rf gwt gwt-unitCache staticroot
 	rm -f manifest $(BUILT_SOURCES)
 	rm -f $(classes_with_nested_classes) $(test_classes_with_nested_classes)
 	test -d $(package_dir) || exit 0 \
