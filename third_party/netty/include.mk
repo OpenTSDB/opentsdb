@@ -14,7 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 NETTY_MAJOR_VERSION = 3.2
-NETTY_VERSION := 3.2.3.Final
+NETTY_VERSION := 3.2.7.Final
 NETTY := third_party/netty/netty-$(NETTY_VERSION).jar
 NETTY_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 
