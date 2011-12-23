@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-MOCKITO_VERSION := 1.8.5
+MOCKITO_VERSION := 1.9.0
 MOCKITO := third_party/mockito/mockito-$(MOCKITO_VERSION).jar
 MOCKITO_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 
