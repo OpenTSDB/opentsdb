@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-LOGBACK_VERSION = 0.9.24
+LOGBACK_VERSION = 1.0.0
 
 LOGBACK_CLASSIC_VERSION := $(LOGBACK_VERSION)
 LOGBACK_CLASSIC := third_party/logback/logback-classic-$(LOGBACK_CLASSIC_VERSION).jar
