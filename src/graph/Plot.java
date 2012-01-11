@@ -53,6 +53,9 @@ public final class Plot {
 
   /** Global Gnuplot parameters. */
   private Map<String, String> params;
+  
+  /** Plot foreground and background colors in the format "x000000 xFFFFFF" */
+  private String colors;
 
   /** Minimum width / height allowed. */
   private static final short MIN_PIXELS = 100;
@@ -120,6 +123,18 @@ public final class Plot {
     }
     this.width = width;
     this.height = height;
+  }
+  
+  /**
+   * Sets the foreground and background colors of the graph in the format "x000000 xFFFFFF". 
+   * @param colors The colors of the graph. 
+   */
+  public void setColors(String colors) {
+    if(colors != null && 
+        colors.length() == 15 && 
+        colors.matches("x\\d{6} x\\d{6}")) {
+      this.colors = colors;
+    }
   }
 
   /**
@@ -222,12 +237,17 @@ public final class Plot {
       gp.append("set term png small size ")
         // Why the fuck didn't they also add methods for numbers?
         .append(Short.toString(width)).append(",")
-        .append(Short.toString(height)).append("\n"
-                + "set xdata time\n"
-                + "set timefmt \"%s\"\n"
-                + "set xtic rotate\n"
-                + "set output \"").append(basepath + ".png").append("\"\n"
-                + "set xrange [\"")
+        .append(Short.toString(height));
+      
+      if(colors != null) {
+        gp.append(" ").append(colors);
+      }
+      
+      gp.append("\nset xdata time\n")
+        .append("set timefmt \"%s\"\n")
+        .append("set xtic rotate\n")
+        .append("set output \"").append(basepath + ".png").append("\"\n")
+        .append("set xrange [\"")
         .append(String.valueOf(start_time + utc_offset))
         .append("\":\"")
         .append(String.valueOf(end_time + utc_offset))
