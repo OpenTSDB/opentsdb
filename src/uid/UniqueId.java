@@ -591,7 +591,7 @@ public final class UniqueId implements UniqueIdInterface {
    * Puts are synchronized.
    *
    * @param put The PutRequest to execute.
-   * @param attemps The maximum number of attempts.
+   * @param attempts The maximum number of attempts.
    * @param wait The initial amount of time in ms to sleep for after a
    * failure.  This amount is doubled after each failed attempt.
    * @throws HBaseException if all the attempts have failed.  This exception
