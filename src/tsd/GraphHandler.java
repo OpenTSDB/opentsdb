@@ -81,7 +81,6 @@ final class GraphHandler implements HttpRpc {
 
   /**
    * Constructor.
-   * @param tsdb The TSDB to use.
    */
   public GraphHandler() {
     // Gnuplot is mostly CPU bound and does only a little bit of IO at the
