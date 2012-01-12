@@ -19,22 +19,18 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.zip.GZIPInputStream;
-
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import net.opentsdb.core.TSDB;
+import net.opentsdb.core.Tags;
+import net.opentsdb.core.WritableDataPoints;
+import net.opentsdb.stats.StatsCollector;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseRpc;
 import org.hbase.async.PleaseThrottleException;
 import org.hbase.async.PutRequest;
-
-import net.opentsdb.core.Tags;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.WritableDataPoints;
-import net.opentsdb.stats.StatsCollector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 final class TextImporter {
 
@@ -42,7 +38,8 @@ final class TextImporter {
 
   /** Prints usage and exits with the given retval.  */
   static void usage(final ArgP argp, final int retval) {
-    System.err.println("Usage: import path [more paths]");
+    System.err.println("Usage: import (--stdin | path [paths])");
+    System.err.println("  If no paths are specified and the --stdin option is provided then textual data will be imported from stdin");
     System.err.print(argp.usage());
     System.err.println("This tool can directly read gzip'ed input files.");
     System.exit(retval);
@@ -52,9 +49,15 @@ final class TextImporter {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     CliOptions.addAutoMetricFlag(argp);
+    argp.addOption("--stdin", "Read from stdin instead of file(s) on disk.");
     args = CliOptions.parse(argp, args);
+    boolean stdin = false;
     if (args == null) {
       usage(argp, 1);
+    } else if (stdin = argp.optionExists("--stdin") && argp.has("--stdin")) {
+      if (args.length != 0) {
+        usage(argp, 1);
+      }
     } else if (args.length < 1) {
       usage(argp, 2);
     }
@@ -68,8 +71,12 @@ final class TextImporter {
     try {
       int points = 0;
       final long start_time = System.nanoTime();
-      for (final String path : args) {
-        points += importFile(client, tsdb, path);
+      if (stdin) {
+        points += importStdin(client, tsdb);
+      } else {
+        for (final String path : args) {
+          points += importFile(client, tsdb, path);
+        }
       }
       final double time_delta = (System.nanoTime() - start_time) / 1000000000.0;
       LOG.info(String.format("Total: imported %d data points in %.3fs"
@@ -94,12 +101,33 @@ final class TextImporter {
 
   static volatile boolean throttle = false;
 
+  private static int importStdin(final HBaseClient client,
+                                 final TSDB tsdb) throws IOException {
+    final BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
+    try {
+      return importReader(client, tsdb, "<stdin>", r);
+    } finally {
+      r.close();
+    }
+  }
+
   private static int importFile(final HBaseClient client,
                                 final TSDB tsdb,
                                 final String path) throws IOException {
+    final BufferedReader in = open(path);
+    try {
+      return importReader(client, tsdb, path, in);
+    } finally {
+      in.close();
+    }
+  }
+
+  private static int importReader(final HBaseClient client,
+                                  final TSDB tsdb,
+                                  final String path,
+                                  final BufferedReader in) throws IOException {
     final long start_time = System.nanoTime();
     long ping_start_time = start_time;
-    final BufferedReader in = open(path);
     String line = null;
     int points = 0;
     try {
@@ -148,7 +176,12 @@ final class TextImporter {
         final WritableDataPoints dp = getDataPoints(tsdb, metric, tags);
         Deferred<Object> d;
         if (value.indexOf('.') < 0) {  // integer value
+        	try {
           d = dp.addPoint(timestamp, Tags.parseLong(value));
+        	} catch (IllegalArgumentException e) {
+        	  //TODO:RON
+        		continue;
+        	}
         } else {  // floating point value
           d = dp.addPoint(timestamp, Float.parseFloat(value));
         }
@@ -183,8 +216,6 @@ final class TextImporter {
         LOG.error("Exception caught while processing file "
                   + path + " line=" + line);
         throw e;
-    } finally {
-      in.close();
     }
     final long time_delta = (System.nanoTime() - start_time) / 1000000;
     LOG.info(String.format("Processed %s in %d ms, %d data points"

@@ -33,6 +33,9 @@ public final class Aggregators {
   /** Aggregator that returns the average value of the data point. */
   public static final Aggregator AVG = new Avg();
 
+  /** Aggregator that rejects duplicate data points. */
+  public static final Aggregator NODUPES = new NoDupes();
+
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
 
@@ -42,6 +45,7 @@ public final class Aggregators {
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
+    aggregators.put("nodupes", NODUPES);
   }
 
   private Aggregators() {
@@ -181,4 +185,26 @@ public final class Aggregators {
 
   }
 
+  private static final class NoDupes implements Aggregator {
+
+    public long runLong(final Longs values) {
+      long result = values.nextLongValue();
+      if (values.hasNextValue()) {
+        throw new RuntimeException("Duplicates not permitted");
+      }
+      return result;
+    }
+
+    public double runDouble(final Doubles values) {
+      double result = values.nextDoubleValue();
+      if (values.hasNextValue()) {
+        throw new RuntimeException("Duplicates not permitted");
+      }
+      return result;
+    }
+
+    public String toString() {
+      return "nodupes";
+    }
+  }
 }
