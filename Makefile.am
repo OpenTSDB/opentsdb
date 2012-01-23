@@ -93,6 +93,7 @@ pkgdata_DATA = $(tsdb_DEPS) $(jar)
 test_SRC := \
 	src/core/TestCompactionQueue.java	\
 	src/core/TestTags.java	\
+	src/core/TestStandardDeviationAggregator.java \
 	src/stats/TestHistogram.java	\
 	src/tsd/TestGraphHandler.java	\
 	src/uid/TestNoSuchUniqueId.java	\
