@@ -158,6 +158,7 @@ final class GraphHandler implements HttpRpc {
     final Plot plot = new Plot(start_time, end_time);
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
+    plot.setColors(popParam(query.getQueryString(), "colors"));
     final int nqueries = tsdbqueries.length;
     @SuppressWarnings("unchecked")
     final HashSet<String>[] aggregated_tags = new HashSet[nqueries];
