@@ -128,7 +128,7 @@ public final class Plot {
   public void setColors(String colors) {
     if (colors != null) {
       if (colors.length() == 15 && 
-          colors.matches("x\\d{6} x\\d{6}")) {
+          colors.matches("x[0-9A-Fa-f]{6} x[0-9A-Fa-f]{6}")) {
         this.colors = colors;
       } else {
         throw new IllegalArgumentException("colors parameter must match the format \"x000000 xFFFFFF\" for foreground and background colors");
