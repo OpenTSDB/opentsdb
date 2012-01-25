@@ -69,6 +69,7 @@ final class Fsck {
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     final byte[] table = argp.get("--table", "tsdb").getBytes();
     final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+                               argp.get("--annotationtable", "tsdb-annotation"),
                                argp.get("--uidtable", "tsdb-uid"));
     final boolean fix = argp.has("--fix");
     argp = null;

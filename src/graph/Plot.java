@@ -15,14 +15,16 @@ package net.opentsdb.graph;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import net.opentsdb.core.Annotation;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Produces files to generate graphs with Gnuplot.
@@ -43,6 +45,8 @@ public final class Plot {
   /** All the DataPoints we want to plot. */
   private ArrayList<DataPoints> datapoints =
     new ArrayList<DataPoints>();
+  
+  private List<Annotation> annotations = new ArrayList<Annotation>();
 
   /** Per-DataPoints Gnuplot options. */
   private ArrayList<String> options = new ArrayList<String>();
@@ -141,6 +145,12 @@ public final class Plot {
    */
   public Iterable<DataPoints> getDataPoints() {
     return datapoints;
+  }
+
+  public void setAnnotations(final List<Annotation> annotations) {
+    if (annotations != null) {
+      this.annotations = annotations;
+    }
   }
 
   /**
@@ -257,6 +267,14 @@ public final class Plot {
           gp.write("set y2tics border\n");
           break;
         }
+      }
+      
+      for(Annotation annotation : annotations) {
+        String ts = Long.toString(annotation.getTimestamp());
+        String value = new String(annotation.getValue());
+        gp.append("set arrow from \"").append(ts).append("\", graph 0 to \"").append(ts).append("\", graph 1 nohead ls 3\n");
+        gp.append("set object rectangle at \"").append(ts).append("\", graph 0 size char (strlen(\"").append(value).append("\") + 3), char 1 front fc rgbcolor \"white\"\n");
+        gp.append("set label \"").append(value).append("\" at \"").append(ts).append("\", graph 0 front center\n");
       }
 
       gp.write("plot ");

@@ -227,7 +227,7 @@ final class IncomingDataPoints implements WritableDataPoints {
                     : Bytes.getInt(value) & 0x00000000FFFFFFFFL);
     size++;
 
-    final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
+    final PutRequest point = new PutRequest(tsdb.tableTimeseries, row, TSDB.FAMILY_TIMESERIES,
                                             Bytes.fromShort(qualifier),
                                             value);
     // TODO(tsuna): The following timing is rather useless.  First of all,

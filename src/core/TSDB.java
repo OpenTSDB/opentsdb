@@ -40,7 +40,8 @@ import net.opentsdb.stats.StatsCollector;
  */
 public final class TSDB {
 
-  static final byte[] FAMILY = { 't' };
+  static final byte[] FAMILY_TIMESERIES = { 't' };
+  static final byte[] FAMILY_ANNOTATIONS = { 'a' };
 
   private static final String METRICS_QUAL = "metrics";
   private static final short METRICS_WIDTH = 3;
@@ -59,7 +60,10 @@ public final class TSDB {
   final HBaseClient client;
 
   /** Name of the table in which timeseries are stored.  */
-  final byte[] table;
+  final byte[] tableTimeseries;
+
+  /** Name of the table in which annotations are stored.  */
+  final byte[] tableAnnotations;
 
   /** Unique IDs for the metric names. */
   final UniqueId metrics;
@@ -86,9 +90,11 @@ public final class TSDB {
    */
   public TSDB(final HBaseClient client,
               final String timeseries_table,
+              final String annotations_table,
               final String uniqueids_table) {
     this.client = client;
-    table = timeseries_table.getBytes();
+    tableTimeseries = timeseries_table.getBytes();
+    tableAnnotations = annotations_table.getBytes();
 
     final byte[] uidtable = uniqueids_table.getBytes();
     metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
@@ -257,6 +263,51 @@ public final class TSDB {
                             tags, flags);
   }
 
+  /**
+   * Adds a single annotation in the TSDB.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the value is empty.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   */
+  public Deferred<Object> addAnnotation(final long timestamp,
+                                   final String value,
+                                   final Map<String, String> tags) {
+    String metric = Const.ANNOTATION_NAME;
+    if (value == null || value.length() == 0) {
+      throw new IllegalArgumentException("value is empty: " + value
+                                         + " for metric=" + metric
+                                         + " timestamp=" + timestamp);
+    }
+    if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
+      // => timestamp < 0 || timestamp > Integer.MAX_VALUE
+      throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
+        + " timestamp=" + timestamp
+        + " when trying to add value=" + value
+        + " to metric=" + metric + ", tags=" + tags);
+    }
+    IncomingDataPoints.checkMetricAndTags(metric, tags);
+    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    final long base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    Bytes.setInt(row, (int) base_time, metrics.width());
+    final short qualifier = (short) (timestamp - base_time);
+    final byte[] bytes = value.replaceAll("_", " ").getBytes();
+    final PutRequest point = new PutRequest(tableAnnotations, row, FAMILY_ANNOTATIONS,
+                                            Bytes.fromShort(qualifier), bytes);
+    return client.put(point);
+  }
+
   private Deferred<Object> addPointInternal(final String metric,
                                             final long timestamp,
                                             final byte[] value,
@@ -277,7 +328,7 @@ public final class TSDB {
     scheduleForCompaction(row, (int) base_time);
     final short qualifier = (short) ((timestamp - base_time) << Const.FLAG_BITS
                                      | flags);
-    final PutRequest point = new PutRequest(table, row, FAMILY,
+    final PutRequest point = new PutRequest(tableTimeseries, row, FAMILY_TIMESERIES,
                                             Bytes.fromShort(qualifier), value);
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
@@ -381,19 +432,19 @@ public final class TSDB {
 
   /** Gets the entire given row from the data table. */
   final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
-    return client.get(new GetRequest(table, key));
+    return client.get(new GetRequest(tableTimeseries, key));
   }
 
   /** Puts the given value into the data table. */
   final Deferred<Object> put(final byte[] key,
                              final byte[] qualifier,
                              final byte[] value) {
-    return client.put(new PutRequest(table, key, FAMILY, qualifier, value));
+    return client.put(new PutRequest(tableTimeseries, key, FAMILY_TIMESERIES, qualifier, value));
   }
 
   /** Deletes the given cells from the data table. */
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
-    return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
+    return client.delete(new DeleteRequest(tableTimeseries, key, FAMILY_TIMESERIES, qualifiers));
   }
 
 }

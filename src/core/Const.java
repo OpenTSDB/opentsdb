@@ -15,6 +15,11 @@ package net.opentsdb.core;
 /** Constants used in various places.  */
 public final class Const {
 
+  /**
+   * Name of the annotation "metric"
+   */
+  public static final String ANNOTATION_NAME = "timelineannotation";
+
   /** Number of bytes on which a timestamp is encoded.  */
   public static final short TIMESTAMP_BYTES = 4;
 
