@@ -58,23 +58,20 @@ import org.slf4j.LoggerFactory;
  */
 final class GraphHandler implements HttpRpc {
 
-  private static final Logger LOG =
-    LoggerFactory.getLogger(GraphHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GraphHandler.class);
 
   /** Number of times we had to do all the work up to running Gnuplot. */
-  private static final AtomicInteger graphs_generated
-    = new AtomicInteger();
+  private static final AtomicInteger graphs_generated = new AtomicInteger();
   /** Number of times a graph request was served from disk, no work needed. */
-  private static final AtomicInteger graphs_diskcache_hit
-    = new AtomicInteger();
+  private static final AtomicInteger graphs_diskcache_hit = new AtomicInteger();
 
   /** Keep track of the latency of graphing requests. */
-  private static final Histogram graphlatency =
-    new Histogram(16000, (short) 2, 100);
+  private static final Histogram graphlatency = new Histogram(16000, (short) 2,
+      100);
 
   /** Keep track of the latency (in ms) introduced by running Gnuplot. */
-  private static final Histogram gnuplotlatency =
-    new Histogram(16000, (short) 2, 100);
+  private static final Histogram gnuplotlatency = new Histogram(16000,
+      (short) 2, 100);
 
   /** Executor to run Gnuplot in separate bounded thread pool. */
   private final ThreadPoolExecutor gnuplot;
@@ -95,11 +92,10 @@ final class GraphHandler implements HttpRpc {
     // shell script we use to start Gnuplot).  Similarly, the queue we use
     // is sized so as to have a fixed backlog per core.
     final int ncores = Runtime.getRuntime().availableProcessors();
-    gnuplot = new ThreadPoolExecutor(
-      ncores, ncores,  // Thread pool of a fixed size.
-      /* 5m = */ 300000, MILLISECONDS,        // How long to keep idle threads.
-      new ArrayBlockingQueue<Runnable>(20 * ncores),  // XXX Don't hardcode?
-      thread_factory);
+    gnuplot = new ThreadPoolExecutor(ncores, ncores,  // Thread pool of a fixed size.
+        /* 5m = */300000, MILLISECONDS,        // How long to keep idle threads.
+        new ArrayBlockingQueue<Runnable>(20 * ncores),  // XXX Don't hardcode?
+        thread_factory);
     // ArrayBlockingQueue does not scale as much as LinkedBlockingQueue in terms
     // of throughput but we don't need high throughput here.  We use ABQ instead
     // of LBQ because it creates far fewer references.
@@ -117,7 +113,7 @@ final class GraphHandler implements HttpRpc {
   }
 
   private void doGraph(final TSDB tsdb, final HttpQuery query)
-    throws IOException {
+      throws IOException {
     final String basepath = getGnuplotBasePath(query);
     final long start_time = getQueryStringDate(query, "start");
     final boolean nocache = query.hasQueryStringParam("nocache");
@@ -144,7 +140,7 @@ final class GraphHandler implements HttpRpc {
       }
     } else if (options.size() != tsdbqueries.length) {
       throw new BadRequestException(options.size() + " `o' parameters, but "
-        + tsdbqueries.length + " `m' parameters.");
+          + tsdbqueries.length + " `m' parameters.");
     }
     for (final Query tsdbquery : tsdbqueries) {
       try {
@@ -177,15 +173,15 @@ final class GraphHandler implements HttpRpc {
           npoints += datapoints.aggregatedSize();
         }
       } catch (RuntimeException e) {
-        logInfo(query, "Query failed (stack trace coming): "
-                + tsdbqueries[i]);
+        logInfo(query, "Query failed (stack trace coming): " + tsdbqueries[i]);
         throw e;
       }
       tsdbqueries[i] = null;  // free()
     }
     tsdbqueries = null;  // free()
-    
-    AnnotationQuery annotationQuery = getAnnotationQuery(tsdb, start_time, end_time, query);
+
+    AnnotationQuery annotationQuery = getAnnotationQuery(tsdb, start_time,
+        end_time, query);
     plot.setAnnotations(annotationQuery.run());
 
     if (query.hasQueryStringParam("ascii")) {
@@ -195,10 +191,10 @@ final class GraphHandler implements HttpRpc {
 
     try {
       gnuplot.execute(new RunGnuplot(query, max_age, plot, basepath,
-                                     aggregated_tags, npoints));
+          aggregated_tags, npoints));
     } catch (RejectedExecutionException e) {
       query.internalError(new Exception("Too many requests pending,"
-                                        + " please try again later", e));
+          + " please try again later", e));
     }
   }
 
@@ -214,8 +210,7 @@ final class GraphHandler implements HttpRpc {
    * @return A positive integer, in seconds.
    */
   private static int computeMaxAge(final HttpQuery query,
-                                   final long start_time, final long end_time,
-                                   final long now) {
+      final long start_time, final long end_time, final long now) {
     // If the end time is in the future (1), make the graph uncacheable.
     // Otherwise, if the end time is far enough in the past (2) such that
     // no TSD can still be writing to rows for that time span and it's not
@@ -228,8 +223,8 @@ final class GraphHandler implements HttpRpc {
     if (end_time > now) {                            // (1)
       return 0;
     } else if (end_time < now - Const.MAX_TIMESPAN   // (2)
-               && !isRelativeDate(query, "start")    // (3)
-               && !isRelativeDate(query, "end")) {
+        && !isRelativeDate(query, "start")    // (3)
+        && !isRelativeDate(query, "end")) {
       return 86400;
     } else {                                         // (4)
       return (int) (end_time - start_time) >> 10;
@@ -246,12 +241,9 @@ final class GraphHandler implements HttpRpc {
     private final HashSet<String>[] aggregated_tags;
     private final int npoints;
 
-    public RunGnuplot(final HttpQuery query,
-                      final int max_age,
-                      final Plot plot,
-                      final String basepath,
-                      final HashSet<String>[] aggregated_tags,
-                      final int npoints) {
+    public RunGnuplot(final HttpQuery query, final int max_age,
+        final Plot plot, final String basepath,
+        final HashSet<String>[] aggregated_tags, final int npoints) {
       this.query = query;
       this.max_age = max_age;
       this.plot = plot;
@@ -278,9 +270,8 @@ final class GraphHandler implements HttpRpc {
       final int nplotted = runGnuplot(query, basepath, plot);
       if (query.hasQueryStringParam("json")) {
         final StringBuilder buf = new StringBuilder(64);
-        buf.append("{\"plotted\":").append(nplotted)
-          .append(",\"points\":").append(npoints)
-          .append(",\"etags\":[");
+        buf.append("{\"plotted\":").append(nplotted).append(",\"points\":")
+            .append(npoints).append(",\"etags\":[");
         for (final HashSet<String> tags : aggregated_tags) {
           if (tags == null || tags.isEmpty()) {
             buf.append("[]");
@@ -292,24 +283,29 @@ final class GraphHandler implements HttpRpc {
         buf.setCharAt(buf.length() - 1, ']');
         // The "timing" field must remain last, loadCachedJson relies this.
         buf.append(",\"timing\":").append(query.processingTimeMillis())
-          .append('}');
+            .append('}');
         query.sendReply(buf);
         writeFile(query, basepath + ".json", buf.toString().getBytes());
       } else {
-          if (query.hasQueryStringParam("png")) {
-            query.sendFile(basepath + ".png", max_age);
+        if (query.hasQueryStringParam("png")) {
+          query.sendFile(basepath + ".png", max_age);
+        } else {
+          if (nplotted > 0) {
+            query.sendReply(HttpQuery.makePage("TSDB Query",
+                "Your graph is ready", "<img src=\"" + query.request().getUri()
+                    + "&amp;png\"/><br/>" + "<small>(" + nplotted
+                    + " points plotted in " + query.processingTimeMillis()
+                    + "ms)</small>"));
           } else {
-            if (nplotted > 0) {
-              query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
-                "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
-                + "<small>(" + nplotted + " points plotted in "
-                + query.processingTimeMillis() + "ms)</small>"));
-            } else {
-              query.sendReply(HttpQuery.makePage("TSDB Query", "No results found",
-                "<blockquote><h1>No results</h1>Your query didn't return"
-                + " anything.  Try changing some parameters.</blockquote>"));
-            }
+            query
+                .sendReply(HttpQuery
+                    .makePage(
+                        "TSDB Query",
+                        "No results found",
+                        "<blockquote><h1>No results</h1>Your query didn't return"
+                            + " anything.  Try changing some parameters.</blockquote>"));
           }
+        }
       }
 
       // TODO(tsuna): Expire old files from the on-disk cache.
@@ -340,8 +336,8 @@ final class GraphHandler implements HttpRpc {
     final Map<String, List<String>> q = query.getQueryString();
     q.remove("ignore");
     // Super cheap caching mechanism: hash the query string.
-    final HashMap<String, List<String>> qs =
-      new HashMap<String, List<String>>(q);
+    final HashMap<String, List<String>> qs = new HashMap<String, List<String>>(
+        q);
     // But first remove the parameters that don't influence the output.
     qs.remove("png");
     qs.remove("json");
@@ -360,19 +356,17 @@ final class GraphHandler implements HttpRpc {
    * case processing can stop here), {@code false} otherwise (in which case
    * the query needs to be processed).
    */
-  private boolean isDiskCacheHit(final HttpQuery query,
-                                 final long end_time,
-                                 final int max_age,
-                                 final String basepath) throws IOException {
-    final String cachepath = basepath + (query.hasQueryStringParam("ascii")
-                                         ? ".txt" : ".png");
+  private boolean isDiskCacheHit(final HttpQuery query, final long end_time,
+      final int max_age, final String basepath) throws IOException {
+    final String cachepath = basepath
+        + (query.hasQueryStringParam("ascii") ? ".txt" : ".png");
     final File cachedfile = new File(cachepath);
     if (cachedfile.exists()) {
       final long bytes = cachedfile.length();
       if (bytes < 21) {  // Minimum possible size for a PNG: 21 bytes.
-                         // For .txt files, <21 bytes is almost impossible.
-        logWarn(query, "Cached " + cachepath + " is too small ("
-                + bytes + " bytes) to be valid.  Ignoring it.");
+                        // For .txt files, <21 bytes is almost impossible.
+        logWarn(query, "Cached " + cachepath + " is too small (" + bytes
+            + " bytes) to be valid.  Ignoring it.");
         return false;
       }
       if (staleCacheFile(query, end_time, max_age, cachedfile)) {
@@ -384,38 +378,39 @@ final class GraphHandler implements HttpRpc {
           json = new StringBuilder(32);
           json.append("{\"timing\":");
         }
-        json.append(query.processingTimeMillis())
-          .append(",\"cachehit\":\"disk\"}");
+        json.append(query.processingTimeMillis()).append(
+            ",\"cachehit\":\"disk\"}");
         query.sendReply(json);
       } else if (query.hasQueryStringParam("png")
-                 || query.hasQueryStringParam("ascii")) {
+          || query.hasQueryStringParam("ascii")) {
         query.sendFile(cachepath, max_age);
       } else {
         query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
             "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
-            + "<small>(served from disk cache)</small>"));
+                + "<small>(served from disk cache)</small>"));
       }
       graphs_diskcache_hit.incrementAndGet();
       return true;
     }
     // We didn't find an image.  Do a negative cache check.  If we've seen
     // this query before but there was no result, we at least wrote the JSON.
-    final StringBuilder json = loadCachedJson(query, end_time, max_age, basepath);
+    final StringBuilder json = loadCachedJson(query, end_time, max_age,
+        basepath);
     // If we don't have a JSON file it's a complete cache miss.  If we have
     // one, and it says 0 data points were plotted, it's a negative cache hit.
     if (json == null || !json.toString().contains("\"plotted\":0")) {
       return false;
     }
     if (query.hasQueryStringParam("json")) {
-      json.append(query.processingTimeMillis())
-        .append(",\"cachehit\":\"disk\"}");
+      json.append(query.processingTimeMillis()).append(
+          ",\"cachehit\":\"disk\"}");
       query.sendReply(json);
     } else if (query.hasQueryStringParam("png")) {
       query.sendReply(" ");  // Send back an empty response...
     } else {
-        query.sendReply(HttpQuery.makePage("TSDB Query", "No results",
-            "Sorry, your query didn't return anything.<br/>"
-            + "<small>(served from disk cache)</small>"));
+      query.sendReply(HttpQuery.makePage("TSDB Query", "No results",
+          "Sorry, your query didn't return anything.<br/>"
+              + "<small>(served from disk cache)</small>"));
     }
     graphs_diskcache_hit.incrementAndGet();
     return true;
@@ -431,9 +426,7 @@ final class GraphHandler implements HttpRpc {
    * @param cachedfile The file to check for staleness.
    */
   private static boolean staleCacheFile(final HttpQuery query,
-                                        final long end_time,
-                                        final long max_age,
-                                        final File cachedfile) {
+      final long end_time, final long max_age, final File cachedfile) {
     final long mtime = cachedfile.lastModified() / 1000;
     if (mtime <= 0) {
       return true;  // File doesn't exist, or can't be read.
@@ -444,7 +437,7 @@ final class GraphHandler implements HttpRpc {
     final long staleness = now - mtime;
     if (staleness < 0) {  // Can happen if the mtime is "in the future".
       logWarn(query, "Not using file @ " + cachedfile + " with weird"
-              + " mtime in the future: " + mtime);
+          + " mtime in the future: " + mtime);
       return true;  // Play it safe, pretend we can't use this file.
     }
 
@@ -464,8 +457,8 @@ final class GraphHandler implements HttpRpc {
     // not too old.
     if (staleness > max_age) {
       logInfo(query, "Cached file @ " + cachedfile.getPath() + " is "
-              + staleness + "s stale, which is more than its limit of "
-              + max_age + "s, and needs to be regenerated.");
+          + staleness + "s stale, which is more than its limit of " + max_age
+          + "s, and needs to be regenerated.");
       return true;
     }
     return false;
@@ -478,9 +471,8 @@ final class GraphHandler implements HttpRpc {
    * @param path The path to write to.
    * @param contents The contents to write into the file.
    */
-  private static void writeFile(final HttpQuery query,
-                                final String path,
-                                final byte[] contents) {
+  private static void writeFile(final HttpQuery query, final String path,
+      final byte[] contents) {
     try {
       final FileOutputStream out = new FileOutputStream(path);
       try {
@@ -503,9 +495,8 @@ final class GraphHandler implements HttpRpc {
    * @return {@code null} if the file doesn't exist or is empty or couldn't be
    * read, otherwise a byte array of up to {@code max_length} bytes.
    */
-  private static byte[] readFile(final HttpQuery query,
-                                 final File file,
-                                 final int max_length) {
+  private static byte[] readFile(final HttpQuery query, final File file,
+      final int max_length) {
     final int length = (int) file.length();
     if (length <= 0) {
       return null;
@@ -520,8 +511,8 @@ final class GraphHandler implements HttpRpc {
       final byte[] buf = new byte[Math.min(length, max_length)];
       final int read = in.read(buf);
       if (read != buf.length) {
-        logError(query, "When reading " + file + ": read only "
-                 + read + " bytes instead of " + buf.length);
+        logError(query, "When reading " + file + ": read only " + read
+            + " bytes instead of " + buf.length);
         return null;
       }
       return buf;
@@ -550,9 +541,7 @@ final class GraphHandler implements HttpRpc {
    * the time taken to serve by the request and other JSON elements if wanted.
    */
   private StringBuilder loadCachedJson(final HttpQuery query,
-                                       final long end_time,
-                                       final long max_age,
-                                       final String basepath) {
+      final long end_time, final long max_age, final String basepath) {
     final String json_path = basepath + ".json";
     File json_cache = new File(json_path);
     if (staleCacheFile(query, end_time, max_age, json_cache)) {
@@ -580,7 +569,7 @@ final class GraphHandler implements HttpRpc {
       return buf;
     } else {
       logError(query, "No `:' found in " + json_path + " (" + json.length
-               + " bytes) = " + new String(json));
+          + " bytes) = " + new String(json));
     }
     return null;
   }
@@ -604,11 +593,11 @@ final class GraphHandler implements HttpRpc {
           plot.setDimensions(width, height);
         } catch (IllegalArgumentException e) {
           throw new BadRequestException("Invalid wxh parameter: " + wxh + ", "
-                                        + e.getMessage());
+              + e.getMessage());
         }
       } catch (NumberFormatException e) {
         throw new BadRequestException("Can't parse wxh '" + wxh + "': "
-                                      + e.getMessage());
+            + e.getMessage());
       }
     }
   }
@@ -634,7 +623,7 @@ final class GraphHandler implements HttpRpc {
    * value of the last occurrence of the parameter.
    */
   private static String popParam(final Map<String, List<String>> querystring,
-                                     final String param) {
+      final String param) {
     final List<String> params = querystring.remove(param);
     if (params == null) {
       return null;
@@ -704,13 +693,12 @@ final class GraphHandler implements HttpRpc {
    * graph from the file it produces, or if we have been interrupted.
    * @throws GnuplotException if Gnuplot returns non-zero.
    */
-  static int runGnuplot(final HttpQuery query,
-                        final String basepath,
-                        final Plot plot) throws IOException {
+  static int runGnuplot(final HttpQuery query, final String basepath,
+      final Plot plot) throws IOException {
     final int nplotted = plot.dumpToFiles(basepath);
     final long start_time = System.nanoTime();
-    final Process gnuplot = new ProcessBuilder(GNUPLOT,
-      basepath + ".out", basepath + ".err", basepath + ".gnuplot").start();
+    final Process gnuplot = new ProcessBuilder(GNUPLOT, basepath + ".out",
+        basepath + ".err", basepath + ".gnuplot").start();
     final int rv;
     try {
       rv = gnuplot.waitFor();  // Couldn't find how to do this asynchronously.
@@ -729,8 +717,7 @@ final class GraphHandler implements HttpRpc {
     }
     gnuplotlatency.add((int) ((System.nanoTime() - start_time) / 1000000));
     if (rv != 0) {
-      final byte[] stderr = readFile(query, new File(basepath + ".err"),
-                                     4096);
+      final byte[] stderr = readFile(query, new File(basepath + ".err"), 4096);
       // Sometimes Gnuplot will error out but still create the file.
       new File(basepath + ".png").delete();
       if (stderr == null) {
@@ -763,9 +750,7 @@ final class GraphHandler implements HttpRpc {
    * @param plot The plot object to generate Gnuplot's input files.
    */
   private static void respondAsciiQuery(final HttpQuery query,
-                                        final int max_age,
-                                        final String basepath,
-                                        final Plot plot) {
+      final int max_age, final String basepath, final Plot plot) {
     final String path = basepath + ".txt";
     PrintWriter asciifile;
     try {
@@ -780,8 +765,8 @@ final class GraphHandler implements HttpRpc {
         final String metric = dp.metricName();
         tagbuf.setLength(0);
         for (final Map.Entry<String, String> tag : dp.getTags().entrySet()) {
-          tagbuf.append(' ').append(tag.getKey())
-            .append('=').append(tag.getValue());
+          tagbuf.append(' ').append(tag.getKey()).append('=')
+              .append(tag.getValue());
         }
         for (final DataPoint d : dp) {
           asciifile.print(metric);
@@ -794,7 +779,7 @@ final class GraphHandler implements HttpRpc {
             final double value = d.doubleValue();
             if (value != value || Double.isInfinite(value)) {
               throw new IllegalStateException("NaN or Infinity:" + value
-                + " d=" + d + ", query=" + query);
+                  + " d=" + d + ", query=" + query);
             }
             asciifile.print(value);
           }
@@ -835,7 +820,7 @@ final class GraphHandler implements HttpRpc {
       int i = parts.length;
       if (i < 2 || i > 4) {
         throw new BadRequestException("Invalid parameter m=" + m + " ("
-          + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
+            + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
       }
       final Aggregator agg = getAggregator(parts[0]);
       i--;  // Move to the last part (the metric name).
@@ -856,14 +841,14 @@ final class GraphHandler implements HttpRpc {
         final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
         if (dash < 0) {
           throw new BadRequestException("Invalid downsampling specifier '"
-                                        + parts[1] + "' in m=" + m);
+              + parts[1] + "' in m=" + m);
         }
         Aggregator downsampler;
         try {
           downsampler = Aggregators.get(parts[1].substring(dash + 1));
         } catch (NoSuchElementException e) {
           throw new BadRequestException("No such downsampling function: "
-                                        + parts[1].substring(dash + 1));
+              + parts[1].substring(dash + 1));
         }
         final int interval = parseDuration(parts[1].substring(0, dash));
         tsdbquery.downsample(interval, downsampler);
@@ -889,13 +874,14 @@ final class GraphHandler implements HttpRpc {
       int indexClosingCurlyBrace = m.indexOf('}');
       if (indexOpeningCurlyBrace > -1 && indexClosingCurlyBrace > -1
           && indexOpeningCurlyBrace < indexClosingCurlyBrace) {
-        String rawTags = m.substring(indexOpeningCurlyBrace + 1, indexClosingCurlyBrace);
+        String rawTags = m.substring(indexOpeningCurlyBrace + 1,
+            indexClosingCurlyBrace);
         String[] splitTags = Tags.splitString(rawTags, ',');
-        
-        for(String splitTag : splitTags) {
+
+        for (String splitTag : splitTags) {
           Tags.parse(tags, splitTag);
         }
-        
+
         Iterator<Map.Entry<String, String>> iterator = tags.entrySet()
             .iterator();
 
@@ -947,12 +933,18 @@ final class GraphHandler implements HttpRpc {
       throw new BadRequestException("Zero or negative duration: " + duration);
     }
     switch (duration.charAt(lastchar)) {
-      case 's': return interval;                    // seconds
-      case 'm': return interval * 60;               // minutes
-      case 'h': return interval * 3600;             // hours
-      case 'd': return interval * 3600 * 24;        // days
-      case 'w': return interval * 3600 * 24 * 7;    // weeks
-      case 'y': return interval * 3600 * 24 * 365;  // years (screw leap years)
+    case 's':
+      return interval;                    // seconds
+    case 'm':
+      return interval * 60;               // minutes
+    case 'h':
+      return interval * 3600;             // hours
+    case 'd':
+      return interval * 3600 * 24;        // days
+    case 'w':
+      return interval * 3600 * 24 * 7;    // weeks
+    case 'y':
+      return interval * 3600 * 24 * 365;  // years (screw leap years)
     }
     throw new BadRequestException("Invalid duration (suffix): " + duration);
   }
@@ -970,7 +962,7 @@ final class GraphHandler implements HttpRpc {
    * but is actually invalid once we really try to parse it.
    */
   private static boolean isRelativeDate(final HttpQuery query,
-                                        final String paramname) {
+      final String paramname) {
     final String date = query.getQueryStringParam(paramname);
     return date == null || date.endsWith("-ago");
   }
@@ -988,13 +980,13 @@ final class GraphHandler implements HttpRpc {
    * @throws BadRequestException if the date is invalid.
    */
   private static long getQueryStringDate(final HttpQuery query,
-                                         final String paramname) {
+      final String paramname) {
     final String date = query.getQueryStringParam(paramname);
     if (date == null) {
       return -1;
     } else if (date.endsWith("-ago")) {
-      return (System.currentTimeMillis() / 1000
-              - parseDuration(date.substring(0, date.length() - 4)));
+      return (System.currentTimeMillis() / 1000 - parseDuration(date.substring(
+          0, date.length() - 4)));
     }
     long timestamp;
     try {
@@ -1005,10 +997,10 @@ final class GraphHandler implements HttpRpc {
         timestamp = fmt.parse(date).getTime() / 1000;
       } catch (ParseException e) {
         throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                      + ". " + e.getMessage());
+            + ". " + e.getMessage());
       } catch (NumberFormatException e) {
         throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                      + ". " + e.getMessage());
+            + ". " + e.getMessage());
       }
     }
     if (timestamp < 0) {
@@ -1043,7 +1035,7 @@ final class GraphHandler implements HttpRpc {
     final URL url = GraphHandler.class.getClassLoader().getResource(WRAPPER);
     if (url == null) {
       throw new RuntimeException("Couldn't find " + WRAPPER + " on the"
-        + " CLASSPATH: " + System.getProperty("java.class.path"));
+          + " CLASSPATH: " + System.getProperty("java.class.path"));
     }
     final String path = url.getFile();
     LOG.debug("Using Gnuplot wrapper at {}", path);
@@ -1059,8 +1051,8 @@ final class GraphHandler implements HttpRpc {
       return path;
     }
     throw new RuntimeException("The " + WRAPPER + " found on the"
-      + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
-      + "  CLASSPATH=" + System.getProperty("java.class.path"));
+        + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
+        + "  CLASSPATH=" + System.getProperty("java.class.path"));
   }
 
   // ---------------- //
@@ -1080,7 +1072,7 @@ final class GraphHandler implements HttpRpc {
   }
 
   static void logError(final HttpQuery query, final String msg,
-                       final Throwable e) {
+      final Throwable e) {
     LOG.error(query.channel().toString() + ' ' + msg, e);
   }
 

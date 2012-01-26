@@ -5,19 +5,19 @@ package net.opentsdb.core;
  * certain time.
  */
 public class Annotation {
-    private long timestamp;
-    private byte[] value;
-    
-    public Annotation(long timestamp, byte[] value) {
-        this.timestamp = timestamp;
-        this.value = value;
-    }
+  private long timestamp;
+  private byte[] value;
 
-    public long getTimestamp() {
-        return timestamp;
-    }
+  public Annotation(long timestamp, byte[] value) {
+    this.timestamp = timestamp;
+    this.value = value;
+  }
 
-    public byte[] getValue() {
-        return value;
-    }
+  public long getTimestamp() {
+    return timestamp;
+  }
+
+  public byte[] getValue() {
+    return value;
+  }
 }
