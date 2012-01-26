@@ -41,15 +41,14 @@ public final class Plot {
   private int end_time;
 
   /** All the DataPoints we want to plot. */
-  private ArrayList<DataPoints> datapoints =
-    new ArrayList<DataPoints>();
+  private ArrayList<DataPoints> datapoints = new ArrayList<DataPoints>();
 
   /** Per-DataPoints Gnuplot options. */
   private ArrayList<String> options = new ArrayList<String>();
 
   /** Global Gnuplot parameters. */
   private Map<String, String> params;
-  
+
   /** Plot foreground and background colors in the format "x000000 xFFFFFF" */
   private String colors;
 
@@ -70,8 +69,8 @@ public final class Plot {
    * TODO(tsuna): Do we want to recompute the offset every day to avoid this
    * problem?
    */
-  private static final int utc_offset =
-    TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000;
+  private static final int utc_offset = TimeZone.getDefault().getOffset(
+      System.currentTimeMillis()) / 1000;
 
   /**
    * Constructor.
@@ -87,7 +86,7 @@ public final class Plot {
       throw new IllegalArgumentException("Invalid end time: " + end_time);
     } else if (start_time >= end_time) {
       throw new IllegalArgumentException("start time (" + start_time
-        + ") is greater than or equal to end time: " + end_time);
+          + ") is greater than or equal to end time: " + end_time);
     }
     this.start_time = (int) start_time;
     this.end_time = (int) end_time;
@@ -115,23 +114,24 @@ public final class Plot {
     if (width < MIN_PIXELS || height < MIN_PIXELS) {
       final String what = width < MIN_PIXELS ? "width" : "height";
       throw new IllegalArgumentException(what + " smaller than " + MIN_PIXELS
-                                         + " in " + width + 'x' + height);
+          + " in " + width + 'x' + height);
     }
     this.width = width;
     this.height = height;
   }
-  
+
   /**
    * Sets the foreground and background colors of the graph in the format "x000000 xFFFFFF". 
    * @param colors The colors of the graph. 
    */
   public void setColors(String colors) {
     if (colors != null) {
-      if (colors.length() == 15 && 
-          colors.matches("x[0-9A-Fa-f]{6} x[0-9A-Fa-f]{6}")) {
+      if (colors.length() == 15
+          && colors.matches("x[0-9A-Fa-f]{6} x[0-9A-Fa-f]{6}")) {
         this.colors = colors;
       } else {
-        throw new IllegalArgumentException("colors parameter must match the format \"x000000 xFFFFFF\" for foreground and background colors");
+        throw new IllegalArgumentException(
+            "colors parameter must match the format \"x000000 xFFFFFF\" for foreground and background colors");
       }
     }
   }
@@ -141,8 +141,7 @@ public final class Plot {
    * @param datapoints The data points to plot.
    * @param options The options to apply to this specific series.
    */
-  public void add(final DataPoints datapoints,
-                  final String options) {
+  public void add(final DataPoints datapoints, final String options) {
     // Technically, we could check the number of data points in the
     // datapoints argument in order to do something when there are none, but
     // this is potentially expensive with a SpanGroup since it requires
@@ -222,36 +221,31 @@ public final class Plot {
    * Can be {@code null} if there's no data to plot.
    */
   private void writeGnuplotScript(final String basepath,
-                                  final String[] datafiles) throws IOException {
+      final String[] datafiles) throws IOException {
     final String script_path = basepath + ".gnuplot";
     final PrintWriter gp = new PrintWriter(script_path);
     try {
       // XXX don't hardcode all those settings.  At least not like that.
       gp.append("set term png small size ")
-        // Why the fuck didn't they also add methods for numbers?
-        .append(Short.toString(width)).append(",")
-        .append(Short.toString(height));
-      
-      if(colors != null) {
+          // Why the fuck didn't they also add methods for numbers?
+          .append(Short.toString(width)).append(",")
+          .append(Short.toString(height));
+
+      if (colors != null) {
         gp.append(" ").append(colors);
       }
-      
-      gp.append("\nset xdata time\n")
-        .append("set timefmt \"%s\"\n")
-        .append("set xtic rotate\n")
-        .append("set output \"").append(basepath + ".png").append("\"\n")
-        .append("set xrange [\"")
-        .append(String.valueOf(start_time + utc_offset))
-        .append("\":\"")
-        .append(String.valueOf(end_time + utc_offset))
-        .append("\"]\n");
+
+      gp.append("\nset xdata time\n").append("set timefmt \"%s\"\n")
+          .append("set xtic rotate\n").append("set output \"")
+          .append(basepath + ".png").append("\"\n").append("set xrange [\"")
+          .append(String.valueOf(start_time + utc_offset)).append("\":\"")
+          .append(String.valueOf(end_time + utc_offset)).append("\"]\n");
       if (!params.containsKey("format x")) {
         gp.append("set format x \"").append(xFormat()).append("\"\n");
       }
       final int nseries = datapoints.size();
       if (nseries > 0) {
-        gp.write("set grid\n"
-                 + "set style data linespoints\n");
+        gp.write("set grid\n" + "set style data linespoints\n");
         if (!params.containsKey("key")) {
           gp.write("set key right box\n");
         }
@@ -267,8 +261,7 @@ public final class Plot {
           final String key = entry.getKey();
           final String value = entry.getValue();
           if (value != null) {
-            gp.append("set ").append(key)
-              .append(' ').append(value).write('\n');
+            gp.append("set ").append(key).append(' ').append(value).write('\n');
           } else {
             gp.append("unset ").append(key).write('\n');
           }
@@ -287,8 +280,8 @@ public final class Plot {
         final DataPoints dp = datapoints.get(i);
         final String title = dp.metricName() + dp.getTags();
         gp.append(" \"").append(datafiles[i]).append("\" using 1:2 title \"")
-          // TODO(tsuna): Escape double quotes in title.
-          .append(title).write('"');
+        // TODO(tsuna): Escape double quotes in title.
+            .append(title).write('"');
         final String opts = options.get(i);
         if (!opts.isEmpty()) {
           gp.append(' ').write(opts);
