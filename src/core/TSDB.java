@@ -282,20 +282,17 @@ public final class TSDB {
    * data.
    */
   public Deferred<Object> addAnnotation(final long timestamp,
-                                   final String value,
-                                   final Map<String, String> tags) {
+      final String value, final Map<String, String> tags) {
     String metric = Const.ANNOTATION_NAME;
     if (value == null || value.length() == 0) {
       throw new IllegalArgumentException("value is empty: " + value
-                                         + " for metric=" + metric
-                                         + " timestamp=" + timestamp);
+          + " for metric=" + metric + " timestamp=" + timestamp);
     }
     if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
       // => timestamp < 0 || timestamp > Integer.MAX_VALUE
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
-        + " timestamp=" + timestamp
-        + " when trying to add value=" + value
-        + " to metric=" + metric + ", tags=" + tags);
+          + " timestamp=" + timestamp + " when trying to add value=" + value
+          + " to metric=" + metric + ", tags=" + tags);
     }
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
@@ -303,8 +300,8 @@ public final class TSDB {
     Bytes.setInt(row, (int) base_time, metrics.width());
     final short qualifier = (short) (timestamp - base_time);
     final byte[] bytes = value.replaceAll("_", " ").getBytes();
-    final PutRequest point = new PutRequest(tableAnnotations, row, FAMILY_ANNOTATIONS,
-                                            Bytes.fromShort(qualifier), bytes);
+    final PutRequest point = new PutRequest(tableAnnotations, row,
+        FAMILY_ANNOTATIONS, Bytes.fromShort(qualifier), bytes);
     return client.put(point);
   }
 

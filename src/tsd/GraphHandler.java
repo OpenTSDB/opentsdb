@@ -889,13 +889,14 @@ final class GraphHandler implements HttpRpc {
       int indexClosingCurlyBrace = m.indexOf('}');
       if (indexOpeningCurlyBrace > -1 && indexClosingCurlyBrace > -1
           && indexOpeningCurlyBrace < indexClosingCurlyBrace) {
-        String rawTags = m.substring(indexOpeningCurlyBrace + 1, indexClosingCurlyBrace);
+        String rawTags = m.substring(indexOpeningCurlyBrace + 1,
+            indexClosingCurlyBrace);
         String[] splitTags = Tags.splitString(rawTags, ',');
-        
-        for(String splitTag : splitTags) {
+
+        for (String splitTag : splitTags) {
           Tags.parse(tags, splitTag);
         }
-        
+
         Iterator<Map.Entry<String, String>> iterator = tags.entrySet()
             .iterator();
 
