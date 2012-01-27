@@ -89,7 +89,8 @@ tsdb_DEPS = \
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
 	$(ZOOKEEPER) \
-	$(JACKSON)
+	$(JACKSON_CORE) \
+	$(JACKSON_MAPPER)
 
 # Install all the .jar files in pkgdatadir.
 pkgdata_DATA = $(tsdb_DEPS) $(jar)

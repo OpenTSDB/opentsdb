@@ -17,14 +17,14 @@ JACKSON_VERSION := 1.9.4
 
 JACKSON_CORE_VERSION = $(JACKSON_VERSION)
 JACKSON_CORE := third_party/jackson/jackson-core-lgpl-$(JACKSON_CORE_VERSION).jar
-JACKSON_CORE_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+JACKSON_CORE_BASE_URL := http://repository.codehaus.org/org/codehaus/jackson/jackson-core-lgpl/1.9.4
 
 $(JACKSON_CORE): $(JACKSON_CORE).md5
 	set dummy "$(JACKSON_CORE_BASE_URL)" "$(JACKSON_CORE)"; shift; $(FETCH_DEPENDENCY)
 
 JACKSON_MAPPER_VERSION = $(JACKSON_VERSION)
-JACKSON_MAPPER_CORE := third_party/jackson/jackson-mapper-lgpl-$(JACKSON_MAPPER_VERSION).jar
-JACKSON_MAPPER_CORE_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+JACKSON_MAPPER := third_party/jackson/jackson-mapper-lgpl-$(JACKSON_MAPPER_VERSION).jar
+JACKSON_MAPPER_BASE_URL := http://repository.codehaus.org/org/codehaus/jackson/jackson-mapper-lgpl/1.9.4
 
 $(JACKSON_MAPPER): $(JACKSON_MAPPER).md5
 	set dummy "$(JACKSON_MAPPER_BASE_URL)" "$(JACKSON_MAPPER)"; shift; $(FETCH_DEPENDENCY)
