@@ -31,6 +31,7 @@ tsdb_SRC := \
 	src/core/Aggregators.java	\
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
+	src/core/Configuration.java	\
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
@@ -64,6 +65,8 @@ tsdb_SRC := \
 	src/tsd/GraphHandler.java	\
 	src/tsd/HttpQuery.java	\
 	src/tsd/HttpRpc.java	\
+	src/tsd/JsonHelper.java	\
+	src/tsd/JsonRpcError.java	\
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
 	src/tsd/PutDataPointRpc.java	\
@@ -85,7 +88,9 @@ tsdb_DEPS = \
 	$(NETTY)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
-	$(ZOOKEEPER)
+	$(ZOOKEEPER) \
+	$(JACKSON_CORE) \
+	$(JACKSON_MAPPER)
 
 # Install all the .jar files in pkgdatadir.
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
