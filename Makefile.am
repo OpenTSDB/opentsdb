@@ -65,6 +65,8 @@ tsdb_SRC := \
 	src/tsd/GraphHandler.java	\
 	src/tsd/HttpQuery.java	\
 	src/tsd/HttpRpc.java	\
+	src/tsd/JsonHelper.java	\
+	src/tsd/JsonRPCError.java	\
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
 	src/tsd/PutDataPointRpc.java	\
@@ -86,7 +88,8 @@ tsdb_DEPS = \
 	$(NETTY)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
-	$(ZOOKEEPER)
+	$(ZOOKEEPER) \
+	$(JACKSON)
 
 # Install all the .jar files in pkgdatadir.
 pkgdata_DATA = $(tsdb_DEPS) $(jar)

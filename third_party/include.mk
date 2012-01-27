@@ -29,3 +29,4 @@ include third_party/powermock/include.mk
 include third_party/slf4j/include.mk
 include third_party/suasync/include.mk
 include third_party/zookeeper/include.mk
+include third_party/jackson/include.mk
