@@ -66,7 +66,7 @@ tsdb_SRC := \
 	src/tsd/HttpQuery.java	\
 	src/tsd/HttpRpc.java	\
 	src/tsd/JsonHelper.java	\
-	src/tsd/JsonRPCError.java	\
+	src/tsd/JsonRpcError.java	\
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
 	src/tsd/PutDataPointRpc.java	\
