@@ -15,3 +15,6 @@ Thanks to HBase's scalability, OpenTSDB allows you to collect thousands of
 metrics from tens of thousands of hosts and applications,  at a high rate
 (every few seconds). OpenTSDB will never delete or downsample data and can
 easily store hundreds of billions of data points.
+
+OpenTSDB is free software and is available under both LGPLv2.1+ and GPLv3+.
+Find more about OpenTSDB at http://opentsdb.net
