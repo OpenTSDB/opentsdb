@@ -33,6 +33,9 @@ public final class Aggregators {
   /** Aggregator that returns the average value of the data point. */
   public static final Aggregator AVG = new Avg();
 
+  /** Aggregator that returns the Standard Deviation of the data points. */
+  public static final Aggregator STD = new Std();
+
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
 
@@ -42,6 +45,7 @@ public final class Aggregators {
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
+    aggregators.put("std", STD);
   }
 
   private Aggregators() {
@@ -178,7 +182,78 @@ public final class Aggregators {
     public String toString() {
       return "avg";
     }
+  }
 
+  /**
+   * A Standard Devation aggregator that can compute without storing all
+   * of the data points in memory at the same time. This implementation
+   * is based upon a paper by John D. Cook that can be found here:
+   * http://www.johndcook.com/standard_deviation.html
+   */
+  protected static final class Std implements Aggregator {
+
+    @Override
+    public long runLong(Longs values) {
+      long n = 1;
+      double oldMean = 0, newMean = 0, oldVariance = 0, newVariance = 0;
+
+      while (values.hasNextValue()) {
+        double x = values.nextLongValue();
+        if (n == 1) {
+          oldMean = newMean = x;
+          oldVariance = 0;
+        }
+        else {
+          newMean = oldMean + (x - oldMean) / n;
+          newVariance = oldVariance + (x - oldMean) * (x - newMean);
+
+          // set up for next iteration
+          oldMean = newMean;
+          oldVariance = newVariance;
+        }
+        n++;
+      }
+
+      if (n > 1) {
+        return (long) Math.sqrt(newVariance / (n - 1));
+      } else {
+        return 0;
+      }
+    }
+
+    @Override
+    public double runDouble(Doubles values) {
+      long n = 1;
+      double oldMean = 0, newMean = 0, oldVariance = 0, newVariance = 0;
+
+      while (values.hasNextValue()) {
+        double x = values.nextDoubleValue();
+        if (n == 1) {
+          oldMean = newMean = x;
+          oldVariance = 0;
+        }
+        else {
+          newMean = oldMean + (x - oldMean) / n;
+          newVariance = oldVariance + (x - oldMean) * (x - newMean);
+
+          // set up for next iteration
+          oldMean = newMean;
+          oldVariance = newVariance;
+        }
+        n++;
+      }
+
+      if (n > 1) {
+        return Math.sqrt(newVariance / (n - 1));
+      } else {
+        return 0;
+      }
+    }
+
+
+    public String toString() {
+      return "std";
+    }
   }
 
 }
