@@ -43,12 +43,13 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 /**
- * Thread-safe implementation of the {@link UniqueIdInterface}.
+ * Represents a table of Unique IDs, manages the lookup and creation of IDs.
  * <p>
  * Don't attempt to use {@code equals()} or {@code hashCode()} on
  * this class.
  * @see UniqueIdInterface
  */
+@SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
 public final class UniqueId implements UniqueIdInterface {
 
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);

@@ -16,7 +16,11 @@ import org.hbase.async.HBaseException;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
- *
+ * <p>
+ * <strong>This interface is useless and deprecated.</strong>  It provides no
+ * benefits and will be removed eventually.  No new methods are added to this
+ * interface.  Simply replace all uses of this interface with {@link UniqueId}.
+ * <p>
  * For efficiency, various kinds of "names" need to be mapped to small, unique
  * IDs.  For instance, we give a unique ID to each metric name, to each tag
  * name, to each tag value.
@@ -32,6 +36,7 @@ import org.hbase.async.HBaseException;
  * immutable).  IDs are encoded on a fixed number of bytes, which is
  * implementation dependent.
  */
+@Deprecated
 public interface UniqueIdInterface {
 
   /**
