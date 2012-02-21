@@ -304,9 +304,11 @@ public final class Bytes {
     }
     int ascii = 0;
     final int start_length = outbuf.length();
-    outbuf.ensureCapacity(start_length + 1 + array.length + 1);
+    final int n = array.length;
+    outbuf.ensureCapacity(start_length + 1 + n + 1);
     outbuf.append('"');
-    for (final byte b : array) {
+    for (int i = 0; i < n; i++) {
+      final byte b = array[i];
       if (' ' <= b && b <= '~') {
         ascii++;
         outbuf.append((char) b);
@@ -320,7 +322,7 @@ public final class Bytes {
           .append((char) HEX[b & 0x0F]);
       }
     }
-    if (ascii < array.length / 2) {
+    if (ascii < n / 2) {
       outbuf.setLength(start_length);
       outbuf.append(Arrays.toString(array));
     } else {
