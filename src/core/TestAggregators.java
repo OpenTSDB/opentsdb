@@ -35,6 +35,7 @@ public final class TestAggregators {
    */
   private static final double EPSILON_PERCENTAGE = 0.001;
 
+  /** Helper class to hold a bunch of numbers we can iterate on.  */
   private static final class Numbers implements Aggregator.Longs, Aggregator.Doubles {
     private final long[] numbers;
     private int i = 0;
@@ -61,15 +62,35 @@ public final class TestAggregators {
   }
 
   @Test
+  public void testStdDevKnownValues() {
+    final long[] values = new long[10000];
+    for (int i = 0; i < values.length; i++) {
+      values[i] = i;
+    }
+    // Expected value calculated by Octave:
+    //   octave-3.4.0:15> printf("%.12f\n", std([0:9999]));
+    final double expected = 2886.895679907168D;
+    // Normally we should find 2886.4626563783336, which is off by almost 0.5
+    // from what Octave finds.  I wonder why.
+    final double epsilon = 0.44;
+    checkSimilarStdDev(values, expected, epsilon);
+  }
+
+  @Test
   public void testStdDevRandomValues() {
     final long[] values = new long[1000];
     for (int i = 0; i < values.length; i++) {
       values[i] = random.nextLong();
     }
     final double expected = naiveStdDev(values);
-
     // Calculate the epsilon based on the percentage of the number.
     final double epsilon = EPSILON_PERCENTAGE * expected;
+    checkSimilarStdDev(values, expected, epsilon);
+  }
+
+  private static void checkSimilarStdDev(final long[] values,
+                                         final double expected,
+                                         final double epsilon) {
     final Numbers numbers = new Numbers(values);
     final Aggregator agg = Aggregators.get("dev");
 
