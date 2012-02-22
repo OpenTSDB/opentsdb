@@ -196,53 +196,45 @@ public final class Aggregators {
   private static final class StdDev implements Aggregator {
 
     public long runLong(final Longs values) {
-      long n = 1;
-      double old_mean = 0;
-      double new_mean = 0;
-      double variance = 0;
+      double old_mean = values.nextLongValue();
 
-      while (values.hasNextValue()) {
-        final double x = values.nextLongValue();
-        if (n == 1) {
-          old_mean = x;
-        } else {
-          new_mean = old_mean + (x - old_mean) / n;
-          variance += (x - old_mean) * (x - new_mean);
-          old_mean = new_mean;
-        }
-        n++;
-      }
-
-      if (n > 1) {
-        return (long) Math.sqrt(variance / (n - 1));
-      } else {
+      if (!values.hasNextValue()) {
         return 0;
       }
+
+      long n = 2;
+      double new_mean = 0;
+      double variance = 0;
+      do {
+        final double x = values.nextLongValue();
+        new_mean = old_mean + (x - old_mean) / n;
+        variance += (x - old_mean) * (x - new_mean);
+        old_mean = new_mean;
+        n++;
+      } while (values.hasNextValue());
+
+      return (long) Math.sqrt(variance / (n - 1));
     }
 
     public double runDouble(final Doubles values) {
-      long n = 1;
-      double old_mean = 0;
-      double new_mean = 0;
-      double variance = 0;
+      double old_mean = values.nextDoubleValue();
 
-      while (values.hasNextValue()) {
-        final double x = values.nextDoubleValue();
-        if (n == 1) {
-          old_mean = x;
-        } else {
-          new_mean = old_mean + (x - old_mean) / n;
-          variance += (x - old_mean) * (x - new_mean);
-          old_mean = new_mean;
-        }
-        n++;
-      }
-
-      if (n > 1) {
-        return Math.sqrt(variance / (n - 1));
-      } else {
+      if (!values.hasNextValue()) {
         return 0;
       }
+
+      long n = 2;
+      double new_mean = 0;
+      double variance = 0;
+      do {
+        final double x = values.nextDoubleValue();
+        new_mean = old_mean + (x - old_mean) / n;
+        variance += (x - old_mean) * (x - new_mean);
+        old_mean = new_mean;
+        n++;
+      } while (values.hasNextValue());
+
+      return Math.sqrt(variance / (n - 1));
     }
 
     public String toString() {
