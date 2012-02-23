@@ -950,16 +950,18 @@ final class GraphHandler implements HttpRpc {
               - parseDuration(date.substring(0, date.length() - 4)));
     }
     long timestamp;
-    try {
-      timestamp = Long.parseLong(date);   // Is it already a timestamp?
-    } catch (NumberFormatException ne) {  // Nope, try to parse a date then.
+    if (date.length() < 5 || date.charAt(4) != '/') {  // Already a timestamp?
+      try {
+        timestamp = Tags.parseLong(date);              // => Looks like it.
+      } catch (NumberFormatException e) {
+        throw new BadRequestException("Invalid " + paramname + " time: " + date
+                                      + ". " + e.getMessage());
+      }
+    } else {  // => Nope, there is a slash, so parse a date then.
       try {
         final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
         timestamp = fmt.parse(date).getTime() / 1000;
       } catch (ParseException e) {
-        throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                      + ". " + e.getMessage());
-      } catch (NumberFormatException e) {
         throw new BadRequestException("Invalid " + paramname + " date: " + date
                                       + ". " + e.getMessage());
       }
