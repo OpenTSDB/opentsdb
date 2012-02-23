@@ -15,18 +15,19 @@
 
 ACLOCAL_AMFLAGS = -I build-aux
 
-all-am: jar staticroot
+all-am: clean_properties jar staticroot
 
 package = net.opentsdb
 spec_title = OpenTSDB
 spec_vendor = StumbleUpon, Inc.
 jar := tsdb-$(PACKAGE_VERSION).jar
-builddata_SRC := src/BuildData.java
+builddata_SRC := 
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
 dist_noinst_SCRIPTS = src/create_table.sh
 dist_pkgdata_SCRIPTS = src/mygnuplot.sh
 tsdb_SRC := \
+	src/BuildData.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
 	src/core/CompactionQueue.java	\
@@ -96,6 +97,7 @@ test_SRC := \
 	src/stats/TestHistogram.java	\
 	src/tsd/TestGraphHandler.java	\
 	src/uid/TestNoSuchUniqueId.java	\
+	src/TestBuildData.java	\
 	src/uid/TestUniqueId.java
 
 test_DEPS = \
@@ -119,11 +121,13 @@ httpui_DEPS = src/tsd/QueryUi.gwt.xml
 
 dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = src/tsd/static/favicon.ico
+dist_build_properties = opentsdb_build.properties
+dist_build_DATA = src/$(dist_build_properties)
 
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
         $(THIRD_PARTY) $(THIRD_PARTY:=.md5) \
         $(httpui_SRC) $(httpui_DEPS) \
-        bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
+        bootstrap build.sh build-aux/gen_build_data.sh $(dist_build_DATA)
 
 GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
 GWTC_ARGS = -ea  # Additional arguments like -style PRETTY or -logLevel DEBUG
@@ -163,8 +167,8 @@ install-exec-hook:
 	cat tsdb.tmp >"$(DESTDIR)$(bindir)/tsdb"
 	rm -f tsdb.tmp
 
-$(builddata_SRC): .git/HEAD $(tsdb_SRC) $(top_srcdir)/build-aux/gen_build_data.sh
-	$(srcdir)/build-aux/gen_build_data.sh $(builddata_SRC) $(package)
+$(dist_build_DATA): clean_properties .git/HEAD $(tsdb_SRC) $(top_srcdir)/build-aux/gen_build_data.sh
+	$(srcdir)/build-aux/gen_build_data.sh $(dist_build_DATA)
 
 jar: $(jar) .javac-unittests-stamp .gwtc-stamp
 
@@ -232,6 +236,10 @@ gwtdev: .gwtc-stamp
 	  -startupUrl $(GWT_DEV_URL) -noserver -war gwt tsd.QueryUi
 
 staticroot: jar .staticroot-stamp
+
+clean_properties: 
+	rm -f $(dist_build_DATA)
+	rm -f $(package_dir)/$(dist_build_properties)
 
 gwttsd: staticroot
 	./tsdb tsd $(DEV_TSD_ARGS)
@@ -313,8 +321,9 @@ manifest: .javac-stamp .git/HEAD
           echo "Implementation-Version: $(git_version)"; \
           echo "Implementation-Vendor: $(spec_vendor)"; } >"$@"
 
-$(jar): manifest .javac-stamp $(classes)
-	$(JAR) cfm `basename $(jar)` manifest $(classes_with_nested_classes) \
+$(jar): manifest .javac-stamp $(classes) $(dist_build_DATA)
+	cp -p $(dist_build_DATA) $(package_dir)
+	$(JAR) cfm `basename $(jar)` manifest $(classes_with_nested_classes) $(package_dir)/$(dist_build_properties) \
          || { rv=$$? && rm -f `basename $(jar)` && exit $$rv; }
 #                       ^^^^^^^^^^^^^^^^^^^^^^^
 # I've seen cases where `jar' exits with an error but leaves a partially built .jar file!
@@ -339,7 +348,7 @@ dist-hook:
 	$(mkdir_p) $(distdir)/.git
 	echo $(git_version) >$(distdir)/.git/HEAD
 
-mostlyclean-local:
+mostlyclean-local: clean_properties
 	@rm -f .javac-stamp .javac-unittests-stamp .gwtc-stamp* .staticroot-stamp
 	rm -rf gwt gwt-unitCache staticroot
 	rm -f manifest $(BUILT_SOURCES)
