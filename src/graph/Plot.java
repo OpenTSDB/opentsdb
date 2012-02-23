@@ -96,6 +96,13 @@ public final class Plot {
    * in the Gnuplot script file: {@code set KEY VALUE}.
    * When the value is {@code null} the script will instead contain
    * {@code unset KEY}.
+   * <p>
+   * Special parameters with a special meaning (since OpenTSDB 1.1):
+   * <ul>
+   * <li>{@code bgcolor}: Either {@code transparent} or an RGB color in
+   * hexadecimal (with a leading 'x' as in {@code x01AB23}).</li>
+   * <li>{@code fgcolor}: An RGB color in hexadecimal ({@code x42BEE7}).</li>
+   * </ul>
    */
   public void setParams(final Map<String, String> params) {
     this.params = params;
@@ -212,7 +219,27 @@ public final class Plot {
       gp.append("set term png small size ")
         // Why the fuck didn't they also add methods for numbers?
         .append(Short.toString(width)).append(",")
-        .append(Short.toString(height)).append("\n"
+        .append(Short.toString(height));
+      final String fgcolor = params.remove("fgcolor");
+      String bgcolor = params.remove("bgcolor");
+      if (fgcolor != null && bgcolor == null) {
+        // We can't specify a fgcolor without specifying a bgcolor.
+        bgcolor = "xFFFFFF";  // So use a default.
+      }
+      if (bgcolor != null) {
+        if (fgcolor != null && "transparent".equals(bgcolor)) {
+          // In case we need to specify a fgcolor but we wanted a transparent
+          // background, we also need to pass a bgcolor otherwise the first
+          // hex color will be mistakenly taken as a bgcolor by Gnuplot.
+          bgcolor = "transparent xFFFFFF";
+        }
+        gp.append(' ').append(bgcolor);
+      }
+      if (fgcolor != null) {
+        gp.append(' ').append(fgcolor);
+      }
+
+      gp.append("\n"
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
                 + "set xtic rotate\n"

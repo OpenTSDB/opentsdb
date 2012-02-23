@@ -677,6 +677,12 @@ final class GraphHandler implements HttpRpc {
     if ((value = popParam(querystring, "title")) != null) {
       params.put("title", stringify(value));
     }
+    if ((value = popParam(querystring, "bgcolor")) != null) {
+      params.put("bgcolor", value);
+    }
+    if ((value = popParam(querystring, "fgcolor")) != null) {
+      params.put("fgcolor", value);
+    }
     // This must remain after the previous `if' in order to properly override
     // any previous `key' parameter if a `nokey' parameter is given.
     if ((value = popParam(querystring, "nokey")) != null) {
