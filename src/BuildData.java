@@ -11,7 +11,7 @@ import java.util.ResourceBundle;
  */
 public class BuildData {
 
-	public static final String BUNDLE_NAME = "opentsdb_build";
+	public static final String BUNDLE_NAME = "net.opentsdb.opentsdb_build";
 
 	private static ResourceBundle resourceBundle;
 	private static final String REVISION_STRING;
