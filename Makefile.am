@@ -115,6 +115,7 @@ httpui_SRC := \
 	src/tsd/client/MetricForm.java	\
 	src/tsd/client/QueryUi.java	\
 	src/tsd/client/RemoteOracle.java	\
+	src/tsd/client/TagsPanel.java	\
 	src/tsd/client/ValidatedTextBox.java
 
 httpui_DEPS = src/tsd/QueryUi.gwt.xml

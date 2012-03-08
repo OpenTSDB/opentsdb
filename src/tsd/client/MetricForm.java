@@ -13,23 +13,19 @@
 package tsd.client;
 
 import java.util.ArrayList;
+import java.util.Map;
 
-import com.google.gwt.event.dom.client.BlurEvent;
-import com.google.gwt.event.dom.client.BlurHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.DomEvent;
 import com.google.gwt.event.shared.EventHandler;
-import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
-import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.Focusable;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.SuggestBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
-import com.google.gwt.user.client.ui.Widget;
 
 final class MetricForm extends HorizontalPanel implements Focusable {
 
@@ -37,13 +33,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     void onMetricChange(MetricForm widget);
   }
 
-  private static final String TSDB_ID_CLASS = "[-_./a-zA-Z0-9]";
-  private static final String TSDB_ID_RE = "^" + TSDB_ID_CLASS + "*$";
-  private static final String TSDB_TAGVALUE_RE =
-    "^(\\*?"                                       // a `*' wildcard or nothing
-    + "|" + TSDB_ID_CLASS + "+(\\|" + TSDB_ID_CLASS + "+)*)$"; // `foo|bar|...'
-
-  private final EventsHandler events_handler;
   private MetricChangeHandler metric_change_handler;
 
   private final CheckBox downsample = new CheckBox("Downsample");
@@ -53,11 +42,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final CheckBox x1y2 = new CheckBox("Right Axis");
   private final ListBox aggregators = new ListBox();
   private final ValidatedTextBox metric = new ValidatedTextBox();
-  private final FlexTable tagtable = new FlexTable();
+  private TagsPanel tagsPanel;
 
   public MetricForm(final EventsHandler handler) {
-    events_handler = handler;
     setupDownsampleWidgets();
+    tagsPanel = new TagsPanel(handler);
     downsample.addClickHandler(handler);
     downsampler.addChangeHandler(handler);
     interval.addBlurHandler(handler);
@@ -79,7 +68,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       metric.addKeyPressHandler(metric_handler);
     }
 
-    metric.setValidationRegexp(TSDB_ID_RE);
+    metric.setValidationRegexp(ClientConstants.TSDB_ID_RE);
     assembleUi();
   }
 
@@ -90,10 +79,15 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   public CheckBox x1y2() {
     return x1y2;
   }
+  
+  public void autoSuggestTag(String tag) {
+    tagsPanel.autoSuggestTag(tag);
+  }
 
   private void assembleUi() {
     setWidth("100%");
     {  // Left hand-side panel.
+      final VerticalPanel leftPanel = new VerticalPanel();
       final HorizontalPanel hbox = new HorizontalPanel();
       final InlineLabel l = new InlineLabel();
       l.setText("Metric:");
@@ -105,11 +99,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       hbox.setWidth("100%");
       metric.setWidth("100%");
 
-      tagtable.setWidget(0, 0, hbox);
-      tagtable.getFlexCellFormatter().setColSpan(0, 0, 3);
-      addTag(null);
-      tagtable.setText(1, 0, "Tags");
-      add(tagtable);
+      leftPanel.add(hbox);
+      leftPanel.add(tagsPanel);
+      add(leftPanel);
     }
     {  // Right hand-side panel.
       final VerticalPanel vbox = new VerticalPanel();
@@ -167,11 +159,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     url.append(':').append(metric);
     {
-      final int ntags = getNumTags();
+      final Map<String, String> tags = tagsPanel.getTags();
       url.append('{');
-      for (int tag = 0; tag < ntags; tag++) {
-        final String tagname = getTagName(tag);
-        final String tagvalue = getTagValue(tag);
+      for (Map.Entry<String, String> tag : tags.entrySet()) {
+        final String tagname = tag.getKey();
+        final String tagvalue = tag.getValue();
         if (tagname.isEmpty() || tagvalue.isEmpty()) {
           continue;
         }
@@ -191,127 +183,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     return true;
   }
-
-  private int getNumTags() {
-    return tagtable.getRowCount() - 1;
-  }
-
-  private String getTagName(final int i) {
-    return ((SuggestBox) tagtable.getWidget(i + 1, 1)).getValue();
-  }
-
-  private String getTagValue(final int i) {
-    return ((SuggestBox) tagtable.getWidget(i + 1, 2)).getValue();
-  }
-
-  private void setTagName(final int i, final String value) {
-    ((SuggestBox) tagtable.getWidget(i + 1, 1)).setValue(value);
-  }
-
-  private void setTagValue(final int i, final String value) {
-    ((SuggestBox) tagtable.getWidget(i + 1, 2)).setValue(value);
-  }
-
-  private void addTag(final String default_tagname) {
-    final int row = tagtable.getRowCount();
-
-    final ValidatedTextBox tagname = new ValidatedTextBox();
-    final SuggestBox suggesttagk = RemoteOracle.newSuggestBox("tagk", tagname);
-    final ValidatedTextBox tagvalue = new ValidatedTextBox();
-    final SuggestBox suggesttagv = RemoteOracle.newSuggestBox("tagv", tagvalue);
-    tagname.setValidationRegexp(TSDB_ID_RE);
-    tagvalue.setValidationRegexp(TSDB_TAGVALUE_RE);
-    tagname.setWidth("100%");
-    tagvalue.setWidth("100%");
-    tagname.addBlurHandler(recompact_tagtable);
-    tagname.addBlurHandler(events_handler);
-    tagname.addKeyPressHandler(events_handler);
-    tagvalue.addBlurHandler(recompact_tagtable);
-    tagvalue.addBlurHandler(events_handler);
-    tagvalue.addKeyPressHandler(events_handler);
-
-    tagtable.setWidget(row, 1, suggesttagk);
-    tagtable.setWidget(row, 2, suggesttagv);
-    if (row > 2) {
-      final Button remove = new Button("x");
-      remove.addClickHandler(removetag);
-      tagtable.setWidget(row - 1, 0, remove);
-    }
-    if (default_tagname != null) {
-      tagname.setText(default_tagname);
-      tagvalue.setFocus(true);
-    }
-  }
-
-  public void autoSuggestTag(final String tag) {
-    // First try to see if the tag is already in the table.
-    final int nrows = tagtable.getRowCount();
-    int unused_row = -1;
-    for (int row = 1; row < nrows; row++) {
-      final SuggestBox tagname = ((SuggestBox) tagtable.getWidget(row, 1));
-      final SuggestBox tagvalue = ((SuggestBox) tagtable.getWidget(row, 2));
-      final String thistag = tagname.getValue();
-      if (thistag.equals(tag)) {
-        return;  // This tag is already in the table.
-      } if (thistag.isEmpty() && tagvalue.getValue().isEmpty()) {
-        unused_row = row;
-      }
-    }
-    if (unused_row >= 0) {
-      ((SuggestBox) tagtable.getWidget(unused_row, 1)).setValue(tag);
-    } else {
-      addTag(tag);
-    }
-  }
-
-  private final BlurHandler recompact_tagtable = new BlurHandler() {
-    public void onBlur(final BlurEvent event) {
-      int ntags = getNumTags();
-      // Is the first line empty?  If yes, move everything up by 1 line.
-      if (getTagName(0).isEmpty() && getTagValue(0).isEmpty()) {
-        for (int tag = 1; tag < ntags; tag++) {
-          final String tagname = getTagName(tag);
-          final String tagvalue = getTagValue(tag);
-          setTagName(tag - 1, tagname);
-          setTagValue(tag - 1, tagvalue);
-        }
-      }
-      // Try to remove empty lines from the tag table (but never remove the
-      // first line or last line, even if they're empty).  Walk the table
-      // from the end to make it easier to delete rows as we iterate.
-      for (int tag = ntags - 1; tag >= 1; tag--) {
-        final String tagname = getTagName(tag);
-        final String tagvalue = getTagValue(tag);
-        if (tagname.isEmpty() && tagvalue.isEmpty()) {
-          tagtable.removeRow(tag + 1);
-        }
-      }
-      ntags = getNumTags();  // How many lines are left?
-      // If the last line isn't empty, add another one.
-      final String tagname = getTagName(ntags - 1);
-      final String tagvalue = getTagValue(ntags - 1);
-      if (!tagname.isEmpty() && !tagvalue.isEmpty()) {
-        addTag(null);
-      }
-    }
-  };
-
-  private final ClickHandler removetag = new ClickHandler() {
-    public void onClick(final ClickEvent event) {
-      if (!(event.getSource() instanceof Button)) {
-        return;
-      }
-      final Widget source = (Widget) event.getSource();
-      final int ntags = getNumTags();
-      for (int tag = 1; tag < ntags; tag++) {
-        if (source == tagtable.getWidget(tag + 1, 0)) {
-          tagtable.removeRow(tag + 1);
-          events_handler.onClick(event);
-          break;
-        }
-      }
-    }
-  };
 
   private void setupDownsampleWidgets() {
     downsampler.setEnabled(false);
