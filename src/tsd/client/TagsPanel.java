@@ -32,6 +32,10 @@ public class TagsPanel extends SimplePanel {
   public Map<String, String> getTags() {
     Map<String, String> result = new HashMap<String, String>();
 
+    for (int i = 0; i < getNumTags(); i++) {
+      result.put(getTagName(i), getTagValue(i));
+    }
+
     return result;
   }
 
