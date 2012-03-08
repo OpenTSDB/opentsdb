@@ -13,7 +13,6 @@
 package tsd.client;
 
 import java.util.ArrayList;
-import java.util.Map;
 
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
@@ -159,11 +158,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     url.append(':').append(metric);
     {
-      final Map<String, String> tags = tagsPanel.getTags();
+      final String[][] tags = tagsPanel.getTags();
       url.append('{');
-      for (Map.Entry<String, String> tag : tags.entrySet()) {
-        final String tagname = tag.getKey();
-        final String tagvalue = tag.getValue();
+      for (int i = 0; i < tags.length; i++) {
+        final String tagname = tags[i][0];
+        final String tagvalue = tags[i][1];
         if (tagname.isEmpty() || tagvalue.isEmpty()) {
           continue;
         }

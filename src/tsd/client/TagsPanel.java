@@ -1,8 +1,5 @@
 package tsd.client;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.BlurHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -29,11 +26,18 @@ public class TagsPanel extends SimplePanel {
     addTag(null);
   }
 
-  public Map<String, String> getTags() {
-    Map<String, String> result = new HashMap<String, String>();
+  /**
+   * Creates and returns a two-dimensional array with keys and values of all tags in this panel. 
+   * 
+   * @return two-dimensional array (String[row][col])
+   */
+  public String[][] getTags() {
+    int tagCount = getNumTags();
+    String[][] result = new String[tagCount][2];
 
     for (int i = 0; i < getNumTags(); i++) {
-      result.put(getTagName(i), getTagValue(i));
+      result[i][0] = getTagName(i);
+      result[i][1] = getTagValue(i);
     }
 
     return result;
