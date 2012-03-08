@@ -110,6 +110,7 @@ test_DEPS = \
 
 httpui_SRC := \
 	src/tsd/client/DateTimeBox.java	\
+	src/tsd/client/AnnotationsForm.java \
 	src/tsd/client/EventsHandler.java	\
 	src/tsd/client/GotJsonCallback.java	\
 	src/tsd/client/MetricForm.java	\

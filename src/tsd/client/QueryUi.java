@@ -340,7 +340,14 @@ public class QueryUi implements EntryPoint {
       });
       table.setWidget(2, 0, metrics);
     }
+    
+    final DecoratedTabPanel annotationsPanel = new DecoratedTabPanel();
+    annotationsPanel.add(new AnnotationsForm(refreshgraph), "Annotations");
+    annotationsPanel.selectTab(0);
+    table.setWidget(3, 0, annotationsPanel);
+    
     table.getFlexCellFormatter().setColSpan(2, 0, 2);
+    table.getFlexCellFormatter().setColSpan(3, 0, 2);
     table.getFlexCellFormatter().setRowSpan(1, 3, 2);
     final DecoratedTabPanel optpanel = new DecoratedTabPanel();
     optpanel.add(makeAxesPanel(), "Axes");
