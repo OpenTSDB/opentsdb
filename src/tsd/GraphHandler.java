@@ -1,9 +1,9 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010  The OpenTSDB Authors.
+// Copyright (C) 2010-2012  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or (at your
+// the Free Software Foundation, either version 2.1 of the License, or (at your
 // option) any later version.  This program is distributed in the hope that it
 // will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 // of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
@@ -81,7 +81,6 @@ final class GraphHandler implements HttpRpc {
 
   /**
    * Constructor.
-   * @param tsdb The TSDB to use.
    */
   public GraphHandler() {
     // Gnuplot is mostly CPU bound and does only a little bit of IO at the
@@ -678,6 +677,12 @@ final class GraphHandler implements HttpRpc {
     if ((value = popParam(querystring, "title")) != null) {
       params.put("title", stringify(value));
     }
+    if ((value = popParam(querystring, "bgcolor")) != null) {
+      params.put("bgcolor", value);
+    }
+    if ((value = popParam(querystring, "fgcolor")) != null) {
+      params.put("fgcolor", value);
+    }
     // This must remain after the previous `if' in order to properly override
     // any previous `key' parameter if a `nokey' parameter is given.
     if ((value = popParam(querystring, "nokey")) != null) {
@@ -951,16 +956,18 @@ final class GraphHandler implements HttpRpc {
               - parseDuration(date.substring(0, date.length() - 4)));
     }
     long timestamp;
-    try {
-      timestamp = Long.parseLong(date);   // Is it already a timestamp?
-    } catch (NumberFormatException ne) {  // Nope, try to parse a date then.
+    if (date.length() < 5 || date.charAt(4) != '/') {  // Already a timestamp?
+      try {
+        timestamp = Tags.parseLong(date);              // => Looks like it.
+      } catch (NumberFormatException e) {
+        throw new BadRequestException("Invalid " + paramname + " time: " + date
+                                      + ". " + e.getMessage());
+      }
+    } else {  // => Nope, there is a slash, so parse a date then.
       try {
         final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
         timestamp = fmt.parse(date).getTime() / 1000;
       } catch (ParseException e) {
-        throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                      + ". " + e.getMessage());
-      } catch (NumberFormatException e) {
         throw new BadRequestException("Invalid " + paramname + " date: " + date
                                       + ". " + e.getMessage());
       }

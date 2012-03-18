@@ -1,8 +1,8 @@
-# Copyright (C) 2011  The OpenTSDB Authors.
+# Copyright (C) 2011-2012  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
-# by the Free Software Foundation, either version 3 of the License, or
+# by the Free Software Foundation, either version 2.1 of the License, or
 # (at your option) any later version.
 #
 # This library is distributed in the hope that it will be useful,
@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-POWERMOCK_MOCKITO_VERSION := 1.4.9
+POWERMOCK_MOCKITO_VERSION := 1.4.10
 POWERMOCK_MOCKITO := third_party/powermock/powermock-mockito-$(POWERMOCK_MOCKITO_VERSION).jar
 POWERMOCK_MOCKITO_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 

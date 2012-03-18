@@ -1,9 +1,9 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2011  The OpenTSDB Authors.
+// Copyright (C) 2011-2012  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or (at your
+// the Free Software Foundation, either version 2.1 of the License, or (at your
 // option) any later version.  This program is distributed in the hope that it
 // will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 // of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 
 import com.stumbleupon.async.Callback;
@@ -29,6 +28,8 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
@@ -39,29 +40,6 @@ import net.opentsdb.uid.UniqueId;
 final class Fsck {
 
   private static final Logger LOG = LoggerFactory.getLogger(Fsck.class);
-
-  /** Number of LSBs in time_deltas reserved for flags.  */
-  static final short FLAG_BITS;
-  /** Mask to select all the FLAG_BITS.  */
-  static final short FLAGS_MASK;
-  static {
-    try {
-      // Those are all implementation details so they're not part of the
-      // interface.  We access them anyway using reflection.  I think this
-      // is better than marking those public and adding a javadoc comment
-      // "THIS IS INTERNAL DO NOT USE".  If only Java had C++'s "friend" or
-      // a less stupid notion of a package.
-      Field f;
-      f = Const.class.getDeclaredField("FLAG_BITS");
-      f.setAccessible(true);
-      FLAG_BITS = (Short) f.get(null);
-      f = Const.class.getDeclaredField("FLAGS_MASK");
-      f.setAccessible(true);
-      FLAGS_MASK = (Short) f.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("static initializer failed", e);
-    }
-  }
 
   /** Prints usage and exits with the given retval. */
   private static void usage(final ArgP argp, final String errmsg,
@@ -131,11 +109,7 @@ final class Fsck {
     int errors = 0;
     int correctable = 0;
 
-    final short metric_width = width(tsdb, "metrics");
-    @SuppressWarnings("unused")
-    final short name_width = width(tsdb, "tag_names");
-    @SuppressWarnings("unused")
-    final short value_width = width(tsdb, "tag_values");
+    final short metric_width = Internal.metricWidth(tsdb);
 
     final ArrayList<Query> queries = new ArrayList<Query>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
@@ -147,7 +121,7 @@ final class Fsck {
       long kvcount = 0;
       long rowcount = 0;
       final Bytes.ByteMap<Seen> seen = new Bytes.ByteMap<Seen>();
-      final Scanner scanner = Core.getScanner(query);
+      final Scanner scanner = Internal.getScanner(query);
       ArrayList<ArrayList<KeyValue>> rows;
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
@@ -173,15 +147,79 @@ final class Fsck {
                        + "ms (" + (100000 * 1000 / ping_start_time) + " KVs/s)");
               ping_start_time = now;
             }
-            if (kv.qualifier().length != 2) {
-              LOG.warn("Ignoring unsupported KV with a qualifier of "
-                       + kv.qualifier().length + " bytes:" + kv);
-              continue;
-            }
-            final short qualifier = Bytes.getShort(kv.qualifier());
-            final short delta = (short) ((qualifier & 0xFFFF) >>> FLAG_BITS);
-            final long timestamp = base_time + delta;
             byte[] value = kv.value();
+            final byte[] qual = kv.qualifier();
+            if (qual.length < 2) {
+              errors++;
+              LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t"
+                        + kv);
+              continue;
+            } else if (qual.length > 2) {
+              if (qual.length % 2 != 0) {
+                errors++;
+                LOG.error("Invalid qualifier for a compacted row, length ("
+                          + qual.length + ") must be even.\n\t" + kv);
+              }
+              if (value[value.length - 1] != 0) {
+                errors++;
+                LOG.error("The last byte of the value should be 0.  Either"
+                          + " this value is corrupted or it was written by a"
+                          + " future version of OpenTSDB.\n\t" + kv);
+                continue;
+              }
+              // Check all the compacted values.
+              short last_delta = -1;
+              short val_idx = 0;  // Where are we in `value'?
+              boolean ooo = false;  // Did we find out of order data?
+              for (int i = 0; i < qual.length; i += 2) {
+                final short qualifier = Bytes.getShort(qual, i);
+                final short delta = (short) ((qualifier & 0xFFFF)
+                                             >>> Internal.FLAG_BITS);
+                if (delta <= last_delta) {
+                  ooo = true;
+                } else {
+                  last_delta = delta;
+                }
+                val_idx += (qualifier & Internal.LENGTH_MASK) + 1;
+              }
+              prev.setTimestamp(base_time + last_delta);
+              prev.kv = kv;
+              // Check we consumed all the bytes of the value.  The last byte
+              // is metadata, so it's normal that we didn't consume it.
+              if (val_idx != value.length - 1) {
+                errors++;
+                LOG.error("Corrupted value: consumed " + val_idx
+                          + " bytes, but was expecting to consume "
+                          + (value.length - 1) + "\n\t" + kv);
+              } else if (ooo) {
+                final KeyValue ordered;
+                try {
+                  ordered = Internal.complexCompact(kv);
+                } catch (IllegalDataException e) {
+                  errors++;
+                  LOG.error("Two or more values in a compacted cell have the"
+                            + " same time delta but different values.  "
+                            + e.getMessage() + "\n\t" + kv);
+                  continue;
+                }
+                errors++;
+                correctable++;
+                if (fix) {
+                  client.put(new PutRequest(table, ordered.key(),
+                                            ordered.family(),
+                                            ordered.qualifier(),
+                                            ordered.value()))
+                    .addCallbackDeferring(new DeleteOutOfOrder(kv));
+                } else {
+                  LOG.error("Two or more values in a compacted cell are"
+                            + " out of order within that cell.\n\t" + kv);
+                }
+              }
+              continue;  // We done checking a compacted value.
+            } // else: qualifier is on 2 bytes, it's an individual value.
+            final short qualifier = Bytes.getShort(qual);
+            final short delta = (short) ((qualifier & 0xFFFF) >>> Internal.FLAG_BITS);
+            final long timestamp = base_time + delta;
             if (value.length > 8) {
               errors++;
               LOG.error("Value more than 8 byte long with a 2-byte"
@@ -203,7 +241,7 @@ final class Fsck {
                     value = value.clone();  // We're going to change it.
                     value[0] = value[1] = value[2] = value[3] = 0;
                     client.put(new PutRequest(table, kv.key(), kv.family(),
-                                              kv.qualifier(), value));
+                                              qual, value));
                   } else {
                     LOG.error("Floating point value with 0xFF most significant"
                               + " bytes, probably caused by sign extension bug"
@@ -229,8 +267,8 @@ final class Fsck {
                 // Fix the timestamp in the row key.
                 final long new_base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
                 Bytes.setInt(newkey, (int) new_base_time, metric_width);
-                final short newqual = (short) ((timestamp - new_base_time) << FLAG_BITS
-                                               | (qualifier & FLAGS_MASK));
+                final short newqual = (short) ((timestamp - new_base_time) << Internal.FLAG_BITS
+                                               | (qualifier & Internal.FLAGS_MASK));
                 final DeleteOutOfOrder delooo = new DeleteOutOfOrder(kv);
                 if (timestamp < prev.timestamp()) {
                   client.put(new PutRequest(table, newkey, kv.family(),
@@ -285,20 +323,6 @@ final class Fsck {
                          + " know what you're doing before using --fix.");
     }
     return errors;
-  }
-
-  /**
-   * Returns the width (in bytes) of a given kind of Unique IDs.
-   */
-  private static short width(final TSDB tsdb, final String idkind) {
-    try {
-      final Field metrics = TSDB.class.getDeclaredField(idkind);
-      metrics.setAccessible(true);
-      final short width = ((UniqueId) metrics.get(tsdb)).width();
-      return width;
-    } catch (Exception e) {
-      throw new RuntimeException("in width " + idkind, e);
-    }
   }
 
   /**

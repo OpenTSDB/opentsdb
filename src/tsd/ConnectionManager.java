@@ -1,9 +1,9 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010  The OpenTSDB Authors.
+// Copyright (C) 2010-2012  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or (at your
+// the Free Software Foundation, either version 2.1 of the License, or (at your
 // option) any later version.  This program is distributed in the hope that it
 // will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 // of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -81,6 +82,12 @@ final class ConnectionManager extends SimpleChannelHandler {
     final Channel chan = ctx.getChannel();
     if (cause instanceof ClosedChannelException) {
       LOG.warn("Attempt to write to closed channel " + chan);
+    } else if (cause instanceof IOException
+               && "Connection reset by peer".equals(cause.getMessage())) {
+      // Do nothing.  A client disconnecting isn't really our problem.  Oh,
+      // and I'm not kidding you, there's no better way to detect ECONNRESET
+      // in Java.  Like, people have been bitching about errno for years,
+      // and Java managed to do something *far* worse.  That's quite a feat.
     } else {
       LOG.error("Unexpected exception from downstream for " + chan, cause);
       e.getChannel().close();
