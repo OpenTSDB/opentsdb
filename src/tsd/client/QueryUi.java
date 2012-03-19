@@ -647,11 +647,18 @@ public class QueryUi implements EntryPoint, HistoryListener {
       return get(k).get(0);
     }
 
+    public void maybeSetTextbox(TextBox tb, final String k, boolean decode) {
+      if (containsKey(k))
+        if (decode)
+          tb.setText(URL.decodeComponent(getOne(k)));
+         else
+          tb.setText(getOne(k));
+      else
+        tb.setText("");
+    }
+
     public void maybeSetTextbox(TextBox tb, final String k) {
-    if (containsKey(k))
-      tb.setText(getOne(k));
-    else
-      tb.setText("");
+        maybeSetTextbox(tb, k, false);
     }
   }
 
@@ -694,10 +701,10 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
     updatey2range.onEvent(null);
 
-    params.maybeSetTextbox(ylabel, "ylabel");
-    params.maybeSetTextbox(y2label, "y2label");
-    params.maybeSetTextbox(yformat, "yformat");
-    params.maybeSetTextbox(y2format, "y2format");
+    params.maybeSetTextbox(ylabel, "ylabel", true);
+    params.maybeSetTextbox(y2label, "y2label", true);
+    params.maybeSetTextbox(yformat, "yformat", true);
+    params.maybeSetTextbox(y2format, "y2format", true);
     params.maybeSetTextbox(yrange, "yrange");
     params.maybeSetTextbox(y2range, "y2range");
     ylog.setValue(params.containsKey("ylog"));
