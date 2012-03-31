@@ -34,11 +34,14 @@ public final class Plot {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plot.class);
 
+  /** Mask to use on 32-bit unsigned integers to avoid sign extension.  */
+  private static final long UNSIGNED = 0x00000000FFFFFFFFL;
+
   /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int start_time;
+  private final int start_time;
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int end_time;
+  private final int end_time;
 
   /** All the DataPoints we want to plot. */
   private ArrayList<DataPoints> datapoints =
@@ -169,7 +172,7 @@ public final class Plot {
       try {
         for (final DataPoint d : datapoints.get(i)) {
           final long ts = d.timestamp();
-          if (ts >= start_time && ts <= end_time) {
+          if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
             npoints++;
           }
           datafile.print(ts + utc_offset);
@@ -245,9 +248,9 @@ public final class Plot {
                 + "set xtic rotate\n"
                 + "set output \"").append(basepath + ".png").append("\"\n"
                 + "set xrange [\"")
-        .append(String.valueOf(start_time + utc_offset))
+        .append(String.valueOf((start_time & UNSIGNED) + utc_offset))
         .append("\":\"")
-        .append(String.valueOf(end_time + utc_offset))
+        .append(String.valueOf((end_time & UNSIGNED) + utc_offset))
         .append("\"]\n");
       if (!params.containsKey("format x")) {
         gp.append("set format x \"").append(xFormat()).append("\"\n");
@@ -316,7 +319,7 @@ public final class Plot {
    * @return The Gnuplot time format string to use.
    */
   private String xFormat() {
-    long timespan = end_time - start_time;
+    long timespan = (end_time & UNSIGNED) - (start_time & UNSIGNED);
     if (timespan < 2100) {  // 35m
       return "%H:%M:%S";
     } else if (timespan < 86400) {  // 1d
