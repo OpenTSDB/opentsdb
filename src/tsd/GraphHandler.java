@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -154,7 +155,8 @@ final class GraphHandler implements HttpRpc {
         throw new BadRequestException("end time: " + e.getMessage());
       }
     }
-    final Plot plot = new Plot(start_time, end_time);
+    final Plot plot = new Plot(start_time, end_time,
+                               timezones.get(query.getQueryStringParam("tz")));
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
     final int nqueries = tsdbqueries.length;
@@ -966,6 +968,7 @@ final class GraphHandler implements HttpRpc {
     } else {  // => Nope, there is a slash, so parse a date then.
       try {
         final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
+        setTimeZone(fmt, query.getQueryStringParam("tz"));
         timestamp = fmt.parse(date).getTime() / 1000;
       } catch (ParseException e) {
         throw new BadRequestException("Invalid " + paramname + " date: " + date
@@ -976,6 +979,45 @@ final class GraphHandler implements HttpRpc {
       throw new BadRequestException("Bad " + paramname + " date: " + date);
     }
     return timestamp;
+  }
+
+  /**
+   * Immutable cache mapping a timezone name to its object.
+   * We do this because the JDK's TimeZone class was implemented by retards,
+   * and it's synchronized, going through a huge pile of code, and allocating
+   * new objects all the time.  And to make things even better, if you ask for
+   * a TimeZone that doesn't exist, it returns GMT!  It is thus impractical to
+   * tell if the timezone name was valid or not.  JDK_brain_damage++;
+   * Note: caching everything wastes a few KB on RAM (34KB on my system with
+   * 611 timezones -- each instance is 56 bytes with the Sun JDK).
+   */
+  private static final HashMap<String, TimeZone> timezones;
+  static {
+    final String[] tzs = TimeZone.getAvailableIDs();
+    timezones = new HashMap<String, TimeZone>(tzs.length);
+    for (final String tz : tzs) {
+      timezones.put(tz, TimeZone.getTimeZone(tz));
+    }
+  }
+
+  /**
+   * Applies the given timezone to the given date format.
+   * @param fmt Date format to apply the timezone to.
+   * @param tzname Name of the timezone, or {@code null} in which case this
+   * function is a no-op.
+   * @throws BadRequestException if tzname isn't a valid timezone name.
+   */
+  private static void setTimeZone(final SimpleDateFormat fmt,
+                                  final String tzname) {
+    if (tzname == null) {
+      return;  // Use the default timezone.
+    }
+    final TimeZone tz = timezones.get(tzname);
+    if (tz != null) {
+      fmt.setTimeZone(tz);
+    } else {
+      throw new BadRequestException("Invalid timezone name: " + tzname);
+    }
   }
 
   private static final PlotThdFactory thread_factory = new PlotThdFactory();

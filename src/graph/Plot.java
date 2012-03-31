@@ -37,6 +37,9 @@ public final class Plot {
   /** Mask to use on 32-bit unsigned integers to avoid sign extension.  */
   private static final long UNSIGNED = 0x00000000FFFFFFFFL;
 
+  /** Default (current) timezone.  */
+  private static final TimeZone DEFAULT_TZ = TimeZone.getDefault();
+
   /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
   private final int start_time;
 
@@ -65,13 +68,9 @@ public final class Plot {
   /**
    * Number of seconds of difference to apply in order to get local time.
    * Gnuplot always renders timestamps in UTC, so we simply apply a delta
-   * to get local time.  If the local time changes (e.g. due to DST changes)
-   * we won't pick up the change unless we restart.
-   * TODO(tsuna): Do we want to recompute the offset every day to avoid this
-   * problem?
+   * to get local time.
    */
-  private static final int utc_offset =
-    TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000;
+  private final short utc_offset;
 
   /**
    * Constructor.
@@ -81,6 +80,20 @@ public final class Plot {
    * @throws IllegalArgumentException if {@code start_time >= end_time}.
    */
   public Plot(final long start_time, final long end_time) {
+    this(start_time, end_time, DEFAULT_TZ);
+  }
+
+  /**
+   * Constructor.
+   * @param start_time Timestamp of the start time of the graph.
+   * @param end_time Timestamp of the end time of the graph.
+   * @param tz Timezone to use to render the timestamps.
+   * If {@code null} the current timezone as of when the JVM started is used.
+   * @throws IllegalArgumentException if either timestamp is 0 or negative.
+   * @throws IllegalArgumentException if {@code start_time >= end_time}.
+   * @since 1.1
+   */
+   public Plot(final long start_time, final long end_time, TimeZone tz) {
     if ((start_time & 0xFFFFFFFF00000000L) != 0) {
       throw new IllegalArgumentException("Invalid start time: " + start_time);
     } else if ((end_time & 0xFFFFFFFF00000000L) != 0) {
@@ -91,6 +104,10 @@ public final class Plot {
     }
     this.start_time = (int) start_time;
     this.end_time = (int) end_time;
+    if (tz == null) {
+      tz = DEFAULT_TZ;
+    }
+    this.utc_offset = (short) (tz.getOffset(System.currentTimeMillis()) / 1000);
   }
 
   /**
