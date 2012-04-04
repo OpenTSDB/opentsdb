@@ -157,7 +157,7 @@ final class RemoteOracle extends SuggestOracle {
           if (response.getStatusCode() == com.google.gwt.http.client.Response.SC_OK
               // Is this response still relevant to what the requester wants?
               && requester.getText().startsWith(last_query)) {
-            final JSONValue json = JSONParser.parse(response.getText());
+            final JSONValue json = JSONParser.parseLenient(response.getText());
             // In case this request returned nothing, we pretend the last
             // suggestion ended with the largest character possible, so we
             // won't send more requests to the server if the user keeps

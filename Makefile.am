@@ -109,11 +109,15 @@ test_DEPS = \
         $(jar)
 
 httpui_SRC := \
-	src/tsd/client/DateTimeBox.java	\
 	src/tsd/client/AnnotationsForm.java \
+	src/tsd/client/ClientConstants.java	\
+	src/tsd/client/DateTimeBox.java	\
 	src/tsd/client/EventsHandler.java	\
 	src/tsd/client/GotJsonCallback.java	\
+	src/tsd/client/MetricArithmeticExpressionOracle.java	\
+	src/tsd/client/MetricExpressionUtils.java	\
 	src/tsd/client/MetricForm.java	\
+	src/tsd/client/MetricFormulaForm.java	\
 	src/tsd/client/QueryUi.java	\
 	src/tsd/client/RemoteOracle.java	\
 	src/tsd/client/TagsPanel.java	\

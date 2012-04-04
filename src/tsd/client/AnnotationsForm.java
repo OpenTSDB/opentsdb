@@ -13,28 +13,31 @@ public class AnnotationsForm extends SimplePanel {
     this.setWidget(tagsPanel);
   }
 
-  public void buildQueryString(final StringBuilder url) {
+  public String buildQueryString() {
+    final StringBuilder result = new StringBuilder();
     final String[][] tags = tagsPanel.getTags();
 
     if (tags.length > 0) {
-      url.append("&a={");
+      result.append("&a={");
 
       for (int i = 0; i < tags.length; i++) {
         final String name = tags[i][0];
         final String value = tags[i][1];
 
         if (!name.isEmpty() && !value.isEmpty()) {
-          url.append(name).append('=').append(value).append(',');
+          result.append(name).append('=').append(value).append(',');
         }
       }
 
-      final int last = url.length() - 1;
+      final int last = result.length() - 1;
 
-      if (url.charAt(last) == '{') {  // There was no tag.
-        url.setLength(last);          // So remove the `{'.
+      if (result.charAt(last) == '{') {  // There was no tag.
+        result.setLength(last);          // So remove the `{'.
       } else {  // Need to replace the last ',' with a `}'.
-        url.setCharAt(last, '}');
+        result.setCharAt(last, '}');
       }
     }
+    
+    return result.toString();
   }
 }
