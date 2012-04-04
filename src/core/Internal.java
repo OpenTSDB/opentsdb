@@ -19,9 +19,6 @@ import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * <strong>This class is not part of the public API.</strong>
  * <p><pre>

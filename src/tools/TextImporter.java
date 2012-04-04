@@ -63,7 +63,6 @@ final class TextImporter {
     // Flush more frequently since we read very fast from the files.
     client.setFlushInterval((short) 500);  // ms
     final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
-                               argp.get("--annotationtable", "tsdb-annotation"),
                                argp.get("--uidtable", "tsdb-uid"));
     argp = null;
     try {

@@ -73,13 +73,13 @@ public class AnnotationQuery {
     System.arraycopy(metric, 0, startRow, 0, metricWidth);
     System.arraycopy(metric, 0, endRow, 0, metricWidth);
 
-    final Scanner scanner = tsdb.client.newScanner(tsdb.tableAnnotations);
+    final Scanner scanner = tsdb.client.newScanner(tsdb.table);
     scanner.setStartKey(startRow);
     scanner.setStopKey(endRow);
     if (tags.size() > 0) {
       createAndSetFilter(scanner);
     }
-    scanner.setFamily(TSDB.FAMILY_ANNOTATIONS);
+    scanner.setFamily(TSDB.FAMILY);
 
     return scanner;
   }
