@@ -49,6 +49,18 @@ tsdb_SRC := \
 	src/core/Tags.java	\
 	src/core/TsdbQuery.java	\
 	src/core/WritableDataPoints.java	\
+	src/expression/ArithmeticExpressionCalculator.java	\
+	src/expression/ArithmeticExpressionResultDataPoint.java	\
+	src/expression/ArithmeticExpressionResultDataPoints.java	\
+	src/expression/ArithmeticNode.java	\
+	src/expression/MetricArithmeticExpressionLexer.java	\
+	src/expression/MetricArithmeticExpressionParser.java	\
+	src/expression/MetricArithmeticExpressionTreeWalker.java	\
+	src/expression/MetricFormulaException.java	\
+	src/expression/MetricNode.java	\
+	src/expression/Operator.java	\
+	src/expression/OperatorNode.java	\
+	src/expression/TimestampValue.java	\
 	src/graph/Plot.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
@@ -79,6 +91,7 @@ tsdb_SRC := \
 	src/uid/UniqueIdInterface.java
 
 tsdb_DEPS = \
+	$(ANTLR)	\
 	$(ASYNCHBASE)	\
 	$(JCL_OVER_SLF4J)	\
 	$(LOG4J_OVER_SLF4J)	\

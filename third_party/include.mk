@@ -18,6 +18,7 @@ FETCH_DEPENDENCY := ./build-aux/fetchdep.sh "$$@"
 all-am: build-aux/fetchdep.sh
 THIRD_PARTY =
 
+include third_party/antlr/include.mk
 include third_party/gwt/include.mk
 include third_party/hbase/include.mk
 include third_party/javassist/include.mk
