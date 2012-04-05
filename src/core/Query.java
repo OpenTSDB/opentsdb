@@ -22,6 +22,12 @@ import net.opentsdb.uid.NoSuchUniqueName;
  * A query to retreive data from the TSDB.
  */
 public interface Query {
+  /**
+  * Returns the ID of the query. This is used to uniquely identify a query inside OpenTSDB.
+  *
+  * @return ID of this query.
+  */
+  String getId();
 
   /**
    * Sets the start time of the graph.

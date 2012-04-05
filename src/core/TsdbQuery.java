@@ -57,6 +57,9 @@ final class TsdbQuery implements Query {
    */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
 
+  /** Unique identifier for the query */
+  private final String id;
+
   /** The TSDB we belong to. */
   private final TSDB tsdb;
 
@@ -112,8 +115,13 @@ final class TsdbQuery implements Query {
   private int sample_interval;
 
   /** Constructor. */
-  public TsdbQuery(final TSDB tsdb) {
+  public TsdbQuery(final TSDB tsdb, final String id) {
     this.tsdb = tsdb;
+    this.id = id;
+  }
+  
+  public String getId() {
+    return id;
   }
 
   public void setStartTime(final long timestamp) {

@@ -229,7 +229,7 @@ final class CliQuery {
       if (i < args.length && args[i].indexOf(' ', 1) > 0) {
         plotoptions.add(args[i++]);
       }
-      final Query query = tsdb.newQuery();
+      final Query query = tsdb.newQuery(metric);
       query.setStartTime(start_ts);
       if (end_ts > 0) {
         query.setEndTime(end_ts);
