@@ -25,11 +25,11 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -45,6 +45,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.expression.ArithmeticExpressionCalculator;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
@@ -133,19 +134,46 @@ final class GraphHandler implements HttpRpc {
     if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
       return;
     }
-    Query[] tsdbqueries;
-    List<String> options;
-    tsdbqueries = parseQuery(tsdb, query);
-    options = query.getQueryStringParams("o");
-    if (options == null) {
-      options = new ArrayList<String>(tsdbqueries.length);
-      for (int i = 0; i < tsdbqueries.length; i++) {
-        options.add("");
-      }
-    } else if (options.size() != tsdbqueries.length) {
-      throw new BadRequestException(options.size() + " `o' parameters, but "
-        + tsdbqueries.length + " `m' parameters.");
+    final Plot plot = preparePlot(tsdb, query, start_time, end_time);
+
+    if (query.hasQueryStringParam("ascii")) {
+      respondAsciiQuery(query, max_age, basepath, plot);
+      return;
     }
+
+    try {
+      gnuplot.execute(new RunGnuplot(query, max_age, plot, basepath));
+    } catch (RejectedExecutionException e) {
+      query.internalError(new Exception("Too many requests pending,"
+          + " please try again later", e));
+    }
+  }
+
+  private Plot preparePlot(final TSDB tsdb, final HttpQuery query,
+      final long start_time, final long end_time) {
+    final Plot plot = new Plot(start_time, end_time);
+    Query[] tsdbqueries = prepareQueries(tsdb, query, start_time, end_time);
+    final AnnotationQuery annotationQuery = prepareAnnotationQuery(tsdb,
+        start_time, end_time, query);
+    final Map<String, String> options = prepareOptions(query, tsdbqueries);
+
+    setPlotDimensions(query, plot);
+    setPlotParams(query, plot);
+
+    Map<String, DataPoints[]> queryResults = executeQueries(query, tsdbqueries);
+    List<DataPoints> expressionResults = calculateArithmeticExpressions(query,
+        queryResults);
+
+    addDataPoints(plot, queryResults, expressionResults, options);
+
+    plot.setAnnotations(annotationQuery.run());
+
+    return plot;
+  }
+
+  private Query[] prepareQueries(final TSDB tsdb, final HttpQuery query,
+      final long start_time, final long end_time) {
+    Query[] tsdbqueries = parseQuery(tsdb, query);
     for (final Query tsdbquery : tsdbqueries) {
       try {
         tsdbquery.setStartTime(start_time);
@@ -158,47 +186,85 @@ final class GraphHandler implements HttpRpc {
         throw new BadRequestException("end time: " + e.getMessage());
       }
     }
-    final Plot plot = new Plot(start_time, end_time);
-    setPlotDimensions(query, plot);
-    setPlotParams(query, plot);
+
+    return tsdbqueries;
+  }
+
+  private Map<String, String> prepareOptions(final HttpQuery query,
+      final Query[] tsdbqueries) {
+    final Map<String, String> result = new HashMap<String, String>();
+    final List<String> options = query.getQueryStringParams("o");
+
+    if (options != null && options.size() != tsdbqueries.length) {
+      throw new BadRequestException(options.size() + " `o' parameters, but "
+          + tsdbqueries.length + " `m' parameters.");
+    } else {
+      for (int i = 0; i < tsdbqueries.length; i++) {
+        String option = options == null ? "" : options.get(i);
+        result.put(tsdbqueries[i].getId(), option);
+      }
+    }
+
+    return result;
+  }
+
+  private Map<String, DataPoints[]> executeQueries(final HttpQuery query,
+      Query[] tsdbqueries) {
+    final Map<String, DataPoints[]> result = new HashMap<String, DataPoints[]>();
     final int nqueries = tsdbqueries.length;
-    @SuppressWarnings("unchecked")
-    final HashSet<String>[] aggregated_tags = new HashSet[nqueries];
-    int npoints = 0;
+
     for (int i = 0; i < nqueries; i++) {
-      try {  // execute the TSDB query!
-        // XXX This is slow and will block Netty.  TODO(tsuna): Don't block.
+      try { // execute the TSDB query!
+        // XXX This is slow and will block Netty. TODO(tsuna): Don't block.
         // TODO(tsuna): Optimization: run each query in parallel.
         final DataPoints[] series = tsdbqueries[i].run();
-        for (final DataPoints datapoints : series) {
-          plot.add(datapoints, options.get(i));
-          aggregated_tags[i] = new HashSet<String>();
-          aggregated_tags[i].addAll(datapoints.getAggregatedTags());
-          npoints += datapoints.aggregatedSize();
-        }
+
+        result.put(tsdbqueries[i].getId(), series);
       } catch (RuntimeException e) {
-        logInfo(query, "Query failed (stack trace coming): "
-                + tsdbqueries[i]);
+        logInfo(query, "Query failed (stack trace coming): " + tsdbqueries[i]);
         throw e;
       }
-      tsdbqueries[i] = null;  // free()
+      tsdbqueries[i] = null; // free()
     }
-    tsdbqueries = null;  // free()
-    
-    AnnotationQuery annotationQuery = getAnnotationQuery(tsdb, start_time, end_time, query);
-    plot.setAnnotations(annotationQuery.run());
+    tsdbqueries = null; // free()
 
-    if (query.hasQueryStringParam("ascii")) {
-      respondAsciiQuery(query, max_age, basepath, plot);
-      return;
+    return result;
+  }
+
+  private List<DataPoints> calculateArithmeticExpressions(
+      final HttpQuery query, final Map<String, DataPoints[]> queryResults) {
+    List<DataPoints> result = new ArrayList<DataPoints>();
+    List<String> arithmeticExpressions = query.getQueryStringParams("e");
+
+    for (String expression : arithmeticExpressions) {
+      ArithmeticExpressionCalculator calculator = new ArithmeticExpressionCalculator(
+          expression);
+
+      LOG.info("calculateArithmeticExpressions: " + expression);
+
+      result.add(calculator.calculateArithmeticExpression(queryResults));
     }
 
-    try {
-      gnuplot.execute(new RunGnuplot(query, max_age, plot, basepath,
-                                     aggregated_tags, npoints));
-    } catch (RejectedExecutionException e) {
-      query.internalError(new Exception("Too many requests pending,"
-                                        + " please try again later", e));
+    return result;
+  }
+
+  private void addDataPoints(Plot plot, Map<String, DataPoints[]> queryResults,
+      List<DataPoints> expressionResults, Map<String, String> options) {
+    for (Map.Entry<String, DataPoints[]> seriesEntry : queryResults.entrySet()) {
+      for (final DataPoints datapoints : seriesEntry.getValue()) {
+        String metricId = seriesEntry.getKey();
+
+        LOG.info("adding metric datapoints for " + datapoints.metricName());
+
+        plot.add(datapoints, options.get(metricId));
+      }
+    }
+
+    for (DataPoints expressionResult : expressionResults) {
+      LOG.info("adding arithmetic expression result datapoints for "
+          + expressionResult.metricName());
+
+      plot.add(expressionResult, "");
     }
   }
 
@@ -243,21 +309,15 @@ final class GraphHandler implements HttpRpc {
     private final int max_age;
     private final Plot plot;
     private final String basepath;
-    private final HashSet<String>[] aggregated_tags;
-    private final int npoints;
 
     public RunGnuplot(final HttpQuery query,
                       final int max_age,
                       final Plot plot,
-                      final String basepath,
-                      final HashSet<String>[] aggregated_tags,
-                      final int npoints) {
+                      final String basepath) {
       this.query = query;
       this.max_age = max_age;
       this.plot = plot;
       this.basepath = basepath;
-      this.aggregated_tags = aggregated_tags;
-      this.npoints = npoints;
     }
 
     public void run() {
@@ -279,9 +339,8 @@ final class GraphHandler implements HttpRpc {
       if (query.hasQueryStringParam("json")) {
         final StringBuilder buf = new StringBuilder(64);
         buf.append("{\"plotted\":").append(nplotted)
-          .append(",\"points\":").append(npoints)
           .append(",\"etags\":[");
-        for (final HashSet<String> tags : aggregated_tags) {
+        for (final Set<String> tags : plot.getAggregatedTags()) {
           if (tags == null || tags.isEmpty()) {
             buf.append("[]");
           } else {
@@ -586,7 +645,7 @@ final class GraphHandler implements HttpRpc {
   }
 
   /** Parses the {@code wxh} query parameter to set the graph dimension. */
-  static void setPlotDimensions(final HttpQuery query, final Plot plot) {
+  private static void setPlotDimensions(final HttpQuery query, final Plot plot) {
     final String wxh = query.getQueryStringParam("wxh");
     if (wxh != null && !wxh.isEmpty()) {
       final int wxhlength = wxh.length();
@@ -647,7 +706,7 @@ final class GraphHandler implements HttpRpc {
    * @param query The query from which to get the query string.
    * @param plot The plot on which to apply the parameters.
    */
-  static void setPlotParams(final HttpQuery query, final Plot plot) {
+  private static void setPlotParams(final HttpQuery query, final Plot plot) {
     final HashMap<String, String> params = new HashMap<String, String>();
     final Map<String, List<String>> querystring = query.getQueryString();
     String value;
@@ -845,7 +904,7 @@ final class GraphHandler implements HttpRpc {
       if (rate) {
         i--;  // Move to the next part.
       }
-      final Query tsdbquery = tsdb.newQuery();
+      final Query tsdbquery = tsdb.newQuery(m);
       try {
         tsdbquery.setTimeSeries(metric, parsedtags, agg, rate);
       } catch (NoSuchUniqueName e) {
@@ -873,28 +932,40 @@ final class GraphHandler implements HttpRpc {
     return tsdbqueries;
   }
 
-  private AnnotationQuery getAnnotationQuery(TSDB tsdb, long startTime,
+  private AnnotationQuery prepareAnnotationQuery(TSDB tsdb, long startTime,
       long endTime, HttpQuery query) {
     final HashMap<String, String> tags = new HashMap<String, String>();
-    final String a = query.getQueryStringParam("a");
-    if (a != null && a.length() >= 2 && a.charAt(0) == '{'
-        && a.charAt(a.length() - 1) == '}') {
-      // a is of the following form: {tag=value,...}
-      String[] splitTags = Tags
-          .splitString(a.substring(1, a.length() - 1), ',');
+    final List<String> ms = query.getQueryStringParams("m");
+    if (ms == null) {
+      throw BadRequestException.missingParameter("m");
+    }
 
-      for (String splitTag : splitTags) {
-        Tags.parse(tags, splitTag);
-      }
+    for (final String m : ms) {
+      // m is of the following forms:
+      // agg:[interval-agg:][rate:]metric[{tag=value,...}]
+      // Where the parts in square brackets `[' .. `]' are optional.
+      int indexOpeningCurlyBrace = m.indexOf('{');
+      int indexClosingCurlyBrace = m.indexOf('}');
+      if (indexOpeningCurlyBrace > -1 && indexClosingCurlyBrace > -1
+          && indexOpeningCurlyBrace < indexClosingCurlyBrace) {
+        String rawTags = m.substring(indexOpeningCurlyBrace + 1,
+            indexClosingCurlyBrace);
+        String[] splitTags = Tags.splitString(rawTags, ',');
 
-      Iterator<Map.Entry<String, String>> iterator = tags.entrySet().iterator();
+        for (String splitTag : splitTags) {
+          Tags.parse(tags, splitTag);
+        }
 
-      while (iterator.hasNext()) {
-        Map.Entry<String, String> tag = iterator.next();
+        Iterator<Map.Entry<String, String>> iterator = tags.entrySet()
+            .iterator();
 
-        // remove wildcard tags and multiple values tags (-> group by)
-        if (tag.getValue().equals("*") || tag.getValue().indexOf('|', 1) >= 0) {
-          iterator.remove();
+        while (iterator.hasNext()) {
+          Map.Entry<String, String> tag = iterator.next();
+
+          // remove wildcard tags and multiple values tags (-> group by)
+          if (tag.getValue().equals("*") || tag.getValue().indexOf('|', 1) >= 0) {
+            iterator.remove();
+          }
         }
       }
     }
@@ -1056,19 +1127,19 @@ final class GraphHandler implements HttpRpc {
   // Logging helpers. //
   // ---------------- //
 
-  static void logInfo(final HttpQuery query, final String msg) {
+  private static void logInfo(final HttpQuery query, final String msg) {
     LOG.info(query.channel().toString() + ' ' + msg);
   }
 
-  static void logWarn(final HttpQuery query, final String msg) {
+  private static void logWarn(final HttpQuery query, final String msg) {
     LOG.warn(query.channel().toString() + ' ' + msg);
   }
 
-  static void logError(final HttpQuery query, final String msg) {
+  private static void logError(final HttpQuery query, final String msg) {
     LOG.error(query.channel().toString() + ' ' + msg);
   }
 
-  static void logError(final HttpQuery query, final String msg,
+  private static void logError(final HttpQuery query, final String msg,
                        final Throwable e) {
     LOG.error(query.channel().toString() + ' ' + msg, e);
   }
