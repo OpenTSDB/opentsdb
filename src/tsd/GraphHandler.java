@@ -156,6 +156,9 @@ final class GraphHandler implements HttpRpc {
     final AnnotationQuery annotationQuery = prepareAnnotationQuery(tsdb,
         start_time, end_time, query);
     final Map<String, String> options = prepareOptions(query, tsdbqueries);
+    final String hideMetricsValue = query.getQueryStringParam("hm");
+    final boolean hideMetrics = hideMetricsValue == null ? false : Boolean
+        .parseBoolean(hideMetricsValue);
 
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
@@ -164,7 +167,7 @@ final class GraphHandler implements HttpRpc {
     List<DataPoints> expressionResults = calculateArithmeticExpressions(query,
         queryResults);
 
-    addDataPoints(plot, queryResults, expressionResults, options);
+    addDataPoints(plot, queryResults, expressionResults, options, hideMetrics);
 
     plot.setAnnotations(annotationQuery.run());
 
@@ -253,14 +256,18 @@ final class GraphHandler implements HttpRpc {
   }
 
   private void addDataPoints(Plot plot, Map<String, DataPoints[]> queryResults,
-      List<DataPoints> expressionResults, Map<String, String> options) {
-    for (Map.Entry<String, DataPoints[]> seriesEntry : queryResults.entrySet()) {
-      for (final DataPoints datapoints : seriesEntry.getValue()) {
-        String metricId = seriesEntry.getKey();
+      List<DataPoints> expressionResults, Map<String, String> options,
+      boolean hideMetrics) {
+    if (!hideMetrics) {
+      for (Map.Entry<String, DataPoints[]> seriesEntry : queryResults
+          .entrySet()) {
+        for (final DataPoints datapoints : seriesEntry.getValue()) {
+          String metricId = seriesEntry.getKey();
 
-        LOG.info("adding metric datapoints for " + datapoints.metricName());
+          LOG.info("adding metric datapoints for " + datapoints.metricName());
 
-        plot.add(datapoints, options.get(metricId));
+          plot.add(datapoints, options.get(metricId));
+        }
       }
     }
 

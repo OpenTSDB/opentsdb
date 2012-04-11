@@ -6,14 +6,16 @@ import java.util.Set;
 
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.BlurHandler;
+import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.SuggestBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 
-public class MetricFormulaForm extends HorizontalPanel {
+public class MetricFormulaForm extends VerticalPanel {
   private final VerticalPanel formulas = new VerticalPanel();
+  private final CheckBox hideMetrics = new CheckBox("Hide Metrics in Graph");
 
   private final EventsHandler graphRefreshHandler;
 
@@ -25,10 +27,17 @@ public class MetricFormulaForm extends HorizontalPanel {
   public MetricFormulaForm(EventsHandler graphRefreshHandler) {
     super();
 
-    this.graphRefreshHandler = graphRefreshHandler;
+    HorizontalPanel formulaContainer = new HorizontalPanel();
+    formulaContainer.add(new InlineLabel("Formula"));
+    formulaContainer.add(formulas);
+    formulaContainer.setWidth("100%");
 
-    this.add(new InlineLabel("Formula"));
-    this.add(formulas);
+    this.graphRefreshHandler = graphRefreshHandler;
+    this.hideMetrics.addClickHandler(graphRefreshHandler);
+
+    this.setHorizontalAlignment(ALIGN_RIGHT);
+    this.add(hideMetrics);
+    this.add(formulaContainer);
 
     this.setSpacing(2);
     this.setWidth("100%");
@@ -58,6 +67,7 @@ public class MetricFormulaForm extends HorizontalPanel {
 
   public String buildQueryString(List<String> queryMetricNames) {
     StringBuilder result = new StringBuilder();
+
     for (int i = 0; i < formulas.getWidgetCount(); i++) {
       final Widget widget = formulas.getWidget(i);
 
@@ -81,6 +91,9 @@ public class MetricFormulaForm extends HorizontalPanel {
         }
       }
     }
+
+    result.append("&hm=").append(hideMetrics.getValue().booleanValue());
+
     return result.toString();
   }
 
