@@ -236,14 +236,16 @@ final class GraphHandler implements HttpRpc {
     List<DataPoints> result = new ArrayList<DataPoints>();
     List<String> arithmeticExpressions = query.getQueryStringParams("e");
 
-    for (String expression : arithmeticExpressions) {
-      if (expression != null && !expression.isEmpty()) {
-        ArithmeticExpressionCalculator calculator = new ArithmeticExpressionCalculator(
-            expression);
+    if (arithmeticExpressions != null) {
+      for (String expression : arithmeticExpressions) {
+        if (expression != null && !expression.isEmpty()) {
+          ArithmeticExpressionCalculator calculator = new ArithmeticExpressionCalculator(
+              expression);
 
-        LOG.info("calculateArithmeticExpressions: " + expression);
+          LOG.info("calculateArithmeticExpressions: " + expression);
 
-        result.add(calculator.calculateArithmeticExpression(queryResults));
+          result.add(calculator.calculateArithmeticExpression(queryResults));
+        }
       }
     }
 
