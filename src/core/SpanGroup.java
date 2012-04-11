@@ -667,7 +667,7 @@ final class SpanGroup implements DataPoints {
     }
 
     public double toDouble() {
-      return isInteger() ? doubleValue() : longValue();
+      return isInteger() ? longValue() : doubleValue();
     }
 
     // -------------------------- //

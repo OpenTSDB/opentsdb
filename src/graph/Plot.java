@@ -15,14 +15,18 @@ package net.opentsdb.graph;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
+
+import net.opentsdb.core.Annotation;
+import net.opentsdb.core.DataPoint;
+import net.opentsdb.core.DataPoints;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import net.opentsdb.core.DataPoint;
-import net.opentsdb.core.DataPoints;
 
 /**
  * Produces files to generate graphs with Gnuplot.
@@ -43,9 +47,14 @@ public final class Plot {
   /** All the DataPoints we want to plot. */
   private ArrayList<DataPoints> datapoints =
     new ArrayList<DataPoints>();
+  
+  private List<Annotation> annotations = new ArrayList<Annotation>();
 
   /** Per-DataPoints Gnuplot options. */
   private ArrayList<String> options = new ArrayList<String>();
+
+  /** Aggregated Tags from the different data points */
+  private List<Set<String>> aggregatedTags = new ArrayList<Set<String>>();
 
   /** Global Gnuplot parameters. */
   private Map<String, String> params;
@@ -140,6 +149,16 @@ public final class Plot {
     // through the entire data.
     this.datapoints.add(datapoints);
     this.options.add(options);
+
+    addAggregatedTags(datapoints);
+  }
+
+  private void addAggregatedTags(DataPoints datapoints) {
+    Set<String> newAggregatedTags = new HashSet<String>();
+
+    newAggregatedTags.addAll(datapoints.getAggregatedTags());
+
+    this.aggregatedTags.add(newAggregatedTags);
   }
 
   /**
@@ -148,6 +167,26 @@ public final class Plot {
    */
   public Iterable<DataPoints> getDataPoints() {
     return datapoints;
+  }
+
+  public int getAggregatedSize() {
+    int result = 0;
+
+    for (DataPoints dp : datapoints) {
+      result += dp.aggregatedSize();
+    }
+
+    return result;
+  }
+
+  public List<Set<String>> getAggregatedTags() {
+    return aggregatedTags;
+  }
+
+  public void setAnnotations(final List<Annotation> annotations) {
+    if (annotations != null) {
+      this.annotations = annotations;
+    }
   }
 
   /**
@@ -284,6 +323,14 @@ public final class Plot {
           gp.write("set y2tics border\n");
           break;
         }
+      }
+      
+      for(Annotation annotation : annotations) {
+        String ts = Long.toString(annotation.getTimestamp());
+        String value = new String(annotation.getValue());
+        gp.append("set arrow from \"").append(ts).append("\", graph 0 to \"").append(ts).append("\", graph 1 nohead ls 3\n");
+        gp.append("set object rectangle at \"").append(ts).append("\", graph 0 size char (strlen(\"").append(value).append("\") + 3), char 1 front fc rgbcolor \"white\"\n");
+        gp.append("set label \"").append(value).append("\" at \"").append(ts).append("\", graph 0 front center\n");
       }
 
       gp.write("plot ");

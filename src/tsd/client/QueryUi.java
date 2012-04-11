@@ -20,6 +20,9 @@ package tsd.client;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -56,6 +59,7 @@ import com.google.gwt.user.client.ui.DisclosurePanel;
 import com.google.gwt.user.client.ui.FlexTable;
 import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.HTML;
+import com.google.gwt.user.client.ui.HasVerticalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.InlineLabel;
@@ -77,8 +81,8 @@ public class QueryUi implements EntryPoint {
   private static final String STATS_URL = "/stats?json";
   private static final String VERSION_URL = "/version?json";
 
-  private static final DateTimeFormat FULLDATE =
-    DateTimeFormat.getFormat("yyyy/MM/dd-HH:mm:ss");
+  private static final DateTimeFormat FULLDATE = DateTimeFormat
+      .getFormat("yyyy/MM/dd-HH:mm:ss");
 
   private final Label current_error = new Label();
 
@@ -118,6 +122,11 @@ public class QueryUi implements EntryPoint {
   private final ArrayList<String> aggregators = new ArrayList<String>();
 
   private final DecoratedTabPanel metrics = new DecoratedTabPanel();
+
+  private final MetricFormulaForm metricFormulaForm = new MetricFormulaForm(refreshgraph);
+  
+  private final AnnotationsForm annotationsForm = new AnnotationsForm(
+      refreshgraph);
 
   private final Image graph = new Image();
   private final Label graphstatus = new Label();
@@ -196,15 +205,15 @@ public class QueryUi implements EntryPoint {
     nokey.addClickHandler(refreshgraph);
 
     yrange.setValidationRegexp("^("                            // Nothing or
-                               + "|\\[([-+.0-9eE]+|\\*)?"      // "[start
-                               + ":([-+.0-9eE]+|\\*)?\\])$");  //   :end]"
+        + "|\\[([-+.0-9eE]+|\\*)?"      // "[start
+        + ":([-+.0-9eE]+|\\*)?\\])$");  //   :end]"
     yrange.setVisibleLength(5);
     yrange.setMaxLength(44);  // MAX=2^26=20 chars: "[-$MAX:$MAX]"
     yrange.setText("[0:]");
 
     y2range.setValidationRegexp("^("                            // Nothing or
-                                + "|\\[([-+.0-9eE]+|\\*)?"      // "[start
-                                + ":([-+.0-9eE]+|\\*)?\\])$");  //   :end]"
+        + "|\\[([-+.0-9eE]+|\\*)?"      // "[start
+        + ":([-+.0-9eE]+|\\*)?\\])$");  //   :end]"
     y2range.setVisibleLength(5);
     y2range.setMaxLength(44);  // MAX=2^26=20 chars: "[-$MAX:$MAX]"
     y2range.setText("[0:]");
@@ -229,7 +238,7 @@ public class QueryUi implements EntryPoint {
     wxh.setVisibleLength(9);
     wxh.setMaxLength(11);  // 99999x99999
     wxh.setText((Window.getClientWidth() - 20) + "x"
-                + (Window.getClientHeight() * 4 / 5));
+        + (Window.getClientHeight() * 4 / 5));
 
     final FlexTable table = new FlexTable();
     table.setText(0, 0, "From");
@@ -278,24 +287,46 @@ public class QueryUi implements EntryPoint {
       final HorizontalPanel hbox = new HorizontalPanel();
       hbox.add(new InlineLabel("WxH:"));
       hbox.add(wxh);
-      table.setWidget(0, 3, hbox);
+      table.setWidget(0, 2, hbox);
     }
     {
-      final MetricForm.MetricChangeHandler metric_change_handler =
-        new MetricForm.MetricChangeHandler() {
-          public void onMetricChange(final MetricForm metric) {
-            final int index = metrics.getWidgetIndex(metric);
-            metrics.getTabBar().setTabText(index, getTabTitle(metric));
+      final MetricForm.MetricChangeHandler metric_change_handler = new MetricForm.MetricChangeHandler() {
+        public void onMetricChange(final MetricForm metric) {
+          final int index = metrics.getWidgetIndex(metric);
+          metrics.getTabBar().setTabText(index, getTabTitle(metric));
+          
+          updateMetricNames();
+        }
+
+        private String getTabTitle(final MetricForm metric) {
+          final String metrictext = metric.getMetric();
+          final int last_period = metrictext.lastIndexOf('.');
+          if (last_period < 0) {
+            return metrictext;
           }
-          private String getTabTitle(final MetricForm metric) {
-            final String metrictext = metric.getMetric();
-            final int last_period = metrictext.lastIndexOf('.');
-            if (last_period < 0) {
-              return metrictext;
+          return metrictext.substring(last_period + 1);
+        }
+
+        private void updateMetricNames() {
+          final Set<String> metricNames = new HashSet<String>();
+          int tabIndex = 1;
+
+          for (int i = 0; i < metrics.getWidgetCount(); i++) {
+            final Widget widget = metrics.getWidget(i);
+
+            if (widget instanceof MetricForm) {
+              final MetricForm metricForm = (MetricForm) widget;
+
+              metricNames.add(metricForm.getMetric() + " "
+                  + MetricExpressionUtils.METRIC_INDEX_LEFT_BRACKET
+                  + tabIndex++
+                  + MetricExpressionUtils.METRIC_INDEX_RIGHT_BRACKET);
             }
-            return metrictext.substring(last_period + 1);
           }
-        };
+
+          metricFormulaForm.updateAutoSuggestions(metricNames);
+        }
+      };
       final EventsHandler updatey2range = new EventsHandler() {
         protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
           for (final Widget metric : metrics) {
@@ -340,13 +371,36 @@ public class QueryUi implements EntryPoint {
       });
       table.setWidget(2, 0, metrics);
     }
-    table.getFlexCellFormatter().setColSpan(2, 0, 2);
-    table.getFlexCellFormatter().setRowSpan(1, 3, 2);
+
+    final DecoratedTabPanel metricFormulaPanel = new DecoratedTabPanel();
+    metricFormulaPanel.add(metricFormulaForm, "Metric Formulas");
+    metricFormulaPanel.selectTab(0);
+    metricFormulaPanel.setWidth("100%");
+    table.setWidget(3, 0, metricFormulaPanel);
+
+    final DecoratedTabPanel annotationsPanel = new DecoratedTabPanel();
+    annotationsPanel.add(annotationsForm, "Annotations");
+    annotationsPanel.selectTab(0);
+    annotationsPanel.setWidth("100%");
+    table.setWidget(4, 0, annotationsPanel);
+
     final DecoratedTabPanel optpanel = new DecoratedTabPanel();
     optpanel.add(makeAxesPanel(), "Axes");
     optpanel.add(makeKeyPanel(), "Key");
     optpanel.selectTab(0);
-    table.setWidget(1, 3, optpanel);
+    optpanel.setHeight("100%");
+    table.setWidget(2, 1, optpanel);
+
+    table.getFlexCellFormatter().setRowSpan(0, 2, 2);
+    table.getFlexCellFormatter().setColSpan(2, 0, 2);
+    table.getFlexCellFormatter().setColSpan(3, 0, 2);
+    table.getFlexCellFormatter().setColSpan(4, 0, 2);
+    table.getFlexCellFormatter().setRowSpan(2, 1, 3);
+    table.getFlexCellFormatter().setVerticalAlignment(0, 2,
+        HasVerticalAlignment.ALIGN_TOP);
+    table.getFlexCellFormatter().setVerticalAlignment(2, 1,
+        HasVerticalAlignment.ALIGN_TOP);
+
 
     final DecoratorPanel decorator = new DecoratorPanel();
     decorator.setWidget(table);
@@ -376,9 +430,15 @@ public class QueryUi implements EntryPoint {
         clearError();
         final int item = event.getItem();
         switch (item) {
-          case 1: refreshStats(); return;
-          case 2: refreshLogs(); return;
-          case 3: refreshVersion(); return;
+        case 1:
+          refreshStats();
+          return;
+        case 2:
+          refreshLogs();
+          return;
+        case 3:
+          refreshVersion();
+          return;
         }
       }
     });
@@ -422,9 +482,8 @@ public class QueryUi implements EntryPoint {
    * Small helper to build a radio button used to change the position of the
    * key of the graph.
    */
-  private RadioButton addKeyRadioButton(final Grid grid,
-                                        final int row, final int col,
-                                        final String pos) {
+  private RadioButton addKeyRadioButton(final Grid grid, final int row,
+      final int col, final String pos) {
     final RadioButton rb = new RadioButton("keypos");
     rb.addClickHandler(new ClickHandler() {
       public void onClick(final ClickEvent event) {
@@ -467,9 +526,12 @@ public class QueryUi implements EntryPoint {
     cf.getElement(2, 1).getStyle().setProperty("borderLeft", "1px solid #000");
     cf.getElement(2, 3).getStyle().setProperty("borderRight", "1px solid #000");
     cf.getElement(3, 1).getStyle().setProperty("borderLeft", "1px solid #000");
-    cf.getElement(3, 1).getStyle().setProperty("borderBottom", "1px solid #000");
-    cf.getElement(3, 2).getStyle().setProperty("borderBottom", "1px solid #000");
-    cf.getElement(3, 3).getStyle().setProperty("borderBottom", "1px solid #000");
+    cf.getElement(3, 1).getStyle()
+        .setProperty("borderBottom", "1px solid #000");
+    cf.getElement(3, 2).getStyle()
+        .setProperty("borderBottom", "1px solid #000");
+    cf.getElement(3, 3).getStyle()
+        .setProperty("borderBottom", "1px solid #000");
     cf.getElement(3, 3).getStyle().setProperty("borderRight", "1px solid #000");
     final VerticalPanel vbox = new VerticalPanel();
     vbox.add(new InlineLabel("Key location:"));
@@ -513,12 +575,12 @@ public class QueryUi implements EntryPoint {
         final JSONString user = bd.get("user").isString();
         final JSONString host = bd.get("host").isString();
         final JSONString repo = bd.get("repo").isString();
-        build_data.setHTML(
-          "OpenTSDB built from revision " + shortrev.stringValue()
-          + " in a " + status.stringValue() + " state<br/>"
-          + "Built on " + new Date((long) (stamp.doubleValue() * 1000))
-          + " by " + user.stringValue() + '@' + host.stringValue()
-          + ':' + repo.stringValue());
+        build_data.setHTML("OpenTSDB built from revision "
+            + shortrev.stringValue() + " in a " + status.stringValue()
+            + " state<br/>" + "Built on "
+            + new Date((long) (stamp.doubleValue() * 1000)) + " by "
+            + user.stringValue() + '@' + host.stringValue() + ':'
+            + repo.stringValue());
       }
     });
   }
@@ -534,7 +596,7 @@ public class QueryUi implements EntryPoint {
           final String msg = logmsgs.get(i).isString().stringValue();
           String part = msg.substring(0, msg.indexOf('\t'));
           logs.setText(i * 2, 0,
-                       new Date(Integer.valueOf(part) * 1000L).toString());
+              new Date(Integer.valueOf(part) * 1000L).toString());
           logs.setText(i * 2 + 1, 0, "");  // So we can change the style ahead.
           int pos = part.length() + 1;
           part = msg.substring(pos, msg.indexOf('\t', pos));
@@ -574,52 +636,68 @@ public class QueryUi implements EntryPoint {
     });
   }
 
-  private void addLabels(final StringBuilder url) {
+  private String getLabels() {
+    final StringBuilder result = new StringBuilder();
     final String ylabel = this.ylabel.getText();
+    
     if (!ylabel.isEmpty()) {
-      url.append("&ylabel=").append(URL.encodeComponent(ylabel));
+      result.append("&ylabel=").append(URL.encodeQueryString(ylabel));
     }
     if (y2label.isEnabled()) {
       final String y2label = this.y2label.getText();
       if (!y2label.isEmpty()) {
-        url.append("&y2label=").append(URL.encodeComponent(y2label));
+        result.append("&y2label=").append(URL.encodeQueryString(y2label));
       }
     }
+    
+    return result.toString();
   }
 
-  private void addFormats(final StringBuilder url) {
+  private String getFormats() {
+    final StringBuilder result = new StringBuilder();
     final String yformat = this.yformat.getText();
+    
     if (!yformat.isEmpty()) {
-      url.append("&yformat=").append(URL.encodeComponent(yformat));
+      result.append("&yformat=").append(URL.encodeQueryString(yformat));
     }
     if (y2format.isEnabled()) {
       final String y2format = this.y2format.getText();
       if (!y2format.isEmpty()) {
-        url.append("&y2format=").append(URL.encodeComponent(y2format));
+        result.append("&y2format=").append(URL.encodeQueryString(y2format));
       }
     }
+    
+    return result.toString();
   }
 
-  private void addYRanges(final StringBuilder url) {
+  private String getYRanges() {
+    final StringBuilder result = new StringBuilder();
     final String yrange = this.yrange.getText();
+    
     if (!yrange.isEmpty()) {
-      url.append("&yrange=").append(yrange);
+      result.append("&yrange=").append(yrange);
     }
     if (y2range.isEnabled()) {
       final String y2range = this.y2range.getText();
       if (!y2range.isEmpty()) {
-        url.append("&y2range=").append(y2range);
+        result.append("&y2range=").append(y2range);
       }
     }
+    
+    return result.toString();
   }
 
-  private void addLogscales(final StringBuilder url) {
+  private String getLogscales() {
+    final StringBuilder result = new StringBuilder();
+    
     if (ylog.getValue()) {
-      url.append("&ylog");
+      result.append("&ylog");
     }
     if (y2log.isEnabled() && y2log.getValue()) {
-      url.append("&y2log");
+      result.append("&y2log");
     }
+    
+    return result.toString();
   }
 
   private void refreshGraph() {
@@ -650,13 +728,20 @@ public class QueryUi implements EntryPoint {
       // a special parameter that the server will delete from the query.
       url.append("&ignore=" + nrequests++);
     }
-    if (!addAllMetrics(url)) {
+    
+    final String metricQuery = getAllMetrics();
+    if (metricQuery.isEmpty()) {
       return;
     }
-    addLabels(url);
-    addFormats(url);
-    addYRanges(url);
-    addLogscales(url);
+    
+    url.append(metricQuery);
+    url.append(getArithmeticExpressions());
+    url.append(getAnnotations());
+    url.append(getLabels());
+    url.append(getFormats());
+    url.append(getYRanges());
+    url.append(getLogscales());
+    
     if (nokey.getValue()) {
       url.append("&nokey");
     } else if (!keypos.isEmpty() || horizontalkey.getValue()) {
@@ -691,7 +776,7 @@ public class QueryUi implements EntryPoint {
         String msg = "";
         if (err != null) {
           displayError("An error occurred while generating the graph: "
-                       + err.isString().stringValue());
+              + err.isString().stringValue());
           graphstatus.setText("Please correct the error above.");
         } else {
           clearError();
@@ -703,8 +788,10 @@ public class QueryUi implements EntryPoint {
           if (nplotted != null && nplotted.isNumber().doubleValue() > 0) {
             graph.setUrl(uri + "&png");
             graph.setVisible(true);
-            msg += result.get("points").isNumber() + " points retrieved, "
-              + nplotted + " points plotted";
+            if (result.get("points") != null && result.get("points").isNumber() != null) {
+              msg += result.get("points").isNumber() + " points retrieved, "
+                  + nplotted + " points plotted";
+            }
           } else {
             graph.setVisible(false);
             msg += "Your query didn't return anything";
@@ -744,7 +831,8 @@ public class QueryUi implements EntryPoint {
           }
         }
         if (autoreoload.getValue()) {
-          final int reload_in = Integer.parseInt(autoreoload_interval.getValue());
+          final int reload_in = Integer.parseInt(autoreoload_interval
+              .getValue());
           if (reload_in >= 5) {
             autoreoload_timer = new Timer() {
               public void run() {
@@ -768,19 +856,45 @@ public class QueryUi implements EntryPoint {
     });
   }
 
-  private boolean addAllMetrics(final StringBuilder url) {
-    boolean found_metric = false;
+  private String getAllMetrics() {
+    final StringBuilder result = new StringBuilder();
+    
     for (final Widget widget : metrics) {
       if (!(widget instanceof MetricForm)) {
         continue;
       }
       final MetricForm metric = (MetricForm) widget;
-      found_metric |= metric.buildQueryString(url);
+      
+      result.append(metric.buildQueryString());
     }
-    if (!found_metric) {
+    if (result.length() == 0) {
       graphstatus.setText("Please specify a metric.");
     }
-    return found_metric;
+    return result.toString();
+  }
+
+  private String getArithmeticExpressions() {
+    StringBuilder result = new StringBuilder();
+    List<String> queryMetricNames = new ArrayList<String>();
+
+    for (final Widget widget : metrics) {
+      if (widget instanceof MetricForm) {
+        final MetricForm metric = (MetricForm) widget;
+        final String queryMetricName = metric.getQueryMetricName();
+
+        if (!queryMetricName.isEmpty()) {
+          queryMetricNames.add(queryMetricName.substring(3));
+        }
+      }
+    }
+
+    result.append(metricFormulaForm.buildQueryString(queryMetricNames));
+
+    return result.toString();
+  }
+
+  private String getAnnotations() {
+    return annotationsForm.buildQueryString();
   }
 
   private void asyncGetJson(final String url, final GotJsonCallback callback) {
@@ -795,11 +909,11 @@ public class QueryUi implements EntryPoint {
         }
 
         public void onResponseReceived(final Request request,
-                                       final Response response) {
+            final Response response) {
           final int code = response.getStatusCode();
           if (code == Response.SC_OK) {
             clearError();
-            callback.got(JSONParser.parse(response.getText()));
+            callback.got(JSONParser.parseLenient(response.getText()));
             return;
           } else if (code >= Response.SC_BAD_REQUEST) {  // 400+ => Oops.
             // Since we don't call the callback we've been given, reset this
@@ -809,7 +923,7 @@ public class QueryUi implements EntryPoint {
             // If the response looks like a JSON object, it probably contains
             // an error message.
             if (!err.isEmpty() && err.charAt(0) == '{') {
-              final JSONValue json = JSONParser.parse(err);
+              final JSONValue json = JSONParser.parseLenient(err);
               final JSONObject result = json == null ? null : json.isObject();
               final JSONValue jerr = result == null ? null : result.get("err");
               final JSONString serr = jerr == null ? null : jerr.isString();
@@ -823,18 +937,18 @@ public class QueryUi implements EntryPoint {
                 displayError(msg + ": " + err);
               } else {
                 displayError(msg);
-                final DisclosurePanel dp =
-                  new DisclosurePanel(err.substring(0, newline));
+                final DisclosurePanel dp = new DisclosurePanel(err.substring(0,
+                    newline));
                 RootPanel.get("queryuimain").add(dp);  // Attach the widget.
-                final InlineLabel content =
-                  new InlineLabel(err.substring(newline, err.length()));
+                final InlineLabel content = new InlineLabel(err.substring(
+                    newline, err.length()));
                 content.addStyleName("fwf");  // For readable stack traces.
                 dp.setContent(content);
                 current_error.getElement().appendChild(dp.getElement());
               }
             } else {
               displayError("Request failed while getting " + url + ": "
-                           + response.getStatusText());
+                  + response.getStatusText());
               // Since we don't call the callback we've been given, reset this
               // bit of state as we're not going to retry anything right now.
               pending_requests = 0;
@@ -867,17 +981,16 @@ public class QueryUi implements EntryPoint {
     private final ValidatedTextBox range;
 
     public AdjustYRangeCheckOnClick(final CheckBox box,
-                                    final ValidatedTextBox range) {
+        final ValidatedTextBox range) {
       this.box = box;
       this.range = range;
     }
 
     public void onClick(final ClickEvent event) {
-      if (box.isEnabled() && box.getValue()
-          && "[0:]".equals(range.getValue())) {
+      if (box.isEnabled() && box.getValue() && "[0:]".equals(range.getValue())) {
         range.setValue("[1:]");
       } else if (box.isEnabled() && !box.getValue()
-                 && "[1:]".equals(range.getValue())) {
+          && "[1:]".equals(range.getValue())) {
         range.setValue("[0:]");
       }
     }

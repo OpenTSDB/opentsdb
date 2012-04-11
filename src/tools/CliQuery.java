@@ -103,7 +103,7 @@ final class CliQuery {
     }
 
     final HBaseClient client = CliOptions.clientFromOptions(argp);
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"), 
                                argp.get("--uidtable", "tsdb-uid"));
     final String basepath = argp.get("--graph");
     argp = null;
@@ -229,7 +229,7 @@ final class CliQuery {
       if (i < args.length && args[i].indexOf(' ', 1) > 0) {
         plotoptions.add(args[i++]);
       }
-      final Query query = tsdb.newQuery();
+      final Query query = tsdb.newQuery(metric);
       query.setStartTime(start_ts);
       if (end_ts > 0) {
         query.setEndTime(end_ts);

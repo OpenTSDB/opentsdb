@@ -178,8 +178,8 @@ public final class TSDB {
   /**
    * Returns a new {@link Query} instance suitable for this TSDB.
    */
-  public Query newQuery() {
-    return new TsdbQuery(this);
+  public Query newQuery(String id) {
+    return new TsdbQuery(this, id);
   }
 
   /**
@@ -255,6 +255,35 @@ public final class TSDB {
     return addPointInternal(metric, timestamp,
                             Bytes.fromInt(Float.floatToRawIntBits(value)),
                             tags, flags);
+  }
+
+  /**
+   * Adds a single annotation in the TSDB.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the value is empty.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   */
+  public Deferred<Object> addAnnotation(final long timestamp,
+      final String value, final Map<String, String> tags) {
+    String metric = Const.ANNOTATION_NAME;
+    if (value == null || value.length() == 0) {
+      throw new IllegalArgumentException("annotation value is empty: " + value
+          + " for metric=" + metric + " timestamp=" + timestamp);
+    }
+    final short flags = Const.FLAG_ANNOTATION;
+    return addPointInternal(metric, timestamp, value.getBytes(), tags, flags);
   }
 
   private Deferred<Object> addPointInternal(final String metric,
@@ -395,5 +424,4 @@ public final class TSDB {
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
     return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
   }
-
 }

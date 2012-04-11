@@ -20,6 +20,7 @@ import com.stumbleupon.async.Deferred;
 
 import org.jboss.netty.channel.Channel;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.stats.StatsCollector;
@@ -115,7 +116,10 @@ final class PutDataPointRpc implements TelnetRpc {
         Tags.parse(tags, words[i]);
       }
     }
-    if (value.indexOf('.') < 0) {  // integer value
+    
+    if(metric.equals(Const.ANNOTATION_NAME)) {
+      return tsdb.addAnnotation(timestamp, value, tags);
+    } else if (value.indexOf('.') < 0) {  // integer value
       return tsdb.addPoint(metric, timestamp, Tags.parseLong(value), tags);
     } else {  // floating point value
       return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);

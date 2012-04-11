@@ -29,6 +29,8 @@ dist_pkgdata_SCRIPTS = src/mygnuplot.sh
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/Annotation.java	\
+	src/core/AnnotationQuery.java	\
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\
@@ -47,6 +49,18 @@ tsdb_SRC := \
 	src/core/Tags.java	\
 	src/core/TsdbQuery.java	\
 	src/core/WritableDataPoints.java	\
+	src/expression/ArithmeticExpressionCalculator.java	\
+	src/expression/ArithmeticExpressionResultDataPoint.java	\
+	src/expression/ArithmeticExpressionResultDataPoints.java	\
+	src/expression/ArithmeticNode.java	\
+	src/expression/MetricArithmeticExpressionLexer.java	\
+	src/expression/MetricArithmeticExpressionParser.java	\
+	src/expression/MetricArithmeticExpressionTreeWalker.java	\
+	src/expression/MetricFormulaException.java	\
+	src/expression/MetricNode.java	\
+	src/expression/Operator.java	\
+	src/expression/OperatorNode.java	\
+	src/expression/TimestampValue.java	\
 	src/graph/Plot.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
@@ -77,6 +91,7 @@ tsdb_SRC := \
 	src/uid/UniqueIdInterface.java
 
 tsdb_DEPS = \
+	$(ANTLR)	\
 	$(ASYNCHBASE)	\
 	$(JCL_OVER_SLF4J)	\
 	$(LOG4J_OVER_SLF4J)	\
@@ -108,12 +123,18 @@ test_DEPS = \
         $(jar)
 
 httpui_SRC := \
+	src/tsd/client/AnnotationsForm.java \
+	src/tsd/client/ClientConstants.java	\
 	src/tsd/client/DateTimeBox.java	\
 	src/tsd/client/EventsHandler.java	\
 	src/tsd/client/GotJsonCallback.java	\
+	src/tsd/client/MetricArithmeticExpressionOracle.java	\
+	src/tsd/client/MetricExpressionUtils.java	\
 	src/tsd/client/MetricForm.java	\
+	src/tsd/client/MetricFormulaForm.java	\
 	src/tsd/client/QueryUi.java	\
 	src/tsd/client/RemoteOracle.java	\
+	src/tsd/client/TagsPanel.java	\
 	src/tsd/client/ValidatedTextBox.java
 
 httpui_DEPS = src/tsd/QueryUi.gwt.xml

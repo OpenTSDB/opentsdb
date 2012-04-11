@@ -12,6 +12,7 @@ test -d "$HBASE_HOME" || {
 
 TSDB_TABLE=${TSDB_TABLE-'tsdb'}
 UID_TABLE=${UID_TABLE-'tsdb-uid'}
+ANNOTATION_TABLE=${ANNOTATION_TABLE-'tsdb-annotation'}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
 COMPRESSION=${COMPRESSION-'LZO'}
