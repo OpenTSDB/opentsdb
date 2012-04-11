@@ -161,8 +161,12 @@ public class ArithmeticExpressionCalculator {
         }
 
         if (lastTimestampValueOne != null && lastTimestampValueTwo != null) {
-          result.add(calculateValues(lastTimestampValueOne,
-              lastTimestampValueTwo, operator));
+          try {
+            result.add(calculateValues(lastTimestampValueOne,
+                lastTimestampValueTwo, operator));
+          } catch (MetricFormulaException e) {
+            LOG.info(e.getMessage());
+          }
         }
       }
     }
@@ -184,7 +188,8 @@ public class ArithmeticExpressionCalculator {
   }
 
   private TimestampValue calculateValues(TimestampValue timestampValueOne,
-      TimestampValue timestampValueTwo, Operator operator) {
+      TimestampValue timestampValueTwo, Operator operator)
+      throws MetricFormulaException {
     TimestampValue result = null;
 
     long timestampOne = timestampValueOne.getTimestamp();
@@ -207,7 +212,12 @@ public class ArithmeticExpressionCalculator {
       resultValue = valueOne * valueTwo;
       break;
     case '/':
-      resultValue = valueOne / valueTwo;
+      if (valueTwo != 0.0) {
+        resultValue = valueOne / valueTwo;
+      } else {
+        throw new MetricFormulaException("division by zero: " + valueOne + "/"
+            + valueTwo);
+      }
       break;
     }
 
