@@ -123,7 +123,7 @@ public class QueryUi implements EntryPoint {
 
   private final DecoratedTabPanel metrics = new DecoratedTabPanel();
 
-  private final MetricFormulaForm metricFormulaForm = new MetricFormulaForm();
+  private final MetricFormulaForm metricFormulaForm = new MetricFormulaForm(refreshgraph);
   
   private final AnnotationsForm annotationsForm = new AnnotationsForm(
       refreshgraph);
