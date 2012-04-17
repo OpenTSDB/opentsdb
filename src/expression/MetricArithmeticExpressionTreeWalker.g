@@ -19,5 +19,12 @@ expr returns[ArithmeticNode node]
         | ^(SUBTRACT a=expr b=expr ) { node = new OperatorNode(a, Operator.SUBTRACT, b); }
         | ^(MULTIPLY a=expr b=expr ) { node = new OperatorNode(a, Operator.MULTIPLY, b); }
         | ^(DIVIDE a=expr b=expr ) { node = new OperatorNode(a, Operator.DIVIDE, b); }
+        | ^(IDENTIFIER p=params ) { node = new FunctionNode($IDENTIFIER.text, p); }
         | metric = METRIC { node = new MetricNode($metric.text); }
+        | (PARAM_SEPARATOR) { }
+        ;
+        
+params returns[List result]
+        @init { $result = new ArrayList(); }
+        : (e=expr { $result.add(e); })+
         ; 
