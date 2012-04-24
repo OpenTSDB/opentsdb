@@ -66,6 +66,8 @@ def main(argv):
     parser.add_option('-I', '--ignore-recent', dest='ignore_recent', default=0,
             metavar='SECONDS', type='int', help='Ignore data points that are that'
             ' are that recent.')
+    parser.add_option('-S', '--ssl', dest='ssl_connection', default=False,
+            action='store_true', help='Make queries to OpenTSDB via SSL (https)')
     (options, args) = parser.parse_args(args=argv[1:])
 
     # argument validation
@@ -105,9 +107,15 @@ def main(argv):
               tags))
     tsd = '%s:%d' % (options.host, options.port)
     if sys.version_info[0] * 10 + sys.version_info[1] >= 26:  # Python >2.6
-      conn = httplib.HTTPConnection(tsd, timeout=options.timeout)
+      if options.ssl_connection:
+        conn = httplib.HTTPSConnection(tsd, timeout=options.timeout)
+      else:
+        conn = httplib.HTTPConnection(tsd, timeout=options.timeout)
     else:  # Python 2.5 or less, using the timeout kwarg will make it croak :(
-      conn = httplib.HTTPConnection(tsd)
+      if options.ssl_connection:
+        conn = httplib.HTTPSConnection(tsd)
+      else:
+        conn = httplib.HTTPConnection(tsd)
     try:
       conn.connect()
     except socket.error, e:
