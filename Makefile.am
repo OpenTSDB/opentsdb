@@ -29,6 +29,8 @@ dist_pkgdata_SCRIPTS = src/mygnuplot.sh
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/Annotation.java	\
+	src/core/AnnotationQuery.java	\
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\
@@ -109,11 +111,13 @@ test_DEPS = \
 
 httpui_SRC := \
 	src/tsd/client/DateTimeBox.java	\
+	src/tsd/client/AnnotationsForm.java \
 	src/tsd/client/EventsHandler.java	\
 	src/tsd/client/GotJsonCallback.java	\
 	src/tsd/client/MetricForm.java	\
 	src/tsd/client/QueryUi.java	\
 	src/tsd/client/RemoteOracle.java	\
+	src/tsd/client/TagsPanel.java	\
 	src/tsd/client/ValidatedTextBox.java
 
 httpui_DEPS = src/tsd/QueryUi.gwt.xml

@@ -14,11 +14,11 @@ package net.opentsdb.tools;
 
 import java.util.ArrayList;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Internal;
+import net.opentsdb.core.Query;
+import net.opentsdb.core.TSDB;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -26,13 +26,11 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.Const;
-import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.Query;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.UniqueId;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Tool to look for and fix corrupted data in a TSDB.
