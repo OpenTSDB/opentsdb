@@ -59,6 +59,8 @@ def main(argv):
             help='Threshold for critical.  Uses the comparison method.')
     parser.add_option('-v', '--verbose', dest='verbose', default=False,
             action='store_true', help='Be more verbose.')
+    parser.add_option('-r', '--rate', dest='rate', default=False,
+            action='store_true', help='Metric is a rate')
     parser.add_option('-T', '--timeout', dest='timeout', type='int', default=10,
             metavar='SECONDS', help='How long to wait for the response from TSD.')
     parser.add_option('-E', '--no-result-ok', dest='no_result_ok', default=False,
@@ -97,13 +99,18 @@ def main(argv):
     if tags:
         tags = '{' + tags + '}'
 
+    if options.rate:
+	    rate = 'rate:'
+    else:
+        rate = ''
+
     # URL building and fetching
     if options.downsample == 'none':
         downsampling = ''
     else:
         downsampling = '%ds-%s:' % (options.duration, options.downsample)
-    url = ('/q?start=%ss-ago&m=%s:%s%s%s&ascii&nagios'
-           % (options.duration, options.aggregator, downsampling, options.metric,
+    url = ('/q?start=%ss-ago&m=%s:%s%s%s%s&ascii&nagios'
+           % (options.duration, options.aggregator, downsampling, rate, options.metric,
               tags))
     tsd = '%s:%d' % (options.host, options.port)
     if options.ssl_connection:  # Pick the class to instantiate first.
