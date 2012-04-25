@@ -31,6 +31,8 @@ import com.google.gwt.user.client.ui.SuggestBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 
+import com.google.gwt.user.client.Window;
+
 final class MetricForm extends HorizontalPanel implements Focusable {
 
   public static interface MetricChangeHandler extends EventHandler {
@@ -87,6 +89,67 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     return metric.getText();
   }
 
+  public void updateFromQueryString(final String m, final String o) {
+    /* format of m is:
+     *   agg:[interval-agg:][rate:]metric[{tag=value,...}]
+     */
+    final String[] parts = m.split(":");
+    final int numParts = parts.length;
+    if (numParts < 2 || numParts > 4)
+      return;
+
+    setSelectedItem(aggregators, parts[0]);
+
+    int index = numParts - 1;
+
+    final String metricString = parts[index];
+    final String[] metricParts = metricString.split("{");
+    metric.setText(metricParts[0]);
+    metric_change_handler.onMetricChange(this);
+    int clearStart = 0;
+    if (metricParts.length > 1) {
+      final String[] tags = metricParts[1].substring(0, metricParts[1].length() - 1).split(",");
+      final int numExisting = getNumTags();
+
+      for (int i = 0; i < tags.length; i++) {
+        String[] kv = tags[i].split("=", 2);
+
+        if (i < numExisting) {
+          setTagName(i, kv[0]);
+          setTagValue(i, kv[1]);
+        } else {
+          addTag(kv[0], kv[1]);
+        }
+      }
+      clearStart = tags.length;
+    }
+    for (int i = clearStart; i < getNumTags(); i++) {
+      setTagName(i, "");
+      setTagValue(i, "");
+    }
+    recompactTagTable();
+    index--;
+
+    if (parts[index].equals("rate")) {
+      rate.setValue(true, false);
+      index--;
+    }
+
+    if (index != 0) {
+        final String[] downsampleParts = parts[index].split("-");
+        downsample.setValue(true, false);
+
+        interval.setText(downsampleParts[0]);
+        interval.setEnabled(true);
+
+        setSelectedItem(downsampler, downsampleParts[1]);
+        downsampler.setEnabled(true);
+    }
+
+    if (o.equals("axis x1y2"))
+      x1y2.setValue(true, false);
+  }
+
   public CheckBox x1y2() {
     return x1y2;
   }
@@ -107,7 +170,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
       tagtable.setWidget(0, 0, hbox);
       tagtable.getFlexCellFormatter().setColSpan(0, 0, 3);
-      addTag(null);
+      addTag();
       tagtable.setText(1, 0, "Tags");
       add(tagtable);
     }
@@ -212,7 +275,13 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     ((SuggestBox) tagtable.getWidget(i + 1, 2)).setValue(value);
   }
 
+  private void addTag() {
+    addTag(null, null);
+  }
   private void addTag(final String default_tagname) {
+    addTag(default_tagname, null);
+  }
+  private void addTag(final String default_tagname, final String default_value) {
     final int row = tagtable.getRowCount();
 
     final ValidatedTextBox tagname = new ValidatedTextBox();
@@ -241,6 +310,8 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       tagname.setText(default_tagname);
       tagvalue.setFocus(true);
     }
+    if (default_value != null)
+      tagvalue.setText(default_value);
   }
 
   public void autoSuggestTag(final String tag) {
@@ -264,35 +335,41 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
   }
 
-  private final BlurHandler recompact_tagtable = new BlurHandler() {
-    public void onBlur(final BlurEvent event) {
-      int ntags = getNumTags();
-      // Is the first line empty?  If yes, move everything up by 1 line.
-      if (getTagName(0).isEmpty() && getTagValue(0).isEmpty()) {
-        for (int tag = 1; tag < ntags; tag++) {
-          final String tagname = getTagName(tag);
-          final String tagvalue = getTagValue(tag);
-          setTagName(tag - 1, tagname);
-          setTagValue(tag - 1, tagvalue);
-        }
-      }
-      // Try to remove empty lines from the tag table (but never remove the
-      // first line or last line, even if they're empty).  Walk the table
-      // from the end to make it easier to delete rows as we iterate.
-      for (int tag = ntags - 1; tag >= 1; tag--) {
+  private void recompactTagTable() {
+    int ntags = getNumTags();
+    // Is the first line empty?  If yes, move everything up by 1 line.
+    if (getTagName(0).isEmpty() && getTagValue(0).isEmpty()) {
+      for (int tag = 1; tag < ntags; tag++) {
         final String tagname = getTagName(tag);
         final String tagvalue = getTagValue(tag);
-        if (tagname.isEmpty() && tagvalue.isEmpty()) {
-          tagtable.removeRow(tag + 1);
-        }
+        setTagName(tag - 1, tagname);
+        setTagValue(tag - 1, tagvalue);
       }
-      ntags = getNumTags();  // How many lines are left?
-      // If the last line isn't empty, add another one.
-      final String tagname = getTagName(ntags - 1);
-      final String tagvalue = getTagValue(ntags - 1);
-      if (!tagname.isEmpty() && !tagvalue.isEmpty()) {
-        addTag(null);
+      setTagName(ntags - 1, "");
+      setTagValue(ntags - 1, "");
+    }
+    // Try to remove empty lines from the tag table (but never remove the
+    // first line or last line, even if they're empty).  Walk the table
+    // from the end to make it easier to delete rows as we iterate.
+    for (int tag = ntags - 1; tag >= 1; tag--) {
+      final String tagname = getTagName(tag);
+      final String tagvalue = getTagValue(tag);
+      if (tagname.isEmpty() && tagvalue.isEmpty()) {
+        tagtable.removeRow(tag + 1);
       }
+    }
+    ntags = getNumTags();  // How many lines are left?
+    // If the last line isn't empty, add another one.
+    final String tagname = getTagName(ntags - 1);
+    final String tagvalue = getTagValue(ntags - 1);
+    if (!tagname.isEmpty() && !tagvalue.isEmpty()) {
+      addTag();
+    }
+  }
+
+  private final BlurHandler recompact_tagtable = new BlurHandler() {
+    public void onBlur(final BlurEvent event) {
+        recompactTagTable();
     }
   };
 
