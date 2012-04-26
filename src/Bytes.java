@@ -294,8 +294,8 @@ public final class Bytes {
 
   /**
    * Pretty-prints a byte array into a human-readable output buffer.
-   * @param outbuf The (possibly {@code null}) buffer where to write the output.
-   * @param array The array to pretty-print.
+   * @param outbuf The buffer where to write the output.
+   * @param array The (possibly {@code null}) array to pretty-print.
    */
   public static void pretty(final StringBuilder outbuf, final byte[] array) {
     if (array == null) {
@@ -328,6 +328,32 @@ public final class Bytes {
     } else {
       outbuf.append('"');
     }
+  }
+
+  /**
+   * Pretty-prints an array of byte arrays into a human-readable output buffer.
+   * @param outbuf The buffer where to write the output.
+   * @param arrays The (possibly {@code null}) array of arrays to pretty-print.
+   * @since 1.3
+   */
+  public static void pretty(final StringBuilder outbuf, final byte[][] arrays) {
+    if (arrays == null) {
+      outbuf.append("null");
+      return;
+    } else {  // Do some right-sizing.
+      int size = 2;
+      for (int i = 0; i < arrays.length; i++) {
+        size += 2 + 2 + arrays[i].length;
+      }
+      outbuf.ensureCapacity(outbuf.length() + size);
+    }
+    outbuf.append('[');
+    for (int i = 0; i < arrays.length; i++) {
+      Bytes.pretty(outbuf, arrays[i]);
+      outbuf.append(", ");
+    }
+    outbuf.setLength(outbuf.length() - 2);  // Remove the last ", "
+    outbuf.append(']');
   }
 
   /**
