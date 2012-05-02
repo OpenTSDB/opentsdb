@@ -53,6 +53,7 @@ tsdb_SRC := \
 	src/expression/ArithmeticExpressionResultDataPoint.java	\
 	src/expression/ArithmeticExpressionResultDataPoints.java	\
 	src/expression/ArithmeticNode.java	\
+	src/expression/FunctionCalculator.java	\
 	src/expression/FunctionNode.java	\
 	src/expression/MetricArithmeticExpressionLexer.java	\
 	src/expression/MetricArithmeticExpressionParser.java	\
@@ -61,6 +62,7 @@ tsdb_SRC := \
 	src/expression/MetricNode.java	\
 	src/expression/Operator.java	\
 	src/expression/OperatorNode.java	\
+	src/expression/TestFunctionCalculator.java	\
 	src/expression/TimestampValue.java	\
 	src/graph/Plot.java	\
 	src/stats/Histogram.java	\

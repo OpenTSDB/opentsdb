@@ -1,6 +1,7 @@
 package net.opentsdb.expression;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
@@ -19,12 +20,15 @@ public class ArithmeticExpressionCalculator {
   private static final Logger LOG = LoggerFactory
       .getLogger(ArithmeticExpressionCalculator.class);
 
+  private final Map<String, FunctionCalculator> FUNCTION_CALCULATORS = new HashMap<String, FunctionCalculator>();
   private final String arithmeticExpression;
   private final ArithmeticNode rootNode;
 
   public ArithmeticExpressionCalculator(String arithmeticExpression) {
     this.arithmeticExpression = arithmeticExpression;
     rootNode = parseArithmeticExpression(arithmeticExpression);
+
+    initFunctionCalculators();
   }
 
   public DataPoints calculateArithmeticExpression(
@@ -232,6 +236,49 @@ public class ArithmeticExpressionCalculator {
 
     if (iterator.hasNext()) {
       result = iterator.next();
+    }
+
+    return result;
+  }
+
+  private void initFunctionCalculators() {
+    String property = System.getProperty("tsd.expression.fncalculators");
+
+    if (property != null && !property.isEmpty()) {
+      String[] definitions = property.split(",");
+
+      for (String definition : definitions) {
+        if (definition.indexOf(':') > 0) {
+          String[] keyValue = definition.split(":");
+
+          if (keyValue.length == 2) {
+            String key = keyValue[0];
+            FunctionCalculator value = instantiate(keyValue[1]);
+
+            if (value != null) {
+              FUNCTION_CALCULATORS.put(key, value);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private FunctionCalculator instantiate(String className) {
+    FunctionCalculator result = null;
+
+    try {
+      Class<FunctionCalculator> clazz = (Class<FunctionCalculator>) Class
+          .forName(className);
+
+      result = clazz.newInstance();
+    } catch (ClassNotFoundException e) {
+      LOG.error(e.getMessage(), e);
+    } catch (InstantiationException e) {
+      LOG.error(e.getMessage(), e);
+    } catch (IllegalAccessException e) {
+      LOG.error(e.getMessage(), e);
     }
 
     return result;
