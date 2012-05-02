@@ -1,10 +1,8 @@
 package net.opentsdb.expression;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 
 import net.opentsdb.core.DataPoints;
@@ -88,54 +86,46 @@ public class ArithmeticExpressionCalculator {
   }
 
   private DataPoints calculate(ArithmeticNode rootNode) {
-    List<TimestampValue> timestampValues = null;
-
-    if (rootNode instanceof OperatorNode) {
-      timestampValues = calculateOperation((OperatorNode) rootNode);
-    } else {
-      timestampValues = ((MetricNode) rootNode).getDataPointsValues();
-    }
-
-    return repackageTimestampValues(timestampValues);
+    return repackageTimestampValues(calculateInternal(rootNode));
   }
 
-  private List<TimestampValue> calculateOperation(OperatorNode operator) {
+  private TimestampValues calculateInternal(ArithmeticNode node) {
+    TimestampValues timestampValues = null;
+
+    if (node instanceof OperatorNode) {
+      timestampValues = calculateOperation((OperatorNode) node);
+    } else if (rootNode instanceof FunctionNode) {
+      timestampValues = calculateFunction((FunctionNode) node);
+    } else {
+      timestampValues = ((MetricNode) node).getDataPointsValues();
+    }
+
+    return timestampValues;
+  }
+
+  private TimestampValues calculateOperation(OperatorNode operator) {
     ArithmeticNode operandOne = operator.getOperandOne();
     ArithmeticNode operandTwo = operator.getOperandTwo();
-    List<TimestampValue> operandOneTimestampValues;
-    List<TimestampValue> operandTwoTimestampValues;
-
-    if (operandOne instanceof OperatorNode) {
-      operandOneTimestampValues = calculateOperation((OperatorNode) operandOne);
-    } else {
-      operandOneTimestampValues = ((MetricNode) operandOne)
-          .getDataPointsValues();
-    }
-
-    if (operandTwo instanceof OperatorNode) {
-      operandTwoTimestampValues = calculateOperation((OperatorNode) operandTwo);
-    } else {
-      operandTwoTimestampValues = ((MetricNode) operandTwo)
-          .getDataPointsValues();
-    }
+    TimestampValues operandOneTimestampValues = calculateInternal(operandOne);
+    TimestampValues operandTwoTimestampValues = calculateInternal(operandTwo);
 
     return calculateOperandValues(operandOneTimestampValues,
         operandTwoTimestampValues, operator.getOperator());
   }
 
-  private List<TimestampValue> calculateOperandValues(
-      List<TimestampValue> operandOneTimestampValues,
-      List<TimestampValue> operandTwoTimestampValues, Operator operator) {
-    final List<TimestampValue> result = new ArrayList<TimestampValue>();
+  private TimestampValues calculateOperandValues(
+      TimestampValues operandOneTimestampValues,
+      TimestampValues operandTwoTimestampValues, Operator operator) {
+    final TimestampValues result = new TimestampValues();
 
     if (operandOneTimestampValues != null
-        && operandOneTimestampValues.size() > 0
+        && !operandOneTimestampValues.isEmpty()
         && operandTwoTimestampValues != null
-        && operandTwoTimestampValues.size() > 0) {
-      final ListIterator<TimestampValue> iteratorOne = operandOneTimestampValues
-          .listIterator();
-      final ListIterator<TimestampValue> iteratorTwo = operandTwoTimestampValues
-          .listIterator();
+        && !operandTwoTimestampValues.isEmpty()) {
+      final Iterator<TimestampValue> iteratorOne = operandOneTimestampValues
+          .iterator();
+      final Iterator<TimestampValue> iteratorTwo = operandTwoTimestampValues
+          .iterator();
       TimestampValue timestampValueOne = iteratorOne.next();
       TimestampValue lastTimestampValueOne = null;
       TimestampValue timestampValueTwo = iteratorTwo.next();
@@ -178,8 +168,20 @@ public class ArithmeticExpressionCalculator {
     return result;
   }
 
-  private DataPoints repackageTimestampValues(
-      List<TimestampValue> timestampValues) {
+  private TimestampValues calculateFunction(FunctionNode function) {
+    FunctionCalculator calculator = FUNCTION_CALCULATORS
+        .get(function.getName());
+    List<ArithmeticNode> parameterNodes = function.getParameters();
+    TimestampValues[] parameters = new TimestampValues[parameterNodes.size()];
+
+    for (int i = 0; i < parameterNodes.size(); i++) {
+      parameters[i] = calculateInternal(parameterNodes.get(i));
+    }
+
+    return calculator.calculate(parameters);
+  }
+
+  private DataPoints repackageTimestampValues(TimestampValues timestampValues) {
     final ArithmeticExpressionResultDataPoints result = new ArithmeticExpressionResultDataPoints(
         arithmeticExpression);
 

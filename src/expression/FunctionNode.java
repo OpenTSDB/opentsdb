@@ -23,6 +23,10 @@ public class FunctionNode extends ArithmeticNode {
     return name;
   }
 
+  public List<ArithmeticNode> getParameters() {
+    return parameters;
+  }
+
   public DataPoints[] getDataPoints() {
     return dataPoints;
   }

@@ -1,8 +1,5 @@
 package net.opentsdb.expression;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.SeekableView;
@@ -29,8 +26,8 @@ public class MetricNode extends ArithmeticNode {
     this.dataPoints = dataPoints;
   }
 
-  public List<TimestampValue> getDataPointsValues() {
-    List<TimestampValue> result = new ArrayList<TimestampValue>();
+  public TimestampValues getDataPointsValues() {
+    TimestampValues result = new TimestampValues();
 
     for (DataPoints dataPoints : this.dataPoints) {
       final SeekableView seekableView = dataPoints.iterator();

@@ -64,6 +64,7 @@ tsdb_SRC := \
 	src/expression/OperatorNode.java	\
 	src/expression/TestFunctionCalculator.java	\
 	src/expression/TimestampValue.java	\
+	src/expression/TimestampValues.java	\
 	src/graph/Plot.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\

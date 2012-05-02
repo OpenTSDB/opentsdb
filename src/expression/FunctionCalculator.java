@@ -8,5 +8,13 @@ package net.opentsdb.expression;
  * @author pgoetz
  */
 public interface FunctionCalculator {
-
+  /**
+   * Calculates the values of the parameters list and returns the resulting
+   * {@link TimestampValues}. This method has to be implemented to create new
+   * functions for the {@link ArithmeticExpressionCalculator}.
+   * 
+   * @param parameters
+   * @return function calculation result
+   */
+  TimestampValues calculate(TimestampValues... parameters);
 }
