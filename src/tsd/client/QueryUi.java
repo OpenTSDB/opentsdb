@@ -46,6 +46,7 @@ import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
 import com.google.gwt.user.client.Element;
+import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Anchor;
@@ -695,6 +696,13 @@ public class QueryUi implements EntryPoint {
           graphstatus.setText("Please correct the error above.");
         } else {
           clearError();
+
+          String history = uri.substring(3)      // Remove "/q?".
+            .replaceFirst("ignore=[^&]*&", "");  // Unnecessary cruft.
+          if (!history.equals(History.getToken())) {
+            History.newItem(history, false);
+          }
+
           final JSONValue nplotted = result.get("plotted");
           final JSONValue cachehit = result.get("cachehit");
           if (cachehit != null) {
