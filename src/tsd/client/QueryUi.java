@@ -20,6 +20,7 @@ package tsd.client;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -153,6 +154,8 @@ public class QueryUi implements EntryPoint {
           aggregators.add(aggs.get(i).isString().stringValue());
         }
         ((MetricForm) metrics.getWidget(0)).setAggregators(aggregators);
+        refreshFromQueryString();
+        refreshGraph();
       }
     });
 
@@ -621,6 +624,51 @@ public class QueryUi implements EntryPoint {
     if (y2log.isEnabled() && y2log.getValue()) {
       url.append("&y2log");
     }
+  }
+
+  /**
+   * Maybe sets the text of a {@link TextBox} from a query string parameter.
+   * @param qs A parsed query string.
+   * @param key Name of the query string parameter.
+   * If this parameter wasn't passed, the {@link TextBox} will be emptied.
+   * @param tb The {@link TextBox} to change.
+   */
+  private static void maybeSetTextbox(final QueryString qs,
+                                      final String key,
+                                      final TextBox tb) {
+    final ArrayList<String> values = qs.get(key);
+    if (values == null) {
+      tb.setText("");
+      return;
+    }
+    tb.setText(values.get(0));
+  }
+
+  /**
+   * Sets the text of a {@link TextBox} from a query string parameter.
+   * @param qs A parsed query string.
+   * @param key Name of the query string parameter.
+   * @param tb The {@link TextBox} to change.
+   */
+  private static void setTextbox(final QueryString qs,
+                                 final String key,
+                                 final TextBox tb) {
+    final ArrayList<String> values = qs.get(key);
+    if (values != null) {
+      tb.setText(values.get(0));
+    }
+  }
+
+  private static QueryString getQueryString(final String qs) {
+    return qs.isEmpty() ? new QueryString() : QueryString.decode(qs);
+  }
+
+  private void refreshFromQueryString() {
+    final QueryString qs = getQueryString(History.getToken());
+
+    maybeSetTextbox(qs, "start", start_datebox.getTextBox());
+    maybeSetTextbox(qs, "end", end_datebox.getTextBox());
+    setTextbox(qs, "wxh", wxh);
   }
 
   private void refreshGraph() {
