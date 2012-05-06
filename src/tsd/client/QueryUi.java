@@ -682,6 +682,29 @@ public class QueryUi implements EntryPoint, HistoryListener {
     maybeSetTextbox(qs, "start", start_datebox.getTextBox());
     maybeSetTextbox(qs, "end", end_datebox.getTextBox());
     setTextbox(qs, "wxh", wxh);
+
+    final ArrayList<String> newmetrics = qs.get("m");
+    if (newmetrics == null) {
+      return;
+    }
+    final int n = newmetrics.size();  // We want this many metrics.
+    for (int i = 0; i < newmetrics.size(); ++i) {
+      if (i == metrics.getWidgetCount() - 1) {
+        addMetricForm("", i);
+      }
+
+      final MetricForm metric = (MetricForm) metrics.getWidget(i);
+      metric.updateFromQueryString(newmetrics.get(i));
+    }
+    // Remove extra metric forms.
+    final int m = metrics.getWidgetCount() - 1; // We have this many metrics.
+    int showing = metrics.getTabBar().getSelectedTab();  // Currently selected.
+    for (int i = m - 1; i >= n; i--) {
+      if (showing == i) {  // If we're about to remove the currently selected,
+        metrics.selectTab(--showing);  // fix focus to not wind up nowhere.
+      }
+      metrics.remove(i);
+    }
   }
 
   private void refreshGraph() {

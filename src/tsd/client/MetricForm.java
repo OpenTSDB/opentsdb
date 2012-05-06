@@ -87,6 +87,105 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     return metric.getText();
   }
 
+  /**
+   * Parses the metric and tags out of the given string.
+   * @param metric A string of the form "metric" or "metric{tag=value,...}".
+   * @return The name of the metric.
+   */
+  private String parseWithMetric(final String metric) {
+    // TODO: Try to reduce code duplication with Tags.parseWithMetric().
+    final int curly = metric.indexOf('{');
+    if (curly < 0) {
+      clearTags();
+      return metric;
+    }
+    final int len = metric.length();
+    if (metric.charAt(len - 1) != '}') {  // "foo{"
+      clearTags();
+      return null;  // Missing '}' at the end.
+    } else if (curly == len - 2) {  // "foo{}"
+      clearTags();
+      return metric.substring(0, len - 2);
+    }
+    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
+    int i = 0;  // Tag index.
+    final int num_tags_before = getNumTags();
+    for (final String tag : metric.substring(curly + 1, len - 1).split(",")) {
+      final String[] kv = tag.split("=");
+      if (kv.length != 2 || kv[0].isEmpty() || kv[1].isEmpty()) {
+        setTag(i, "", "");
+        continue;  // Invalid tag.
+      }
+      if (i < num_tags_before) {
+        setTag(i, kv[0], kv[1]);
+      } else {
+        addTag(kv[0], kv[1]);
+      }
+      i++;
+    }
+    // Leave an empty line at the end.
+    if (i < num_tags_before) {
+      setTag(i, "", "");
+    } else {
+      addTag();
+    }
+    // Remove extra tags.
+    for (i++; i < num_tags_before; i++) {
+      tagtable.removeRow(i + 1);
+    }
+    // Return the "foo" part of "foo{a=b,...,x=y}"
+    return metric.substring(0, curly);
+  }
+
+  public void updateFromQueryString(final String m) {
+    // TODO: Try to reduce code duplication with GraphHandler.parseQuery().
+    // m is of the following forms:
+    //   agg:[interval-agg:][rate:]metric[{tag=value,...}]
+    // Where the parts in square brackets `[' .. `]' are optional.
+    final String[] parts = m.split(":");
+    final int nparts = parts.length;
+    int i = parts.length;
+    if (i < 2 || i > 4) {
+      return;  // Malformed.
+    }
+
+    setSelectedItem(aggregators, parts[0]);
+
+    i--;  // Move to the last part (the metric name).
+    metric.setText(parseWithMetric(parts[i]));
+    metric_change_handler.onMetricChange(this);
+
+    final boolean rate = "rate".equals(parts[--i]);
+    this.rate.setValue(rate, false);
+    if (rate) {
+      i--;
+    }
+
+    // downsampling function & interval.
+    if (i > 0) {
+      final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
+      if (dash < 0) {
+        disableDownsample();
+        return;  // Invalid downsampling specifier.
+      }
+      downsample.setValue(true, false);
+
+      downsampler.setEnabled(true);
+      setSelectedItem(downsampler, parts[1].substring(dash + 1));
+
+      interval.setEnabled(true);
+      interval.setText(parts[1].substring(0, dash));
+    } else {
+      disableDownsample();
+    }
+  }
+
+  private void disableDownsample() {
+    downsample.setValue(false, false);
+    interval.setEnabled(false);
+    downsampler.setEnabled(false);
+  }
+
   public CheckBox x1y2() {
     return x1y2;
   }
