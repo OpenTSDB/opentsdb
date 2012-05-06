@@ -107,7 +107,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
       tagtable.setWidget(0, 0, hbox);
       tagtable.getFlexCellFormatter().setColSpan(0, 0, 3);
-      addTag(null);
+      addTag();
       tagtable.setText(1, 0, "Tags");
       add(tagtable);
     }
@@ -212,7 +212,28 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     ((SuggestBox) tagtable.getWidget(i + 1, 2)).setValue(value);
   }
 
+  /**
+   * Changes the name/value of an existing tag.
+   * @param i The index of the tag to change.
+   * @param name The new name of the tag.
+   * @param value The new value of the tag.
+   * Requires: {@code i < getNumTags()}.
+   */
+  private void setTag(final int i, final String name, final String value) {
+    setTagName(i, name);
+    setTagValue(i, value);
+  }
+
+  private void addTag() {
+    addTag(null, null);
+  }
+
   private void addTag(final String default_tagname) {
+    addTag(default_tagname, null);
+  }
+
+  private void addTag(final String default_tagname,
+                      final String default_value) {
     final int row = tagtable.getRowCount();
 
     final ValidatedTextBox tagname = new ValidatedTextBox();
@@ -239,7 +260,19 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     if (default_tagname != null) {
       tagname.setText(default_tagname);
-      tagvalue.setFocus(true);
+      if (default_value == null) {
+        tagvalue.setFocus(true);
+      }
+    }
+    if (default_value != null) {
+      tagvalue.setText(default_value);
+    }
+  }
+
+  private void clearTags() {
+    setTag(0, "", "");
+    for (int i = getNumTags() - 1; i > 1; i++) {
+      tagtable.removeRow(i + 1);
     }
   }
 
@@ -273,8 +306,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         for (int tag = 1; tag < ntags; tag++) {
           final String tagname = getTagName(tag);
           final String tagvalue = getTagValue(tag);
-          setTagName(tag - 1, tagname);
-          setTagValue(tag - 1, tagvalue);
+          setTag(tag - 1, tagname, tagvalue);
         }
       }
       // Try to remove empty lines from the tag table (but never remove the
@@ -292,7 +324,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       final String tagname = getTagName(ntags - 1);
       final String tagvalue = getTagValue(ntags - 1);
       if (!tagname.isEmpty() && !tagvalue.isEmpty()) {
-        addTag(null);
+        addTag();
       }
     }
   };
