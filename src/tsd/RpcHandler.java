@@ -254,25 +254,19 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
           chan.getFactory().releaseExternalResources();
         }
       }
-      // Attempt to commit any data point still only in RAM.
-      // TODO(tsuna): Need a way of ensuring we don't spend more than X
-      // seconds doing this.  If we're asked to die, we should do so
-      // promptly.  Right now I believe we can spend an indefinite and
-      // unbounded amount of time in the HBase client library.
-      final class ShutdownTSDB implements Callback<Object, Object> {
-        public Object call(final Object arg) {
-          if (arg instanceof Exception) {
-            LOG.error("Unexpected exception while shutting down",
-                      (Exception) arg);
-          }
-          new ShutdownNetty().start();
+      new ShutdownNetty().start();  // Stop accepting new connections.
+
+      // Log any error that might occur during shutdown.
+      final class ShutdownTSDB implements Callback<Exception, Exception> {
+        public Exception call(final Exception arg) {
+          LOG.error("Unexpected exception while shutting down", arg);
           return arg;
         }
         public String toString() {
           return "shutdown callback";
         }
       }
-      return tsdb.shutdown().addBoth(new ShutdownTSDB());
+      return tsdb.shutdown().addErrback(new ShutdownTSDB());
     }
   }
 
