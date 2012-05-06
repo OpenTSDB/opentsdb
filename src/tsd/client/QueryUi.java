@@ -684,7 +684,13 @@ public class QueryUi implements EntryPoint, HistoryListener {
     setTextbox(qs, "wxh", wxh);
 
     final ArrayList<String> newmetrics = qs.get("m");
-    if (newmetrics == null) {
+    if (newmetrics == null) {  // Clear all metric forms.
+      final int toremove = metrics.getWidgetCount() - 1;
+      addMetricForm("metric 1", 0);
+      metrics.selectTab(0);
+      for (int i = 0; i < toremove; i++) {
+        metrics.remove(1);
+      }
       return;
     }
     final int n = newmetrics.size();  // We want this many metrics.
