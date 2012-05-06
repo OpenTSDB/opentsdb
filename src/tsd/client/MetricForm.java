@@ -255,6 +255,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         return;  // This tag is already in the table.
       } if (thistag.isEmpty() && tagvalue.getValue().isEmpty()) {
         unused_row = row;
+        break;
       }
     }
     if (unused_row >= 0) {
