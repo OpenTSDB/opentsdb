@@ -84,7 +84,7 @@ public class QueryUi implements EntryPoint {
 
   private final DateTimeBox start_datebox = new DateTimeBox();
   private final DateTimeBox end_datebox = new DateTimeBox();
-  private final CheckBox autoreoload = new CheckBox("Autoreload");
+  private final CheckBox autoreload = new CheckBox("Autoreload");
   private final ValidatedTextBox autoreoload_interval = new ValidatedTextBox();
   private Timer autoreoload_timer;
 
@@ -244,13 +244,13 @@ public class QueryUi implements EntryPoint {
         }
       });
       hbox.add(now);
-      hbox.add(autoreoload);
+      hbox.add(autoreload);
       hbox.setWidth("100%");
       table.setWidget(0, 1, hbox);
     }
-    autoreoload.addClickHandler(new ClickHandler() {
+    autoreload.addClickHandler(new ClickHandler() {
       public void onClick(final ClickEvent event) {
-        if (autoreoload.getValue()) {
+        if (autoreload.getValue()) {
           final HorizontalPanel hbox = new HorizontalPanel();
           hbox.setWidth("100%");
           hbox.add(new InlineLabel("Every:"));
@@ -629,7 +629,7 @@ public class QueryUi implements EntryPoint {
       return;
     }
     final Date end = end_datebox.getValue();
-    if (end != null && !autoreoload.getValue()) {
+    if (end != null && !autoreload.getValue()) {
       if (end.getTime() <= start.getTime()) {
         end_datebox.addStyleName("dateBoxFormatError");
         graphstatus.setText("End time must be after start time!");
@@ -638,7 +638,7 @@ public class QueryUi implements EntryPoint {
     }
     final StringBuilder url = new StringBuilder();
     url.append("/q?start=").append(FULLDATE.format(start));
-    if (end != null && !autoreoload.getValue()) {
+    if (end != null && !autoreload.getValue()) {
       url.append("&end=").append(FULLDATE.format(end));
     } else {
       // If there's no end-time, the graph may change while the URL remains
@@ -743,14 +743,14 @@ public class QueryUi implements EntryPoint {
             }
           }
         }
-        if (autoreoload.getValue()) {
+        if (autoreload.getValue()) {
           final int reload_in = Integer.parseInt(autoreoload_interval.getValue());
           if (reload_in >= 5) {
             autoreoload_timer = new Timer() {
               public void run() {
                 // Verify that we still want auto reload and that the graph
                 // hasn't been updated in the mean time.
-                if (autoreoload.getValue() && lastgraphuri == uri) {
+                if (autoreload.getValue() && lastgraphuri == uri) {
                   // Force refreshGraph to believe that we want a new graph.
                   lastgraphuri = "";
                   refreshGraph();
