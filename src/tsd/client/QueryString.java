@@ -81,4 +81,12 @@ public final class QueryString extends HashMap<String, ArrayList<String>> {
     values.add(value);
   }
 
+  /**
+   * Returns the first value for the given key, or {@code null}.
+   */
+  public String getFirst(final String key) {
+    final ArrayList<String> values = super.get(key);
+    return values == null ? null : values.get(0);
+  }
+
 }
