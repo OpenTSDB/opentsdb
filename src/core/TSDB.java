@@ -19,6 +19,10 @@ import java.util.Map;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.ClientStats;
@@ -339,9 +343,29 @@ public final class TSDB {
         return "shutdown HBase client";
       }
     }
+    final class ShutdownErrback implements Callback<Object, Exception> {
+      public Object call(final Exception e) {
+        final Logger LOG = LoggerFactory.getLogger(ShutdownErrback.class);
+        if (e instanceof DeferredGroupException) {
+          final DeferredGroupException ge = (DeferredGroupException) e;
+          for (final Object r : ge.results()) {
+            if (r instanceof Exception) {
+              LOG.error("Failed to flush the compaction queue", (Exception) r);
+            }
+          }
+        } else {
+          LOG.error("Failed to flush the compaction queue", e);
+        }
+        return client.shutdown();
+      }
+      public String toString() {
+        return "shutdown HBase client after error";
+      }
+    }
     // First flush the compaction queue, then shutdown the HBase client.
     return enable_compactions
-      ? compactionq.flush().addBoth(new HClientShutdown())
+      ? compactionq.flush().addCallbacks(new HClientShutdown(),
+                                         new ShutdownErrback())
       : client.shutdown();
   }
 
