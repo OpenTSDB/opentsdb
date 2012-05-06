@@ -78,6 +78,7 @@ tsdb_SRC := \
 
 tsdb_DEPS = \
 	$(ASYNCHBASE)	\
+	$(GUAVA)	\
 	$(JCL_OVER_SLF4J)	\
 	$(LOG4J_OVER_SLF4J)	\
 	$(LOGBACK_CLASSIC)	\

@@ -21,6 +21,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.ClientStats;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
@@ -144,11 +145,12 @@ public final class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
-    collector.record("hbase.root_lookups", client.rootLookupCount());
+    final ClientStats stats = client.stats();
+    collector.record("hbase.root_lookups", stats.rootLookups());
     collector.record("hbase.meta_lookups",
-                     client.uncontendedMetaLookupCount(), "type=uncontended");
+                     stats.uncontendedMetaLookups(), "type=uncontended");
     collector.record("hbase.meta_lookups",
-                     client.contendedMetaLookupCount(), "type=contended");
+                     stats.contendedMetaLookups(), "type=contended");
 
     compactionq.collectStats(collector);
   }
