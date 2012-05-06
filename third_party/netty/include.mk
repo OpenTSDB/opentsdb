@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-NETTY_MAJOR_VERSION = 3.2
-NETTY_VERSION := 3.2.7.Final
+NETTY_MAJOR_VERSION = 3.4
+NETTY_VERSION := 3.4.3.Final
 NETTY := third_party/netty/netty-$(NETTY_VERSION).jar
 NETTY_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 
