@@ -393,6 +393,16 @@ public final class TSDB {
     return tag_values.suggest(search);
   }
 
+  /**
+   * Discards all in-memory caches.
+   * @since 1.1
+   */
+  public void dropCaches() {
+    metrics.dropCaches();
+    tag_names.dropCaches();
+    tag_values.dropCaches();
+  }
+
   // ------------------ //
   // Compaction helpers //
   // ------------------ //

@@ -63,8 +63,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   public RpcHandler(final TSDB tsdb) {
     this.tsdb = tsdb;
 
-    telnet_commands = new HashMap<String, TelnetRpc>(6);
-    http_commands = new HashMap<String, HttpRpc>(10);
+    telnet_commands = new HashMap<String, TelnetRpc>(7);
+    http_commands = new HashMap<String, HttpRpc>(11);
     {
       final DieDieDie diediedie = new DieDieDie();
       telnet_commands.put("diediedie", diediedie);
@@ -84,6 +84,11 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       final Version version = new Version();
       telnet_commands.put("version", version);
       http_commands.put("version", version);
+    }
+    {
+      final DropCaches dropcaches = new DropCaches();
+      telnet_commands.put("dropcaches", dropcaches);
+      http_commands.put("dropcaches", dropcaches);
     }
 
     telnet_commands.put("exit", new Exit());
@@ -456,6 +461,28 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     }
     return dir;
   }
+
+  /** The "dropcaches" command. */
+  private static final class DropCaches implements TelnetRpc, HttpRpc {
+    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+                                    final String[] cmd) {
+      dropCaches(tsdb, chan);
+      chan.write("Caches dropped.\n");
+      return Deferred.fromResult(null);
+    }
+
+    public void execute(final TSDB tsdb, final HttpQuery query) {
+      dropCaches(tsdb, query.channel());
+      query.sendReply("Caches dropped.\n");
+    }
+
+    /** Drops in memory caches.  */
+    private void dropCaches(final TSDB tsdb, final Channel chan) {
+      LOG.warn(chan + " Dropping all in-memory caches.");
+      tsdb.dropCaches();
+    }
+  }
+
 
   // ---------------- //
   // Logging helpers. //
