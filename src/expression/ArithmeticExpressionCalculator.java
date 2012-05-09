@@ -77,6 +77,12 @@ public class ArithmeticExpressionCalculator {
 
       addDataPointsToMetricNodes(operatorNode.getOperandOne(), queryResults);
       addDataPointsToMetricNodes(operatorNode.getOperandTwo(), queryResults);
+    } else if (arithmeticNode instanceof FunctionNode) {
+      FunctionNode functionNode = (FunctionNode) arithmeticNode;
+
+      for (ArithmeticNode childNode : functionNode.getParameters()) {
+        addDataPointsToMetricNodes(childNode, queryResults);
+      }
     } else {
       MetricNode metricNode = (MetricNode) arithmeticNode;
       DataPoints[] dataPoints = queryResults.get(metricNode.getName());
@@ -94,7 +100,7 @@ public class ArithmeticExpressionCalculator {
 
     if (node instanceof OperatorNode) {
       timestampValues = calculateOperation((OperatorNode) node);
-    } else if (rootNode instanceof FunctionNode) {
+    } else if (node instanceof FunctionNode) {
       timestampValues = calculateFunction((FunctionNode) node);
     } else {
       timestampValues = ((MetricNode) node).getDataPointsValues();
