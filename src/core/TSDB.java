@@ -19,8 +19,13 @@ import java.util.Map;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.ClientStats;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
@@ -144,11 +149,26 @@ public final class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
-    collector.record("hbase.root_lookups", client.rootLookupCount());
+    final ClientStats stats = client.stats();
+    collector.record("hbase.root_lookups", stats.rootLookups());
     collector.record("hbase.meta_lookups",
-                     client.uncontendedMetaLookupCount(), "type=uncontended");
+                     stats.uncontendedMetaLookups(), "type=uncontended");
     collector.record("hbase.meta_lookups",
-                     client.contendedMetaLookupCount(), "type=contended");
+                     stats.contendedMetaLookups(), "type=contended");
+    collector.record("hbase.rpcs",
+                     stats.atomicIncrements(), "type=increment");
+    collector.record("hbase.rpcs", stats.deletes(), "type=delete");
+    collector.record("hbase.rpcs", stats.gets(), "type=get");
+    collector.record("hbase.rpcs", stats.puts(), "type=put");
+    collector.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
+    collector.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
+    collector.record("hbase.rpcs", stats.scans(), "type=scan");
+    collector.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
+    collector.record("hbase.flushes", stats.flushes());
+    collector.record("hbase.connections.created", stats.connectionsCreated());
+    collector.record("hbase.nsre", stats.noSuchRegionExceptions());
+    collector.record("hbase.nsre.rpcs_delayed",
+                     stats.numRpcDelayedDueToNSRE());
 
     compactionq.collectStats(collector);
   }
@@ -323,9 +343,29 @@ public final class TSDB {
         return "shutdown HBase client";
       }
     }
+    final class ShutdownErrback implements Callback<Object, Exception> {
+      public Object call(final Exception e) {
+        final Logger LOG = LoggerFactory.getLogger(ShutdownErrback.class);
+        if (e instanceof DeferredGroupException) {
+          final DeferredGroupException ge = (DeferredGroupException) e;
+          for (final Object r : ge.results()) {
+            if (r instanceof Exception) {
+              LOG.error("Failed to flush the compaction queue", (Exception) r);
+            }
+          }
+        } else {
+          LOG.error("Failed to flush the compaction queue", e);
+        }
+        return client.shutdown();
+      }
+      public String toString() {
+        return "shutdown HBase client after error";
+      }
+    }
     // First flush the compaction queue, then shutdown the HBase client.
     return enable_compactions
-      ? compactionq.flush().addBoth(new HClientShutdown())
+      ? compactionq.flush().addCallbacks(new HClientShutdown(),
+                                         new ShutdownErrback())
       : client.shutdown();
   }
 
@@ -351,6 +391,16 @@ public final class TSDB {
    */
   public List<String> suggestTagValues(final String search) {
     return tag_values.suggest(search);
+  }
+
+  /**
+   * Discards all in-memory caches.
+   * @since 1.1
+   */
+  public void dropCaches() {
+    metrics.dropCaches();
+    tag_names.dropCaches();
+    tag_values.dropCaches();
   }
 
   // ------------------ //

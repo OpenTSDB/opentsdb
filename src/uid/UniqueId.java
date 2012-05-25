@@ -129,6 +129,15 @@ public final class UniqueId implements UniqueIdInterface {
     return idWidth;
   }
 
+  /**
+   * Causes this instance to discard all its in-memory caches.
+   * @since 1.1
+   */
+  public void dropCaches() {
+    nameCache.clear();
+    idCache.clear();
+  }
+
   public String getName(final byte[] id) throws NoSuchUniqueId, HBaseException {
     if (id.length != idWidth) {
       throw new IllegalArgumentException("Wrong id.length = " + id.length

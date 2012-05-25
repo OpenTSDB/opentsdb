@@ -2,6 +2,10 @@ OpenTSDB - User visible changes.
 
 * Version 1.1.0 (2012-??-??) [???????]
 
+Noteworthy changes:
+  - A new `dropcaches' administrative command allows discarding in-memory
+    caches.  Right now these are UID mappings.
+
 
 * Version 1.0.0 (2011-12-23) [66a6b42]
 

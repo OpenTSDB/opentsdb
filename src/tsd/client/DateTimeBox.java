@@ -53,7 +53,7 @@ final class DateTimeBox extends DateBox {
       public Date parse(final DateBox box,
                         final String text,
                         final boolean report_error) {
-        if (text.endsWith(" ago")) {  // "1d ago" and such
+        if (text.endsWith(" ago") || text.endsWith("-ago")) { // e.g. "1d ago".
           int interval;
           final int lastchar = text.length() - 5;
           try {

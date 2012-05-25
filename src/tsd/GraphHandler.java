@@ -104,6 +104,18 @@ final class GraphHandler implements HttpRpc {
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query) {
+    if (!query.hasQueryStringParam("json")
+        && !query.hasQueryStringParam("png")
+        && !query.hasQueryStringParam("ascii")) {
+      String uri = query.request().getUri();
+      if (uri.length() < 4) {  // Shouldn't happen...
+        uri = "/";             // But just in case, redirect.
+      } else {
+        uri = "/#" + uri.substring(3);  // Remove "/q?"
+      }
+      query.redirect(uri);
+      return;
+    }
     try {
       doGraph(tsdb, query);
     } catch (IOException e) {
@@ -290,21 +302,10 @@ final class GraphHandler implements HttpRpc {
           .append('}');
         query.sendReply(buf);
         writeFile(query, basepath + ".json", buf.toString().getBytes());
+      } else if (query.hasQueryStringParam("png")) {
+        query.sendFile(basepath + ".png", max_age);
       } else {
-          if (query.hasQueryStringParam("png")) {
-            query.sendFile(basepath + ".png", max_age);
-          } else {
-            if (nplotted > 0) {
-              query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
-                "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
-                + "<small>(" + nplotted + " points plotted in "
-                + query.processingTimeMillis() + "ms)</small>"));
-            } else {
-              query.sendReply(HttpQuery.makePage("TSDB Query", "No results found",
-                "<blockquote><h1>No results</h1>Your query didn't return"
-                + " anything.  Try changing some parameters.</blockquote>"));
-            }
-          }
+        query.internalError(new Exception("Should never be here!"));
       }
 
       // TODO(tsuna): Expire old files from the on-disk cache.
