@@ -79,6 +79,7 @@ tsdb_SRC := \
 
 tsdb_DEPS = \
 	$(ASYNCHBASE)	\
+	$(GUAVA)	\
 	$(JCL_OVER_SLF4J)	\
 	$(LOG4J_OVER_SLF4J)	\
 	$(LOGBACK_CLASSIC)	\
@@ -92,6 +93,7 @@ tsdb_DEPS = \
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
 
 test_SRC := \
+	src/core/TestAggregators.java \
 	src/core/TestCompactionQueue.java	\
 	src/core/TestTags.java	\
 	src/stats/TestHistogram.java	\

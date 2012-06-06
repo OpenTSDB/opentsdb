@@ -265,6 +265,16 @@ final class HttpQuery {
     }
   }
 
+  /** Redirects the client's browser to the given location.  */
+  public void redirect(final String location) {
+    // TODO(tsuna): We currently redirect with some HTML because `sendReply'
+    // doesn't easily allow us to pass a `Location' header, which is lame.
+    sendReply(HttpResponseStatus.OK,
+              makePage("<meta http-equiv=\"refresh\" content=\"0; url="
+                       + location + "\">",
+                       "Redirecting...", "Redirecting...", "Loading..."));
+  }
+
   /** An empty JSON array ready to be sent. */
   private static final byte[] EMPTY_JSON_ARRAY = new byte[] { '[', ']' };
 

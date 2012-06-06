@@ -129,6 +129,15 @@ public final class UniqueId implements UniqueIdInterface {
     return idWidth;
   }
 
+  /**
+   * Causes this instance to discard all its in-memory caches.
+   * @since 1.1
+   */
+  public void dropCaches() {
+    nameCache.clear();
+    idCache.clear();
+  }
+
   public String getName(final byte[] id) throws NoSuchUniqueId, HBaseException {
     if (id.length != idWidth) {
       throw new IllegalArgumentException("Wrong id.length = " + id.length
@@ -591,7 +600,7 @@ public final class UniqueId implements UniqueIdInterface {
    * Puts are synchronized.
    *
    * @param put The PutRequest to execute.
-   * @param attemps The maximum number of attempts.
+   * @param attempts The maximum number of attempts.
    * @param wait The initial amount of time in ms to sleep for after a
    * failure.  This amount is doubled after each failed attempt.
    * @throws HBaseException if all the attempts have failed.  This exception

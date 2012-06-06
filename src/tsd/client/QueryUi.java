@@ -20,6 +20,7 @@ package tsd.client;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -46,6 +47,8 @@ import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
 import com.google.gwt.user.client.Element;
+import com.google.gwt.user.client.History;
+import com.google.gwt.user.client.HistoryListener;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Anchor;
@@ -70,7 +73,7 @@ import com.google.gwt.user.client.ui.Widget;
  * Root class for the 'query UI'.
  * Manages the entire UI, forms to query the TSDB and other misc panels.
  */
-public class QueryUi implements EntryPoint {
+public class QueryUi implements EntryPoint, HistoryListener {
   // Some URLs we use to fetch data from the TSD.
   private static final String AGGREGATORS_URL = "/aggregators";
   private static final String LOGS_URL = "/logs?json";
@@ -84,7 +87,7 @@ public class QueryUi implements EntryPoint {
 
   private final DateTimeBox start_datebox = new DateTimeBox();
   private final DateTimeBox end_datebox = new DateTimeBox();
-  private final CheckBox autoreoload = new CheckBox("Autoreload");
+  private final CheckBox autoreload = new CheckBox("Autoreload");
   private final ValidatedTextBox autoreoload_interval = new ValidatedTextBox();
   private Timer autoreoload_timer;
 
@@ -113,6 +116,43 @@ public class QueryUi implements EntryPoint {
       refreshGraph();
     }
   };
+
+  final MetricForm.MetricChangeHandler metric_change_handler =
+    new MetricForm.MetricChangeHandler() {
+      public void onMetricChange(final MetricForm metric) {
+        final int index = metrics.getWidgetIndex(metric);
+        metrics.getTabBar().setTabText(index, getTabTitle(metric));
+      }
+      private String getTabTitle(final MetricForm metric) {
+        final String metrictext = metric.getMetric();
+        final int last_period = metrictext.lastIndexOf('.');
+        if (last_period < 0) {
+          return metrictext;
+        }
+        return metrictext.substring(last_period + 1);
+      }
+    };
+
+  final EventsHandler updatey2range = new EventsHandler() {
+      protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
+        for (final Widget metric : metrics) {
+          if (!(metric instanceof MetricForm)) {
+            continue;
+          }
+          if (((MetricForm) metric).x1y2().getValue()) {
+            y2range.setEnabled(true);
+            y2log.setEnabled(true);
+            y2label.setEnabled(true);
+            y2format.setEnabled(true);
+            return;
+          }
+        }
+        y2range.setEnabled(false);
+        y2log.setEnabled(false);
+        y2label.setEnabled(false);
+        y2format.setEnabled(false);
+      }
+    };
 
   /** List of known aggregation functions.  Fetched once from the server. */
   private final ArrayList<String> aggregators = new ArrayList<String>();
@@ -152,6 +192,8 @@ public class QueryUi implements EntryPoint {
           aggregators.add(aggs.get(i).isString().stringValue());
         }
         ((MetricForm) metrics.getWidget(0)).setAggregators(aggregators);
+        refreshFromQueryString();
+        refreshGraph();
       }
     });
 
@@ -244,13 +286,14 @@ public class QueryUi implements EntryPoint {
         }
       });
       hbox.add(now);
-      hbox.add(autoreoload);
+      hbox.add(autoreload);
       hbox.setWidth("100%");
       table.setWidget(0, 1, hbox);
     }
-    autoreoload.addClickHandler(new ClickHandler() {
-      public void onClick(final ClickEvent event) {
-        if (autoreoload.getValue()) {
+    autoreload.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+      @Override
+      public void onValueChange(final ValueChangeEvent<Boolean> event) {
+        if (autoreload.getValue()) {
           final HorizontalPanel hbox = new HorizontalPanel();
           hbox.setWidth("100%");
           hbox.add(new InlineLabel("Every:"));
@@ -281,45 +324,7 @@ public class QueryUi implements EntryPoint {
       table.setWidget(0, 3, hbox);
     }
     {
-      final MetricForm.MetricChangeHandler metric_change_handler =
-        new MetricForm.MetricChangeHandler() {
-          public void onMetricChange(final MetricForm metric) {
-            final int index = metrics.getWidgetIndex(metric);
-            metrics.getTabBar().setTabText(index, getTabTitle(metric));
-          }
-          private String getTabTitle(final MetricForm metric) {
-            final String metrictext = metric.getMetric();
-            final int last_period = metrictext.lastIndexOf('.');
-            if (last_period < 0) {
-              return metrictext;
-            }
-            return metrictext.substring(last_period + 1);
-          }
-        };
-      final EventsHandler updatey2range = new EventsHandler() {
-        protected <H extends EventHandler> void onEvent(final DomEvent<H> event) {
-          for (final Widget metric : metrics) {
-            if (!(metric instanceof MetricForm)) {
-              continue;
-            }
-            if (((MetricForm) metric).x1y2().getValue()) {
-              y2range.setEnabled(true);
-              y2log.setEnabled(true);
-              y2label.setEnabled(true);
-              y2format.setEnabled(true);
-              return;
-            }
-          }
-          y2range.setEnabled(false);
-          y2log.setEnabled(false);
-          y2label.setEnabled(false);
-          y2format.setEnabled(false);
-        }
-      };
-      final MetricForm metric = new MetricForm(refreshgraph);
-      metric.x1y2().addClickHandler(updatey2range);
-      metric.setMetricChangeHandler(metric_change_handler);
-      metrics.add(metric, "metric 1");
+      addMetricForm("metric 1", 0);
       metrics.selectTab(0);
       metrics.add(new InlineLabel("Loading..."), "+");
       metrics.addBeforeSelectionHandler(new BeforeSelectionHandler<Integer>() {
@@ -328,11 +333,7 @@ public class QueryUi implements EntryPoint {
           final int nitems = metrics.getWidgetCount();
           if (item == nitems - 1) {  // Last item: the "+" was clicked.
             event.cancel();
-            final MetricForm metric = new MetricForm(refreshgraph);
-            metric.x1y2().addClickHandler(updatey2range);
-            metric.setMetricChangeHandler(metric_change_handler);
-            metric.setAggregators(aggregators);
-            metrics.insert(metric, "metric " + nitems, item);
+            final MetricForm metric = addMetricForm("metric " + nitems, item);
             metrics.selectTab(item);
             metric.setFocus(true);
           }
@@ -391,6 +392,14 @@ public class QueryUi implements EntryPoint {
     RootPanel.get("queryuimain").add(root);
     // Must be done at the end, once all the widgets are attached.
     ensureSameWidgetSize(optpanel);
+
+    History.addHistoryListener(this);
+  }
+
+  @Override
+  public void onHistoryChanged(String historyToken) {
+    refreshFromQueryString();
+    refreshGraph();
   }
 
   /**
@@ -418,6 +427,18 @@ public class QueryUi implements EntryPoint {
     return grid;
   }
 
+  private MetricForm addMetricForm(final String label, final int item) {
+    final MetricForm metric = new MetricForm(refreshgraph);
+    metric.x1y2().addClickHandler(updatey2range);
+    metric.setMetricChangeHandler(metric_change_handler);
+    metric.setAggregators(aggregators);
+    metrics.insert(metric, label, item);
+    return metric;
+  }
+
+  private final HashMap<String, RadioButton> keypos_map =
+    new HashMap<String, RadioButton>(17);
+
   /**
    * Small helper to build a radio button used to change the position of the
    * key of the graph.
@@ -433,6 +454,7 @@ public class QueryUi implements EntryPoint {
     });
     rb.addClickHandler(refreshgraph);
     grid.setWidget(row, col, rb);
+    keypos_map.put(pos, rb);
     return rb;
   }
 
@@ -622,6 +644,114 @@ public class QueryUi implements EntryPoint {
     }
   }
 
+  /**
+   * Maybe sets the text of a {@link TextBox} from a query string parameter.
+   * @param qs A parsed query string.
+   * @param key Name of the query string parameter.
+   * If this parameter wasn't passed, the {@link TextBox} will be emptied.
+   * @param tb The {@link TextBox} to change.
+   */
+  private static void maybeSetTextbox(final QueryString qs,
+                                      final String key,
+                                      final TextBox tb) {
+    final ArrayList<String> values = qs.get(key);
+    if (values == null) {
+      tb.setText("");
+      return;
+    }
+    tb.setText(values.get(0));
+  }
+
+  /**
+   * Sets the text of a {@link TextBox} from a query string parameter.
+   * @param qs A parsed query string.
+   * @param key Name of the query string parameter.
+   * @param tb The {@link TextBox} to change.
+   */
+  private static void setTextbox(final QueryString qs,
+                                 final String key,
+                                 final TextBox tb) {
+    final ArrayList<String> values = qs.get(key);
+    if (values != null) {
+      tb.setText(values.get(0));
+    }
+  }
+
+  private static QueryString getQueryString(final String qs) {
+    return qs.isEmpty() ? new QueryString() : QueryString.decode(qs);
+  }
+
+  private void refreshFromQueryString() {
+    final QueryString qs = getQueryString(History.getToken());
+
+    maybeSetTextbox(qs, "start", start_datebox.getTextBox());
+    maybeSetTextbox(qs, "end", end_datebox.getTextBox());
+    setTextbox(qs, "wxh", wxh);
+    autoreload.setValue(qs.containsKey("autoreload"), true);
+    maybeSetTextbox(qs, "autoreload", autoreoload_interval);
+
+    final ArrayList<String> newmetrics = qs.get("m");
+    if (newmetrics == null) {  // Clear all metric forms.
+      final int toremove = metrics.getWidgetCount() - 1;
+      addMetricForm("metric 1", 0);
+      metrics.selectTab(0);
+      for (int i = 0; i < toremove; i++) {
+        metrics.remove(1);
+      }
+      return;
+    }
+    final int n = newmetrics.size();  // We want this many metrics.
+    ArrayList<String> options = qs.get("o");
+    if (options == null) {
+      options = new ArrayList<String>(n);
+    }
+    for (int i = options.size(); i < n; i++) {  // Make both arrays equal size.
+      options.add("");  // Add missing o's.
+    }
+
+    for (int i = 0; i < newmetrics.size(); ++i) {
+      if (i == metrics.getWidgetCount() - 1) {
+        addMetricForm("", i);
+      }
+
+      final MetricForm metric = (MetricForm) metrics.getWidget(i);
+      metric.updateFromQueryString(newmetrics.get(i), options.get(i));
+    }
+    // Remove extra metric forms.
+    final int m = metrics.getWidgetCount() - 1; // We have this many metrics.
+    int showing = metrics.getTabBar().getSelectedTab();  // Currently selected.
+    for (int i = m - 1; i >= n; i--) {
+      if (showing == i) {  // If we're about to remove the currently selected,
+        metrics.selectTab(--showing);  // fix focus to not wind up nowhere.
+      }
+      metrics.remove(i);
+    }
+    updatey2range.onEvent(null);
+
+    maybeSetTextbox(qs, "ylabel", ylabel);
+    maybeSetTextbox(qs, "y2label", y2label);
+    maybeSetTextbox(qs, "yformat", yformat);
+    maybeSetTextbox(qs, "y2format", y2format);
+    maybeSetTextbox(qs, "yrange", yrange);
+    maybeSetTextbox(qs, "y2range", y2range);
+    ylog.setValue(qs.containsKey("ylog"));
+    y2log.setValue(qs.containsKey("y2log"));
+
+    if (qs.containsKey("key")) {
+      final String key = qs.getFirst("key");
+      keybox.setValue(key.contains(" box"));
+      horizontalkey.setValue(key.contains(" horiz"));
+      keypos = key.replaceAll(" (box|horiz\\w*)", "");
+      keypos_map.get(keypos).setChecked(true);
+    } else {
+      keybox.setValue(false);
+      horizontalkey.setValue(false);
+      keypos_map.get("top right").setChecked(true);
+      keypos = "";
+    }
+    nokey.setValue(qs.containsKey("nokey"));
+  }
+
   private void refreshGraph() {
     final Date start = start_datebox.getValue();
     if (start == null) {
@@ -629,7 +759,7 @@ public class QueryUi implements EntryPoint {
       return;
     }
     final Date end = end_datebox.getValue();
-    if (end != null && !autoreoload.getValue()) {
+    if (end != null && !autoreload.getValue()) {
       if (end.getTime() <= start.getTime()) {
         end_datebox.addStyleName("dateBoxFormatError");
         graphstatus.setText("End time must be after start time!");
@@ -638,7 +768,7 @@ public class QueryUi implements EntryPoint {
     }
     final StringBuilder url = new StringBuilder();
     url.append("/q?start=").append(FULLDATE.format(start));
-    if (end != null && !autoreoload.getValue()) {
+    if (end != null && !autoreload.getValue()) {
       url.append("&end=").append(FULLDATE.format(end));
     } else {
       // If there's no end-time, the graph may change while the URL remains
@@ -695,6 +825,16 @@ public class QueryUi implements EntryPoint {
           graphstatus.setText("Please correct the error above.");
         } else {
           clearError();
+
+          String history = uri.substring(3)      // Remove "/q?".
+            .replaceFirst("ignore=[^&]*&", "");  // Unnecessary cruft.
+          if (autoreload.getValue()) {
+            history += "&autoreload=" + autoreoload_interval.getText();
+          }
+          if (!history.equals(History.getToken())) {
+            History.newItem(history, false);
+          }
+
           final JSONValue nplotted = result.get("plotted");
           final JSONValue cachehit = result.get("cachehit");
           if (cachehit != null) {
@@ -743,14 +883,14 @@ public class QueryUi implements EntryPoint {
             }
           }
         }
-        if (autoreoload.getValue()) {
+        if (autoreload.getValue()) {
           final int reload_in = Integer.parseInt(autoreoload_interval.getValue());
           if (reload_in >= 5) {
             autoreoload_timer = new Timer() {
               public void run() {
                 // Verify that we still want auto reload and that the graph
                 // hasn't been updated in the mean time.
-                if (autoreoload.getValue() && lastgraphuri == uri) {
+                if (autoreload.getValue() && lastgraphuri == uri) {
                   // Force refreshGraph to believe that we want a new graph.
                   lastgraphuri = "";
                   refreshGraph();

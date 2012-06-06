@@ -87,6 +87,107 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     return metric.getText();
   }
 
+  /**
+   * Parses the metric and tags out of the given string.
+   * @param metric A string of the form "metric" or "metric{tag=value,...}".
+   * @return The name of the metric.
+   */
+  private String parseWithMetric(final String metric) {
+    // TODO: Try to reduce code duplication with Tags.parseWithMetric().
+    final int curly = metric.indexOf('{');
+    if (curly < 0) {
+      clearTags();
+      return metric;
+    }
+    final int len = metric.length();
+    if (metric.charAt(len - 1) != '}') {  // "foo{"
+      clearTags();
+      return null;  // Missing '}' at the end.
+    } else if (curly == len - 2) {  // "foo{}"
+      clearTags();
+      return metric.substring(0, len - 2);
+    }
+    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
+    int i = 0;  // Tag index.
+    final int num_tags_before = getNumTags();
+    for (final String tag : metric.substring(curly + 1, len - 1).split(",")) {
+      final String[] kv = tag.split("=");
+      if (kv.length != 2 || kv[0].isEmpty() || kv[1].isEmpty()) {
+        setTag(i, "", "");
+        continue;  // Invalid tag.
+      }
+      if (i < num_tags_before) {
+        setTag(i, kv[0], kv[1]);
+      } else {
+        addTag(kv[0], kv[1]);
+      }
+      i++;
+    }
+    // Leave an empty line at the end.
+    if (i < num_tags_before) {
+      setTag(i, "", "");
+    } else {
+      addTag();
+    }
+    // Remove extra tags.
+    for (i++; i < num_tags_before; i++) {
+      tagtable.removeRow(i + 1);
+    }
+    // Return the "foo" part of "foo{a=b,...,x=y}"
+    return metric.substring(0, curly);
+  }
+
+  public void updateFromQueryString(final String m, final String o) {
+    // TODO: Try to reduce code duplication with GraphHandler.parseQuery().
+    // m is of the following forms:
+    //   agg:[interval-agg:][rate:]metric[{tag=value,...}]
+    // Where the parts in square brackets `[' .. `]' are optional.
+    final String[] parts = m.split(":");
+    final int nparts = parts.length;
+    int i = parts.length;
+    if (i < 2 || i > 4) {
+      return;  // Malformed.
+    }
+
+    setSelectedItem(aggregators, parts[0]);
+
+    i--;  // Move to the last part (the metric name).
+    metric.setText(parseWithMetric(parts[i]));
+    metric_change_handler.onMetricChange(this);
+
+    final boolean rate = "rate".equals(parts[--i]);
+    this.rate.setValue(rate, false);
+    if (rate) {
+      i--;
+    }
+
+    // downsampling function & interval.
+    if (i > 0) {
+      final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
+      if (dash < 0) {
+        disableDownsample();
+        return;  // Invalid downsampling specifier.
+      }
+      downsample.setValue(true, false);
+
+      downsampler.setEnabled(true);
+      setSelectedItem(downsampler, parts[1].substring(dash + 1));
+
+      interval.setEnabled(true);
+      interval.setText(parts[1].substring(0, dash));
+    } else {
+      disableDownsample();
+    }
+
+    x1y2.setValue(o.contains("axis x1y2"), false);
+  }
+
+  private void disableDownsample() {
+    downsample.setValue(false, false);
+    interval.setEnabled(false);
+    downsampler.setEnabled(false);
+  }
+
   public CheckBox x1y2() {
     return x1y2;
   }
@@ -107,7 +208,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
       tagtable.setWidget(0, 0, hbox);
       tagtable.getFlexCellFormatter().setColSpan(0, 0, 3);
-      addTag(null);
+      addTag();
       tagtable.setText(1, 0, "Tags");
       add(tagtable);
     }
@@ -212,7 +313,28 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     ((SuggestBox) tagtable.getWidget(i + 1, 2)).setValue(value);
   }
 
+  /**
+   * Changes the name/value of an existing tag.
+   * @param i The index of the tag to change.
+   * @param name The new name of the tag.
+   * @param value The new value of the tag.
+   * Requires: {@code i < getNumTags()}.
+   */
+  private void setTag(final int i, final String name, final String value) {
+    setTagName(i, name);
+    setTagValue(i, value);
+  }
+
+  private void addTag() {
+    addTag(null, null);
+  }
+
   private void addTag(final String default_tagname) {
+    addTag(default_tagname, null);
+  }
+
+  private void addTag(final String default_tagname,
+                      final String default_value) {
     final int row = tagtable.getRowCount();
 
     final ValidatedTextBox tagname = new ValidatedTextBox();
@@ -239,7 +361,19 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     if (default_tagname != null) {
       tagname.setText(default_tagname);
-      tagvalue.setFocus(true);
+      if (default_value == null) {
+        tagvalue.setFocus(true);
+      }
+    }
+    if (default_value != null) {
+      tagvalue.setText(default_value);
+    }
+  }
+
+  private void clearTags() {
+    setTag(0, "", "");
+    for (int i = getNumTags() - 1; i > 1; i++) {
+      tagtable.removeRow(i + 1);
     }
   }
 
@@ -255,6 +389,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         return;  // This tag is already in the table.
       } if (thistag.isEmpty() && tagvalue.getValue().isEmpty()) {
         unused_row = row;
+        break;
       }
     }
     if (unused_row >= 0) {
@@ -272,9 +407,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         for (int tag = 1; tag < ntags; tag++) {
           final String tagname = getTagName(tag);
           final String tagvalue = getTagValue(tag);
-          setTagName(tag - 1, tagname);
-          setTagValue(tag - 1, tagvalue);
+          setTag(tag - 1, tagname, tagvalue);
         }
+        setTag(ntags - 1, "", "");
       }
       // Try to remove empty lines from the tag table (but never remove the
       // first line or last line, even if they're empty).  Walk the table
@@ -291,7 +426,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       final String tagname = getTagName(ntags - 1);
       final String tagvalue = getTagValue(ntags - 1);
       if (!tagname.isEmpty() && !tagvalue.isEmpty()) {
-        addTag(null);
+        addTag();
       }
     }
   };

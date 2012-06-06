@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -81,7 +82,6 @@ final class GraphHandler implements HttpRpc {
 
   /**
    * Constructor.
-   * @param tsdb The TSDB to use.
    */
   public GraphHandler() {
     // Gnuplot is mostly CPU bound and does only a little bit of IO at the
@@ -104,6 +104,18 @@ final class GraphHandler implements HttpRpc {
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query) {
+    if (!query.hasQueryStringParam("json")
+        && !query.hasQueryStringParam("png")
+        && !query.hasQueryStringParam("ascii")) {
+      String uri = query.request().getUri();
+      if (uri.length() < 4) {  // Shouldn't happen...
+        uri = "/";             // But just in case, redirect.
+      } else {
+        uri = "/#" + uri.substring(3);  // Remove "/q?"
+      }
+      query.redirect(uri);
+      return;
+    }
     try {
       doGraph(tsdb, query);
     } catch (IOException e) {
@@ -155,7 +167,8 @@ final class GraphHandler implements HttpRpc {
         throw new BadRequestException("end time: " + e.getMessage());
       }
     }
-    final Plot plot = new Plot(start_time, end_time);
+    final Plot plot = new Plot(start_time, end_time,
+                               timezones.get(query.getQueryStringParam("tz")));
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
     final int nqueries = tsdbqueries.length;
@@ -289,21 +302,10 @@ final class GraphHandler implements HttpRpc {
           .append('}');
         query.sendReply(buf);
         writeFile(query, basepath + ".json", buf.toString().getBytes());
+      } else if (query.hasQueryStringParam("png")) {
+        query.sendFile(basepath + ".png", max_age);
       } else {
-          if (query.hasQueryStringParam("png")) {
-            query.sendFile(basepath + ".png", max_age);
-          } else {
-            if (nplotted > 0) {
-              query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
-                "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
-                + "<small>(" + nplotted + " points plotted in "
-                + query.processingTimeMillis() + "ms)</small>"));
-            } else {
-              query.sendReply(HttpQuery.makePage("TSDB Query", "No results found",
-                "<blockquote><h1>No results</h1>Your query didn't return"
-                + " anything.  Try changing some parameters.</blockquote>"));
-            }
-          }
+        query.internalError(new Exception("Should never be here!"));
       }
 
       // TODO(tsuna): Expire old files from the on-disk cache.
@@ -678,6 +680,12 @@ final class GraphHandler implements HttpRpc {
     if ((value = popParam(querystring, "title")) != null) {
       params.put("title", stringify(value));
     }
+    if ((value = popParam(querystring, "bgcolor")) != null) {
+      params.put("bgcolor", value);
+    }
+    if ((value = popParam(querystring, "fgcolor")) != null) {
+      params.put("fgcolor", value);
+    }
     // This must remain after the previous `if' in order to properly override
     // any previous `key' parameter if a `nokey' parameter is given.
     if ((value = popParam(querystring, "nokey")) != null) {
@@ -951,16 +959,19 @@ final class GraphHandler implements HttpRpc {
               - parseDuration(date.substring(0, date.length() - 4)));
     }
     long timestamp;
-    try {
-      timestamp = Long.parseLong(date);   // Is it already a timestamp?
-    } catch (NumberFormatException ne) {  // Nope, try to parse a date then.
+    if (date.length() < 5 || date.charAt(4) != '/') {  // Already a timestamp?
+      try {
+        timestamp = Tags.parseLong(date);              // => Looks like it.
+      } catch (NumberFormatException e) {
+        throw new BadRequestException("Invalid " + paramname + " time: " + date
+                                      + ". " + e.getMessage());
+      }
+    } else {  // => Nope, there is a slash, so parse a date then.
       try {
         final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
+        setTimeZone(fmt, query.getQueryStringParam("tz"));
         timestamp = fmt.parse(date).getTime() / 1000;
       } catch (ParseException e) {
-        throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                      + ". " + e.getMessage());
-      } catch (NumberFormatException e) {
         throw new BadRequestException("Invalid " + paramname + " date: " + date
                                       + ". " + e.getMessage());
       }
@@ -969,6 +980,45 @@ final class GraphHandler implements HttpRpc {
       throw new BadRequestException("Bad " + paramname + " date: " + date);
     }
     return timestamp;
+  }
+
+  /**
+   * Immutable cache mapping a timezone name to its object.
+   * We do this because the JDK's TimeZone class was implemented by retards,
+   * and it's synchronized, going through a huge pile of code, and allocating
+   * new objects all the time.  And to make things even better, if you ask for
+   * a TimeZone that doesn't exist, it returns GMT!  It is thus impractical to
+   * tell if the timezone name was valid or not.  JDK_brain_damage++;
+   * Note: caching everything wastes a few KB on RAM (34KB on my system with
+   * 611 timezones -- each instance is 56 bytes with the Sun JDK).
+   */
+  private static final HashMap<String, TimeZone> timezones;
+  static {
+    final String[] tzs = TimeZone.getAvailableIDs();
+    timezones = new HashMap<String, TimeZone>(tzs.length);
+    for (final String tz : tzs) {
+      timezones.put(tz, TimeZone.getTimeZone(tz));
+    }
+  }
+
+  /**
+   * Applies the given timezone to the given date format.
+   * @param fmt Date format to apply the timezone to.
+   * @param tzname Name of the timezone, or {@code null} in which case this
+   * function is a no-op.
+   * @throws BadRequestException if tzname isn't a valid timezone name.
+   */
+  private static void setTimeZone(final SimpleDateFormat fmt,
+                                  final String tzname) {
+    if (tzname == null) {
+      return;  // Use the default timezone.
+    }
+    final TimeZone tz = timezones.get(tzname);
+    if (tz != null) {
+      fmt.setTimeZone(tz);
+    } else {
+      throw new BadRequestException("Invalid timezone name: " + tzname);
+    }
   }
 
   private static final PlotThdFactory thread_factory = new PlotThdFactory();

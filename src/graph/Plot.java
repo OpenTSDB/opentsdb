@@ -34,11 +34,17 @@ public final class Plot {
 
   private static final Logger LOG = LoggerFactory.getLogger(Plot.class);
 
+  /** Mask to use on 32-bit unsigned integers to avoid sign extension.  */
+  private static final long UNSIGNED = 0x00000000FFFFFFFFL;
+
+  /** Default (current) timezone.  */
+  private static final TimeZone DEFAULT_TZ = TimeZone.getDefault();
+
   /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int start_time;
+  private final int start_time;
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int end_time;
+  private final int end_time;
 
   /** All the DataPoints we want to plot. */
   private ArrayList<DataPoints> datapoints =
@@ -62,13 +68,9 @@ public final class Plot {
   /**
    * Number of seconds of difference to apply in order to get local time.
    * Gnuplot always renders timestamps in UTC, so we simply apply a delta
-   * to get local time.  If the local time changes (e.g. due to DST changes)
-   * we won't pick up the change unless we restart.
-   * TODO(tsuna): Do we want to recompute the offset every day to avoid this
-   * problem?
+   * to get local time.
    */
-  private static final int utc_offset =
-    TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000;
+  private final short utc_offset;
 
   /**
    * Constructor.
@@ -78,6 +80,20 @@ public final class Plot {
    * @throws IllegalArgumentException if {@code start_time >= end_time}.
    */
   public Plot(final long start_time, final long end_time) {
+    this(start_time, end_time, DEFAULT_TZ);
+  }
+
+  /**
+   * Constructor.
+   * @param start_time Timestamp of the start time of the graph.
+   * @param end_time Timestamp of the end time of the graph.
+   * @param tz Timezone to use to render the timestamps.
+   * If {@code null} the current timezone as of when the JVM started is used.
+   * @throws IllegalArgumentException if either timestamp is 0 or negative.
+   * @throws IllegalArgumentException if {@code start_time >= end_time}.
+   * @since 1.1
+   */
+   public Plot(final long start_time, final long end_time, TimeZone tz) {
     if ((start_time & 0xFFFFFFFF00000000L) != 0) {
       throw new IllegalArgumentException("Invalid start time: " + start_time);
     } else if ((end_time & 0xFFFFFFFF00000000L) != 0) {
@@ -88,6 +104,10 @@ public final class Plot {
     }
     this.start_time = (int) start_time;
     this.end_time = (int) end_time;
+    if (tz == null) {
+      tz = DEFAULT_TZ;
+    }
+    this.utc_offset = (short) (tz.getOffset(System.currentTimeMillis()) / 1000);
   }
 
   /**
@@ -96,6 +116,13 @@ public final class Plot {
    * in the Gnuplot script file: {@code set KEY VALUE}.
    * When the value is {@code null} the script will instead contain
    * {@code unset KEY}.
+   * <p>
+   * Special parameters with a special meaning (since OpenTSDB 1.1):
+   * <ul>
+   * <li>{@code bgcolor}: Either {@code transparent} or an RGB color in
+   * hexadecimal (with a leading 'x' as in {@code x01AB23}).</li>
+   * <li>{@code fgcolor}: An RGB color in hexadecimal ({@code x42BEE7}).</li>
+   * </ul>
    */
   public void setParams(final Map<String, String> params) {
     this.params = params;
@@ -162,7 +189,7 @@ public final class Plot {
       try {
         for (final DataPoint d : datapoints.get(i)) {
           final long ts = d.timestamp();
-          if (ts >= start_time && ts <= end_time) {
+          if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
             npoints++;
           }
           datafile.print(ts + utc_offset);
@@ -212,15 +239,35 @@ public final class Plot {
       gp.append("set term png small size ")
         // Why the fuck didn't they also add methods for numbers?
         .append(Short.toString(width)).append(",")
-        .append(Short.toString(height)).append("\n"
+        .append(Short.toString(height));
+      final String fgcolor = params.remove("fgcolor");
+      String bgcolor = params.remove("bgcolor");
+      if (fgcolor != null && bgcolor == null) {
+        // We can't specify a fgcolor without specifying a bgcolor.
+        bgcolor = "xFFFFFF";  // So use a default.
+      }
+      if (bgcolor != null) {
+        if (fgcolor != null && "transparent".equals(bgcolor)) {
+          // In case we need to specify a fgcolor but we wanted a transparent
+          // background, we also need to pass a bgcolor otherwise the first
+          // hex color will be mistakenly taken as a bgcolor by Gnuplot.
+          bgcolor = "transparent xFFFFFF";
+        }
+        gp.append(' ').append(bgcolor);
+      }
+      if (fgcolor != null) {
+        gp.append(' ').append(fgcolor);
+      }
+
+      gp.append("\n"
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
                 + "set xtic rotate\n"
                 + "set output \"").append(basepath + ".png").append("\"\n"
                 + "set xrange [\"")
-        .append(String.valueOf(start_time + utc_offset))
+        .append(String.valueOf((start_time & UNSIGNED) + utc_offset))
         .append("\":\"")
-        .append(String.valueOf(end_time + utc_offset))
+        .append(String.valueOf((end_time & UNSIGNED) + utc_offset))
         .append("\"]\n");
       if (!params.containsKey("format x")) {
         gp.append("set format x \"").append(xFormat()).append("\"\n");
@@ -289,7 +336,7 @@ public final class Plot {
    * @return The Gnuplot time format string to use.
    */
   private String xFormat() {
-    long timespan = end_time - start_time;
+    long timespan = (end_time & UNSIGNED) - (start_time & UNSIGNED);
     if (timespan < 2100) {  // 35m
       return "%H:%M:%S";
     } else if (timespan < 86400) {  // 1d

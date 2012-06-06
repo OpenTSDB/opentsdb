@@ -15,6 +15,15 @@ UID_TABLE=${UID_TABLE-'tsdb-uid'}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
 COMPRESSION=${COMPRESSION-'LZO'}
+# All compression codec names are upper case (NONE, LZO, SNAPPY, etc).
+COMPRESSION=`echo "$COMPRESSION" | tr a-z A-Z`
+
+case $COMPRESSION in
+  (NONE|LZO|GZIP|SNAPPY)  :;;  # Known good.
+  (*)
+    echo >&2 "warning: compression codec '$COMPRESSION' might not be supported."
+    ;;
+esac
 
 # HBase scripts also use a variable named `HBASE_HOME', and having this
 # variable in the environment with a value somewhat different from what
