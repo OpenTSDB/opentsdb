@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-me=${0##*/}
+me=`basename "$0"`
 mydir=`dirname "$0"`
 # Either:
 #  abs_srcdir and abs_builddir are set: we're running in a dev tree
