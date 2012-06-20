@@ -17,8 +17,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -28,9 +29,8 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.stats.StatsCollector;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Thread-safe implementation of the TSDB client.

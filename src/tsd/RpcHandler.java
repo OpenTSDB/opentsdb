@@ -16,24 +16,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.BuildData;
+import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.expression.FunctionUtils;
+import net.opentsdb.stats.StatsCollector;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import net.opentsdb.BuildData;
-import net.opentsdb.core.Aggregators;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
@@ -95,6 +96,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     http_commands.put("logs", new LogsRpc());
     http_commands.put("q", new GraphHandler());
     http_commands.put("suggest", new Suggest());
+    http_commands.put("functions", new FunctionNames());
   }
 
   @Override
@@ -390,6 +392,24 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         throw new BadRequestException("Invalid 'type' parameter:" + type);
       }
       query.sendJsonArray(suggestions);
+    }
+  }
+
+  /** The "/functions" endpoint. */
+  private static final class FunctionNames implements HttpRpc {
+    public void execute(final TSDB tsdb, final HttpQuery query) {
+      final Set<String> functionNames = FunctionUtils.getFunctionNames();
+      final StringBuilder result = new StringBuilder();
+
+      for (String functionName : functionNames) {
+        result.append(functionName).append(",");
+      }
+
+      if (result.length() > 0) {
+        result.deleteCharAt(result.length() - 1);
+      }
+
+      query.sendReply(result);
     }
   }
 

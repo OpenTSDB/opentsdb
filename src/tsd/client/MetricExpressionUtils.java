@@ -1,5 +1,6 @@
 package tsd.client;
 
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.regexp.shared.RegExp;
 
 public class MetricExpressionUtils {

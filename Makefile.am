@@ -53,8 +53,10 @@ tsdb_SRC := \
 	src/expression/ArithmeticExpressionResultDataPoint.java	\
 	src/expression/ArithmeticExpressionResultDataPoints.java	\
 	src/expression/ArithmeticNode.java	\
+	src/expression/DoubleFunctionCalculator.java	\
 	src/expression/FunctionCalculator.java	\
 	src/expression/FunctionNode.java	\
+	src/expression/FunctionUtils.java	\
 	src/expression/MetricArithmeticExpressionLexer.java	\
 	src/expression/MetricArithmeticExpressionParser.java	\
 	src/expression/MetricArithmeticExpressionTreeWalker.java	\
@@ -62,7 +64,6 @@ tsdb_SRC := \
 	src/expression/MetricNode.java	\
 	src/expression/Operator.java	\
 	src/expression/OperatorNode.java	\
-	src/expression/TestFunctionCalculator.java	\
 	src/expression/TimestampValue.java	\
 	src/expression/TimestampValues.java	\
 	src/graph/Plot.java	\
@@ -245,7 +246,7 @@ gwtc: .gwtc-stamp
 
 DEV_TSD_ARGS = \
   --port=$(DEV_TSD_PORT) \
-  --staticroot=$(DEV_TSD_STATICROOT) --cachedir=$(DEV_TSD_CACHEDIR)
+  --staticroot=$(DEV_TSD_STATICROOT) --cachedir=$(DEV_TSD_CACHEDIR) --fncalculators=double:net.opentsdb.expression.DoubleFunctionCalculator
 DEV_TSD_PORT = 4242
 DEV_TSD_STATICROOT = staticroot
 DEV_TSD_CACHEDIR = /tmp/tsd

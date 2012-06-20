@@ -1,11 +1,17 @@
 package tsd.client;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.BlurHandler;
+import com.google.gwt.http.client.Request;
+import com.google.gwt.http.client.RequestBuilder;
+import com.google.gwt.http.client.RequestCallback;
+import com.google.gwt.http.client.RequestException;
+import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.InlineLabel;
@@ -20,6 +26,7 @@ public class MetricFormulaForm extends VerticalPanel {
   private final EventsHandler graphRefreshHandler;
 
   private Set<String> metricNames = new HashSet<String>();
+  private Set<String> functionNames = new HashSet<String>();
 
   private final MetricExpressionUtils metricExpressionUtils = MetricExpressionUtils
       .getInstance();
@@ -44,7 +51,7 @@ public class MetricFormulaForm extends VerticalPanel {
 
     formulas.setWidth("100%");
 
-    addFormula();
+    initFunctionNames();
   }
 
   public void updateAutoSuggestions(Set<String> metricNames) {
@@ -110,6 +117,7 @@ public class MetricFormulaForm extends VerticalPanel {
     });
 
     suggestOracle.setMetrics(metricNames);
+    suggestOracle.setFunctions(this.functionNames);
 
     formulas.add(suggestBox);
 
@@ -130,5 +138,34 @@ public class MetricFormulaForm extends VerticalPanel {
 
   private boolean isLastFormula(Widget widget) {
     return formulas.getWidgetIndex(widget) == formulas.getWidgetCount() - 1;
+  }
+
+  private void initFunctionNames() {
+    final String url = "/functions";
+    final RequestBuilder builder = new RequestBuilder(RequestBuilder.GET, url);
+    try {
+      builder.sendRequest(null, new RequestCallback() {
+        public void onResponseReceived(final Request request,
+            final Response response) {
+          final int code = response.getStatusCode();
+          if (code == Response.SC_OK) {
+            String[] functions = response.getText().split(",");
+
+            functionNames.addAll(Arrays.asList(functions));
+
+            addFormula();
+          }
+        }
+
+        @Override
+        public void onError(Request request, Throwable exception) {
+          // ignore errors, since the only consequence is that no auto-suggest
+          // for functions will be available
+        }
+      });
+    } catch (RequestException e) {
+      // ignore errors, since the only consequence is that no auto-suggest
+      // for functions will be available
+    }
   }
 }

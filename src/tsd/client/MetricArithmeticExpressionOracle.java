@@ -6,10 +6,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.user.client.ui.SuggestOracle;
 
 public class MetricArithmeticExpressionOracle extends SuggestOracle {
   private final Set<String> metrics = new HashSet<String>();
+  private final Set<String> functions = new HashSet<String>();
   private final MetricExpressionUtils metricExpressionUtils = MetricExpressionUtils
       .getInstance();
 
@@ -19,20 +21,14 @@ public class MetricArithmeticExpressionOracle extends SuggestOracle {
   @Override
   public void requestSuggestions(final Request request, final Callback callback) {
     final String query = request.getQuery();
-    final String[] tokens = query.replaceAll("[\\(\\)]", "").split(
-        "\\s*[\\+\\-\\*/]\\s*");
-    List<MetricSuggestion> suggestions = new ArrayList<MetricSuggestion>();
+    final String[] tokens = query.replaceAll("\\s", "").split(
+        "[^\\w\\[\\]\\.]");
+    final List<MetricSuggestion> suggestions = new ArrayList<MetricSuggestion>();
 
     for (String token : tokens) {
-      for (String metric : metrics) {
-        if (metric.indexOf(token) != -1) {
-          String suggestion = metricExpressionUtils.replaceOperands(query,
-              token, metric);
-
-          if (suggestion != null && !suggestion.equals(query)) {
-            suggestions.add(new MetricSuggestion(suggestion));
-          }
-        }
+      if (token.length() > 0) {
+        suggestions.addAll(suggestMetrics(query, token));
+        suggestions.addAll(suggestFunctions(query, token));
       }
     }
 
@@ -40,16 +36,48 @@ public class MetricArithmeticExpressionOracle extends SuggestOracle {
         new SuggestOracle.Response(suggestions));
   }
 
-  public void setMetrics(Collection<String> metrics) {
-    this.metrics.clear();
+  private List<MetricSuggestion> suggestMetrics(final String query,
+      final String token) {
+    return suggestInternal(query, token, metrics);
+  }
 
+  private List<MetricSuggestion> suggestFunctions(final String query,
+      final String token) {
+    return suggestInternal(query, token, functions);
+  }
+
+  private List<MetricSuggestion> suggestInternal(final String query,
+      final String token, final Set<String> suggestValues) {
+    List<MetricSuggestion> result = new ArrayList<MetricArithmeticExpressionOracle.MetricSuggestion>();
+
+    for (String suggestValue : suggestValues) {
+      if (suggestValue.indexOf(token) != -1) {
+        String suggestion = metricExpressionUtils.replaceOperands(query, token,
+            suggestValue);
+
+        if (suggestion != null && !suggestion.equals(query)) {
+          result.add(new MetricSuggestion(suggestion));
+        }
+      }
+    }
+
+    return result;
+  }
+
+  public void setMetrics(final Collection<String> metrics) {
+    this.metrics.clear();
     this.metrics.addAll(metrics);
+  }
+
+  public void setFunctions(final Collection<String> functions) {
+    this.functions.clear();
+    this.functions.addAll(functions);
   }
 
   private class MetricSuggestion implements SuggestOracle.Suggestion {
     private final String suggestion;
 
-    public MetricSuggestion(String suggestion) {
+    public MetricSuggestion(final String suggestion) {
       this.suggestion = suggestion;
     }
 
