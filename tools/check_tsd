@@ -53,6 +53,8 @@ def main(argv):
             help='Aggregation method: avg, min, sum (default), max.')
     parser.add_option('-x', '--method', dest='comparator', default='gt',
             metavar='METHOD', help='Comparison method for -w/-c: gt, ge, lt, le, eq, ne.')
+    parser.add_option('-r', '--rate', dest='rate', default=False,
+            action='store_true', help='Use rate value as comparison operand.')
     parser.add_option('-w', '--warning', dest='warning', type='int', metavar='THRESHOLD',
             help='Threshold for warning.  Uses the comparison method.')
     parser.add_option('-c', '--critical', dest='critical', type='int', metavar='THRESHOLD',
@@ -102,8 +104,12 @@ def main(argv):
         downsampling = ''
     else:
         downsampling = '%ds-%s:' % (options.duration, options.downsample)
-    url = ('/q?start=%ss-ago&m=%s:%s%s%s&ascii&nagios'
-           % (options.duration, options.aggregator, downsampling, options.metric,
+    if options.rate:
+        rate = 'rate:'
+    else:
+        rate = ''
+    url = ('/q?start=%ss-ago&m=%s:%s%s%s%s&ascii&nagios'
+           % (options.duration, options.aggregator, downsampling, rate, options.metric,
               tags))
     tsd = '%s:%d' % (options.host, options.port)
     if options.ssl_connection:  # Pick the class to instantiate first.
