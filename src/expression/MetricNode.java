@@ -29,14 +29,16 @@ public class MetricNode extends ArithmeticNode {
   public TimestampValues getDataPointsValues() {
     TimestampValues result = new TimestampValues();
 
-    for (DataPoints dataPoints : this.dataPoints) {
-      final SeekableView seekableView = dataPoints.iterator();
+    if (this.dataPoints != null) {
+      for (DataPoints dataPoints : this.dataPoints) {
+        final SeekableView seekableView = dataPoints.iterator();
 
-      while (seekableView.hasNext()) {
-        final DataPoint dataPoint = seekableView.next();
+        while (seekableView.hasNext()) {
+          final DataPoint dataPoint = seekableView.next();
 
-        result.add(new TimestampValue(dataPoint.timestamp(), dataPoint
-            .toDouble()));
+          result.add(new TimestampValue(dataPoint.timestamp(), dataPoint
+              .toDouble()));
+        }
       }
     }
 
