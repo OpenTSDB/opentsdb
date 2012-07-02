@@ -8,7 +8,11 @@ Release: 1
 Source: %{name}-%{version}.tar.gz
 Group: Applications/Databases
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root%(%{__id_u} -n)
-BuildRequires: autoconf gnuplot
+# Autoconf/automake both needed for build tools;
+# gnuplot and java needed to please ./configure;
+# wget required to download 3rd party deps;
+BuildRequires: autoconf automake gnuplot jre wget
+Requires: jre gnuplot
 
 %define service_dir /mnt/services/%{name}
 
