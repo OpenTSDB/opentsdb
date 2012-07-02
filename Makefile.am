@@ -324,6 +324,7 @@ $(jar): manifest .javac-stamp $(classes)
 # Generate the file for those who get a tarball without it.  This happens if
 # you download a tarball off GitHub for instance.
 .git/HEAD:
+	mkdir -p `dirname $@`
 	echo unknown >$@
 
 JAVADOC_DIR = api
