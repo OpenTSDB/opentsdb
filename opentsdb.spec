@@ -14,7 +14,10 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root%(%{__id_u} -n)
 BuildRequires: autoconf automake gnuplot jre wget
 Requires: jre gnuplot
 
+
+%global debug_package %{nil}
 %define service_dir /mnt/services/%{name}
+
 
 %description
 Urban Airship's gearified copy of OpenTSDB, the time-series database.
