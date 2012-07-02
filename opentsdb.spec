@@ -48,7 +48,5 @@ rm -rf %{buildroot}
 
 # Files to be pulled into the main package
 %files
-# TODO: look at what is actually needed for running
-# (why is this not simply left up to 'make install'?)
 %defattr(-,root,root)
 %{service_dir}
