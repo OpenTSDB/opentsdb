@@ -25,7 +25,12 @@ Urban Airship's gearified copy of OpenTSDB, the time-series database.
 
 
 %build
-./build.sh
+# Copy/modified version of ./build.sh
+./bootstrap
+mkdir -p build
+cd build
+../configure --prefix=
+make
 
 
 %install
