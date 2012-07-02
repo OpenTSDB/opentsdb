@@ -31,7 +31,7 @@ Urban Airship's gearified copy of OpenTSDB, the time-series database.
 %install
 rm -rf %{buildroot}
 cd build
-DESTDIR=%{service_dir} make install
+DESTDIR=%{buildroot}%{service_dir} make install
 
 
 %clean
