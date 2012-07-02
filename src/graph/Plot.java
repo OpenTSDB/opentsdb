@@ -239,7 +239,8 @@ public final class Plot {
       gp.append("set term png small size ")
         // Why the fuck didn't they also add methods for numbers?
         .append(Short.toString(width)).append(",")
-        .append(Short.toString(height));
+        .append(Short.toString(height))
+        .append(" xffffff x000000 x000000 x000000 x0000ff x00ff00 x00ffff xff0000 xff00ff xffff00 x000080 x008000 x008080 x0080ff x00ff80 x800000 x800080 x8000ff x808000 x808080 x8080ff x80ff00 x80ff80 x80ffff xff0080 xff8000 xff8080 xff80ff xffff80 x000066 x000099 x006600 x006666 x006699 x0066ff x009900 x009966 x009999 x0099ff x00ff66 x00ff99 x660000 x660066 x660099 x6600ff x666600 x666666 x666699 x6666ff x669900 x669966 x669999 x6699ff x66ff00 x66ff66 x66ff99 x66ffff x990000 x990066 x990099 x9900ff x996600 x996666 x996699 x9966ff x999900 x999966 x999999 x9999ff x99ff00 x99ff66 x99ff99 x99ffff xff0066 xff0099 xff6600 xff6666 xff6699 xff66ff xff9900 xff9966 xff9999 xff99ff xffff66 xffff99");
       final String fgcolor = params.remove("fgcolor");
       String bgcolor = params.remove("bgcolor");
       if (fgcolor != null && bgcolor == null) {
