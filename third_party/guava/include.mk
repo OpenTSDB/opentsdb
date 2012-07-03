@@ -15,7 +15,8 @@
 
 GUAVA_VERSION := 12.0
 GUAVA := third_party/guava/guava-$(GUAVA_VERSION).jar
-GUAVA_BASE_URL := http://search.maven.org/remotecontent?filepath=com/google/guava/guava/$(GUAVA_VERSION)
+#GUAVA_BASE_URL := http://search.maven.org/remotecontent?filepath=com/google/guava/guava/$(GUAVA_VERSION)
+GUAVA_BASE_URL := http://nexus.prod.urbanairship.com/service/local/repositories/central/content/com/google/guava/guava/$(GUAVA_VERSION)
 
 $(GUAVA): $(GUAVA).md5
 	set dummy "$(GUAVA_BASE_URL)" "$(GUAVA)"; shift; $(FETCH_DEPENDENCY)
