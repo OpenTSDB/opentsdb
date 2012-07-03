@@ -32,14 +32,14 @@ Urban Airship's gearified copy of OpenTSDB, the time-series database.
 ./bootstrap
 mkdir -p build
 cd build
-../configure --prefix=
+../configure --prefix=%{service_dir}
 make
 
 
 %install
 rm -rf %{buildroot}
 cd build
-DESTDIR=%{buildroot}%{service_dir} make install
+DESTDIR=%{buildroot} make install
 
 
 %clean
