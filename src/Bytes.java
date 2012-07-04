@@ -27,6 +27,8 @@
 package org.hbase.async;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -391,24 +393,46 @@ public final class Bytes {
     return new String(buf);
   }
 
-  // TODO(tsuna): Remove this unnecessary complication once Netty's
-  // ReplayingDecoderBuffer#array is fixed -- see NETTY-346.
+  // Ugly stuff
+  // ----------
   // Background: when using ReplayingDecoder (which makes it easy to deal with
   // unframed RPC responses), the ChannelBuffer we manipulate is in fact a
   // ReplayingDecoderBuffer, a package-private class that Netty uses.  This
   // class, for some reason, throws UnsupportedOperationException on its
   // array() method.  This method is unfortunately the only way to easily dump
   // the contents of a ChannelBuffer, which is useful for debugging or logging
-  // unexpected buffers.  So until Netty is fixed, we have to cheat the type
-  // system using reflection.
+  // unexpected buffers.  An issue (NETTY-346) has been filed to get access to
+  // the buffer, but the resolution was useless: instead of making the array()
+  // method work, a new internalBuffer() method was added on ReplayingDecoder,
+  // which would require that we keep a reference on the ReplayingDecoder all
+  // along in order to properly convert the buffer to a string.
+  // So we instead use ugly reflection to gain access to the underlying buffer
+  // while taking into account that the implementation of Netty has changed
+  // over time, so depending which version of Netty we're working with, we do
+  // a different hack.  Yes this is horrible, but it's for the greater good as
+  // this is what allows us to debug unexpected buffers when deserializing RPCs
+  // and what's more important than being able to debug unexpected stuff?
   private static final Class<?> ReplayingDecoderBuffer;
-  private static final Field RDB_buffer;
+  private static final Field RDB_buffer;  // For Netty 3.5.0 and before.
+  private static final Method RDB_buf;    // For Netty 3.5.1 and above.
   static {
     try {
       ReplayingDecoderBuffer = Class.forName("org.jboss.netty.handler.codec."
                                              + "replay.ReplayingDecoderBuffer");
-      RDB_buffer = ReplayingDecoderBuffer.getDeclaredField("buffer");
-      RDB_buffer.setAccessible(true);
+      Field field = null;
+      try {
+        field = ReplayingDecoderBuffer.getDeclaredField("buffer");
+        field.setAccessible(true);
+      } catch (NoSuchFieldException e) {
+        // Ignore.  Field has been removed in Netty 3.5.1.
+      }
+      RDB_buffer = field;
+      if (field != null) {  // Netty 3.5.0 or before.
+        RDB_buf = null;
+      } else {
+        RDB_buf = ReplayingDecoderBuffer.getDeclaredMethod("buf");
+        RDB_buf.setAccessible(true);
+      }
     } catch (Exception e) {
       throw new RuntimeException("static initializer failed", e);
     }
@@ -424,17 +448,19 @@ public final class Bytes {
       return "null";
     }
     byte[] array;
-    if (buf.getClass() != ReplayingDecoderBuffer) {
-      array = buf.array();
-    } else {
-      // TODO(tsuna): Remove this unnecessary complication once Netty's
-      // ReplayingDecoderBuffer#array is fixed -- see NETTY-346.
-      try {
+    try {
+      if (buf.getClass() != ReplayingDecoderBuffer) {
+        array = buf.array();
+      } else if (RDB_buf != null) {  // Netty 3.5.1 and above.
+        array = ((ChannelBuffer) RDB_buf.invoke(buf)).array();
+      } else {  // Netty 3.5.0 and before.
         final ChannelBuffer wrapped_buf = (ChannelBuffer) RDB_buffer.get(buf);
         array = wrapped_buf.array();
-      } catch (IllegalAccessException e) {
-        throw new AssertionError("Should not happen: " + e);
       }
+    } catch (IllegalAccessException e) {
+      throw new AssertionError("Should not happen: " + e);
+    } catch (InvocationTargetException e) {
+      throw new AssertionError("Should not happen: " + e);
     }
     return pretty(array);
   }
