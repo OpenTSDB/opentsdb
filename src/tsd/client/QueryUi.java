@@ -23,11 +23,20 @@ import java.util.Date;
 import java.util.HashMap;
 
 import com.google.gwt.core.client.EntryPoint;
+import com.google.gwt.dom.client.Style;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.DomEvent;
 import com.google.gwt.event.dom.client.ErrorEvent;
 import com.google.gwt.event.dom.client.ErrorHandler;
+import com.google.gwt.event.dom.client.LoadEvent;
+import com.google.gwt.event.dom.client.LoadHandler;
+import com.google.gwt.event.dom.client.MouseDownEvent;
+import com.google.gwt.event.dom.client.MouseDownHandler;
+import com.google.gwt.event.dom.client.MouseMoveEvent;
+import com.google.gwt.event.dom.client.MouseMoveHandler;
+import com.google.gwt.event.dom.client.MouseUpEvent;
+import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.event.logical.shared.BeforeSelectionEvent;
 import com.google.gwt.event.logical.shared.BeforeSelectionHandler;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
@@ -51,6 +60,7 @@ import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.HistoryListener;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.ui.AbsolutePanel;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DecoratedTabPanel;
@@ -159,10 +169,28 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
   private final DecoratedTabPanel metrics = new DecoratedTabPanel();
 
-  private final Image graph = new Image();
+  /** Panel to place generated graphs and a box for zoom highlighting. */
+  public final AbsolutePanel graphabsbox = new AbsolutePanel();
+  public final Image graph = new Image();
+  public final HTML zoomHighlightBox = new HTML();
   private final Label graphstatus = new Label();
   /** Remember the last URI requested to avoid requesting twice the same. */
   private String lastgraphuri;
+
+  /** Get the current date and timestamp on page load in case it's needed as an "end time". */
+  private Date nowDate = new Date();
+  private long now_timestamp = nowDate.getTime();
+
+  /** Variables to track mouse position on the graph image for zooming functionality */
+  public boolean zoomSelectionActive = false;
+  public int graphStartX = 0;
+  public int graphStartY = 0;
+  public int graphEndX = 0;
+  public int graphEndY = 0;
+
+  /** Globals to define a "fudge factor" for offsets of actual graph data plotted by gnuplot that aren't the axes. */
+  public static final int GRAPH_LEFT_EDGE_OFFSET = 45;
+  public static final int GRAPH_RIGHT_EDGE_OFFSET = 15;
 
   /**
    * We only send one request at a time, how many have we not sent yet?.
@@ -356,13 +384,47 @@ public class QueryUi implements EntryPoint, HistoryListener {
     {
       final VerticalPanel graphvbox = new VerticalPanel();
       graphvbox.add(graphstatus);
+
+      
+      // Perform initial style setup for the zoombox
+      Style zoomHighlightBoxStyle = zoomHighlightBox.getElement().getStyle();
+      zoomHighlightBoxStyle.setProperty("background", "red");
+      zoomHighlightBoxStyle.setProperty("filter", "alpha(opacity=50)");
+      zoomHighlightBoxStyle.setProperty("opacity", "0.5");
+      zoomHighlightBox.setVisible(false);
+
       graph.setVisible(false);
-      graphvbox.add(graph);
+
+      // Put the graph image element and the zoombox elements inside the absolute panel
+      graphabsbox.add(graph, 0, 0);
+      graphabsbox.add(zoomHighlightBox, 0, 0);
+
+      graphvbox.add(graphabsbox);
       graph.addErrorHandler(new ErrorHandler() {
         public void onError(final ErrorEvent event) {
           graphstatus.setText("Oops, failed to load the graph.");
         }
       });
+      graph.addLoadHandler(new LoadHandler() {
+        public void onLoad(final LoadEvent event) {
+          graphabsbox.setWidth("" + graph.getWidth() + "px");
+          graphabsbox.setHeight("" + graph.getHeight() + "px");
+        }
+      });
+
+      // Create the mouse event handler object for all mouse-draggable zoombox events
+      ZoomBoxMouseHandler zoomBoxMouseHandler = new ZoomBoxMouseHandler(this);
+
+      // Add the above handler for mousedown, mouseup, and mousemove events on the graph
+      graph.addMouseDownHandler(zoomBoxMouseHandler);
+      graph.addMouseMoveHandler(zoomBoxMouseHandler);
+      graph.addMouseUpHandler(zoomBoxMouseHandler);
+
+      // Also add the above handler for mousemove and mouseup on the actual zoom highlight
+      // box (this is in case the pointer gets on the zoombox so that it keeps responding correctly).
+      zoomHighlightBox.addMouseMoveHandler(zoomBoxMouseHandler);
+      zoomHighlightBox.addMouseUpHandler(zoomBoxMouseHandler);
+
       graphpanel.add(graphvbox);
     }
     final DecoratedTabPanel mainpanel = new DecoratedTabPanel();
@@ -843,6 +905,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
           if (nplotted != null && nplotted.isNumber().doubleValue() > 0) {
             graph.setUrl(uri + "&png");
             graph.setVisible(true);
+
             msg += result.get("points").isNumber() + " points retrieved, "
               + nplotted + " points plotted";
           } else {
@@ -1000,6 +1063,165 @@ public class QueryUi implements EntryPoint, HistoryListener {
   static void setTextAlignCenter(final Element element) {
     element.getStyle().setProperty("textAlign", "center");
   }
+
+  /**
+   * Given the width of the gnuplot graph image on the page and using the selected area on  the image
+   * from the mouse (graphStartX and graphEndX), calculate the new start/end datetime values and 
+   * refresh the image to reflect them.
+   */
+  public void mouseDragZoom(int imageWidth)
+  {
+    // variables to indicate the true start and end points of the new graph to be generated.
+    int plotStart = -1;
+    int plotEnd = -1;
+
+    // Calculate the true start/end points of the zoom area selected by mouse. If the mouse
+    // was dragged left on the graph before being let up, then graphStartX is the right-most
+    // edge of the zoomable area. If the mouse was dragged right on the graph before being let
+    // up, then graphStartX is the left-most edge of the zoomable area.
+    if (graphStartX < graphEndX)
+    {
+      plotStart = graphStartX - GRAPH_LEFT_EDGE_OFFSET;
+      plotEnd = graphEndX - GRAPH_LEFT_EDGE_OFFSET;
+    }
+    else
+    {
+      plotStart = graphEndX - GRAPH_LEFT_EDGE_OFFSET;
+      plotEnd = graphStartX - GRAPH_LEFT_EDGE_OFFSET;
+    }
+    int trueImageWidth = imageWidth - GRAPH_LEFT_EDGE_OFFSET - GRAPH_RIGHT_EDGE_OFFSET;
+
+    // Grab dates from the textboxes. If the end date box is empty, use the timestamp from when the page was loaded.
+    Date startDate = start_datebox.getValue();
+    Date endDate = end_datebox.getValue();
+    long start = startDate.getTime();
+    long end = 0;
+    try {
+      end = endDate.getTime();
+    }
+    catch (Exception e)
+    {
+      end = now_timestamp;
+    }
+
+    // Get the total span of time represented between the start and end times
+    double totalTime = (double)(end - start);
+
+    // Get the start and end positions of the mouse drag operation on the image as a percentage of the image size
+    double startPct = ((double)plotStart)/((double)trueImageWidth);
+    double endPct = ((double)plotEnd)/((double)trueImageWidth);
+
+    // Get the time values based on the start/end percentages
+    long startChange = (long)(startPct * totalTime);
+    long endChange = (long)(endPct * totalTime);
+
+    // Get the new start/end times based on the time values that correspond to the mouse location
+    long newStart = start + startChange;
+    long newEnd = start + endChange;
+
+    // Convert the new start/end times to Dates for inserting into the DateTimeBox
+    Date newStartDate = new Date(newStart);
+    Date newEndDate = new Date(newEnd);
+
+    start_datebox.setValue(newStartDate);
+    end_datebox.setValue(newEndDate);
+
+    refreshGraph();
+  }
+
+  /**
+   * General mouse handler for any actions needed for creating a zoom box on tsd graphs.
+   */
+  private final class ZoomBoxMouseHandler implements MouseUpHandler, MouseMoveHandler, MouseDownHandler {
+
+    private final QueryUi q;
+
+    /**
+     * Construct this Mouse handler.
+     * @param q A QueryUi object needed for accessing objects needed to manipulate the interface for zoombox functionality.
+     */
+    public ZoomBoxMouseHandler(final QueryUi q) {
+      this.q = q;
+    }
+
+    @Override
+    public void onMouseDown(MouseDownEvent event) {
+      event.preventDefault();
+
+      q.zoomSelectionActive = true;
+      q.graphStartX = event.getRelativeX(q.graph.getElement());
+      q.graphStartY = event.getRelativeY(q.graph.getElement());
+      q.graphEndX = 0;
+      q.graphEndY = 0;
+
+      q.graphabsbox.setWidgetPosition(q.zoomHighlightBox, q.graphStartX, q.graphStartY);
+      q.zoomHighlightBox.setWidth("0px");
+      q.zoomHighlightBox.setHeight("0px");
+      q.zoomHighlightBox.setVisible(true);
+    }
+
+    @Override
+    public void onMouseMove(MouseMoveEvent event) {
+      event.preventDefault();
+
+      if (q.zoomSelectionActive)
+      {
+        int curX = event.getRelativeX(q.graph.getElement());
+        int curY = event.getRelativeY(q.graph.getElement());
+        int left = -1;
+        int top = -1;
+        int width = -1;
+        int height = -1;
+
+        // figure out the top, left, height, and width of the zoombox based
+        // on current pointer location.
+        if (curX < q.graphStartX)
+        {
+          left = curX;
+          width = q.graphStartX - curX;
+        }
+        else
+        {
+          left = q.graphStartX;
+          width = curX - q.graphStartX;
+        }
+        if (curY < q.graphStartY)
+        {
+          top = curY;
+          height = q.graphStartY - curY;
+        }
+        else
+        {
+          top = q.graphStartY;
+          height = curY - q.graphStartY;
+        }
+
+        // resize/move the zoombox as needed based on pointer location
+        q.zoomHighlightBox.setVisible(false);
+        q.graphabsbox.setWidgetPosition(q.zoomHighlightBox, left, top);
+        q.zoomHighlightBox.setWidth("" + width + "px");
+        q.zoomHighlightBox.setHeight("" + height + "px");
+        q.zoomHighlightBox.setVisible(true);
+      }
+    }
+
+    @Override
+    public void onMouseUp(MouseUpEvent event) {
+      event.preventDefault();
+
+      // Kick off a zoom operation based on the selected area
+      q.zoomSelectionActive = false;
+      q.graphEndX = event.getRelativeX(q.graph.getElement());
+      q.graphEndY = event.getRelativeY(q.graph.getElement());
+      q.mouseDragZoom(q.graph.getWidth());
+
+      // Hide the zoom box
+      q.zoomHighlightBox.setVisible(false);
+      q.zoomHighlightBox.setWidth("0px");
+      q.zoomHighlightBox.setHeight("0px");
+    }
+
+  };
 
   private final class AdjustYRangeCheckOnClick implements ClickHandler {
 
