@@ -44,11 +44,12 @@ DESTDIR=%{buildroot} make install
 
 # Move jars, other jar-colocated files into current/lib/java
 %define _root %{buildroot}%{service_dir}
-%define jar_home %{_root}/current/lib/java
+%define jar_home %{service_dir}/current/lib/java
+%define jar_home_mocked %{buildroot}%{jar_home}
 %define tsdb_share %{service_dir}/share/opentsdb
 %define tsdb_share_mocked %{buildroot}%{tsdb_share}
-mkdir -p %{jar_home}
-find %{tsdb_share_mocked} -maxdepth 1 -type f -exec mv '{}' %{jar_home}/ \;
+mkdir -p %{jar_home_mocked}
+find %{tsdb_share_mocked} -maxdepth 1 -type f -exec mv '{}' %{jar_home_mocked}/ \;
 
 # Update bin/tsdb to look there for the jars & local config
 sed -ie "s:^pkgdatadir='%{tsdb_share}'$:pkgdatadir='%{jar_home}':" %{_root}/bin/tsdb
