@@ -37,9 +37,20 @@ make
 
 
 %install
+# Regular installation
 rm -rf %{buildroot}
 cd build
 DESTDIR=%{buildroot} make install
+
+# Move jars into current/lib/java
+%define _root %{buildroot}%{service_dir}
+%define jar_home %{_root}/current/lib/java
+%define tsdb_share %{_root}/share/opentsdb
+mkdir -p %{jar_home}
+mv %{tsdb_share}/*.jar %{jar_home}/
+
+# Update bin/tsdb to look there for the jars & local config
+sed -ie "s:^pkgdatadir='%{tsdb_share}'$:pkgdatadir='%{jar_home}':" %{_root}/bin/tsdb
 
 
 %clean
