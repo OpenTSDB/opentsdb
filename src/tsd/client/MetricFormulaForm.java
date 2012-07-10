@@ -87,7 +87,7 @@ public class MetricFormulaForm extends VerticalPanel {
               "[^\\d]", "")) - 1;
           final String queryMetricName = queryMetricNames.get(metricIndex);
           expression = metricExpressionUtils.replaceOperands(expression,
-              metricName, queryMetricName);
+              metricName, "\"" + queryMetricName + "\"");
         }
 
         if (expression != null) {

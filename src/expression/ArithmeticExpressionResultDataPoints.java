@@ -15,7 +15,7 @@ public class ArithmeticExpressionResultDataPoints implements DataPoints {
   private final List<DataPoint> dataPoints = new ArrayList<DataPoint>();
 
   public ArithmeticExpressionResultDataPoints(final String metricName) {
-    this.metricName = metricName;
+    this.metricName = metricName.replaceAll("\"", "");
   }
 
   public void add(DataPoint dataPoint) {

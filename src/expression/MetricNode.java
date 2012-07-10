@@ -11,7 +11,7 @@ public class MetricNode extends ArithmeticNode {
   private DataPoints[] dataPoints;
 
   public MetricNode(String name) {
-    this.name = name;
+    this.name = name.replaceAll("\\\"", "");
   }
 
   public String getName() {

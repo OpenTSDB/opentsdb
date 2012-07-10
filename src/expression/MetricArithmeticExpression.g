@@ -36,9 +36,9 @@ funct: (IDENTIFIER^ LEFT_PARENTHESIS! expr (PARAM_SEPARATOR! expr)* RIGHT_PARENT
  *-----------------------------------------------------------------------------
  */
 
-IDENTIFIER : Letter (Letter|Digit|Separator)*;
+IDENTIFIER : (Letter|Digit|Separator)+;
 
-METRIC : IDENTIFIER ':' IDENTIFIER ('{' IDENTIFIER '=' IDENTIFIER (',' IDENTIFIER '=' IDENTIFIER) '}')?;
+METRIC : '\"' IDENTIFIER (':' IDENTIFIER)* ('{' IDENTIFIER '=' IDENTIFIER (',' IDENTIFIER '=' IDENTIFIER)* '}')? '\"';
 
 PARAM_SEPARATOR : ',';
  
