@@ -1147,17 +1147,30 @@ public class QueryUi implements EntryPoint, HistoryListener {
     @Override
     public void onMouseDown(MouseDownEvent event) {
       event.preventDefault();
+      Element graphEle = q.graph.getElement();
 
-      q.zoomSelectionActive = true;
-      q.graphStartX = event.getRelativeX(q.graph.getElement());
-      q.graphStartY = event.getRelativeY(q.graph.getElement());
-      q.graphEndX = 0;
-      q.graphEndY = 0;
+      // Check if the zoom selection is active, if so, it's possible that the
+      // mouse left the browser mid-selection and got stuck enabled even
+      // though the mouse isn't still pressed. If that's the case, do a similar
+      // operation to the onMouseUp event.
+      if (q.zoomSelectionActive)
+      {
+    	  q.zoomSelectionActive = false;
+    	  endSelection(event.getRelativeX(graphEle), event.getRelativeY(graphEle), q.graph.getWidth());
+      }
+      else
+      {
+    	  q.zoomSelectionActive = true;
+    	  q.graphStartX = event.getRelativeX(graphEle);
+    	  q.graphStartY = event.getRelativeY(graphEle);
+    	  q.graphEndX = 0;
+    	  q.graphEndY = 0;
 
-      q.graphabsbox.setWidgetPosition(q.zoomHighlightBox, q.graphStartX, q.graphStartY);
-      q.zoomHighlightBox.setWidth("0px");
-      q.zoomHighlightBox.setHeight("0px");
-      q.zoomHighlightBox.setVisible(true);
+    	  q.graphabsbox.setWidgetPosition(q.zoomHighlightBox, q.graphStartX, q.graphStartY);
+    	  q.zoomHighlightBox.setWidth("0px");
+    	  q.zoomHighlightBox.setHeight("0px");
+    	  q.zoomHighlightBox.setVisible(true);
+      }
     }
 
     @Override
@@ -1209,11 +1222,28 @@ public class QueryUi implements EntryPoint, HistoryListener {
     public void onMouseUp(MouseUpEvent event) {
       event.preventDefault();
 
+      if(q.zoomSelectionActive)
+      {
+    	  q.zoomSelectionActive = false;
+    	  Element graphEle = q.graph.getElement();
+    	  endSelection(event.getRelativeX(graphEle), event.getRelativeY(graphEle), q.graph.getWidth());
+      }
+    }
+
+    /**
+     * Perform operations for when a user completes their selection. This involves
+     * removing the highlight box and kicking off the zoom in operation.
+     * @param endXOnGraph The the x coordinate relative to the graph image  at which the zoom was completed.
+     * @param endYOnGraph The the y coordinate relative to the graph image  at which the zoom was completed.
+     * @param selectionWidth The width of the selection area in pixels.
+     */
+    public void endSelection(int endXOnGraph, int endYOnGraph, int selectionWidth)
+    {
       // Kick off a zoom operation based on the selected area
       q.zoomSelectionActive = false;
-      q.graphEndX = event.getRelativeX(q.graph.getElement());
-      q.graphEndY = event.getRelativeY(q.graph.getElement());
-      q.mouseDragZoom(q.graph.getWidth());
+      q.graphEndX = endXOnGraph;
+      q.graphEndY = endYOnGraph;
+      q.mouseDragZoom(selectionWidth);
 
       // Hide the zoom box
       q.zoomHighlightBox.setVisible(false);
