@@ -48,6 +48,8 @@ def main(argv):
     parser.add_option('-D', '--downsample', dest='downsample', default='none',
             metavar='METHOD',
             help='Downsample the data over the duration via avg, min, sum, or max.')
+    parser.add_option('-W', '--downsample-window', dest='downsample_window', type='int',
+            default=60, metavar='SECONDS', help='Window size over which to downsample.')
     parser.add_option('-a', '--aggregator', dest='aggregator', default='sum',
             metavar='METHOD',
             help='Aggregation method: avg, min, sum (default), max.')
@@ -83,6 +85,8 @@ def main(argv):
         parser.error('You must specify a metric (option -m).')
     elif options.duration <= 0:
         parser.error('Duration must be strictly positive.')
+    elif options.downsample_window <= 0:
+        parser.error('Downsample window must be strictly positive.')
     elif not options.critical and not options.warning:
         parser.error('You must specify at least a warning threshold (-w) or a'
                      ' critical threshold (-c).')
@@ -103,7 +107,7 @@ def main(argv):
     if options.downsample == 'none':
         downsampling = ''
     else:
-        downsampling = '%ds-%s:' % (options.duration, options.downsample)
+        downsampling = '%ds-%s:' % (options.downsample_window, options.downsample)
     if options.rate:
         rate = 'rate:'
     else:
