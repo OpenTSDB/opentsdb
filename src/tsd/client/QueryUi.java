@@ -324,7 +324,7 @@ public class QueryUi implements EntryPoint {
             }
           }
 
-          metricFormulaForm.updateAutoSuggestions(metricNames);
+          metricFormulaForm.handleMetricNamesChanged(metricNames);
         }
       };
       final EventsHandler updatey2range = new EventsHandler() {

@@ -54,33 +54,26 @@ public class MetricFormulaForm extends VerticalPanel {
     initFunctionNames();
   }
 
-  public void updateAutoSuggestions(Set<String> metricNames) {
-    if (metricNames != null) {
-      this.metricNames = metricNames;
-    }
+  public void handleMetricNamesChanged(final Set<String> newMetricNames) {
+    if (newMetricNames != null && newMetricNames.size() > 0) {
+      final Set<String> removedMetricNames = getRemovedMetricNames(newMetricNames);
 
-    for (int i = 0; i < formulas.getWidgetCount(); i++) {
-      final Widget widget = formulas.getWidget(i);
+      this.metricNames = newMetricNames;
 
-      if (widget instanceof SuggestBox) {
-        final SuggestBox suggestBox = (SuggestBox) widget;
-        final MetricArithmeticExpressionOracle suggestOracle = (MetricArithmeticExpressionOracle) suggestBox
-            .getSuggestOracle();
-
-        suggestOracle.setMetrics(this.metricNames);
-      }
+      updateAutoSuggestions();
+      removeInvalidFormulas(removedMetricNames);
     }
   }
 
-  public String buildQueryString(List<String> queryMetricNames) {
-    StringBuilder result = new StringBuilder();
+  public String buildQueryString(final List<String> queryMetricNames) {
+    final StringBuilder result = new StringBuilder();
 
     for (int i = 0; i < formulas.getWidgetCount(); i++) {
       final Widget widget = formulas.getWidget(i);
 
       if (widget instanceof SuggestBox) {
         final SuggestBox suggestBox = (SuggestBox) widget;
-        String expression = suggestBox.getTextBox().getText();
+        String expression = suggestBox.getText();
 
         for (String metricName : metricNames) {
           final int metricIndex = Integer.valueOf(metricName.replaceAll(
@@ -102,6 +95,53 @@ public class MetricFormulaForm extends VerticalPanel {
     result.append("&hm=").append(hideMetrics.getValue().booleanValue());
 
     return result.toString();
+  }
+
+  private Set<String> getRemovedMetricNames(Set<String> newMetricNames) {
+    final Set<String> result = new HashSet<String>();
+
+    for (final String metricName : this.metricNames) {
+      if (!newMetricNames.contains(metricName)) {
+        result.add(metricName);
+      }
+    }
+
+    return result;
+  }
+
+  private void updateAutoSuggestions() {
+    for (int i = 0; i < formulas.getWidgetCount(); i++) {
+      final Widget widget = formulas.getWidget(i);
+
+      if (widget instanceof SuggestBox) {
+        final SuggestBox suggestBox = (SuggestBox) widget;
+        final MetricArithmeticExpressionOracle suggestOracle = (MetricArithmeticExpressionOracle) suggestBox
+            .getSuggestOracle();
+
+        suggestOracle.setMetrics(this.metricNames);
+      }
+    }
+  }
+
+  private void removeInvalidFormulas(Set<String> removedMetricNames) {
+    if (removedMetricNames.size() > 0) {
+      for (int i = 0; i < formulas.getWidgetCount(); i++) {
+        final Widget widget = formulas.getWidget(i);
+
+        if (widget instanceof SuggestBox) {
+          final SuggestBox suggestBox = (SuggestBox) widget;
+          final String expression = suggestBox.getText();
+
+          for (String removedMetricName : removedMetricNames) {
+            if (expression.indexOf(removedMetricName) >= 0) {
+              suggestBox.setText("");
+            }
+          }
+        }
+      }
+
+      cleanup();
+    }
   }
 
   private void addFormula() {
