@@ -1,14 +1,14 @@
 #!/bin/bash
 
 set -e
-me=${0##*/}
+me=`basename "$0"`
 mydir=`dirname "$0"`
 # Either:
 #  abs_srcdir and abs_builddir are set: we're running in a dev tree
 #  or pkgdatadir is set: we've been installed, we respect that.
-abs_srcdir=@abs_srcdir@
-abs_builddir=@abs_builddir@
-pkgdatadir=@pkgdatadir@
+abs_srcdir='@abs_srcdir@'
+abs_builddir='@abs_builddir@'
+pkgdatadir='@pkgdatadir@'
 # Either we've been installed and pkgdatadir exists, or we haven't been
 # installed and abs_srcdir / abs_builddir aren't empty.
 test -d "$pkgdatadir" || test -n "$abs_srcdir$abs_builddir" || {
