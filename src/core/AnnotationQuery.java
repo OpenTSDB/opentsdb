@@ -7,15 +7,22 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.uid.NoSuchUniqueName;
+
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A query to retrieve annotation data from the TSDB.
  */
 public class AnnotationQuery {
+  private static final Logger LOGGER = LoggerFactory
+      .getLogger(AnnotationQuery.class);
+
   private TSDB tsdb;
   private byte[] metric;
   private long startTime;
@@ -28,33 +35,40 @@ public class AnnotationQuery {
     this.startTime = startTime;
     this.endTime = endTime;
     this.tags = Tags.resolveAll(tsdb, tags);
-    this.metric = tsdb.metrics.getId(Const.ANNOTATION_NAME);
+    try {
+      this.metric = tsdb.metrics.getId(Const.ANNOTATION_NAME);
+    } catch (NoSuchUniqueName e) {
+      LOGGER.debug("not yet stored a timeline annotation", e);
+    }
   }
 
   public List<Annotation> run() {
     final List<Annotation> result = new ArrayList<Annotation>();
-    final Scanner scanner = getScanner();
-    final short metricWidth = tsdb.metrics.width();
-    ArrayList<ArrayList<KeyValue>> rows;
 
-    try {
-      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
-        for (final ArrayList<KeyValue> row : rows) {
-          final byte[] key = row.get(0).key();
-          if (Bytes.memcmp(metric, key, 0, metricWidth) != 0) {
-            throw new IllegalDataException(
-                "HBase returned a row that doesn't match" + " our scanner ("
-                    + scanner + ")! " + row + " does not start" + " with "
-                    + Arrays.toString(metric));
-          }
-          for (KeyValue keyValue : row) {
-            result.add(new Annotation(getTimestamp(keyValue.key()), keyValue
-                .value()));
+    if (metric != null) {
+      final Scanner scanner = getScanner();
+      final short metricWidth = tsdb.metrics.width();
+      ArrayList<ArrayList<KeyValue>> rows;
+
+      try {
+        while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+          for (final ArrayList<KeyValue> row : rows) {
+            final byte[] key = row.get(0).key();
+            if (Bytes.memcmp(metric, key, 0, metricWidth) != 0) {
+              throw new IllegalDataException(
+                  "HBase returned a row that doesn't match" + " our scanner ("
+                      + scanner + ")! " + row + " does not start" + " with "
+                      + Arrays.toString(metric));
+            }
+            for (KeyValue keyValue : row) {
+              result.add(new Annotation(getTimestamp(keyValue.key()), keyValue
+                  .value()));
+            }
           }
         }
+      } catch (Exception e) {
+        throw new RuntimeException("Should never be here", e);
       }
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
     }
 
     return result;
