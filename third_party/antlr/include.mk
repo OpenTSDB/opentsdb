@@ -18,6 +18,6 @@ ANTLR := third_party/antlr/antlr-$(ANTLR_VERSION)-complete.jar
 ANTLR_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 
 $(ANTLR): $(ANTLR).md5
-set dummy "$(ANTLR_BASE_URL)" "$(ANTLR)"; shift; $(FETCH_DEPENDENCY)
+	set dummy "$(ANTLR_BASE_URL)" "$(ANTLR)"; shift; $(FETCH_DEPENDENCY)
 
 THIRD_PARTY += $(ANTLR)
