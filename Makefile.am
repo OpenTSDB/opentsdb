@@ -196,6 +196,11 @@ jar: $(jar) .javac-unittests-stamp .gwtc-stamp
 
 JAVA_COMPILE := $(JAVAC) $(AM_JAVACFLAGS) -d .
 
+antlrc: 
+	cd src/expression; \
+	java -classpath ../../build/antlr/antlr-3.4-complete.jar org.antlr.Tool MetricArithmeticExpression.g MetricArithmeticExpressionTreeWalker.g; \
+	cd ../..;
+
 # Sets the shell variable $src to the list of `.java' files we depend on
 # that need to be recompiled.  Runs "exit 0" if there's nothing to compile,
 # which can happen if only non-.java dependencies have been updated.
@@ -232,7 +237,7 @@ get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'
 GWT_CLASSPATH = `jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(srcdir)/src
 # The GWT compiler is way too slow, that's not very Googley.  So we save the
 # MD5 of the files we compile in the stamp file and everytime `make' things it
-# needs to recompile the GWT code, we verify whether the code really changed
+# needs to recompile the GWT code, we verify whether the code really changedl
 # or whether it's just a file that was touched (which happens frequently when
 # using Git while rebasing and whatnot).
 gwtc: .gwtc-stamp
@@ -382,5 +387,5 @@ clean-local:
 	rm -f $(jar) tsdb
 	rm -rf $(JAVADOC_DIR)
 
-.PHONY: jar doc check gwtc gwtdev printdeps staticroot gwttsd
+.PHONY: jar doc check antlrc gwtc gwtdev printdeps staticroot gwttsd
 include third_party/include.mk
