@@ -270,7 +270,7 @@ public final class Plot {
       }
       
       for(Annotation annotation : annotations) {
-        String ts = Long.toString(annotation.getTimestamp());
+        String ts = Long.toString(annotation.getTimestamp() + utc_offset);
         String value = new String(annotation.getValue());
         gp.append("set arrow from \"").append(ts).append("\", graph 0 to \"").append(ts).append("\", graph 1 nohead ls 3\n");
         gp.append("set object rectangle at \"").append(ts).append("\", graph 0 size char (strlen(\"").append(value).append("\") + 3), char 1 front fc rgbcolor \"white\"\n");

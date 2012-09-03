@@ -61,8 +61,8 @@ public class AnnotationQuery {
                       + Arrays.toString(metric));
             }
             for (KeyValue keyValue : row) {
-              result.add(new Annotation(getTimestamp(keyValue.key()), keyValue
-                  .value()));
+              result.add(new Annotation(getTimestamp(keyValue.key(),
+                  keyValue.qualifier()), keyValue.value()));
             }
           }
         }
@@ -160,7 +160,9 @@ public class AnnotationQuery {
     buf.append("\\E");
   }
 
-  private long getTimestamp(byte[] key) {
-    return Bytes.getInt(key, tsdb.metrics.width());
+  private long getTimestamp(byte[] key, byte[] qualifier) {
+    final int baseTime = Bytes.getInt(key, tsdb.metrics.width());
+    final short delta = (short) ((Bytes.getShort(qualifier) & 0xFFFF) >>> Const.FLAG_BITS);
+    return baseTime + delta;
   }
 }
