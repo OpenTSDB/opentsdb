@@ -21,6 +21,7 @@ THIRD_PARTY =
 include third_party/guava/include.mk
 include third_party/gwt/include.mk
 include third_party/hbase/include.mk
+include third_party/jackson/include.mk
 include third_party/javassist/include.mk
 include third_party/junit/include.mk
 include third_party/logback/include.mk
