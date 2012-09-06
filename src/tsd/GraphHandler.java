@@ -12,22 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -35,6 +24,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonGenerator;
+import org.codehaus.jackson.map.MappingJsonFactory;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.ser.StdSerializerProvider;
+import org.codehaus.jackson.map.util.JSONPObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +49,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
  */
-final class GraphHandler implements HttpRpc {
+final class  GraphHandler implements HttpRpc {
 
   private static final Logger LOG =
     LoggerFactory.getLogger(GraphHandler.class);
@@ -194,6 +189,11 @@ final class GraphHandler implements HttpRpc {
       tsdbqueries[i] = null;  // free()
     }
     tsdbqueries = null;  // free()
+    String format = query.getQueryStringParam("format");
+    if (format != null && format.equals("json")) {
+        respondJsonQuery(query, plot);
+        return;
+    }
 
     if (query.hasQueryStringParam("ascii")) {
       respondAsciiQuery(query, max_age, basepath, plot);
@@ -812,6 +812,71 @@ final class GraphHandler implements HttpRpc {
     } catch (IOException e) {
       query.internalError(e);
     }
+  }
+  /**
+   * Respond to a query that wants the output in ASCII.
+   * <p>
+   * When a query specifies the "ascii&injson" query string parameter, we send the
+   * data points back to the client as json.
+   * @param query The query we're currently serving.
+   * @param plot The plot object to generate JSON.
+   */
+  private static void respondJsonQuery(final HttpQuery query,
+                                       final Plot plot) throws IOException {
+      Map<String, Object> responseMap = new HashMap<String, Object>();
+      String view = query.getQueryStringParam("view");
+      if (view != null) {
+          responseMap.put("view", query);
+      }
+
+      List<Map<?, ?>> metrics = new ArrayList<Map<?, ?>>();
+      for (final DataPoints dp : plot.getDataPoints()) {
+        Map<String, String> tagMap = new HashMap<String, String>();
+        boolean firstTag = true;
+        for (final Map.Entry<String, String> tag : dp.getTags().entrySet()) {
+            tagMap.put(tag.getKey(), tag.getValue());
+        }
+
+        Map<String, Object> metricMap = new HashMap<String, Object>();
+        metricMap.put("metric", dp.metricName());
+        metricMap.put("tags", tagMap);
+
+        List<List<Number>> dataList = new ArrayList<List<Number>>();
+        for (final DataPoint d : dp) {
+          List<Number> pointList = new ArrayList<Number>();
+          pointList.add(d.timestamp() * 1000);
+          if (d.isInteger()) {
+            pointList.add(d.longValue());
+          } else {
+            final double value = d.doubleValue();
+            if (Double.isInfinite(value)) {
+              throw new IllegalStateException("NaN or Infinity:" + value
+                + " d=" + d + ", query=" + query);
+            }
+            pointList.add(value);
+          }
+          dataList.add(pointList);
+        }
+        metricMap.put("data", dataList);
+        metrics.add(metricMap);
+      }
+      responseMap.put("metrics", metrics);
+
+      // FIXME:dc: it would be ideal to use JSONPObject here.
+      String callback = query.getQueryStringParam("callback");
+      OutputStream os = new ByteArrayOutputStream();
+      if (callback != null) {
+          os.write(callback.getBytes());
+          os.write("(".getBytes());
+          ObjectMapper mapper = new ObjectMapper();
+          mapper.writeValue(os, responseMap);
+          os.write(")".getBytes());
+      } else {
+          ObjectMapper mapper = new ObjectMapper();
+          mapper.writeValue(os, responseMap);
+      }
+
+      query.sendReply(os.toString());
   }
 
   /**
