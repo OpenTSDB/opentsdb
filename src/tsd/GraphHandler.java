@@ -24,7 +24,12 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonGenerator;
+import org.codehaus.jackson.map.MappingJsonFactory;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.ser.StdSerializerProvider;
+import org.codehaus.jackson.map.util.JSONPObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -819,15 +824,12 @@ final class  GraphHandler implements HttpRpc {
   private static void respondJsonQuery(final HttpQuery query,
                                        final Plot plot) throws IOException {
       Map<String, Object> responseMap = new HashMap<String, Object>();
-      String callback = query.getQueryStringParam("callback");
-
       String view = query.getQueryStringParam("view");
       if (view != null) {
           responseMap.put("view", query);
       }
-      List<Map<?, ?>> metrics = new ArrayList<Map<?, ?>>();
-      // TODO:dc: Rather than build the string, build the final data structure and use jackson to serialize
 
+      List<Map<?, ?>> metrics = new ArrayList<Map<?, ?>>();
       for (final DataPoints dp : plot.getDataPoints()) {
         Map<String, String> tagMap = new HashMap<String, String>();
         boolean firstTag = true;
@@ -858,11 +860,22 @@ final class  GraphHandler implements HttpRpc {
         metricMap.put("data", dataList);
         metrics.add(metricMap);
       }
-
       responseMap.put("metrics", metrics);
-      ObjectMapper mapper = new ObjectMapper();
+
+      // FIXME:dc: it would be ideal to use JSONPObject here.
+      String callback = query.getQueryStringParam("callback");
       OutputStream os = new ByteArrayOutputStream();
-      mapper.writeValue(os, responseMap);
+      if (callback != null) {
+          os.write(callback.getBytes());
+          os.write("(".getBytes());
+          ObjectMapper mapper = new ObjectMapper();
+          mapper.writeValue(os, responseMap);
+          os.write(")".getBytes());
+      } else {
+          ObjectMapper mapper = new ObjectMapper();
+          mapper.writeValue(os, responseMap);
+      }
+
       query.sendReply(os.toString());
   }
 
