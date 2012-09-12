@@ -457,6 +457,9 @@ public final class Bytes {
         final ChannelBuffer wrapped_buf = (ChannelBuffer) RDB_buffer.get(buf);
         array = wrapped_buf.array();
       }
+    } catch (UnsupportedOperationException e) {
+      return "(failed to extract content of buffer of type "
+        + buf.getClass().getName() + ')';
     } catch (IllegalAccessException e) {
       throw new AssertionError("Should not happen: " + e);
     } catch (InvocationTargetException e) {
