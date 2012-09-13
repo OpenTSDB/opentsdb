@@ -24,6 +24,14 @@ AC_CONFIG_FILES([
 AC_CONFIG_FILES([build-aux/fetchdep.sh], [chmod +x build-aux/fetchdep.sh])
 
 # For people with Automake <= 1.9.6
+# AC_PROG_MKDIR_P
+# is a backport of autoconf-2.60's AC_PROG_MKDIR_P.
+# Remove this macro when we can assume autoconf >= 2.60.
+m4_ifdef([AC_PROG_MKDIR_P], [], [
+  AC_DEFUN([AC_PROG_MKDIR_P],
+    [AC_REQUIRE([AM_PROG_MKDIR_P])dnl defined by automake
+     MKDIR_P='$(mkdir_p)'
+     AC_SUBST([MKDIR_P])])])
 AC_PROG_MKDIR_P
 TSDB_FIND_PROG([md5], [md5sum md5 gmd5sum digest])
 if test x`basename "$MD5"` = x'digest'; then
