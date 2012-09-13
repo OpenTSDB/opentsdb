@@ -24,8 +24,7 @@ jar := tsdb-$(PACKAGE_VERSION).jar
 builddata_SRC := src/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
-dist_noinst_SCRIPTS = src/create_table.sh
-dist_pkgdata_SCRIPTS = src/mygnuplot.sh
+dist_pkgdata_SCRIPTS = src/mygnuplot.sh src/create_table.sh
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
