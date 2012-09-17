@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -21,6 +22,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.uid.UniqueId;
+import org.hbase.async.HBaseClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,6 +103,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     http_commands.put("logs", new LogsRpc());
     http_commands.put("q", new GraphHandler());
     http_commands.put("suggest", new Suggest());
+    http_commands.put("assign", new Assign());
   }
 
   @Override
@@ -390,6 +394,19 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
       query.sendJsonArray(suggestions);
     }
+  }
+
+  /** The "/assign?metrics=foo,bar,baz" */
+  private static final class Assign implements HttpRpc {
+
+      @Override
+      public void execute(final TSDB tsdb, HttpQuery query) throws IOException {
+          String metrics = query.getQueryStringParam("metrics");
+          for (String metric : metrics.split(",")) {
+              tsdb.addMetric(metric);
+          }
+          query.sendReply("Created metrics=" + metrics);
+      }
   }
 
   /** For unknown commands. */
