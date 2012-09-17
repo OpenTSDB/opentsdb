@@ -400,14 +400,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   private static final class Assign implements HttpRpc {
 
       @Override
-      public void execute(TSDB tsdb, HttpQuery query) throws IOException {
+      public void execute(final TSDB tsdb, HttpQuery query) throws IOException {
           String metrics = query.getQueryStringParam("metrics");
           for (String metric : metrics.split(",")) {
-              String zkHost = "localhost";
-              HBaseClient client = new HBaseClient(zkHost);
-              int width = 3; // This is the default
-              UniqueId uniqueId = new UniqueId(client, "tsdb-uid".getBytes(), "metrics", 3);
-              uniqueId.getOrCreateId(metric);
+              tsdb.addMetric(metric);
           }
           query.sendReply("Created metrics=" + metrics);
       }
