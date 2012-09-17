@@ -12,31 +12,32 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+import net.opentsdb.BuildData;
+import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.StatsCollector;
+import org.codehaus.jackson.JsonFactory;
+import org.codehaus.jackson.JsonParser;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.type.TypeReference;
+import org.jboss.netty.buffer.ChannelBufferInputStream;
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelHandlerContext;
+import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.uid.UniqueId;
-import org.hbase.async.HBaseClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-
-import net.opentsdb.BuildData;
-import net.opentsdb.core.Aggregators;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
 
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
@@ -401,8 +402,15 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
       @Override
       public void execute(final TSDB tsdb, HttpQuery query) throws IOException {
-          String metrics = query.getQueryStringParam("metrics");
-          for (String metric : metrics.split(",")) {
+          HttpRequest request = query.request();
+          if (request.getMethod() != HttpMethod.POST) {
+              throw new IOException("/assign only allows POST");
+          }
+          JsonFactory factory = new JsonFactory();
+          JsonParser parser = factory.createJsonParser(new ChannelBufferInputStream(request.getContent()));
+          ObjectMapper mapper = new ObjectMapper();
+          List<String> metrics = mapper.readValue(parser, new TypeReference<List<String>>() {});
+          for (String metric : metrics) {
               tsdb.addMetric(metric);
           }
           query.sendReply("Created metrics=" + metrics);
