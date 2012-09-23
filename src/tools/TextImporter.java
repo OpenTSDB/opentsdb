@@ -20,6 +20,7 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.zip.GZIPInputStream;
 
+import com.github.mairbek.zoo.ZooClient;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -62,7 +63,10 @@ final class TextImporter {
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     // Flush more frequently since we read very fast from the files.
     client.setFlushInterval((short) 500);  // ms
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+    final String zkq = argp.get("--zkquorum", "localhost");
+    final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
+    final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
+    final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     argp = null;
     try {
