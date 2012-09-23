@@ -106,6 +106,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
   private final CheckBox keybox = new CheckBox("Box");
   private final CheckBox nokey = new CheckBox("No key (overrides others)");
 
+  // Styling options.
+  private final CheckBox smooth = new CheckBox();
+
   /**
    * Handles every change to the query form and gets a new graph.
    * Whenever the user changes one of the parameters of the graph, we want
@@ -236,6 +239,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     horizontalkey.addClickHandler(refreshgraph);
     keybox.addClickHandler(refreshgraph);
     nokey.addClickHandler(refreshgraph);
+    smooth.addClickHandler(refreshgraph);
 
     yrange.setValidationRegexp("^("                            // Nothing or
                                + "|\\[([-+.0-9eE]+|\\*)?"      // "[start
@@ -346,6 +350,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     final DecoratedTabPanel optpanel = new DecoratedTabPanel();
     optpanel.add(makeAxesPanel(), "Axes");
     optpanel.add(makeKeyPanel(), "Key");
+    optpanel.add(makeStylePanel(), "Style");
     optpanel.selectTab(0);
     table.setWidget(1, 3, optpanel);
 
@@ -400,6 +405,14 @@ public class QueryUi implements EntryPoint, HistoryListener {
   public void onHistoryChanged(String historyToken) {
     refreshFromQueryString();
     refreshGraph();
+  }
+
+  /** Additional styling options.  */
+  private Grid makeStylePanel() {
+    final Grid grid = new Grid(5, 3);
+    grid.setText(0, 1, "Smooth");
+    grid.setWidget(0, 2, smooth);
+    return grid;
   }
 
   /**
@@ -750,6 +763,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
       keypos = "";
     }
     nokey.setValue(qs.containsKey("nokey"));
+    smooth.setValue(qs.containsKey("smooth"));
   }
 
   private void refreshGraph() {
@@ -802,6 +816,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
       }
     }
     url.append("&wxh=").append(wxh.getText());
+    if (smooth.getValue()) {
+      url.append("&smooth=csplines");
+    }
     final String uri = url.toString();
     if (uri.equals(lastgraphuri)) {
       return;  // Don't re-request the same graph.

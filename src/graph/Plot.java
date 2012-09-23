@@ -240,6 +240,7 @@ public final class Plot {
         // Why the fuck didn't they also add methods for numbers?
         .append(Short.toString(width)).append(",")
         .append(Short.toString(height));
+      final String smooth = params.remove("smooth");
       final String fgcolor = params.remove("fgcolor");
       String bgcolor = params.remove("bgcolor");
       if (fgcolor != null && bgcolor == null) {
@@ -310,9 +311,12 @@ public final class Plot {
       for (int i = 0; i < nseries; i++) {
         final DataPoints dp = datapoints.get(i);
         final String title = dp.metricName() + dp.getTags();
-        gp.append(" \"").append(datafiles[i]).append("\" using 1:2 title \"")
-          // TODO(tsuna): Escape double quotes in title.
-          .append(title).write('"');
+        gp.append(" \"").append(datafiles[i]).append("\" using 1:2");
+        if (smooth != null) {
+          gp.append(" smooth ").append(smooth);
+        }
+        // TODO(tsuna): Escape double quotes in title.
+        gp.append(" title \"").append(title).write('"');
         final String opts = options.get(i);
         if (!opts.isEmpty()) {
           gp.append(' ').write(opts);
