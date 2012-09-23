@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
+import com.github.mairbek.zoo.ZooClient;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
@@ -67,7 +68,10 @@ final class DumpSeries {
 
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     final byte[] table = argp.get("--table", "tsdb").getBytes();
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+    final String zkq = argp.get("--zkquorum", "localhost");
+    final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
+    final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
+    final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     final boolean delete = argp.has("--delete");
     final boolean importformat = delete || argp.has("--import");

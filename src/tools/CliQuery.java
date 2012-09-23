@@ -18,6 +18,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import com.github.mairbek.zoo.ZooClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +104,11 @@ final class CliQuery {
     }
 
     final HBaseClient client = CliOptions.clientFromOptions(argp);
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+    final String zkq = argp.get("--zkquorum", "localhost");
+    final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
+    final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
+
+    final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     final String basepath = argp.get("--graph");
     argp = null;
