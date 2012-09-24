@@ -261,6 +261,7 @@ public final class Plot {
       }
 
       gp.append("\n"
+                + "set xlabel \" \"\n" // fixes issue #107
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
                 + "set xtic rotate\n"
