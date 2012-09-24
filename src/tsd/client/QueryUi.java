@@ -414,7 +414,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     final Grid grid = new Grid(5, 3);
     grid.setText(0, 1, "Smooth");
     grid.setWidget(0, 2, smooth);
-    smooth.setValue(true);
+    smooth.setValue(false);
     return grid;
   }
 
@@ -766,6 +766,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
       keypos = "";
     }
     nokey.setValue(qs.containsKey("nokey"));
+    if (qs.containsKey("smooth")) {
+      smooth.setValue(Boolean.valueOf(qs.getFirst("smooth")));
+    }
   }
 
   private void refreshGraph() {
