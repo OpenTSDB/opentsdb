@@ -247,7 +247,17 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         LOG.debug("Attempted to compact a row that doesn't exist.");
       } else if (compacted != null) {
         // no need to re-compact rows containing a single value.
-        compacted[0] = row.get(0);
+        KeyValue kv = row.get(0);
+        final byte[] qual = kv.qualifier();
+        final byte[] val = kv.value();
+        if (floatingPointValueToFix(qual[1], val)) {
+          // Fix up old, incorrectly encoded floating point value.
+          final byte[] newval = fixFloatingPointValue(qual[1], val);
+          final byte[] newqual = new byte[] { qual[0],
+            fixQualifierFlags(qual[1], newval.length) };
+          kv = new KeyValue(kv.key(), kv.family(), newqual, newval);
+        }
+        compacted[0] = kv;
       }
       return null;
     }
