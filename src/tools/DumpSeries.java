@@ -206,6 +206,12 @@ final class DumpSeries {
            .append('\t');
       }
       if ((qual & 0x8) == 0x8) {
+        if (cell.length == 8 && value_len == 4
+            && cell[0] == 0 && cell[1] == 0 && cell[2] == 0 && cell[3] == 0) {
+          // Incorrect encoded floating point value.
+          // See CompactionQueue.fixFloatingPointValue() for more details.
+          value_offset += 4;
+        }
         buf.append(importformat ? "" : "f ")
            .append(Internal.extractFloatingPointValue(cell, value_offset, flags));
       } else {

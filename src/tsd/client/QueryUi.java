@@ -157,6 +157,18 @@ public class QueryUi implements EntryPoint, HistoryListener {
       }
     };
 
+  final ClickHandler clone_handler = new ClickHandler() {
+      public void onClick(ClickEvent event) {
+        int selected = metrics.getTabBar().getSelectedTab();
+        MetricForm template = ((MetricForm) metrics.getWidget(selected));
+
+        final int nitems = metrics.getWidgetCount();
+        final MetricForm metric = addMetricForm("metric " + nitems, nitems - 1, template);
+        metrics.selectTab(nitems - 1);
+        metric.setFocus(true);
+      }
+    };
+
   /** List of known aggregation functions.  Fetched once from the server. */
   private final ArrayList<String> aggregators = new ArrayList<String>();
 
@@ -444,10 +456,20 @@ public class QueryUi implements EntryPoint, HistoryListener {
   }
 
   private MetricForm addMetricForm(final String label, final int item) {
+    return addMetricForm(label, item, null);
+  }
+
+  private MetricForm addMetricForm(final String label, final int item, final MetricForm template) {
     final MetricForm metric = new MetricForm(refreshgraph);
     metric.x1y2().addClickHandler(updatey2range);
     metric.setMetricChangeHandler(metric_change_handler);
     metric.setAggregators(aggregators);
+    metric.setCloneHandler(clone_handler);
+
+    if (template != null) {
+      metric.copyTagsFrom(template);
+    }
+
     metrics.insert(metric, label, item);
     return metric;
   }
