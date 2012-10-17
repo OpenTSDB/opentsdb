@@ -247,7 +247,7 @@ final class GraphHandler implements HttpRpc {
 
           LOG.info("calculateArithmeticExpressions: " + expression);
 
-          result.add(calculator.calculateArithmeticExpression(queryResults));
+          result.addAll(calculator.calculateArithmeticExpression(queryResults));
         }
       }
     }
