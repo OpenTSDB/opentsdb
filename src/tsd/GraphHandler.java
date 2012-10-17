@@ -946,37 +946,25 @@ final class GraphHandler implements HttpRpc {
   private AnnotationQuery prepareAnnotationQuery(TSDB tsdb, long startTime,
       long endTime, HttpQuery query) {
     final HashMap<String, String> tags = new HashMap<String, String>();
-    final List<String> ms = query.getQueryStringParams("m");
-    if (ms == null) {
-      throw BadRequestException.missingParameter("m");
-    }
+    final String a = query.getQueryStringParam("a");
+    if (a != null && a.length() >= 2 && a.charAt(0) == '{'
+        && a.charAt(a.length() - 1) == '}') {
+      // a is of the following form: {tag=value,...}
+      String[] splitTags = Tags
+          .splitString(a.substring(1, a.length() - 1), ',');
 
-    for (final String m : ms) {
-      // m is of the following forms:
-      // agg:[interval-agg:][rate:]metric[{tag=value,...}]
-      // Where the parts in square brackets `[' .. `]' are optional.
-      int indexOpeningCurlyBrace = m.indexOf('{');
-      int indexClosingCurlyBrace = m.indexOf('}');
-      if (indexOpeningCurlyBrace > -1 && indexClosingCurlyBrace > -1
-          && indexOpeningCurlyBrace < indexClosingCurlyBrace) {
-        String rawTags = m.substring(indexOpeningCurlyBrace + 1,
-            indexClosingCurlyBrace);
-        String[] splitTags = Tags.splitString(rawTags, ',');
+      for (String splitTag : splitTags) {
+        Tags.parse(tags, splitTag);
+      }
 
-        for (String splitTag : splitTags) {
-          Tags.parse(tags, splitTag);
-        }
+      Iterator<Map.Entry<String, String>> iterator = tags.entrySet().iterator();
 
-        Iterator<Map.Entry<String, String>> iterator = tags.entrySet()
-            .iterator();
+      while (iterator.hasNext()) {
+        Map.Entry<String, String> tag = iterator.next();
 
-        while (iterator.hasNext()) {
-          Map.Entry<String, String> tag = iterator.next();
-
-          // remove wildcard tags and multiple values tags (-> group by)
-          if (tag.getValue().equals("*") || tag.getValue().indexOf('|', 1) >= 0) {
-            iterator.remove();
-          }
+        // remove wildcard tags and multiple values tags (-> group by)
+        if (tag.getValue().equals("*") || tag.getValue().indexOf('|', 1) >= 0) {
+          iterator.remove();
         }
       }
     }
