@@ -12,11 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.net.URL;
+import java.io.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,15 +22,12 @@ import com.stumbleupon.async.Deferred;
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 
+import org.jboss.netty.channel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelFutureListener;
-import org.jboss.netty.channel.DefaultFileRegion;
 import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -379,6 +372,16 @@ final class HttpQuery {
     sendBuffer(HttpResponseStatus.OK, ChannelBuffers.wrappedBuffer(data));
   }
 
+
+    /**
+     * Sends data in an HTTP "200 OK" reply to the client.
+     * @param data Raw byte array to send as-is after the HTTP headers.
+     */
+    public void sendReply(final InputStream data) {
+        sendBuffer(HttpResponseStatus.OK, data);
+    }
+
+
   /**
    * Sends an HTTP reply to the client.
    * <p>
@@ -549,7 +552,44 @@ final class HttpQuery {
     deferred.callback(null);
   }
 
-  /**
+    /**
+     * Sends an HTTP reply to the client.
+     * @param status The status of the request (e.g. 200 OK or 404 Not Found).
+     * @param buf The content of the reply to send.
+     */
+    public void sendBuffer(final HttpResponseStatus status, final InputStream buf){
+        if (!chan.isConnected()) {
+            done();
+            return;
+        }
+        // TODO(tsuna): Server, X-Backend, etc. headers.
+        ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
+        int nextByte = 0;
+        try {
+            while((nextByte = buf.read()) != -1) {
+                buffer.writeByte(nextByte);
+            }
+        } catch (IOException e) {
+            // TODO:dc: Send error here
+            done();
+        }
+        final DefaultHttpResponse response =
+                new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
+        response.setHeader(HttpHeaders.Names.CONTENT_TYPE, guessMimeType(buffer));
+
+        response.setContent(buffer);
+        final boolean keepalive = HttpHeaders.isKeepAlive(request);
+        if (keepalive) {
+            HttpHeaders.setContentLength(response, buffer.readableBytes());
+        }
+        final ChannelFuture future = chan.write(response);
+        if (!keepalive) {
+            future.addListener(ChannelFutureListener.CLOSE);
+        }
+        done();
+    }
+
+    /**
    * Sends an HTTP reply to the client.
    * @param status The status of the request (e.g. 200 OK or 404 Not Found).
    * @param buf The content of the reply to send.

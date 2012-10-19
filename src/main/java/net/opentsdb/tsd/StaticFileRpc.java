@@ -13,9 +13,11 @@
 package net.opentsdb.tsd;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 
 import net.opentsdb.core.TSDB;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 /** Implements the "/s" endpoint to serve static files. */
 final class StaticFileRpc implements HttpRpc {
@@ -55,7 +57,9 @@ final class StaticFileRpc implements HttpRpc {
     }
     final int questionmark = uri.indexOf('?', 3);
     final int pathend = questionmark > 0 ? questionmark : uri.length();
-    query.sendFile(staticroot + "/" + uri.substring(3, pathend),
-                   uri.contains("nocache") ? 0 : 31536000 /*=1yr*/);
+    InputStream stream = Thread.currentThread()
+            .getContextClassLoader()
+            .getResourceAsStream("queryui" + "/" + uri.substring(3, pathend));
+    query.sendBuffer(HttpResponseStatus.OK, stream);
   }
 }
