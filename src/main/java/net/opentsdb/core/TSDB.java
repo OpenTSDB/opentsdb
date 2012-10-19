@@ -212,6 +212,10 @@ public final class TSDB {
     return new IncomingDataPoints(this);
   }
 
+  public void addMetric(String metric) {
+      metrics.getOrCreateId(metric);
+  }
+
   /**
    * Adds a single integer value data point in the TSDB.
    * @param metric A non-empty string.
