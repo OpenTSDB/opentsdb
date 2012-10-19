@@ -7,14 +7,39 @@ package net.opentsdb.expression;
  * 
  * @author pgoetz
  */
-public interface FunctionCalculator {
+public abstract class FunctionCalculator {
+  private String name;
+
+  public FunctionCalculator(String name) {
+    this.name = name;
+  }
+
   /**
    * Calculates the values of the parameters list and returns the resulting
-   * {@link TimestampValues}. This method has to be implemented to create new
-   * functions for the {@link ArithmeticExpressionCalculator}.
+   * {@link ArithmeticNodeResult}. This method has to be implemented to create
+   * new functions for the {@link ArithmeticExpressionCalculator}.
    * 
    * @param parameters
    * @return function calculation result
    */
-  TimestampValues calculate(TimestampValues... parameters);
+  public abstract ArithmeticNodeResult calculate(
+      ArithmeticNodeResult... parameters);
+
+  protected String getLabel(ArithmeticNodeResult... parameters) {
+    StringBuilder result = new StringBuilder();
+
+    result.append(name).append("(");
+
+    for (ArithmeticNodeResult parameter : parameters) {
+      result.append(parameter.getName()).append(", ");
+    }
+
+    if (result.length() > name.length() + 1) {
+      result.delete(result.length() - 2, result.length());
+    }
+    
+    result.append(")");
+
+    return result.toString();
+  }
 }

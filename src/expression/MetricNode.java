@@ -2,6 +2,7 @@ package net.opentsdb.expression;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
@@ -29,13 +30,14 @@ public class MetricNode extends ArithmeticNode {
     this.dataPoints = dataPoints;
   }
 
-  public TimestampValues[] getDataPointsValues() {
-    List<TimestampValues> result = new ArrayList<TimestampValues>();
+  public ArithmeticNodeResult[] getDataPointsValues() {
+    List<ArithmeticNodeResult> result = new ArrayList<ArithmeticNodeResult>();
 
     if (this.dataPoints != null) {
       for (DataPoints dataPoints : this.dataPoints) {
         final SeekableView seekableView = dataPoints.iterator();
-        final TimestampValues values = new TimestampValues();
+        final ArithmeticNodeResult values = new ArithmeticNodeResult(
+            getDataPointsName(dataPoints));
 
         while (seekableView.hasNext()) {
           final DataPoint dataPoint = seekableView.next();
@@ -48,6 +50,25 @@ public class MetricNode extends ArithmeticNode {
       }
     }
 
-    return result.toArray(new TimestampValues[] {});
+    return result.toArray(new ArithmeticNodeResult[] {});
+  }
+
+  private String getDataPointsName(DataPoints dataPoints) {
+    StringBuilder result = new StringBuilder();
+
+    result.append(dataPoints.metricName()).append("{");
+
+    for (Map.Entry<String, String> tag : dataPoints.getTags().entrySet()) {
+      result.append(tag.getKey()).append("=").append(tag.getValue())
+          .append(", ");
+    }
+
+    if (result.length() > dataPoints.metricName().length() + 1) {
+      result.delete(result.length() - 2, result.length());
+    }
+
+    result.append("}");
+
+    return result.toString();
   }
 }

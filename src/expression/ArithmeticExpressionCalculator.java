@@ -19,11 +19,9 @@ public class ArithmeticExpressionCalculator {
       .getLogger(ArithmeticExpressionCalculator.class);
 
   private final Map<String, FunctionCalculator> FUNCTION_CALCULATORS;
-  private final String arithmeticExpression;
   private final ArithmeticNode rootNode;
 
   public ArithmeticExpressionCalculator(String arithmeticExpression) {
-    this.arithmeticExpression = arithmeticExpression;
     rootNode = parseArithmeticExpression(arithmeticExpression);
 
     FUNCTION_CALCULATORS = FunctionUtils.getFunctions();
@@ -92,11 +90,11 @@ public class ArithmeticExpressionCalculator {
   }
 
   private List<DataPoints> calculate(ArithmeticNode rootNode) {
-    return repackageTimestampValues(calculateInternal(rootNode));
+    return repackageNodeResults(calculateInternal(rootNode));
   }
 
-  private TimestampValues[] calculateInternal(ArithmeticNode node) {
-    TimestampValues[] timestampValues = null;
+  private ArithmeticNodeResult[] calculateInternal(ArithmeticNode node) {
+    ArithmeticNodeResult[] timestampValues = null;
 
     if (node instanceof OperatorNode) {
       timestampValues = calculateOperation((OperatorNode) node);
@@ -109,27 +107,29 @@ public class ArithmeticExpressionCalculator {
     return timestampValues;
   }
 
-  private TimestampValues[] calculateOperation(OperatorNode operator) {
-    List<TimestampValues> result = new ArrayList<TimestampValues>();
+  private ArithmeticNodeResult[] calculateOperation(OperatorNode operator) {
+    List<ArithmeticNodeResult> result = new ArrayList<ArithmeticNodeResult>();
     ArithmeticNode operandOne = operator.getOperandOne();
     ArithmeticNode operandTwo = operator.getOperandTwo();
-    TimestampValues[] operandOneTimestampValuesArray = calculateInternal(operandOne);
-    TimestampValues[] operandTwoTimestampValuesArray = calculateInternal(operandTwo);
+    ArithmeticNodeResult[] operandOneTimestampValuesArray = calculateInternal(operandOne);
+    ArithmeticNodeResult[] operandTwoTimestampValuesArray = calculateInternal(operandTwo);
 
-    for (TimestampValues operandOneTimestampValues : operandOneTimestampValuesArray) {
-      for (TimestampValues operandTwoTimestampValues : operandTwoTimestampValuesArray) {
+    for (ArithmeticNodeResult operandOneTimestampValues : operandOneTimestampValuesArray) {
+      for (ArithmeticNodeResult operandTwoTimestampValues : operandTwoTimestampValuesArray) {
         result.add(calculateOperandValues(operandOneTimestampValues,
             operandTwoTimestampValues, operator.getOperator()));
       }
     }
 
-    return result.toArray(new TimestampValues[] {});
+    return result.toArray(new ArithmeticNodeResult[] {});
   }
 
-  private TimestampValues calculateOperandValues(
-      TimestampValues operandOneTimestampValues,
-      TimestampValues operandTwoTimestampValues, Operator operator) {
-    final TimestampValues result = new TimestampValues();
+  private ArithmeticNodeResult calculateOperandValues(
+      ArithmeticNodeResult operandOneTimestampValues,
+      ArithmeticNodeResult operandTwoTimestampValues, Operator operator) {
+    final ArithmeticNodeResult result = new ArithmeticNodeResult(
+        operandOneTimestampValues.getName() + operator.getValue()
+            + operandTwoTimestampValues.getName());
 
     if (operandOneTimestampValues != null
         && !operandOneTimestampValues.isEmpty()
@@ -181,30 +181,30 @@ public class ArithmeticExpressionCalculator {
     return result;
   }
 
-  private TimestampValues[] calculateFunction(FunctionNode function) {
-    List<TimestampValues> result = new ArrayList<TimestampValues>();
+  private ArithmeticNodeResult[] calculateFunction(FunctionNode function) {
+    List<ArithmeticNodeResult> result = new ArrayList<ArithmeticNodeResult>();
     FunctionCalculator calculator = FUNCTION_CALCULATORS
         .get(function.getName());
     List<ArithmeticNode> parameterNodes = function.getParameters();
-    List<TimestampValues[]> parameterNodesResults = calculateParameterNodesResults(parameterNodes);
-    TimestampValues[][] cartesianParameters = getCartesianParameters(parameterNodesResults);
+    List<ArithmeticNodeResult[]> parameterNodesResults = calculateParameterNodesResults(parameterNodes);
+    ArithmeticNodeResult[][] cartesianParameters = getCartesianParameters(parameterNodesResults);
 
-    for (TimestampValues[] parameters : cartesianParameters) {
+    for (ArithmeticNodeResult[] parameters : cartesianParameters) {
       result.add(calculator.calculate(parameters));
     }
 
-    return result.toArray(new TimestampValues[0]);
+    return result.toArray(new ArithmeticNodeResult[0]);
   }
 
-  private List<DataPoints> repackageTimestampValues(
-      TimestampValues[] timestampValuesArray) {
+  private List<DataPoints> repackageNodeResults(
+      ArithmeticNodeResult[] arithmeticNodeResults) {
     final List<DataPoints> result = new ArrayList<DataPoints>();
 
-    for (TimestampValues timestampValues : timestampValuesArray) {
+    for (ArithmeticNodeResult arithmeticNodeResult : arithmeticNodeResults) {
       final ArithmeticExpressionResultDataPoints datapoints = new ArithmeticExpressionResultDataPoints(
-          arithmeticExpression);
+          arithmeticNodeResult.getName());
 
-      for (TimestampValue timestampValue : timestampValues) {
+      for (TimestampValue timestampValue : arithmeticNodeResult) {
         datapoints.add(new ArithmeticExpressionResultDataPoint(timestampValue
             .getTimestamp(), timestampValue.getValue()));
       }
@@ -254,9 +254,9 @@ public class ArithmeticExpressionCalculator {
     return result;
   }
 
-  private List<TimestampValues[]> calculateParameterNodesResults(
+  private List<ArithmeticNodeResult[]> calculateParameterNodesResults(
       List<ArithmeticNode> parameterNodes) {
-    List<TimestampValues[]> result = new ArrayList<TimestampValues[]>();
+    List<ArithmeticNodeResult[]> result = new ArrayList<ArithmeticNodeResult[]>();
 
     for (ArithmeticNode node : parameterNodes) {
       result.add(calculateInternal(node));
@@ -265,27 +265,27 @@ public class ArithmeticExpressionCalculator {
     return result;
   }
 
-  private TimestampValues[][] getCartesianParameters(
-      List<TimestampValues[]> parameterNodesResults) {
+  private ArithmeticNodeResult[][] getCartesianParameters(
+      List<ArithmeticNodeResult[]> parameterNodesResults) {
     int n = parameterNodesResults.size();
     int solutions = 1;
 
-    for (TimestampValues[] parameterValues : parameterNodesResults) {
+    for (ArithmeticNodeResult[] parameterValues : parameterNodesResults) {
       solutions *= parameterValues.length;
     }
 
-    TimestampValues[][] allCombinations = new TimestampValues[solutions][];
+    ArithmeticNodeResult[][] allCombinations = new ArithmeticNodeResult[solutions][];
 
     for (int i = 0; i < solutions; i++) {
-      List<TimestampValues> combination = new ArrayList<TimestampValues>();
+      List<ArithmeticNodeResult> combination = new ArrayList<ArithmeticNodeResult>();
       int j = 1;
 
-      for (TimestampValues[] parameterValues : parameterNodesResults) {
+      for (ArithmeticNodeResult[] parameterValues : parameterNodesResults) {
         combination.add(parameterValues[(i / j) % parameterValues.length]);
         j *= parameterValues.length;
       }
 
-      allCombinations[i] = combination.toArray(new TimestampValues[n]);
+      allCombinations[i] = combination.toArray(new ArithmeticNodeResult[n]);
     }
 
     return allCombinations;

@@ -1,5 +1,7 @@
 package net.opentsdb.expression;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -28,7 +30,7 @@ public class FunctionUtils {
 
           if (keyValue.length == 2) {
             String key = keyValue[0];
-            FunctionCalculator value = instantiate(keyValue[1]);
+            FunctionCalculator value = instantiate(keyValue[1], key);
 
             if (value != null) {
               result.put(key, value);
@@ -48,19 +50,28 @@ public class FunctionUtils {
   }
 
   @SuppressWarnings("unchecked")
-  private static final FunctionCalculator instantiate(String className) {
+  private static final FunctionCalculator instantiate(String className, String functionName) {
     FunctionCalculator result = null;
 
     try {
       Class<FunctionCalculator> clazz = (Class<FunctionCalculator>) Class
           .forName(className);
+      Constructor<FunctionCalculator> constructor = clazz.getConstructor(String.class);
 
-      result = clazz.newInstance();
+      result = constructor.newInstance(functionName);
     } catch (ClassNotFoundException e) {
       LOG.error(e.getMessage(), e);
     } catch (InstantiationException e) {
       LOG.error(e.getMessage(), e);
     } catch (IllegalAccessException e) {
+      LOG.error(e.getMessage(), e);
+    } catch (SecurityException e) {
+      LOG.error(e.getMessage(), e);
+    } catch (NoSuchMethodException e) {
+      LOG.error(e.getMessage(), e);
+    } catch (IllegalArgumentException e) {
+      LOG.error(e.getMessage(), e);
+    } catch (InvocationTargetException e) {
       LOG.error(e.getMessage(), e);
     }
 
