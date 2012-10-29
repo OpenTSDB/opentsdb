@@ -6,13 +6,23 @@ public class DoubleFunctionCalculator extends FunctionCalculator {
   }
 
   @Override
-  public ArithmeticNodeResult calculate(ArithmeticNodeResult... parameters) {
-    ArithmeticNodeResult result = new ArithmeticNodeResult(getLabel(parameters));
+  public NodeResult calculate(NodeResult... parameters) {
+    NodeResult result = null;
 
     if (parameters.length == 1) {
-      for (TimestampValue value : parameters[0]) {
-        result.add(new TimestampValue(value.getTimestamp(),
-            value.getValue() * 2));
+      NodeResult parameter = parameters[0];
+
+      if (parameter instanceof ArithmeticNodeResult) {
+        ArithmeticNodeResult arithmeticNodeResult = new ArithmeticNodeResult(
+            getLabel(parameters));
+        for (TimestampValue value : (ArithmeticNodeResult) parameter) {
+          arithmeticNodeResult.add(new TimestampValue(value.getTimestamp(),
+              value.getValue() * 2));
+        }
+        result = arithmeticNodeResult;
+      } else {
+        result = new LiteralNodeResult(
+            ((LiteralNodeResult) parameter).getValue() * 2);
       }
     }
 

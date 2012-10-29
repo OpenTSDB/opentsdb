@@ -81,7 +81,7 @@ public class ArithmeticExpressionCalculator {
       for (ArithmeticNode childNode : functionNode.getParameters()) {
         addDataPointsToMetricNodes(childNode, queryResults);
       }
-    } else {
+    } else if (arithmeticNode instanceof MetricNode) {
       MetricNode metricNode = (MetricNode) arithmeticNode;
       DataPoints[] dataPoints = queryResults.get(metricNode.getName());
 
@@ -93,87 +93,150 @@ public class ArithmeticExpressionCalculator {
     return repackageNodeResults(calculateInternal(rootNode));
   }
 
-  private ArithmeticNodeResult[] calculateInternal(ArithmeticNode node) {
-    ArithmeticNodeResult[] timestampValues = null;
+  private NodeResult[] calculateInternal(ArithmeticNode node) {
+    NodeResult[] result = null;
 
     if (node instanceof OperatorNode) {
-      timestampValues = calculateOperation((OperatorNode) node);
+      result = calculateOperation((OperatorNode) node);
     } else if (node instanceof FunctionNode) {
-      timestampValues = calculateFunction((FunctionNode) node);
-    } else {
-      timestampValues = ((MetricNode) node).getDataPointsValues();
+      result = calculateFunction((FunctionNode) node);
+    } else if (node instanceof MetricNode) {
+      result = ((MetricNode) node).getDataPointsValues();
+    } else if (node instanceof LiteralNode) {
+      result = ((LiteralNode) node).getDataPointsValues();
     }
 
-    return timestampValues;
+    return result;
   }
 
-  private ArithmeticNodeResult[] calculateOperation(OperatorNode operator) {
-    List<ArithmeticNodeResult> result = new ArrayList<ArithmeticNodeResult>();
+  private NodeResult[] calculateOperation(OperatorNode operator) {
+    List<NodeResult> result = new ArrayList<NodeResult>();
     ArithmeticNode operandOne = operator.getOperandOne();
     ArithmeticNode operandTwo = operator.getOperandTwo();
-    ArithmeticNodeResult[] operandOneTimestampValuesArray = calculateInternal(operandOne);
-    ArithmeticNodeResult[] operandTwoTimestampValuesArray = calculateInternal(operandTwo);
+    NodeResult[] operandOneNodeResults = calculateInternal(operandOne);
+    NodeResult[] operandTwoNodeResults = calculateInternal(operandTwo);
 
-    for (ArithmeticNodeResult operandOneTimestampValues : operandOneTimestampValuesArray) {
-      for (ArithmeticNodeResult operandTwoTimestampValues : operandTwoTimestampValuesArray) {
-        result.add(calculateOperandValues(operandOneTimestampValues,
-            operandTwoTimestampValues, operator.getOperator()));
+    for (NodeResult operandOneNodeResult : operandOneNodeResults) {
+      for (NodeResult operandTwoNodeResult : operandTwoNodeResults) {
+        result.add(calculateOperandValues(operandOneNodeResult,
+            operandTwoNodeResult, operator.getOperator()));
       }
     }
 
-    return result.toArray(new ArithmeticNodeResult[] {});
+    return result.toArray(new NodeResult[result.size()]);
   }
 
-  private ArithmeticNodeResult calculateOperandValues(
-      ArithmeticNodeResult operandOneTimestampValues,
-      ArithmeticNodeResult operandTwoTimestampValues, Operator operator) {
-    final ArithmeticNodeResult result = new ArithmeticNodeResult(
-        operandOneTimestampValues.getName() + operator.getValue()
-            + operandTwoTimestampValues.getName());
+  private NodeResult calculateOperandValues(NodeResult operandOneNodeResult,
+      NodeResult operandTwoNodeResult, Operator operator) {
+    NodeResult result = null;
 
-    if (operandOneTimestampValues != null
-        && !operandOneTimestampValues.isEmpty()
-        && operandTwoTimestampValues != null
-        && !operandTwoTimestampValues.isEmpty()) {
-      final Iterator<TimestampValue> iteratorOne = operandOneTimestampValues
-          .iterator();
-      final Iterator<TimestampValue> iteratorTwo = operandTwoTimestampValues
-          .iterator();
-      TimestampValue timestampValueOne = iteratorOne.next();
-      TimestampValue lastTimestampValueOne = null;
-      TimestampValue timestampValueTwo = iteratorTwo.next();
-      TimestampValue lastTimestampValueTwo = null;
+    if (operandOneNodeResult != null && operandTwoNodeResult != null) {
+      String label = operandOneNodeResult.getName() + operator.getValue()
+          + operandTwoNodeResult.getName();
 
-      while (!timestampValueOne.equals(lastTimestampValueOne)
-          && !timestampValueTwo.equals(lastTimestampValueTwo)) {
-        if (timestampValueOne.getTimestamp() == timestampValueTwo
-            .getTimestamp()) {
-          // move on in both iterators
-          lastTimestampValueOne = timestampValueOne;
-          lastTimestampValueTwo = timestampValueTwo;
+      if (operandOneNodeResult instanceof LiteralNodeResult
+          && operandTwoNodeResult instanceof LiteralNodeResult) {
+        result = calculateTwoLiteralNodeOperands(
+            (LiteralNodeResult) operandOneNodeResult,
+            (LiteralNodeResult) operandTwoNodeResult, operator);
+      } else if (operandOneNodeResult instanceof LiteralNodeResult) {
+        result = calculateLiteralNodeAndMetricNodeOperands(label,
+            (ArithmeticNodeResult) operandTwoNodeResult,
+            (LiteralNodeResult) operandOneNodeResult, operator);
+      } else if (operandTwoNodeResult instanceof LiteralNodeResult) {
+        result = calculateLiteralNodeAndMetricNodeOperands(label,
+            (ArithmeticNodeResult) operandOneNodeResult,
+            (LiteralNodeResult) operandTwoNodeResult, operator);
+      } else {
+        result = calculateTwoArithmeticNodeOperands(label,
+            (ArithmeticNodeResult) operandOneNodeResult,
+            (ArithmeticNodeResult) operandTwoNodeResult, operator);
+      }
+    }
 
-          timestampValueOne = iterate(iteratorOne, timestampValueOne);
-          timestampValueTwo = iterate(iteratorTwo, timestampValueTwo);
-        } else if (timestampValueOne.getTimestamp() < timestampValueTwo
-            .getTimestamp()) {
-          // move on only in iterator one
-          lastTimestampValueOne = timestampValueOne;
+    return result;
+  }
 
-          timestampValueOne = iterate(iteratorOne, timestampValueOne);
-        } else {
-          // move on only in iterator two
-          lastTimestampValueTwo = timestampValueTwo;
+  private LiteralNodeResult calculateTwoLiteralNodeOperands(
+      LiteralNodeResult literalNodeResultOne,
+      LiteralNodeResult literalNodeResultTwo, Operator operator) {
+    LiteralNodeResult result = null;
+    final double valueOne = literalNodeResultOne.getValue();
+    final double valueTwo = literalNodeResultTwo.getValue();
 
-          timestampValueTwo = iterate(iteratorTwo, timestampValueTwo);
-        }
+    try {
+      result = new LiteralNodeResult(calculateValues(valueOne, valueTwo,
+          operator));
+    } catch (MetricFormulaException e) {
+      LOG.info(e.getMessage());
+    }
 
-        if (lastTimestampValueOne != null && lastTimestampValueTwo != null) {
-          try {
-            result.add(calculateValues(lastTimestampValueOne,
-                lastTimestampValueTwo, operator));
-          } catch (MetricFormulaException e) {
-            LOG.info(e.getMessage());
-          }
+    return result;
+  }
+
+  private ArithmeticNodeResult calculateLiteralNodeAndMetricNodeOperands(
+      String label, ArithmeticNodeResult metricNodeResult,
+      LiteralNodeResult literalNodeResult, Operator operator) {
+    final ArithmeticNodeResult result = new ArithmeticNodeResult(label);
+    final double operandOneValue = literalNodeResult.getValue();
+    final Iterator<TimestampValue> iterator = metricNodeResult.iterator();
+
+    while (iterator.hasNext()) {
+      TimestampValue timestampValue = iterator.next();
+
+      try {
+        result.add(new TimestampValue(timestampValue.getTimestamp(),
+            calculateValues(operandOneValue, timestampValue.getValue(),
+                operator)));
+      } catch (MetricFormulaException e) {
+        LOG.info(e.getMessage());
+      }
+    }
+
+    return result;
+  }
+
+  private ArithmeticNodeResult calculateTwoArithmeticNodeOperands(String label,
+      ArithmeticNodeResult arithmeticNodeResultOne,
+      ArithmeticNodeResult arithmeticNodeResultTwo, Operator operator) {
+    final ArithmeticNodeResult result = new ArithmeticNodeResult(label);
+    final Iterator<TimestampValue> iteratorOne = arithmeticNodeResultOne
+        .iterator();
+    final Iterator<TimestampValue> iteratorTwo = arithmeticNodeResultTwo
+        .iterator();
+    TimestampValue timestampValueOne = iteratorOne.next();
+    TimestampValue lastTimestampValueOne = null;
+    TimestampValue timestampValueTwo = iteratorTwo.next();
+    TimestampValue lastTimestampValueTwo = null;
+
+    while (!timestampValueOne.equals(lastTimestampValueOne)
+        && !timestampValueTwo.equals(lastTimestampValueTwo)) {
+      if (timestampValueOne.getTimestamp() == timestampValueTwo.getTimestamp()) {
+        // move on in both iterators
+        lastTimestampValueOne = timestampValueOne;
+        lastTimestampValueTwo = timestampValueTwo;
+
+        timestampValueOne = iterate(iteratorOne, timestampValueOne);
+        timestampValueTwo = iterate(iteratorTwo, timestampValueTwo);
+      } else if (timestampValueOne.getTimestamp() < timestampValueTwo
+          .getTimestamp()) {
+        // move on only in iterator one
+        lastTimestampValueOne = timestampValueOne;
+
+        timestampValueOne = iterate(iteratorOne, timestampValueOne);
+      } else {
+        // move on only in iterator two
+        lastTimestampValueTwo = timestampValueTwo;
+
+        timestampValueTwo = iterate(iteratorTwo, timestampValueTwo);
+      }
+
+      if (lastTimestampValueOne != null && lastTimestampValueTwo != null) {
+        try {
+          result.add(calculateTimestampValues(lastTimestampValueOne,
+              lastTimestampValueTwo, operator));
+        } catch (MetricFormulaException e) {
+          LOG.info(e.getMessage());
         }
       }
     }
@@ -181,43 +244,44 @@ public class ArithmeticExpressionCalculator {
     return result;
   }
 
-  private ArithmeticNodeResult[] calculateFunction(FunctionNode function) {
-    List<ArithmeticNodeResult> result = new ArrayList<ArithmeticNodeResult>();
+  private NodeResult[] calculateFunction(FunctionNode function) {
+    List<NodeResult> result = new ArrayList<NodeResult>();
     FunctionCalculator calculator = FUNCTION_CALCULATORS
         .get(function.getName());
     List<ArithmeticNode> parameterNodes = function.getParameters();
-    List<ArithmeticNodeResult[]> parameterNodesResults = calculateParameterNodesResults(parameterNodes);
-    ArithmeticNodeResult[][] cartesianParameters = getCartesianParameters(parameterNodesResults);
+    List<NodeResult[]> parameterNodesResults = calculateParameterNodesResults(parameterNodes);
+    NodeResult[][] cartesianParameters = getCartesianParameters(parameterNodesResults);
 
-    for (ArithmeticNodeResult[] parameters : cartesianParameters) {
+    for (NodeResult[] parameters : cartesianParameters) {
       result.add(calculator.calculate(parameters));
     }
 
-    return result.toArray(new ArithmeticNodeResult[0]);
+    return result.toArray(new NodeResult[result.size()]);
   }
 
-  private List<DataPoints> repackageNodeResults(
-      ArithmeticNodeResult[] arithmeticNodeResults) {
+  private List<DataPoints> repackageNodeResults(NodeResult[] nodeResults) {
     final List<DataPoints> result = new ArrayList<DataPoints>();
 
-    for (ArithmeticNodeResult arithmeticNodeResult : arithmeticNodeResults) {
-      final ArithmeticExpressionResultDataPoints datapoints = new ArithmeticExpressionResultDataPoints(
-          arithmeticNodeResult.getName());
+    for (NodeResult nodeResult : nodeResults) {
+      if (nodeResult instanceof ArithmeticNodeResult) {
+        final ArithmeticExpressionResultDataPoints datapoints = new ArithmeticExpressionResultDataPoints(
+            nodeResult.getName());
 
-      for (TimestampValue timestampValue : arithmeticNodeResult) {
-        datapoints.add(new ArithmeticExpressionResultDataPoint(timestampValue
-            .getTimestamp(), timestampValue.getValue()));
+        for (TimestampValue timestampValue : (ArithmeticNodeResult) nodeResult) {
+          datapoints.add(new ArithmeticExpressionResultDataPoint(timestampValue
+              .getTimestamp(), timestampValue.getValue()));
+        }
+
+        result.add(datapoints);
       }
-
-      result.add(datapoints);
     }
 
     return result;
   }
 
-  private TimestampValue calculateValues(TimestampValue timestampValueOne,
-      TimestampValue timestampValueTwo, Operator operator)
-      throws MetricFormulaException {
+  private TimestampValue calculateTimestampValues(
+      TimestampValue timestampValueOne, TimestampValue timestampValueTwo,
+      Operator operator) throws MetricFormulaException {
     TimestampValue result = null;
 
     long timestampOne = timestampValueOne.getTimestamp();
@@ -226,22 +290,31 @@ public class ArithmeticExpressionCalculator {
     double valueTwo = timestampValueTwo.getValue();
     long resultTimestamp = timestampOne < timestampTwo ? timestampOne
         : timestampTwo;
-    double resultValue = 0.0;
+
+    result = new TimestampValue(resultTimestamp, calculateValues(valueOne,
+        valueTwo, operator));
+
+    return result;
+  }
+
+  private double calculateValues(double valueOne, double valueTwo,
+      Operator operator) throws MetricFormulaException {
+    double result = 0.0;
     final char operatorValue = operator.getValue();
 
     switch (operatorValue) {
     case '+':
-      resultValue = valueOne + valueTwo;
+      result = valueOne + valueTwo;
       break;
     case '-':
-      resultValue = valueOne - valueTwo;
+      result = valueOne - valueTwo;
       break;
     case '*':
-      resultValue = valueOne * valueTwo;
+      result = valueOne * valueTwo;
       break;
     case '/':
       if (valueTwo != 0.0) {
-        resultValue = valueOne / valueTwo;
+        result = valueOne / valueTwo;
       } else {
         throw new MetricFormulaException("division by zero: " + valueOne + "/"
             + valueTwo);
@@ -249,14 +322,12 @@ public class ArithmeticExpressionCalculator {
       break;
     }
 
-    result = new TimestampValue(resultTimestamp, resultValue);
-
     return result;
   }
 
-  private List<ArithmeticNodeResult[]> calculateParameterNodesResults(
+  private List<NodeResult[]> calculateParameterNodesResults(
       List<ArithmeticNode> parameterNodes) {
-    List<ArithmeticNodeResult[]> result = new ArrayList<ArithmeticNodeResult[]>();
+    List<NodeResult[]> result = new ArrayList<NodeResult[]>();
 
     for (ArithmeticNode node : parameterNodes) {
       result.add(calculateInternal(node));
@@ -265,27 +336,27 @@ public class ArithmeticExpressionCalculator {
     return result;
   }
 
-  private ArithmeticNodeResult[][] getCartesianParameters(
-      List<ArithmeticNodeResult[]> parameterNodesResults) {
+  private NodeResult[][] getCartesianParameters(
+      List<NodeResult[]> parameterNodesResults) {
     int n = parameterNodesResults.size();
     int solutions = 1;
 
-    for (ArithmeticNodeResult[] parameterValues : parameterNodesResults) {
+    for (NodeResult[] parameterValues : parameterNodesResults) {
       solutions *= parameterValues.length;
     }
 
-    ArithmeticNodeResult[][] allCombinations = new ArithmeticNodeResult[solutions][];
+    NodeResult[][] allCombinations = new NodeResult[solutions][];
 
     for (int i = 0; i < solutions; i++) {
-      List<ArithmeticNodeResult> combination = new ArrayList<ArithmeticNodeResult>();
+      List<NodeResult> combination = new ArrayList<NodeResult>();
       int j = 1;
 
-      for (ArithmeticNodeResult[] parameterValues : parameterNodesResults) {
+      for (NodeResult[] parameterValues : parameterNodesResults) {
         combination.add(parameterValues[(i / j) % parameterValues.length]);
         j *= parameterValues.length;
       }
 
-      allCombinations[i] = combination.toArray(new ArithmeticNodeResult[n]);
+      allCombinations[i] = combination.toArray(new NodeResult[n]);
     }
 
     return allCombinations;

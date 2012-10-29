@@ -27,7 +27,7 @@ expr: term ((ADD^ | SUBTRACT^) term)*;
 
 term: factor ((MULTIPLY^ | DIVIDE^) factor)*;
 
-factor: funct | METRIC | (LEFT_PARENTHESIS! expr RIGHT_PARENTHESIS!);
+factor: LITERAL | funct | METRIC | (LEFT_PARENTHESIS! expr RIGHT_PARENTHESIS!);
  
 funct: (IDENTIFIER^ LEFT_PARENTHESIS! expr (PARAM_SEPARATOR! expr)* RIGHT_PARENTHESIS!);
  
@@ -36,7 +36,9 @@ funct: (IDENTIFIER^ LEFT_PARENTHESIS! expr (PARAM_SEPARATOR! expr)* RIGHT_PARENT
  *-----------------------------------------------------------------------------
  */
 
-IDENTIFIER : (Letter|Digit|Separator)+;
+LITERAL : Digit ('.' Digit+)?;
+
+IDENTIFIER : Letter (Letter|Digit|Separator)*;
 
 METRIC : '\"' IDENTIFIER (':' IDENTIFIER)* ('{' IDENTIFIER '=' IDENTIFIER (',' IDENTIFIER '=' IDENTIFIER)* '}')? '\"';
 

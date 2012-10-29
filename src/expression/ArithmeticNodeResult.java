@@ -4,17 +4,13 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class ArithmeticNodeResult implements Iterable<TimestampValue> {
-  private String name;
+public class ArithmeticNodeResult extends NodeResult implements Iterable<TimestampValue> {
   private List<TimestampValue> values;
 
   public ArithmeticNodeResult(String name) {
-    this.name = name;
+    super(name);
+    
     this.values = new ArrayList<TimestampValue>();
-  }
-
-  public String getName() {
-    return name;
   }
 
   public void add(TimestampValue value) {

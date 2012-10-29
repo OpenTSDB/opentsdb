@@ -58,11 +58,14 @@ tsdb_SRC := \
 	src/expression/FunctionCalculator.java	\
 	src/expression/FunctionNode.java	\
 	src/expression/FunctionUtils.java	\
+	src/expression/LiteralNode.java	\
+	src/expression/LiteralNodeResult.java	\
 	src/expression/MetricArithmeticExpressionLexer.java	\
 	src/expression/MetricArithmeticExpressionParser.java	\
 	src/expression/MetricArithmeticExpressionTreeWalker.java	\
 	src/expression/MetricFormulaException.java	\
 	src/expression/MetricNode.java	\
+	src/expression/NodeResult.java	\
 	src/expression/Operator.java	\
 	src/expression/OperatorNode.java	\
 	src/expression/TimestampValue.java	\

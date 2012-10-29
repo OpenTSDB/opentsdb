@@ -21,6 +21,7 @@ expr returns[ArithmeticNode node]
         | ^(DIVIDE a=expr b=expr ) { node = new OperatorNode(a, Operator.DIVIDE, b); }
         | ^(IDENTIFIER p=params ) { node = new FunctionNode($IDENTIFIER.text, p); }
         | metric = METRIC { node = new MetricNode($metric.text); }
+        | literal = LITERAL { node = new LiteralNode($literal.text); }
         | (PARAM_SEPARATOR) { }
         ;
         

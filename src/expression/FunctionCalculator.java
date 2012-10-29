@@ -22,22 +22,21 @@ public abstract class FunctionCalculator {
    * @param parameters
    * @return function calculation result
    */
-  public abstract ArithmeticNodeResult calculate(
-      ArithmeticNodeResult... parameters);
+  public abstract NodeResult calculate(NodeResult... parameters);
 
-  protected String getLabel(ArithmeticNodeResult... parameters) {
+  protected String getLabel(NodeResult... parameters) {
     StringBuilder result = new StringBuilder();
 
     result.append(name).append("(");
 
-    for (ArithmeticNodeResult parameter : parameters) {
+    for (NodeResult parameter : parameters) {
       result.append(parameter.getName()).append(", ");
     }
 
     if (result.length() > name.length() + 1) {
       result.delete(result.length() - 2, result.length());
     }
-    
+
     result.append(")");
 
     return result.toString();
