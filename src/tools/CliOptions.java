@@ -40,6 +40,9 @@ final class CliOptions {
     argp.addOption("--zkquorum", "SPEC",
                    "Specification of the ZooKeeper quorum to use"
                    + " (default: localhost).");
+    argp.addOption("--zklockpath", "ZNODE",
+            "Path under which lock nodes will be created"
+                    + " (default: /opentsdb).");
     argp.addOption("--zkbasedir", "PATH",
                    "Path under which is the znode for the -ROOT- region"
                    + " (default: /hbase).");

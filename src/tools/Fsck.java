@@ -14,6 +14,7 @@ package net.opentsdb.tools;
 
 import java.util.ArrayList;
 
+import com.github.mairbek.zoo.ZooClient;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -68,7 +69,10 @@ final class Fsck {
 
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     final byte[] table = argp.get("--table", "tsdb").getBytes();
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+    final String zkq = argp.get("--zkquorum", "localhost");
+    final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
+    final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
+    final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     final boolean fix = argp.has("--fix");
     argp = null;
