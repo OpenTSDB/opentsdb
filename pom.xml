@@ -191,6 +191,12 @@
             <version>1.4.6</version>
         </dependency>
 
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>2.1</version>
+        </dependency>
+
     </dependencies>
 
 </project>

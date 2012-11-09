@@ -24,6 +24,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -709,11 +711,13 @@ final class  GraphHandler implements HttpRpc {
     final int nplotted = plot.dumpToFiles(basepath);
     final long start_time = System.nanoTime();
     CommandLine commandLine = CommandLine.parse(
-            String.format("nice gnuplot %s > %s 2> %s",
-                    basepath + ".gnuplot", basepath + ".out", basepath + ".err"));
+            String.format("gnuplot %s",
+                    basepath + ".gnuplot"));
 
+    logInfo(query, "Gnuplot at " + commandLine.toString());
     final int rv;
-    DefaultExecutor executor = new DefaultExecutor();    rv = executor.execute(commandLine);
+    DefaultExecutor executor = new DefaultExecutor();
+    rv = executor.execute(commandLine);
 
     gnuplotlatency.add((int) ((System.nanoTime() - start_time) / 1000000));
     if (rv != 0) {
@@ -772,9 +776,10 @@ final class  GraphHandler implements HttpRpc {
             .append('=').append(tag.getValue());
         }
         for (final DataPoint d : dp) {
-          int foo = (int) d.timestamp();
-          if (foo < plot.getStart_time()) continue;
-          logInfo(query, "timestamp=" + d.timestamp() + " startime=" + plot.getStart_time());
+          int epochStamp = (int) d.timestamp();
+          if (epochStamp < plot.getStart_time() || epochStamp > plot.getEnd_time()) continue;
+          logInfo(query, "timestamp=" + d.timestamp() + " startime=" + plot.getStart_time() +
+                  "endtime=" + plot.getEnd_time());
           asciifile.print(metric);
           asciifile.print(' ');
           asciifile.print(d.timestamp());
@@ -812,12 +817,6 @@ final class  GraphHandler implements HttpRpc {
    */
   private static void respondJsonQuery(final HttpQuery query,
                                        final Plot plot) throws IOException {
-      Map<String, Object> responseMap = new HashMap<String, Object>();
-      String view = query.getQueryStringParam("view");
-      if (view != null) {
-          responseMap.put("view", query);
-      }
-
       List<Map<?, ?>> metrics = new ArrayList<Map<?, ?>>();
       for (final DataPoints dp : plot.getDataPoints()) {
         Map<String, String> tagMap = new HashMap<String, String>();
@@ -826,11 +825,11 @@ final class  GraphHandler implements HttpRpc {
             tagMap.put(tag.getKey(), tag.getValue());
         }
 
-        Map<String, Object> metricMap = new HashMap<String, Object>();
+        Map<String, Object> metricMap = Maps.newHashMap();
         metricMap.put("metric", dp.metricName());
         metricMap.put("tags", tagMap);
 
-        List<List<Number>> dataList = new ArrayList<List<Number>>();
+        List<List<Number>> dataList = Lists.newArrayList();
         for (final DataPoint d : dp) {
           if ((int) d.timestamp() < plot.getStart_time()) continue;
 
@@ -859,11 +858,11 @@ final class  GraphHandler implements HttpRpc {
           os.write(callback.getBytes());
           os.write("(".getBytes());
           ObjectMapper mapper = new ObjectMapper();
-          mapper.writeValue(os, responseMap);
+          mapper.writeValue(os, metrics);
           os.write(")".getBytes());
       } else {
           ObjectMapper mapper = new ObjectMapper();
-          mapper.writeValue(os, responseMap);
+          mapper.writeValue(os, metrics);
       }
 
       query.sendReply(os.toString());

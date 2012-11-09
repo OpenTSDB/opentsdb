@@ -37,7 +37,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 /**
  * Non-synchronized implementation of {@link Query}.
  */
-final class TsdbQuery implements Query {
+final public class TsdbQuery implements Query {
 
   private static final Logger LOG = LoggerFactory.getLogger(TsdbQuery.class);
 
@@ -246,7 +246,7 @@ final class TsdbQuery implements Query {
     long starttime = System.nanoTime();
     final Scanner scanner = getScanner();
     try {
-      ArrayList<ArrayList<KeyValue>> rows;
+        ArrayList<ArrayList<KeyValue>> rows;
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         hbase_time += (System.nanoTime() - starttime) / 1000000;
         for (final ArrayList<KeyValue> row : rows) {
@@ -374,7 +374,7 @@ final class TsdbQuery implements Query {
     // the "edges" of the graph.
     Bytes.setInt(start_row, (int) getScanStartTime(), metric_width);
     Bytes.setInt(end_row, (end_time == UNSET
-                           ? -1  // Will scan until the end (0xFFF...).
+            ? -1  // Will scan until the end (0xFFF...).
                            : (int) getScanEndTime()),
                  metric_width);
     System.arraycopy(metric, 0, start_row, 0, metric_width);
