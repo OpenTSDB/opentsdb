@@ -12,6 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.uid;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -19,6 +22,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.github.mairbek.zoo.Zoo;
+import com.github.mairbek.zoo.ZooLock;
+import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +69,11 @@ public final class UniqueId implements UniqueIdInterface {
 
   /** HBase client to use.  */
   private final HBaseClient client;
+
+  private final Zoo zk;
+  private final String zkLockPath;
+
+
   /** Table where IDs are stored.  */
   private final byte[] table;
   /** The kind of UniqueId, used as the column qualifier. */
@@ -92,9 +103,28 @@ public final class UniqueId implements UniqueIdInterface {
    * @throws IllegalArgumentException if width is negative or too small/large
    * or if kind is an empty string.
    */
-  public UniqueId(final HBaseClient client, final byte[] table, final String kind,
+  public UniqueId(final HBaseClient client, final Zoo zk, final String zkLockPath, final byte[] table, final String kind,
                   final int width) {
+
     this.client = client;
+    this.zk = zk;
+    this.zkLockPath = zkLockPath;
+
+    if (!zk.exists(zkLockPath, null)) {
+      try {
+        zk.nodeBuilder().path(zkLockPath).build();
+      } catch (RuntimeException re) {
+        if (re.getCause() != null
+                && re.getCause() instanceof KeeperException
+                && ((KeeperException)re.getCause()).code() == KeeperException.Code.NODEEXISTS
+                ) {
+          // ok
+        } else {
+          throw re;
+        }
+      }
+    }
+
     this.table = table;
     if (kind.isEmpty()) {
       throw new IllegalArgumentException("Empty string as 'kind' argument!");
@@ -237,26 +267,9 @@ public final class UniqueId implements UniqueIdInterface {
                  + "' name='" + name + '\'');
       }
 
-      // The dance to assign an ID.
-      RowLock lock;
+      final ZooLock zooLock = new ZooLock(zk, zkLockPath, lockName(name));
       try {
-        lock = getLock();
-      } catch (HBaseException e) {
-        try {
-          Thread.sleep(61000 / MAX_ATTEMPTS_ASSIGN_ID);
-        } catch (InterruptedException ie) {
-          break;  // We've been asked to stop here, let's bail out.
-        }
-        hbe = e;
-        continue;
-      }
-      if (lock == null) {  // Should not happen.
-        LOG.error("WTF, got a null pointer as a RowLock!");
-        continue;
-      }
-      // We now have hbase.regionserver.lease.period ms to complete the loop.
-
-      try {
+        zooLock.lock();
         // Verify that the row still doesn't exist (to avoid re-creating it if
         // it got created before we acquired the lock due to a race condition).
         try {
@@ -279,7 +292,7 @@ public final class UniqueId implements UniqueIdInterface {
           // To be fixed by HBASE-2292.
           { // HACK HACK HACK
             {
-              final byte[] current_maxid = hbaseGet(MAXID_ROW, ID_FAMILY, lock);
+              final byte[] current_maxid = hbaseGet(MAXID_ROW, ID_FAMILY);
               if (current_maxid != null) {
                 if (current_maxid.length == 8) {
                   id = Bytes.getLong(current_maxid) + 1;
@@ -293,7 +306,7 @@ public final class UniqueId implements UniqueIdInterface {
               row = Bytes.fromLong(id);
             }
             final PutRequest update_maxid = new PutRequest(
-              table, MAXID_ROW, ID_FAMILY, kind, row, lock);
+              table, MAXID_ROW, ID_FAMILY, kind, row);
             hbasePutWithRetry(update_maxid, MAX_ATTEMPTS_PUT,
                               INITIAL_EXP_BACKOFF_DELAY);
           } // end HACK HACK HACK.
@@ -364,7 +377,7 @@ public final class UniqueId implements UniqueIdInterface {
         addNameToCache(row, name);
         return row;
       } finally {
-        unlock(lock);
+        zooLock.unlock();
       }
     }
     if (hbe == null) {
@@ -373,6 +386,15 @@ public final class UniqueId implements UniqueIdInterface {
     LOG.error("Failed to assign an ID for kind='" + kind()
               + "' name='" + name + "'", hbe);
     throw hbe;
+  }
+
+  private String lockName(String name) {
+    try {
+      return URLEncoder.encode(name, "UTF-8") + "--";
+    } catch (UnsupportedEncodingException e) {
+      // impossible
+      throw new RuntimeException(e);
+    }
   }
 
   /**
