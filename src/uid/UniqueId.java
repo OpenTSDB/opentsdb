@@ -565,31 +565,6 @@ public final class UniqueId implements UniqueIdInterface {
     return scanner;
   }
 
-  /** Gets an exclusive lock for on the table using the MAXID_ROW.
-   * The lock expires after hbase.regionserver.lease.period ms
-   * (default = 60000)
-   * @throws HBaseException if the row lock couldn't be acquired.
-   */
-  private RowLock getLock() throws HBaseException {
-    try {
-      return client.lockRow(new RowLockRequest(table, MAXID_ROW)).joinUninterruptibly();
-    } catch (HBaseException e) {
-      LOG.warn("Failed to lock the `MAXID_ROW' row", e);
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-
-  /** Releases the lock passed in argument. */
-  private void unlock(final RowLock lock) {
-    try {
-      client.unlockRow(lock);
-    } catch (HBaseException e) {
-      LOG.error("Error while releasing the lock on row `MAXID_ROW'", e);
-    }
-  }
-
   /** Returns the cell of the specified row, using family:kind. */
   private byte[] hbaseGet(final byte[] row, final byte[] family) throws HBaseException {
     return hbaseGet(row, family, null);

@@ -117,19 +117,21 @@ final class TSDMain {
     final NioServerSocketChannelFactory factory =
         new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
                                           Executors.newCachedThreadPool());
-    final HBaseClient client = CliOptions.clientFromOptions(argp);
+    final HBaseClient wclient = CliOptions.clientFromOptions(argp);
+    final HBaseClient rwclient = CliOptions.clientFromOptions(argp);
     try {
       // Make sure we don't even start if we can't find out tables.
       final String table = argp.get("--table", "tsdb");
       final String uidtable = argp.get("--uidtable", "tsdb-uid");
-      client.ensureTableExists(table).joinUninterruptibly();
-      client.ensureTableExists(uidtable).joinUninterruptibly();
+      rwclient.ensureTableExists(table).joinUninterruptibly();
+      rwclient.ensureTableExists(uidtable).joinUninterruptibly();
 
-      client.setFlushInterval(flush_interval);
+      rwclient.setFlushInterval(flush_interval);
+      wclient.setFlushInterval(flush_interval);
       final String zkq = argp.get("--zkquorum", "localhost");
       final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
       final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
-      final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, table, uidtable);
+      final TSDB tsdb = new TSDB(rwclient, wclient, zkCli.connect(), zkLocks, table, uidtable);
       registerShutdownHook(tsdb);
       final ServerBootstrap server = new ServerBootstrap(factory);
 
@@ -145,7 +147,8 @@ final class TSDMain {
     } catch (Throwable e) {
       factory.releaseExternalResources();
       try {
-        client.shutdown().joinUninterruptibly();
+        wclient.shutdown().joinUninterruptibly();
+        rwclient.shutdown().joinUninterruptibly();
       } catch (Exception e2) {
         log.error("Failed to shutdown HBase client", e2);
       }

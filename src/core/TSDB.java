@@ -61,8 +61,12 @@ public final class TSDB {
     enable_compactions = compactions != null && !"false".equals(compactions);
   }
 
-  /** Client for the HBase cluster to use.  */
-  final HBaseClient client;
+  /** Client for the HBase cluster to use. Writes only.  */
+  final HBaseClient w_client;
+
+  /** Client for read/write operations on the HBase cluster.  */
+  final HBaseClient rw_client;
+
 
   /** Name of the table in which timeseries are stored.  */
   final byte[] table;
@@ -95,13 +99,31 @@ public final class TSDB {
               final String zkLockPath,
               final String timeseries_table,
               final String uniqueids_table) {
-    this.client = client;
+    this(client, client, zk, zkLockPath, timeseries_table, uniqueids_table);
+  }
+
+    /**
+    * Constructor.
+    * @param client The HBase client to use.
+    * @param timeseries_table The name of the HBase table where time series
+    * data is stored.
+    * @param uniqueids_table The name of the HBase table where the unique IDs
+    * are stored.
+    */
+  public TSDB(final HBaseClient rwclient,
+              final HBaseClient wclient,
+              final Zoo zk,
+              final String zkLockPath,
+              final String timeseries_table,
+              final String uniqueids_table) {
+    this.w_client = wclient;
+    this.rw_client = rwclient;
     table = timeseries_table.getBytes();
 
     final byte[] uidtable = uniqueids_table.getBytes();
-    metrics = new UniqueId(client, zk, zkLockPath, uidtable, METRICS_QUAL, METRICS_WIDTH);
-    tag_names = new UniqueId(client, zk, zkLockPath, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
-    tag_values = new UniqueId(client, zk, zkLockPath, uidtable, TAG_VALUE_QUAL,
+    metrics = new UniqueId(rwclient, zk, zkLockPath, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    tag_names = new UniqueId(rwclient, zk, zkLockPath, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
+    tag_values = new UniqueId(rwclient, zk, zkLockPath, uidtable, TAG_VALUE_QUAL,
                               TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
   }
@@ -152,7 +174,7 @@ public final class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
-    final ClientStats stats = client.stats();
+    final ClientStats stats = w_client.stats();
     collector.record("hbase.root_lookups", stats.rootLookups());
     collector.record("hbase.meta_lookups",
                      stats.uncontendedMetaLookups(), "type=uncontended");
@@ -172,6 +194,27 @@ public final class TSDB {
     collector.record("hbase.nsre", stats.noSuchRegionExceptions());
     collector.record("hbase.nsre.rpcs_delayed",
                      stats.numRpcDelayedDueToNSRE());
+
+    final ClientStats rwstats = rw_client.stats();
+    collector.record("hbase.rw.root_lookups", rwstats.rootLookups());
+    collector.record("hbase.rw.meta_lookups",
+            rwstats.uncontendedMetaLookups(), "type=uncontended");
+    collector.record("hbase.rw.meta_lookups",
+            rwstats.contendedMetaLookups(), "type=contended");
+    collector.record("hbase.rw.rpcs",
+            rwstats.atomicIncrements(), "type=increment");
+    collector.record("hbase.rw.rpcs", rwstats.deletes(), "type=delete");
+    collector.record("hbase.rw.rpcs", rwstats.gets(), "type=get");
+    collector.record("hbase.rw.rpcs", rwstats.puts(), "type=put");
+    collector.record("hbase.rw.rpcs", rwstats.rowLocks(), "type=rowLock");
+    collector.record("hbase.rw.rpcs", rwstats.scannersOpened(), "type=openScanner");
+    collector.record("hbase.rw.rpcs", rwstats.scans(), "type=scan");
+    collector.record("hbase.rw.rpcs.batched", rwstats.numBatchedRpcSent());
+    collector.record("hbase.rw.flushes", rwstats.flushes());
+    collector.record("hbase.rw.connections.created", rwstats.connectionsCreated());
+    collector.record("hbase.rw.nsre", rwstats.noSuchRegionExceptions());
+    collector.record("hbase.rw.nsre.rpcs_delayed",
+            rwstats.numRpcDelayedDueToNSRE());
 
     compactionq.collectStats(collector);
   }
@@ -304,7 +347,7 @@ public final class TSDB {
                                             Bytes.fromShort(qualifier), value);
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
-    return client.put(point);
+    return w_client.put(point);
   }
 
   /**
@@ -320,7 +363,35 @@ public final class TSDB {
    * recoverable by retrying, some are not.
    */
   public Deferred<Object> flush() throws HBaseException {
-    return client.flush();
+    return flushAsDeferred();
+  }
+
+  /**
+   * Simultaneously flush both clients
+   * @return A {@link Deferred} that will be called on flush of all internal clients
+   */
+  private Deferred<Object> flushAsDeferred() {
+    return Deferred.group(w_client.flush(), rw_client.flush())
+            .addCallback(new Callback<Object, ArrayList<Object>>() {
+              @Override
+              public Object call(ArrayList<Object> arg) throws Exception {
+                return arg.get(arg.size() - 1);
+              }
+            });
+  }
+
+  /**
+   * Simultaneously shutdown both clients
+   * @return A {@link Deferred} that will be called on all internal clients was shutdown
+   */
+  private Deferred<Object> shutdownAsDeferred() {
+    return Deferred.group(w_client.shutdown(), rw_client.shutdown())
+            .addCallback(new Callback<Object, ArrayList<Object>>() {
+              @Override
+              public Object call(ArrayList<Object> arg) throws Exception {
+                return arg.get(arg.size() - 1);
+              }
+            });
   }
 
   /**
@@ -340,7 +411,7 @@ public final class TSDB {
   public Deferred<Object> shutdown() {
     final class HClientShutdown implements Callback<Object, ArrayList<Object>> {
       public Object call(final ArrayList<Object> args) {
-        return client.shutdown();
+        return shutdownAsDeferred();
       }
       public String toString() {
         return "shutdown HBase client";
@@ -359,7 +430,7 @@ public final class TSDB {
         } else {
           LOG.error("Failed to flush the compaction queue", e);
         }
-        return client.shutdown();
+        return shutdownAsDeferred();
       }
       public String toString() {
         return "shutdown HBase client after error";
@@ -368,8 +439,8 @@ public final class TSDB {
     // First flush the compaction queue, then shutdown the HBase client.
     return enable_compactions
       ? compactionq.flush().addCallbacks(new HClientShutdown(),
-                                         new ShutdownErrback())
-      : client.shutdown();
+            new ShutdownErrback())
+      : shutdownAsDeferred();
   }
 
   /**
@@ -434,19 +505,19 @@ public final class TSDB {
 
   /** Gets the entire given row from the data table. */
   final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
-    return client.get(new GetRequest(table, key));
+    return rw_client.get(new GetRequest(table, key));
   }
 
   /** Puts the given value into the data table. */
   final Deferred<Object> put(final byte[] key,
                              final byte[] qualifier,
                              final byte[] value) {
-    return client.put(new PutRequest(table, key, FAMILY, qualifier, value));
+    return w_client.put(new PutRequest(table, key, FAMILY, qualifier, value));
   }
 
   /** Deletes the given cells from the data table. */
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
-    return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
+    return w_client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
   }
 
 }
