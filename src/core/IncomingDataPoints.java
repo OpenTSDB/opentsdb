@@ -251,7 +251,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     // TODO(tsuna): Add an errback to handle some error cases here.
     point.setDurable(!batch_import);
-    return tsdb.client.put(point)/*.addBoth(cb)*/;
+    return tsdb.w_client.put(point)/*.addBoth(cb)*/;
   }
 
   private void grow() {
@@ -289,14 +289,14 @@ final class IncomingDataPoints implements WritableDataPoints {
     if (time < 0) {
       throw new IllegalArgumentException("negative time: " + time);
     }
-    tsdb.client.setFlushInterval(time);
+    tsdb.w_client.setFlushInterval(time);
   }
 
   public void setBatchImport(final boolean batchornot) {
     if (batch_import == batchornot) {
       return;
     }
-    final long current_interval = tsdb.client.getFlushInterval();
+    final long current_interval = tsdb.w_client.getFlushInterval();
     if (batchornot) {
       batch_import = true;
       // If we already were given a larger interval, don't override it.

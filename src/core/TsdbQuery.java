@@ -380,7 +380,7 @@ final class TsdbQuery implements Query {
     System.arraycopy(metric, 0, start_row, 0, metric_width);
     System.arraycopy(metric, 0, end_row, 0, metric_width);
 
-    final Scanner scanner = tsdb.client.newScanner(tsdb.table);
+    final Scanner scanner = tsdb.rw_client.newScanner(tsdb.table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     if (tags.size() > 0 || group_bys != null) {

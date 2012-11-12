@@ -16,6 +16,7 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
+import com.github.mairbek.zoo.ZooClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,16 +117,21 @@ final class TSDMain {
     final NioServerSocketChannelFactory factory =
         new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
                                           Executors.newCachedThreadPool());
-    final HBaseClient client = CliOptions.clientFromOptions(argp);
+    final HBaseClient wclient = CliOptions.clientFromOptions(argp);
+    final HBaseClient rwclient = CliOptions.clientFromOptions(argp);
     try {
       // Make sure we don't even start if we can't find out tables.
       final String table = argp.get("--table", "tsdb");
       final String uidtable = argp.get("--uidtable", "tsdb-uid");
-      client.ensureTableExists(table).joinUninterruptibly();
-      client.ensureTableExists(uidtable).joinUninterruptibly();
+      rwclient.ensureTableExists(table).joinUninterruptibly();
+      rwclient.ensureTableExists(uidtable).joinUninterruptibly();
 
-      client.setFlushInterval(flush_interval);
-      final TSDB tsdb = new TSDB(client, table, uidtable);
+      rwclient.setFlushInterval(flush_interval);
+      wclient.setFlushInterval(flush_interval);
+      final String zkq = argp.get("--zkquorum", "localhost");
+      final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
+      final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
+      final TSDB tsdb = new TSDB(rwclient, wclient, zkCli.connect(), zkLocks, table, uidtable);
       registerShutdownHook(tsdb);
       final ServerBootstrap server = new ServerBootstrap(factory);
 
@@ -141,7 +147,8 @@ final class TSDMain {
     } catch (Throwable e) {
       factory.releaseExternalResources();
       try {
-        client.shutdown().joinUninterruptibly();
+        wclient.shutdown().joinUninterruptibly();
+        rwclient.shutdown().joinUninterruptibly();
       } catch (Exception e2) {
         log.error("Failed to shutdown HBase client", e2);
       }
