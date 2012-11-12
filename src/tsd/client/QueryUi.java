@@ -43,6 +43,7 @@ import com.google.gwt.event.logical.shared.BeforeSelectionHandler;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.EventHandler;
+import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
@@ -1062,16 +1063,17 @@ public class QueryUi implements EntryPoint, HistoryListener {
     private int start_y;
     private int end_y;
 
+    private HandlerRegistration graph_move_handler;
+    private HandlerRegistration box_move_handler;
+
     ZoomBox() {
       // Set ourselves up as the event handler for all mouse-draggable events.
       graph.addMouseDownHandler(this);
-      graph.addMouseMoveHandler(this);
       graph.addMouseUpHandler(this);
 
       // Also add the handlers on the actual zoom highlight box (this is in
       // case the cursor gets on the zoombox, so that it keeps responding
       // correctly).
-      super.addMouseMoveHandler(this);
       super.addMouseUpHandler(this);
 
       final Style style = super.getElement().getStyle();
@@ -1103,6 +1105,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
       super.setWidth("0px");
       super.setHeight("0px");
       super.setVisible(true);
+
+      graph_move_handler = graph.addMouseMoveHandler(this);
+      box_move_handler = super.addMouseMoveHandler(this);
     }
 
     @Override
@@ -1162,6 +1167,13 @@ public class QueryUi implements EntryPoint, HistoryListener {
      */
     private <H extends EventHandler> void endSelection(final MouseEvent<H> event) {
       zoom_selection_active = false;
+
+      // Stop tracking cursor movements to improve performance.
+      graph_move_handler.removeHandler();
+      graph_move_handler = null;
+      box_move_handler.removeHandler();
+      box_move_handler = null;
+
       final Element image = graph.getElement();
       end_x = event.getRelativeX(image);
       end_y = event.getRelativeY(image);
