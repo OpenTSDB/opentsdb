@@ -99,6 +99,41 @@ public final class $CLASS {
     return "Built on $date by $user@$host:$repo";
   }
 
+  // These functions are useful to avoid cross-jar inlining.
+
+  /** Short revision at which this package was built. */
+  public static String shortRevision() {
+    return short_revision;
+  }
+  /** Full revision at which this package was built. */
+  public static String fullRevision() {
+    return full_revision;
+  }
+  /** UTC date at which this package was built. */
+  public static String date() {
+    return date;
+  }
+  /** UNIX timestamp of the time of the build. */
+  public static long timestamp() {
+    return timestamp;
+  }
+  /** Status of the repository at the time of the build. */
+  public static RepoStatus repoStatus() {
+    return repo_status;
+  }
+  /** Username of the user who built this package. */
+  public static String user() {
+    return user;
+  }
+  /** Host on which this package was built. */
+  public static String host() {
+    return host;
+  }
+  /** Path to the repository in which this package was built. */
+  public static String repo() {
+    return repo;
+  }
+
   // Can't instantiate.
   private $CLASS() {}
 }
