@@ -93,6 +93,8 @@ final class TSDMain {
                    "Web root from which to serve static files (/s URLs).");
     argp.addOption("--cachedir", "PATH",
                    "Directory under which to cache result of requests.");
+    argp.addOption("--workers", "NUM",
+                   "Number for async io workers (default: cpu * 2).");
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
@@ -113,9 +115,12 @@ final class TSDMain {
     setDirectoryInSystemProps("tsd.http.cachedir", argp.get("--cachedir"),
                               CREATE_IF_NEEDED, MUST_BE_WRITEABLE);
 
+    final int workers = Integer.parseInt(
+            argp.get("--workers", Integer.toString(Runtime.getRuntime().availableProcessors() * 2)));
     final NioServerSocketChannelFactory factory =
         new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
-                                          Executors.newCachedThreadPool());
+                                          Executors.newCachedThreadPool(),
+                                          workers);
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     try {
       // Make sure we don't even start if we can't find out tables.
