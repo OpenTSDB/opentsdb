@@ -1,6 +1,7 @@
 package net.opentsdb.expression;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -28,7 +29,7 @@ public class ArithmeticExpressionResultDataPoints implements DataPoints {
 
   @Override
   public Map<String, String> getTags() {
-    return null;
+    return new HashMap<String, String>();
   }
 
   @Override

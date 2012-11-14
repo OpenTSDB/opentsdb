@@ -27,20 +27,22 @@ expr: term ((ADD^ | SUBTRACT^) term)*;
 
 term: factor ((MULTIPLY^ | DIVIDE^) factor)*;
 
-factor: LITERAL | funct | METRIC | (LEFT_PARENTHESIS! expr RIGHT_PARENTHESIS!);
- 
-funct: (IDENTIFIER^ LEFT_PARENTHESIS! expr (PARAM_SEPARATOR! expr)* RIGHT_PARENTHESIS!);
- 
+factor: LITERAL | METRIC | function | (LEFT_PARENTHESIS! expr RIGHT_PARENTHESIS!);
+
+function: FUNCTION_NAME^ LEFT_PARENTHESIS! expr (PARAM_SEPARATOR! expr)* RIGHT_PARENTHESIS!;
+
 /*-----------------------------------------------------------------------------
  * LEXER RULES
  *-----------------------------------------------------------------------------
  */
 
-LITERAL : Digit ('.' Digit+)?;
-
 IDENTIFIER : Letter (Letter|Digit|Separator)*;
 
-METRIC : '\"' IDENTIFIER (':' IDENTIFIER)* ('{' IDENTIFIER '=' IDENTIFIER (',' IDENTIFIER '=' IDENTIFIER)* '}')? '\"';
+LITERAL : Digit+ ('.' Digit+)?;
+
+METRIC : IDENTIFIER (':' IDENTIFIER)* ('{' IDENTIFIER '=' (IDENTIFIER | '\*') (',' IDENTIFIER '=' (IDENTIFIER | '\*'))* '}')?;
+
+FUNCTION_NAME : '_' IDENTIFIER; 
 
 PARAM_SEPARATOR : ',';
  
@@ -48,4 +50,4 @@ WHITESPACE : ( '\t' | ' ' | '\r' | '\n'| '\u000C' )+ { $channel = HIDDEN; };
 
 fragment Letter: 'A'..'Z' | 'a'..'z';
 fragment Digit: '0'..'9';
-fragment Separator: '.' | '-' | '*';
+fragment Separator: '.' | '-' | '\*';

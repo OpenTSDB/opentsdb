@@ -105,17 +105,6 @@ final class GraphHandler implements HttpRpc {
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query) {
-    if (!query.hasQueryStringParam("json") && !query.hasQueryStringParam("png")
-        && !query.hasQueryStringParam("ascii")) {
-      String uri = query.request().getUri();
-      if (uri.length() < 4) { // Shouldn't happen...
-        uri = "/"; // But just in case, redirect.
-      } else {
-        uri = "/#" + uri.substring(3); // Remove "/q?"
-      }
-      query.redirect(uri);
-      return;
-    }
     try {
       doGraph(tsdb, query);
     } catch (IOException e) {
@@ -159,8 +148,7 @@ final class GraphHandler implements HttpRpc {
 
   private Plot preparePlot(final TSDB tsdb, final HttpQuery query,
       final long start_time, final long end_time) {
-    final Plot plot = new Plot(start_time, end_time, timezones.get(query
-        .getQueryStringParam("tz")));
+    final Plot plot = new Plot(start_time, end_time);
     Query[] tsdbqueries = prepareQueries(tsdb, query, start_time, end_time);
     final AnnotationQuery annotationQuery = prepareAnnotationQuery(tsdb,
         start_time, end_time, query);
