@@ -16,6 +16,8 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
+import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
+import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +97,8 @@ final class TSDMain {
                    "Directory under which to cache result of requests.");
     argp.addOption("--workers", "NUM",
                    "Number for async io workers (default: cpu * 2).");
+    argp.addOption("--async-io", "true|false",
+                   "Use async NIO (default true) or traditional blocking io");
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
@@ -115,12 +119,18 @@ final class TSDMain {
     setDirectoryInSystemProps("tsd.http.cachedir", argp.get("--cachedir"),
                               CREATE_IF_NEEDED, MUST_BE_WRITEABLE);
 
-    final int workers = Integer.parseInt(
-            argp.get("--workers", Integer.toString(Runtime.getRuntime().availableProcessors() * 2)));
-    final NioServerSocketChannelFactory factory =
-        new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
-                                          Executors.newCachedThreadPool(),
-                                          workers);
+    final ServerSocketChannelFactory factory;
+    if (argp.get("--async-io", "true").equalsIgnoreCase("true")) {
+      final int workers = Integer.parseInt(
+              argp.get("--workers", Integer.toString(Runtime.getRuntime().availableProcessors() * 2)));
+      factory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
+                                                  Executors.newCachedThreadPool(),
+                                                  workers);
+    } else {
+      factory =
+              new OioServerSocketChannelFactory(Executors.newCachedThreadPool(),
+                                                Executors.newCachedThreadPool());
+    }
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     try {
       // Make sure we don't even start if we can't find out tables.
