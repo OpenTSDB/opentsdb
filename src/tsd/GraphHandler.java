@@ -348,16 +348,22 @@ final class GraphHandler implements HttpRpc {
       final int nplotted = runGnuplot(query, basepath, plot);
       if (query.hasQueryStringParam("json")) {
         final StringBuilder buf = new StringBuilder(64);
-        buf.append("{\"plotted\":").append(nplotted).append(",\"etags\":[");
-        for (final Set<String> tags : plot.getAggregatedTags()) {
-          if (tags == null || tags.isEmpty()) {
-            buf.append("[]");
-          } else {
-            HttpQuery.toJsonArray(tags, buf);
+        final List<Set<String>> aggregatedTags = plot.getAggregatedTags();
+        buf.append("{\"plotted\":").append(nplotted);
+        if(aggregatedTags == null || aggregatedTags.isEmpty()) {
+          buf.append("[[]]");
+        } else {
+          buf.append(",\"etags\":[");
+          for (final Set<String> tags : plot.getAggregatedTags()) {
+            if (tags == null || tags.isEmpty()) {
+              buf.append("[]");
+            } else {
+              HttpQuery.toJsonArray(tags, buf);
+            }
+            buf.append(',');
           }
-          buf.append(',');
+          buf.setCharAt(buf.length() - 1, ']');
         }
-        buf.setCharAt(buf.length() - 1, ']');
         // The "timing" field must remain last, loadCachedJson relies this.
         buf.append(",\"timing\":").append(query.processingTimeMillis())
             .append('}');
