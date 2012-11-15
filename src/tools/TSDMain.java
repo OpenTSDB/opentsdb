@@ -95,7 +95,7 @@ final class TSDMain {
                    "Web root from which to serve static files (/s URLs).");
     argp.addOption("--cachedir", "PATH",
                    "Directory under which to cache result of requests.");
-    argp.addOption("--workers", "NUM",
+    argp.addOption("--worker-threads", "NUM",
                    "Number for async io workers (default: cpu * 2).");
     argp.addOption("--async-io", "true|false",
                    "Use async NIO (default true) or traditional blocking io");
@@ -122,7 +122,8 @@ final class TSDMain {
     final ServerSocketChannelFactory factory;
     if (argp.get("--async-io", "true").equalsIgnoreCase("true")) {
       final int workers = Integer.parseInt(
-              argp.get("--workers", Integer.toString(Runtime.getRuntime().availableProcessors() * 2)));
+              argp.get("--worker-threads",
+                      "" + Runtime.getRuntime().availableProcessors() * 2));
       factory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
                                                   Executors.newCachedThreadPool(),
                                                   workers);
