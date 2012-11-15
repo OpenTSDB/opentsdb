@@ -1084,7 +1084,6 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
     @Override
     public void onMouseDown(final MouseDownEvent event) {
-      event.preventDefault();
       // Check if the zoom selection is active, if so, it's possible that the
       // mouse left the browser mid-selection and got stuck enabled even
       // though the mouse isn't still pressed. If that's the case, do a similar
@@ -1113,10 +1112,6 @@ public class QueryUi implements EntryPoint, HistoryListener {
     @Override
     public void onMouseMove(final MouseMoveEvent event) {
       event.preventDefault();
-
-      if (!zoom_selection_active) {
-        return;
-      }
 
       final int x = event.getRelativeX(graph.getElement());
       final int y = event.getRelativeY(graph.getElement());
@@ -1152,8 +1147,6 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
     @Override
     public void onMouseUp(final MouseUpEvent event) {
-      event.preventDefault();
-
       if (zoom_selection_active) {
         endSelection(event);
       }
@@ -1206,7 +1199,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
       // Prevent division by zero if image is pathologically small.
       // or: Prevent changing anything if the distance the cursor traveled was
       // too small (as happens during a simple click or unintentional click).
-      if (actual_width < 1 || end_x - start_x < 2) {
+      if (actual_width < 1 || end_x - start_x <= 5) {
         return;
       }
 
