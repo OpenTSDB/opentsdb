@@ -113,6 +113,7 @@ httpui_SRC := \
 	src/tsd/client/EventsHandler.java	\
 	src/tsd/client/GotJsonCallback.java	\
 	src/tsd/client/MetricForm.java	\
+	src/tsd/client/QueryString.java	\
 	src/tsd/client/QueryUi.java	\
 	src/tsd/client/RemoteOracle.java	\
 	src/tsd/client/ValidatedTextBox.java
