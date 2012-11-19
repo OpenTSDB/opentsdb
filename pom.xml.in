@@ -7,9 +7,16 @@
   <artifactId>opentsdb</artifactId>
   <version>@spec_version@</version>
   <name>@spec_title@</name>
+  <organization>
+    <name>@spec_vendor@</name>
+    <url>http://opentsdb.net</url>
+  </organization>
   <description>
     OpenTSDB is a distributed, scalable Time Series Database (TSDB)
-    written on top of HBase.
+    written on top of HBase.  OpenTSDB was written to address a common need:
+    store, index and serve metrics collected from computer systems (network
+    gear, operating systems, applications) at a large scale, and make this
+    data easily accessible and graphable.
   </description>
   <url>http://opentsdb.net</url>
   <licenses>
@@ -20,6 +27,36 @@
     </license>
   </licenses>
 
+  <scm>
+    <connection>scm:git:git@github.com:OpenTSDB/opentsdb.git</connection>
+    <url>https://github.com/OpenTSDB/opentsdb</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/OpenTSDB/opentsdb/issues</url>
+  </issueManagement>
+  <mailingLists>
+    <mailingList>
+      <name>User List</name>
+      <post>opentsdb@googlegroups.com</post>
+      <subscribe>opentsdb+subscribe@googlegroups.com</subscribe>
+      <unsubscribe>opentsdb+unsubscribe@googlegroups.com</unsubscribe>
+      <archive>https://groups.google.com/group/opentsdb</archive>
+    </mailingList>
+  </mailingLists>
+  <developers>
+    <developer>
+      <id>tsuna</id>
+      <name>Benoit "tsuna" Sigoure</name>
+      <email>tsunanet@gmail.com</email>
+      <roles>
+        <role>developer</role>
+      </roles>
+      <timezone>-8</timezone>
+    </developer>
+  </developers>
+  <inceptionYear>2010</inceptionYear>
+
   <packaging>jar</packaging>
 
   <build>
@@ -27,6 +64,7 @@
     <testSourceDirectory>test</testSourceDirectory>
 
     <plugins>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -44,6 +82,7 @@
           </testIncludes>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
@@ -66,6 +105,7 @@
           </arguments>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
@@ -85,6 +125,7 @@
           </execution>
         </executions>
       </plugin>
+
       <plugin>
         <artifactId>maven-antrun-plugin</artifactId>
         <version>1.7</version>
@@ -108,6 +149,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>2.12.4</version>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -120,6 +162,7 @@
           </excludes>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>gwt-maven-plugin</artifactId>
@@ -127,7 +170,8 @@
         <executions>
           <execution>
             <configuration>
-              <webappDirectory>${project.build.directory}/classes/</webappDirectory>
+              <enableAssertions>true</enableAssertions>
+              <module>tsd.QueryUi</module>
             </configuration>
             <phase>compile</phase>
             <goals>
@@ -136,6 +180,61 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>2.1.2</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>2.8.1</version>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <quiet>true</quiet>
+          <validateLinks>true</validateLinks>
+          <bottom>
+            Copyright &#169; {inceptionYear}-{currentYear},
+            ${project.organization.name}
+          </bottom>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>1.4</version>
+        <executions>
+         <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <keyname>tsunanet@gmail.com</keyname>
+        </configuration>
+      </plugin>
+
     </plugins>
   </build>
 
@@ -267,5 +366,15 @@
     </dependency>
 
   </dependencies>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <parent>
+    <groupId>org.sonatype.oss</groupId>
+    <artifactId>oss-parent</artifactId>
+    <version>7</version>
+  </parent>
 
 </project>

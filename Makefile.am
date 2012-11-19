@@ -19,13 +19,14 @@ all-am: jar staticroot
 
 package = net.opentsdb
 spec_title = OpenTSDB
-spec_vendor = StumbleUpon, Inc.
+spec_vendor = The OpenTSDB Authors
 jar := tsdb-$(PACKAGE_VERSION).jar
 builddata_SRC := src/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
 dist_noinst_SCRIPTS = src/create_table.sh
 dist_pkgdata_SCRIPTS = src/mygnuplot.sh
+dist_noinst_DATA = pom.xml.in
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
@@ -92,13 +93,13 @@ tsdb_DEPS = \
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
 
 test_SRC := \
-	src/core/TestAggregators.java \
-	src/core/TestCompactionQueue.java	\
-	src/core/TestTags.java	\
-	src/stats/TestHistogram.java	\
-	src/tsd/TestGraphHandler.java	\
-	src/uid/TestNoSuchUniqueId.java	\
-	src/uid/TestUniqueId.java
+	test/core/TestAggregators.java \
+	test/core/TestCompactionQueue.java	\
+	test/core/TestTags.java	\
+	test/stats/TestHistogram.java	\
+	test/tsd/TestGraphHandler.java	\
+	test/uid/TestNoSuchUniqueId.java	\
+	test/uid/TestUniqueId.java
 
 test_DEPS = \
 	$(tsdb_DEPS) \
@@ -132,7 +133,7 @@ GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
 GWTC_ARGS = -ea  # Additional arguments like -style PRETTY or -logLevel DEBUG
 
 package_dir := $(subst .,/,$(package))
-UNITTESTS := $(test_SRC:src/%.java=$(package_dir)/%.class)
+UNITTESTS := $(test_SRC:test/%.java=$(package_dir)/%.class)
 AM_JAVACFLAGS = -Xlint -source 6
 JVM_ARGS =
 classes := $(tsdb_SRC:src/%.java=$(package_dir)/%.class) \
@@ -356,8 +357,11 @@ mostlyclean-local:
 	  && rmdir "$$dir"
 
 clean-local:
-	rm -f $(jar) tsdb
+	rm -f $(jar) tsdb $(srcdir)/pom.xml
 	rm -rf $(JAVADOC_DIR)
+
+distclean-local:
+	rm -rf $(srcdir)/target
 
 pom.xml: pom.xml.in Makefile
 	{ \
