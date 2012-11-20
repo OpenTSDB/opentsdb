@@ -19,7 +19,6 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.handler.codec.frame.DelimiterBasedFrameDecoder;
-import org.jboss.netty.handler.codec.frame.Delimiters;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
@@ -34,7 +33,6 @@ import net.opentsdb.core.TSDB;
 public final class PipelineFactory implements ChannelPipelineFactory {
 
   // Those are entirely stateless and thus a single instance is needed.
-  private static final ChannelBuffer[] DELIMITERS = Delimiters.lineDelimiter();
   private static final StringEncoder ENCODER = new StringEncoder();
   private static final WordSplitter DECODER = new WordSplitter();
 
@@ -87,8 +85,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("decoder", new HttpRequestDecoder());
         pipeline.addLast("encoder", new HttpResponseEncoder());
       } else {
-        pipeline.addLast("framer",
-                         new DelimiterBasedFrameDecoder(1024, DELIMITERS));
+        pipeline.addLast("framer", new LineBasedFrameDecoder(1024));
         pipeline.addLast("encoder", ENCODER);
         pipeline.addLast("decoder", DECODER);
       }

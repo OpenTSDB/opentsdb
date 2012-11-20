@@ -65,6 +65,7 @@ tsdb_SRC := \
 	src/tsd/GraphHandler.java	\
 	src/tsd/HttpQuery.java	\
 	src/tsd/HttpRpc.java	\
+	src/tsd/LineBasedFrameDecoder.java	\
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
 	src/tsd/PutDataPointRpc.java	\
