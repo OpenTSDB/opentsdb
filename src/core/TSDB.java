@@ -193,6 +193,8 @@ public final class TSDB {
     collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.kind());
     collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.kind());
     collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
+    collector.record("uid.used", uid.idsUsed(), "kind=" + uid.kind());
+    collector.record("uid.available", uid.idsAvailable(), "kind=" + uid.kind());
   }
 
   /**
