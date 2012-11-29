@@ -19,7 +19,7 @@ public final class Const {
   public static final short TIMESTAMP_BYTES = 4;
 
   /** Maximum number of tags allowed per data point.  */
-  public static final short MAX_NUM_TAGS = 8;
+  public static final short MAX_NUM_TAGS = 16;
   // 8 is an aggressive limit on purpose.  Can always be increased later.
 
   /** Number of LSBs in time_deltas reserved for flags.  */
