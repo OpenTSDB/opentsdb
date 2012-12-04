@@ -24,7 +24,6 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import org.hbase.async.HBaseClient;
 
-import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.tsd.PipelineFactory;
 
@@ -78,8 +77,8 @@ final class TSDMain {
   public static void main(String[] args) {
     Logger log = LoggerFactory.getLogger(TSDMain.class);
     log.info("Starting.");
-    log.info(BuildData.revisionString());
-    log.info(BuildData.buildString());
+    /*log.info(BuildData.revisionString());
+    log.info(BuildData.buildString());*/
     try {
       System.in.close();  // Release a FD we don't need.
     } catch (Exception e) {

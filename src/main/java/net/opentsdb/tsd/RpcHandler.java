@@ -14,7 +14,6 @@ package net.opentsdb.tsd;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
@@ -84,11 +83,11 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       telnet_commands.put("stats", stats);
       http_commands.put("stats", stats);
     }
-    {
+    /*{
       final Version version = new Version();
       telnet_commands.put("version", version);
       http_commands.put("version", version);
-    }
+    }*/
     {
       final DropCaches dropcaches = new DropCaches();
       telnet_commands.put("dropcaches", dropcaches);
@@ -427,7 +426,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     }
   }
 
-  /** The "version" command. */
+/*
+  */
+/** The "version" command. *//*
+
   private static final class Version implements TelnetRpc, HttpRpc {
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
@@ -464,6 +466,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     }
   }
 
+*/
   /**
    * Returns the directory path stored in the given system property.
    * @param prop The name of the system property.
