@@ -130,7 +130,8 @@ def main(argv):
       print "ERROR: couldn't connect to %s: %s" % (tsd, e)
       return 2
     if options.verbose:
-        print 'Connected to %s:%d' % conn.sock.getpeername()
+        peer = conn.sock.getpeername()
+        print 'Connected to %s:%d' % (peer[0], peer[1])
         conn.set_debuglevel(1)
     now = int(time.time())
     try:
