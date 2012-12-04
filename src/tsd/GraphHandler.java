@@ -12,44 +12,26 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
+import net.opentsdb.core.*;
+import net.opentsdb.graph.Plot;
+import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.uid.NoSuchUniqueName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import net.opentsdb.core.Aggregator;
-import net.opentsdb.core.Aggregators;
-import net.opentsdb.core.Const;
-import net.opentsdb.core.DataPoint;
-import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Query;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
-import net.opentsdb.graph.Plot;
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.uid.NoSuchUniqueName;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -130,6 +112,7 @@ final class GraphHandler implements HttpRpc {
     final String basepath = getGnuplotBasePath(query);
     final long start_time = getQueryStringDate(query, "start");
     final boolean nocache = query.hasQueryStringParam("nocache");
+    final boolean ascii = query.hasQueryStringParam("ascii");
     if (start_time == -1) {
       throw BadRequestException.missingParameter("start");
     }
@@ -156,6 +139,10 @@ final class GraphHandler implements HttpRpc {
         + tsdbqueries.length + " `m' parameters.");
     }
     for (final Query tsdbquery : tsdbqueries) {
+      // disable padding for ascii value return
+      if(!ascii)
+        tsdbquery.setPadding(true);
+
       try {
         tsdbquery.setStartTime(start_time);
       } catch (IllegalArgumentException e) {
@@ -195,7 +182,7 @@ final class GraphHandler implements HttpRpc {
     }
     tsdbqueries = null;  // free()
 
-    if (query.hasQueryStringParam("ascii")) {
+    if (ascii) {
       respondAsciiQuery(query, max_age, basepath, plot);
       return;
     }
@@ -827,6 +814,8 @@ final class GraphHandler implements HttpRpc {
    */
   private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
     final List<String> ms = query.getQueryStringParams("m");
+    final boolean ascii = query.hasQueryStringParam("ascii");
+
     if (ms == null) {
       throw BadRequestException.missingParameter("m");
     }
@@ -860,6 +849,10 @@ final class GraphHandler implements HttpRpc {
 
       final Query tsdbquery = tsdb.newQuery();
       try {
+        // disable padding for ascii value return
+        if(!ascii)
+            tsdbquery.setPadding(true);
+
         tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, noInterpolation);
       } catch (NoSuchUniqueName e) {
         throw new BadRequestException(e.getMessage());

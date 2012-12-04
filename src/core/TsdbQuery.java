@@ -12,27 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.TreeMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import net.opentsdb.stats.Histogram;
+import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.NoSuchUniqueName;
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
-import static org.hbase.async.Bytes.ByteMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
+import java.nio.charset.Charset;
+import java.util.*;
+
+import static org.hbase.async.Bytes.ByteMap;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -114,6 +107,9 @@ final class TsdbQuery implements Query {
   /** Minimum time interval (in seconds) wanted between each data point. */
   private int sample_interval;
 
+  /** Set to true to pull extra data before start_time and after end_time */
+  private boolean padding = false;
+
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -153,6 +149,10 @@ final class TsdbQuery implements Query {
       setEndTime(System.currentTimeMillis() / 1000);
     }
     return end_time;
+  }
+
+  public void setPadding(final boolean padding) {
+    this.padding = padding;
   }
 
   public void setTimeSeries(final String metric,
@@ -314,8 +314,8 @@ final class TsdbQuery implements Query {
       // We haven't been asked to find groups, so let's put all the spans
       // together in the same group.
       final SpanGroup group = new SpanGroup(tsdb,
-                                            getScanStartTime(),
-                                            getScanEndTime(),
+                                            (padding ? getScanStartTime() : start_time),
+                                            (padding ? getScanEndTime() : end_time),
                                             spans.values(),
                                             rate,
                                             this.noInterpolation,
@@ -362,8 +362,8 @@ final class TsdbQuery implements Query {
       SpanGroup thegroup = groups.get(group);
       if (thegroup == null) {
         thegroup = new SpanGroup(tsdb,
-                                getScanStartTime(),
-                                getScanEndTime(),
+                                (padding ? getScanStartTime() : start_time),
+                                (padding ? getScanEndTime() : end_time),
                                 null,
                                 rate,
                                 noInterpolation,
@@ -609,7 +609,10 @@ final class TsdbQuery implements Query {
         buf.append(", ");
       }
     }
-    buf.append("))");
+    buf.append(")");
+    buf.append(" padding=").append(this.padding);
+    buf.append(")");
+
     return buf.toString();
   }
 

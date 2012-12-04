@@ -12,11 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.Map;
-
+import net.opentsdb.uid.NoSuchUniqueName;
 import org.hbase.async.HBaseException;
 
-import net.opentsdb.uid.NoSuchUniqueName;
+import java.util.Map;
 
 /**
  * A query to retreive data from the TSDB.
@@ -120,5 +119,11 @@ public interface Query {
    * perform the search.
    */
   DataPoints[] run() throws HBaseException;
+
+  /**
+   * Determine if padding should be applied.  This is disabled (false) by default and should be set
+   * to true for graphing functions which may require additional data to plot correctly.
+   */
+  void setPadding(boolean padding);
 
 }
