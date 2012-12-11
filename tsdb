@@ -1,0 +1,50 @@
+#!/bin/bash
+
+if test -n "target/opentsdb-*-SNAPSHOT.jar"; then
+  JAR=$(ls target/opentsdb-*-SNAPSHOT.jar)
+  CLASSPATH=$CLASSPATH:$JAR
+else
+  source $HOME/bin/dumpenv
+fi
+
+usage() {
+  echo >&2 "usage: $me <command> [args]"
+  echo 'Valid commands: fsck, import, mkmetric, query, tsd, scan, uid'
+  exit 1
+}
+
+case $1 in
+  (fsck)
+    JAVA_MAIN=Fsck
+    ;;
+  (import)
+    JAVA_MAIN=TextImporter
+    ;;
+  (mkmetric)
+    shift
+    set uid assign metrics "$@"
+    JAVA_MAIN=UidManager
+    ;;
+  (query)
+    JAVA_MAIN=CliQuery
+    ;;
+  (tsd)
+    JAVA_MAIN=TSDMain
+    ;;
+  (scan)
+    JAVA_MAIN=DumpSeries
+    ;;
+  (uid)
+    JAVA_MAIN=UidManager
+    ;;
+  (*)
+    echo >&2 "$me: error: unknown command '$1'"
+    usage
+    ;;
+esac
+
+shift
+test -r "$HOME/etc/tsdb.local" && . "$HOME/etc/tsdb.local"
+
+export CLASSPATH=$CLASSPATH
+exec java $JAVA_OPTS net.opentsdb.tools.$JAVA_MAIN "$@"
