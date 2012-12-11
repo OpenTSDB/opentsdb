@@ -25,6 +25,7 @@ mvn -DskipTests install
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/mnt/services/%{name}/rpm/lib/java
 cp target/%{name}-*.jar $RPM_BUILD_ROOT/mnt/services/%{name}/rpm/lib/java/
+cp tsdb $RPM_BUILD_ROOT/mnt/services/%{name}/rpm/bin/
 ln -s rpm $RPM_BUILD_ROOT/mnt/services/%{name}/current
  
  
