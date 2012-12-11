@@ -8,6 +8,34 @@
     <artifactId>opentsdb</artifactId>
     <version>1.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
+
+    <distributionManagement>
+        <repository>
+            <id>releases</id>
+            <url>http://nexus.prod.urbanairship.com/content/repositories/releases</url>
+        </repository>
+
+        <snapshotRepository>
+            <id>releases</id>
+            <url>http://nexus.prod.urbanairship.com/content/repositories/snapshots</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <scm>
+        <connection>scm:git:git@github.com:urbanairship/opentsdb.git</connection>
+    </scm>
+
+
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>cobertura-maven-plugin</artifactId>
+                <version>2.5.2</version>
+            </plugin>
+        </plugins>
+    </reporting>
+
     <build>
         <plugins>
             <plugin>
@@ -66,6 +94,39 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>cobertura-maven-plugin</artifactId>
+              <version>2.5.2</version>
+              <configuration>
+                  <check>
+                      <branchRate>85</branchRate>
+                      <lineRate>85</lineRate>
+                      <haltOnFailure>false</haltOnFailure>
+                      <totalBranchRate>85</totalBranchRate>
+                      <totalLineRate>85</totalLineRate>
+                      <packageLineRate>85</packageLineRate>
+                      <packageBranchRate>85</packageBranchRate>
+                  </check>
+                  <formats>
+                      <format>html</format>
+                      <format>xml</format>
+                  </formats>
+                  <instrumentation>
+                      <ignores>
+                          <ignore>org.apache.log4j.*</ignore>
+                      </ignores>
+                  </instrumentation>
+              </configuration>
+              <executions>
+                  <execution>
+                      <phase>package</phase>
+                      <goals>
+                          <goal>cobertura</goal>
+                      </goals>
+                  </execution>
+              </executions>
             </plugin>
         </plugins>
     </build>
