@@ -36,5 +36,6 @@ rm -rf $RPM_BUILD_ROOT
  
 %files
 %defattr(-,root,root)
+/mnt/services/%{name}/bin/tsdb
 /mnt/services/%{name}/rpm/lib/java/*.jar
 /mnt/services/%{name}/current
