@@ -1,10 +1,11 @@
 #!/bin/bash
 
-if test -n "target/opentsdb-*-SNAPSHOT.jar"; then
+if test -e "target/opentsdb-*-SNAPSHOT.jar"; then
   JAR=$(ls target/opentsdb-*-SNAPSHOT.jar)
   CLASSPATH=$CLASSPATH:$JAR
 else
-  source $HOME/bin/dumpenv
+  source $HOME/bin/setenv
+  export CLASSPATH=$(classpath)
 fi
 
 usage() {
@@ -47,4 +48,4 @@ shift
 test -r "$HOME/etc/tsdb.local" && . "$HOME/etc/tsdb.local"
 
 export CLASSPATH=$CLASSPATH
-exec java $JAVA_OPTS net.opentsdb.tools.$JAVA_MAIN "$@"
+java $JAVA_OPTS net.opentsdb.tools.$JAVA_MAIN "$@"
