@@ -36,6 +36,6 @@ rm -rf %{buildroot}
  
 %files
 %defattr(-,root,root)
-/mnt/services/%{name}/bin/tsdb
+/mnt/services/%{name}/rpm/bin/tsdb
 /mnt/services/%{name}/rpm/lib/java/*.jar
 /mnt/services/%{name}/current
