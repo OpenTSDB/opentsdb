@@ -93,6 +93,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       telnet_commands.put("dropcaches", dropcaches);
       http_commands.put("dropcaches", dropcaches);
     }
+    {
+        final ListMetrics metrics = new ListMetrics();
+        http_commands.put("list", metrics);
+    }
 
     telnet_commands.put("exit", new Exit());
     telnet_commands.put("help", new Help());
@@ -233,6 +237,27 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   // ---------------------------- //
   // Individual command handlers. //
   // ---------------------------- //
+
+  /** The "list metric" command and "/list" endpoint. */
+  private final class ListMetrics implements HttpRpc {
+
+      @Override
+      public void execute(TSDB tsdb, HttpQuery query) throws IOException {
+          HttpRequest request = query.request();
+          if (request.getMethod() != HttpMethod.GET) {
+              throw new IOException("/list only allows GET");
+          }
+
+          String prefix = query.getQueryStringParam("prefix");
+          if(prefix != null) {
+              logError(query, "scanning metrics");
+              List<String> metrics = tsdb.suggestMetrics(prefix);
+              query.sendJsonArray(metrics);
+          } else {
+              throw new IOException("/list requires a 'prefix' parameter");
+          }
+      }
+  }
 
   /** The "diediedie" command and "/diediedie" endpoint. */
   private final class DieDieDie implements TelnetRpc, HttpRpc {
