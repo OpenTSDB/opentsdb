@@ -47,12 +47,12 @@ def main(argv):
             metavar='SECONDS', help='How far back to look for data.')
     parser.add_option('-D', '--downsample', dest='downsample', default='none',
             metavar='METHOD',
-            help='Downsample the data over the duration via avg, min, sum, or max.')
+            help='Downsample the data over the duration via avg, min, sum, max or sum:rate.')
     parser.add_option('-W', '--downsample-window', dest='downsample_window', type='int',
             default=60, metavar='SECONDS', help='Window size over which to downsample.')
     parser.add_option('-a', '--aggregator', dest='aggregator', default='sum',
             metavar='METHOD',
-            help='Aggregation method: avg, min, sum (default), max.')
+            help='Aggregation method: avg, min, sum (default), max or sum:rate.')
     parser.add_option('-x', '--method', dest='comparator', default='gt',
             metavar='METHOD', help='Comparison method for -w/-c: gt, ge, lt, le, eq, ne.')
     parser.add_option('-r', '--rate', dest='rate', default=False,
@@ -77,9 +77,9 @@ def main(argv):
     # argument validation
     if options.comparator not in ('gt', 'ge', 'lt', 'le', 'eq', 'ne'):
         parser.error("Comparator '%s' not valid." % options.comparator)
-    elif options.downsample not in ('none', 'avg', 'min', 'sum', 'max'):
+    elif options.downsample not in ('none', 'avg', 'min', 'sum', 'max', 'sum:rate'):
         parser.error("Downsample '%s' not valid." % options.downsample)
-    elif options.aggregator not in ('avg', 'min', 'sum', 'max'):
+    elif options.aggregator not in ('avg', 'min', 'sum', 'max', 'sum:rate'):
         parser.error("Aggregator '%s' not valid." % options.aggregator)
     elif not options.metric:
         parser.error('You must specify a metric (option -m).')
