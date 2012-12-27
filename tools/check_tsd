@@ -57,9 +57,9 @@ def main(argv):
             metavar='METHOD', help='Comparison method for -w/-c: gt, ge, lt, le, eq, ne.')
     parser.add_option('-r', '--rate', dest='rate', default=False,
             action='store_true', help='Use rate value as comparison operand.')
-    parser.add_option('-w', '--warning', dest='warning', type='int', metavar='THRESHOLD',
+    parser.add_option('-w', '--warning', dest='warning', type='float', metavar='THRESHOLD',
             help='Threshold for warning.  Uses the comparison method.')
-    parser.add_option('-c', '--critical', dest='critical', type='int', metavar='THRESHOLD',
+    parser.add_option('-c', '--critical', dest='critical', type='float', metavar='THRESHOLD',
             help='Threshold for critical.  Uses the comparison method.')
     parser.add_option('-v', '--verbose', dest='verbose', default=False,
             action='store_true', help='Be more verbose.')
