@@ -99,6 +99,9 @@ final class TsdbQuery implements Query {
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
 
+  /** if true, do not compute Interpolation */
+  private boolean noInterpolation;
+
   /** Aggregator function to use. */
   private Aggregator aggregator;
 
@@ -161,6 +164,18 @@ final class TsdbQuery implements Query {
     this.tags = Tags.resolveAll(tsdb, tags);
     aggregator = function;
     this.rate = rate;
+    this.noInterpolation = false;
+  }
+
+  public void setTimeSeries(final String metric,
+      final Map<String, String> tags,
+      final Aggregator function,
+      final boolean rate, boolean noInterpolation) throws NoSuchUniqueName {
+
+    setTimeSeries(metric, tags, function, rate);
+
+    //by default enable Interpolation (default behavior)
+    this.noInterpolation = noInterpolation;
   }
 
   public void downsample(final int interval, final Aggregator downsampler) {
@@ -300,6 +315,7 @@ final class TsdbQuery implements Query {
                                             getScanEndTime(),
                                             spans.values(),
                                             rate,
+                                            this.noInterpolation,
                                             aggregator,
                                             sample_interval, downsampler);
       return new SpanGroup[] { group };
@@ -342,9 +358,15 @@ final class TsdbQuery implements Query {
       //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
       SpanGroup thegroup = groups.get(group);
       if (thegroup == null) {
-        thegroup = new SpanGroup(tsdb, getScanStartTime(), getScanEndTime(),
-                                 null, rate, aggregator,
-                                 sample_interval, downsampler);
+        thegroup = new SpanGroup(tsdb,
+                                getScanStartTime(),
+                                getScanEndTime(),
+                                null,
+                                rate,
+                                noInterpolation,
+                                aggregator,
+                                sample_interval,
+                                downsampler);
         // Copy the array because we're going to keep `group' and overwrite
         // its contents.  So we want the collection to have an immutable copy.
         final byte[] group_copy = new byte[group.length];
@@ -549,8 +571,10 @@ final class TsdbQuery implements Query {
       buf.append("), tags=<").append(e.getMessage()).append('>');
     }
     buf.append(", rate=").append(rate)
-       .append(", aggregator=").append(aggregator)
-       .append(", group_bys=(");
+      .append(", nointerpolation=").append(noInterpolation)
+      .append(", aggregator=").append(aggregator)
+      .append(", group_bys=(");
+
     if (group_bys != null) {
       for (final byte[] tag_id : group_bys) {
         try {

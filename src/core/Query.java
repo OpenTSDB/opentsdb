@@ -78,6 +78,23 @@ public interface Query {
                      Aggregator function, boolean rate) throws NoSuchUniqueName;
 
   /**
+   * Sets the time series to the query.
+   * @param metric The metric to retreive from the TSDB.
+   * @param tags The set of tags of interest.
+   * @param function The aggregation function to use.
+   * @param rate If true, the rate of the series will be
+   * used instead of the
+   * actual values.
+   * @param noInterpolation If true, do not computer
+   * interpolation
+   * @throws NoSuchUniqueName if the name of a
+   * metric, or a tag name/value
+   * does not exist.
+   */
+  void setTimeSeries(String metric, Map<String, String> tags,
+      Aggregator function, boolean rate, boolean noInterpolation) throws NoSuchUniqueName;
+
+  /**
    * Downsamples the results by specifying a fixed interval between points.
    * <p>
    * Technically, downsampling means reducing the sampling interval.  Here

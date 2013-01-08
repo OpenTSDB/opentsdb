@@ -54,6 +54,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final ListBox aggregators = new ListBox();
   private final ValidatedTextBox metric = new ValidatedTextBox();
   private final FlexTable tagtable = new FlexTable();
+  private final CheckBox chkDisableInterpolation = new CheckBox("No Interpolation");
 
   public MetricForm(final EventsHandler handler) {
     events_handler = handler;
@@ -63,6 +64,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     interval.addBlurHandler(handler);
     interval.addKeyPressHandler(handler);
     rate.addClickHandler(handler);
+    chkDisableInterpolation.addClickHandler(handler);
     x1y2.addClickHandler(handler);
     aggregators.addChangeHandler(handler);
     metric.addBlurHandler(handler);
@@ -145,7 +147,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     final String[] parts = m.split(":");
     final int nparts = parts.length;
     int i = parts.length;
-    if (i < 2 || i > 4) {
+    if (i < 2 || i > 5) {
       return;  // Malformed.
     }
 
@@ -155,7 +157,14 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     metric.setText(parseWithMetric(parts[i]));
     metric_change_handler.onMetricChange(this);
 
-    final boolean rate = "rate".equals(parts[--i]);
+    i--;  //Move to previous part
+    final boolean noInterpolation = "nointerpolation".equals(parts[i]);
+    this.chkDisableInterpolation.setValue(noInterpolation, false);
+    if(noInterpolation){
+      i--;
+    }
+
+    final boolean rate = "rate".equals(parts[i]);
     this.rate.setValue(rate, false);
     if (rate) {
       i--;
@@ -217,6 +226,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       {
         final HorizontalPanel hbox = new HorizontalPanel();
         hbox.add(rate);
+        hbox.add(chkDisableInterpolation);
         hbox.add(x1y2);
         vbox.add(hbox);
       }
@@ -266,6 +276,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     if (rate.getValue()) {
       url.append(":rate");
     }
+
+    if(chkDisableInterpolation.getValue()){
+      url.append(":nointerpolation");
+    }
+
     url.append(':').append(metric);
     {
       final int ntags = getNumTags();
