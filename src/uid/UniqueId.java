@@ -421,6 +421,8 @@ public final class UniqueId implements UniqueIdInterface {
       throw e;
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
+    } finally {
+      scanner.close();
     }
     return suggestions;
   }
