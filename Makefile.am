@@ -128,6 +128,8 @@ dist_static_DATA = src/tsd/static/favicon.ico
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
         $(THIRD_PARTY) $(THIRD_PARTY:=.md5) \
         $(httpui_SRC) $(httpui_DEPS) \
+	tools/check_tsd	\
+	tools/clean_cache.sh	\
         bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
 
 GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
