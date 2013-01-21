@@ -1080,10 +1080,14 @@ public class QueryUi implements EntryPoint, HistoryListener {
       style.setProperty("background", "red");
       style.setProperty("filter", "alpha(opacity=50)");
       style.setProperty("opacity", "0.4");
+      // Needed to make this object focusable.
+      super.getElement().setAttribute("tabindex", "-1");
     }
 
     @Override
     public void onMouseDown(final MouseDownEvent event) {
+      event.preventDefault();
+
       // Check if the zoom selection is active, if so, it's possible that the
       // mouse left the browser mid-selection and got stuck enabled even
       // though the mouse isn't still pressed. If that's the case, do a similar
@@ -1104,6 +1108,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
       super.setWidth("0px");
       super.setHeight("0px");
       super.setVisible(true);
+      // Workaround to steal the focus from whatever had it previously,
+      // which may cause the graph to reload as a side effect.
+      super.getElement().focus();
 
       graph_move_handler = graph.addMouseMoveHandler(this);
       box_move_handler = super.addMouseMoveHandler(this);
