@@ -246,18 +246,22 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       if (row.isEmpty()) {  // Maybe the row got deleted in the mean time?
         LOG.debug("Attempted to compact a row that doesn't exist.");
       } else if (compacted != null) {
-        // no need to re-compact rows containing a single value.
-        KeyValue kv = row.get(0);
-        final byte[] qual = kv.qualifier();
-        final byte[] val = kv.value();
-        if (floatingPointValueToFix(qual[1], val)) {
-          // Fix up old, incorrectly encoded floating point value.
-          final byte[] newval = fixFloatingPointValue(qual[1], val);
-          final byte[] newqual = new byte[] { qual[0],
-            fixQualifierFlags(qual[1], newval.length) };
-          kv = new KeyValue(kv.key(), kv.family(), newqual, newval);
+        // skip future cell qualifier types
+        if (row.get(0).qualifier().length == 2 || 
+            row.get(0).qualifier().length > 3){
+          // no need to re-compact rows containing a single value.
+          KeyValue kv = row.get(0);
+          final byte[] qual = kv.qualifier();
+          final byte[] val = kv.value();
+          if (floatingPointValueToFix(qual[1], val)) {
+            // Fix up old, incorrectly encoded floating point value.
+            final byte[] newval = fixFloatingPointValue(qual[1], val);
+            final byte[] newqual = new byte[] { qual[0],
+              fixQualifierFlags(qual[1], newval.length) };
+            kv = new KeyValue(kv.key(), kv.family(), newqual, newval);
+          }
+          compacted[0] = kv;
         }
-        compacted[0] = kv;
       }
       return null;
     }
@@ -277,6 +281,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       KeyValue longest = row.get(0);  // KV with the longest qualifier.
       int longest_idx = 0;            // Index of `longest'.
       final int nkvs = row.size();
+      final ArrayList<Integer> remove_invalid = new ArrayList<Integer>();
       for (int i = 0; i < nkvs; i++) {
         final KeyValue kv = row.get(i);
         final byte[] qual = kv.qualifier();
@@ -284,7 +289,11 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         // been compacted, potentially partially, so we need to merge the
         // partially compacted set of cells, with the rest.
         final int len = qual.length;
-        if (len != 2) {
+        if (len == 3){
+          // handle future formats
+          remove_invalid.add(i);
+          continue;
+        } else if (len != 2) {
           trivial = false;
           // We only do this here because no qualifier can be < 2 bytes.
           if (len > longest.qualifier().length) {
@@ -313,6 +322,21 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           val_len += floatingPointValueToFix(qual[1], v) ? 4 : v.length;
         }
         qual_len += len;
+      }
+      
+      // strip future type values so they don't get compacted
+      // note that we have to decrement the index value each time through so we
+      // remove the right object
+      int location = 0;
+      for (int i : remove_invalid){
+        row.remove(i - location);
+        location++;
+      }
+      // if there is only one valid cell after removing future types, then we just
+      // need to return avoid attempting to re-compact
+      if (row.size() == 1){
+        compacted[0] = row.get(0);
+        return null;
       }
 
       if (trivial) {

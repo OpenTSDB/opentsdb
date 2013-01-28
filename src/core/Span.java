@@ -86,6 +86,8 @@ final class Span implements DataPoints {
    */
   void addRow(final KeyValue row) {
     long last_ts = 0;
+    if (row == null)
+      return;
     if (rows.size() != 0) {
       // Verify that we have the same metric id and tags.
       final byte[] key = row.key();
