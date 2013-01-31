@@ -261,8 +261,11 @@ final class TsdbQuery implements Query {
             datapoints = new Span(tsdb);
             spans.put(key, datapoints);
           }
-          datapoints.addRow(tsdb.compact(row));
-          nrows++;
+          final KeyValue compacted = tsdb.compact(row);
+          if (compacted != null) {  // Can be null if we ignored all KVs.
+            datapoints.addRow(compacted);
+            nrows++;
+          }
           starttime = System.nanoTime();
         }
       }
