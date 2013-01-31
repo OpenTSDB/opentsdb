@@ -239,7 +239,15 @@ public final class TestUniqueId {
     when(client.get(anyGet()))
       .thenReturn(Deferred.fromResult(kvs));
 
+    assertEquals(0, uid.idsUsed());
+    assertEquals(16777215L, uid.idsAvailable());
+
     assertArrayEquals(id, uid.getOrCreateId("foo"));
+
+    // No new ID assigned, ID metrics should not change.
+    assertEquals(0, uid.idsUsed());
+    assertEquals(16777215L, uid.idsAvailable());
+
     // Should be a cache hit ...
     assertArrayEquals(id, uid.getOrCreateId("foo"));
     assertEquals(1, uid.cacheHits());
@@ -268,14 +276,23 @@ public final class TestUniqueId {
     // Update once HBASE-2292 is fixed:
     whenFakeIcvThenReturn(4L);
 
+    uid.loadMaxId();
+    assertEquals(4, uid.idsUsed());
+    assertEquals(16777211L, uid.idsAvailable());
+
     assertArrayEquals(id, uid.getOrCreateId("foo"));
+
+    // A new ID was assigned, ID metrics should be updated.
+    assertEquals(5, uid.idsUsed());
+    assertEquals(16777210L, uid.idsAvailable());
+
     // Should be a cache hit since we created that entry.
     assertArrayEquals(id, uid.getOrCreateId("foo"));
     // Should be a cache hit too for the same reason.
     assertEquals("foo", uid.getName(id));
 
     // The +1's below are due to the whenFakeIcvThenReturn() hack.
-    verify(client, times(2+1)).get(anyGet()); // Initial Get + double check.
+    verify(client, times(2+1+1)).get(anyGet()); // Initial Get + double check + loadMaxId.
     verify(client).lockRow(anyRowLockRequest());  // The .maxid row.
     verify(client, times(2+1)).put(anyPut()); // reverse + forward mappings.
     verify(client).unlockRow(fake_lock);     // The .maxid row.
