@@ -239,14 +239,17 @@ public final class TestUniqueId {
     when(client.get(anyGet()))
       .thenReturn(Deferred.fromResult(kvs));
 
-    assertEquals(0, uid.idsUsed());
-    assertEquals(16777215L, uid.idsAvailable());
+    // Update once HBASE-2292 is fixed:
+    whenFakeIcvThenReturn(3L);
+
+    assertEquals(3, uid.idsUsed());
+    assertEquals(16777212L, uid.idsAvailable());
 
     assertArrayEquals(id, uid.getOrCreateId("foo"));
 
     // No new ID assigned, ID metrics should not change.
-    assertEquals(0, uid.idsUsed());
-    assertEquals(16777215L, uid.idsAvailable());
+    assertEquals(3, uid.idsUsed());
+    assertEquals(16777212L, uid.idsAvailable());
 
     // Should be a cache hit ...
     assertArrayEquals(id, uid.getOrCreateId("foo"));
@@ -255,7 +258,7 @@ public final class TestUniqueId {
     assertEquals(2, uid.cacheSize());
 
     // ... so verify there was only one HBase Get.
-    verify(client).get(anyGet());
+    verify(client, times(1 + 2 + 2)).get(anyGet()); // Initial Get + 2 idsUsed + 2 idsAvailable
   }
 
   @Test  // Test the creation of an ID with no problem.
@@ -275,13 +278,13 @@ public final class TestUniqueId {
 
     // Update once HBASE-2292 is fixed:
     whenFakeIcvThenReturn(4L);
-
-    uid.loadMaxId();
     assertEquals(4, uid.idsUsed());
     assertEquals(16777211L, uid.idsAvailable());
 
     assertArrayEquals(id, uid.getOrCreateId("foo"));
 
+    // Update once HBASE-2292 is fixed:
+    whenFakeIcvThenReturn(5L);
     // A new ID was assigned, ID metrics should be updated.
     assertEquals(5, uid.idsUsed());
     assertEquals(16777210L, uid.idsAvailable());
@@ -292,7 +295,7 @@ public final class TestUniqueId {
     assertEquals("foo", uid.getName(id));
 
     // The +1's below are due to the whenFakeIcvThenReturn() hack.
-    verify(client, times(2+1+1)).get(anyGet()); // Initial Get + double check + loadMaxId.
+    verify(client, times(2+1+2+2)).get(anyGet()); // Initial Get + double check + 2 idsUsed + 2 idsAvailable
     verify(client).lockRow(anyRowLockRequest());  // The .maxid row.
     verify(client, times(2+1)).put(anyPut()); // reverse + forward mappings.
     verify(client).unlockRow(fake_lock);     // The .maxid row.
@@ -576,6 +579,10 @@ public final class TestUniqueId {
   }
 
   private static byte[] extractKey(final HBaseRpc rpc) {
+    // The rpc can be null when re-stubbing the get/put method.
+    if (rpc == null) {
+      return null;
+    }
     try {
       final Field key = HBaseRpc.class.getDeclaredField("key");
       key.setAccessible(true);

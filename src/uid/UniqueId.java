@@ -69,10 +69,6 @@ public final class UniqueId implements UniqueIdInterface {
   private final byte[] kind;
   /** Number of bytes on which each ID is encoded. */
   private final short idWidth;
-  /** The largest valid id */
-  private final long idLimit;
-  /** The latest id created. */
-  private volatile long maxId;
 
   /** Cache for forward mappings (name to ID). */
   private final ConcurrentHashMap<String, byte[]> nameCache =
@@ -108,8 +104,6 @@ public final class UniqueId implements UniqueIdInterface {
       throw new IllegalArgumentException("Invalid width: " + width);
     }
     this.idWidth = (short) width;
-
-    this.idLimit = (long) Math.pow(2, idWidth * Byte.SIZE) - 1;
   }
 
   /** The number of times we avoided reading from HBase thanks to the cache. */
@@ -137,20 +131,17 @@ public final class UniqueId implements UniqueIdInterface {
 
  /** The number of IDs assigned so far. */
   public long idsUsed() {
-    return maxId;
+    return getCurrentMaxId();
   }
 
-  /** The number of IDs available for future assignments. */
+  /** The number of IDs available for future assignments; get used ID count from HBase. */
   public long idsAvailable() {
-    return Math.max(0, idLimit - maxId);
+    return idsAvailable(idsUsed());
   }
 
-  /** Load from HBase the latest ID assigned.
-   * @see UniqueId#idsUsed()
-   * @see UniqueId#idsAvailable()
-   */
-  public void loadMaxId() {
-    this.maxId = getCurrentMaxId();
+  /** The number of IDs available for future assignments; use the supplied used ID count. */
+  public long idsAvailable(long idsUsed) {
+    return Math.max(0, (1 << idWidth * Byte.SIZE) - idsUsed - 1);
   }
 
   /**
@@ -394,7 +385,6 @@ public final class UniqueId implements UniqueIdInterface {
 
         addIdToCache(name, row);
         addNameToCache(row, name);
-        maxId = id;
         return row;
       } finally {
         unlock(lock);

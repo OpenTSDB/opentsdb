@@ -101,11 +101,6 @@ public final class TSDB {
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL,
                               TAG_VALUE_WIDTH);
 
-    // Load the MAX_ID value from HBase, used for uid.{ids-used,ids-available}.
-    metrics.loadMaxId();
-    tag_names.loadMaxId();
-    tag_values.loadMaxId();
-
     compactionq = new CompactionQueue(this);
   }
 
@@ -200,8 +195,10 @@ public final class TSDB {
     collector.record("uid.cache-hit", uid.cacheHits(), kind);
     collector.record("uid.cache-miss", uid.cacheMisses(), kind);
     collector.record("uid.cache-size", uid.cacheSize(), kind);
-    collector.record("uid.ids-used", uid.idsUsed(), kind);
-    collector.record("uid.ids-available", uid.idsAvailable(), kind);
+
+    long idsUsed = uid.idsUsed();
+    collector.record("uid.ids-used", idsUsed, kind);
+    collector.record("uid.ids-available", uid.idsAvailable(idsUsed), kind);
   }
 
   /**
