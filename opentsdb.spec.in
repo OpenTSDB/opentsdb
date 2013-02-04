@@ -9,13 +9,9 @@ ExclusiveOS:	linux
 Group:		Service/Management
 License:	GNU Lesser GPL
 URL:		http://opentsdb.net
-Source:		https://opentsdb.googlecode.com/files/opentsdb-1.1.0_rc1.tar.gz
+Source:		https://opentsdb.googlecode.com/files/@PACKAGE@-@VERSION@.tar.gz
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-BuildRequires:	gnuplot
-BuildRequires:	autoconf
-BuildRequires:	make
-BuildRequires:	git
 Requires:	gnuplot
 
 %description
