@@ -106,6 +106,13 @@ public final class TestUniqueId {
   }
 
   @Test
+  public void testMaxPossibleId() {
+    assertEquals(255, (new UniqueId(client, table, kind, 1)).maxPossibleId());
+    assertEquals(65535, (new UniqueId(client, table, kind, 2)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, kind, 3)).maxPossibleId());
+  }
+
+  @Test
   public void getNameSuccessfulHBaseLookup() {
     uid = new UniqueId(client, table, kind, 3);
     final byte[] id = { 0, 'a', 0x42 };
@@ -243,13 +250,11 @@ public final class TestUniqueId {
     whenFakeIcvThenReturn(3L);
 
     assertEquals(3, uid.idsUsed());
-    assertEquals(16777212L, uid.idsAvailable());
 
     assertArrayEquals(id, uid.getOrCreateId("foo"));
 
     // No new ID assigned, ID metrics should not change.
     assertEquals(3, uid.idsUsed());
-    assertEquals(16777212L, uid.idsAvailable());
 
     // Should be a cache hit ...
     assertArrayEquals(id, uid.getOrCreateId("foo"));
@@ -258,7 +263,7 @@ public final class TestUniqueId {
     assertEquals(2, uid.cacheSize());
 
     // ... so verify there was only one HBase Get.
-    verify(client, times(1 + 2 + 2)).get(anyGet()); // Initial Get + 2 idsUsed + 2 idsAvailable
+    verify(client, times(1 + 2)).get(anyGet()); // Initial Get + 2 idsUsed
   }
 
   @Test  // Test the creation of an ID with no problem.
@@ -279,7 +284,6 @@ public final class TestUniqueId {
     // Update once HBASE-2292 is fixed:
     whenFakeIcvThenReturn(4L);
     assertEquals(4, uid.idsUsed());
-    assertEquals(16777211L, uid.idsAvailable());
 
     assertArrayEquals(id, uid.getOrCreateId("foo"));
 
@@ -287,7 +291,6 @@ public final class TestUniqueId {
     whenFakeIcvThenReturn(5L);
     // A new ID was assigned, ID metrics should be updated.
     assertEquals(5, uid.idsUsed());
-    assertEquals(16777210L, uid.idsAvailable());
 
     // Should be a cache hit since we created that entry.
     assertArrayEquals(id, uid.getOrCreateId("foo"));
@@ -295,7 +298,7 @@ public final class TestUniqueId {
     assertEquals("foo", uid.getName(id));
 
     // The +1's below are due to the whenFakeIcvThenReturn() hack.
-    verify(client, times(2+1+2+2)).get(anyGet()); // Initial Get + double check + 2 idsUsed + 2 idsAvailable
+    verify(client, times(2+1+2)).get(anyGet()); // Initial Get + double check + 2 idsUsed
     verify(client).lockRow(anyRowLockRequest());  // The .maxid row.
     verify(client, times(2+1)).put(anyPut()); // reverse + forward mappings.
     verify(client).unlockRow(fake_lock);     // The .maxid row.

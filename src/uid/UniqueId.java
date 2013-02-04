@@ -134,14 +134,9 @@ public final class UniqueId implements UniqueIdInterface {
     return getCurrentMaxId();
   }
 
-  /** The number of IDs available for future assignments; get used ID count from HBase. */
-  public long idsAvailable() {
-    return idsAvailable(idsUsed());
-  }
-
-  /** The number of IDs available for future assignments; use the supplied used ID count. */
-  public long idsAvailable(long idsUsed) {
-    return Math.max(0, (1 << idWidth * Byte.SIZE) - idsUsed - 1);
+  /** The largest possible ID given the number of bytes the IDs are represented on. */
+  public long maxPossibleId() {
+    return (1 << idWidth * Byte.SIZE) - 1;
   }
 
   /**

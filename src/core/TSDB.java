@@ -198,7 +198,7 @@ public final class TSDB {
 
     long idsUsed = uid.idsUsed();
     collector.record("uid.ids-used", idsUsed, kind);
-    collector.record("uid.ids-available", uid.idsAvailable(idsUsed), kind);
+    collector.record("uid.ids-available", Math.max(0, uid.maxPossibleId() - idsUsed), kind);
   }
 
   /**
