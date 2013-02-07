@@ -1,18 +1,36 @@
+# Put the RPM in the current directory.
+%define _rpmdir .
+# Find the tarball produced by `make dist' in the current directory.
+%define _sourcedir %(echo $PWD)
+
 Name:		@PACKAGE@
 Version:	@VERSION@
 Release:	1
 Summary:	A scalable, distributed Time Series Database
 Packager:	@PACKAGE_BUGREPORT@
 BuildArch:	noarch
-ExclusiveArch:	noarch
-ExclusiveOS:	linux
-Group:		Service/Management
-License:	GNU Lesser GPL
+Group:		Service/Monitoring
+License:	LGPLv2.1+
 URL:		http://opentsdb.net
-Source:		https://opentsdb.googlecode.com/files/@PACKAGE@-@VERSION@.tar.gz
-BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
+Source:		@PACKAGE@-@VERSION@.tar.gz
 
 Requires:	gnuplot
+
+# Disable the stupid stuff rpm distros include in the build process by
+# default:
+#   Disable any prep shell actions. replace them with simply 'true'
+%define __spec_prep_pre true
+%define __spec_prep_post true
+#   Disable any build shell actions. replace them with simply 'true'
+%define __spec_build_pre cd %{_builddir}
+%define __spec_build_post true
+#   Disable any install shell actions. replace them with simply 'true'
+%define __spec_install_pre cd %{_builddir}
+%define __spec_install_post true
+#   Disable any clean shell actions. replace them with simply 'true'
+%define __spec_clean_pre cd %{_builddir}
+%define __spec_clean_post true
+
 
 %description
 OpenTSDB is a distributed, scalable Time Series Database (TSDB) written on top of HBase. OpenTSDB was written to address a common need: store, index and serve metrics collected from computer systems (network gear, operating systems, applications) at a large scale, and make this data easily accessible and graphable.
@@ -26,13 +44,11 @@ Imagine having the ability to quickly plot a graph showing the number of DELETE 
 
 
 %build
-cd $RPM_BUILD_DIR/%{name}-%{version}
-./build.sh
-
+%configure
+make
 
 %install
 rm -rf %{buildroot}
-cd $RPM_BUILD_DIR/%{name}-%{version}/build
 make install DESTDIR=%{buildroot}
 mkdir -p %{buildroot}/var/cache/opentsdb
 
@@ -43,13 +59,12 @@ rm -rf %{buildroot}
 
 %files
 %defattr(644,root,root,755)
-%attr(0755,root,root) /usr/local/bin/*
-%attr(0755,root,root) /usr/local/share/opentsdb/*.sh
+%attr(0755,root,root) %{_bindir}/*
+%attr(0755,root,root) %{_datarootdir}/opentsdb/*.sh
 %doc
-/usr/local/share/opentsdb
-/usr/local/bin/tsdb
-%dir /var/cache/opentsdb
-
+%{_datarootdir}/opentsdb
+%{_bindir}/tsdb
+%dir %{_localstatedir}/cache/opentsdb
 
 
 %changelog
