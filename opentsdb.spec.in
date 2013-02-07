@@ -33,11 +33,16 @@ Requires:	gnuplot
 
 
 %description
-OpenTSDB is a distributed, scalable Time Series Database (TSDB) written on top of HBase. OpenTSDB was written to address a common need: store, index and serve metrics collected from computer systems (network gear, operating systems, applications) at a large scale, and make this data easily accessible and graphable.
-Thanks to HBase's scalability, OpenTSDB allows you to collect many thousands of metrics from thousands of hosts and applications, at a high rate (every few seconds). OpenTSDB will never delete or downsample data and can easily store billions of data points. As a matter of fact, StumbleUpon uses it to keep track of hundred of thousands of time series and collects over 1 billion data points per day in their main production datacenter. Other sites such as Box or Tumblr are pushing tens of billions of data points per day.
+OpenTSDB is a distributed, scalable Time Series Database (TSDB) written on top
+of HBase. OpenTSDB was written to address a common need: store, index and
+serve metrics collected from computer systems (network gear, operating
+systems, applications) at a large scale, and make this data easily accessible
+and graphable.
 
-Imagine having the ability to quickly plot a graph showing the number of DELETE statements going to your MySQL database along with the number of slow queries and temporary files created, and correlate this with the 99th percentile of your service's latency. OpenTSDB makes generating such graphs on the fly a trivial operation, while manipulating millions of data point for very fine grained, real-time monitoring.
-
+Thanks to HBase's scalability, OpenTSDB allows you to collect many thousands
+of metrics from thousands of hosts and applications, at a high rate (every few
+seconds). OpenTSDB will never delete or downsample data and can easily store
+billions of data points.
 
 %prep
 %setup -q
