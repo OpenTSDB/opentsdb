@@ -20,8 +20,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.github.mairbek.zoo.Zoo;
-import com.github.mairbek.zoo.ZooClient;
+import net.opentsdb.core.ZkClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,14 +136,13 @@ final class UidManager {
     }
     final String zkq = argp.get("--zkquorum", "localhost");
     final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
-    final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
-
+    final ZkClient zkCli = new ZkClient(zkq, 30000);
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     argp = null;
     int rc;
     try {
-      rc = runCommand(client, zkCli.connect(), zkLocks, table, idwidth, ignorecase, args);
+      rc = runCommand(client, zkCli, zkLocks, table, idwidth, ignorecase, args);
     } finally {
       try {
         client.shutdown().joinUninterruptibly();
@@ -157,7 +155,7 @@ final class UidManager {
   }
 
   private static int runCommand(final HBaseClient client,
-                                final Zoo zk,
+                                final ZkClient zk,
                                 final String lockPath,
                                 final byte[] table,
                                 final short idwidth,
@@ -288,7 +286,7 @@ final class UidManager {
    * @return The exit status of the command (0 means success).
    */
   private static int assign(final HBaseClient client,
-                            final Zoo zk,
+                            final ZkClient zk,
                             final String lockPath,
                             final byte[] table,
                             final short idwidth,
@@ -316,7 +314,7 @@ final class UidManager {
    * @return The exit status of the command (0 means success).
    */
   private static int rename(final HBaseClient client,
-                            final Zoo zk,
+                            final ZkClient zk,
                             final String lockPath,
                             final byte[] table,
                             final short idwidth,
@@ -528,7 +526,7 @@ final class UidManager {
    * @return The exit status of the command (0 means at least 1 found).
    */
   private static int lookupId(final HBaseClient client,
-                              final Zoo zk,
+                              final ZkClient zk,
                               final String lockPath,
                               final byte[] table,
                               final short idwidth,
@@ -581,7 +579,7 @@ final class UidManager {
    * @return 0 if the ID for this kind was found, 1 otherwise.
    */
   private static int extactLookupId(final HBaseClient client,
-                                    final Zoo zk,
+                                    final ZkClient zk,
                                     final String lockPath,
                                     final byte[] table,
                                     final short idwidth,
@@ -630,7 +628,7 @@ final class UidManager {
    * @return The exit status of the command (0 means at least 1 found).
    */
   private static int lookupName(final HBaseClient client,
-                                final Zoo zk,
+                                final ZkClient zk,
                                 final String lockPath,
                                 final byte[] table,
                                 final short idwidth,
@@ -651,7 +649,7 @@ final class UidManager {
    * @return 0 if the name for this kind was found, 1 otherwise.
    */
   private static int extactLookupName(final HBaseClient client,
-                                      final Zoo zk,
+                                      final ZkClient zk,
                                       final String lockPath,
                                       final byte[] table,
                                       final short idwidth,

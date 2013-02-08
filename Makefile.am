@@ -47,6 +47,8 @@ tsdb_SRC := \
 	src/core/TSDB.java	\
 	src/core/Tags.java	\
 	src/core/TsdbQuery.java	\
+	src/core/ZkClient.java	\
+	src/core/ZkException.java	\
 	src/core/WritableDataPoints.java	\
 	src/graph/Plot.java	\
 	src/stats/Histogram.java	\
@@ -98,6 +100,7 @@ test_SRC := \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestTags.java	\
+	test/core/TestZkClient.java	\
 	test/stats/TestHistogram.java	\
 	test/tsd/TestGraphHandler.java	\
 	test/uid/TestNoSuchUniqueId.java	\

@@ -20,10 +20,10 @@ import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.zip.GZIPInputStream;
 
-import com.github.mairbek.zoo.ZooClient;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.ZkClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,8 +65,8 @@ final class TextImporter {
     client.setFlushInterval((short) 500);  // ms
     final String zkq = argp.get("--zkquorum", "localhost");
     final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
-    final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
-    final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, argp.get("--table", "tsdb"),
+    final ZkClient zkCli = new ZkClient(zkq, 30000);
+    final TSDB tsdb = new TSDB(client, zkCli, zkLocks, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     argp = null;
     try {

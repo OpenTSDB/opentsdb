@@ -18,7 +18,7 @@ import java.util.concurrent.Executors;
 
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
-import com.github.mairbek.zoo.ZooClient;
+import net.opentsdb.core.ZkClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,8 +148,8 @@ final class TSDMain {
       client.setFlushInterval(flush_interval);
       final String zkq = argp.get("--zkquorum", "localhost");
       final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
-      final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
-      final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, table, uidtable);
+      final ZkClient zkCli = new ZkClient(zkq, 30000);
+      final TSDB tsdb = new TSDB(client, zkCli, zkLocks, table, uidtable);
       registerShutdownHook(tsdb);
       final ServerBootstrap server = new ServerBootstrap(factory);
 

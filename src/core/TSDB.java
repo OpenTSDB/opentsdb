@@ -17,7 +17,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import com.github.mairbek.zoo.Zoo;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -91,7 +90,7 @@ public final class TSDB {
    * are stored.
    */
   public TSDB(final HBaseClient client,
-              final Zoo zk,
+              final ZkClient zk,
               final String zkLockPath,
               final String timeseries_table,
               final String uniqueids_table) {

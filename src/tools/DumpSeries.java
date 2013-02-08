@@ -17,17 +17,12 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
-import com.github.mairbek.zoo.ZooClient;
+import net.opentsdb.core.*;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
-
-import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.Query;
-import net.opentsdb.core.TSDB;
 
 /**
  * Tool to dump the data straight from HBase.
@@ -70,8 +65,8 @@ final class DumpSeries {
     final byte[] table = argp.get("--table", "tsdb").getBytes();
     final String zkq = argp.get("--zkquorum", "localhost");
     final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
-    final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
-    final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, argp.get("--table", "tsdb"),
+    final ZkClient zkCli = new ZkClient(zkq, 30000);
+    final TSDB tsdb = new TSDB(client, zkCli, zkLocks, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     final boolean delete = argp.has("--delete");
     final boolean importformat = delete || argp.has("--import");

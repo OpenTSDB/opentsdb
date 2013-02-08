@@ -14,10 +14,10 @@ package net.opentsdb.tools;
 
 import java.util.ArrayList;
 
-import com.github.mairbek.zoo.ZooClient;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,13 +27,6 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
-
-import net.opentsdb.core.Const;
-import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.Query;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.UniqueId;
 
 /**
  * Tool to look for and fix corrupted data in a TSDB.
@@ -71,8 +64,8 @@ final class Fsck {
     final byte[] table = argp.get("--table", "tsdb").getBytes();
     final String zkq = argp.get("--zkquorum", "localhost");
     final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
-    final ZooClient zkCli = new ZooClient().endpoint(zkq).timeout(30000);
-    final TSDB tsdb = new TSDB(client, zkCli.connect(), zkLocks, argp.get("--table", "tsdb"),
+    final ZkClient zkCli = new ZkClient(zkq, 30000);
+    final TSDB tsdb = new TSDB(client, zkCli, zkLocks, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     final boolean fix = argp.has("--fix");
     argp = null;

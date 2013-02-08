@@ -17,9 +17,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import com.github.mairbek.zoo.Zoo;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.ZkClient;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
@@ -41,6 +41,7 @@ import static org.junit.Assert.fail;
 
 import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
+import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import static org.mockito.Mockito.any;
@@ -63,12 +64,14 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 // because they fiddle with the class loader.  We don't test them anyway.
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
-                  "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HBaseClient.class, RowLock.class })
+                  "com.sum.*", "org.xml.*",
+                  "javassist*"})
+//@PrepareForTest({ HBaseClient.class, RowLock.class })
 public final class TestUniqueId {
 
   private HBaseClient client = mock(HBaseClient.class);
-  private Zoo zk = mock(Zoo.class);
+  @Mock
+  private ZkClient zk;
   private static final byte[] table = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] ID = { 'i', 'd' };
   private UniqueId uid;

@@ -21,8 +21,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.github.mairbek.zoo.Zoo;
-import com.github.mairbek.zoo.ZooLock;
+import net.opentsdb.core.ZkClient;
 import org.apache.zookeeper.KeeperException;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -69,7 +68,7 @@ public final class UniqueId implements UniqueIdInterface {
   /** HBase client to use.  */
   private final HBaseClient client;
 
-  private final Zoo zk;
+  private final ZkClient zk;
   private final String zkLockPath;
 
 
@@ -102,7 +101,7 @@ public final class UniqueId implements UniqueIdInterface {
    * @throws IllegalArgumentException if width is negative or too small/large
    * or if kind is an empty string.
    */
-  public UniqueId(final HBaseClient client, final Zoo zk, final String zkLockPath, final byte[] table, final String kind,
+  public UniqueId(final HBaseClient client, final ZkClient zk, final String zkLockPath, final byte[] table, final String kind,
                   final int width) {
 
     this.client = client;
@@ -111,7 +110,7 @@ public final class UniqueId implements UniqueIdInterface {
 
     if (!zk.exists(zkLockPath, null)) {
       try {
-        zk.nodeBuilder().path(zkLockPath).build();
+        zk.create(zkLockPath);
       } catch (RuntimeException re) {
         if (re.getCause() != null
                 && re.getCause() instanceof KeeperException
@@ -279,7 +278,7 @@ public final class UniqueId implements UniqueIdInterface {
       // race condition is possible due of the fact, that zk session in one
       // per zk instance (octo47@)
       synchronized (this) {
-        final ZooLock zooLock = new ZooLock(zk, zkLockPath, lockName(kind()));
+        final ZkClient.Lock zooLock = zk.newLock(zkLockPath, lockName(kind()));
         try {
           zooLock.lock();
           // Verify that the row still doesn't exist (to avoid re-creating it if
