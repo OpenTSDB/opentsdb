@@ -23,6 +23,7 @@ import java.util.zip.GZIPInputStream;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.ZkClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,7 +63,10 @@ final class TextImporter {
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     // Flush more frequently since we read very fast from the files.
     client.setFlushInterval((short) 500);  // ms
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+    final String zkq = argp.get("--zkquorum", "localhost");
+    final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
+    final ZkClient zkCli = new ZkClient(zkq, 30000);
+    final TSDB tsdb = new TSDB(client, zkCli, zkLocks, argp.get("--table", "tsdb"),
                                argp.get("--uidtable", "tsdb-uid"));
     argp = null;
     try {

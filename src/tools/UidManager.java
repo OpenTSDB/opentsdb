@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.opentsdb.core.ZkClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,12 +134,15 @@ final class UidManager {
       usage(argp, "Negative or 0 --idwidth");
       System.exit(3);
     }
+    final String zkq = argp.get("--zkquorum", "localhost");
+    final String zkLocks = argp.get("--zklockpath", "/opentsdb-locks");
+    final ZkClient zkCli = new ZkClient(zkq, 30000);
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
     final HBaseClient client = CliOptions.clientFromOptions(argp);
     argp = null;
     int rc;
     try {
-      rc = runCommand(client, table, idwidth, ignorecase, args);
+      rc = runCommand(client, zkCli, zkLocks, table, idwidth, ignorecase, args);
     } finally {
       try {
         client.shutdown().joinUninterruptibly();
@@ -151,6 +155,8 @@ final class UidManager {
   }
 
   private static int runCommand(final HBaseClient client,
+                                final ZkClient zk,
+                                final String lockPath,
                                 final byte[] table,
                                 final short idwidth,
                                 final boolean ignorecase,
@@ -172,13 +178,13 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return assign(client, table, idwidth, args);
+      return assign(client, zk, lockPath, table, idwidth, args);
     } else if (args[0].equals("rename")) {
       if (nargs != 4) {
         usage("Wrong number of arguments");
         return 2;
       }
-      return rename(client, table, idwidth, args);
+      return rename(client, zk, lockPath, table, idwidth, args);
     } else if (args[0].equals("fsck")) {
       return fsck(client, table);
     } else {
@@ -186,9 +192,9 @@ final class UidManager {
         final String kind = nargs == 2 ? args[0] : null;
         try {
           final long id = Long.parseLong(args[nargs - 1]);
-          return lookupId(client, table, idwidth, id, kind);
+          return lookupId(client, zk, lockPath, table, idwidth, id, kind);
         } catch (NumberFormatException e) {
-          return lookupName(client, table, idwidth, args[nargs - 1], kind);
+          return lookupName(client, zk, lockPath, table, idwidth, args[nargs - 1], kind);
         }
       } else {
         usage("Wrong number of arguments");
@@ -280,15 +286,17 @@ final class UidManager {
    * @return The exit status of the command (0 means success).
    */
   private static int assign(final HBaseClient client,
+                            final ZkClient zk,
+                            final String lockPath,
                             final byte[] table,
                             final short idwidth,
                             final String[] args) {
-    final UniqueId uid = new UniqueId(client, table, args[1], (int) idwidth);
+    final UniqueId uid = new UniqueId(client, zk, lockPath, table, args[1], (int) idwidth);
     for (int i = 2; i < args.length; i++) {
       try {
         uid.getOrCreateId(args[i]);
         // Lookup again the ID we've just created and print it.
-        extactLookupName(client, table, idwidth, args[1], args[i]);
+        extactLookupName(client, zk, lockPath, table, idwidth, args[1], args[i]);
       } catch (HBaseException e) {
         LOG.error("error while processing " + args[i], e);
         return 3;
@@ -306,13 +314,15 @@ final class UidManager {
    * @return The exit status of the command (0 means success).
    */
   private static int rename(final HBaseClient client,
+                            final ZkClient zk,
+                            final String lockPath,
                             final byte[] table,
                             final short idwidth,
                             final String[] args) {
     final String kind = args[1];
     final String oldname = args[2];
     final String newname = args[3];
-    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(client, zk, lockPath, table, kind, (int) idwidth);
     try {
       uid.rename(oldname, newname);
     } catch (HBaseException e) {
@@ -516,6 +526,8 @@ final class UidManager {
    * @return The exit status of the command (0 means at least 1 found).
    */
   private static int lookupId(final HBaseClient client,
+                              final ZkClient zk,
+                              final String lockPath,
                               final byte[] table,
                               final short idwidth,
                               final long lid,
@@ -524,7 +536,7 @@ final class UidManager {
     if (id == null) {
       return 1;
     } else if (kind != null) {
-      return extactLookupId(client, table, idwidth, kind, id);
+      return extactLookupId(client, zk, lockPath, table, idwidth, kind, id);
     }
     return findAndPrintRow(client, table, id, NAME_FAMILY, false);
   }
@@ -567,11 +579,13 @@ final class UidManager {
    * @return 0 if the ID for this kind was found, 1 otherwise.
    */
   private static int extactLookupId(final HBaseClient client,
+                                    final ZkClient zk,
+                                    final String lockPath,
                                     final byte[] table,
                                     final short idwidth,
                                     final String kind,
                                     final byte[] id) {
-    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(client, zk, lockPath, table, kind, (int) idwidth);
     try {
       final String name = uid.getName(id);
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));
@@ -614,12 +628,14 @@ final class UidManager {
    * @return The exit status of the command (0 means at least 1 found).
    */
   private static int lookupName(final HBaseClient client,
+                                final ZkClient zk,
+                                final String lockPath,
                                 final byte[] table,
                                 final short idwidth,
                                 final String name,
                                 final String kind) {
     if (kind != null) {
-      return extactLookupName(client, table, idwidth, kind, name);
+      return extactLookupName(client, zk, lockPath, table, idwidth, kind, name);
     }
     return findAndPrintRow(client, table, toBytes(name), ID_FAMILY, true);
   }
@@ -633,11 +649,13 @@ final class UidManager {
    * @return 0 if the name for this kind was found, 1 otherwise.
    */
   private static int extactLookupName(final HBaseClient client,
+                                      final ZkClient zk,
+                                      final String lockPath,
                                       final byte[] table,
                                       final short idwidth,
                                       final String kind,
                                       final String name) {
-    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(client, zk, lockPath, table, kind, (int) idwidth);
     try {
       final byte[] id = uid.getId(name);
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));

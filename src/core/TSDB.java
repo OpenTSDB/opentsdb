@@ -90,15 +90,17 @@ public final class TSDB {
    * are stored.
    */
   public TSDB(final HBaseClient client,
+              final ZkClient zk,
+              final String zkLockPath,
               final String timeseries_table,
               final String uniqueids_table) {
     this.client = client;
     table = timeseries_table.getBytes();
 
     final byte[] uidtable = uniqueids_table.getBytes();
-    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
-    tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
-    tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL,
+    metrics = new UniqueId(client, zk, zkLockPath, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    tag_names = new UniqueId(client, zk, zkLockPath, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
+    tag_values = new UniqueId(client, zk, zkLockPath, uidtable, TAG_VALUE_QUAL,
                               TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
   }

@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.uid;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -19,9 +21,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import net.opentsdb.core.ZkClient;
+import org.apache.zookeeper.KeeperException;
+import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
@@ -32,6 +34,8 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.RowLock;
 import org.hbase.async.RowLockRequest;
 import org.hbase.async.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Thread-safe implementation of the {@link UniqueIdInterface}.
@@ -63,6 +67,11 @@ public final class UniqueId implements UniqueIdInterface {
 
   /** HBase client to use.  */
   private final HBaseClient client;
+
+  private final ZkClient zk;
+  private final String zkLockPath;
+
+
   /** Table where IDs are stored.  */
   private final byte[] table;
   /** The kind of UniqueId, used as the column qualifier. */
@@ -92,9 +101,28 @@ public final class UniqueId implements UniqueIdInterface {
    * @throws IllegalArgumentException if width is negative or too small/large
    * or if kind is an empty string.
    */
-  public UniqueId(final HBaseClient client, final byte[] table, final String kind,
+  public UniqueId(final HBaseClient client, final ZkClient zk, final String zkLockPath, final byte[] table, final String kind,
                   final int width) {
+
     this.client = client;
+    this.zk = zk;
+    this.zkLockPath = zkLockPath;
+
+    if (!zk.exists(zkLockPath, null)) {
+      try {
+        zk.create(zkLockPath);
+      } catch (RuntimeException re) {
+        if (re.getCause() != null
+                && re.getCause() instanceof KeeperException
+                && ((KeeperException)re.getCause()).code() == KeeperException.Code.NODEEXISTS
+                ) {
+          // ok
+        } else {
+          throw re;
+        }
+      }
+    }
+
     this.table = table;
     if (kind.isEmpty()) {
       throw new IllegalArgumentException("Empty string as 'kind' argument!");
@@ -104,6 +132,15 @@ public final class UniqueId implements UniqueIdInterface {
       throw new IllegalArgumentException("Invalid width: " + width);
     }
     this.idWidth = (short) width;
+    final PutRequest icv = new PutRequest(this.table, MAXID_ROW, ID_FAMILY, this.kind, Bytes.fromLong(0));
+    try {
+      this.client.atomicCreate(icv).join();
+    } catch (Exception e) {
+      LOG.error("Unable to initialize,"
+              + " ICV on row=" + Arrays.toString(MAXID_ROW) + " column='"
+              + fromBytes(ID_FAMILY) + ':' + kind() + '\'', e);
+      throw new IllegalStateException(e);
+    }
   }
 
   /** The number of times we avoided reading from HBase thanks to the cache. */
@@ -237,134 +274,100 @@ public final class UniqueId implements UniqueIdInterface {
                  + "' name='" + name + '\'');
       }
 
-      // The dance to assign an ID.
-      RowLock lock;
-      try {
-        lock = getLock();
-      } catch (HBaseException e) {
+      // we should prevent race condition with threads in current process.
+      // race condition is possible due of the fact, that zk session in one
+      // per zk instance (octo47@)
+      synchronized (this) {
+        final ZkClient.Lock zooLock = zk.newLock(zkLockPath, lockName(kind()));
         try {
-          Thread.sleep(61000 / MAX_ATTEMPTS_ASSIGN_ID);
-        } catch (InterruptedException ie) {
-          break;  // We've been asked to stop here, let's bail out.
-        }
-        hbe = e;
-        continue;
-      }
-      if (lock == null) {  // Should not happen.
-        LOG.error("WTF, got a null pointer as a RowLock!");
-        continue;
-      }
-      // We now have hbase.regionserver.lease.period ms to complete the loop.
+          zooLock.lock();
+          // Verify that the row still doesn't exist (to avoid re-creating it if
+          // it got created before we acquired the lock due to a race condition).
+          try {
+            final byte[] id = getId(name);
+            LOG.info("Race condition, found ID for kind='" + kind()
+                    + "' name='" + name + '\'');
+            return id;
+          } catch (NoSuchUniqueName e) {
+            // OK, the row still doesn't exist, let's create it now.
+          }
 
-      try {
-        // Verify that the row still doesn't exist (to avoid re-creating it if
-        // it got created before we acquired the lock due to a race condition).
-        try {
-          final byte[] id = getId(name);
-          LOG.info("Race condition, found ID for kind='" + kind()
-                   + "' name='" + name + '\'');
-          return id;
-        } catch (NoSuchUniqueName e) {
-          // OK, the row still doesn't exist, let's create it now.
-        }
 
-        // Assign an ID.
-        long id;     // The ID.
-        byte row[];  // The same ID, as a byte array.
-        try {
-          // We want to send an ICV with our explicit RowLock, but HBase's RPC
-          // interface doesn't expose this interface.  Since an ICV would
-          // attempt to lock the row again, and we already locked it, we can't
-          // use ICV here, we have to do it manually while we hold the RowLock.
-          // To be fixed by HBASE-2292.
-          { // HACK HACK HACK
-            {
-              final byte[] current_maxid = hbaseGet(MAXID_ROW, ID_FAMILY, lock);
-              if (current_maxid != null) {
-                if (current_maxid.length == 8) {
-                  id = Bytes.getLong(current_maxid) + 1;
-                } else {
-                  throw new IllegalStateException("invalid current_maxid="
-                      + Arrays.toString(current_maxid));
-                }
-              } else {
-                id = 1;
+          // Assign an ID.
+          long id;     // The ID.
+          byte[] row;
+          try {
+            id = incrementMaxId(1);
+            row = Bytes.fromLong(id);
+            LOG.info("Got ID=" + id
+                    + " for kind='" + kind() + "' name='" + name + "'");
+            // row.length should actually be 8.
+            if (row.length < idWidth) {
+              throw new IllegalStateException("OMG, row.length = " + row.length
+                      + " which is less than " + idWidth
+                      + " for id=" + id
+                      + " row=" + Arrays.toString(row));
+            }
+            // Verify that we're going to drop bytes that are 0.
+            for (int i = 0; i < row.length - idWidth; i++) {
+              if (row[i] != 0) {
+                final String message = "All Unique IDs for " + kind()
+                        + " on " + idWidth + " bytes are already assigned!";
+                LOG.error("OMG " + message);
+                throw new IllegalStateException(message);
               }
-              row = Bytes.fromLong(id);
             }
-            final PutRequest update_maxid = new PutRequest(
-              table, MAXID_ROW, ID_FAMILY, kind, row, lock);
-            hbasePutWithRetry(update_maxid, MAX_ATTEMPTS_PUT,
-                              INITIAL_EXP_BACKOFF_DELAY);
-          } // end HACK HACK HACK.
-          LOG.info("Got ID=" + id
-                   + " for kind='" + kind() + "' name='" + name + "'");
-          // row.length should actually be 8.
-          if (row.length < idWidth) {
-            throw new IllegalStateException("OMG, row.length = " + row.length
-                                            + " which is less than " + idWidth
-                                            + " for id=" + id
-                                            + " row=" + Arrays.toString(row));
-          }
-          // Verify that we're going to drop bytes that are 0.
-          for (int i = 0; i < row.length - idWidth; i++) {
-            if (row[i] != 0) {
-              final String message = "All Unique IDs for " + kind()
-                + " on " + idWidth + " bytes are already assigned!";
-              LOG.error("OMG " + message);
-              throw new IllegalStateException(message);
-            }
-          }
-          // Shrink the ID on the requested number of bytes.
-          row = Arrays.copyOfRange(row, row.length - idWidth, row.length);
-        } catch (HBaseException e) {
-          LOG.error("Failed to assign an ID, ICV on row="
+            // Shrink the ID on the requested number of bytes.
+            row = Arrays.copyOfRange(row, row.length - idWidth, row.length);
+          } catch (HBaseException e) {
+            LOG.error("Failed to assign an ID, ICV on row="
                     + Arrays.toString(MAXID_ROW) + " column='" +
                     fromBytes(ID_FAMILY) + ':' + kind() + '\'', e);
-          hbe = e;
-          continue;
-        } catch (IllegalStateException e) {
-          throw e;  // To avoid handling this exception in the next `catch'.
-        } catch (Exception e) {
-          LOG.error("WTF?  Unexpected exception type when assigning an ID,"
+            hbe = e;
+            continue;
+          } catch (IllegalStateException e) {
+            throw e;  // To avoid handling this exception in the next `catch'.
+          } catch (Exception e) {
+            LOG.error("WTF?  Unexpected exception type when assigning an ID,"
                     + " ICV on row=" + Arrays.toString(MAXID_ROW) + " column='"
                     + fromBytes(ID_FAMILY) + ':' + kind() + '\'', e);
-          continue;
-        }
-        // If we die before the next PutRequest succeeds, we just waste an ID.
+            continue;
+          }
+          // If we die before the next PutRequest succeeds, we just waste an ID.
 
-        // Create the reverse mapping first, so that if we die before creating
-        // the forward mapping we don't run the risk of "publishing" a
-        // partially assigned ID.  The reverse mapping on its own is harmless
-        // but the forward mapping without reverse mapping is bad.
-        try {
-          final PutRequest reverse_mapping = new PutRequest(
-            table, row, NAME_FAMILY, kind, toBytes(name));
-          hbasePutWithRetry(reverse_mapping, MAX_ATTEMPTS_PUT,
-                            INITIAL_EXP_BACKOFF_DELAY);
-        } catch (HBaseException e) {
-          LOG.error("Failed to Put reverse mapping!  ID leaked: " + id, e);
-          hbe = e;
-          continue;
-        }
+          // Create the reverse mapping first, so that if we die before creating
+          // the forward mapping we don't run the risk of "publishing" a
+          // partially assigned ID.  The reverse mapping on its own is harmless
+          // but the forward mapping without reverse mapping is bad.
+          try {
+            final PutRequest reverse_mapping = new PutRequest(
+                    table, row, NAME_FAMILY, kind, toBytes(name));
+            hbasePutWithRetry(reverse_mapping, MAX_ATTEMPTS_PUT,
+                    INITIAL_EXP_BACKOFF_DELAY);
+          } catch (HBaseException e) {
+            LOG.error("Failed to Put reverse mapping!  ID leaked: " + id, e);
+            hbe = e;
+            continue;
+          }
 
-        // Now create the forward mapping.
-        try {
-          final PutRequest forward_mapping = new PutRequest(
-            table, toBytes(name), ID_FAMILY, kind, row);
-          hbasePutWithRetry(forward_mapping, MAX_ATTEMPTS_PUT,
-                            INITIAL_EXP_BACKOFF_DELAY);
-        } catch (HBaseException e) {
-          LOG.error("Failed to Put forward mapping!  ID leaked: " + id, e);
-          hbe = e;
-          continue;
-        }
+          // Now create the forward mapping.
+          try {
+            final PutRequest forward_mapping = new PutRequest(
+                    table, toBytes(name), ID_FAMILY, kind, row);
+            hbasePutWithRetry(forward_mapping, MAX_ATTEMPTS_PUT,
+                    INITIAL_EXP_BACKOFF_DELAY);
+          } catch (HBaseException e) {
+            LOG.error("Failed to Put forward mapping!  ID leaked: " + id, e);
+            hbe = e;
+            continue;
+          }
 
-        addIdToCache(name, row);
-        addNameToCache(row, name);
-        return row;
-      } finally {
-        unlock(lock);
+          addIdToCache(name, row);
+          addNameToCache(row, name);
+          return row;
+        } finally {
+          zooLock.unlock();
+        }
       }
     }
     if (hbe == null) {
@@ -373,6 +376,15 @@ public final class UniqueId implements UniqueIdInterface {
     LOG.error("Failed to assign an ID for kind='" + kind()
               + "' name='" + name + "'", hbe);
     throw hbe;
+  }
+
+  private String lockName(String name) {
+    try {
+      return URLEncoder.encode(name, "UTF-8") + "--";
+    } catch (UnsupportedEncodingException e) {
+      // impossible
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -587,6 +599,18 @@ public final class UniqueId implements UniqueIdInterface {
         return null;
       }
       return row.get(0).value();
+    } catch (HBaseException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+
+  /** Returns the cell of the specified row key, using family:kind. */
+  private long incrementMaxId(long amount) throws HBaseException {
+    final AtomicIncrementRequest icv = new AtomicIncrementRequest(table, MAXID_ROW, ID_FAMILY, kind, amount);
+    try {
+      return client.atomicIncrement(icv).joinUninterruptibly();
     } catch (HBaseException e) {
       throw e;
     } catch (Exception e) {
