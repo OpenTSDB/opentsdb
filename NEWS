@@ -1,10 +1,27 @@
 OpenTSDB - User visible changes.
 
-* Version 1.1.0 (2012-??-??) [???????]
+* Version 1.1.0 (2013-01-??) [???????]
 
 Noteworthy changes:
+  - Licensing adjustment: allow LGPLv2.1+ in addition to LGPLv3+.
+  - Various fixes used when customizing size of UniqueId.  The default size
+    is 3 bytes and is a compile-time constant rarely changed in practice.
+  - New a new standard deviation aggregator, `dev'.
+  - New `fgcolor', `bgcolor' and `smooth' query parameters to /q.
+  - New `tz' query string parameter to allow specifying a custom time zone.
+  - Stop accepting connections when shutting down.
   - A new `dropcaches' administrative command allows discarding in-memory
     caches.  Right now these are UID mappings.
+  - Browser history support in the web UI.
+  - Allow "1d-ago" style input in date boxes.
+  - Fix the 30d integer overflow in the web UI.
+  - Add the ability to use mouse for drag-to-zoom on graphs.
+  - Integration with Maven.
+  - Work around a Netty performance bug, increasing write throughput by 10x.
+  - Properly parse floating point values in scientific notations.
+  - Allow tuning the number of worker threads or using OIO.
+  - Fix auto-completion bug causing partial results to show in the web UI.
+  - Various internal bug fixes.
 
 
 * Version 1.0.0 (2011-12-23) [66a6b42]

@@ -128,6 +128,9 @@ dist_static_DATA = src/tsd/static/favicon.ico
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
         $(THIRD_PARTY) $(THIRD_PARTY:=.md5) \
         $(httpui_SRC) $(httpui_DEPS) \
+	tools/check_tsd	\
+	tools/clean_cache.sh	\
+	opentsdb.spec	\
         bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
 
 GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
@@ -327,7 +330,7 @@ $(jar): manifest .javac-stamp $(classes)
 # Generate the file for those who get a tarball without it.  This happens if
 # you download a tarball off GitHub for instance.
 .git/HEAD:
-	echo unknown >$@
+	$(mkdir_p) .git && echo unknown >$@
 
 JAVADOC_DIR = api
 doc: $(JAVADOC_DIR)/index.html
@@ -390,5 +393,20 @@ pom.xml: pom.xml.in Makefile
 	} >$@-t
 	mv $@-t ../$@
 
-.PHONY: jar doc check gwtc gwtdev printdeps staticroot gwttsd
+RPM_REVISION := 1
+RPM := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION).noarch.rpm
+SOURCE_TARBALL := opentsdb-$(PACKAGE_VERSION).tar.gz
+rpm: $(RPM)
+
+$(SOURCE_TARBALL): dist
+$(RPM): $(SOURCE_TARBALL)
+$(RPM): opentsdb.spec
+	rpmbuild --target=noarch --buildroot=`pwd`/rpmbuildroot -bb $<
+	test -f $@ || for rpm in $(RPM_TARGET)/$@ \
+		`awk '$$1=="Name:"{print $$2}' $<`.`awk '$$1=="BuildArch:"{print $$2}' $<`.rpm; do \
+	  test -f "$$rpm" && mv "$$rpm" $@ && break; \
+	done
+	if test -d noarch; then rmdir noarch; fi
+
+.PHONY: jar doc check gwtc gwtdev printdeps staticroot gwttsd rpm
 include third_party/include.mk

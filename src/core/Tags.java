@@ -382,4 +382,23 @@ public final class Tags {
     return result;
   }
 
+  /**
+   * Returns true if the given string looks like an integer.
+   * <p>
+   * This function doesn't do any checking on the string other than looking
+   * for some characters that are generally found in floating point values
+   * such as '.' or 'e'.
+   * @since 1.1
+   */
+  public static boolean looksLikeInteger(final String value) {
+    final int n = value.length();
+    for (int i = 0; i < n; i++) {
+      final char c = value.charAt(i);
+      if (c == '.' || c == 'e' || c == 'E') {
+        return false;
+      }
+    }
+    return true;
+  }
+
 }

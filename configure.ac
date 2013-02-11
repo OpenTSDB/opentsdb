@@ -21,10 +21,9 @@ AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_FILES([
   Makefile
 ])
+AC_CONFIG_FILES([opentsdb.spec])
 AC_CONFIG_FILES([build-aux/fetchdep.sh], [chmod +x build-aux/fetchdep.sh])
 
-# For people with Automake <= 1.9.6
-AC_PROG_MKDIR_P
 TSDB_FIND_PROG([md5], [md5sum md5 gmd5sum digest])
 if test x`basename "$MD5"` = x'digest'; then
   MD5='digest -a md5'

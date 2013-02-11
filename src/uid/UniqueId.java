@@ -390,7 +390,8 @@ public final class UniqueId implements UniqueIdInterface {
     final LinkedList<String> suggestions = new LinkedList<String>();
     try {
       ArrayList<ArrayList<KeyValue>> rows;
-      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+      while ((short) suggestions.size() < MAX_SUGGESTIONS
+             && (rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
           if (row.size() != 1) {
             LOG.error("WTF shouldn't happen!  Scanner " + scanner + " returned"
@@ -412,15 +413,14 @@ public final class UniqueId implements UniqueIdInterface {
               + " in cache, but just scanned id=" + Arrays.toString(id));
           }
           suggestions.add(name);
-          if ((short) suggestions.size() > MAX_SUGGESTIONS) {
-            break;
-          }
         }
       }
     } catch (HBaseException e) {
       throw e;
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
+    } finally {
+      scanner.close();
     }
     return suggestions;
   }
