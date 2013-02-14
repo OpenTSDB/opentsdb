@@ -85,7 +85,7 @@ def main(argv):
         parser.error('Duration must be strictly positive.')
     elif options.downsample_window <= 0:
         parser.error('Downsample window must be strictly positive.')
-    elif not options.critical and not options.warning:
+    elif options.critical is not None and options.warning is not None:
         parser.error('You must specify at least a warning threshold (-w) or a'
                      ' critical threshold (-c).')
     elif options.ignore_recent < 0:
