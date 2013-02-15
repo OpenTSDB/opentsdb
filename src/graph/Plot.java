@@ -210,6 +210,7 @@ public final class Plot {
     final int nseries = datapoints.size();
 
     double[] ybounds = getBounds(params.get("yrange"));
+    double[] y2bounds = getBounds(params.get("y2range"));
     final boolean showkey[] = nseries > 0 ? new boolean[nseries] : null;
 
     final String datafiles[] = nseries > 0 ? new String[nseries] : null;
@@ -223,10 +224,17 @@ public final class Plot {
           if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
             npoints++;
 
-            // If the value is within both X and Y ranges show the key in the legend.
-            double value = d.isInteger() ? (double) d.longValue(): d.doubleValue();
-            if (!showkey[i] && (value >= ybounds[0]) && (value <= ybounds[1])) {
-              showkey[i] = true;
+            if (!showkey[i]) {
+              // If the value is within both X and Y ranges show the key in the legend.
+              double value = d.isInteger() ? (double) d.longValue(): d.doubleValue();
+              String opts = options.get(i);
+              if (opts != null && opts.contains("x1y2")) {
+                // check against y2range
+                showkey[i] = (value >= y2bounds[0]) && (value <= y2bounds[1]);
+              } else {
+                // check against yrange
+                showkey[i] = ((value >= ybounds[0]) && (value <= ybounds[1]));
+              }
             }
           }
           datafile.print(ts + utc_offset);
