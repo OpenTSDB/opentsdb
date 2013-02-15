@@ -17,6 +17,8 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +66,30 @@ public final class Plot {
 
   /** Height of the graph to generate, in pixels. */
   private short height = (short) 768;
+
+  /** Regex group matching yrange valid numeric values. */
+  private static final String YRANGE_NUM_REGEX = "([-0-9\\.]+)";
+
+  /** Regex group matching yrange auto bounded values (e.g. 1 < * < 20). */
+  private static final String YRANGE_AUTO_REGEX = String.format("(( *%s *< *)?\\*( *< *%s *)?)",
+                                                                YRANGE_NUM_REGEX, YRANGE_NUM_REGEX);
+
+  /** Rexex matching yrange values from which y-axis bounds can be determined for key/legend filtering. */
+  private static final Pattern YRANGE_PATTERN = Pattern.compile(String.format("\\[(%s|%s|.+)?:(%s|%s|.+)?\\]",
+                                                                              YRANGE_NUM_REGEX, YRANGE_AUTO_REGEX,
+                                                                              YRANGE_NUM_REGEX, YRANGE_AUTO_REGEX));
+
+  /** Index of the Min value group in the YRANGE_PATTERN regex. */
+  private static final int YRANGE_INDEX_MIN = 2;
+
+  /** Index of the Min Lower Bound value group in the YRANGE_PATTERN regex. */
+  private static final int YRANGE_INDEX_MIN_LBOUND = 5;
+
+  /** Index of the Max value group in the YRANGE_PATTERN regex. */
+  private static final int YRANGE_INDEX_MAX = 9;
+
+  /** Index of the Max Lower Bound value group in the YRANGE_PATTERN regex. */
+  private static final int YRANGE_INDEX_MAX_UBOUND = 14;
 
   /**
    * Number of seconds of difference to apply in order to get local time.
@@ -182,15 +208,26 @@ public final class Plot {
   public int dumpToFiles(final String basepath) throws IOException {
     int npoints = 0;
     final int nseries = datapoints.size();
+
+    double[] ybounds = getBounds(params.get("yrange"));
+    final boolean showkey[] = nseries > 0 ? new boolean[nseries] : null;
+
     final String datafiles[] = nseries > 0 ? new String[nseries] : null;
     for (int i = 0; i < nseries; i++) {
       datafiles[i] = basepath + "_" + i + ".dat";
+      showkey[i] = false;
       final PrintWriter datafile = new PrintWriter(datafiles[i]);
       try {
         for (final DataPoint d : datapoints.get(i)) {
           final long ts = d.timestamp();
           if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
             npoints++;
+
+            // If the value is within both X and Y ranges show the key in the legend.
+            double value = d.isInteger() ? (double) d.longValue(): d.doubleValue();
+            if (!showkey[i] && (value >= ybounds[0]) && (value <= ybounds[1])) {
+              showkey[i] = true;
+            }
           }
           datafile.print(ts + utc_offset);
           datafile.print(' ');
@@ -218,7 +255,7 @@ public final class Plot {
       // user.  Let's make sure it defines a min and a max.
       params.put("yrange", "[0:10]");  // Doesn't matter what values we use.
     }
-    writeGnuplotScript(basepath, datafiles);
+    writeGnuplotScript(basepath, datafiles, showkey);
     return npoints;
   }
 
@@ -228,10 +265,13 @@ public final class Plot {
    * @param datafiles The names of the data files that need to be plotted,
    * in the order in which they ought to be plotted.  It is assumed that
    * the ith file will correspond to the ith entry in {@code datapoints}.
+   * @param showkey Flag indicating if the key for the series should be show
+   * or not.
    * Can be {@code null} if there's no data to plot.
    */
   private void writeGnuplotScript(final String basepath,
-                                  final String[] datafiles) throws IOException {
+                                  final String[] datafiles,
+                                  final boolean[] showkey) throws IOException {
     final String script_path = basepath + ".gnuplot";
     final PrintWriter gp = new PrintWriter(script_path);
     try {
@@ -315,8 +355,12 @@ public final class Plot {
         if (smooth != null) {
           gp.append(" smooth ").append(smooth);
         }
-        // TODO(tsuna): Escape double quotes in title.
-        gp.append(" title \"").append(title).write('"');
+        if (showkey[i]) {
+          // TODO(tsuna): Escape double quotes in title.
+          gp.append(" title \"").append(title).write('"');
+        } else {
+          gp.append(" notitle");
+        }
         final String opts = options.get(i);
         if (!opts.isEmpty()) {
           gp.append(' ').write(opts);
@@ -356,4 +400,37 @@ public final class Plot {
     }
   }
 
+  /**
+   * @return the Y-axis upper and lower bounds from the given yrange gnuplot expression.
+   */
+  protected static double[] getBounds(String yrange) {
+    double lbound = Double.MIN_VALUE;
+    double ubound = Double.MAX_VALUE;
+
+    if (yrange != null) {
+      Matcher matcher = YRANGE_PATTERN.matcher(yrange);
+      if (matcher.matches()) {
+        String minString = matcher.group(YRANGE_INDEX_MIN);
+        if (minString != null) {
+          lbound = Double.parseDouble(minString);
+        } else {
+          String lboundString = matcher.group(YRANGE_INDEX_MIN_LBOUND);
+          if (lboundString != null) {
+            lbound = Double.parseDouble(lboundString);
+          }
+        }
+
+        String maxString = matcher.group(YRANGE_INDEX_MAX);
+        if (maxString != null) {
+          ubound = Double.parseDouble(maxString);
+        } else {
+          String uboundString = matcher.group(YRANGE_INDEX_MAX_UBOUND);
+          if (uboundString != null) {
+            ubound = Double.parseDouble(uboundString);
+          }
+        }
+      }
+    }
+    return new double[] {lbound, ubound};
+  }
 }

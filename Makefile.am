@@ -97,6 +97,7 @@ test_SRC := \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestTags.java	\
+	test/graph/TestPlot.java	\
 	test/stats/TestHistogram.java	\
 	test/tsd/TestGraphHandler.java	\
 	test/uid/TestNoSuchUniqueId.java	\
