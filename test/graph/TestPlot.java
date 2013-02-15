@@ -25,6 +25,13 @@ public final class TestPlot {
   }
 
   @Test
+  public void testYRangeMatchesRegexButNotValidNumber() {
+    double[] actual = Plot.getBounds("[0..0:]");
+    assertEquals(Double.MIN_VALUE, actual[0], 0d);
+    assertEquals(Double.MAX_VALUE, actual[1], 0d);
+  }
+
+  @Test
   public void testYRangeImpliedAutoMinMax() {
     double[] actual = Plot.getBounds("[:]");
     assertEquals(Double.MIN_VALUE, actual[0], 0d);

@@ -68,7 +68,7 @@ public final class Plot {
   private short height = (short) 768;
 
   /** Regex group matching yrange valid numeric values. */
-  private static final String YRANGE_NUM_REGEX = "([-0-9\\.]+)";
+  private static final String YRANGE_NUM_REGEX = "(-?[0-9]+(\\.[0-9]+)?)";
 
   /** Regex group matching yrange auto bounded values (e.g. 1 < * < 20). */
   private static final String YRANGE_AUTO_REGEX = String.format("(( *%s *< *)?\\*( *< *%s *)?)",
@@ -83,13 +83,13 @@ public final class Plot {
   private static final int YRANGE_INDEX_MIN = 2;
 
   /** Index of the Min Lower Bound value group in the YRANGE_PATTERN regex. */
-  private static final int YRANGE_INDEX_MIN_LBOUND = 5;
+  private static final int YRANGE_INDEX_MIN_LBOUND = 6;
 
   /** Index of the Max value group in the YRANGE_PATTERN regex. */
-  private static final int YRANGE_INDEX_MAX = 9;
+  private static final int YRANGE_INDEX_MAX = 12;
 
   /** Index of the Max Lower Bound value group in the YRANGE_PATTERN regex. */
-  private static final int YRANGE_INDEX_MAX_UBOUND = 14;
+  private static final int YRANGE_INDEX_MAX_UBOUND = 19;
 
   /**
    * Number of seconds of difference to apply in order to get local time.
