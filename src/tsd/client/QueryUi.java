@@ -103,6 +103,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
   private final ValidatedTextBox autoreoload_interval = new ValidatedTextBox();
   private Timer autoreoload_timer;
 
+  // Misc options
+  private final CheckBox smooth = new CheckBox();
+
   private final ValidatedTextBox yrange = new ValidatedTextBox();
   private final ValidatedTextBox y2range = new ValidatedTextBox();
   private final CheckBox ylog = new CheckBox();
@@ -166,6 +169,18 @@ public class QueryUi implements EntryPoint, HistoryListener {
         y2log.setEnabled(false);
         y2label.setEnabled(false);
         y2format.setEnabled(false);
+      }
+    };
+
+  final ClickHandler clone_handler = new ClickHandler() {
+      public void onClick(ClickEvent event) {
+        int selected = metrics.getTabBar().getSelectedTab();
+        MetricForm template = ((MetricForm) metrics.getWidget(selected));
+
+        final int nitems = metrics.getWidgetCount();
+        final MetricForm metric = addMetricForm("metric " + nitems, nitems - 1, template);
+        metrics.selectTab(nitems - 1);
+        metric.setFocus(true);
       }
     };
 
@@ -445,6 +460,17 @@ public class QueryUi implements EntryPoint, HistoryListener {
   }
 
   /**
+   * Additional options
+   */
+  private Grid makeMiscPanel() {
+    final Grid grid = new Grid(5, 3);
+    grid.setText(0, 1, "Smooth");
+    grid.setWidget(0, 2, smooth);
+    smooth.setValue(false);
+    return grid;
+  }
+
+  /**
    * Builds the panel containing customizations for the axes of the graph.
    */
   private Grid makeAxesPanel() {
@@ -470,10 +496,20 @@ public class QueryUi implements EntryPoint, HistoryListener {
   }
 
   private MetricForm addMetricForm(final String label, final int item) {
+    return addMetricForm(label, item, null);
+  }
+
+  private MetricForm addMetricForm(final String label, final int item, final MetricForm template) {
     final MetricForm metric = new MetricForm(refreshgraph);
     metric.x1y2().addClickHandler(updatey2range);
     metric.setMetricChangeHandler(metric_change_handler);
     metric.setAggregators(aggregators);
+    metric.setCloneHandler(clone_handler);
+
+    if (template != null) {
+      metric.copyTagsFrom(template);
+    }
+
     metrics.insert(metric, label, item);
     return metric;
   }
