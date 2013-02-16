@@ -1,0 +1,380 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>net.opentsdb</groupId>
+  <artifactId>opentsdb</artifactId>
+  <version>@spec_version@</version>
+  <name>@spec_title@</name>
+  <organization>
+    <name>@spec_vendor@</name>
+    <url>http://opentsdb.net</url>
+  </organization>
+  <description>
+    OpenTSDB is a distributed, scalable Time Series Database (TSDB)
+    written on top of HBase.  OpenTSDB was written to address a common need:
+    store, index and serve metrics collected from computer systems (network
+    gear, operating systems, applications) at a large scale, and make this
+    data easily accessible and graphable.
+  </description>
+  <url>http://opentsdb.net</url>
+  <licenses>
+    <license>
+      <name>LGPLv2.1+</name>
+      <url>http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <scm>
+    <connection>scm:git:git@github.com:OpenTSDB/opentsdb.git</connection>
+    <url>https://github.com/OpenTSDB/opentsdb</url>
+  </scm>
+  <issueManagement>
+    <system>GitHub</system>
+    <url>https://github.com/OpenTSDB/opentsdb/issues</url>
+  </issueManagement>
+  <mailingLists>
+    <mailingList>
+      <name>User List</name>
+      <post>opentsdb@googlegroups.com</post>
+      <subscribe>opentsdb+subscribe@googlegroups.com</subscribe>
+      <unsubscribe>opentsdb+unsubscribe@googlegroups.com</unsubscribe>
+      <archive>https://groups.google.com/group/opentsdb</archive>
+    </mailingList>
+  </mailingLists>
+  <developers>
+    <developer>
+      <id>tsuna</id>
+      <name>Benoit "tsuna" Sigoure</name>
+      <email>tsunanet@gmail.com</email>
+      <roles>
+        <role>developer</role>
+      </roles>
+      <timezone>-8</timezone>
+    </developer>
+  </developers>
+  <inceptionYear>2010</inceptionYear>
+
+  <packaging>jar</packaging>
+
+  <build>
+    <sourceDirectory>src</sourceDirectory>
+    <testSourceDirectory>test</testSourceDirectory>
+
+    <plugins>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.5.1</version>
+        <configuration>
+          <source>1.6</source>
+          <target>1.6</target>
+          <compilerArgument>-Xlint</compilerArgument>
+          <excludes>
+            <exclude>**/Test*.java</exclude>
+            <exclude>**/client/*.java</exclude>
+          </excludes>
+          <testIncludes>
+            <include>**/Test*.java</include>
+          </testIncludes>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>1.2.1</version>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <executable>build-aux/gen_build_data.sh</executable>
+          <!-- optional -->
+          <arguments>
+            <argument>target/generated-sources/net/opentsdb/BuildData.java</argument>
+            <argument>net.opentsdb</argument>
+            <argument>BuildData</argument>
+          </arguments>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>1.7</version>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>target/generated-sources</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>1.7</version>
+        <executions>
+          <execution>
+            <phase>process-resources</phase>
+            <configuration>
+              <target>
+                <copy file="${basedir}/src/mygnuplot.sh" todir="${basedir}/target/classes"/>
+                <chmod file="${basedir}/target/classes/mygnuplot.sh" perm="ugo+rx"/>
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.12.4</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>2.4</version>
+        <configuration>
+          <excludes>
+          <exclude>queryui/**</exclude>
+          <exclude>WEB-INF/deploy/**</exclude>
+          <exclude>mygnuplot.sh</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>gwt-maven-plugin</artifactId>
+        <version>@GWT_VERSION@</version>
+        <executions>
+          <execution>
+            <configuration>
+              <enableAssertions>true</enableAssertions>
+              <module>tsd.QueryUi</module>
+            </configuration>
+            <phase>compile</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>2.1.2</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>2.8.1</version>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <quiet>true</quiet>
+          <validateLinks>true</validateLinks>
+          <bottom>
+            Copyright &#169; {inceptionYear}-{currentYear},
+            ${project.organization.name}
+          </bottom>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>1.4</version>
+        <executions>
+         <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <keyname>tsunanet@gmail.com</keyname>
+        </configuration>
+      </plugin>
+
+    </plugins>
+  </build>
+
+  <dependencies>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>@GUAVA_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty</artifactId>
+      <version>@NETTY_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.stumbleupon</groupId>
+      <artifactId>async</artifactId>
+      <version>@SUASYNC_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.zookeeper</groupId>
+      <artifactId>zookeeper</artifactId>
+      <version>@ZOOKEEPER_VERSION@</version>
+      <exclusions>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>jline</groupId>
+          <artifactId>jline</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>@SLF4J_API_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hbase</groupId>
+      <artifactId>asynchbase</artifactId>
+      <version>@ASYNCHBASE_VERSION@</version>
+    </dependency>
+
+    <!-- runtime dependencies -->
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>log4j-over-slf4j</artifactId>
+      <version>@LOG4J_OVER_SLF4J_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>jcl-over-slf4j</artifactId>
+      <version>@JCL_OVER_SLF4J_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-core</artifactId>
+      <version>@LOGBACK_CORE_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>@LOGBACK_CLASSIC_VERSION@</version>
+    </dependency>
+
+    <!-- test dependencies -->
+
+    <dependency>
+      <groupId>org.javassist</groupId>
+      <artifactId>javassist</artifactId>
+      <version>@JAVASSIST_VERSION@</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>@JUNIT_VERSION@</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>@MOCKITO_VERSION@</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-api-mockito</artifactId>
+      <version>@POWERMOCK_MOCKITO_VERSION@</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.powermock</groupId>
+      <artifactId>powermock-module-junit4</artifactId>
+      <version>@POWERMOCK_MOCKITO_VERSION@</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- misc. build-time dependencies -->
+
+    <dependency>
+      <groupId>com.google.gwt</groupId>
+      <artifactId>gwt-user</artifactId>
+      <version>@GWT_VERSION@</version>
+    </dependency>
+
+  </dependencies>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <parent>
+    <groupId>org.sonatype.oss</groupId>
+    <artifactId>oss-parent</artifactId>
+    <version>7</version>
+  </parent>
+
+</project>

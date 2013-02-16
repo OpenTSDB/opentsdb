@@ -23,16 +23,27 @@ import java.util.Date;
 import java.util.HashMap;
 
 import com.google.gwt.core.client.EntryPoint;
+import com.google.gwt.dom.client.Style;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.DomEvent;
 import com.google.gwt.event.dom.client.ErrorEvent;
 import com.google.gwt.event.dom.client.ErrorHandler;
+import com.google.gwt.event.dom.client.LoadEvent;
+import com.google.gwt.event.dom.client.LoadHandler;
+import com.google.gwt.event.dom.client.MouseDownEvent;
+import com.google.gwt.event.dom.client.MouseDownHandler;
+import com.google.gwt.event.dom.client.MouseEvent;
+import com.google.gwt.event.dom.client.MouseMoveEvent;
+import com.google.gwt.event.dom.client.MouseMoveHandler;
+import com.google.gwt.event.dom.client.MouseUpEvent;
+import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.event.logical.shared.BeforeSelectionEvent;
 import com.google.gwt.event.logical.shared.BeforeSelectionHandler;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.event.shared.EventHandler;
+import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
@@ -51,6 +62,7 @@ import com.google.gwt.user.client.History;
 import com.google.gwt.user.client.HistoryListener;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
+import com.google.gwt.user.client.ui.AbsolutePanel;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DecoratedTabPanel;
@@ -93,7 +105,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
   // Misc options
   private final CheckBox smooth = new CheckBox();
-  
+
   private final ValidatedTextBox yrange = new ValidatedTextBox();
   private final ValidatedTextBox y2range = new ValidatedTextBox();
   private final CheckBox ylog = new CheckBox();
@@ -108,6 +120,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
   private final CheckBox horizontalkey = new CheckBox("Horizontal layout");
   private final CheckBox keybox = new CheckBox("Box");
   private final CheckBox nokey = new CheckBox("No key (overrides others)");
+
+  // Styling options.
+  private final CheckBox smooth = new CheckBox();
 
   /**
    * Handles every change to the query form and gets a new graph.
@@ -174,7 +189,10 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
   private final DecoratedTabPanel metrics = new DecoratedTabPanel();
 
+  /** Panel to place generated graphs and a box for zoom highlighting. */
+  private final AbsolutePanel graphbox = new AbsolutePanel();
   private final Image graph = new Image();
+  private final ZoomBox zoom_box = new ZoomBox();
   private final Label graphstatus = new Label();
   /** Remember the last URI requested to avoid requesting twice the same. */
   private String lastgraphuri;
@@ -362,7 +380,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     final DecoratedTabPanel optpanel = new DecoratedTabPanel();
     optpanel.add(makeAxesPanel(), "Axes");
     optpanel.add(makeKeyPanel(), "Key");
-    optpanel.add(makeMiscPanel(), "Misc");
+    optpanel.add(makeStylePanel(), "Style");
     optpanel.selectTab(0);
     table.setWidget(1, 3, optpanel);
 
@@ -373,13 +391,27 @@ public class QueryUi implements EntryPoint, HistoryListener {
     {
       final VerticalPanel graphvbox = new VerticalPanel();
       graphvbox.add(graphstatus);
+
       graph.setVisible(false);
-      graphvbox.add(graph);
+
+      // Put the graph image element and the zoombox elements inside the absolute panel
+      graphbox.add(graph, 0, 0);
+      zoom_box.setVisible(false);
+      graphbox.add(zoom_box, 0, 0);
+
+      graphvbox.add(graphbox);
       graph.addErrorHandler(new ErrorHandler() {
         public void onError(final ErrorEvent event) {
           graphstatus.setText("Oops, failed to load the graph.");
         }
       });
+      graph.addLoadHandler(new LoadHandler() {
+        public void onLoad(final LoadEvent event) {
+          graphbox.setWidth(graph.getWidth() + "px");
+          graphbox.setHeight(graph.getHeight() + "px");
+        }
+      });
+
       graphpanel.add(graphvbox);
     }
     final DecoratedTabPanel mainpanel = new DecoratedTabPanel();
@@ -417,6 +449,14 @@ public class QueryUi implements EntryPoint, HistoryListener {
   public void onHistoryChanged(String historyToken) {
     refreshFromQueryString();
     refreshGraph();
+  }
+
+  /** Additional styling options.  */
+  private Grid makeStylePanel() {
+    final Grid grid = new Grid(5, 3);
+    grid.setText(0, 1, "Smooth");
+    grid.setWidget(0, 2, smooth);
+    return grid;
   }
 
   /**
@@ -637,12 +677,12 @@ public class QueryUi implements EntryPoint, HistoryListener {
   private void addLabels(final StringBuilder url) {
     final String ylabel = this.ylabel.getText();
     if (!ylabel.isEmpty()) {
-      url.append("&ylabel=").append(URL.encodeComponent(ylabel));
+      url.append("&ylabel=").append(ylabel);
     }
     if (y2label.isEnabled()) {
       final String y2label = this.y2label.getText();
       if (!y2label.isEmpty()) {
-        url.append("&y2label=").append(URL.encodeComponent(y2label));
+        url.append("&y2label=").append(y2label);
       }
     }
   }
@@ -650,12 +690,12 @@ public class QueryUi implements EntryPoint, HistoryListener {
   private void addFormats(final StringBuilder url) {
     final String yformat = this.yformat.getText();
     if (!yformat.isEmpty()) {
-      url.append("&yformat=").append(URL.encodeComponent(yformat));
+      url.append("&yformat=").append(yformat);
     }
     if (y2format.isEnabled()) {
       final String y2format = this.y2format.getText();
       if (!y2format.isEmpty()) {
-        url.append("&y2format=").append(URL.encodeComponent(y2format));
+        url.append("&y2format=").append(y2format);
       }
     }
   }
@@ -788,9 +828,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
       keypos = "";
     }
     nokey.setValue(qs.containsKey("nokey"));
-    if (qs.containsKey("smooth")) {
-      smooth.setValue(Boolean.valueOf(qs.getFirst("smooth")));
-    }
+    smooth.setValue(qs.containsKey("smooth"));
   }
 
   private void refreshGraph() {
@@ -843,8 +881,11 @@ public class QueryUi implements EntryPoint, HistoryListener {
       }
     }
     url.append("&wxh=").append(wxh.getText());
-    url.append("&smooth=").append(smooth.getValue());
-    final String uri = url.toString();
+    if (smooth.getValue()) {
+      url.append("&smooth=csplines");
+    }
+    final String unencodedUri = url.toString();
+    final String uri = URL.encode(unencodedUri);
     if (uri.equals(lastgraphuri)) {
       return;  // Don't re-request the same graph.
     } else if (pending_requests++ > 0) {
@@ -868,7 +909,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
         } else {
           clearError();
 
-          String history = uri.substring(3)      // Remove "/q?".
+          String history = unencodedUri.substring(3)      // Remove "/q?".
             .replaceFirst("ignore=[^&]*&", "");  // Unnecessary cruft.
           if (autoreload.getValue()) {
             history += "&autoreload=" + autoreoload_interval.getText();
@@ -885,6 +926,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
           if (nplotted != null && nplotted.isNumber().doubleValue() > 0) {
             graph.setUrl(uri + "&png");
             graph.setVisible(true);
+
             msg += result.get("points").isNumber() + " points retrieved, "
               + nplotted + " points plotted";
           } else {
@@ -1042,6 +1084,194 @@ public class QueryUi implements EntryPoint, HistoryListener {
   static void setTextAlignCenter(final Element element) {
     element.getStyle().setProperty("textAlign", "center");
   }
+
+  /** Zoom box and associated event handlers.  */
+  private final class ZoomBox extends HTML
+    implements MouseUpHandler, MouseMoveHandler, MouseDownHandler {
+
+    /** "Fudge factor" to account for the axes present on the image. */
+    private static final int OFFSET_WITH_AXIS = 45;
+    private static final int OFFSET_WITHOUT_AXIS = 15;
+
+    private boolean zoom_selection_active = false;
+    /** Rectangle of the selection.  */
+    private int start_x;
+    private int end_x;
+    private int start_y;
+    private int end_y;
+
+    private HandlerRegistration graph_move_handler;
+    private HandlerRegistration box_move_handler;
+
+    ZoomBox() {
+      // Set ourselves up as the event handler for all mouse-draggable events.
+      graph.addMouseDownHandler(this);
+      graph.addMouseUpHandler(this);
+
+      // Also add the handlers on the actual zoom highlight box (this is in
+      // case the cursor gets on the zoombox, so that it keeps responding
+      // correctly).
+      super.addMouseUpHandler(this);
+
+      final Style style = super.getElement().getStyle();
+      style.setProperty("background", "red");
+      style.setProperty("filter", "alpha(opacity=50)");
+      style.setProperty("opacity", "0.4");
+      // Needed to make this object focusable.
+      super.getElement().setAttribute("tabindex", "-1");
+    }
+
+    @Override
+    public void onMouseDown(final MouseDownEvent event) {
+      event.preventDefault();
+
+      // Check if the zoom selection is active, if so, it's possible that the
+      // mouse left the browser mid-selection and got stuck enabled even
+      // though the mouse isn't still pressed. If that's the case, do a similar
+      // operation to the onMouseUp event.
+      if (zoom_selection_active) {
+        endSelection(event);
+        return;
+      }
+
+      final Element image = graph.getElement();
+      zoom_selection_active = true;
+      start_x = event.getRelativeX(image);
+      start_y = event.getRelativeY(image);
+      end_x = 0;
+      end_y = 0;
+
+      graphbox.setWidgetPosition(this, start_x, start_y);
+      super.setWidth("0px");
+      super.setHeight("0px");
+      super.setVisible(true);
+      // Workaround to steal the focus from whatever had it previously,
+      // which may cause the graph to reload as a side effect.
+      super.getElement().focus();
+
+      graph_move_handler = graph.addMouseMoveHandler(this);
+      box_move_handler = super.addMouseMoveHandler(this);
+    }
+
+    @Override
+    public void onMouseMove(final MouseMoveEvent event) {
+      event.preventDefault();
+
+      final int x = event.getRelativeX(graph.getElement());
+      final int y = event.getRelativeY(graph.getElement());
+      int left;
+      int top;
+      int width;
+      int height;
+
+      // Figure out the top, left, height, and width of the box based
+      // on current cursor location.
+      if (x < start_x) {
+        left = x;
+        width = start_x - x;
+      } else {
+        left = start_x;
+        width = x - start_x;
+      }
+      if (y < start_y) {
+        top = y;
+        height = start_y - y;
+      } else {
+        top = start_y;
+        height = y - start_y;
+      }
+
+      // Resize / move the box as needed based on cursor location.
+      super.setVisible(false);
+      graphbox.setWidgetPosition(this, left, top);
+      super.setWidth(width + "px");
+      super.setHeight(height + "px");
+      super.setVisible(true);
+    }
+
+    @Override
+    public void onMouseUp(final MouseUpEvent event) {
+      if (zoom_selection_active) {
+        endSelection(event);
+      }
+    }
+
+    /**
+     * Perform operations for when a user completes their selection.
+     * This involves removing the highlight box and kicking off the
+     * zoom in operation.
+     * @param event The event that triggered the end of the selection.
+     */
+    private <H extends EventHandler> void endSelection(final MouseEvent<H> event) {
+      zoom_selection_active = false;
+
+      // Stop tracking cursor movements to improve performance.
+      graph_move_handler.removeHandler();
+      graph_move_handler = null;
+      box_move_handler.removeHandler();
+      box_move_handler = null;
+
+      final Element image = graph.getElement();
+      end_x = event.getRelativeX(image);
+      end_y = event.getRelativeY(image);
+
+      // Hide the zoom box
+      super.setVisible(false);
+      super.setWidth("0px");
+      super.setHeight("0px");
+
+      // Calculate the true start/end points of the zoom area selected by
+      // mouse. If the mouse was dragged left on the graph before being
+      // let up, then start_x is the right-most edge of the zoomable area.
+      // If the mouse was dragged right on the graph before being let up,
+      // then start_x is the left-most edge of the zoomable area.
+      if (start_x < end_x) {
+        start_x = start_x - OFFSET_WITH_AXIS;
+        end_x = end_x - OFFSET_WITH_AXIS;
+      } else {
+        final int saved_start = start_x;
+        start_x = end_x - OFFSET_WITH_AXIS;
+        end_x = saved_start - OFFSET_WITH_AXIS;
+      }
+      int actual_width = graph.getWidth() - OFFSET_WITH_AXIS;
+      if (y2range.isEnabled()) {  // If we have a second Y axis.
+        actual_width -= OFFSET_WITH_AXIS;
+      } else {
+        actual_width -= OFFSET_WITHOUT_AXIS;
+      }
+
+      // Prevent division by zero if image is pathologically small.
+      // or: Prevent changing anything if the distance the cursor traveled was
+      // too small (as happens during a simple click or unintentional click).
+      if (actual_width < 1 || end_x - start_x <= 5) {
+        return;
+      }
+
+      // Total span of time represented between the start and end times.
+      final long duration;
+      final long start = start_datebox.getValue().getTime();
+      {
+        final long end;
+        final Date end_date = end_datebox.getValue();
+        if (end_date != null) {
+          end = end_date.getTime();
+        } else {
+          end = new Date().getTime();
+        }
+        duration = end - start;
+      }
+
+      // Get the start and end positions of the mouse drag operation on the
+      // image as a percentage of the image size.
+      final long start_change = start_x * duration / actual_width;
+      final long end_change = end_x * duration / actual_width;
+
+      start_datebox.setValue(new Date(start + start_change));
+      end_datebox.setValue(new Date(start + end_change));
+      refreshGraph();
+    }
+
+  };
 
   private final class AdjustYRangeCheckOnClick implements ClickHandler {
 

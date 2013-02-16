@@ -80,19 +80,24 @@ final class ConnectionManager extends SimpleChannelHandler {
                               final ExceptionEvent e) {
     final Throwable cause = e.getCause();
     final Channel chan = ctx.getChannel();
+    exceptions_caught.incrementAndGet();
     if (cause instanceof ClosedChannelException) {
       LOG.warn("Attempt to write to closed channel " + chan);
-    } else if (cause instanceof IOException
-               && "Connection reset by peer".equals(cause.getMessage())) {
-      // Do nothing.  A client disconnecting isn't really our problem.  Oh,
-      // and I'm not kidding you, there's no better way to detect ECONNRESET
-      // in Java.  Like, people have been bitching about errno for years,
-      // and Java managed to do something *far* worse.  That's quite a feat.
-    } else {
-      LOG.error("Unexpected exception from downstream for " + chan, cause);
-      e.getChannel().close();
+      return;
     }
-    exceptions_caught.incrementAndGet();
+    if (cause instanceof IOException) {
+      final String message = cause.getMessage();
+      if ("Connection reset by peer".equals(message)
+          || "Connection timed out".equals(message)) {
+        // Do nothing.  A client disconnecting isn't really our problem.  Oh,
+        // and I'm not kidding you, there's no better way to detect ECONNRESET
+        // in Java.  Like, people have been bitching about errno for years,
+        // and Java managed to do something *far* worse.  That's quite a feat.
+        return;
+      }
+    }
+    LOG.error("Unexpected exception from downstream for " + chan, cause);
+    e.getChannel().close();
   }
 
 }

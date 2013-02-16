@@ -147,7 +147,7 @@ final class TextImporter {
         }
         final WritableDataPoints dp = getDataPoints(tsdb, metric, tags);
         Deferred<Object> d;
-        if (value.indexOf('.') < 0) {  // integer value
+        if (Tags.looksLikeInteger(value)) {
           d = dp.addPoint(timestamp, Tags.parseLong(value));
         } else {  // floating point value
           d = dp.addPoint(timestamp, Float.parseFloat(value));

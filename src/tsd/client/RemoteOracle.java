@@ -154,9 +154,7 @@ final class RemoteOracle extends SuggestOracle {
         // from a pair of inner classes called Request / Response :-/
         public void onResponseReceived(final com.google.gwt.http.client.Request r,
                                        final com.google.gwt.http.client.Response response) {
-          if (response.getStatusCode() == com.google.gwt.http.client.Response.SC_OK
-              // Is this response still relevant to what the requester wants?
-              && requester.getText().startsWith(last_query)) {
+          if (response.getStatusCode() == com.google.gwt.http.client.Response.SC_OK) {
             final JSONValue json = JSONParser.parse(response.getText());
             // In case this request returned nothing, we pretend the last
             // suggestion ended with the largest character possible, so we
@@ -175,9 +173,12 @@ final class RemoteOracle extends SuggestOracle {
                 last_suggestion = suggestionstr;
                 cache.add(suggestionstr);
               }
-              cache.requestSuggestions(request, callback);
-              pending_req = null;
-              pending_cb = null;
+              // Is this response still relevant to what the requester wants?
+              if (requester.getText().startsWith(last_query)) {
+                cache.requestSuggestions(request, callback);
+                pending_req = null;
+                pending_cb = null;
+              }
             }
           }
           current = null;  // Regardless of what happened above, this is done.
@@ -198,7 +199,7 @@ final class RemoteOracle extends SuggestOracle {
   private static final class QueriesSeen {
 
     /**
-     * A circular buffer containing the last 32 requests already served.
+     * A circular buffer containing the last few requests already served.
      * It would be awesome if {@code gwt.user.client.ui.PrefixTree} wasn't
      * package-private, so we could use that instead.
      */

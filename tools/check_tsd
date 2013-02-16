@@ -22,7 +22,6 @@
 #     -d 600 -a avg -x gt -w 50 -c 100
 #
 
-import datetime
 import httplib
 import operator
 import socket
@@ -31,43 +30,46 @@ import time
 from optparse import OptionParser
 
 def main(argv):
-    """check-tsd.py -- a script designed to pull data out of the TSDB via the TSD
-       so that we can do some very simple alerting from Nagios."""
+    """Pulls data out of the TSDB and do very simple alerting from Nagios."""
 
     parser = OptionParser(description='Simple TSDB data extractor for Nagios.')
-    parser.add_option('-H', '--host', dest='host', default='localhost', metavar='HOST',
+    parser.add_option('-H', '--host', default='localhost', metavar='HOST',
             help='Hostname to use to connect to the TSD.')
-    parser.add_option('-p', '--port', dest='port', type='int', default=80, metavar='PORT',
+    parser.add_option('-p', '--port', type='int', default=80, metavar='PORT',
             help='Port to connect to the TSD instance on.')
-    parser.add_option('-m', '--metric', dest='metric', metavar='METRIC',
+    parser.add_option('-m', '--metric', metavar='METRIC',
             help='Metric to query.')
-    parser.add_option('-t', '--tag', dest='tags', action='append', default=[],
+    parser.add_option('-t', '--tag', action='append', default=[],
             metavar='TAG', help='Tags to filter the metric on.')
-    parser.add_option('-d', '--duration', dest='duration', type='int', default=600,
+    parser.add_option('-d', '--duration', type='int', default=600,
             metavar='SECONDS', help='How far back to look for data.')
-    parser.add_option('-D', '--downsample', dest='downsample', default='none',
-            metavar='METHOD',
-            help='Downsample the data over the duration via avg, min, sum, or max.')
-    parser.add_option('-a', '--aggregator', dest='aggregator', default='sum',
-            metavar='METHOD',
+    parser.add_option('-D', '--downsample', default='none', metavar='METHOD',
+            help='Downsample function, e.g. one of avg, min, sum, or max.')
+    parser.add_option('-W', '--downsample-window', type='int', default=60,
+            metavar='SECONDS', help='Window size over which to downsample.')
+    parser.add_option('-a', '--aggregator', default='sum', metavar='METHOD',
             help='Aggregation method: avg, min, sum (default), max.')
     parser.add_option('-x', '--method', dest='comparator', default='gt',
-            metavar='METHOD', help='Comparison method for -w/-c: gt, ge, lt, le, eq, ne.')
-    parser.add_option('-w', '--warning', dest='warning', type='int', metavar='THRESHOLD',
+            metavar='METHOD', help='Comparison method: gt, ge, lt, le, eq, ne.')
+    parser.add_option('-r', '--rate', default=False,
+            action='store_true', help='Use rate value as comparison operand.')
+    parser.add_option('-w', '--warning', type='float', metavar='THRESHOLD',
             help='Threshold for warning.  Uses the comparison method.')
-    parser.add_option('-c', '--critical', dest='critical', type='int', metavar='THRESHOLD',
+    parser.add_option('-c', '--critical', type='float', metavar='THRESHOLD',
             help='Threshold for critical.  Uses the comparison method.')
-    parser.add_option('-v', '--verbose', dest='verbose', default=False,
+    parser.add_option('-v', '--verbose', default=False,
             action='store_true', help='Be more verbose.')
-    parser.add_option('-T', '--timeout', dest='timeout', type='int', default=10,
-            metavar='SECONDS', help='How long to wait for the response from TSD.')
-    parser.add_option('-E', '--no-result-ok', dest='no_result_ok', default=False,
-            action='store_true', help='Return OK when TSD query returns no result.')
-    parser.add_option('-I', '--ignore-recent', dest='ignore_recent', default=0,
-            metavar='SECONDS', type='int', help='Ignore data points that are that'
+    parser.add_option('-T', '--timeout', type='int', default=10,
+            metavar='SECONDS',
+            help='How long to wait for the response from TSD.')
+    parser.add_option('-E', '--no-result-ok', default=False,
+            action='store_true',
+            help='Return OK when TSD query returns no result.')
+    parser.add_option('-I', '--ignore-recent', default=0, type='int',
+            metavar='SECONDS', help='Ignore data points that are that'
             ' are that recent.')
-    parser.add_option('-S', '--ssl', dest='ssl_connection', default=False,
-            action='store_true', help='Make queries to OpenTSDB via SSL (https)')
+    parser.add_option('-S', '--ssl', default=False, action='store_true',
+            help='Make queries to OpenTSDB via SSL (https)')
     (options, args) = parser.parse_args(args=argv[1:])
 
     # argument validation
@@ -81,6 +83,8 @@ def main(argv):
         parser.error('You must specify a metric (option -m).')
     elif options.duration <= 0:
         parser.error('Duration must be strictly positive.')
+    elif options.downsample_window <= 0:
+        parser.error('Downsample window must be strictly positive.')
     elif not options.critical and not options.warning:
         parser.error('You must specify at least a warning threshold (-w) or a'
                      ' critical threshold (-c).')
@@ -93,7 +97,7 @@ def main(argv):
         options.warning = options.critical
 
     # argument construction
-    tags = ','.join(options.tags)
+    tags = ','.join(options.tag)
     if tags:
         tags = '{' + tags + '}'
 
@@ -101,12 +105,17 @@ def main(argv):
     if options.downsample == 'none':
         downsampling = ''
     else:
-        downsampling = '%ds-%s:' % (options.duration, options.downsample)
-    url = ('/q?start=%ss-ago&m=%s:%s%s%s&ascii&nagios'
-           % (options.duration, options.aggregator, downsampling, options.metric,
-              tags))
+        downsampling = '%ds-%s:' % (options.downsample_window,
+                                    options.downsample)
+    if options.rate:
+        rate = 'rate:'
+    else:
+        rate = ''
+    url = ('/q?start=%ss-ago&m=%s:%s%s%s%s&ascii&nagios'
+           % (options.duration, options.aggregator, downsampling, rate,
+              options.metric, tags))
     tsd = '%s:%d' % (options.host, options.port)
-    if options.ssl_connection:  # Pick the class to instantiate first.
+    if options.ssl:  # Pick the class to instantiate first.
       conn = httplib.HTTPSConnection
     else:
       conn = httplib.HTTPConnection
@@ -120,7 +129,8 @@ def main(argv):
       print "ERROR: couldn't connect to %s: %s" % (tsd, e)
       return 2
     if options.verbose:
-        print 'Connected to %s:%d' % conn.sock.getpeername()
+        peer = conn.sock.getpeername()
+        print 'Connected to %s:%d' % (peer[0], peer[1])
         conn.set_debuglevel(1)
     now = int(time.time())
     try:
@@ -134,7 +144,8 @@ def main(argv):
 
     # if failure...
     if res.status != 200:
-        print 'CRITICAL: status = %d when talking to %s:%d' % (res.status, options.host, options.port)
+        print ('CRITICAL: status = %d when talking to %s:%d'
+               % (res.status, options.host, options.port))
         if options.verbose:
             print 'TSD said:'
             print datapoints
@@ -208,7 +219,7 @@ def main(argv):
                % (options.metric, ttags, npoints, val))
     else:
         if rv == 1:
-            level ='WARNING'
+            level = 'WARNING'
             threshold = options.warning
         elif rv == 2:
             level = 'CRITICAL'

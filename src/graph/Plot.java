@@ -261,7 +261,6 @@ public final class Plot {
       }
 
       gp.append("\n"
-                + "set xlabel \" \"\n" // fixes issue #107
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
                 + "set xtic rotate\n"
@@ -312,9 +311,9 @@ public final class Plot {
       for (int i = 0; i < nseries; i++) {
         final DataPoints dp = datapoints.get(i);
         final String title = dp.metricName() + dp.getTags();
-        gp.append(" \"").append(datafiles[i]).append("\" using 1:2 ");
-        if (smooth.equals("true")) {
-          gp.append("smooth csplines");
+        gp.append(" \"").append(datafiles[i]).append("\" using 1:2");
+        if (smooth != null) {
+          gp.append(" smooth ").append(smooth);
         }
         // TODO(tsuna): Escape double quotes in title.
         gp.append(" title \"").append(title).write('"');

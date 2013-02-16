@@ -18,8 +18,6 @@ package tsd.client;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import com.google.gwt.http.client.URL;
-
 /**
  * Splits an HTTP query string into a path string and key-value parameter pairs.
  */
@@ -37,7 +35,7 @@ public final class QueryString extends HashMap<String, ArrayList<String>> {
       final char c = s.charAt(i);
       if (c == '=' && name == null) {
         if (pos != i) {
-          name = URL.decodeComponent(s.substring(pos, i));
+          name = s.substring(pos, i);
         }
         pos = i + 1;
       } else if (c == '&') {
@@ -45,9 +43,9 @@ public final class QueryString extends HashMap<String, ArrayList<String>> {
           // We haven't seen an `=' so far but moved forward.
           // Must be a param of the form '&a&' so add it with
           // an empty value.
-          params.add(URL.decodeComponent(s.substring(pos, i)), "");
+          params.add(s.substring(pos, i), "");
         } else if (name != null) {
-          params.add(name, URL.decodeComponent(s.substring(pos, i)));
+          params.add(name, s.substring(pos, i));
           name = null;
         }
         pos = i + 1;
@@ -56,9 +54,9 @@ public final class QueryString extends HashMap<String, ArrayList<String>> {
 
     if (pos != i) {  // Are there characters we haven't dealt with?
       if (name == null) {     // Yes and we haven't seen any `='.
-        params.add(URL.decodeComponent(s.substring(pos, i)), "");
+        params.add(s.substring(pos, i), "");
       } else {                // Yes and this must be the last value.
-        params.add(name, URL.decodeComponent(s.substring(pos, i)));
+        params.add(name, s.substring(pos, i));
       }
     } else if (name != null) {  // Have we seen a name without value?
       params.add(name, "");
