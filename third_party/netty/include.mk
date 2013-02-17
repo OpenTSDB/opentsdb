@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2011-2013  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-NETTY_MAJOR_VERSION = 3.5
-NETTY_VERSION := 3.5.9.Final
+NETTY_MAJOR_VERSION = 3.6
+NETTY_VERSION := 3.6.2.Final
 NETTY := third_party/netty/netty-$(NETTY_VERSION).jar
 NETTY_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 

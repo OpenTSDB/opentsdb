@@ -303,12 +303,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-      <version>@JCL_OVER_SLF4J_VERSION@</version>
-    </dependency>
-
-    <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-core</artifactId>
       <version>@LOGBACK_CORE_VERSION@</version>
@@ -321,6 +315,13 @@
     </dependency>
 
     <!-- test dependencies -->
+
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-core</artifactId>
+      <version>@HAMCREST_VERSION@</version>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.javassist</groupId>
@@ -340,6 +341,13 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
       <version>@MOCKITO_VERSION@</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.objenesis</groupId>
+      <artifactId>objenesis</artifactId>
+      <version>@OBJENESIS_VERSION@</version>
       <scope>test</scope>
     </dependency>
 

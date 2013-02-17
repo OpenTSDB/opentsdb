@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2011-2013  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -20,12 +20,14 @@ THIRD_PARTY =
 
 include third_party/guava/include.mk
 include third_party/gwt/include.mk
+include third_party/hamcrest/include.mk
 include third_party/hbase/include.mk
 include third_party/javassist/include.mk
 include third_party/junit/include.mk
 include third_party/logback/include.mk
 include third_party/mockito/include.mk
 include third_party/netty/include.mk
+include third_party/objenesis/include.mk
 include third_party/powermock/include.mk
 include third_party/slf4j/include.mk
 include third_party/suasync/include.mk

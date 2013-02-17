@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2011-2013  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-MOCKITO_VERSION := 1.9.0
-MOCKITO := third_party/mockito/mockito-$(MOCKITO_VERSION).jar
+MOCKITO_VERSION := 1.9.5
+MOCKITO := third_party/mockito/mockito-core-$(MOCKITO_VERSION).jar
 MOCKITO_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 
 $(MOCKITO): $(MOCKITO).md5

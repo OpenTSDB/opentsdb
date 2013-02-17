@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2011-2013  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -13,9 +13,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-JAVASSIST_VERSION := 3.15.0-GA
+JAVASSIST_VERSION := 3.17.1-GA
 JAVASSIST := third_party/javassist/javassist-$(JAVASSIST_VERSION).jar
-JAVASSIST_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+JAVASSIST_BASE_URL := http://search.maven.org/remotecontent?filepath=org/javassist/javassist/$(JAVASSIST_VERSION)
 
 $(JAVASSIST): $(JAVASSIST).md5
 	set dummy "$(JAVASSIST_BASE_URL)" "$(JAVASSIST)"; shift; $(FETCH_DEPENDENCY)

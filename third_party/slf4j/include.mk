@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2011-2013  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -13,14 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-SLF4J_VERSION = 1.6.4
-
-JCL_OVER_SLF4J_VERSION := $(SLF4J_VERSION)
-JCL_OVER_SLF4J := third_party/slf4j/jcl-over-slf4j-$(JCL_OVER_SLF4J_VERSION).jar
-JCL_OVER_SLF4J_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
-
-$(JCL_OVER_SLF4J): $(JCL_OVER_SLF4J).md5
-	set dummy "$(JCL_OVER_SLF4J_BASE_URL)" "$(JCL_OVER_SLF4J)"; shift; $(FETCH_DEPENDENCY)
+SLF4J_VERSION = 1.7.2
 
 
 LOG4J_OVER_SLF4J_VERSION := $(SLF4J_VERSION)
@@ -38,4 +31,4 @@ SLF4J_API_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 $(SLF4J_API): $(SLF4J_API).md5
 	set dummy "$(SLF4J_API_BASE_URL)" "$(SLF4J_API)"; shift; $(FETCH_DEPENDENCY)
 
-THIRD_PARTY += $(JCL_OVER_SLF4J) $(LOG4J_OVER_SLF4J) $(SLF4J_API)
+THIRD_PARTY += $(LOG4J_OVER_SLF4J) $(SLF4J_API)
