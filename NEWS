@@ -22,6 +22,7 @@ Noteworthy changes:
   - Allow tuning the number of worker threads or using OIO.
   - Fix auto-completion bug causing partial results to show in the web UI.
   - Various internal bug fixes.
+  - Update all dependencies.
 
 
 * Version 1.0.0 (2011-12-23) [66a6b42]
