@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-GWT_VERSION := 2.4.0
+GWT_VERSION := 2.5.0
 
 GWT_DEV_VERSION := $(GWT_VERSION)
 GWT_DEV := third_party/gwt/gwt-dev-$(GWT_DEV_VERSION).jar
