@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-ASYNCHBASE_VERSION := 1.4.0
+ASYNCHBASE_VERSION := 1.4.1
 ASYNCHBASE := third_party/hbase/asynchbase-$(ASYNCHBASE_VERSION).jar
 ASYNCHBASE_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 
