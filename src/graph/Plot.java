@@ -263,7 +263,7 @@ public final class Plot {
       gp.append("\n"
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
-                + "set xtic rotate\n"
+                + "set xtic rotate right\n"
                 + "set output \"").append(basepath + ".png").append("\"\n"
                 + "set xrange [\"")
         .append(String.valueOf((start_time & UNSIGNED) + utc_offset))
