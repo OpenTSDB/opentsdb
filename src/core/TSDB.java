@@ -57,7 +57,8 @@ public final class TSDB {
   static final boolean enable_compactions;
   static {
     final String compactions = System.getProperty("tsd.feature.compactions");
-    enable_compactions = compactions != null && !"false".equals(compactions);
+    // If not set, or set to anything but "false", defaults to true.
+    enable_compactions = !"false".equals(compactions);
   }
 
   /** Client for the HBase cluster to use.  */

@@ -23,6 +23,7 @@ Noteworthy changes:
   - Fix auto-completion bug causing partial results to show in the web UI.
   - Various internal bug fixes.
   - Update all dependencies.
+  - TSDB data compaction is now enabled by default.
 
 
 * Version 1.0.0 (2011-12-23) [66a6b42]
