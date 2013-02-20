@@ -131,6 +131,7 @@ EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
         $(httpui_SRC) $(httpui_DEPS) \
 	tools/check_tsd	\
 	tools/clean_cache.sh	\
+	tools/tsddrain.py	\
 	opentsdb.spec	\
         bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
 
