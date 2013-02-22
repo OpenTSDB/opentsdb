@@ -236,10 +236,12 @@ public final class Plot {
     final PrintWriter gp = new PrintWriter(script_path);
     try {
       // XXX don't hardcode all those settings.  At least not like that.
-      gp.append("set term png small size ")
+      // set terminal pngcairo size 600,400 font "GillSans.ttc,8" rounded dashed
+      //
+      gp.append("set term pngcairo size ")
         // Why the fuck didn't they also add methods for numbers?
         .append(Short.toString(width)).append(",")
-        .append(Short.toString(height));
+	.append(Short.toString(height)).append(" font 'DejaVuSansMono.ttf,8'");
       final String smooth = params.remove("smooth");
       final String fgcolor = params.remove("fgcolor");
       String bgcolor = params.remove("bgcolor");
@@ -260,10 +262,68 @@ public final class Plot {
         gp.append(' ').append(fgcolor);
       }
 
+
+      gp.append("# Line style for axes\n"
+		      + "set style line 80 lt 1\n"
+		      + "set style line 80 lt rgb 'black'\n"
+		      + "# Line style for major grid\n"
+		      + "set style line 81 lt 1\n"
+		      + "set style line 81 lt rgb '#F5CACA' lw 0.5  # light pink\n"
+		      + "# Line style for minor grid\n"
+		      + "set style line 82 lt 1  # solid\n"
+		      + "set style line 82 lt rgb '#E8E8E8' lw 0.5  # grey\n"
+		      + "set border 3 front linestyle 80 # Remove border on top and right.\n"
+		      + "set style line 1 lt 1\n"
+		      + "set style line 2 lt 1\n"
+		      + "set style line 3 lt 1\n"
+		      + "set style line 4 lt 1\n"
+		      + "set style line 1 lt rgb '#A00000' lw 2 pt 7\n"
+		      + "set style line 2 lt rgb '#00A000' lw 2 pt 9\n"
+		      + "set style line 3 lt rgb '#5060D0' lw 2 pt 5\n"
+		      + "set style line 4 lt rgb '#F25900' lw 2 pt 13\n"
+		      );
+
+
+gp.append( ""
+
++ "set linetype 1 lc rgb '#6c71c4' lw 1 pt 8\n"
++ "set linetype 2 lc rgb '#d33682' lw 1 pt 5 pi -1\n"
++ "set linetype 3 lc rgb '#dc322f' lw 1 pt 6 pi -1\n"
++ "set linetype 4 lc rgb '#b58900' lw 1 pt 2\n"
++ "set linetype 5 lc rgb '#cb4b16' lw 1 pt 7\n"
++ "set linetype 6 lc rgb '#268bd2' lw 1 pt 3\n"
++ "set linetype 7 lc rgb '#2aa198' lw 1 pt 11\n"
++ "set linetype 8 lc rgb '#859900' lw 1\n"
++ "set linetype 9 lc rgb '#073642' lw 1\n"
++ "set linetype 10 lc rgb '#6c71c4' lw 1 pt 4\n"
++ "set linetype cycle 10\n"
+);
+
+    long timespan = (end_time & UNSIGNED) - (start_time & UNSIGNED);
+    long num_x_labels = width / 100;
+    long xtics_interval = timespan / num_x_labels;
+    gp.append(
+		      //"set xtics nomirror\n"
+		      "set xtics nomirror " + xtics_interval + "\n"
+		      //"set xtics nomirror 86400\n"
+		      + "set ytics nomirror\n"
+		      );
+
+      String formatted_start_date = new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new java.util.Date ((start_time & UNSIGNED)* 1000));
+      String formatted_end_date = new java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss").format(new java.util.Date ((end_time & UNSIGNED)* 1000));
+
+      gp.append("\n"
+		+ "set xlabel 'From "
+		+ formatted_start_date
+		+ " to "
+		+ formatted_end_date
+		+ "' "
+		+ "font 'DejaVuSansMono.ttf,9'\n"
+		);
+
       gp.append("\n"
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
-                + "set xtic rotate\n"
                 + "set output \"").append(basepath + ".png").append("\"\n"
                 + "set xrange [\"")
         .append(String.valueOf((start_time & UNSIGNED) + utc_offset))
@@ -275,10 +335,12 @@ public final class Plot {
       }
       final int nseries = datapoints.size();
       if (nseries > 0) {
-        gp.write("set grid\n"
-                 + "set style data linespoints\n");
+	gp.write(
+		"# Grid\n"
+		+ "set grid xtics mxtics mytics ytics front linestyle 82\n"
+		+ "set style data linespoints\n");
         if (!params.containsKey("key")) {
-          gp.write("set key right box\n");
+		gp.write("set key below left maxcols 1 reverse Left samplen 1\n");
         }
       } else {
         gp.write("unset key\n");
@@ -286,6 +348,7 @@ public final class Plot {
           gp.write("set label \"No data\" at graph 0.5,0.9 center\n");
         }
       }
+
 
       if (params != null) {
         for (final Map.Entry<String, String> entry : params.entrySet()) {
@@ -344,7 +407,7 @@ public final class Plot {
     if (timespan < 2100) {  // 35m
       return "%H:%M:%S";
     } else if (timespan < 86400) {  // 1d
-      return "%H:%M";
+      return "%a %H:%M";
     } else if (timespan < 604800) {  // 1w
       return "%a %H:%M";
     } else if (timespan < 1209600) {  // 2w
