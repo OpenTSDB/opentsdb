@@ -73,6 +73,9 @@ final class SpanGroup implements DataPoints {
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
 
+  /** If true, disable Interpolation */
+  private boolean noInterpolation;
+
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
 
@@ -105,6 +108,7 @@ final class SpanGroup implements DataPoints {
             final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate,
+            final boolean noInterpolation,
             final Aggregator aggregator,
             final int interval, final Aggregator downsampler) {
     this.start_time = start_time;
@@ -115,6 +119,7 @@ final class SpanGroup implements DataPoints {
       }
     }
     this.rate = rate;
+    this.noInterpolation  = noInterpolation;
     this.aggregator = aggregator;
     this.downsampler = downsampler;
     this.sample_interval = interval;
@@ -718,7 +723,16 @@ final class SpanGroup implements DataPoints {
         if (x == x1) {
           return y1;
         }
-        final long r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+
+        //final long r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+        final long r;
+        if (SpanGroup.this.noInterpolation){
+          r = 0;
+        }
+        else{
+          r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+        }
+
         //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
         //          + " -> " + y1 + " @ " + x1 + " => " + r);
         if ((x1 & 0xFFFFFFFF00000000L) != 0) {
@@ -772,7 +786,15 @@ final class SpanGroup implements DataPoints {
           //LOG.debug("No lerp needed x == x1 (" + x + " == "+x1+") => " + y1);
           return y1;
         }
-        final double r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+        //final double r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+        final double r;
+        if (SpanGroup.this.noInterpolation){
+          r = 0.0;
+        }
+        else{
+          r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+        }
+
         //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
         //          + " -> " + y1 + " @ " + x1 + " => " + r);
         if ((x1 & 0xFFFFFFFF00000000L) != 0) {
@@ -807,6 +829,7 @@ final class SpanGroup implements DataPoints {
       + ", tags=" + tags
       + ", aggregated_tags=" + aggregated_tags
       + ", rate=" + rate
+      + ", nointerpolation=" + noInterpolation
       + ", aggregator=" + aggregator
       + ", downsampler=" + downsampler
       + ", sample_interval=" + sample_interval

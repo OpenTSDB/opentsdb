@@ -12,11 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.Map;
-
+import net.opentsdb.uid.NoSuchUniqueName;
 import org.hbase.async.HBaseException;
 
-import net.opentsdb.uid.NoSuchUniqueName;
+import java.util.Map;
 
 /**
  * A query to retreive data from the TSDB.
@@ -78,6 +77,23 @@ public interface Query {
                      Aggregator function, boolean rate) throws NoSuchUniqueName;
 
   /**
+   * Sets the time series to the query.
+   * @param metric The metric to retreive from the TSDB.
+   * @param tags The set of tags of interest.
+   * @param function The aggregation function to use.
+   * @param rate If true, the rate of the series will be
+   * used instead of the
+   * actual values.
+   * @param noInterpolation If true, do not computer
+   * interpolation
+   * @throws NoSuchUniqueName if the name of a
+   * metric, or a tag name/value
+   * does not exist.
+   */
+  void setTimeSeries(String metric, Map<String, String> tags,
+      Aggregator function, boolean rate, boolean noInterpolation) throws NoSuchUniqueName;
+
+  /**
    * Downsamples the results by specifying a fixed interval between points.
    * <p>
    * Technically, downsampling means reducing the sampling interval.  Here
@@ -103,5 +119,11 @@ public interface Query {
    * perform the search.
    */
   DataPoints[] run() throws HBaseException;
+
+  /**
+   * Determine if padding should be applied.  This is disabled (false) by default and should be set
+   * to true for graphing functions which may require additional data to plot correctly.
+   */
+  void setPadding(boolean padding);
 
 }

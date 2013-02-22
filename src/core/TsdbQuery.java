@@ -12,27 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.TreeMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import net.opentsdb.stats.Histogram;
+import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.NoSuchUniqueName;
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
-import static org.hbase.async.Bytes.ByteMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
+import java.nio.charset.Charset;
+import java.util.*;
+
+import static org.hbase.async.Bytes.ByteMap;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -99,6 +92,9 @@ final class TsdbQuery implements Query {
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
 
+  /** if true, do not compute Interpolation */
+  private boolean noInterpolation;
+
   /** Aggregator function to use. */
   private Aggregator aggregator;
 
@@ -110,6 +106,9 @@ final class TsdbQuery implements Query {
 
   /** Minimum time interval (in seconds) wanted between each data point. */
   private int sample_interval;
+
+  /** Set to true to pull extra data before start_time and after end_time */
+  private boolean padding = false;
 
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
@@ -152,6 +151,10 @@ final class TsdbQuery implements Query {
     return end_time;
   }
 
+  public void setPadding(final boolean padding) {
+    this.padding = padding;
+  }
+
   public void setTimeSeries(final String metric,
                             final Map<String, String> tags,
                             final Aggregator function,
@@ -161,6 +164,18 @@ final class TsdbQuery implements Query {
     this.tags = Tags.resolveAll(tsdb, tags);
     aggregator = function;
     this.rate = rate;
+    this.noInterpolation = false;
+  }
+
+  public void setTimeSeries(final String metric,
+      final Map<String, String> tags,
+      final Aggregator function,
+      final boolean rate, boolean noInterpolation) throws NoSuchUniqueName {
+
+    setTimeSeries(metric, tags, function, rate);
+
+    //by default enable Interpolation (default behavior)
+    this.noInterpolation = noInterpolation;
   }
 
   public void downsample(final int interval, final Aggregator downsampler) {
@@ -299,10 +314,11 @@ final class TsdbQuery implements Query {
       // We haven't been asked to find groups, so let's put all the spans
       // together in the same group.
       final SpanGroup group = new SpanGroup(tsdb,
-                                            getScanStartTime(),
-                                            getScanEndTime(),
+                                            (padding ? getScanStartTime() : start_time),
+                                            (padding ? getScanEndTime() : end_time),
                                             spans.values(),
                                             rate,
+                                            this.noInterpolation,
                                             aggregator,
                                             sample_interval, downsampler);
       return new SpanGroup[] { group };
@@ -345,9 +361,15 @@ final class TsdbQuery implements Query {
       //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
       SpanGroup thegroup = groups.get(group);
       if (thegroup == null) {
-        thegroup = new SpanGroup(tsdb, getScanStartTime(), getScanEndTime(),
-                                 null, rate, aggregator,
-                                 sample_interval, downsampler);
+        thegroup = new SpanGroup(tsdb,
+                                (padding ? getScanStartTime() : start_time),
+                                (padding ? getScanEndTime() : end_time),
+                                null,
+                                rate,
+                                noInterpolation,
+                                aggregator,
+                                sample_interval,
+                                downsampler);
         // Copy the array because we're going to keep `group' and overwrite
         // its contents.  So we want the collection to have an immutable copy.
         final byte[] group_copy = new byte[group.length];
@@ -384,6 +406,7 @@ final class TsdbQuery implements Query {
     System.arraycopy(metric, 0, end_row, 0, metric_width);
 
     final Scanner scanner = tsdb.client.newScanner(tsdb.table);
+	scanner.setMaxNumRows(1024 * 10);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     if (tags.size() > 0 || group_bys != null) {
@@ -552,8 +575,10 @@ final class TsdbQuery implements Query {
       buf.append("), tags=<").append(e.getMessage()).append('>');
     }
     buf.append(", rate=").append(rate)
-       .append(", aggregator=").append(aggregator)
-       .append(", group_bys=(");
+      .append(", nointerpolation=").append(noInterpolation)
+      .append(", aggregator=").append(aggregator)
+      .append(", group_bys=(");
+
     if (group_bys != null) {
       for (final byte[] tag_id : group_bys) {
         try {
@@ -584,7 +609,10 @@ final class TsdbQuery implements Query {
         buf.append(", ");
       }
     }
-    buf.append("))");
+    buf.append(")");
+    buf.append(" padding=").append(this.padding);
+    buf.append(")");
+
     return buf.toString();
   }
 
