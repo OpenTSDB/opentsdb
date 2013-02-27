@@ -13,6 +13,7 @@
 package net.opentsdb.tools;
 
 import java.io.File;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
@@ -91,6 +92,7 @@ final class TSDMain {
     final ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     argp.addOption("--port", "NUM", "TCP port to listen on.");
+    argp.addOption("--bind", "ADDR", "Address to bind to (default: 0.0.0.0).");
     argp.addOption("--staticroot", "PATH",
                    "Web root from which to serve static files (/s URLs).");
     argp.addOption("--cachedir", "PATH",
@@ -154,8 +156,14 @@ final class TSDMain {
       server.setOption("child.keepAlive", true);
       server.setOption("reuseAddress", true);
 
+      // null is interpreted as the wildcard address.
+      InetAddress bindAddress = null;
+      if (argp.has("--bind")) {
+        bindAddress = InetAddress.getByName(argp.get("--bind"));
+      }
+
       final InetSocketAddress addr =
-        new InetSocketAddress(Integer.parseInt(argp.get("--port")));
+        new InetSocketAddress(bindAddress, Integer.parseInt(argp.get("--port")));
       server.bind(addr);
       log.info("Ready to serve on " + addr);
     } catch (Throwable e) {
