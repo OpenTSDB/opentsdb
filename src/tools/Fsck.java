@@ -32,7 +32,6 @@ import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.UniqueId;
 
 /**
  * Tool to look for and fix corrupted data in a TSDB.
