@@ -2,12 +2,22 @@ The OpenTSDB Authors
 --------------------
 
 OpenTSDB was originally written by Benoit Sigoure.
-The following organizations and people have contributed code to OpenTSDB.
+
+The following organizations and people have made significant code
+contributions to OpenTSDB.  Note that all contributors are required
+to sign a standard Contribution License Agreement to ensure that the
+code remains free & open-source.
 (Please keep both lists sorted alphabetically.)
 
 
+Arista Networks, Inc.
+Betfair Group plc
+Box, Inc.
+Bump Technologies, Inc.
 StumbleUpon, Inc.
 
 
-Benoit Sigoure <tsuna@stumbleupon.com>
+Benoit Sigoure <tsunanet@gmail.com>
+Geoffrey Anderson <geoff@geoffreyanderson.net>
+Ion Savin <comp_@gmx.net>
 Will Moss <wmoss@bu.mp>
