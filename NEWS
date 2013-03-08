@@ -1,6 +1,6 @@
 OpenTSDB - User visible changes.
 
-* Version 1.1.0 (2013-01-??) [???????]
+* Version 1.1.0 (2013-03-08) [12879d7]
 
 Noteworthy changes:
   - Licensing adjustment: allow LGPLv2.1+ in addition to LGPLv3+.
