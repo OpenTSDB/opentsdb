@@ -35,6 +35,7 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.Config;
 
 final class TextImporter {
 
@@ -48,7 +49,7 @@ final class TextImporter {
     System.exit(retval);
   }
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     CliOptions.addAutoMetricFlag(argp);
@@ -59,17 +60,17 @@ final class TextImporter {
       usage(argp, 2);
     }
 
-    final HBaseClient client = CliOptions.clientFromOptions(argp);
-    // Flush more frequently since we read very fast from the files.
-    client.setFlushInterval((short) 500);  // ms
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
-                               argp.get("--uidtable", "tsdb-uid"));
+    // get a config object
+    Config config = CliOptions.getConfig(argp);
+    
+    final TSDB tsdb = new TSDB(config);
+    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     try {
       int points = 0;
       final long start_time = System.nanoTime();
       for (final String path : args) {
-        points += importFile(client, tsdb, path);
+        points += importFile(tsdb.getClient(), tsdb, path);
       }
       final double time_delta = (System.nanoTime() - start_time) / 1000000000.0;
       LOG.info(String.format("Total: imported %d data points in %.3fs"

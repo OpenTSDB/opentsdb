@@ -1,5 +1,12 @@
 OpenTSDB - User visible changes.
 
+* Version 2.0.0 (2013-07-?)
+
+Noteworthy changes:
+  - Configuration can be provided in a properties file
+  - New Jackson JSON helper class
+  - GnuPlot batch file for Windows compatability
+
 * Version 1.1.0 (2013-03-08) [12879d7]
 
 Noteworthy changes:
