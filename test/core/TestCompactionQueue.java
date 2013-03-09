@@ -20,6 +20,7 @@ import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.Config;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -62,7 +63,7 @@ final class TestCompactionQueue {
     // Inject the attributes we need into the "tsdb" object.
     Whitebox.setInternalState(tsdb, "metrics", mock(UniqueId.class));
     Whitebox.setInternalState(tsdb, "table", TABLE);
-    Whitebox.setInternalState(TSDB.class, "enable_compactions", true);
+    Whitebox.setInternalState(Config.class, "ENABLE_COMPACTIONS", true);
     // Stub out the compaction thread, so it doesn't even start.
     PowerMockito.whenNew(CompactionQueue.Thrd.class).withNoArguments()
       .thenReturn(mock(CompactionQueue.Thrd.class));

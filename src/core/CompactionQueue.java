@@ -32,6 +32,7 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PleaseThrottleException;
 
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.Config;
 
 /**
  * "Queue" of rows to compact.
@@ -79,7 +80,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     super(new Cmp(tsdb));
     this.tsdb = tsdb;
     metric_width = tsdb.metrics.width();
-    if (TSDB.enable_compactions) {
+    if (tsdb.config.ENABLE_COMPACTIONS) {
       startCompactionThread();
     }
   }
@@ -118,7 +119,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   void collectStats(final StatsCollector collector) {
     collector.record("compaction.count", trivial_compactions, "type=trivial");
     collector.record("compaction.count", complex_compactions, "type=complex");
-    if (!TSDB.enable_compactions) {
+    if (!tsdb.config.ENABLE_COMPACTIONS) {
       return;
     }
     // The remaining stats only make sense with compactions enabled.
@@ -412,7 +413,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         return null;              // ... Don't write back compacted.
       }
     }
-    if (!TSDB.enable_compactions) {
+    if (!tsdb.config.ENABLE_COMPACTIONS) {
       return null;
     }
 

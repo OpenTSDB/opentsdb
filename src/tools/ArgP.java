@@ -248,6 +248,11 @@ public final class ArgP {
     }
   }
 
+  /** Returns a the parsed options and values */
+  public HashMap<String, String> getParsed(){
+    return this.parsed;
+  }
+  
   /**
    * Returns a usage string.
    */

@@ -34,6 +34,7 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.Config;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
@@ -44,7 +45,8 @@ import net.opentsdb.stats.StatsCollector;
  * points or query the database.
  */
 public final class TSDB {
-
+  private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
+  
   static final byte[] FAMILY = { 't' };
 
   private static final String METRICS_QUAL = "metrics";
@@ -53,13 +55,6 @@ public final class TSDB {
   private static final short TAG_NAME_WIDTH = 3;
   private static final String TAG_VALUE_QUAL = "tagv";
   private static final short TAG_VALUE_WIDTH = 3;
-
-  static final boolean enable_compactions;
-  static {
-    final String compactions = System.getProperty("tsd.feature.compactions");
-    // If not set, or set to anything but "false", defaults to true.
-    enable_compactions = !"false".equals(compactions);
-  }
 
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
@@ -74,6 +69,9 @@ public final class TSDB {
   /** Unique IDs for the tag values. */
   final UniqueId tag_values;
 
+  /** Configuration object for all TSDB components */
+  final Config config;
+
   /**
    * Row keys that need to be compacted.
    * Whenever we write a new data point to a row, we add the row key to this
@@ -83,27 +81,60 @@ public final class TSDB {
   private final CompactionQueue compactionq;
 
   /**
-   * Constructor.
-   * @param client The HBase client to use.
-   * @param timeseries_table The name of the HBase table where time series
-   * data is stored.
-   * @param uniqueids_table The name of the HBase table where the unique IDs
-   * are stored.
+   * Constructor
+   * @param config An initialized configuration object
+   * @since 2.0
    */
-  public TSDB(final HBaseClient client,
-              final String timeseries_table,
-              final String uniqueids_table) {
-    this.client = client;
-    table = timeseries_table.getBytes();
+  public TSDB(final Config config) {
+    this.config = config;
+    this.client = new HBaseClient(
+        config.getString("tsd.storage.hbase.zk_quorum"),
+        config.getString("tsd.storage.hbase.zk_basedir"));
+    this.client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
+    table = config.getString("tsd.storage.hbase.data_table").getBytes();
+    
+    final byte[] uidtable = config.getString("tsd.storage.hbase.uid_table")
+        .getBytes();
 
-    final byte[] uidtable = uniqueids_table.getBytes();
     metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
-    tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL,
-                              TAG_VALUE_WIDTH);
+    tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
+
+    LOG.debug(config.dumpConfiguration());
+  }
+  
+  /** 
+   * Returns the configured HBase client 
+   * @return The HBase client
+   * @since 2.0 
+   */
+  public final HBaseClient getClient(){
+    return this.client;
+  }
+  
+  /** 
+   * Getter that returns the configuration object
+   * @return The configuration object
+   * @since 2.0 
+   */
+  public final Config getConfig() {
+    return this.config;
   }
 
+  /**
+   * Verifies that the data and UID tables exist in HBase
+   * @return An ArrayList of objects to wait for
+   * @throws TableNotFoundException
+   * @since 2.0
+   */
+  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
+    return Deferred.group(client.ensureTableExists(
+        config.getString("tsd.storage.hbase.data_table")),
+        client.ensureTableExists(
+            config.getString("tsd.storage.hbase.uid_table")));
+  }
+  
   /** Number of cache hits during lookups involving UIDs. */
   public int uidCacheHits() {
     return (metrics.cacheHits() + tag_names.cacheHits()
@@ -364,7 +395,7 @@ public final class TSDB {
       }
     }
     // First flush the compaction queue, then shutdown the HBase client.
-    return enable_compactions
+    return config.ENABLE_COMPACTIONS
       ? compactionq.flush().addCallbacks(new HClientShutdown(),
                                          new ShutdownErrback())
       : client.shutdown();
@@ -421,7 +452,7 @@ public final class TSDB {
    * @param base_time The 32-bit unsigned UNIX timestamp.
    */
   final void scheduleForCompaction(final byte[] row, final int base_time) {
-    if (enable_compactions) {
+    if (config.ENABLE_COMPACTIONS) {
       compactionq.add(row);
     }
   }

@@ -24,15 +24,12 @@ import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 
 import net.opentsdb.stats.Histogram;
+import net.opentsdb.utils.Config;
 
 /**
  * Receives new data points and stores them in HBase.
  */
 final class IncomingDataPoints implements WritableDataPoints {
-
-  /** For auto create metrics mode, set by --auto-metric flag in TSDMain.  */
-  private static final boolean AUTO_METRIC =
-    System.getProperty("tsd.core.auto_create_metrics") != null;
 
   /** For how long to buffer edits when doing batch imports (in ms).  */
   private static final short DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL = 5000;
@@ -121,8 +118,9 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     short pos = 0;
 
-    copyInRowKey(row, pos, (AUTO_METRIC ? tsdb.metrics.getOrCreateId(metric)
-                       : tsdb.metrics.getId(metric)));
+    copyInRowKey(row, pos, (tsdb.config.AUTO_METRIC ? 
+        tsdb.metrics.getOrCreateId(metric)
+        : tsdb.metrics.getId(metric)));
     pos += metric_width;
 
     pos += Const.TIMESTAMP_BYTES;

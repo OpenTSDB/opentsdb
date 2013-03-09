@@ -30,9 +30,11 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.Config;
 
 /**
  * Command line tool to manipulate UIDs.
@@ -108,7 +110,7 @@ final class UidManager {
     }
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     CliOptions.addVerbose(argp);
@@ -134,14 +136,19 @@ final class UidManager {
       System.exit(3);
     }
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
-    final HBaseClient client = CliOptions.clientFromOptions(argp);
+    // get a config object
+    Config config = CliOptions.getConfig(argp);
+    
+    final TSDB tsdb = new TSDB(config);
+    tsdb.getClient().ensureTableExists(
+        config.getString("tsd.storage.hbase.uid_table")).joinUninterruptibly();
     argp = null;
     int rc;
     try {
-      rc = runCommand(client, table, idwidth, ignorecase, args);
+      rc = runCommand(tsdb.getClient(), table, idwidth, ignorecase, args);
     } finally {
       try {
-        client.shutdown().joinUninterruptibly();
+        tsdb.getClient().shutdown().joinUninterruptibly();
       } catch (Exception e) {
         LOG.error("Unexpected exception while shutting down", e);
         rc = 42;
