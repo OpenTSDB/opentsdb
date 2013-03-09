@@ -20,23 +20,17 @@ import net.opentsdb.core.TSDB;
 final class StaticFileRpc implements HttpRpc {
 
   /**
-   * The path to the directory where to find static files
-   * (for the {@code /s} URLs).
-   */
-  private final String staticroot;
-
-  /**
    * Constructor.
    */
   public StaticFileRpc() {
-    staticroot = RpcHandler.getDirectoryFromSystemProp("tsd.http.staticroot");
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query)
     throws IOException {
     final String uri = query.request().getUri();
     if ("/favicon.ico".equals(uri)) {
-      query.sendFile(staticroot + "/favicon.ico", 31536000 /*=1yr*/);
+      query.sendFile(tsdb.getConfig().getString("tsd.http.staticroot") 
+          + "/favicon.ico", 31536000 /*=1yr*/);
       return;
     }
     if (uri.length() < 3) {  // Must be at least 3 because of the "/s/".
@@ -49,7 +43,8 @@ final class StaticFileRpc implements HttpRpc {
     }
     final int questionmark = uri.indexOf('?', 3);
     final int pathend = questionmark > 0 ? questionmark : uri.length();
-    query.sendFile(staticroot + uri.substring(3, pathend),
+    query.sendFile(tsdb.getConfig().getString("tsd.http.staticroot") 
+                 + uri.substring(3, pathend),
                    uri.contains("nocache") ? 0 : 31536000 /*=1yr*/);
   }
 }

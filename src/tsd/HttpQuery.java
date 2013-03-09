@@ -43,6 +43,7 @@ import org.jboss.netty.handler.codec.http.QueryStringDecoder;
 import org.jboss.netty.util.CharsetUtil;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
@@ -80,12 +81,16 @@ final class HttpQuery {
   /** Deferred result of this query, to allow asynchronous processing.  */
   private final Deferred<Object> deferred = new Deferred<Object>();
 
+  /** The {@code TSDB} instance we belong to */
+  private final TSDB tsdb; 
+  
   /**
    * Constructor.
    * @param request The request in this HTTP query.
    * @param chan The channel on which the request was received.
    */
-  public HttpQuery(final HttpRequest request, final Channel chan) {
+  public HttpQuery(final TSDB tsdb, final HttpRequest request, final Channel chan) {
+    this.tsdb = tsdb;
     this.request = request;
     this.chan = chan;
   }
@@ -445,7 +450,7 @@ final class HttpQuery {
       plot.setParams(params);
       params = null;
       final String basepath =
-        RpcHandler.getDirectoryFromSystemProp("tsd.http.cachedir")
+        tsdb.getConfig().getString("tsd.http.cachedir") 
         + Integer.toHexString(msg.hashCode());
       GraphHandler.runGnuplot(this, basepath, plot);
       plot = null;

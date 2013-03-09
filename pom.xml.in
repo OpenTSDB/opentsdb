@@ -136,6 +136,8 @@
               <target>
                 <copy file="${basedir}/src/mygnuplot.sh" todir="${basedir}/target/classes"/>
                 <chmod file="${basedir}/target/classes/mygnuplot.sh" perm="ugo+rx"/>
+                <copy file="${basedir}/src/mygnuplot.bat" todir="${basedir}/target/classes"/>
+                <chmod file="${basedir}/target/classes/mygnuplot.bat" perm="ugo+rx"/>
               </target>
             </configuration>
             <goals>
@@ -244,6 +246,18 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>@GUAVA_VERSION@</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.codehaus.jackson</groupId>
+      <artifactId>jackson-core-lgpl</artifactId>
+      <version>@JACKSON_VERSION@</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.codehaus.jackson</groupId>
+      <artifactId>jackson-mapper-lgpl</artifactId>
+      <version>@JACKSON_VERSION@</version>
     </dependency>
 
     <dependency>
