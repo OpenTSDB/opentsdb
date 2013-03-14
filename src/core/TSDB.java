@@ -101,6 +101,7 @@ public final class TSDB {
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL,
                               TAG_VALUE_WIDTH);
+
     compactionq = new CompactionQueue(this);
   }
 
@@ -191,9 +192,14 @@ public final class TSDB {
    */
   private static void collectUidStats(final UniqueId uid,
                                       final StatsCollector collector) {
-    collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.kind());
-    collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.kind());
-    collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
+    String kind = "kind=" + uid.kind();
+    collector.record("uid.cache-hit", uid.cacheHits(), kind);
+    collector.record("uid.cache-miss", uid.cacheMisses(), kind);
+    collector.record("uid.cache-size", uid.cacheSize(), kind);
+
+    long idsUsed = uid.idsUsed();
+    collector.record("uid.ids-used", idsUsed, kind);
+    collector.record("uid.ids-available", Math.max(0, uid.maxPossibleId() - idsUsed), kind);
   }
 
   /**

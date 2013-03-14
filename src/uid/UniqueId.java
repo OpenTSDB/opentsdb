@@ -129,6 +129,16 @@ public final class UniqueId implements UniqueIdInterface {
     return idWidth;
   }
 
+ /** The number of IDs assigned so far. */
+  public long idsUsed() {
+    return getCurrentMaxId();
+  }
+
+  /** The largest possible ID given the number of bytes the IDs are represented on. */
+  public long maxPossibleId() {
+    return (1 << idWidth * Byte.SIZE) - 1;
+  }
+
   /**
    * Causes this instance to discard all its in-memory caches.
    * @since 1.1
@@ -225,6 +235,24 @@ public final class UniqueId implements UniqueIdInterface {
     }
   }
 
+  private long getCurrentMaxId() {
+    return getCurrentMaxId(null);
+  }
+
+  private long getCurrentMaxId(final RowLock lock) {
+    final byte[] current_maxid = hbaseGet(MAXID_ROW, ID_FAMILY, lock);
+
+    if (current_maxid != null) {
+      if (current_maxid.length == 8) {
+        return Bytes.getLong(current_maxid);
+      } else {
+        throw new IllegalStateException("invalid current_maxid="
+            + Arrays.toString(current_maxid));
+      }
+    }
+    return 0;
+  }
+
   public byte[] getOrCreateId(String name) throws HBaseException {
     short attempt = MAX_ATTEMPTS_ASSIGN_ID;
     HBaseException hbe = null;
@@ -279,17 +307,7 @@ public final class UniqueId implements UniqueIdInterface {
           // To be fixed by HBASE-2292.
           { // HACK HACK HACK
             {
-              final byte[] current_maxid = hbaseGet(MAXID_ROW, ID_FAMILY, lock);
-              if (current_maxid != null) {
-                if (current_maxid.length == 8) {
-                  id = Bytes.getLong(current_maxid) + 1;
-                } else {
-                  throw new IllegalStateException("invalid current_maxid="
-                      + Arrays.toString(current_maxid));
-                }
-              } else {
-                id = 1;
-              }
+              id = getCurrentMaxId(lock) + 1;
               row = Bytes.fromLong(id);
             }
             final PutRequest update_maxid = new PutRequest(
