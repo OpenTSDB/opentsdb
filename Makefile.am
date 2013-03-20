@@ -76,7 +76,8 @@ tsdb_SRC := \
 	src/uid/NoSuchUniqueId.java	\
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/UniqueId.java	\
-	src/uid/UniqueIdInterface.java
+	src/uid/UniqueIdInterface.java \
+	src/utils/DateTime.java
 
 tsdb_DEPS = \
 	$(ASYNCHBASE)	\
@@ -99,7 +100,8 @@ test_SRC := \
 	test/stats/TestHistogram.java	\
 	test/tsd/TestGraphHandler.java	\
 	test/uid/TestNoSuchUniqueId.java	\
-	test/uid/TestUniqueId.java
+	test/uid/TestUniqueId.java \
+	test/utils/TestDateTime.java
 
 test_DEPS = \
 	$(tsdb_DEPS) \
