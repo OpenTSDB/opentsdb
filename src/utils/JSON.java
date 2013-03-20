@@ -68,7 +68,7 @@ public final class JSON {
   /**
    * Jackson de/serializer initialized, configured and shared
    */
-  protected static ObjectMapper jsonMapper = new ObjectMapper();
+  private static final ObjectMapper jsonMapper = new ObjectMapper();
   static {
     // allows parsing NAN and such without throwing an exception. This is
     // important

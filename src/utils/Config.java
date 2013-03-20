@@ -56,10 +56,10 @@ public class Config {
   // NOTE: edit the setDefaults() method if you add a public field
 
   /** tsd.core.auto_create_metrics */
-  public boolean AUTO_METRIC = false;
+  private boolean auto_metric = false;
 
   /** tsd.storage.enable_compaction */
-  public boolean ENABLE_COMPACTIONS = true;
+  private boolean enable_compactions = true;
   
   /**
    * The list of properties configured to their defaults or modified by users
@@ -67,6 +67,10 @@ public class Config {
   protected final HashMap<String, String> properties = 
     new HashMap<String, String>();
 
+  /** Holds default values for the config */
+  protected static final HashMap<String, String> default_map = 
+    new HashMap<String, String>();
+  
   /** Tracks the location of the file that was actually loaded */
   private String config_location;
 
@@ -88,10 +92,9 @@ public class Config {
    * Constructor that initializes default values and attempts to load the given
    * properties file
    * @param file Path to the file to load
-   * @throws FileNotFoundException Thrown if the file wasn't found
    * @throws IOException Thrown if unable to read or parse the file
    */
-  public Config(final String file) throws FileNotFoundException, IOException {
+  public Config(final String file) throws IOException {
     this.loadConfig(file);
     this.setDefaults();
   }
@@ -111,6 +114,16 @@ public class Config {
     this.setDefaults();
   }
 
+  /** @return the auto_metric value */
+  public boolean auto_metric() {
+    return this.auto_metric;
+  }
+  
+  /** @return the enable_compaction value */
+  public boolean enable_compactions() {
+    return this.enable_compactions;
+  }
+  
   /**
    * Allows for modifying properties after loading
    * 
@@ -249,32 +262,31 @@ public class Config {
    * This should be called in the constructor
    */
   protected void setDefaults() {
-    HashMap<String, String> map = new HashMap<String, String>();
     // map.put("tsd.network.port", ""); // does not have a default, required
     // map.put("tsd.http.cachedir", ""); // does not have a default, required
     // map.put("tsd.http.staticroot", ""); // does not have a default, required
-    map.put("tsd.network.bind", "0.0.0.0");
-    map.put("tsd.network.worker_threads", "");
-    map.put("tsd.network.async_io", "true");
-    map.put("tsd.network.tcp_no_delay", "true");
-    map.put("tsd.network.keep_alive", "true");
-    map.put("tsd.network.reuse_address", "true");
-    map.put("tsd.core.auto_create_metrics", "false");
-    map.put("tsd.storage.flush_interval", "1000");
-    map.put("tsd.storage.hbase.data_table", "tsdb");
-    map.put("tsd.storage.hbase.uid_table", "tsdb-uid");
-    map.put("tsd.storage.hbase.zk_quorum", "localhost");
-    map.put("tsd.storage.hbase.zk_basedir", "/hbase");
-    map.put("tsd.storage.enable_compaction", "true");
+    default_map.put("tsd.network.bind", "0.0.0.0");
+    default_map.put("tsd.network.worker_threads", "");
+    default_map.put("tsd.network.async_io", "true");
+    default_map.put("tsd.network.tcp_no_delay", "true");
+    default_map.put("tsd.network.keep_alive", "true");
+    default_map.put("tsd.network.reuse_address", "true");
+    default_map.put("tsd.core.auto_create_metrics", "false");
+    default_map.put("tsd.storage.flush_interval", "1000");
+    default_map.put("tsd.storage.hbase.data_table", "tsdb");
+    default_map.put("tsd.storage.hbase.uid_table", "tsdb-uid");
+    default_map.put("tsd.storage.hbase.zk_quorum", "localhost");
+    default_map.put("tsd.storage.hbase.zk_basedir", "/hbase");
+    default_map.put("tsd.storage.enable_compaction", "true");
 
-    for (Map.Entry<String, String> entry : map.entrySet()) {
+    for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
         properties.put(entry.getKey(), entry.getValue());
     }
 
     // set statics
-    AUTO_METRIC = this.getBoolean("tsd.core.auto_create_metrics");
-    ENABLE_COMPACTIONS = this.getBoolean("tsd.storage.enable_compaction");
+    auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
+    enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
   }
 
   /**
@@ -354,7 +366,14 @@ public class Config {
     this.config_location = file;
   }
 
-  protected void loadHashMap(final Properties props){
+  /**
+   * Calld from {@link #loadConfig} to copy the properties into the hash map
+   * Tsuna points out that the Properties class is much slower than a hash
+   * map so if we'll be looking up config values more than once, a hash map
+   * is the way to go 
+   * @param props The loaded Properties object to copy
+   */
+  private void loadHashMap(final Properties props) {
     this.properties.clear();
     
     @SuppressWarnings("rawtypes")

@@ -48,7 +48,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
 @PrepareForTest({ CompactionQueue.class, CompactionQueue.Thrd.class,
-                  TSDB.class, UniqueId.class })
+                  TSDB.class, UniqueId.class, Config.class })
 final class TestCompactionQueue {
 
   private TSDB tsdb = mock(TSDB.class);
@@ -63,7 +63,8 @@ final class TestCompactionQueue {
     // Inject the attributes we need into the "tsdb" object.
     Whitebox.setInternalState(tsdb, "metrics", mock(UniqueId.class));
     Whitebox.setInternalState(tsdb, "table", TABLE);
-    Whitebox.setInternalState(Config.class, "ENABLE_COMPACTIONS", true);
+    Whitebox.setInternalState(Config.class, "enable_compactions", true);
+    Whitebox.setInternalState(tsdb, "config", mock(Config.class));
     // Stub out the compaction thread, so it doesn't even start.
     PowerMockito.whenNew(CompactionQueue.Thrd.class).withNoArguments()
       .thenReturn(mock(CompactionQueue.Thrd.class));

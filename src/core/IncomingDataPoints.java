@@ -118,7 +118,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     short pos = 0;
 
-    copyInRowKey(row, pos, (tsdb.config.AUTO_METRIC ? 
+    copyInRowKey(row, pos, (tsdb.config.auto_metric() ? 
         tsdb.metrics.getOrCreateId(metric)
         : tsdb.metrics.getId(metric)));
     pos += metric_width;

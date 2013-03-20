@@ -109,7 +109,7 @@ public final class TSDB {
    * @return The HBase client
    * @since 2.0 
    */
-  public final HBaseClient getClient(){
+  public final HBaseClient getClient() {
     return this.client;
   }
   
@@ -395,7 +395,7 @@ public final class TSDB {
       }
     }
     // First flush the compaction queue, then shutdown the HBase client.
-    return config.ENABLE_COMPACTIONS
+    return config.enable_compactions()
       ? compactionq.flush().addCallbacks(new HClientShutdown(),
                                          new ShutdownErrback())
       : client.shutdown();
@@ -452,7 +452,7 @@ public final class TSDB {
    * @param base_time The 32-bit unsigned UNIX timestamp.
    */
   final void scheduleForCompaction(final byte[] row, final int base_time) {
-    if (config.ENABLE_COMPACTIONS) {
+    if (config.enable_compactions()) {
       compactionq.add(row);
     }
   }

@@ -80,7 +80,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     super(new Cmp(tsdb));
     this.tsdb = tsdb;
     metric_width = tsdb.metrics.width();
-    if (tsdb.config.ENABLE_COMPACTIONS) {
+    if (tsdb.config.enable_compactions()) {
       startCompactionThread();
     }
   }
@@ -119,7 +119,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   void collectStats(final StatsCollector collector) {
     collector.record("compaction.count", trivial_compactions, "type=trivial");
     collector.record("compaction.count", complex_compactions, "type=complex");
-    if (!tsdb.config.ENABLE_COMPACTIONS) {
+    if (!tsdb.config.enable_compactions()) {
       return;
     }
     // The remaining stats only make sense with compactions enabled.
@@ -413,7 +413,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         return null;              // ... Don't write back compacted.
       }
     }
-    if (!tsdb.config.ENABLE_COMPACTIONS) {
+    if (!tsdb.config.enable_compactions()) {
       return null;
     }
 
