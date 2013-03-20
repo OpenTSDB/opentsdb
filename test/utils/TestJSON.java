@@ -117,11 +117,13 @@ public final class TestJSON {
     HashSet<String> set = (HashSet<String>) JSON.parseToObject("{\"utf\":\"aériennes\",\"ascii\":\"aariennes\"}".getBytes("UTF-8"), HashMap.class);
   }
   
-//  @Test (expected = JsonParseException.class)
-//  public void parseToObjectByteBadEncoding() throws Exception {
-//    @SuppressWarnings("unchecked")
-//    HashSet<String> set = (HashSet<String>) JSON.parseToObject("{\"utf\":\"aériennes\",\"ascii\":\"aariennes\"}".getBytes(), HashMap.class);
-//  }
+  @Test (expected = JsonParseException.class)
+  public void parseToObjectByteBadEncoding() throws Exception {
+    @SuppressWarnings("unchecked")
+    HashSet<String> set = (HashSet<String>) JSON.parseToObject(
+        "{\"utf\":\"S\u00ED Se\u00F1or\",\"ascii\":\"aariennes\"}".getBytes(), 
+        HashMap.class);
+  }
   
   @Test (expected = JsonMappingException.class)
   public void parseToObjectByteBadMap() throws Exception {
@@ -251,14 +253,16 @@ public final class TestJSON {
     HashSet<String> set = (HashSet<String>) JSON.parseToObject("{\"utf\":\"aériennes\",\"ascii\":\"aariennes\"}".getBytes("UTF-8"), tr);
   }
   
-//  @Test (expected = JsonParseException.class)
-//  public void parseToObjectByteBadTypeEncoding() throws Exception {
-//    final TypeReference<HashMap<String, String>> tr = 
-//      new TypeReference<HashMap<String, String>>() {
-//    };
-//    @SuppressWarnings("unchecked")
-//    HashSet<String> set = (HashSet<String>) JSON.parseToObject("{\"utf\":\"aériennes\",\"ascii\":\"aariennes\"}".getBytes(), tr);
-//  }
+  @Test (expected = JsonParseException.class)
+  public void parseToObjectByteBadTypeEncoding() throws Exception {
+    final TypeReference<HashMap<String, String>> tr = 
+      new TypeReference<HashMap<String, String>>() {
+    };
+    @SuppressWarnings("unchecked")
+    HashSet<String> set = (HashSet<String>) JSON.parseToObject(
+        "{\"utf\":\"S\u00ED Se\u00F1or\",\"ascii\":\"aariennes\"}".getBytes(), 
+        tr);
+  }
   
   @Test (expected = JsonMappingException.class)
   public void parseToObjectByteTypeBadMap() throws Exception {
