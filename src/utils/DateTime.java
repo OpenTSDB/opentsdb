@@ -214,7 +214,7 @@ public class DateTime {
   public static void setDefaultTimezone(final String tzname) {
     final TimeZone tz = DateTime.timezones.get(tzname);
     if (tz != null) {
-      TimeZone.setDefault(DateTime.timezones.get(tz));
+      TimeZone.setDefault(tz);
     } else {
       throw new IllegalArgumentException("Invalid timezone name: " + tzname);
     }
