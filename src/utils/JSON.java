@@ -84,16 +84,15 @@ public final class JSON {
    * 
    * @param json The string to deserialize
    * @param pojo The class type of the object used for deserialization
-   * @return An object of the {@link pojo} type, must be cast to the proper
-   *         object
+   * @return An object of the {@link pojo} type
    * @throws JsonParseException Thrown when the incoming JSON is improperly
    *           formatted
    * @throws JsonMappingException Thrown when the incoming JSON cannot map to
    *           the POJO
    * @throws IOException Thrown when there was an issue reading the data
    */
-  public static final Object parseToObject(final String json,
-      final Class<?> pojo) throws JsonParseException, JsonMappingException,
+  public static final <T> T parseToObject(final String json,
+      final Class<T> pojo) throws JsonParseException, JsonMappingException,
       IOException {
     if (json == null || json.isEmpty())
       throw new IllegalArgumentException("Incoming data was null or empty");
@@ -109,16 +108,15 @@ public final class JSON {
    * 
    * @param json The byte array to deserialize
    * @param pojo The class type of the object used for deserialization
-   * @return An object of the {@link pojo} type, must be cast to the proper
-   *         object
+   * @return An object of the {@link pojo} type
    * @throws JsonParseException Thrown when the incoming JSON is improperly
    *           formatted
    * @throws JsonMappingException Thrown when the incoming JSON cannot map to
    *           the POJO
    * @throws IOException Thrown when there was an issue reading the data
    */
-  public static final Object parseToObject(final byte[] json,
-      final Class<?> pojo) throws JsonParseException, JsonMappingException,
+  public static final <T> T parseToObject(final byte[] json,
+      final Class<T> pojo) throws JsonParseException, JsonMappingException,
       IOException {
     if (json == null)
       throw new IllegalArgumentException("Incoming data was null");
@@ -131,16 +129,15 @@ public final class JSON {
    * Deserializes a JSON formatted string to a specific class type
    * @param json The string to deserialize
    * @param type A type definition for a complex object
-   * @return An object of the {@link pojo} type, must be cast to the proper
-   *         object
+   * @return An object of the {@link pojo} type
    * @throws JsonParseException Thrown when the incoming JSON is improperly
    *           formatted
    * @throws JsonMappingException Thrown when the incoming JSON cannot map to
    *           the POJO
    * @throws IOException Thrown when there was an issue reading the data
    */
-  public static final Object parseToObject(final String json,
-      final TypeReference<?> type) throws JsonParseException,
+  public static final <T> T parseToObject(final String json,
+      final TypeReference<T> type) throws JsonParseException,
       JsonMappingException, IOException {
     if (json == null || json.isEmpty())
       throw new IllegalArgumentException("Incoming data was null or empty");
@@ -153,16 +150,15 @@ public final class JSON {
    * Deserializes a JSON formatted byte array to a specific class type
    * @param json The byte array to deserialize
    * @param type A type definition for a complex object
-   * @return An object of the {@link pojo} type, must be cast to the proper
-   *         object
+   * @return An object of the {@link pojo} type
    * @throws JsonParseException Thrown when the incoming JSON is improperly
    *           formatted
    * @throws JsonMappingException Thrown when the incoming JSON cannot map to
    *           the POJO
    * @throws IOException Thrown when there was an issue reading the data
    */
-  public static final Object parseToObject(final byte[] json,
-      final TypeReference<?> type) throws JsonParseException,
+  public static final <T> T parseToObject(final byte[] json,
+      final TypeReference<T> type) throws JsonParseException,
       JsonMappingException, IOException {
     if (json == null)
       throw new IllegalArgumentException("Incoming data was null");
