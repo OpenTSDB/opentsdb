@@ -73,6 +73,7 @@ tsdb_SRC := \
 	src/tsd/StaticFileRpc.java	\
 	src/tsd/TelnetRpc.java	\
 	src/tsd/WordSplitter.java	\
+	src/tsd/JSONWriter.java		\
 	src/uid/NoSuchUniqueId.java	\
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/UniqueId.java	\
@@ -87,7 +88,8 @@ tsdb_DEPS = \
 	$(NETTY)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
-	$(ZOOKEEPER)
+	$(ZOOKEEPER)	\
+	$(GSON)
 
 # Install all the .jar files in pkgdatadir.
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
