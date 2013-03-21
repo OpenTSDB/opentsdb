@@ -21,6 +21,7 @@ package = net.opentsdb
 spec_title = OpenTSDB
 spec_vendor = The OpenTSDB Authors
 jar := tsdb-$(PACKAGE_VERSION).jar
+plugin_test_jar := plugin_test.jar
 builddata_SRC := src/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
@@ -78,7 +79,8 @@ tsdb_SRC := \
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java \
 	src/utils/Config.java \ 
-	src/utils/JSON.java
+	src/utils/JSON.java \
+	src/utils/PluginLoader.java
 
 tsdb_DEPS = \
 	$(ASYNCHBASE)	\
@@ -101,12 +103,25 @@ test_SRC := \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestTags.java	\
+	test/plugin/DummyPlugin.java \
 	test/stats/TestHistogram.java	\
 	test/tsd/TestGraphHandler.java	\
 	test/uid/TestNoSuchUniqueId.java	\
 	test/uid/TestUniqueId.java \
 	test/utils/TestConfig.java \ 
-	test/utils/TestJSON.java
+	test/utils/TestJSON.java \
+	test/utils/TestPluginLoader.java
+	
+test_plugin_SRC := \
+  test/plugin/DummyPluginA.java \
+  test/plugin/DummyPluginB.java
+
+# Do NOT include the test dir path, just the META portion
+test_plugin_SVCS := \
+  META-INF/services/net.opentsdb.plugin.DummyPlugin
+  
+test_plugin_MF := \
+  test/META-INF/MANIFEST.MF
 
 test_DEPS = \
 	$(tsdb_DEPS) \
@@ -134,6 +149,7 @@ dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = src/tsd/static/favicon.ico
 
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
+        $(test_plugin_SRC) $(test_plugin_MF) $(srcdir)/test/$(test_plugin_SVCS)\
         $(THIRD_PARTY) $(THIRD_PARTY:=.md5) \
         $(httpui_SRC) $(httpui_DEPS) \
 	tools/check_tsd	\
@@ -147,6 +163,7 @@ GWTC_ARGS = -ea  # Additional arguments like -style PRETTY or -logLevel DEBUG
 
 package_dir := $(subst .,/,$(package))
 UNITTESTS := $(test_SRC:test/%.java=$(package_dir)/%.class)
+PLUGINTESTS := $(test_plugin_SRC:test/plugin/DummyPlugin%.java=$(package_dir)/plugin/DummyPlugin%.class)
 AM_JAVACFLAGS = -Xlint -source 6
 JVM_ARGS =
 classes := $(tsdb_SRC:src/%.java=$(package_dir)/%.class) \
@@ -291,6 +308,18 @@ uninstall-hook:
 get_runtime_dep_classpath = `for jar in $(test_DEPS); do $(find_jar); done | tr '\n' ':'`
 $(test_SRC): $(test_DEPS)
 	@$(refresh_src)
+	
+$(test_plugin_SRC): $(test_DEPS)
+	@$(refresh_src)
+
+# compile the plugin unittest jar before the unittests
+.javac-unittests-plugin-stamp: $(jar) $(test_plugin_SRC)
+	@$(filter_src); cp=$(get_runtime_dep_classpath); \
+          echo "$(JAVA_COMPILE) -cp $$cp $$src"; \
+                $(JAVA_COMPILE) -cp $$cp $$src
+	@touch "$@"
+	@touch .javac-unittests-plugin-stamp
+
 .javac-unittests-stamp: $(jar) $(test_SRC)
 	@$(filter_src); cp=$(get_runtime_dep_classpath); \
           echo "$(JAVA_COMPILE) -cp $$cp $$src"; \
@@ -300,10 +329,11 @@ $(test_SRC): $(test_DEPS)
 
 classes_with_nested_classes := $(classes:.class=*.class)
 test_classes_with_nested_classes := $(UNITTESTS:.class=*.class)
+test_plugin_classes := $(PLUGINTESTS:.class=*.class)
 
 # Little set script to make a pretty-ish banner.
 BANNER := sed 's/^.*/  &  /;h;s/./=/g;p;x;p;x'
-check-local: .javac-unittests-stamp
+check-local: .javac-unittests-stamp .javac-unittests-plugin-stamp $(plugin_test_jar)
 	classes=`echo $(test_classes_with_nested_classes)` \
         && tests=0 && failures=0 \
         && cp="$(get_runtime_dep_classpath):$(srcdir)/src" && \
@@ -336,6 +366,9 @@ $(jar): manifest .javac-stamp $(classes)
 #                       ^^^^^^^^^^^^^^^^^^^^^^^
 # I've seen cases where `jar' exits with an error but leaves a partially built .jar file!
 
+$(plugin_test_jar): .javac-unittests-plugin-stamp
+	$(JAR) cvfm $(plugin_test_jar) $(srcdir)/$(test_plugin_MF) $(test_plugin_classes) -C $(srcdir)/test $(test_plugin_SVCS)
+
 # Generate the file for those who get a tarball without it.  This happens if
 # you download a tarball off GitHub for instance.
 .git/HEAD:
@@ -357,7 +390,7 @@ dist-hook:
 	echo $(git_version) >$(distdir)/.git/HEAD
 
 mostlyclean-local:
-	@rm -f .javac-stamp .javac-unittests-stamp .gwtc-stamp* .staticroot-stamp
+	@rm -f .javac-stamp .javac-unittests-stamp .javac-unittests-plugin-stamp .gwtc-stamp* .staticroot-stamp
 	rm -rf gwt gwt-unitCache staticroot
 	rm -f manifest $(BUILT_SOURCES)
 	rm -f $(classes_with_nested_classes) $(test_classes_with_nested_classes)
@@ -370,7 +403,7 @@ mostlyclean-local:
 	  && rmdir "$$dir"
 
 clean-local:
-	rm -f $(jar) tsdb $(srcdir)/pom.xml
+	rm -f $(jar) $(plugin_test_jar) tsdb $(srcdir)/pom.xml
 	rm -rf $(JAVADOC_DIR)
 
 distclean-local:
