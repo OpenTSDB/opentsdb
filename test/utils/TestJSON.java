@@ -133,14 +133,6 @@ public final class TestJSON {
       JSON.parseToObject(json, HashMap.class);
   }
 
-  @Test (expected = JsonParseException.class)
-  public void parseToObjectByteBadEncoding() throws Exception {
-    @SuppressWarnings({ "unused", "unchecked" })
-    HashMap<String, String> set = JSON.parseToObject(
-        "{\"utf\":\"S\u00ED Se\u00F1or\",\"ascii\":\"aariennes\"}".getBytes(), 
-        HashMap.class);
-  }
-  
   @Test (expected = JsonMappingException.class)
   public void parseToObjectByteBadMap() throws Exception {
     @SuppressWarnings({ "unused", "unchecked" })
@@ -236,14 +228,6 @@ public final class TestJSON {
       JSON.parseToObject(json, getTRMap());
   }
 
-  @Test (expected = JsonParseException.class)
-  public void parseToObjectByteBadTypeEncoding() throws Exception {
-    @SuppressWarnings("unused")
-    HashMap<String, String> set = JSON.parseToObject(
-        "{\"utf\":\"S\u00ED Se\u00F1or\",\"ascii\":\"aariennes\"}".getBytes(), 
-        getTRMap());
-  }
-  
   @Test (expected = JsonMappingException.class)
   public void parseToObjectByteTypeBadMap() throws Exception {
     @SuppressWarnings("unused")
