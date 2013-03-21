@@ -110,7 +110,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       if (message instanceof String[]) {
         handleTelnetRpc(msgevent.getChannel(), (String[]) message);
       } else if (message instanceof HttpRequest) {
-        handleHttpQuery(msgevent.getChannel(), (HttpRequest) message);
+        handleHttpQuery(tsdb, msgevent.getChannel(), (HttpRequest) message);
       } else {
         logError(msgevent.getChannel(), "Unexpected message type "
                  + message.getClass() + ": " + message);
@@ -146,9 +146,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
    * @param chan The channel on which the query was received.
    * @param req The parsed HTTP request.
    */
-  private void handleHttpQuery(final Channel chan, final HttpRequest req) {
+  private void handleHttpQuery(final TSDB tsdb, final Channel chan, final HttpRequest req) {
     http_rpcs_received.incrementAndGet();
-    final HttpQuery query = new HttpQuery(req, chan);
+    final HttpQuery query = new HttpQuery(tsdb, req, chan);
     if (req.isChunked()) {
       logError(query, "Received an unsupported chunked request: "
                + query.request());
