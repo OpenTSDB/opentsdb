@@ -136,6 +136,7 @@ public final class JSON {
    *           the POJO
    * @throws IOException Thrown when there was an issue reading the data
    */
+  @SuppressWarnings("unchecked")
   public static final <T> T parseToObject(final String json,
       final TypeReference<T> type) throws JsonParseException,
       JsonMappingException, IOException {
@@ -143,7 +144,7 @@ public final class JSON {
       throw new IllegalArgumentException("Incoming data was null or empty");
     if (type == null)
       throw new IllegalArgumentException("Missing type reference");
-    return jsonMapper.readValue(json, type);
+    return (T)jsonMapper.readValue(json, type);
   }
 
   /**
@@ -157,6 +158,7 @@ public final class JSON {
    *           the POJO
    * @throws IOException Thrown when there was an issue reading the data
    */
+  @SuppressWarnings("unchecked")
   public static final <T> T parseToObject(final byte[] json,
       final TypeReference<T> type) throws JsonParseException,
       JsonMappingException, IOException {
@@ -164,7 +166,7 @@ public final class JSON {
       throw new IllegalArgumentException("Incoming data was null");
     if (type == null)
       throw new IllegalArgumentException("Missing type reference");
-    return jsonMapper.readValue(json, type);
+    return (T)jsonMapper.readValue(json, type);
   }
 
   /**
