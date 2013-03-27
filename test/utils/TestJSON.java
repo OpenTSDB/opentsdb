@@ -22,11 +22,11 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.JsonToken;
-import org.codehaus.jackson.map.JsonMappingException;
-import org.codehaus.jackson.type.TypeReference;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import org.junit.Test;
 
 public final class TestJSON {
@@ -191,9 +191,6 @@ public final class TestJSON {
 
   // parseToObject - Byte && Class
   public void parseToObjectByteTypeUTFString() throws Exception {
-    final TypeReference<HashMap<String, String>> tr = 
-      new TypeReference<HashMap<String, String>>() {
-    };
     HashMap<String, String> map = 
       JSON.parseToObject(
           "{\"utf\":\"aériennes\",\"ascii\":\"aariennes\"}".getBytes(), 

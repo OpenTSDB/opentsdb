@@ -15,14 +15,14 @@ package net.opentsdb.utils;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.codehaus.jackson.map.JsonMappingException;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.util.JSONPObject;
-import org.codehaus.jackson.type.TypeReference;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerationException;
-import org.codehaus.jackson.JsonParseException;
-import org.codehaus.jackson.JsonParser;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerationException;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.util.JSONPObject;
 
 /**
  * This class simply provides a static initialization and configuration of the
@@ -136,6 +136,7 @@ public final class JSON {
    *           the POJO
    * @throws IOException Thrown when there was an issue reading the data
    */
+  @SuppressWarnings("unchecked")
   public static final <T> T parseToObject(final String json,
       final TypeReference<T> type) throws JsonParseException,
       JsonMappingException, IOException {
@@ -143,7 +144,7 @@ public final class JSON {
       throw new IllegalArgumentException("Incoming data was null or empty");
     if (type == null)
       throw new IllegalArgumentException("Missing type reference");
-    return jsonMapper.readValue(json, type);
+    return (T)jsonMapper.readValue(json, type);
   }
 
   /**
@@ -157,6 +158,7 @@ public final class JSON {
    *           the POJO
    * @throws IOException Thrown when there was an issue reading the data
    */
+  @SuppressWarnings("unchecked")
   public static final <T> T parseToObject(final byte[] json,
       final TypeReference<T> type) throws JsonParseException,
       JsonMappingException, IOException {
@@ -164,7 +166,7 @@ public final class JSON {
       throw new IllegalArgumentException("Incoming data was null");
     if (type == null)
       throw new IllegalArgumentException("Missing type reference");
-    return jsonMapper.readValue(json, type);
+    return (T)jsonMapper.readValue(json, type);
   }
 
   /**
@@ -184,7 +186,7 @@ public final class JSON {
       throws JsonParseException, IOException {
     if (json == null || json.isEmpty())
       throw new IllegalArgumentException("Incoming data was null or empty");
-    return jsonMapper.getJsonFactory().createJsonParser(json);
+    return jsonMapper.getFactory().createJsonParser(json);
   }
 
   /**
@@ -204,7 +206,7 @@ public final class JSON {
       throws JsonParseException, IOException {
     if (json == null)
       throw new IllegalArgumentException("Incoming data was null");
-    return jsonMapper.getJsonFactory().createJsonParser(json);
+    return jsonMapper.getFactory().createJsonParser(json);
   }
 
   /**
@@ -224,7 +226,7 @@ public final class JSON {
       throws JsonParseException, IOException {
     if (json == null)
       throw new IllegalArgumentException("Incoming data was null");
-    return jsonMapper.getJsonFactory().createJsonParser(json);
+    return jsonMapper.getFactory().createJsonParser(json);
   }
 
   /**
@@ -314,6 +316,6 @@ public final class JSON {
    * @return The JsonFactory object
    */
   public final static JsonFactory getFactory() {
-    return jsonMapper.getJsonFactory();
+    return jsonMapper.getFactory();
   }
 }
