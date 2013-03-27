@@ -13,8 +13,6 @@
 package net.opentsdb.tools;
 
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -30,6 +28,7 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.DateTime;
 
 final class CliQuery {
 
@@ -46,44 +45,14 @@ final class CliQuery {
         + "For example:\n"
         + " 2010/03/11-20:57 sum my.awsum.metric host=blah"
         + " sum some.other.metric host=blah state=foo\n"
-        + "Dates must follow this format: [YYYY/MM/DD-]HH:MM[:SS]\n"
+        + "Dates must follow this format: YYYY/MM/DD-HH:MM[:SS] or Unix Epoch\n"
+        + " or relative time such as 1y-ago, 2d-ago, etc.\n"
         + "Supported values for FUNC: " + Aggregators.set()
         + "\nGnuplot options are of the form: +option=value");
     if (argp != null) {
       System.err.print(argp.usage());
     }
     System.exit(retval);
-  }
-
-  /** Parses the date in argument and returns a UNIX timestamp in seconds. */
-  private static long parseDate(final String s) {
-    SimpleDateFormat format;
-    switch (s.length()) {
-      case 5:
-        format = new SimpleDateFormat("HH:mm");
-        break;
-      case 8:
-        format = new SimpleDateFormat("HH:mm:ss");
-        break;
-      case 10:
-        format = new SimpleDateFormat("yyyy/MM/dd");
-        break;
-      case 16:
-        format = new SimpleDateFormat("yyyy/MM/dd-HH:mm");
-        break;
-      case 19:
-        format = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
-        break;
-      default:
-        usage(null, "Invalid date: " + s, 3);
-        return -1; // Never executed as usage() exits.
-    }
-    try {
-      return format.parse(s).getTime() / 1000;
-    } catch (ParseException e) {
-      usage(null, "Invalid date: " + s, 3);
-      return -1; // Never executed as usage() exits.
-    }
   }
 
   public static void main(String[] args) throws Exception {
@@ -194,12 +163,29 @@ final class CliQuery {
                                     final ArrayList<Query> queries,
                                     final ArrayList<String> plotparams,
                                     final ArrayList<String> plotoptions) {
-    final long start_ts = parseDate(args[0]);
-    final long end_ts = (args.length > 3
-                         && (args[1].charAt(0) != '+'
-                             && (args[1].indexOf(':') >= 0
-                                 || args[1].indexOf('/') >= 0))
-                         ? parseDate(args[1]) : -1);
+    long start_ts = DateTime.parseDateTimeString(args[0], null);
+    if (start_ts >= 0)
+      start_ts /= 1000;
+    long end_ts = -1;
+    if (args.length > 3){
+      // see if we can detect an end time
+      try{
+      if (args[1].charAt(0) != '+'
+           && (args[1].indexOf(':') >= 0
+               || args[1].indexOf('/') >= 0
+               || args[1].indexOf('-') >= 0
+               || Long.parseLong(args[1]) > 0)){
+          end_ts = DateTime.parseDateTimeString(args[1], null);
+        }
+      }catch (NumberFormatException nfe) {
+        // ignore it as it means the third parameter is likely the aggregator
+      }
+    }
+    // temp fixup to seconds from ms until the rest of TSDB supports ms
+    // Note you can't append this to the DateTime.parseDateTimeString() call as
+    // it clobbers -1 results
+    if (end_ts >= 0)
+      end_ts /= 1000;
 
     int i = end_ts < 0 ? 1 : 2;
     while (i < args.length && args[i].charAt(0) == '+') {

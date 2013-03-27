@@ -82,6 +82,7 @@ tsdb_SRC := \
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java \
 	src/utils/Config.java \ 
+	src/utils/DateTime.java \
 	src/utils/JSON.java \
 	src/utils/PluginLoader.java
 
@@ -115,6 +116,7 @@ test_SRC := \
 	test/uid/TestNoSuchUniqueId.java	\
 	test/uid/TestUniqueId.java \
 	test/utils/TestConfig.java \ 
+	test/utils/TestDateTime.java \ 
 	test/utils/TestJSON.java \
 	test/utils/TestPluginLoader.java
 	

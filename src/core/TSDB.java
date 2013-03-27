@@ -35,6 +35,7 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.DateTime;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
@@ -101,6 +102,9 @@ public final class TSDB {
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
 
+    if (config.hasProperty("tsd.core.timezone"))
+      DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
+    
     LOG.debug(config.dumpConfiguration());
   }
   

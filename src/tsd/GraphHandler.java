@@ -19,15 +19,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URL;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -50,6 +47,7 @@ import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.utils.DateTime;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -127,15 +125,29 @@ final class GraphHandler implements HttpRpc {
   private void doGraph(final TSDB tsdb, final HttpQuery query)
     throws IOException {
     final String basepath = getGnuplotBasePath(tsdb, query); 
-    final long start_time = getQueryStringDate(query, "start");
+    long start_time = DateTime.parseDateTimeString(
+      query.getRequiredQueryStringParam("start"), 
+      query.getQueryStringParam("tz"));
     final boolean nocache = query.hasQueryStringParam("nocache");
     if (start_time == -1) {
       throw BadRequestException.missingParameter("start");
+    } else {
+      // temp fixup to seconds from ms until the rest of TSDB supports ms
+      // Note you can't append this to the DateTime.parseDateTimeString() call as
+      // it clobbers -1 results
+      start_time /= 1000;
     }
-    long end_time = getQueryStringDate(query, "end");
+    long end_time = DateTime.parseDateTimeString(
+        query.getQueryStringParam("end"), 
+        query.getQueryStringParam("tz"));
     final long now = System.currentTimeMillis() / 1000;
     if (end_time == -1) {
       end_time = now;
+    } else {
+      // temp fixup to seconds from ms until the rest of TSDB supports ms
+      // Note you can't append this to the DateTime.parseDateTimeString() call as
+      // it clobbers -1 results
+      end_time /= 1000;
     }
     final int max_age = computeMaxAge(query, start_time, end_time, now);
     if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
@@ -167,7 +179,7 @@ final class GraphHandler implements HttpRpc {
       }
     }
     final Plot plot = new Plot(start_time, end_time,
-                               timezones.get(query.getQueryStringParam("tz")));
+          DateTime.timezones.get(query.getQueryStringParam("tz")));
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
     final int nqueries = tsdbqueries.length;
@@ -234,8 +246,10 @@ final class GraphHandler implements HttpRpc {
     if (end_time > now) {                            // (1)
       return 0;
     } else if (end_time < now - Const.MAX_TIMESPAN   // (2)
-               && !isRelativeDate(query, "start")    // (3)
-               && !isRelativeDate(query, "end")) {
+               && !DateTime.isRelativeDate(
+                   query.getQueryStringParam("start"))    // (3)
+               && !DateTime.isRelativeDate(
+                   query.getQueryStringParam("end"))) {
       return 86400;
     } else {                                         // (4)
       return (int) (end_time - start_time) >> 10;
@@ -872,7 +886,7 @@ final class GraphHandler implements HttpRpc {
           throw new BadRequestException("No such downsampling function: "
                                         + parts[1].substring(dash + 1));
         }
-        final int interval = parseDuration(parts[1].substring(0, dash));
+        final int interval = (int) DateTime.parseDuration(parts[1].substring(0, dash));
         tsdbquery.downsample(interval, downsampler);
       }
       tsdbqueries[nqueries++] = tsdbquery;
@@ -890,139 +904,6 @@ final class GraphHandler implements HttpRpc {
       return Aggregators.get(name);
     } catch (NoSuchElementException e) {
       throw new BadRequestException("No such aggregation function: " + name);
-    }
-  }
-
-  /**
-   * Parses a human-readable duration (e.g, "10m", "3h", "14d") into seconds.
-   * <p>
-   * Formats supported: {@code s}: seconds, {@code m}: minutes,
-   * {@code h}: hours, {@code d}: days, {@code w}: weeks, {@code y}: years.
-   * @param duration The human-readable duration to parse.
-   * @return A strictly positive number of seconds.
-   * @throws BadRequestException if the interval was malformed.
-   */
-  private static final int parseDuration(final String duration) {
-    int interval;
-    final int lastchar = duration.length() - 1;
-    try {
-      interval = Integer.parseInt(duration.substring(0, lastchar));
-    } catch (NumberFormatException e) {
-      throw new BadRequestException("Invalid duration (number): " + duration);
-    }
-    if (interval <= 0) {
-      throw new BadRequestException("Zero or negative duration: " + duration);
-    }
-    switch (duration.charAt(lastchar)) {
-      case 's': return interval;                    // seconds
-      case 'm': return interval * 60;               // minutes
-      case 'h': return interval * 3600;             // hours
-      case 'd': return interval * 3600 * 24;        // days
-      case 'w': return interval * 3600 * 24 * 7;    // weeks
-      case 'y': return interval * 3600 * 24 * 365;  // years (screw leap years)
-    }
-    throw new BadRequestException("Invalid duration (suffix): " + duration);
-  }
-
-  /**
-   * Returns whether or not a date is specified in a relative fashion.
-   * <p>
-   * A date is specified in a relative fashion if it ends in "-ago",
-   * e.g. "1d-ago" is the same as "24h-ago".
-   * @param query The HTTP query from which to get the query string parameter.
-   * @param paramname The name of the query string parameter.
-   * @return {@code true} if the parameter is passed and is a relative date.
-   * Note the method doesn't attempt to validate the relative date.  So this
-   * function can return true on something that looks like a relative date,
-   * but is actually invalid once we really try to parse it.
-   */
-  private static boolean isRelativeDate(final HttpQuery query,
-                                        final String paramname) {
-    final String date = query.getQueryStringParam(paramname);
-    return date == null || date.endsWith("-ago");
-  }
-
-  /**
-   * Returns a timestamp from a date specified in a query string parameter.
-   * Formats accepted are:
-   *   - Relative: "5m-ago", "1h-ago", etc.  See {@link #parseDuration}.
-   *   - Absolute human readable date: "yyyy/MM/dd-HH:mm:ss".
-   *   - UNIX timestamp (seconds since Epoch): "1234567890".
-   * @param query The HTTP query from which to get the query string parameter.
-   * @param paramname The name of the query string parameter.
-   * @return A UNIX timestamp in seconds (strictly positive 32-bit "unsigned")
-   * or -1 if there was no query string parameter named {@code paramname}.
-   * @throws BadRequestException if the date is invalid.
-   */
-  private static long getQueryStringDate(final HttpQuery query,
-                                         final String paramname) {
-    final String date = query.getQueryStringParam(paramname);
-    if (date == null) {
-      return -1;
-    } else if (date.endsWith("-ago")) {
-      return (System.currentTimeMillis() / 1000
-              - parseDuration(date.substring(0, date.length() - 4)));
-    }
-    long timestamp;
-    if (date.length() < 5 || date.charAt(4) != '/') {  // Already a timestamp?
-      try {
-        timestamp = Tags.parseLong(date);              // => Looks like it.
-      } catch (NumberFormatException e) {
-        throw new BadRequestException("Invalid " + paramname + " time: " + date
-                                      + ". " + e.getMessage());
-      }
-    } else {  // => Nope, there is a slash, so parse a date then.
-      try {
-        final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
-        setTimeZone(fmt, query.getQueryStringParam("tz"));
-        timestamp = fmt.parse(date).getTime() / 1000;
-      } catch (ParseException e) {
-        throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                      + ". " + e.getMessage());
-      }
-    }
-    if (timestamp < 0) {
-      throw new BadRequestException("Bad " + paramname + " date: " + date);
-    }
-    return timestamp;
-  }
-
-  /**
-   * Immutable cache mapping a timezone name to its object.
-   * We do this because the JDK's TimeZone class was implemented by retards,
-   * and it's synchronized, going through a huge pile of code, and allocating
-   * new objects all the time.  And to make things even better, if you ask for
-   * a TimeZone that doesn't exist, it returns GMT!  It is thus impractical to
-   * tell if the timezone name was valid or not.  JDK_brain_damage++;
-   * Note: caching everything wastes a few KB on RAM (34KB on my system with
-   * 611 timezones -- each instance is 56 bytes with the Sun JDK).
-   */
-  private static final HashMap<String, TimeZone> timezones;
-  static {
-    final String[] tzs = TimeZone.getAvailableIDs();
-    timezones = new HashMap<String, TimeZone>(tzs.length);
-    for (final String tz : tzs) {
-      timezones.put(tz, TimeZone.getTimeZone(tz));
-    }
-  }
-
-  /**
-   * Applies the given timezone to the given date format.
-   * @param fmt Date format to apply the timezone to.
-   * @param tzname Name of the timezone, or {@code null} in which case this
-   * function is a no-op.
-   * @throws BadRequestException if tzname isn't a valid timezone name.
-   */
-  private static void setTimeZone(final SimpleDateFormat fmt,
-                                  final String tzname) {
-    if (tzname == null) {
-      return;  // Use the default timezone.
-    }
-    final TimeZone tz = timezones.get(tzname);
-    if (tz != null) {
-      fmt.setTimeZone(tz);
-    } else {
-      throw new BadRequestException("Invalid timezone name: " + tzname);
     }
   }
 
