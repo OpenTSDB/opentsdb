@@ -49,14 +49,19 @@ public class DateTime {
   /**
    * Attempts to parse a timestamp from a given string
    * Formats accepted are:
-   *  - Relative: "5m-ago", "1h-ago", etc. See {@link #parseDuration}
-   *  - Absolute human readable dates:
-   *    "yyyy/MM/dd-HH:mm:ss"
-   *    "yyyy/MM/dd HH:mm:ss"
-   *    "yyyy/MM/dd-HH:mm"
-   *    "yyyy/MM/dd HH:mm"
-   *    "yyyy/MM/dd"
-   *  - Unix Timestamp in seconds or milliseconds: "1355961600"
+   * <ul>
+   * <li>Relative: {@code 5m-ago}, {@code 1h-ago}, etc. See 
+   * {@link #parseDuration}</li>
+   * <li>Absolute human readable dates:
+   * <ul><li>"yyyy/MM/dd-HH:mm:ss"</li>
+   * <li>"yyyy/MM/dd HH:mm:ss"</li>
+   * <li>"yyyy/MM/dd-HH:mm"</li>
+   * <li>"yyyy/MM/dd HH:mm"</li>
+   * <li>"yyyy/MM/dd"</li></ul></li>
+   * <li>Unix Timestamp in seconds or milliseconds: 
+   * <ul><li>1355961600</li>
+   * <li>1355961600000</li></ul></li>
+   * </ul>
    * @param datetime The string to parse a value for
    * @return A Unix epoch timestamp in milliseconds
    * @throws NullPointerException if the timestamp is null
@@ -131,9 +136,14 @@ public class DateTime {
   /**
    * Parses a human-readable duration (e.g, "10m", "3h", "14d") into seconds.
    * <p>
-   * Formats supported: {@code s}: seconds, {@code m}: minutes,
-   * {@code h}: hours, {@code d}: days, {@code w}: weeks, 
-   * {@code n}: month (30 days), {@code y}: years (365 days)
+   * Formats supported:<ul>
+   * <li>{@code s}: seconds</li>
+   * <li>{@code m}: minutes</li>
+   * <li>{@code h}: hours</li>
+   * <li>{@code d}: days</li>
+   * <li>{@code w}: weeks</li> 
+   * <li>{@code n}: month (30 days)</li>
+   * <li>{@code y}: years (365 days)</li></ul>
    * Milliseconds are not supported since a relative request can't be submitted
    * by a human that fast. If an application needs it, they could use an 
    * absolute time.
@@ -168,7 +178,7 @@ public class DateTime {
    * Returns whether or not a date is specified in a relative fashion.
    * <p>
    * A date is specified in a relative fashion if it ends in "-ago",
-   * e.g. "1d-ago" is the same as "24h-ago".
+   * e.g. {@code 1d-ago} is the same as {@code 24h-ago}.
    * @param value The value to parse
    * @return {@code true} if the parameter is passed and is a relative date.
    * Note the method doesn't attempt to validate the relative date.  So this
@@ -203,11 +213,11 @@ public class DateTime {
   
   /**
    * Sets the default timezone for this running OpenTSDB instance
-   * 
-   * @warn If OpenTSDB is used with a Security Manager, setting the default
+   * <p>
+   * <b>WARNING</b> If OpenTSDB is used with a Security Manager, setting the default
    * timezone only works for the running thread. Otherwise it will work for the
    * entire application. 
-   * 
+   * <p>
    * @param tzname Name of the timezone to use
    * @throws IllegalArgumentException if tzname isn't a valid timezone name
    */

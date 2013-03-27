@@ -23,7 +23,7 @@ import java.util.TimeZone;
 
 import org.junit.Test;
 
-public class TestDateTime {
+public final class TestDateTime {
 
   @Test
   public void getTimezone() {
@@ -37,7 +37,8 @@ public class TestDateTime {
   
   // NOTE: These relative tests *should* complete fast enough to pass
   // but there's a possibility that when run on a heavily used system
-  // that the current time will change between calls.
+  // that the current time will change between calls. Thus the epsilon
+  // is 5 ms
   @Test
   public void parseDateTimeStringRelativeS() {
     long t = DateTime.parseDateTimeString("60s-ago", null);
@@ -130,21 +131,22 @@ public class TestDateTime {
   @Test
   public void parseDateTimeStringDateTimeDash() {
     long t = DateTime.parseDateTimeString("2012/12/20-12:42:42", "GMT");
+    assertEquals(t, 1356007362000L);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseDateTimeStringTooBig() {
-    long t = DateTime.parseDateTimeString("1355961603587168438418", null);
+    DateTime.parseDateTimeString("1355961603587168438418", null);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseDateTimeStringBadFormat() {
-    long t = DateTime.parseDateTimeString("2012/12/", "GMT");
+    DateTime.parseDateTimeString("2012/12/", "GMT");
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseDateTimeStringBadRelative() {
-    long t = DateTime.parseDateTimeString("1s", "GMT");
+    DateTime.parseDateTimeString("1s", "GMT");
   }
   
   @Test
@@ -209,22 +211,22 @@ public class TestDateTime {
   
   @Test (expected = IllegalArgumentException.class)
   public void parseDurationNegative() {
-    long t = DateTime.parseDuration("-60s");
+    DateTime.parseDuration("-60s");
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseDurationBad() {
-    long t = DateTime.parseDuration("foo60s");
+    DateTime.parseDuration("foo60s");
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseDurationInvalidSuffix() {
-    long t = DateTime.parseDuration("60p");
+    DateTime.parseDuration("60p");
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseDurationTooBig() {
-    long t = DateTime.parseDuration("6393590450230209347573980s");
+    DateTime.parseDuration("6393590450230209347573980s");
   }
   
   @Test
