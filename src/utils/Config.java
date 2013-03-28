@@ -231,7 +231,7 @@ public class Config {
    * @return True if the property exists and has a value, not an empty string
    */
   public final boolean hasProperty(final String property) {
-    final String val = this.properties.get(property).toUpperCase();
+    final String val = this.properties.get(property);
     if (val == null)
       return false;
     if (val.isEmpty())
