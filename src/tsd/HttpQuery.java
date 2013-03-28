@@ -16,6 +16,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -199,6 +200,72 @@ final class HttpQuery {
   }
 
   /**
+   * Returns only the path component of the URI as a string
+   * This call strips the protocol, host, port and query string parameters 
+   * leaving only the path e.g. "/path/starts/here"
+   * @return The path component of the URI
+   * @throws NullPointerException if the URI is bad
+   * @since 2.0
+   */
+  public String getQueryPath(){
+    return new QueryStringDecoder(request.getUri()).getPath();
+  }
+  
+  /**
+   * Returns the path component of the URI as an array of strings, split on the
+   * forward slash
+   * Similar to the {@link getQueryPath} call, this returns only the path 
+   * without the protocol, host, port or query string params. E.g. 
+   * "/path/starts/here" will return an array of {"path", "starts", "here"}
+   * @return An array with 0 or more components
+   * @throws IllegalArgumentException if the URI is bad
+   * @since 2.0
+   */
+  public String[] explodePath() {
+    final String path = this.getQueryPath();
+    // split may be a tad slower than other methods, but since the URIs are
+    // usually pretty short and not every request will make this call, we 
+    // probably don't need any premature optimization
+    String[] exploded_path = path.startsWith("/") ? 
+        path.substring(1).split("/") : path.split("/");
+    if (exploded_path.length == 1 && exploded_path[0].isEmpty()) {
+      // split will return an empty string if the path is /, so clean it up
+      return new String[0];
+    }
+    return exploded_path;
+  }
+  
+  /**
+   * Attempts to parse the character set from the request header. If not set
+   * defaults to UTF-8
+   * @return A Charset object
+   * @throws UnsupportedCharsetException if the parsed character set is invalid
+   * @since 2.0
+   */
+  public Charset getCharset() {
+    // RFC2616 3.7
+    for (String type : this.request.getHeaders("Content-Type")) {
+      int idx = type.toUpperCase().indexOf("CHARSET=");
+      if (idx > 1) {
+        String charset = type.substring(idx+8);
+        return Charset.forName(charset);
+      }
+    }
+    return Charset.forName("UTF-8");
+  }
+  
+  /**
+   * Decodes the request content to a string using the appropriate character set
+   * @return Decoded content or an empty string if the request did not include
+   * content
+   * @throws UnsupportedCharsetException if the parsed character set is invalid
+   * @since 2.0
+   */
+  public String getContent() {
+    return this.request.getContent().toString(this.getCharset());
+  }
+  
+  /**
    * Sends a 500 error page to the client.
    * @param cause The unexpected exception that caused this error.
    */
@@ -280,31 +347,6 @@ final class HttpQuery {
                        "Redirecting...", "Redirecting...", "Loading..."));
   }
 
-  /** An empty JSON array ready to be sent. */
-  private static final byte[] EMPTY_JSON_ARRAY = new byte[] { '[', ']' };
-
-  /**
-   * Sends the given sequence of strings as a JSON array.
-   * @param strings A possibly empty sequence of strings.
-   */
-  public void sendJsonArray(final Iterable<String> strings) {
-    int nstrings = 0;
-    int sz = 0;  // Pre-compute the buffer size to avoid re-allocations.
-    for (final String string : strings) {
-      sz += string.length();
-      nstrings++;
-    }
-    if (nstrings == 0) {
-      sendReply(EMPTY_JSON_ARRAY);
-      return;
-    }
-    final StringBuilder buf = new StringBuilder(sz // All the strings
-                                                + nstrings * 3  // "",
-                                                + 1);  // Leading `['
-    toJsonArray(strings, buf);
-    sendReply(buf);
-  }
-
   /**
    * Escapes a string appropriately to be a valid in JSON.
    * Valid JSON strings are defined in RFC 4627, Section 2.5.
@@ -356,23 +398,6 @@ final class HttpQuery {
         buf.append(c);
       }
     }
-  }
-
-  /**
-   * Transforms a non-empty sequence of strings into a JSON array.
-   * The behavior of this method is undefined if the input sequence is empty.
-   * @param strings The strings to transform into a JSON array.
-   * @param buf The buffer where to write the JSON array.
-   */
-  public static void toJsonArray(final Iterable<String> strings,
-                                 final StringBuilder buf) {
-    buf.append('[');
-    for (final String string : strings) {
-      buf.append('"');
-      escapeJson(string, buf);
-      buf.append("\",");
-    }
-    buf.setCharAt(buf.length() - 1, ']');
   }
 
   /**

@@ -12,12 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.fasterxml.jackson.core.JsonGenerationException;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -34,6 +36,7 @@ import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.JSON;
 
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
@@ -318,8 +321,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "/aggregators" endpoint. */
   private static final class ListAggregators implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) {
-      query.sendJsonArray(Aggregators.set());
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws JsonGenerationException, IOException {
+      query.sendReply(JSON.serializeToBytes(Aggregators.set()));
     }
   }
 
@@ -339,7 +343,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       return Deferred.fromResult(null);
     }
 
-    public void execute(final TSDB tsdb, final HttpQuery query) {
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws JsonGenerationException, IOException {
       final boolean json = query.hasQueryStringParam("json");
       final StringBuilder buf = json ? null : new StringBuilder(2048);
       final ArrayList<String> stats = json ? new ArrayList<String>(64) : null;
@@ -355,7 +360,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       };
       doCollectStats(tsdb, collector);
       if (json) {
-        query.sendJsonArray(stats);
+        query.sendReply(JSON.serializeToBytes(stats));
       } else {
         query.sendReply(buf);
       }
@@ -372,7 +377,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "/suggest" endpoint. */
   private static final class Suggest implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) {
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws JsonGenerationException, IOException {
       final String type = query.getRequiredQueryStringParam("type");
       final String q = query.getQueryStringParam("q");
       if (q == null) {
@@ -388,7 +394,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       } else {
         throw new BadRequestException("Invalid 'type' parameter:" + type);
       }
-      query.sendJsonArray(suggestions);
+      query.sendReply(JSON.serializeToBytes(suggestions));
     }
   }
 

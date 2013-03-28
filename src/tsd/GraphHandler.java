@@ -32,6 +32,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +50,7 @@ import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -300,24 +303,19 @@ final class GraphHandler implements HttpRpc {
     private void execute() throws IOException {
       final int nplotted = runGnuplot(query, basepath, plot);
       if (query.hasQueryStringParam("json")) {
-        final StringBuilder buf = new StringBuilder(64);
-        buf.append("{\"plotted\":").append(nplotted)
-          .append(",\"points\":").append(npoints)
-          .append(",\"etags\":[");
-        for (final HashSet<String> tags : aggregated_tags) {
-          if (tags == null || tags.isEmpty()) {
-            buf.append("[]");
-          } else {
-            HttpQuery.toJsonArray(tags, buf);
-          }
-          buf.append(',');
+        final HashMap<String, Object> results = new HashMap<String, Object>();
+        results.put("plotted", nplotted);
+        results.put("points", npoints);
+        // 1.0 returned an empty inner array if the 1st hashset was null, to do
+        // the same we need to fudge it with an empty set
+        if (aggregated_tags != null && aggregated_tags.length > 0 &&
+            aggregated_tags[0] == null) {
+          aggregated_tags[0] = new HashSet<String>();
         }
-        buf.setCharAt(buf.length() - 1, ']');
-        // The "timing" field must remain last, loadCachedJson relies this.
-        buf.append(",\"timing\":").append(query.processingTimeMillis())
-          .append('}');
-        query.sendReply(buf);
-        writeFile(query, basepath + ".json", buf.toString().getBytes());
+        results.put("etags", aggregated_tags);
+        results.put("timing", query.processingTimeMillis());
+        query.sendReply(JSON.serializeToBytes(results));
+        writeFile(query, basepath + ".json", JSON.serializeToBytes(results));
       } else if (query.hasQueryStringParam("png")) {
         query.sendFile(basepath + ".png", max_age);
       } else {
@@ -391,14 +389,14 @@ final class GraphHandler implements HttpRpc {
         return false;
       }
       if (query.hasQueryStringParam("json")) {
-        StringBuilder json = loadCachedJson(query, end_time, max_age, basepath);
-        if (json == null) {
-          json = new StringBuilder(32);
-          json.append("{\"timing\":");
+        HashMap<String, Object> map = loadCachedJson(query, end_time, 
+            max_age, basepath);
+        if (map == null) {
+          map = new HashMap<String, Object>();
         }
-        json.append(query.processingTimeMillis())
-          .append(",\"cachehit\":\"disk\"}");
-        query.sendReply(json);
+        map.put("timing", query.processingTimeMillis());
+        map.put("cachehit", "disk");
+        query.sendReply(JSON.serializeToBytes(map));
       } else if (query.hasQueryStringParam("png")
                  || query.hasQueryStringParam("ascii")) {
         query.sendFile(cachepath, max_age);
@@ -412,16 +410,18 @@ final class GraphHandler implements HttpRpc {
     }
     // We didn't find an image.  Do a negative cache check.  If we've seen
     // this query before but there was no result, we at least wrote the JSON.
-    final StringBuilder json = loadCachedJson(query, end_time, max_age, basepath);
+    final HashMap<String, Object> map = loadCachedJson(query, end_time, 
+        max_age, basepath);
     // If we don't have a JSON file it's a complete cache miss.  If we have
     // one, and it says 0 data points were plotted, it's a negative cache hit.
-    if (json == null || !json.toString().contains("\"plotted\":0")) {
+    if (map == null || !map.containsKey("plotted") || 
+        ((Integer)map.get("plotted")) == 0) {
       return false;
     }
     if (query.hasQueryStringParam("json")) {
-      json.append(query.processingTimeMillis())
-        .append(",\"cachehit\":\"disk\"}");
-      query.sendReply(json);
+      map.put("timing", query.processingTimeMillis());
+      map.put("cachehit", "disk");
+      query.sendReply(JSON.serializeToBytes(map));
     } else if (query.hasQueryStringParam("png")) {
       query.sendReply(" ");  // Send back an empty response...
     } else {
@@ -557,14 +557,18 @@ final class GraphHandler implements HttpRpc {
    * cache the result in case of a cache hit.
    * @param basepath The base path used for the Gnuplot files.
    * @return {@code null} in case no file was found, or the contents of the
-   * file if it was found.  In case some contents was found, it is truncated
-   * after the position of the last `:' in order to allow the caller to add
-   * the time taken to serve by the request and other JSON elements if wanted.
+   * file if it was found.
+   * @throws IOException If the file cannot be loaded
+   * @throws JsonMappingException If the JSON cannot be parsed to a HashMap
+   * @throws JsonParseException If the JSON is improperly formatted
    */
-  private StringBuilder loadCachedJson(final HttpQuery query,
+  @SuppressWarnings("unchecked")
+  private HashMap<String, Object> loadCachedJson(final HttpQuery query,
                                        final long end_time,
                                        final long max_age,
-                                       final String basepath) {
+                                       final String basepath) 
+                                       throws JsonParseException, 
+                                       JsonMappingException, IOException {
     final String json_path = basepath + ".json";
     File json_cache = new File(json_path);
     if (staleCacheFile(query, end_time, max_age, json_cache)) {
@@ -575,26 +579,8 @@ final class GraphHandler implements HttpRpc {
       return null;
     }
     json_cache = null;
-    final StringBuilder buf = new StringBuilder(20 + json.length);
-    // The json file is always expected to end in: {...,"timing":N}
-    // We remove everything past the last `:' so we can send the new
-    // timing for this request.  This doesn't work if there's a tag name
-    // with a `:' in it, which is not allowed right now.
-    int colon = 0;  // 0 isn't a valid value.
-    for (int i = 0; i < json.length; i++) {
-      buf.append((char) json[i]);
-      if (json[i] == ':') {
-        colon = i;
-      }
-    }
-    if (colon != 0) {
-      buf.setLength(colon + 1);
-      return buf;
-    } else {
-      logError(query, "No `:' found in " + json_path + " (" + json.length
-               + " bytes) = " + new String(json));
-    }
-    return null;
+    
+    return (HashMap<String, Object>) JSON.parseToObject(json, HashMap.class);
   }
 
   /** Parses the {@code wxh} query parameter to set the graph dimension. */

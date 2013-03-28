@@ -112,7 +112,9 @@ test_SRC := \
 	test/meta/TestTSMeta.java	\
 	test/meta/TestUIDMeta.java	\
 	test/stats/TestHistogram.java	\
+	test/tsd/NettyMocks.java	\
 	test/tsd/TestGraphHandler.java	\
+	test/tsd/TestHttpQuery.java	\
 	test/uid/TestNoSuchUniqueId.java	\
 	test/uid/TestUniqueId.java \
 	test/utils/TestConfig.java \ 

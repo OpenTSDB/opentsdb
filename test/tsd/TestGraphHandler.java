@@ -179,15 +179,9 @@ public final class TestGraphHandler {
 
   private static HttpQuery fakeHttpQuery() {
     final HttpQuery query = mock(HttpQuery.class);
-    final Channel chan = fakeChannel();
+    final Channel chan = NettyMocks.fakeChannel();
     when(query.channel()).thenReturn(chan);
     return query;
-  }
-
-  private static Channel fakeChannel() {
-    final Channel chan = mock(Channel.class);
-    when(chan.toString()).thenReturn("[fake channel]");
-    return chan;
   }
 
   private static File fakeFile(final String path) {
