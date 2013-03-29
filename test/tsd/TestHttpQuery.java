@@ -55,145 +55,95 @@ public class TestHttpQuery {
   
   @Test
   public void getQueryStringEmpty() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    Map<String, List<String>> params = query.getQueryString();
+    Map<String, List<String>> params = getQuery("/api/v1/put").getQueryString();
     assertNotNull(params);
-    assertTrue(params.size() == 0);
+    assertEquals(params.size(), 0);
   }
   
   @Test
   public void getQueryStringMulti() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=v1&param=v2&param=v3");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    Map<String, List<String>> params = query.getQueryString();
+    Map<String, List<String>> params = 
+      getQuery("/api/v1/put?param=v1&param=v2&param=v3").getQueryString();
     assertNotNull(params);
-    assertTrue(params.size() == 1);
-    assertTrue(params.get("param").size() == 3);
+    assertEquals(params.size(), 1);
+    assertEquals(params.get("param").size(), 3);
   }
   
   @Test (expected = NullPointerException.class)
   public void getQueryStringNULL() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, null);
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    Map<String, List<String>> params = query.getQueryString();
-    assertNotNull(params);
+    getQuery(null).getQueryString();
   }
   
   @Test
   public void getQueryStringParam() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getQueryStringParam("param").equals("value"));
+    assertEquals(getQuery("/api/v1/put?param=value&param2=value2")
+        .getQueryStringParam("param"), "value");
   }
   
   @Test
   public void getQueryStringParamNull() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertNull(query.getQueryStringParam("nothere"));
+    assertNull(getQuery("/api/v1/put?param=value&param2=value2").
+        getQueryStringParam("nothere"));
   }
   
   @Test
   public void getRequiredQueryStringParam() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getRequiredQueryStringParam("param").equals("value"));
+    assertTrue(getQuery("/api/v1/put?param=value&param2=value2").
+        getRequiredQueryStringParam("param").equals("value"));
   }
   
   @Test (expected = BadRequestException.class)
   public void getRequiredQueryStringParamMissing() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    query.getRequiredQueryStringParam("nothere");
+    getQuery("/api/v1/put?param=value&param2=value2").
+      getRequiredQueryStringParam("nothere");
   }
   
   @Test
   public void hasQueryStringParam() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.hasQueryStringParam("param"));
+    assertTrue(getQuery("/api/v1/put?param=value&param2=value2").
+        hasQueryStringParam("param"));
   }
   
   @Test
   public void hasQueryStringMissing() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertFalse(query.hasQueryStringParam("nothere"));
+    assertFalse(getQuery("/api/v1/put?param=value&param2=value2").
+        hasQueryStringParam("nothere"));
   }
   
   @Test
   public void getQueryStringParams() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=v1&param=v2&param=v3");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    List<String> params = query.getQueryStringParams("param");
+    List<String> params = getQuery("/api/v1/put?param=v1&param=v2&param=v3").
+      getQueryStringParams("param");
     assertNotNull(params);
     assertTrue(params.size() == 3);
   }
   
   @Test
   public void getQueryStringParamsNull() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=v1&param=v2&param=v3");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    List<String> params = query.getQueryStringParams("nothere");
+    List<String> params = getQuery("/api/v1/put?param=v1&param=v2&param=v3").
+      getQueryStringParams("nothere");
     assertNull(params);
   }
   
   @Test
   public void getQueryPathA() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getQueryPath().equals("/api/v1/put"));
+    assertTrue(getQuery("/api/v1/put?param=value&param2=value2").
+        getQueryPath().equals("/api/v1/put"));
   }
   
   @Test
   public void getQueryPathB() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getQueryPath().equals("/"));
+    assertTrue(getQuery("/").getQueryPath().equals("/"));
   }
   
   @Test (expected = NullPointerException.class)
   public void getQueryPathNull() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, null);
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getQueryPath().equals("/"));
+    getQuery(null).getQueryPath();
   }
   
   @Test
   public void explodePath() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
+    final HttpQuery query = getQuery("/api/v1/put?param=value&param2=value2");
     final String[] path = query.explodePath();
     assertNotNull(path);
     assertTrue(path.length == 3);
@@ -204,23 +154,129 @@ public class TestHttpQuery {
   
   @Test
   public void explodePathEmpty() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
+    final HttpQuery query = getQuery("/");
     final String[] path = query.explodePath();
     assertNotNull(path);
-    assertTrue(path.length == 0);
+    assertTrue(path.length == 1);
+    assertEquals(path[0], "");
   }
   
   @Test (expected = NullPointerException.class)
   public void explodePathNull() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, null);
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    @SuppressWarnings("unused")
-    final String[] path = query.explodePath();
+    getQuery(null).explodePath();
+  }
+  
+  @Test
+  public void getQueryBaseRouteRoot() {
+    final HttpQuery query = getQuery("/");
+    assertEquals(query.getQueryBaseRoute(), "");
+    assertEquals(query.api_version(), 0);
+  }
+  
+  @Test
+  public void getQueryBaseRouteRootQS() {
+    final HttpQuery query = getQuery("/?param=value");
+    assertEquals(query.getQueryBaseRoute(), "");
+    assertEquals(query.api_version(), 0);
+  }
+  
+  @Test
+  public void getQueryBaseRouteQ() {
+    final HttpQuery query = getQuery("/q");
+    assertEquals(query.getQueryBaseRoute(), "q");
+    assertEquals(query.api_version(), 0);
+  }
+  
+  @Test
+  public void getQueryBaseRouteQSlash() {
+    final HttpQuery query = getQuery("/q/");
+    assertEquals(query.getQueryBaseRoute(), "q");
+    assertEquals(query.api_version(), 0);
+  }
+  
+  @Test
+  public void getQueryBaseRouteLogs() {
+    final HttpQuery query = getQuery("/logs");
+    assertEquals(query.getQueryBaseRoute(), "logs");
+    assertEquals(query.api_version(), 0);
+  }
+  
+  @Test
+  public void getQueryBaseRouteAPIVMax() {
+    final HttpQuery query = getQuery("/api/v3/put");
+    assertEquals(query.getQueryBaseRoute(), "api/put");
+    assertEquals(query.api_version(), 1);
+  }
+  
+  @Test
+  public void getQueryBaseRouteAPICap() {
+    final HttpQuery query = getQuery("/API/V3/PUT");
+    assertEquals(query.getQueryBaseRoute(), "api/put");
+    assertEquals(query.api_version(), 1);
+  }
+  
+  @Test
+  public void getQueryBaseRouteAPIDefaultV() {
+    final HttpQuery query = getQuery("/api/put");
+    assertEquals(query.getQueryBaseRoute(), "api/put");
+    assertEquals(query.api_version(), 1);
+  }
+  
+  @Test
+  public void getQueryBaseRouteAPIQS() {
+    final HttpQuery query = getQuery("/api/v2/put?metric=mine");
+    assertEquals(query.getQueryBaseRoute(), "api/put");
+    assertEquals(query.api_version(), 1);
+  }
+  
+  @Test
+  public void getQueryBaseRouteAPINoEP() {
+    final HttpQuery query = getQuery("/api");
+    assertEquals(query.getQueryBaseRoute(), "api");
+    assertEquals(query.api_version(), 0);
+  }
+  
+  @Test
+  public void getQueryBaseRouteAPINoEPSlash() {
+    final HttpQuery query = getQuery("/api/");
+    assertEquals(query.getQueryBaseRoute(), "api");
+    assertEquals(query.api_version(), 0);
+  }
+  
+  @Test
+  public void getQueryBaseRouteFavicon() {
+    final HttpQuery query = getQuery("/favicon.ico");
+    assertEquals(query.getQueryBaseRoute(), "favicon.ico");
+    assertEquals(query.api_version(), 0);
+  }
+  
+  @Test
+  public void getQueryBaseRouteVersion() {
+    final HttpQuery query = getQuery("/api/version/query");
+    assertEquals(query.getQueryBaseRoute(), "api/version");
+    assertEquals(query.api_version(), 1);
+  }
+  
+  @Test
+  public void getQueryBaseRouteVBad() {
+    final HttpQuery query = getQuery("/api/v/query");
+    assertEquals(query.getQueryBaseRoute(), "api/v");
+    assertEquals(query.api_version(), 1);
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void getQueryBaseRouteNull() {
+    getQuery(null).getQueryBaseRoute();
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void getQueryBaseRouteBad() {
+    getQuery("notavalidquery").getQueryBaseRoute();
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void getQueryBaseRouteEmpty() {
+    getQuery("").getQueryBaseRoute();
   }
   
   @Test
@@ -235,11 +291,7 @@ public class TestHttpQuery {
   
   @Test
   public void getCharsetDefaultNoHeader() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getCharset().equals(Charset.forName("UTF-8")));
+    assertTrue(getQuery("/").getCharset().equals(Charset.forName("UTF-8")));
   }
   
   @Test
@@ -301,11 +353,7 @@ public class TestHttpQuery {
   
   @Test
   public void getContentEmpty() {
-    final Channel channelMock = NettyMocks.fakeChannel();
-    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, "/");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getContent().isEmpty());
+    assertTrue(getQuery("/").getContent().isEmpty());
   }
   
   @Test
@@ -418,6 +466,19 @@ public class TestHttpQuery {
     ChannelBuffer buf = null;
     ReflectguessMimeTypeFromContents().invoke(
         new HttpQuery(null, null, NettyMocks.fakeChannel()), buf);
+  }
+  
+  /**
+   * Returns an HttpQuery with a mocked channel, used for URI parsing and
+   * static method examples
+   * @param uri a URI to use
+   * @return an HttpQuery object
+   */
+  private HttpQuery getQuery(final String uri) {
+    final Channel channelMock = NettyMocks.fakeChannel();
+    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
+        HttpMethod.GET, uri);
+    return new HttpQuery(null, req, channelMock);
   }
   
   /** 

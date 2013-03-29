@@ -61,6 +61,9 @@ final class HttpQuery {
 
   private static final String HTML_CONTENT_TYPE = "text/html; charset=UTF-8";
 
+  /** The maximum implemented API version, set when the user doesn't */
+  private static final int MAX_API_VERSION = 1;
+  
   /**
    * Keep track of the latency of HTTP requests.
    */
@@ -79,6 +82,9 @@ final class HttpQuery {
   /** Parsed query string (lazily built on first access). */
   private Map<String, List<String>> querystring;
 
+  /** API version parsed from the incoming request */
+  private int api_version = 0;
+  
   /** Deferred result of this query, to allow asynchronous processing.  */
   private final Deferred<Object> deferred = new Deferred<Object>();
 
@@ -118,6 +124,17 @@ final class HttpQuery {
     return chan;
   }
 
+  /**
+   * Returns the version for an API request. If the request was for a deprecated
+   * API call (such as /q, /suggest, /logs) this value will be 0. If the request
+   * was for a new API call, the version will be 1 or higher. If the user does
+   * not supply a version, the MAX_API_VERSION value will be used.
+   * @since 2.0
+   */
+  public int api_version() {
+    return this.api_version;
+  }
+  
   /**
    * Return the {@link Deferred} associated with this query.
    */
@@ -203,11 +220,15 @@ final class HttpQuery {
    * Returns only the path component of the URI as a string
    * This call strips the protocol, host, port and query string parameters 
    * leaving only the path e.g. "/path/starts/here"
+   * <p>
+   * Note that for slightly quicker performance you can call request().getUri()
+   * to get the full path as a string but you'll have to strip query string
+   * parameters manually.
    * @return The path component of the URI
-   * @throws NullPointerException if the URI is bad
+   * @throws NullPointerException if the URI is null
    * @since 2.0
    */
-  public String getQueryPath(){
+  public String getQueryPath() {
     return new QueryStringDecoder(request.getUri()).getPath();
   }
   
@@ -217,22 +238,71 @@ final class HttpQuery {
    * Similar to the {@link getQueryPath} call, this returns only the path 
    * without the protocol, host, port or query string params. E.g. 
    * "/path/starts/here" will return an array of {"path", "starts", "here"}
-   * @return An array with 0 or more components
-   * @throws IllegalArgumentException if the URI is bad
+   * <p>
+   * Note that for maximum speed you may want to parse the query path manually.
+   * @return An array with 1 or more components, note the first item may be
+   * an empty string.
+   * @throws BadRequestException if the URI is empty or does not start with a
+   * slash
+   * @throws NullPointerException if the URI is null
    * @since 2.0
    */
   public String[] explodePath() {
     final String path = this.getQueryPath();
+    if (path.isEmpty()) {
+      throw new BadRequestException("Query path is empty");
+    }
+    if (path.charAt(0) != '/') { 
+      throw new BadRequestException("Query path doesn't start with a slash");
+    }
     // split may be a tad slower than other methods, but since the URIs are
     // usually pretty short and not every request will make this call, we 
     // probably don't need any premature optimization
-    String[] exploded_path = path.startsWith("/") ? 
-        path.substring(1).split("/") : path.split("/");
-    if (exploded_path.length == 1 && exploded_path[0].isEmpty()) {
-      // split will return an empty string if the path is /, so clean it up
-      return new String[0];
+    return path.substring(1).split("/");
+  }
+  
+  /**
+   * Parses the query string to determine the base route for handing a query 
+   * off to an RPC handler.
+   * This method splits the query path component and returns a string suitable
+   * for routing by {@see RpcHandler}. The resulting route is always lower case
+   * and will consist of either an empty string, a deprecated API call or an
+   * API route. API routes will set the {@link api_version} to either a user 
+   * provided value or the MAX_API_VERSION.
+   * <p>
+   * Some URIs and their routes include:<ul>
+   * <li>"/" - "" - the home directory</li>
+   * <li>"/q?start=1h-ago&m=..." - "q" - a deprecated API call</li>
+   * <li>"/api/v4/query" - "api/query" - a versioned API call</li>
+   * <li>"/api/query" - "api/query" - a default versioned API call</li>
+   * </ul>
+   * @return the base route
+   * @throws NumberFormatException if the version cannot be parsed
+   * @since 2.0
+   */
+  public String getQueryBaseRoute() {
+    final String[] split = this.explodePath();
+    if (split.length < 1) {
+      return "";
     }
-    return exploded_path;
+    if (!split[0].toLowerCase().equals("api")) {
+      return split[0].toLowerCase();
+    }
+    if (split.length < 2) {
+      return "api";
+    }
+    if (split[1].toLowerCase().startsWith("v") && split[1].length() > 1 && 
+        Character.isDigit(split[1].charAt(1))) {
+      final int version = Integer.parseInt(split[1].substring(1));
+      this.api_version = version > MAX_API_VERSION ? MAX_API_VERSION : version;
+    } else {
+      this.api_version = MAX_API_VERSION;
+      return "api/" + split[1].toLowerCase();
+    }
+    if (split.length < 3){
+      return "api";
+    }
+    return "api/" + split[2].toLowerCase();
   }
   
   /**
