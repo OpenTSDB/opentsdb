@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
@@ -30,7 +29,9 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
@@ -102,7 +103,12 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     http_commands.put("aggregators", new ListAggregators());
     http_commands.put("logs", new LogsRpc());
     http_commands.put("q", new GraphHandler());
-    http_commands.put("suggest", new Suggest());
+    {
+      final SuggestRpc suggest_rpc = new SuggestRpc();
+      http_commands.put("suggest", suggest_rpc);
+      http_commands.put("api/suggest", suggest_rpc);
+    }
+    http_commands.put("api/serializers", new Serializers());
   }
 
   @Override
@@ -159,61 +165,23 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       return;
     }
     try {
-      final HttpRpc rpc = http_commands.get(getEndPoint(query));
-      if (rpc != null) {
-        rpc.execute(tsdb, query);
-      } else {
-        query.notFound();
+      try {        
+        final String route = query.getQueryBaseRoute();
+        query.setSerializer();
+        
+        final HttpRpc rpc = http_commands.get(route);
+        if (rpc != null) {
+          rpc.execute(tsdb, query);
+        } else {
+          query.notFound();
+        }
+      } catch (BadRequestException ex) {
+        query.badRequest(ex);
       }
-    } catch (BadRequestException ex) {
-      query.badRequest(ex.getMessage());
     } catch (Exception ex) {
       query.internalError(ex);
       exceptions_caught.incrementAndGet();
     }
-  }
-
-  /**
-   * Returns the "first path segment" in the URI.
-   *
-   * Examples:
-   * <pre>
-   *   URI request | Value returned
-   *   ------------+---------------
-   *   /           | ""
-   *   /foo        | "foo"
-   *   /foo/bar    | "foo"
-   *   /foo?quux   | "foo"
-   * </pre>
-   * @param query The HTTP query.
-   */
-  private String getEndPoint(final HttpQuery query) {
-    final String uri = query.request().getUri();
-    if (uri.length() < 1) {
-      throw new BadRequestException("Empty query");
-    }
-    if (uri.charAt(0) != '/') {
-      throw new BadRequestException("Query doesn't start with a slash: <code>"
-                                    // TODO(tsuna): HTML escape to avoid XSS.
-                                    + uri + "</code>");
-    }
-    final int questionmark = uri.indexOf('?', 1);
-    final int slash = uri.indexOf('/', 1);
-    int pos;  // Will be set to where the first path segment ends.
-    if (questionmark > 0) {
-      if (slash > 0) {
-        pos = (questionmark < slash
-               ? questionmark       // Request: /foo?bar/quux
-               : slash);            // Request: /foo/bar?quux
-      } else {
-        pos = questionmark;         // Request: /foo?bar
-      }
-    } else {
-      pos = (slash > 0
-             ? slash                // Request: /foo/bar
-             : uri.length());       // Request: /foo
-    }
-    return uri.substring(1, pos);
   }
 
   /**
@@ -305,7 +273,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The home page ("GET /"). */
   private static final class HomePage implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) {
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws IOException {
       final StringBuilder buf = new StringBuilder(2048);
       buf.append("<div id=queryuimain></div>"
                  + "<noscript>You must have JavaScript enabled.</noscript>"
@@ -372,29 +341,6 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       ConnectionManager.collectStats(collector);
       RpcHandler.collectStats(collector);
       tsdb.collectStats(collector);
-    }
-  }
-
-  /** The "/suggest" endpoint. */
-  private static final class Suggest implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) 
-      throws JsonGenerationException, IOException {
-      final String type = query.getRequiredQueryStringParam("type");
-      final String q = query.getQueryStringParam("q");
-      if (q == null) {
-        throw BadRequestException.missingParameter("q");
-      }
-      List<String> suggestions;
-      if ("metrics".equals(type)) {
-        suggestions = tsdb.suggestMetrics(q);
-      } else if ("tagk".equals(type)) {
-        suggestions = tsdb.suggestTagNames(q);
-      } else if ("tagv".equals(type)) {
-        suggestions = tsdb.suggestTagValues(q);
-      } else {
-        throw new BadRequestException("Invalid 'type' parameter:" + type);
-      }
-      query.sendReply(JSON.serializeToBytes(suggestions));
     }
   }
 
@@ -490,7 +436,31 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     }
   }
 
-
+  /** The /api/formatters endpoint 
+   * @since 2.0 */
+  private static final class Serializers implements HttpRpc {
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws IOException {
+      // only accept GET/POST
+      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+            "Method not allowed", "The HTTP method [" + query.method().getName() +
+            "] is not permitted for this endpoint");
+      }
+      
+      switch (query.apiVersion()) {
+        case 0:
+        case 1:
+          query.sendReply(query.serializer().formatSerializersV1());
+          break;
+        default: 
+          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+              "Requested API version not implemented", "Version " + 
+              query.apiVersion() + " is not implemented");
+      }
+    }
+  }
+  
   // ---------------- //
   // Logging helpers. //
   // ---------------- //

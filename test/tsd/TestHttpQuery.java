@@ -12,10 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Method;
@@ -24,29 +27,41 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.utils.Config;
+import net.opentsdb.utils.PluginLoader;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.jboss.netty.util.CharsetUtil;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(HttpQuery.class)
-public class TestHttpQuery {
- 
+@PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
+public final class TestHttpQuery {
+  private TSDB tsdb = null;
+
+  @Before
+  public void before() throws Exception {
+    tsdb = NettyMocks.getMockedHTTPTSDB();
+  }
+  
   @Test
   public void getQueryString() {
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
     Map<String, List<String>> params = query.getQueryString();
     assertNotNull(params);
     assertTrue(params.get("param").get(0).equals("value"));
@@ -55,228 +70,242 @@ public class TestHttpQuery {
   
   @Test
   public void getQueryStringEmpty() {
-    Map<String, List<String>> params = getQuery("/api/v1/put").getQueryString();
+    Map<String, List<String>> params = 
+      NettyMocks.getQuery(tsdb, "/api/v1/put").getQueryString();
     assertNotNull(params);
-    assertEquals(params.size(), 0);
+    assertEquals(0, params.size());
   }
   
   @Test
   public void getQueryStringMulti() {
     Map<String, List<String>> params = 
-      getQuery("/api/v1/put?param=v1&param=v2&param=v3").getQueryString();
+      NettyMocks.getQuery(tsdb, 
+          "/api/v1/put?param=v1&param=v2&param=v3").getQueryString();
     assertNotNull(params);
-    assertEquals(params.size(), 1);
-    assertEquals(params.get("param").size(), 3);
+    assertEquals(1, params.size());
+    assertEquals(3, params.get("param").size());
   }
   
   @Test (expected = NullPointerException.class)
   public void getQueryStringNULL() {
-    getQuery(null).getQueryString();
+    NettyMocks.getQuery(tsdb, null).getQueryString();
   }
   
   @Test
   public void getQueryStringParam() {
-    assertEquals(getQuery("/api/v1/put?param=value&param2=value2")
-        .getQueryStringParam("param"), "value");
+    assertEquals("value", 
+        NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=value&param2=value2")
+        .getQueryStringParam("param"));
   }
   
   @Test
   public void getQueryStringParamNull() {
-    assertNull(getQuery("/api/v1/put?param=value&param2=value2").
+    assertNull(NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=value&param2=value2").
         getQueryStringParam("nothere"));
   }
   
   @Test
   public void getRequiredQueryStringParam() {
-    assertTrue(getQuery("/api/v1/put?param=value&param2=value2").
-        getRequiredQueryStringParam("param").equals("value"));
+    assertEquals("value", 
+        NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=value&param2=value2").
+        getRequiredQueryStringParam("param"));
   }
   
   @Test (expected = BadRequestException.class)
   public void getRequiredQueryStringParamMissing() {
-    getQuery("/api/v1/put?param=value&param2=value2").
+    NettyMocks.getQuery(tsdb, "/api/v1/put?param=value&param2=value2").
       getRequiredQueryStringParam("nothere");
   }
   
   @Test
   public void hasQueryStringParam() {
-    assertTrue(getQuery("/api/v1/put?param=value&param2=value2").
+    assertTrue(NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=value&param2=value2").
         hasQueryStringParam("param"));
   }
   
   @Test
   public void hasQueryStringMissing() {
-    assertFalse(getQuery("/api/v1/put?param=value&param2=value2").
+    assertFalse(NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=value&param2=value2").
         hasQueryStringParam("nothere"));
   }
   
   @Test
   public void getQueryStringParams() {
-    List<String> params = getQuery("/api/v1/put?param=v1&param=v2&param=v3").
+    List<String> params = NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=v1&param=v2&param=v3").
       getQueryStringParams("param");
     assertNotNull(params);
-    assertTrue(params.size() == 3);
+    assertEquals(3, params.size());
   }
   
   @Test
   public void getQueryStringParamsNull() {
-    List<String> params = getQuery("/api/v1/put?param=v1&param=v2&param=v3").
+    List<String> params = NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=v1&param=v2&param=v3").
       getQueryStringParams("nothere");
     assertNull(params);
   }
   
   @Test
   public void getQueryPathA() {
-    assertTrue(getQuery("/api/v1/put?param=value&param2=value2").
-        getQueryPath().equals("/api/v1/put"));
+    assertEquals("/api/v1/put", 
+        NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=value&param2=value2").
+        getQueryPath());
   }
   
   @Test
   public void getQueryPathB() {
-    assertTrue(getQuery("/").getQueryPath().equals("/"));
+    assertEquals("/", NettyMocks.getQuery(tsdb, "/").getQueryPath());
   }
   
   @Test (expected = NullPointerException.class)
   public void getQueryPathNull() {
-    getQuery(null).getQueryPath();
+    NettyMocks.getQuery(tsdb, null).getQueryPath();
   }
   
   @Test
   public void explodePath() {
-    final HttpQuery query = getQuery("/api/v1/put?param=value&param2=value2");
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?param=value&param2=value2");
     final String[] path = query.explodePath();
     assertNotNull(path);
-    assertTrue(path.length == 3);
-    assertTrue(path[0].equals("api"));
-    assertTrue(path[1].equals("v1"));
-    assertTrue(path[2].equals("put"));
+    assertEquals(3, path.length);
+    assertEquals("api", path[0]);
+    assertEquals("v1", path[1]);
+    assertEquals("put", path[2]);
   }
   
   @Test
   public void explodePathEmpty() {
-    final HttpQuery query = getQuery("/");
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/");
     final String[] path = query.explodePath();
     assertNotNull(path);
-    assertTrue(path.length == 1);
-    assertEquals(path[0], "");
+    assertEquals(1, path.length);
+    assertEquals("", path[0]);
   }
   
   @Test (expected = NullPointerException.class)
   public void explodePathNull() {
-    getQuery(null).explodePath();
+    NettyMocks.getQuery(tsdb, null).explodePath();
   }
   
   @Test
   public void getQueryBaseRouteRoot() {
-    final HttpQuery query = getQuery("/");
-    assertEquals(query.getQueryBaseRoute(), "");
-    assertEquals(query.api_version(), 0);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    assertEquals("", query.getQueryBaseRoute());
+    assertEquals(0, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteRootQS() {
-    final HttpQuery query = getQuery("/?param=value");
-    assertEquals(query.getQueryBaseRoute(), "");
-    assertEquals(query.api_version(), 0);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/?param=value");
+    assertEquals("", query.getQueryBaseRoute());
+    assertEquals(0, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteQ() {
-    final HttpQuery query = getQuery("/q");
-    assertEquals(query.getQueryBaseRoute(), "q");
-    assertEquals(query.api_version(), 0);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/q");
+    assertEquals("q", query.getQueryBaseRoute());
+    assertEquals(0, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteQSlash() {
-    final HttpQuery query = getQuery("/q/");
-    assertEquals(query.getQueryBaseRoute(), "q");
-    assertEquals(query.api_version(), 0);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/q/");
+    assertEquals("q", query.getQueryBaseRoute());
+    assertEquals(0, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteLogs() {
-    final HttpQuery query = getQuery("/logs");
-    assertEquals(query.getQueryBaseRoute(), "logs");
-    assertEquals(query.api_version(), 0);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/logs");
+    assertEquals("logs", query.getQueryBaseRoute());
+    assertEquals(0, query.apiVersion());
   }
   
-  @Test
-  public void getQueryBaseRouteAPIVMax() {
-    final HttpQuery query = getQuery("/api/v3/put");
-    assertEquals(query.getQueryBaseRoute(), "api/put");
-    assertEquals(query.api_version(), 1);
+  @Test (expected = BadRequestException.class)
+  public void getQueryBaseRouteAPIVNotImplemented() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/api/v3/put");
+    assertEquals("api/put", query.getQueryBaseRoute());
+    assertEquals(1, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteAPICap() {
-    final HttpQuery query = getQuery("/API/V3/PUT");
-    assertEquals(query.getQueryBaseRoute(), "api/put");
-    assertEquals(query.api_version(), 1);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/API/V1/PUT");
+    assertEquals("api/put", query.getQueryBaseRoute());
+    assertEquals(1, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteAPIDefaultV() {
-    final HttpQuery query = getQuery("/api/put");
-    assertEquals(query.getQueryBaseRoute(), "api/put");
-    assertEquals(query.api_version(), 1);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/api/put");
+    assertEquals("api/put", query.getQueryBaseRoute());
+    assertEquals(1, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteAPIQS() {
-    final HttpQuery query = getQuery("/api/v2/put?metric=mine");
-    assertEquals(query.getQueryBaseRoute(), "api/put");
-    assertEquals(query.api_version(), 1);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/v1/put?metric=mine");
+    assertEquals("api/put", query.getQueryBaseRoute());
+    assertEquals(1, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteAPINoEP() {
-    final HttpQuery query = getQuery("/api");
-    assertEquals(query.getQueryBaseRoute(), "api");
-    assertEquals(query.api_version(), 0);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/api");
+    assertEquals("api", query.getQueryBaseRoute());
+    assertEquals(1, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteAPINoEPSlash() {
-    final HttpQuery query = getQuery("/api/");
-    assertEquals(query.getQueryBaseRoute(), "api");
-    assertEquals(query.api_version(), 0);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/api/");
+    assertEquals("api", query.getQueryBaseRoute());
+    assertEquals(1, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteFavicon() {
-    final HttpQuery query = getQuery("/favicon.ico");
-    assertEquals(query.getQueryBaseRoute(), "favicon.ico");
-    assertEquals(query.api_version(), 0);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/favicon.ico");
+    assertEquals("favicon.ico", query.getQueryBaseRoute());
+    assertEquals(0, query.apiVersion());
   }
   
   @Test
   public void getQueryBaseRouteVersion() {
-    final HttpQuery query = getQuery("/api/version/query");
-    assertEquals(query.getQueryBaseRoute(), "api/version");
-    assertEquals(query.api_version(), 1);
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/api/version/query");
+    assertEquals("api/version", query.getQueryBaseRoute());
+    assertEquals(1, query.apiVersion());
   }
   
-  @Test
-  public void getQueryBaseRouteVBad() {
-    final HttpQuery query = getQuery("/api/v/query");
-    assertEquals(query.getQueryBaseRoute(), "api/v");
-    assertEquals(query.api_version(), 1);
+  @Test (expected = BadRequestException.class)
+  public void getQueryBaseRouteVBadNumber() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, "/api/v2d/query");
+    query.getQueryBaseRoute();
   }
   
   @Test (expected = NullPointerException.class)
   public void getQueryBaseRouteNull() {
-    getQuery(null).getQueryBaseRoute();
+    NettyMocks.getQuery(tsdb, null).getQueryBaseRoute();
   }
   
   @Test (expected = BadRequestException.class)
   public void getQueryBaseRouteBad() {
-    getQuery("notavalidquery").getQueryBaseRoute();
+    NettyMocks.getQuery(tsdb, "notavalidquery").getQueryBaseRoute();
   }
   
   @Test (expected = BadRequestException.class)
   public void getQueryBaseRouteEmpty() {
-    getQuery("").getQueryBaseRoute();
+    NettyMocks.getQuery(tsdb, "").getQueryBaseRoute();
   }
   
   @Test
@@ -285,13 +314,14 @@ public class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.addHeader("Content-Type", "text/plain");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getCharset().equals(Charset.forName("UTF-8")));
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    assertEquals(Charset.forName("UTF-8"), query.getCharset());
   }
   
   @Test
   public void getCharsetDefaultNoHeader() {
-    assertTrue(getQuery("/").getCharset().equals(Charset.forName("UTF-8")));
+    assertEquals(Charset.forName("UTF-8"), 
+        NettyMocks.getQuery(tsdb, "/").getCharset());
   }
   
   @Test
@@ -300,8 +330,8 @@ public class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.addHeader("Content-Type", "text/plain; charset=UTF-16");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getCharset().equals(Charset.forName("UTF-16")));
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    assertEquals(Charset.forName("UTF-16"), query.getCharset());
   }
   
   @Test (expected = UnsupportedCharsetException.class)
@@ -310,8 +340,26 @@ public class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.addHeader("Content-Type", "text/plain; charset=foobar");
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getCharset().equals(Charset.forName("UTF-16")));
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    assertEquals(Charset.forName("UTF-16"), query.getCharset());
+  }
+  
+  @Test
+  public void hasContent() {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/", "Hello World", "");
+    assertTrue(query.hasContent());
+  }
+  
+  @Test
+  public void hasContentFalse() {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/", null, "");
+    assertFalse(query.hasContent());
+  }
+  
+  @Test
+  public void hasContentNotReadable() {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/", "", "");
+    assertFalse(query.hasContent());
   }
   
   @Test
@@ -323,8 +371,8 @@ public class TestHttpQuery {
     final ChannelBuffer buf = ChannelBuffers.copiedBuffer("S\u00ED Se\u00F1or", 
         CharsetUtil.UTF_16);
     req.setContent(buf);
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getContent().equals("S\u00ED Se\u00F1or"));
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    assertEquals("S\u00ED Se\u00F1or", query.getContent());
   }
   
   @Test
@@ -335,8 +383,8 @@ public class TestHttpQuery {
     final ChannelBuffer buf = ChannelBuffers.copiedBuffer("S\u00ED Se\u00F1or", 
         CharsetUtil.UTF_8);
     req.setContent(buf);
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertTrue(query.getContent().equals("S\u00ED Se\u00F1or"));
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    assertEquals("S\u00ED Se\u00F1or", query.getContent());
   }
   
   @Test
@@ -347,146 +395,629 @@ public class TestHttpQuery {
     final ChannelBuffer buf = ChannelBuffers.copiedBuffer("S\u00ED Se\u00F1or", 
         CharsetUtil.ISO_8859_1);
     req.setContent(buf);
-    final HttpQuery query = new HttpQuery(null, req, channelMock);
-    assertFalse(query.getContent().equals("S\u00ED Se\u00F1or"));
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    assertThat("S\u00ED Se\u00F1or", not(equalTo(query.getContent())));
   }
   
   @Test
   public void getContentEmpty() {
-    assertTrue(getQuery("/").getContent().isEmpty());
+    assertTrue(NettyMocks.getQuery(tsdb, "/").getContent().isEmpty());
   }
   
   @Test
   public void guessMimeTypeFromUriPNG() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromUri().invoke(null, "abcd.png"), 
-        "image/png");
+    assertEquals("image/png", 
+        reflectguessMimeTypeFromUri().invoke(null, "abcd.png"));
   }
   
   @Test
   public void guessMimeTypeFromUriHTML() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromUri().invoke(null, "abcd.html"), 
-        "text/html; charset=UTF-8");
+    assertEquals("text/html; charset=UTF-8", 
+        reflectguessMimeTypeFromUri().invoke(null, "abcd.html"));
   }
   
   @Test
   public void guessMimeTypeFromUriCSS() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromUri().invoke(null, "abcd.css"), 
-        "text/css");
+    assertEquals("text/css", 
+        reflectguessMimeTypeFromUri().invoke(null, "abcd.css"));
   }
   
   @Test
   public void guessMimeTypeFromUriJS() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromUri().invoke(null, "abcd.js"), 
-        "text/javascript");
+    assertEquals("text/javascript", 
+        reflectguessMimeTypeFromUri().invoke(null, "abcd.js"));
   }
   
   @Test
   public void guessMimeTypeFromUriGIF() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromUri().invoke(null, "abcd.gif"), 
-        "image/gif");
+    assertEquals("image/gif", 
+        reflectguessMimeTypeFromUri().invoke(null, "abcd.gif"));
   }
   
   @Test
   public void guessMimeTypeFromUriICO() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromUri().invoke(null, "abcd.ico"), 
-        "image/x-icon");
+    assertEquals("image/x-icon", 
+        reflectguessMimeTypeFromUri().invoke(null, "abcd.ico"));
   }
   
   @Test
   public void guessMimeTypeFromUriOther() throws Exception {
-    assertNull(ReflectguessMimeTypeFromUri().invoke(null, "abcd.jpg"));
+    assertNull(reflectguessMimeTypeFromUri().invoke(null, "abcd.jpg"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void guessMimeTypeFromUriNull() throws Exception {
-    ReflectguessMimeTypeFromUri().invoke(null, (Object[])null);
+    reflectguessMimeTypeFromUri().invoke(null, (Object[])null);
   }
   
   @Test 
   public void guessMimeTypeFromUriEmpty() throws Exception {
-    assertNull(ReflectguessMimeTypeFromUri().invoke(null, ""));
+    assertNull(reflectguessMimeTypeFromUri().invoke(null, ""));
   }
 
   @Test
   public void guessMimeTypeFromContentsHTML() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromContents().invoke(
-        new HttpQuery(null, null, NettyMocks.fakeChannel()),
-        ChannelBuffers.copiedBuffer(
-            "<HTML>...", Charset.forName("UTF-8"))), 
-        "text/html; charset=UTF-8");
+    assertEquals("text/html; charset=UTF-8", 
+        reflectguessMimeTypeFromContents().invoke(
+            NettyMocks.getQuery(tsdb, ""),
+            ChannelBuffers.copiedBuffer(
+                "<HTML>...", Charset.forName("UTF-8"))));
   }
   
   @Test
   public void guessMimeTypeFromContentsJSONObj() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromContents().invoke(
-        new HttpQuery(null, null, NettyMocks.fakeChannel()),
-        ChannelBuffers.copiedBuffer(
-            "{\"hello\":\"world\"}", Charset.forName("UTF-8"))), 
-        "application/json");
+    assertEquals("application/json", 
+        reflectguessMimeTypeFromContents().invoke(
+            NettyMocks.getQuery(tsdb, ""),
+            ChannelBuffers.copiedBuffer(
+                "{\"hello\":\"world\"}", Charset.forName("UTF-8"))));
   }
   
   @Test
   public void guessMimeTypeFromContentsJSONArray() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromContents().invoke(
-        new HttpQuery(null, null, NettyMocks.fakeChannel()),
-        ChannelBuffers.copiedBuffer(
-            "[\"hello\",\"world\"]", Charset.forName("UTF-8"))), 
-        "application/json");
+    assertEquals("application/json", 
+        reflectguessMimeTypeFromContents().invoke(
+            NettyMocks.getQuery(tsdb, ""),
+            ChannelBuffers.copiedBuffer(
+                "[\"hello\",\"world\"]", Charset.forName("UTF-8"))));
   }
   
   @Test
   public void guessMimeTypeFromContentsPNG() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromContents().invoke(
-        new HttpQuery(null, null, NettyMocks.fakeChannel()),
-        ChannelBuffers.copiedBuffer(
-            new byte[] {(byte) 0x89, 0x00})), 
-        "image/png");
+    assertEquals("image/png", 
+        reflectguessMimeTypeFromContents().invoke(
+            NettyMocks.getQuery(tsdb, ""),
+            ChannelBuffers.copiedBuffer(
+                new byte[] {(byte) 0x89, 0x00})));
   }
   
   @Test
   public void guessMimeTypeFromContentsText() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromContents().invoke(
-        new HttpQuery(null, null, NettyMocks.fakeChannel()),
-        ChannelBuffers.copiedBuffer(
-            "Just plain text", Charset.forName("UTF-8"))), 
-        "text/plain");
+    assertEquals("text/plain", 
+        reflectguessMimeTypeFromContents().invoke(
+            NettyMocks.getQuery(tsdb, ""),
+            ChannelBuffers.copiedBuffer(
+                "Just plain text", Charset.forName("UTF-8"))));
   }
   
   @Test 
   public void guessMimeTypeFromContentsEmpty() throws Exception {
-    assertEquals(ReflectguessMimeTypeFromContents().invoke(
-        new HttpQuery(null, null, NettyMocks.fakeChannel()),
-        ChannelBuffers.copiedBuffer(
-            "", Charset.forName("UTF-8"))), 
-        "text/plain");
+    assertEquals("text/plain", 
+        reflectguessMimeTypeFromContents().invoke(
+            NettyMocks.getQuery(tsdb, ""),
+            ChannelBuffers.copiedBuffer(
+                "", Charset.forName("UTF-8"))));
   }
   
   @Test (expected = NullPointerException.class)
   public void guessMimeTypeFromContentsNull() throws Exception {
     ChannelBuffer buf = null;
-    ReflectguessMimeTypeFromContents().invoke(
-        new HttpQuery(null, null, NettyMocks.fakeChannel()), buf);
+    reflectguessMimeTypeFromContents().invoke(
+        NettyMocks.getQuery(tsdb, ""), buf);
   }
   
-  /**
-   * Returns an HttpQuery with a mocked channel, used for URI parsing and
-   * static method examples
-   * @param uri a URI to use
-   * @return an HttpQuery object
-   */
-  private HttpQuery getQuery(final String uri) {
+  @Test
+  public void initializeSerializerMaps() throws Exception {
+    HttpQuery.initializeSerializerMaps(null);
+  }
+  
+  @Test
+  public void setSerializer() throws Exception {
+    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/aggregators");
+    query.setSerializer();
+    assertEquals(HttpJsonSerializer.class.getCanonicalName(), 
+        query.serializer().getClass().getCanonicalName());
+  }
+  
+  @Test
+  public void setFormatterQS() throws Exception {
+    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/aggregators?formatter=json");
+    query.setSerializer();
+    assertEquals(HttpJsonSerializer.class.getCanonicalName(), 
+        query.serializer().getClass().getCanonicalName());
+  }
+  
+  @Test
+  public void setSerializerDummyQS() throws Exception {
+    PluginLoader.loadJAR("plugin_test.jar");
+    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/aggregators?serializer=dummy");
+    query.setSerializer();
+    assertEquals("net.opentsdb.tsd.DummyHttpSerializer", 
+        query.serializer().getClass().getCanonicalName());
+  }
+  
+  @Test
+  public void setSerializerCT() throws Exception {
+    HttpQuery.initializeSerializerMaps(null);
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.GET, uri);
-    return new HttpQuery(null, req, channelMock);
+        HttpMethod.GET, "/");
+    req.addHeader("Content-Type", "application/json");
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    query.setSerializer();
+    assertEquals(HttpJsonSerializer.class.getCanonicalName(), 
+        query.serializer().getClass().getCanonicalName());
   }
   
+  @Test
+  public void setSerializerDummyCT() throws Exception {
+    PluginLoader.loadJAR("plugin_test.jar");
+    HttpQuery.initializeSerializerMaps(null);
+    final Channel channelMock = NettyMocks.fakeChannel();
+    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
+        HttpMethod.GET, "/");
+    req.addHeader("Content-Type", "application/tsdbdummy");
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    query.setSerializer();
+    assertEquals("net.opentsdb.tsd.DummyHttpSerializer", 
+        query.serializer().getClass().getCanonicalName());
+  }
+  
+  @Test
+  public void setSerializerDefaultCT() throws Exception {
+    HttpQuery.initializeSerializerMaps(null);
+    final Channel channelMock = NettyMocks.fakeChannel();
+    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
+        HttpMethod.GET, "/");
+    req.addHeader("Content-Type", "invalid/notfoundtype");
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    query.setSerializer();
+    assertEquals(HttpJsonSerializer.class.getCanonicalName(), 
+        query.serializer().getClass().getCanonicalName());
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void setSerializerNotFound() throws Exception {
+    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/suggest?serializer=notfound");
+    query.setSerializer();
+  }
+  
+  @Test
+  public void internalErrorDeprecated() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    try {
+      throw new Exception("Internal Error");
+    } catch (Exception e) {
+      query.internalError(e);
+    }
+    assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+        query.response().getStatus());
+    assertEquals(
+        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 63));
+  }
+  
+  @Test
+  public void internalErrorDeprecatedJSON() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/?json");
+    try {
+      throw new Exception("Internal Error");
+    } catch (Exception e) {
+      query.internalError(e);
+    }
+    assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+        query.response().getStatus());    
+    assertEquals(
+        "{\"err\":\"java.lang.Exception: Internal Error", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 43));
+  }
+  
+  @Test
+  public void internalErrorDefaultSerializer() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/api/error");
+    query.getQueryBaseRoute();
+    try {
+      throw new Exception("Internal Error");
+    } catch (Exception e) {
+      query.internalError(e);
+    }
+    assertEquals(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+        query.response().getStatus());    
+    assertEquals(
+        "{\"error\":{\"code\":500,\"message\":\"Internal Error\"", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 47));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void internalErrorNull() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    query.internalError(null);
+  }
+  
+  @Test
+  public void badRequestDeprecated() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    try {
+      throw new BadRequestException("Bad user error");
+    } catch (BadRequestException e) {
+      query.badRequest(e);
+    }
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());    
+    assertEquals(
+        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 63));
+  }
+  
+  @Test
+  public void badRequestDeprecatedJSON() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/?json");
+    try {
+      throw new BadRequestException("Bad user error");
+    } catch (BadRequestException e) {
+      query.badRequest(e);
+    }
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());  
+    assertEquals(
+        "{\"err\":\"Bad user error\"}", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test
+  public void badRequestDefaultSerializer() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/api/error");
+    query.getQueryBaseRoute();
+    try {
+      throw new BadRequestException("Bad user error");
+    } catch (BadRequestException e) {
+      query.badRequest(e);
+    }
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus()); 
+    assertEquals(
+        "{\"error\":{\"code\":400,\"message\":\"Bad user error\"", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 47));
+  }
+  
+  @Test
+  public void badRequestDefaultSerializerDiffStatus() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/api/error");
+    query.getQueryBaseRoute();
+    try {
+      throw new BadRequestException(HttpResponseStatus.FORBIDDEN,
+          "Bad user error");
+    } catch (BadRequestException e) {
+      query.badRequest(e);
+    }
+    assertEquals(HttpResponseStatus.FORBIDDEN, query.response().getStatus()); 
+    assertEquals(
+        "{\"error\":{\"code\":403,\"message\":\"Bad user error\"", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 47));
+  }
+  
+  @Test
+  public void badRequestDefaultSerializerDetails() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/api/error");
+    query.getQueryBaseRoute();
+    try {
+      throw new BadRequestException(HttpResponseStatus.FORBIDDEN,
+          "Bad user error", "Got Details");
+    } catch (BadRequestException e) {
+      query.badRequest(e);
+    }
+    assertEquals(HttpResponseStatus.FORBIDDEN, query.response().getStatus()); 
+    assertEquals(
+        "{\"error\":{\"code\":403,\"message\":\"Bad user error\",\"details\":\"Got Details\"", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 71));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void badRequestNull() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.badRequest((BadRequestException)null);
+  }
+  
+  @Test
+  public void badRequestDeprecatedString() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.badRequest("Bad user error");
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());    
+    assertEquals(
+        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 63));
+  }
+  
+  @Test
+  public void badRequestDeprecatedJSONString() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/?json");
+    query.badRequest("Bad user error");
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());  
+    assertEquals(
+        "{\"err\":\"Bad user error\"}", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test
+  public void badRequestDefaultSerializerString() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/api/error");
+    query.getQueryBaseRoute();
+    query.badRequest("Bad user error");
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus()); 
+    assertEquals(
+        "{\"error\":{\"code\":400,\"message\":\"Bad user error\"", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 47));
+  }
+  
+  @Test
+  public void badRequestNullString() {
+    // this won't throw an error, just report "null" back to the user with a 
+    // stack trace
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.badRequest((String)null);
+  }
+  
+  @Test
+  public void notFoundDeprecated() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.notFound();
+    assertEquals(HttpResponseStatus.NOT_FOUND, query.response().getStatus());    
+    assertEquals(
+        "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">", 
+        query.response().getContent().toString(Charset.forName("UTF-8"))
+        .substring(0, 63));
+  }
+  
+  @Test
+  public void notFoundDeprecatedJSON() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/?json");
+    query.notFound();
+    assertEquals(HttpResponseStatus.NOT_FOUND, query.response().getStatus());  
+    assertEquals(
+        "{\"err\":\"Page Not Found\"}", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test
+  public void notFoundDefaultSerializer() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/api/error");
+    query.getQueryBaseRoute();
+    query.notFound();
+    assertEquals(HttpResponseStatus.NOT_FOUND, query.response().getStatus()); 
+    assertEquals(
+        "{\"error\":{\"code\":404,\"message\":\"Endpoint not found\"}}", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test
+  public void redirect() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.redirect("/redirect");
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("/redirect", query.response().getHeader("Location"));
+    assertEquals("<html></head><meta http-equiv=\"refresh\" content=\"0; url="
+        + "/redirect\"></head></html>", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void redirectNull() {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.redirect(null);
+  }
+  
+  @Test
+  public void escapeJson() {
+    StringBuilder sb = new StringBuilder();
+    String json = "\" \\ ";
+    json += Character.toString('\b') + " ";
+    json += Character.toString('\f') + " ";
+    json += Character.toString('\n') + " ";
+    json += Character.toString('\r') + " ";
+    json += Character.toString('\t');
+    HttpQuery.escapeJson(json, sb);
+    assertEquals("\\\" \\\\ \\b \\f \\n \\r \\t", sb.toString());
+  }
+  
+  @Test
+  public void sendReplyBytes() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply("Hello World".getBytes());
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("Hello World", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyBytesNull() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply((byte[])null);
+  }
+  
+  @Test
+  public void sendReplyStatusBytes() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply(HttpResponseStatus.CREATED, "Hello World".getBytes());
+    assertEquals(HttpResponseStatus.CREATED, query.response().getStatus());
+    assertEquals("Hello World", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyStatusBytesNullStatus() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply(null, "Hello World".getBytes());
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyStatusBytesNullBytes() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply(HttpResponseStatus.CREATED, (byte[])null);
+  }
+  
+  @Test
+  public void sendReplySB() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply(new StringBuilder("Hello World"));
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("Hello World", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplySBNull() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply((StringBuilder)null);
+  }
+  
+  @Test
+  public void sendReplyString() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply("Hello World");
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("Hello World", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyStringNull() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply((String)null);
+  }
+  
+  @Test
+  public void sendReplyStatusSB() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply(HttpResponseStatus.CREATED, 
+        new StringBuilder("Hello World"));
+    assertEquals(HttpResponseStatus.CREATED, query.response().getStatus());
+    assertEquals("Hello World", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyStatusSBNullStatus() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply(null, new StringBuilder("Hello World"));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyStatusSBNullSB() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply(HttpResponseStatus.CREATED, (StringBuilder)null);
+  }
+  
+  @Test
+  public void sendReplyCB() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    ChannelBuffer cb = ChannelBuffers.copiedBuffer("Hello World", 
+        Charset.forName("UTF-8"));
+    query.sendReply(cb);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals("Hello World", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyCBNull() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply((ChannelBuffer)null);
+  }
+  
+  @Test
+  public void sendReplyStatusCB() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    ChannelBuffer cb = ChannelBuffers.copiedBuffer("Hello World", 
+        Charset.forName("UTF-8"));
+    query.sendReply(HttpResponseStatus.CREATED, cb);
+    assertEquals(HttpResponseStatus.CREATED, query.response().getStatus());
+    assertEquals("Hello World", 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyStatusCBNullStatus() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    ChannelBuffer cb = ChannelBuffers.copiedBuffer("Hello World", 
+        Charset.forName("UTF-8"));
+    query.sendReply(null, cb);
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendReplyStatusCBNullCB() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendReply(HttpResponseStatus.CREATED, (ChannelBuffer)null);
+  }
+  
+  @Test
+  public void sendBuffer() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    ChannelBuffer cb = ChannelBuffers.copiedBuffer("Hello World", 
+        Charset.forName("UTF-8"));
+    reflectsendBuffer().invoke(query, HttpResponseStatus.OK, cb);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals(cb.toString(Charset.forName("UTF-8")), 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test
+  public void sendBufferEmptyCB() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    ChannelBuffer cb = ChannelBuffers.copiedBuffer("", 
+        Charset.forName("UTF-8"));
+    reflectsendBuffer().invoke(query, HttpResponseStatus.OK, cb);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertEquals(cb.toString(Charset.forName("UTF-8")), 
+        query.response().getContent().toString(Charset.forName("UTF-8")));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendBufferNullStatus() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    ChannelBuffer cb = ChannelBuffers.copiedBuffer("Hello World", 
+        Charset.forName("UTF-8"));
+    reflectsendBuffer().invoke(query, null, cb);
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendBufferNullCB() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "");
+    reflectsendBuffer().invoke(query, HttpResponseStatus.OK, null);
+  }
+
+  @Test
+  public void getSerializerStatus() throws Exception {
+    HttpQuery.initializeSerializerMaps(tsdb);
+    assertNotNull(HttpQuery.getSerializerStatus());
+  }
+
   /** 
    * Reflection for the guessMimeTypeFromURI(final String uri) method
    * @return The method if it was detected
    * @throws Exception If the method was not found
    */
-  private Method ReflectguessMimeTypeFromUri() throws Exception {
+  private Method reflectguessMimeTypeFromUri() throws Exception {
     Method guessMimeTypeFromUri = HttpQuery.class.getDeclaredMethod(
         "guessMimeTypeFromUri", String.class);
     guessMimeTypeFromUri.setAccessible(true);
@@ -499,10 +1030,22 @@ public class TestHttpQuery {
    * @return The method if it was detected
    * @throws Exception if the method was not found
    */
-  private Method ReflectguessMimeTypeFromContents() throws Exception {
+  private Method reflectguessMimeTypeFromContents() throws Exception {
     Method guessMimeTypeFromContents = HttpQuery.class.getDeclaredMethod(
         "guessMimeTypeFromContents", ChannelBuffer.class);
     guessMimeTypeFromContents.setAccessible(true);
     return guessMimeTypeFromContents;
+  }
+  
+  /**
+   * Reflection for the private sendBuffer() method of HttpQuery for testing
+   * @return The method if it was found
+   * @throws Exception if the method was not found
+   */
+  private Method reflectsendBuffer() throws Exception {
+    Method sendBuffer = HttpQuery.class.getDeclaredMethod("sendBuffer", 
+        HttpResponseStatus.class, ChannelBuffer.class);
+    sendBuffer.setAccessible(true);
+    return sendBuffer;
   }
 }

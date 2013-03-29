@@ -44,11 +44,22 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   private final RpcHandler rpchandler;
 
   /**
-   * Constructor.
+   * Constructor that initializes the RPC router and loads HTTP formatter 
+   * plugins
    * @param tsdb The TSDB to use.
+   * @throws RuntimeException if there is an issue loading plugins
+   * @throws Exception if the HttpQuery handler is unable to load 
+   * serializers
    */
   public PipelineFactory(final TSDB tsdb) {
     this.rpchandler = new RpcHandler(tsdb);
+    try {
+      HttpQuery.initializeSerializerMaps(tsdb);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize formatter plugins", e);
+    }
   }
 
   @Override
