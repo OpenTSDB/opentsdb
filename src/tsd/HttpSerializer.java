@@ -15,6 +15,8 @@ package net.opentsdb.tsd;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -159,7 +161,7 @@ public abstract class HttpSerializer {
   /**
    * Formats a suggestion response
    * @param suggestions List of suggestions for the given type
-   * @return A JSON formatted byte array
+   * @return A ChannelBuffer object to pass on to the caller
    * @throws IOException if the serialization failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
@@ -173,7 +175,7 @@ public abstract class HttpSerializer {
 
   /**
    * Format the serializers status map
-   * @return A JSON structure
+   * @return A ChannelBuffer object to pass on to the caller
    * @throws IOException if the serialization failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
@@ -182,6 +184,51 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatSerializersV1");
+  }
+  
+  /**
+   * Format the list of implemented aggregators
+   * @param aggregators The list of aggregation functions
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws IOException if the serialization failed
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatAggregatorsV1(final Set<String> aggregators) 
+    throws IOException {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatAggregatorsV1");
+  }
+  
+  /**
+   * Format a hash map of information about the OpenTSDB version
+   * @param version A hash map with version information
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws IOException if the serialization failed
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatVersionV1(final Map<String, String> version) 
+    throws IOException {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatVersionV1");
+  }
+  
+  /**
+   * Format a response from the DropCaches call
+   * @param response A hash map with a response
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws IOException if the serialization failed
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatDropCachesV1(final Map<String, String> response) 
+    throws IOException {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatDropCachesV1");
   }
   
   /**
@@ -225,7 +272,8 @@ public abstract class HttpSerializer {
   public ChannelBuffer formatErrorV1(final BadRequestException exception) {
     StringBuilder output = 
       new StringBuilder(exception.getMessage().length() * 2);
-    if (query.hasQueryStringParam("jsonp")) {
+    final String jsonp = query.getQueryStringParam("jsonp");
+    if (jsonp != null && !jsonp.isEmpty()) {
       output.append(query.getQueryStringParam("jsonp") + "(");
     }
     output.append("{\"error\":{\"code\":");
@@ -248,7 +296,7 @@ public abstract class HttpSerializer {
       output.append(",\"trace\":\"").append(trace.toString()).append("\"");
     }
     output.append("}}");
-    if (query.hasQueryStringParam("jsonp")) {
+    if (jsonp != null && !jsonp.isEmpty()) {
       output.append(")");
     }
     return ChannelBuffers.copiedBuffer(
@@ -267,7 +315,8 @@ public abstract class HttpSerializer {
   public ChannelBuffer formatErrorV1(final Exception exception) {
     StringBuilder output = 
       new StringBuilder(exception.getMessage().length() * 2);
-    if (query.hasQueryStringParam("jsonp")) {
+    final String jsonp = query.getQueryStringParam("jsonp");
+    if (jsonp != null && !jsonp.isEmpty()) {
       output.append(query.getQueryStringParam("jsonp") + "(");
     }
     output.append("{\"error\":{\"code\":");
@@ -284,7 +333,7 @@ public abstract class HttpSerializer {
       output.append(",\"trace\":\"").append(trace.toString()).append("\"");
     }
     output.append("}}");
-    if (query.hasQueryStringParam("jsonp")) {
+    if (jsonp != null && !jsonp.isEmpty()) {
       output.append(")");
     }
     return ChannelBuffers.copiedBuffer(

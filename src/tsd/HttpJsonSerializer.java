@@ -15,6 +15,8 @@ package net.opentsdb.tsd;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -110,6 +112,39 @@ class HttpJsonSerializer extends HttpSerializer {
    */
   public ChannelBuffer formatSerializersV1() throws IOException {
     return serializeJSON(HttpQuery.getSerializerStatus());
+  }
+  
+  /**
+   * Format the list of implemented aggregators
+   * @param aggregators The list of aggregation functions
+   * @return A JSON structure
+   * @throws IOException if the serialization failed
+   */
+  public ChannelBuffer formatAggregatorsV1(final Set<String> aggregators) 
+    throws IOException {
+    return this.serializeJSON(aggregators);
+  }
+  
+  /**
+   * Format a hash map of information about the OpenTSDB version
+   * @param version A hash map with version information
+   * @return A JSON structure
+   * @throws IOException if the serialization failed
+   */
+  public ChannelBuffer formatVersionV1(final Map<String, String> version) 
+    throws IOException {
+    return this.serializeJSON(version);
+  }
+  
+  /**
+   * Format a response from the DropCaches call
+   * @param response A hash map with a response
+   * @return A JSON structure
+   * @throws IOException if the serialization failed
+   */
+  public ChannelBuffer formatDropCachesV1(final Map<String, String> response) 
+    throws IOException {
+    return this.serializeJSON(response);
   }
   
   /**
