@@ -49,6 +49,7 @@ final class SuggestRpc implements HttpRpc {
     
     final String type;
     final String q;
+    final String max;
     if (query.apiVersion() > 0 && query.method() == HttpMethod.POST) {
       final HashMap<String, String> map = query.serializer().parseSuggestV1();
       type = map.get("type");
@@ -59,18 +60,34 @@ final class SuggestRpc implements HttpRpc {
       if (q == null) {
         throw new BadRequestException("Missing 'q' parameter");
       }
+      max = map.get("max");
     } else { 
       type = query.getRequiredQueryStringParam("type");
       q = query.getRequiredQueryStringParam("q");
+      max = query.getQueryStringParam("max");
+    }
+    
+    final int max_results;
+    if (max != null && !max.isEmpty()) {
+      try {
+        max_results = Integer.parseInt(max);
+      } catch (NumberFormatException nfe) {
+        throw new BadRequestException("Unable to parse 'max' as a number");
+      }
+    } else {
+      max_results = 0;
     }
     
     List<String> suggestions;
     if ("metrics".equals(type)) {
-      suggestions = tsdb.suggestMetrics(q);
+      suggestions = max_results > 0 ? tsdb.suggestMetrics(q, max_results) :
+         tsdb.suggestMetrics(q);
     } else if ("tagk".equals(type)) {
-      suggestions = tsdb.suggestTagNames(q);
+      suggestions = max_results > 0 ? tsdb.suggestTagNames(q, max_results) :
+         tsdb.suggestTagNames(q);
     } else if ("tagv".equals(type)) {
-      suggestions = tsdb.suggestTagValues(q);
+      suggestions = max_results > 0 ? tsdb.suggestTagValues(q, max_results) :
+        tsdb.suggestTagValues(q);
     } else {
       throw new BadRequestException("Invalid 'type' parameter:" + type);
     }

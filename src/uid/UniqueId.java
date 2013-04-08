@@ -378,6 +378,7 @@ public final class UniqueId implements UniqueIdInterface {
   /**
    * Attempts to find suggestions of names given a search term.
    * @param search The search term (possibly empty).
+   * @param max_results The number of results to return. Must be 1 or greater
    * @return A list of known valid names that have UIDs that sort of match
    * the search term.  If the search term is empty, returns the first few
    * terms.
@@ -385,12 +386,32 @@ public final class UniqueId implements UniqueIdInterface {
    * HBase.
    */
   public List<String> suggest(final String search) throws HBaseException {
+    return suggest(search, MAX_SUGGESTIONS);
+  }
+      
+  /**
+   * Attempts to find suggestions of names given a search term.
+   * @param search The search term (possibly empty).
+   * @param max_results The number of results to return. Must be 1 or greater
+   * @return A list of known valid names that have UIDs that sort of match
+   * the search term.  If the search term is empty, returns the first few
+   * terms.
+   * @throws HBaseException if there was a problem getting suggestions from
+   * HBase.
+   * @throws IllegalArgumentException if the count was less than 1
+   * @since 2.0
+   */
+  public List<String> suggest(final String search, final int max_results) 
+    throws HBaseException {
+    if (max_results < 1) {
+      throw new IllegalArgumentException("Count must be greater than 0");
+    }
     // TODO(tsuna): Add caching to try to avoid re-scanning the same thing.
-    final Scanner scanner = getSuggestScanner(search);
+    final Scanner scanner = getSuggestScanner(search, max_results);
     final LinkedList<String> suggestions = new LinkedList<String>();
     try {
       ArrayList<ArrayList<KeyValue>> rows;
-      while ((short) suggestions.size() < MAX_SUGGESTIONS
+      while ((short) suggestions.size() < max_results
              && (rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
           if (row.size() != 1) {
@@ -522,8 +543,11 @@ public final class UniqueId implements UniqueIdInterface {
 
   /**
    * Creates a scanner that scans the right range of rows for suggestions.
+   * @param search The string to start searching at
+   * @param max_results The max number of results to return
    */
-  private Scanner getSuggestScanner(final String search) {
+  private Scanner getSuggestScanner(final String search, 
+      final int max_results) {
     final byte[] start_row;
     final byte[] end_row;
     if (search.isEmpty()) {
@@ -539,7 +563,7 @@ public final class UniqueId implements UniqueIdInterface {
     scanner.setStopKey(end_row);
     scanner.setFamily(ID_FAMILY);
     scanner.setQualifier(kind);
-    scanner.setMaxNumRows(MAX_SUGGESTIONS);
+    scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;
   }
 

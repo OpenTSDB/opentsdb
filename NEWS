@@ -8,6 +8,8 @@ Noteworthy changes:
   - GnuPlot batch file for Windows compatability
   - Add relative time option "n" for 30 days
   - Relative, unix epoch style timestamps work in CliQuery
+  - New "max" parameter for /suggest that can fetch more than the default 25 
+    results. If not supplied, default is used
 
 * Version 1.1.0 (2013-03-08) [12879d7]
 

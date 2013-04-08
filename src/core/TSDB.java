@@ -412,6 +412,17 @@ public final class TSDB {
   public List<String> suggestMetrics(final String search) {
     return metrics.suggest(search);
   }
+  
+  /**
+   * Given a prefix search, returns matching metric names.
+   * @param search A prefix to search.
+   * @param max_results Maximum number of results to return.
+   * @since 2.0
+   */
+  public List<String> suggestMetrics(final String search, 
+      final int max_results) {
+    return metrics.suggest(search, max_results);
+  }
 
   /**
    * Given a prefix search, returns a few matching tag names.
@@ -420,6 +431,17 @@ public final class TSDB {
   public List<String> suggestTagNames(final String search) {
     return tag_names.suggest(search);
   }
+  
+  /**
+   * Given a prefix search, returns matching tagk names.
+   * @param search A prefix to search.
+   * @param max_results Maximum number of results to return.
+   * @since 2.0
+   */
+  public List<String> suggestTagNames(final String search, 
+      final int max_results) {
+    return tag_names.suggest(search, max_results);
+  }
 
   /**
    * Given a prefix search, returns a few matching tag values.
@@ -427,6 +449,17 @@ public final class TSDB {
    */
   public List<String> suggestTagValues(final String search) {
     return tag_values.suggest(search);
+  }
+  
+  /**
+   * Given a prefix search, returns matching tag values.
+   * @param search A prefix to search.
+   * @param max_results Maximum number of results to return.
+   * @since 2.0
+   */
+  public List<String> suggestTagValues(final String search, 
+      final int max_results) {
+    return tag_values.suggest(search, max_results);
   }
 
   /**
