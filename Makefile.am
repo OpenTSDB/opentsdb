@@ -88,6 +88,7 @@ tsdb_SRC := \
 	src/utils/Config.java \ 
 	src/utils/DateTime.java \
 	src/utils/JSON.java \
+	src/utils/JSONException.java	\
 	src/utils/PluginLoader.java
 
 tsdb_DEPS = \

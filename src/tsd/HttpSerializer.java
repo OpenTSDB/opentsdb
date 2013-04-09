@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +58,9 @@ import net.opentsdb.core.TSDB;
  * <b>Note:</b> If a method needs to throw an exception due to user error, such
  * as missing data or a bad request, throw a {@link BadRequestException} with
  * a status code, error message and optional details.
+ * <p>
+ * Runtime exceptions, anything that goes wrong internally with your serializer,
+ * will be returned with a 500 Internal Server Error status.
  * <p>
  * <b>Note:</b> You can change the HTTP status code before returning from a 
  * "formatX" method by accessing "this.query.response().setStatus()" and
@@ -149,10 +151,9 @@ public abstract class HttpSerializer {
   /**
    * Parses one or more data points for storage
    * @return an array of data points to process for storage
-   * @throws IOException if parsing failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public List<IncomingDataPoint> parsePutV1() throws IOException {
+  public List<IncomingDataPoint> parsePutV1() {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -162,10 +163,9 @@ public abstract class HttpSerializer {
   /**
    * Parses a suggestion query
    * @return a hash map of key/value pairs
-   * @throws IOException if the parsing failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public HashMap<String, String> parseSuggestV1() throws IOException {
+  public HashMap<String, String> parseSuggestV1() {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -183,11 +183,9 @@ public abstract class HttpSerializer {
    * <li>datapoint - (IncomingDatapoint) the datapoint that generated the error
    * </li></ul></li></ul>
    * @return A ChannelBuffer object to pass on to the caller
-   * @throws IOException if the serialization failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public ChannelBuffer formatPutV1(final Map<String, Object> results) 
-    throws IOException {
+  public ChannelBuffer formatPutV1(final Map<String, Object> results) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -198,11 +196,9 @@ public abstract class HttpSerializer {
    * Formats a suggestion response
    * @param suggestions List of suggestions for the given type
    * @return A ChannelBuffer object to pass on to the caller
-   * @throws IOException if the serialization failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public ChannelBuffer formatSuggestV1(final List<String> suggestions) 
-    throws IOException {
+  public ChannelBuffer formatSuggestV1(final List<String> suggestions) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -212,10 +208,9 @@ public abstract class HttpSerializer {
   /**
    * Format the serializers status map
    * @return A ChannelBuffer object to pass on to the caller
-   * @throws IOException if the serialization failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public ChannelBuffer formatSerializersV1() throws IOException {
+  public ChannelBuffer formatSerializersV1() {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -226,11 +221,9 @@ public abstract class HttpSerializer {
    * Format the list of implemented aggregators
    * @param aggregators The list of aggregation functions
    * @return A ChannelBuffer object to pass on to the caller
-   * @throws IOException if the serialization failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public ChannelBuffer formatAggregatorsV1(final Set<String> aggregators) 
-    throws IOException {
+  public ChannelBuffer formatAggregatorsV1(final Set<String> aggregators) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -241,11 +234,9 @@ public abstract class HttpSerializer {
    * Format a hash map of information about the OpenTSDB version
    * @param version A hash map with version information
    * @return A ChannelBuffer object to pass on to the caller
-   * @throws IOException if the serialization failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public ChannelBuffer formatVersionV1(final Map<String, String> version) 
-    throws IOException {
+  public ChannelBuffer formatVersionV1(final Map<String, String> version) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -256,11 +247,9 @@ public abstract class HttpSerializer {
    * Format a response from the DropCaches call
    * @param response A hash map with a response
    * @return A ChannelBuffer object to pass on to the caller
-   * @throws IOException if the serialization failed
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public ChannelBuffer formatDropCachesV1(final Map<String, String> response) 
-    throws IOException {
+  public ChannelBuffer formatDropCachesV1(final Map<String, String> response) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 

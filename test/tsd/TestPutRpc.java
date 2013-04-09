@@ -16,13 +16,13 @@ import static org.mockito.Mockito.when;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.JSONException;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
@@ -261,7 +261,7 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
   }
   
-  @Test (expected = IOException.class)
+  @Test (expected = BadRequestException.class)
   public void badJSON() throws Exception {
     // missing a quotation mark
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
@@ -271,7 +271,7 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
   }
   
-  @Test (expected = IOException.class)
+  @Test (expected = BadRequestException.class)
   public void notJSON() throws Exception {
     // missing a quotation mark
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", "Hello World");
@@ -447,7 +447,7 @@ public final class TestPutRpc {
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
-  @Test (expected = IOException.class)
+  @Test (expected = BadRequestException.class)
   public void ValueNaNCase() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
@@ -486,7 +486,7 @@ public final class TestPutRpc {
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
-  @Test (expected = IOException.class)
+  @Test (expected = BadRequestException.class)
   public void ValueINFUnsigned() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
@@ -495,7 +495,7 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
   }
   
-  @Test (expected = IOException.class)
+  @Test (expected = BadRequestException.class)
   public void ValueINFCase() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
@@ -534,7 +534,7 @@ public final class TestPutRpc {
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
-  @Test (expected = IOException.class)
+  @Test (expected = BadRequestException.class)
   public void ValueInfinityUnsigned() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""

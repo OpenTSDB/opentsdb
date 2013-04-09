@@ -17,7 +17,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 /**
  * Exception thrown by the HTTP handlers when presented with a bad request such
  * as missing data, invalid requests, etc.
- * 
+ * <p>
  * This has been extended for 2.0 to include the HTTP status code and an 
  * optional detailed response. The default "message" field is still used for
  * short error descriptions, typically one sentence long.
@@ -39,6 +39,27 @@ final class BadRequestException extends RuntimeException {
    */
   public BadRequestException(final String message) {
     this(HttpResponseStatus.BAD_REQUEST, message, "");
+  }
+  
+  /**
+   * Constructor to wrap a source exception in a BadRequestException
+   * @param cause The source exception
+   * @since 2.0
+   */
+  public BadRequestException(final Throwable cause) {
+    this(cause.getMessage(), cause);
+  }
+  
+  /**
+   * Constructor with caller supplied message and source exception
+   * <b>Note:</b> This constructor will store the message from the source 
+   * exception in the "details" field of the local exception.
+   * @param message A brief, descriptive error message
+   * @param cause The source exception if applicable
+   * @since 2.0
+   */
+  public BadRequestException(final String message, final Throwable cause) {
+    this(HttpResponseStatus.BAD_REQUEST, message, cause.getMessage(), cause);
   }
   
   /**
@@ -64,6 +85,23 @@ final class BadRequestException extends RuntimeException {
   public BadRequestException(final HttpResponseStatus status, 
       final String message, final String details) {
     super(message);
+    this.status = status;
+    this.details = details;
+  }
+  
+  /**
+   * Constructor with caller supplied status, message, details and source
+   * @param status HTTP status code
+   * @param message A brief, descriptive error message
+   * @param details Details about what caused the error. Do not copy the stack
+   * trace in this message, it will be included with the exception. Use this
+   * for suggestions on what to fix or more error details.
+   * @param cause The source exception if applicable
+   * @since 2.0
+   */
+  public BadRequestException(final HttpResponseStatus status, 
+      final String message, final String details, final Throwable cause) {
+    super(message, cause);
     this.status = status;
     this.details = details;
   }

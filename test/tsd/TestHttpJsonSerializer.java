@@ -15,7 +15,6 @@ package net.opentsdb.tsd;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -110,7 +109,7 @@ public final class TestHttpJsonSerializer {
     serdes.parseSuggestV1();
   }
   
-  @Test (expected = IOException.class)
+  @Test (expected = BadRequestException.class)
   public void parseSuggestV1NotJSON() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "", 
         "This is unparsable", "");
