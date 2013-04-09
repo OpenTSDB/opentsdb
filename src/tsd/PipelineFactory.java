@@ -20,6 +20,7 @@ import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
+import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 
@@ -42,6 +43,9 @@ public final class PipelineFactory implements ChannelPipelineFactory {
 
   /** Stateless handler for RPCs. */
   private final RpcHandler rpchandler;
+  
+  /** The TSDB to which we belong */ 
+  private final TSDB tsdb;
 
   /**
    * Constructor that initializes the RPC router and loads HTTP formatter 
@@ -52,6 +56,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * serializers
    */
   public PipelineFactory(final TSDB tsdb) {
+    this.tsdb = tsdb;
     this.rpchandler = new RpcHandler(tsdb);
     try {
       HttpQuery.initializeSerializerMaps(tsdb);
@@ -93,6 +98,10 @@ public final class PipelineFactory implements ChannelPipelineFactory {
       // so use this as a cheap way to differentiate the two.
       if ('A' <= firstbyte && firstbyte <= 'Z') {
         pipeline.addLast("decoder", new HttpRequestDecoder());
+        if (tsdb.getConfig().enable_chunked_requests()) {
+          pipeline.addLast("aggregator", new HttpChunkAggregator(
+              tsdb.getConfig().max_chunked_requests()));
+        }
         pipeline.addLast("encoder", new HttpResponseEncoder());
       } else {
         pipeline.addLast("framer", new LineBasedFrameDecoder(1024));
