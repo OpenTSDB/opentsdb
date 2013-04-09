@@ -13,6 +13,7 @@
 package net.opentsdb.tsd;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
 
@@ -38,6 +40,10 @@ import net.opentsdb.utils.JSON;
  */
 class HttpJsonSerializer extends HttpSerializer {
 
+  /** Type reference for incoming data points */
+  private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
+    new TypeReference<ArrayList<IncomingDataPoint>>() {};
+  
   /**
    * Default constructor necessary for plugin implementation
    */
@@ -77,6 +83,32 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Parses one or more data points for storage
+   * @return an array of data points to process for storage
+   * @throws IOException if parsing failed
+   */
+  @Override
+  public List<IncomingDataPoint> parsePutV1() throws IOException {
+    if (!query.hasContent()) {
+      throw new BadRequestException("Missing request content");
+    }
+
+    // convert to a string so we can handle character encoding properly
+    final String content = query.getContent().trim();
+    final int firstbyte = content.charAt(0);
+    if (firstbyte == '{') {
+      final IncomingDataPoint dp = 
+        JSON.parseToObject(content, IncomingDataPoint.class);
+      final ArrayList<IncomingDataPoint> dps = 
+        new ArrayList<IncomingDataPoint>(1);
+      dps.add(dp);
+      return dps;
+    } else {
+      return JSON.parseToObject(content, TR_INCOMING);
+    }
+  }
+  
+  /**
    * Parses a suggestion query
    * @return a hash map of key/value pairs
    * @throws IOException if the parsing failed
@@ -91,6 +123,24 @@ class HttpJsonSerializer extends HttpSerializer {
     }
     return JSON.parseToObject(query.getContent(), 
         new TypeReference<HashMap<String, String>>(){});
+  }
+  
+  /**
+   * Formats the results of an HTTP data point storage request
+   * @param results A map of results. The map will consist of:
+   * <ul><li>success - (long) the number of successfully parsed datapoints</li>
+   * <li>failed - (long) the number of datapoint parsing failures</li>
+   * <li>errors - (ArrayList<HashMap<String, Object>>) an optional list of 
+   * datapoints that had errors. The nested map has these fields:
+   * <ul><li>error - (String) the error that occurred</li>
+   * <li>datapoint - (IncomingDatapoint) the datapoint that generated the error
+   * </li></ul></li></ul>
+   * @return A JSON formatted byte array
+   * @throws IOException if the serialization failed
+   */
+  public ChannelBuffer formatPutV1(final Map<String, Object> results) 
+    throws IOException {
+    return this.serializeJSON(results);
   }
   
   /**

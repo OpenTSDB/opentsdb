@@ -36,6 +36,7 @@ tsdb_SRC := \
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
+	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
@@ -119,6 +120,7 @@ test_SRC := \
 	test/tsd/TestGraphHandler.java	\
 	test/tsd/TestHttpJsonSerializer.java	\
 	test/tsd/TestHttpQuery.java	\
+	test/tsd/TestPutRpc.java	\
 	test/tsd/TestSuggestRpc.java	\
 	test/uid/TestNoSuchUniqueId.java	\
 	test/uid/TestUniqueId.java \

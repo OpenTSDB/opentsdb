@@ -99,7 +99,11 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
     telnet_commands.put("exit", new Exit());
     telnet_commands.put("help", new Help());
-    telnet_commands.put("put", new PutDataPointRpc());
+    {
+      final PutDataPointRpc put = new PutDataPointRpc();
+      telnet_commands.put("put", put);
+      http_commands.put("api/put", put);
+    }
 
     http_commands.put("", new HomePage());
     {

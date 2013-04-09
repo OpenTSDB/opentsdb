@@ -27,6 +27,7 @@ import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
 
 /**
@@ -146,6 +147,19 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Parses one or more data points for storage
+   * @return an array of data points to process for storage
+   * @throws IOException if parsing failed
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public List<IncomingDataPoint> parsePutV1() throws IOException {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parsePutV1");
+  }
+  
+  /**
    * Parses a suggestion query
    * @return a hash map of key/value pairs
    * @throws IOException if the parsing failed
@@ -156,6 +170,28 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented parseSuggestV1");
+  }
+  
+  /**
+   * Formats the results of an HTTP data point storage request
+   * @param results A map of results. The map will consist of:
+   * <ul><li>success - (long) the number of successfully parsed datapoints</li>
+   * <li>failed - (long) the number of datapoint parsing failures</li>
+   * <li>errors - (ArrayList<HashMap<String, Object>>) an optional list of 
+   * datapoints that had errors. The nested map has these fields:
+   * <ul><li>error - (String) the error that occurred</li>
+   * <li>datapoint - (IncomingDatapoint) the datapoint that generated the error
+   * </li></ul></li></ul>
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws IOException if the serialization failed
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatPutV1(final Map<String, Object> results) 
+    throws IOException {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatPutV1");
   }
   
   /**

@@ -90,6 +90,20 @@ public final class NettyMocks {
    * object set
    * @param uri A URI to use
    * @param content Content to POST (UTF-8 encoding)
+   * @return an HttpQuery object
+   */
+  public static HttpQuery postQuery(final TSDB tsdb, final String uri, 
+      final String content) {
+    return postQuery(tsdb, uri, content, "application/json; charset=UTF-8");
+  }
+  
+  /**
+   * Returns an HttpQuery object with the given uri, content and type
+   * Method = POST
+   * @param tsdb The TSDB to associate with, needs to be mocked with the Config
+   * object set
+   * @param uri A URI to use
+   * @param content Content to POST (UTF-8 encoding)
    * @param type Content-Type value
    * @return an HttpQuery object
    */
