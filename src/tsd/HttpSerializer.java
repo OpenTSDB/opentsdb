@@ -338,16 +338,23 @@ public abstract class HttpSerializer {
    * @return A standard JSON error
    */
   public ChannelBuffer formatErrorV1(final Exception exception) {
+    String message = exception.getMessage();
+    // NPEs have a null for the message string (why?!?!?!)
+    if (exception.getClass() == NullPointerException.class) {
+      message = "An internal null pointer exception was thrown";
+    } else if (message == null) {
+      message = "An unknown exception occurred";
+    }
     StringBuilder output = 
-      new StringBuilder(exception.getMessage().length() * 2);
+      new StringBuilder(message.length() * 2);
     final String jsonp = query.getQueryStringParam("jsonp");
     if (jsonp != null && !jsonp.isEmpty()) {
       output.append(query.getQueryStringParam("jsonp") + "(");
     }
     output.append("{\"error\":{\"code\":");
     output.append(500);
-    final StringBuilder msg = new StringBuilder(exception.getMessage().length());
-    HttpQuery.escapeJson(exception.getMessage(), msg);
+    final StringBuilder msg = new StringBuilder(message.length());
+    HttpQuery.escapeJson(message, msg);
     output.append(",\"message\":\"").append(msg.toString()).append("\"");
     if (query.showStackTrace()) {
       ThrowableProxy tp = new ThrowableProxy(exception);
