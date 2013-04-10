@@ -550,6 +550,83 @@ public final class TestUniqueId {
     verify(client, never()).get(anyGet());
   }
 
+  @Test
+  public void uidToString() {
+    assertEquals("01", UniqueId.uidToString(new byte[] { 1 }));
+  }
+  
+  @Test
+  public void uidToString2() {
+    assertEquals("0A0B", UniqueId.uidToString(new byte[] { 10, 11 }));
+  }
+  
+  @Test
+  public void uidToString3() {
+    assertEquals("1A1B", UniqueId.uidToString(new byte[] { 26, 27 }));
+  }
+  
+  @Test
+  public void uidToStringZeros() {
+    assertEquals("00", UniqueId.uidToString(new byte[] { 0 }));
+  }
+  
+  @Test
+  public void uidToString255() {
+    assertEquals("FF", UniqueId.uidToString(new byte[] { (byte) 255 }));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void uidToStringNull() {
+    UniqueId.uidToString(null);
+  }
+  
+  @Test
+  public void stringToUid() {
+    assertArrayEquals(new byte[] { 0x0a, 0x0b }, UniqueId.stringToUid("0A0B"));
+  }
+  
+  @Test
+  public void stringToUidNormalize() {
+    assertArrayEquals(new byte[] { (byte) 171 }, UniqueId.stringToUid("AB"));
+  }
+  
+  @Test
+  public void stringToUidCase() {
+    assertArrayEquals(new byte[] { (byte) 11 }, UniqueId.stringToUid("B"));
+  }
+  
+  @Test
+  public void stringToUidWidth() {
+    assertArrayEquals(new byte[] { (byte) 0, (byte) 42, (byte) 12 }, 
+        UniqueId.stringToUid("2A0C", (short)3));
+  }
+  
+  @Test
+  public void stringToUidWidth2() {
+    assertArrayEquals(new byte[] { (byte) 0, (byte) 0, (byte) 0 }, 
+        UniqueId.stringToUid("0", (short)3));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void stringToUidNull() {
+    UniqueId.stringToUid(null);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void stringToUidEmpty() {
+    UniqueId.stringToUid("");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void stringToUidNotHex() {
+    UniqueId.stringToUid("HelloWorld");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void stringToUidNotHex2() {
+    UniqueId.stringToUid(" ");
+  }
+  
   // ----------------- //
   // Helper functions. //
   // ----------------- //

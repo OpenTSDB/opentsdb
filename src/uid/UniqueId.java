@@ -19,6 +19,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.xml.bind.DatatypeConverter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -670,4 +672,67 @@ public final class UniqueId implements UniqueIdInterface {
     return "UniqueId(" + fromBytes(table) + ", " + kind() + ", " + idWidth + ")";
   }
 
+  /**
+   * Converts a byte array to a hex encoded, upper case string with padding
+   * @param uid The ID to convert
+   * @return the UID as a hex string
+   * @throws NullPointerException if the ID was null
+   * @since 2.0
+   */
+  public static String uidToString(final byte[] uid) {
+    return DatatypeConverter.printHexBinary(uid);
+  }
+  
+  /**
+   * Converts a hex string to a byte array
+   * If the {@code uid} is less than {@code uid_length * 2} characters wide, it
+   * will be padded with 0s to conform to the spec. E.g. if the tagk width is 3
+   * and the given {@code uid} string is "1", the string will be padded to 
+   * "000001" and then converted to a byte array to reach 3 bytes. 
+   * All {@code uid}s are padded to 1 byte. If given "1", and {@code uid_length}
+   * is 0, the uid will be padded to "01" then converted.
+   * @param uid The UID to convert
+   * @param uid_length An optional length, in bytes, that the UID must conform
+   * to. Set to 0 if not used.
+   * @return The UID as a byte array
+   * @throws NullPointerException if the ID was null
+   * @throws IllegalArgumentException if the string is not valid hex
+   * @since 2.0
+   */
+  public static byte[] stringToUid(final String uid) {
+    return stringToUid(uid, (short)0);
+  }
+  
+  /**
+   * Converts a hex string to a byte array
+   * If the {@code uid} is less than {@code uid_length * 2} characters wide, it
+   * will be padded with 0s to conform to the spec. E.g. if the tagk width is 3
+   * and the given {@code uid} string is "1", the string will be padded to 
+   * "000001" and then converted to a byte array to reach 3 bytes. 
+   * All {@code uid}s are padded to 1 byte. If given "1", and {@code uid_length}
+   * is 0, the uid will be padded to "01" then converted.
+   * @param uid The UID to convert
+   * @param uid_length An optional length, in bytes, that the UID must conform
+   * to. Set to 0 if not used.
+   * @return The UID as a byte array
+   * @throws NullPointerException if the ID was null
+   * @throws IllegalArgumentException if the string is not valid hex
+   * @since 2.0
+   */
+  public static byte[] stringToUid(final String uid, final short uid_length) {
+    if (uid.isEmpty()) {
+      throw new IllegalArgumentException("UID was empty");
+    }
+    String id = uid;
+    if (uid_length > 0) {
+      while (id.length() < uid_length * 2) {
+        id = "0" + id;
+      }
+    } else {
+      if (id.length() % 2 > 0) {
+        id = "0" + id;
+      }
+    }
+    return DatatypeConverter.parseHexBinary(id);
+  }
 }
