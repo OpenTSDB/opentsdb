@@ -203,6 +203,85 @@ public final class TestHttpQuery {
   }
   
   @Test
+  public void explodeAPIPath() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/v1/put?param=value&param2=value2");
+    final String[] path = query.explodeAPIPath();
+    assertNotNull(path);
+    assertEquals("put", path[0]);
+  }
+  
+  @Test
+  public void explodeAPIPathNoVersion() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/put?param=value&param2=value2");
+    final String[] path = query.explodeAPIPath();
+    assertNotNull(path);
+    assertEquals("put", path[0]);
+  }
+  
+  @Test
+  public void explodeAPIPathExtended() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/v1/uri/assign");
+    final String[] path = query.explodeAPIPath();
+    assertNotNull(path);
+    assertEquals("uri", path[0]);
+    assertEquals("assign", path[1]);
+  }
+  
+  @Test
+  public void explodeAPIPathExtendedNoVersion() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/uri/assign");
+    final String[] path = query.explodeAPIPath();
+    assertNotNull(path);
+    assertEquals("uri", path[0]);
+    assertEquals("assign", path[1]);
+  }
+  
+  @Test
+  public void explodeAPIPathCase() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/Api/Uri");
+    final String[] path = query.explodeAPIPath();
+    assertNotNull(path);
+    assertEquals("Uri", path[0]);
+  }
+  
+  @Test
+  public void explodeAPIPathRoot() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api");
+    final String[] path = query.explodeAPIPath();
+    assertNotNull(path);
+    assertTrue(path[0].isEmpty());
+  }
+  
+  @Test
+  public void explodeAPIPathRootVersion() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/v1");
+    final String[] path = query.explodeAPIPath();
+    assertNotNull(path);
+    assertTrue(path[0].isEmpty());
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void explodeAPIPathNotAPI() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/q?hello=world");
+    query.explodeAPIPath();
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void explodeAPIPathHome() {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/");
+    query.explodeAPIPath();
+  }
+  
+  @Test
   public void getQueryBaseRouteRootQS() {
     final HttpQuery query = NettyMocks.getQuery(tsdb, "/?param=value");
     assertEquals("", query.getQueryBaseRoute());

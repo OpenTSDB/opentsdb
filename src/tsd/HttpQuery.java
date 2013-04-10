@@ -320,6 +320,50 @@ final class HttpQuery {
   }
   
   /**
+   * Helper that strips the api and optional version from the URI array since
+   * api calls only care about what comes after.
+   * E.g. if the URI is "/api/v1/uid/assign" this method will return the 
+   * {"uid", "assign"}
+   * @return An array with 1 or more components, note the first item may be
+   * an empty string if given just "/api" or "/api/v1"
+   * @throws BadRequestException if the URI is empty or does not start with a
+   * slash
+   * @throws NullPointerException if the URI is null
+   * @throws IllegalArgumentException if the uri does not start with "/api"
+   * @since 2.0
+   */
+  public String[] explodeAPIPath() {
+    final String[] split = this.explodePath();
+    int index = 1;
+    if (split.length < 1 || !split[0].toLowerCase().equals("api")) {
+      throw new IllegalArgumentException("The URI does not start with \"/api\"");
+    }
+    if (split.length < 2) {
+      // given "/api"
+      final String[] root = { "" };
+      return root;
+    }
+    if (split[1].toLowerCase().startsWith("v") && split[1].length() > 1 && 
+        Character.isDigit(split[1].charAt(1))) {
+      index = 2;
+    }
+
+    if (split.length - index == 0) {
+      // given "/api/v#"
+      final String[] root = { "" };
+      return root;
+    }
+    
+    final String[] path = new String[split.length - index];
+    int path_idx = 0;
+    for (int i = index; i < split.length; i++) {
+      path[path_idx] = split[i];
+      path_idx++;
+    }
+    return path;
+  }
+  
+  /**
    * Parses the query string to determine the base route for handing a query 
    * off to an RPC handler.
    * This method splits the query path component and returns a string suitable
