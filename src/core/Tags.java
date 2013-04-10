@@ -279,7 +279,7 @@ public final class Tags {
    * @param s The string to validate.
    * @throws IllegalArgumentException if the string isn't valid.
    */
-  static void validateString(final String what, final String s) {
+  public static void validateString(final String what, final String s) {
     if (s == null) {
       throw new IllegalArgumentException("Invalid " + what + ": null");
     }

@@ -33,6 +33,7 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
@@ -472,6 +473,51 @@ public final class TSDB {
     tag_values.dropCaches();
   }
 
+  /**
+   * Attempts to assign a UID to a name for the given type
+   * Used by the UniqueIdRpc call to generate IDs for new metrics, tagks or 
+   * tagvs. The name must pass validation and if it's already assigned a UID,
+   * this method will throw an error with the proper UID. Otherwise if it can
+   * create the UID, it will be returned
+   * @param type The type of uid to assign, metric, tagk or tagv
+   * @param name The name of the uid object
+   * @return A byte array with the UID if the assignment was successful
+   * @throws IllegalArgumentException if the name is invalid or it already 
+   * exists
+   * @2.0
+   */
+  public byte[] assignUid(final String type, final String name) {
+    Tags.validateString(type, name);
+    if (type.toLowerCase().equals("metric")) {
+      try {
+        final byte[] uid = this.metrics.getId(name);
+        throw new IllegalArgumentException("Name already exists with UID: " +
+            UniqueId.uidToString(uid));
+      } catch (NoSuchUniqueName nsue) {
+        return this.metrics.getOrCreateId(name);
+      }
+    } else if (type.toLowerCase().equals("tagk")) {
+      try {
+        final byte[] uid = this.tag_names.getId(name);
+        throw new IllegalArgumentException("Name already exists with UID: " +
+            UniqueId.uidToString(uid));
+      } catch (NoSuchUniqueName nsue) {
+        return this.tag_names.getOrCreateId(name);
+      }
+    } else if (type.toLowerCase().equals("tagv")) {
+      try {
+        final byte[] uid = this.tag_values.getId(name);
+        throw new IllegalArgumentException("Name already exists with UID: " +
+            UniqueId.uidToString(uid));
+      } catch (NoSuchUniqueName nsue) {
+        return this.tag_values.getOrCreateId(name);
+      }
+    } else {
+      LOG.warn("Unknown type name: " + type);
+      throw new IllegalArgumentException("Unknown type name");
+    }
+  }
+  
   // ------------------ //
   // Compaction helpers //
   // ------------------ //

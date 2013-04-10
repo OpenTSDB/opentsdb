@@ -113,6 +113,7 @@ test_SRC := \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestTags.java	\
+	test/core/TestTSDB.java	\
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
