@@ -49,6 +49,8 @@ tsdb_SRC := \
 	src/core/TSDB.java	\
 	src/core/Tags.java	\
 	src/core/TsdbQuery.java	\
+	src/core/TSQuery.java	\
+	src/core/TSSubQuery.java	\
 	src/core/WritableDataPoints.java	\
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
@@ -114,6 +116,8 @@ test_SRC := \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
+	test/core/TestTSQuery.java	\
+	test/core/TestTSSubQuery.java	\
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
