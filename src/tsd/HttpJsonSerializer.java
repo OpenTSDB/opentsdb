@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -43,6 +44,10 @@ class HttpJsonSerializer extends HttpSerializer {
   private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
     new TypeReference<ArrayList<IncomingDataPoint>>() {};
   
+  /** Type reference for uid assignments */
+  private static TypeReference<HashMap<String, List<String>>> UID_ASSIGN =
+    new TypeReference<HashMap<String, List<String>>>() {};
+    
   /**
    * Default constructor necessary for plugin implementation
    */
@@ -135,6 +140,26 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Parses a list of metrics, tagk and/or tagvs to assign UIDs to
+   * @return as hash map of lists for the different types
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public HashMap<String, List<String>> parseUidAssignV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    try {
+      return JSON.parseToObject(json, UID_ASSIGN);
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+  
+  /**
    * Formats the results of an HTTP data point storage request
    * @param results A map of results. The map will consist of:
    * <ul><li>success - (long) the number of successfully parsed datapoints</li>
@@ -198,6 +223,18 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatDropCachesV1(final Map<String, String> response) {
+    return this.serializeJSON(response);
+  }
+  
+  /**
+   * Format a response from the Uid Assignment RPC
+   * @param response A map of lists of pairs representing the results of the
+   * assignment
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatUidAssignV1(final 
+      Map<String, TreeMap<String, String>> response) {
     return this.serializeJSON(response);
   }
   

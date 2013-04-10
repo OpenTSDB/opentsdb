@@ -119,6 +119,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("api/suggest", suggest_rpc);
     }
     http_commands.put("api/serializers", new Serializers());
+    http_commands.put("api/uid", new UniqueIdRpc());
   }
 
   @Override

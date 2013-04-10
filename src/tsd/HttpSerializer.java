@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -173,6 +174,18 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Parses a list of metrics, tagk and/or tagvs to assign UIDs to
+   * @return as hash map of lists for the different types
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public HashMap<String, List<String>> parseUidAssignV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseUidAssignV1");
+  }
+  
+  /**
    * Formats the results of an HTTP data point storage request
    * @param results A map of results. The map will consist of:
    * <ul><li>success - (long) the number of successfully parsed datapoints</li>
@@ -254,6 +267,21 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatDropCachesV1");
+  }
+  
+  /**
+   * Format a response from the Uid Assignment RPC
+   * @param response A map of lists of pairs representing the results of the
+   * assignment
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatUidAssignV1(final 
+      Map<String, TreeMap<String, String>> response) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatUidAssignV1");
   }
   
   /**
