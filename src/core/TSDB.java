@@ -593,6 +593,46 @@ public final class TSDB {
     return this.table;
   }
   
+  /**
+   * Attempts to run the PutRequest given in argument, retrying if needed.
+   * <p>
+   * <b>Note:</b> Puts are synchronized.
+   * <p>
+   * @param put The PutRequest to execute.
+   * @param attempts The maximum number of attempts.
+   * @param wait The initial amount of time in ms to sleep for after a
+   * failure.  This amount is doubled after each failed attempt.
+   * @throws HBaseException if all the attempts have failed.  This exception
+   * will be the exception of the last attempt.
+   * @since 2.0
+   */
+  public void hbasePutWithRetry(final PutRequest put, short attempts, short wait)
+    throws HBaseException {
+    put.setBufferable(false);  // TODO(tsuna): Remove once this code is async.
+    while (attempts-- > 0) {
+      try {
+        client.put(put).joinUninterruptibly();
+        return;
+      } catch (HBaseException e) {
+        if (attempts > 0) {
+          LOG.error("Put failed, attempts left=" + attempts
+                    + " (retrying in " + wait + " ms), put=" + put, e);
+          try {
+            Thread.sleep(wait);
+          } catch (InterruptedException ie) {
+            throw new RuntimeException("interrupted", ie);
+          }
+          wait *= 2;
+        } else {
+          throw e;
+        }
+      } catch (Exception e) {
+        LOG.error("WTF?  Unexpected exception type, put=" + put, e);
+      }
+    }
+    throw new IllegalStateException("This code should never be reached!");
+  }
+  
   // ------------------ //
   // Compaction helpers //
   // ------------------ //
