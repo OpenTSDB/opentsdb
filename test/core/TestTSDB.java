@@ -141,6 +141,12 @@ public final class TestTSDB {
     tsdb.assignUid("metric", "Not!A:Valid@Name");
   }
   
+  @Test
+  public void uidTable() {
+    assertNotNull(tsdb.uidTable());
+    assertArrayEquals("tsdb-uid".getBytes(), tsdb.uidTable());
+  }
+  
   private void setupAssignUid() {
     when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
     when(metrics.getId("sys.cpu.1")).thenThrow(
