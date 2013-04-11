@@ -29,6 +29,7 @@ import net.opentsdb.utils.DateTime;
  * to compile the query into {@link Query} objects for processing. 
  * <b>Note:</b> If using POJO deserialization, make sure to avoid setting the 
  * {@code start_time} and {@code end_time} fields.
+ * @since 2.0
  */
 public final class TSQuery {
 

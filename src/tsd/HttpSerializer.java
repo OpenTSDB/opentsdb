@@ -27,8 +27,10 @@ import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TSQuery;
 
 /**
  * Abstract base class for Serializers; plugins that handle converting requests
@@ -186,6 +188,18 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Parses a timeseries data query
+   * @return A TSQuery with data ready to validate
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public TSQuery parseQueryV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseQueryV1");
+  }
+  
+  /**
    * Formats the results of an HTTP data point storage request
    * @param results A map of results. The map will consist of:
    * <ul><li>success - (long) the number of successfully parsed datapoints</li>
@@ -282,6 +296,21 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatUidAssignV1");
+  }
+  
+  /**
+   * Format the results from a timeseries data query
+   * @param query The TSQuery object used to fetch the results
+   * @param results The data fetched from storage
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatQueryV1(final TSQuery query, 
+      final List<DataPoints[]> results) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatQueryV1");
   }
   
   /**
