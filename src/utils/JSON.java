@@ -15,11 +15,16 @@ package net.opentsdb.utils;
 import java.io.IOException;
 import java.io.InputStream;
 
+import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
+
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.util.JSONPObject;
@@ -354,5 +359,18 @@ public final class JSON {
    */
   public final static JsonFactory getFactory() {
     return jsonMapper.getFactory();
+  }
+
+  /**
+   * Helper class for deserializing UID type enum from human readable strings
+   */
+  public static class UniqueIdTypeDeserializer 
+    extends JsonDeserializer<UniqueIdType> {
+    
+    @Override
+    public UniqueIdType deserialize(final JsonParser parser, final
+        DeserializationContext context) throws IOException {
+      return UniqueId.stringToUniqueIdType(parser.getValueAsString());
+    }
   }
 }
