@@ -484,6 +484,76 @@ public final class TestHttpQuery {
   }
   
   @Test
+  public void getAPIMethodGet() {
+    assertEquals(HttpMethod.GET, 
+        NettyMocks.getQuery(tsdb, "/").getAPIMethod());
+  }
+  
+  @Test
+  public void getAPIMethodPost() {
+    assertEquals(HttpMethod.POST, 
+        NettyMocks.postQuery(tsdb, "/", null).getAPIMethod());
+  }
+  
+  @Test
+  public void getAPIMethodPut() {
+    final Channel channelMock = NettyMocks.fakeChannel();
+    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
+        HttpMethod.PUT, "/");
+    HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    assertEquals(HttpMethod.PUT, query.getAPIMethod());
+  }
+  
+  @Test
+  public void getAPIMethodDelete() {
+    final Channel channelMock = NettyMocks.fakeChannel();
+    final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
+        HttpMethod.DELETE, "/");
+    HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    assertEquals(HttpMethod.DELETE, query.getAPIMethod());
+  }
+  
+  @Test
+  public void getAPIMethodOverrideGet() {
+    assertEquals(HttpMethod.GET, 
+        NettyMocks.getQuery(tsdb, "/?method=get").getAPIMethod());
+  }
+  
+  @Test
+  public void getAPIMethodOverridePost() {
+    assertEquals(HttpMethod.POST, 
+        NettyMocks.getQuery(tsdb, "/?method=post").getAPIMethod());
+  }
+  
+  @Test
+  public void getAPIMethodOverridePut() {
+    assertEquals(HttpMethod.PUT, 
+        NettyMocks.getQuery(tsdb, "/?method=put").getAPIMethod());
+  }
+  
+  @Test
+  public void getAPIMethodOverrideDelete() {
+    assertEquals(HttpMethod.DELETE, 
+        NettyMocks.getQuery(tsdb, "/?method=delete").getAPIMethod());
+  }
+  
+  @Test
+  public void getAPIMethodOverrideDeleteCase() {
+    assertEquals(HttpMethod.DELETE, 
+        NettyMocks.getQuery(tsdb, "/?method=DeLeTe").getAPIMethod());
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void getAPIMethodOverrideMissingValue() {
+    NettyMocks.getQuery(tsdb, "/?method").getAPIMethod();
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void getAPIMethodOverrideInvalidMEthod() {
+    NettyMocks.getQuery(tsdb, "/?method=notaverb").getAPIMethod();
+  }
+  
+  @Test
   public void guessMimeTypeFromUriPNG() throws Exception {
     assertEquals("image/png", 
         reflectguessMimeTypeFromUri().invoke(null, "abcd.png"));

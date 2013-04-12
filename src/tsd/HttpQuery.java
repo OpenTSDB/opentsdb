@@ -460,6 +460,48 @@ final class HttpQuery {
   }
   
   /**
+   * Determines the requested HttpMethod via VERB and QS override.
+   * If the request is a {@code GET} and the user provides a valid override
+   * method in the {@code method=&lt;method&gt;} query string parameter, then
+   * the override is returned. If the user supplies an invalid override, an
+   * exception is thrown. If the verb was not a GET, then the original value
+   * is returned.
+   * @return An HttpMethod
+   * @throws BadRequestException if the user provided a {@code method} qs
+   * without a value or the override contained an invalid value
+   * @since 2.0
+   */
+  public HttpMethod getAPIMethod() {
+    if (this.method() != HttpMethod.GET) {
+      return this.method();
+    } else {
+      if (this.hasQueryStringParam("method")) {
+        final String qs_method = this.getQueryStringParam("method");
+        if (qs_method == null || qs_method.isEmpty()) {
+          throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,
+              "Missing method override value");
+        }
+        if (qs_method.toLowerCase().equals("get")) {
+          // you can't fix dumb
+          return HttpMethod.GET;
+        } else if (qs_method.toLowerCase().equals("post")){
+          return HttpMethod.POST;
+        } else if (qs_method.toLowerCase().equals("put")){
+          return HttpMethod.PUT;
+        } else if (qs_method.toLowerCase().equals("delete")){
+          return HttpMethod.DELETE;
+        } else {
+          throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,
+            "Unknown or unsupported method override value");
+        }
+      }
+      
+      // no override, so just return the method
+      return this.method();
+    }
+  }
+  
+  /**
    * Sets the local serializer based on a query string parameter or content type.
    * <p>
    * If the caller supplies a "serializer=" parameter, the proper serializer is
