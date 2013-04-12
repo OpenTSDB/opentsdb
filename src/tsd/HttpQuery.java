@@ -812,6 +812,31 @@ final class HttpQuery {
       final ChannelBuffer buf) {
     sendBuffer(status, buf);
   }
+  
+  /**
+   * Send just the status code without a body, used for 204 or 304
+   * @param status The response code to reply with
+   * @since 2.0
+   */
+  public void sendStatusOnly(final HttpResponseStatus status) {
+    if (!chan.isConnected()) {
+      done();
+      return;
+    }
+    
+    if (response.getStatus() == HttpResponseStatus.ACCEPTED) {
+      response.setStatus(status);
+    }
+    final boolean keepalive = HttpHeaders.isKeepAlive(request);
+    if (keepalive) {
+      HttpHeaders.setContentLength(response, 0);
+    }
+    final ChannelFuture future = chan.write(response);
+    if (!keepalive) {
+      future.addListener(ChannelFutureListener.CLOSE);
+    }
+    done();
+  }
 
   /**
    * Sends the given message as a PNG image.

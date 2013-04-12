@@ -1120,6 +1120,21 @@ public final class TestHttpQuery {
   }
   
   @Test
+  public void sendStatusOnly() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
+    assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+    assertEquals(0, query.response().getContent().capacity());
+    assertNull(query.response().getHeader("Content-Type"));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void sendStatusOnlyNull() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, "/");
+    query.sendStatusOnly(null);
+  }
+  
+  @Test
   public void sendBuffer() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     ChannelBuffer cb = ChannelBuffers.copiedBuffer("Hello World", 
