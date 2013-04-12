@@ -13,14 +13,17 @@
 package net.opentsdb.core;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
 
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.HBaseClient;
@@ -76,6 +79,114 @@ public final class TestTSDB {
   @Test
   public void getConfig() {
     assertNotNull(tsdb.getConfig());
+  }
+  
+  @Test
+  public void getUidNameMetric() {
+    setGetUidName();
+    assertEquals("sys.cpu.0", tsdb.getUidName(UniqueIdType.METRIC, 
+        new byte[] { 0, 0, 1 }));
+  }
+  
+  @Test
+  public void getUidNameTagk() {
+    setGetUidName();
+    assertEquals("host", tsdb.getUidName(UniqueIdType.TAGK, 
+        new byte[] { 0, 0, 1 }));
+  }
+  
+  @Test
+  public void getUidNameTagv() {
+    setGetUidName();
+    assertEquals("web01", tsdb.getUidName(UniqueIdType.TAGV, 
+        new byte[] { 0, 0, 1 }));
+  }
+  
+  @Test (expected = NoSuchUniqueId.class)
+  public void getUidNameMetricNSU() {
+    setGetUidName();
+    tsdb.getUidName(UniqueIdType.METRIC, new byte[] { 0, 0, 2 });
+  }
+  
+  @Test (expected = NoSuchUniqueId.class)
+  public void getUidNameTagkNSU() {
+    setGetUidName();
+    tsdb.getUidName(UniqueIdType.TAGK, new byte[] { 0, 0, 2 });
+  }
+  
+  @Test (expected = NoSuchUniqueId.class)
+  public void getUidNameTagvNSU() {
+    setGetUidName();
+    tsdb.getUidName(UniqueIdType.TAGV, new byte[] { 0, 0, 2 });
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void getUidNameNullType() {
+    setGetUidName();
+    tsdb.getUidName(null, new byte[] { 0, 0, 2 });
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getUidNameNullUID() {
+    setGetUidName();
+    tsdb.getUidName(UniqueIdType.TAGV, null);
+  }
+  
+  @Test
+  public void getUIDMetric() {
+    setupAssignUid();
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.0"));
+  }
+  
+  @Test
+  public void getUIDTagk() {
+    setupAssignUid();
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        tsdb.getUID(UniqueIdType.TAGK, "host"));
+  }
+  
+  @Test
+  public void getUIDTagv() {
+    setupAssignUid();
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        tsdb.getUID(UniqueIdType.TAGV, "localhost"));
+  }
+  
+  @Test (expected = NoSuchUniqueName.class)
+  public void getUIDMetricNSU() {
+    setupAssignUid();
+    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.1");
+  }
+  
+  @Test (expected = NoSuchUniqueName.class)
+  public void getUIDTagkNSU() {
+    setupAssignUid();
+    tsdb.getUID(UniqueIdType.TAGK, "datacenter");
+  }
+  
+  @Test (expected = NoSuchUniqueName.class)
+  public void getUIDTagvNSU() {
+    setupAssignUid();
+    tsdb.getUID(UniqueIdType.TAGV, "myserver");
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void getUIDNullType() {
+    setupAssignUid();
+    tsdb.getUID(null, "sys.cpu.1");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getUIDNullName() {
+    setupAssignUid();
+    tsdb.getUID(UniqueIdType.TAGV, null);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getUIDEmptyName() {
+    setupAssignUid();
+    tsdb.getUID(UniqueIdType.TAGV, "");
   }
   
   @Test
@@ -147,6 +258,9 @@ public final class TestTSDB {
     assertArrayEquals("tsdb-uid".getBytes(), tsdb.uidTable());
   }
   
+  /**
+   * Helper to mock the UID caches with valid responses
+   */
   private void setupAssignUid() {
     when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
     when(metrics.getId("sys.cpu.1")).thenThrow(
@@ -162,5 +276,22 @@ public final class TestTSDB {
     when(tag_values.getId("myserver")).thenThrow(
         new NoSuchUniqueName("tagv", "myserver"));
     when(tag_values.getOrCreateId("myserver")).thenReturn(new byte[] { 0, 0, 2 });
+  }
+  
+  /**
+   * Helper to mock the UID caches with valid responses
+   */
+  private void setGetUidName() {
+    when(metrics.getName(new byte[] { 0, 0, 1 })).thenReturn("sys.cpu.0");
+    when(metrics.getName(new byte[] { 0, 0, 2 })).thenThrow(
+        new NoSuchUniqueId("metric", new byte[] { 0, 0, 2}));
+    
+    when(tag_names.getName(new byte[] { 0, 0, 1 })).thenReturn("host");
+    when(tag_names.getName(new byte[] { 0, 0, 2 })).thenThrow(
+        new NoSuchUniqueId("tagk", new byte[] { 0, 0, 2}));
+    
+    when(tag_values.getName(new byte[] { 0, 0, 1 })).thenReturn("web01");
+    when(tag_values.getName(new byte[] { 0, 0, 2 })).thenThrow(
+        new NoSuchUniqueId("tag_values", new byte[] { 0, 0, 2}));
   }
 }
