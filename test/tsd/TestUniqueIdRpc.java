@@ -18,6 +18,8 @@ import static org.mockito.Mockito.when;
 import java.nio.charset.Charset;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -416,5 +418,35 @@ public final class TestUniqueIdRpc {
   public void assignPostEmptyJSON() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/assign", "{}");
     this.rpc.execute(tsdb, query);
+  }
+
+  @Test
+  public void stringToUniqueIdTypeMetric() throws Exception {
+    assertEquals(UniqueIdType.METRIC, UniqueId.stringToUniqueIdType("Metric"));
+  }
+  
+  @Test
+  public void stringToUniqueIdTypeTagk() throws Exception {
+    assertEquals(UniqueIdType.TAGK, UniqueId.stringToUniqueIdType("TagK"));
+  }
+  
+  @Test
+  public void stringToUniqueIdTypeTagv() throws Exception {
+    assertEquals(UniqueIdType.TAGV, UniqueId.stringToUniqueIdType("TagV"));
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void stringToUniqueIdTypeNull() throws Exception {
+    UniqueId.stringToUniqueIdType(null);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void stringToUniqueIdTypeEmpty() throws Exception {
+    UniqueId.stringToUniqueIdType("");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void stringToUniqueIdTypeInvalid() throws Exception {
+    UniqueId.stringToUniqueIdType("Not a type");
   }
 }
