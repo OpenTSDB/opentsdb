@@ -279,11 +279,16 @@ class HttpJsonSerializer extends HttpSerializer {
       final List<DataPoints[]> results) {
     
     final boolean as_arrays = this.query.hasQueryStringParam("arrays");
+    final String jsonp = this.query.getQueryStringParam("jsonp");
     
     // todo - this should be streamed at some point since it could be HUGE
     final ChannelBuffer response = ChannelBuffers.dynamicBuffer();
     final OutputStream output = new ChannelBufferOutputStream(response);
     try {
+      // don't forget jsonp
+      if (jsonp != null && !jsonp.isEmpty()) {
+        output.write((jsonp + "(").getBytes(query.getCharset()));
+      }
       JsonGenerator json = JSON.getFactory().createGenerator(output);
       json.writeStartArray();
       
@@ -343,6 +348,9 @@ class HttpJsonSerializer extends HttpSerializer {
       json.writeEndArray();
       json.close();
       
+      if (jsonp != null && !jsonp.isEmpty()) {
+        output.write(")".getBytes());
+      }
       return response;
     } catch (IOException e) {
       LOG.error("Unexpected exception", e);
