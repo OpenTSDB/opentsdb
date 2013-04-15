@@ -24,7 +24,6 @@ import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 
 import net.opentsdb.stats.Histogram;
-import net.opentsdb.utils.Config;
 
 /**
  * Receives new data points and stores them in HBase.

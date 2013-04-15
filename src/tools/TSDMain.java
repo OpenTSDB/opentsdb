@@ -26,8 +26,6 @@ import org.slf4j.LoggerFactory;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
-import org.hbase.async.HBaseClient;
-
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.tsd.PipelineFactory;
@@ -174,24 +172,6 @@ final class TSDMain {
       throw new RuntimeException("Initialization failed", e);
     }
     // The server is now running in separate threads, we can exit main.
-  }
-
-  /**
-   * Parses the value of the --flush-interval parameter.
-   * @throws IllegalArgumentException if the flush interval is negative.
-   * @return The flush interval.
-   */
-  private static short getFlushInterval(final ArgP argp) {
-    final String flush_arg = argp.get("--flush-interval");
-    if (flush_arg == null) {
-      return DEFAULT_FLUSH_INTERVAL;
-    }
-    final short flush_interval = Short.parseShort(flush_arg);
-    if (flush_interval < 0) {
-      throw new IllegalArgumentException("Negative --flush-interval: "
-                                         + flush_interval);
-    }
-    return flush_interval;
   }
 
   private static void registerShutdownHook(final TSDB tsdb) {

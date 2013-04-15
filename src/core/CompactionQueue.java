@@ -32,7 +32,6 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PleaseThrottleException;
 
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.utils.Config;
 
 /**
  * "Queue" of rows to compact.
