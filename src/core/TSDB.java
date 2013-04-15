@@ -282,6 +282,21 @@ public final class TSDB {
     collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
   }
 
+  /** @return the width, in bytes, of metric UIDs */
+  public static short metrics_width() {
+    return METRICS_WIDTH;
+  }
+  
+  /** @return the width, in bytes, of tagk UIDs */
+  public static short tagk_width() {
+    return TAG_NAME_WIDTH;
+  }
+  
+  /** @return the width, in bytes, of tagv UIDs */
+  public static short tagv_width() {
+    return TAG_VALUE_WIDTH;
+  }
+  
   /**
    * Returns a new {@link Query} instance suitable for this TSDB.
    */
