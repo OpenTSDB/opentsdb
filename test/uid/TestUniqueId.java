@@ -35,6 +35,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
@@ -625,6 +626,64 @@ public final class TestUniqueId {
   @Test (expected = IllegalArgumentException.class)
   public void stringToUidNotHex2() {
     UniqueId.stringToUid(" ");
+  }
+   
+  @Test
+  public void getTagPairsFromTSUID() {
+    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
+        "000000000001000002000003000004", 
+        (short)3, (short)3, (short)3);
+    assertNotNull(tags);
+    assertEquals(4, tags.size());
+    assertArrayEquals(new byte[] { 0, 0, 1 }, tags.get(0));
+    assertArrayEquals(new byte[] { 0, 0, 2 }, tags.get(1));
+    assertArrayEquals(new byte[] { 0, 0, 3 }, tags.get(2));
+    assertArrayEquals(new byte[] { 0, 0, 4 }, tags.get(3));
+  }
+  
+  @Test
+  public void getTagPairsFromTSUIDNonStandardWidth() {
+    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
+        "0000000000000100000200000003000004",  
+        (short)3, (short)4, (short)3);
+    assertNotNull(tags);
+    assertEquals(4, tags.size());
+    assertArrayEquals(new byte[] { 0, 0, 0, 1 }, tags.get(0));
+    assertArrayEquals(new byte[] { 0, 0, 2 }, tags.get(1));
+    assertArrayEquals(new byte[] { 0, 0, 0, 3 }, tags.get(2));
+    assertArrayEquals(new byte[] { 0, 0, 4 }, tags.get(3));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDMissingTags() {
+    UniqueId.getTagPairsFromTSUID("123456", (short)3, (short)3, (short)3);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDMissingMetric() {
+    UniqueId.getTagPairsFromTSUID("000001000002", (short)3, (short)3, (short)3);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDOddNumberOfCharacters() {
+    UniqueId.getTagPairsFromTSUID("0000080000010000020", 
+        (short)3, (short)3, (short)3);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDMissingTagv() {
+    UniqueId.getTagPairsFromTSUID("000008000001", 
+        (short)3, (short)3, (short)3);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDNull() {
+    UniqueId.getTagPairsFromTSUID(null, (short)3, (short)3, (short)3);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDEmpty() {
+    UniqueId.getTagPairsFromTSUID("", (short)3, (short)3, (short)3);
   }
   
   // ----------------- //

@@ -761,4 +761,41 @@ public final class UniqueId implements UniqueIdInterface {
     }
     return DatatypeConverter.parseHexBinary(id);
   }
+
+  /**
+   * Extracts a list of tagk/tagv pairs from a tsuid
+   * @param tsuid The tsuid to parse
+   * @param metric_width The width of the metric tag in bytes
+   * @param tagk_width The width of tagks in bytes
+   * @param tagv_width The width of tagvs in bytes
+   * @return A list of tagk/tagv pairs alternating with tagk, tagv, tagk, tagv
+   * @throws IllegalArgumentException if the TSUID is malformed
+   */
+   public static List<byte[]> getTagPairsFromTSUID(final String tsuid,
+      final short metric_width, final short tagk_width, 
+      final short tagv_width) {
+    if (tsuid == null || tsuid.isEmpty()) {
+      throw new IllegalArgumentException("Missing TSUID");
+    }
+    if (tsuid.length() <= metric_width * 2) {
+      throw new IllegalArgumentException(
+          "TSUID is too short, may be missing tags");
+    }
+     
+    final List<byte[]> tags = new ArrayList<byte[]>();
+    final int pair_width = (tagk_width * 2) + (tagv_width * 2);
+    
+    // start after the metric then iterate over each tagk/tagv pair
+    for (int i = metric_width * 2; i < tsuid.length(); i+= pair_width) {
+      if (i + pair_width > tsuid.length()){
+        throw new IllegalArgumentException(
+            "The TSUID appears to be malformed, improper tag width");
+      }
+      String tag = tsuid.substring(i, i + (tagk_width * 2));
+      tags.add(UniqueId.stringToUid(tag));
+      tag = tsuid.substring(i + (tagk_width * 2), i + pair_width);
+      tags.add(UniqueId.stringToUid(tag));
+    }
+    return tags;
+   }
 }
