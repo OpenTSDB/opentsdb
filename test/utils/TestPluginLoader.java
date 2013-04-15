@@ -80,7 +80,7 @@ public final class TestPluginLoader {
         "net.opentsdb.plugin.DummyPluginA", 
         DummyPlugin.class);
     assertNotNull(plugin);
-    assertEquals(plugin.myname, "Dummy Plugin A");
+    assertEquals("Dummy Plugin A", plugin.myname);
   }
   
   @Test
@@ -106,7 +106,7 @@ public final class TestPluginLoader {
     List<DummyPlugin> plugins = PluginLoader.loadPlugins(
         DummyPlugin.class);
     assertNotNull(plugins);
-    assertEquals(plugins.size(), 2);
+    assertEquals(2, plugins.size());
   }
   
   @Test

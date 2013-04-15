@@ -22,7 +22,6 @@ import java.util.HashMap;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSONException;
 
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;

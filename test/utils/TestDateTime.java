@@ -17,14 +17,28 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import java.text.SimpleDateFormat;
 import java.util.TimeZone;
 
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({ DateTime.class })
 public final class TestDateTime {
 
+  @Before
+  public void before() {
+    PowerMockito.mockStatic(System.class);
+    when(System.currentTimeMillis()).thenReturn(1357300800000L);
+  }
+  
   @Test
   public void getTimezone() {
     assertNotNull(DateTime.timezones.get("America/Los_Angeles"));
@@ -42,96 +56,89 @@ public final class TestDateTime {
   @Test
   public void parseDateTimeStringRelativeS() {
     long t = DateTime.parseDateTimeString("60s-ago", null);
-    long s = System.currentTimeMillis();
-    assertEquals((s - t), 60000, 5);
+    assertEquals(60000, (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeM() {
     long t = DateTime.parseDateTimeString("1m-ago", null);
-    long s = System.currentTimeMillis();
-    assertEquals((s - t),  60000, 5);
+    assertEquals(60000, (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeH() {
     long t = DateTime.parseDateTimeString("2h-ago", null);
-    long s = System.currentTimeMillis();
-    assertEquals((s - t), 7200000, 5);
+    assertEquals(7200000, (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeD() {
     long t = DateTime.parseDateTimeString("2d-ago", null);
-    long s = System.currentTimeMillis();
-    assertEquals((s - t), (2 * 3600 * 24 * 1000), 5);
+    assertEquals((2 * 3600 * 24 * 1000), (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeW() {
     long t = DateTime.parseDateTimeString("3w-ago", null);
-    long s = System.currentTimeMillis();
-    assertEquals((s - t), (3 * 7 * 3600 * 24 * 1000), 5);
+    assertEquals((3 * 7 * 3600 * 24 * 1000), (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeN() {
     long t = DateTime.parseDateTimeString("2n-ago", null);
-    long s = System.currentTimeMillis();
     long diff = 2 * 30 * 3600 * 24;
     diff *= 1000;
-    assertEquals((s - t), diff, 5);
+    assertEquals(diff, (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeY() {
     long t = DateTime.parseDateTimeString("2y-ago", null);
-    long s = System.currentTimeMillis();
     long diff = 2 * 365 * 3600 * 24;
     diff *= 1000;
-    assertEquals((s - t), diff, 5);
+    assertEquals(diff, (System.currentTimeMillis() - t));
   }
 
   @Test
   public void parseDateTimeStringUnixSeconds() {
     long t = DateTime.parseDateTimeString("1355961600", null);
-    assertEquals(t, 1355961600000L);
+    assertEquals(1355961600000L, t);
   }
   
   @Test
   public void parseDateTimeStringUnixMS() {
     long t = DateTime.parseDateTimeString("1355961603418", null);
-    assertEquals(t, 1355961603418L);
+    assertEquals(1355961603418L, t);
   }
   
   @Test
   public void parseDateTimeStringDate() {
     long t = DateTime.parseDateTimeString("2012/12/20", "GMT");
-    assertEquals(t, 1355961600000L);
+    assertEquals(1355961600000L, t);
   }
   
   @Test
   public void parseDateTimeStringDateTimeShort() {
     long t = DateTime.parseDateTimeString("2012/12/20 12:42", "GMT");
-    assertEquals(t, 1356007320000L);
+    assertEquals(1356007320000L, t);
   }
   
   @Test
   public void parseDateTimeStringDateTimeDashShort() {
     long t = DateTime.parseDateTimeString("2012/12/20-12:42", "GMT");
-    assertEquals(t, 1356007320000L);
+    assertEquals(1356007320000L, t);
   }
   
   @Test
   public void parseDateTimeStringDateTime() {
     long t = DateTime.parseDateTimeString("2012/12/20 12:42:42", "GMT");
-    assertEquals(t, 1356007362000L);
+    assertEquals(1356007362000L, t);
   }
   
   @Test
   public void parseDateTimeStringDateTimeDash() {
     long t = DateTime.parseDateTimeString("2012/12/20-12:42:42", "GMT");
-    assertEquals(t, 1356007362000L);
+    assertEquals(1356007362000L, t);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -152,61 +159,61 @@ public final class TestDateTime {
   @Test
   public void parseDateTimeStringNull() {
     long t = DateTime.parseDateTimeString(null, "GMT");
-    assertEquals(t, -1);
+    assertEquals(-1, t);
   }
   
   @Test
   public void parseDateTimeStringEmpty() {
     long t = DateTime.parseDateTimeString("", "GMT");
-    assertEquals(t, -1);
+    assertEquals(-1, t);
   }
   
   @Test
   public void parseDurationS() {
     long t = DateTime.parseDuration("60s");
-    assertEquals(t, 60);
+    assertEquals(60, t);
   }
   
   @Test
   public void parseDurationCase() {
     long t = DateTime.parseDuration("60S");
-    assertEquals(t, 60);
+    assertEquals(60, t);
   }
   
   @Test
   public void parseDurationM() {
     long t = DateTime.parseDuration("60m");
-    assertEquals(t, 60 * 60);
+    assertEquals(60 * 60, t);
   }
   
   @Test
   public void parseDurationH() {
     long t = DateTime.parseDuration("24h");
-    assertEquals(t, 24 * 60 * 60);
+    assertEquals(24 * 60 * 60, t);
   }
   
   @Test
   public void parseDurationD() {
     long t = DateTime.parseDuration("1d");
-    assertEquals(t, 24 * 60 * 60);
+    assertEquals(24 * 60 * 60, t);
   }
   
   @Test
   public void parseDurationW() {
     long t = DateTime.parseDuration("1w");
-    assertEquals(t, 7 * 24 * 60 * 60);
+    assertEquals(7 * 24 * 60 * 60, t);
   }
   
   @Test
   public void parseDurationN() {
     long t = DateTime.parseDuration("1n");
-    assertEquals(t, 30 * 24 * 60 * 60);
+    assertEquals(30 * 24 * 60 * 60, t);
   }
   
   @Test
   public void parseDurationY() {
     long t = DateTime.parseDuration("2y");
-    assertEquals(t, 2 * 365 * 24 * 60 * 60);
+    assertEquals(2 * 365 * 24 * 60 * 60, t);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -233,7 +240,7 @@ public final class TestDateTime {
   public void setTimeZone() {
     SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd");
     DateTime.setTimeZone(fmt, "America/Los_Angeles");
-    assertEquals(fmt.getTimeZone().getID(), "America/Los_Angeles");
+    assertEquals("America/Los_Angeles", fmt.getTimeZone().getID());
   }
   
   @SuppressWarnings("null")
@@ -241,7 +248,7 @@ public final class TestDateTime {
   public void setTimeZoneNullFmt() {
     SimpleDateFormat fmt = null;
     DateTime.setTimeZone(fmt, "America/Los_Angeles");
-    assertEquals(fmt.getTimeZone().getID(), "America/Los_Angeles");
+    assertEquals("America/Los_Angeles", fmt.getTimeZone().getID());
   }
   
   @Test
@@ -249,7 +256,7 @@ public final class TestDateTime {
     SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd");
     DateTime.setTimeZone(fmt, null);
     // This should return the default timezone for this box
-    assertEquals(fmt.getTimeZone().getID(), TimeZone.getDefault().getID());
+    assertEquals(TimeZone.getDefault().getID(), fmt.getTimeZone().getID());
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -290,7 +297,7 @@ public final class TestDateTime {
     String new_tz = current_tz.equals("UTC") ? 
         "America/New_York" : "UTC";
     DateTime.setDefaultTimezone(new_tz);
-    assertEquals(TimeZone.getDefault().getID(), new_tz);
+    assertEquals(new_tz, TimeZone.getDefault().getID());
   }
   
   @Test (expected = IllegalArgumentException.class)

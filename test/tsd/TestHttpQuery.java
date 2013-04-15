@@ -50,7 +50,37 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
 public final class TestHttpQuery {
   private TSDB tsdb = null;
-
+  final static private Method guessMimeTypeFromUri;
+  static {
+    try {
+      guessMimeTypeFromUri = HttpQuery.class.getDeclaredMethod(
+        "guessMimeTypeFromUri", String.class);
+      guessMimeTypeFromUri.setAccessible(true);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed in static initializer", e);
+    }
+  }
+  final static private Method guessMimeTypeFromContents;
+  static {
+    try {
+      guessMimeTypeFromContents = HttpQuery.class.getDeclaredMethod(
+        "guessMimeTypeFromContents", ChannelBuffer.class);
+      guessMimeTypeFromContents.setAccessible(true);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed in static initializer", e);
+    }
+  }
+  final static private Method sendBuffer;
+  static {
+    try {
+      sendBuffer = HttpQuery.class.getDeclaredMethod(
+        "sendBuffer", HttpResponseStatus.class, ChannelBuffer.class);
+      sendBuffer.setAccessible(true);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed in static initializer", e);
+    }
+  }
+  
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
@@ -64,8 +94,8 @@ public final class TestHttpQuery {
     final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
     Map<String, List<String>> params = query.getQueryString();
     assertNotNull(params);
-    assertTrue(params.get("param").get(0).equals("value"));
-    assertTrue(params.get("param2").get(0).equals("value2"));
+    assertEquals("value", params.get("param").get(0));
+    assertEquals("value2", params.get("param2").get(0));
   }
   
   @Test
@@ -556,58 +586,58 @@ public final class TestHttpQuery {
   @Test
   public void guessMimeTypeFromUriPNG() throws Exception {
     assertEquals("image/png", 
-        reflectguessMimeTypeFromUri().invoke(null, "abcd.png"));
+        guessMimeTypeFromUri.invoke(null, "abcd.png"));
   }
   
   @Test
   public void guessMimeTypeFromUriHTML() throws Exception {
     assertEquals("text/html; charset=UTF-8", 
-        reflectguessMimeTypeFromUri().invoke(null, "abcd.html"));
+        guessMimeTypeFromUri.invoke(null, "abcd.html"));
   }
   
   @Test
   public void guessMimeTypeFromUriCSS() throws Exception {
     assertEquals("text/css", 
-        reflectguessMimeTypeFromUri().invoke(null, "abcd.css"));
+        guessMimeTypeFromUri.invoke(null, "abcd.css"));
   }
   
   @Test
   public void guessMimeTypeFromUriJS() throws Exception {
     assertEquals("text/javascript", 
-        reflectguessMimeTypeFromUri().invoke(null, "abcd.js"));
+        guessMimeTypeFromUri.invoke(null, "abcd.js"));
   }
   
   @Test
   public void guessMimeTypeFromUriGIF() throws Exception {
     assertEquals("image/gif", 
-        reflectguessMimeTypeFromUri().invoke(null, "abcd.gif"));
+        guessMimeTypeFromUri.invoke(null, "abcd.gif"));
   }
   
   @Test
   public void guessMimeTypeFromUriICO() throws Exception {
     assertEquals("image/x-icon", 
-        reflectguessMimeTypeFromUri().invoke(null, "abcd.ico"));
+        guessMimeTypeFromUri.invoke(null, "abcd.ico"));
   }
   
   @Test
   public void guessMimeTypeFromUriOther() throws Exception {
-    assertNull(reflectguessMimeTypeFromUri().invoke(null, "abcd.jpg"));
+    assertNull(guessMimeTypeFromUri.invoke(null, "abcd.jpg"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void guessMimeTypeFromUriNull() throws Exception {
-    reflectguessMimeTypeFromUri().invoke(null, (Object[])null);
+    guessMimeTypeFromUri.invoke(null, (Object[])null);
   }
   
   @Test 
   public void guessMimeTypeFromUriEmpty() throws Exception {
-    assertNull(reflectguessMimeTypeFromUri().invoke(null, ""));
+    assertNull(guessMimeTypeFromUri.invoke(null, ""));
   }
 
   @Test
   public void guessMimeTypeFromContentsHTML() throws Exception {
     assertEquals("text/html; charset=UTF-8", 
-        reflectguessMimeTypeFromContents().invoke(
+        guessMimeTypeFromContents.invoke(
             NettyMocks.getQuery(tsdb, ""),
             ChannelBuffers.copiedBuffer(
                 "<HTML>...", Charset.forName("UTF-8"))));
@@ -616,7 +646,7 @@ public final class TestHttpQuery {
   @Test
   public void guessMimeTypeFromContentsJSONObj() throws Exception {
     assertEquals("application/json", 
-        reflectguessMimeTypeFromContents().invoke(
+        guessMimeTypeFromContents.invoke(
             NettyMocks.getQuery(tsdb, ""),
             ChannelBuffers.copiedBuffer(
                 "{\"hello\":\"world\"}", Charset.forName("UTF-8"))));
@@ -625,7 +655,7 @@ public final class TestHttpQuery {
   @Test
   public void guessMimeTypeFromContentsJSONArray() throws Exception {
     assertEquals("application/json", 
-        reflectguessMimeTypeFromContents().invoke(
+        guessMimeTypeFromContents.invoke(
             NettyMocks.getQuery(tsdb, ""),
             ChannelBuffers.copiedBuffer(
                 "[\"hello\",\"world\"]", Charset.forName("UTF-8"))));
@@ -634,7 +664,7 @@ public final class TestHttpQuery {
   @Test
   public void guessMimeTypeFromContentsPNG() throws Exception {
     assertEquals("image/png", 
-        reflectguessMimeTypeFromContents().invoke(
+        guessMimeTypeFromContents.invoke(
             NettyMocks.getQuery(tsdb, ""),
             ChannelBuffers.copiedBuffer(
                 new byte[] {(byte) 0x89, 0x00})));
@@ -643,7 +673,7 @@ public final class TestHttpQuery {
   @Test
   public void guessMimeTypeFromContentsText() throws Exception {
     assertEquals("text/plain", 
-        reflectguessMimeTypeFromContents().invoke(
+        guessMimeTypeFromContents.invoke(
             NettyMocks.getQuery(tsdb, ""),
             ChannelBuffers.copiedBuffer(
                 "Just plain text", Charset.forName("UTF-8"))));
@@ -652,7 +682,7 @@ public final class TestHttpQuery {
   @Test 
   public void guessMimeTypeFromContentsEmpty() throws Exception {
     assertEquals("text/plain", 
-        reflectguessMimeTypeFromContents().invoke(
+        guessMimeTypeFromContents.invoke(
             NettyMocks.getQuery(tsdb, ""),
             ChannelBuffers.copiedBuffer(
                 "", Charset.forName("UTF-8"))));
@@ -661,7 +691,7 @@ public final class TestHttpQuery {
   @Test (expected = NullPointerException.class)
   public void guessMimeTypeFromContentsNull() throws Exception {
     ChannelBuffer buf = null;
-    reflectguessMimeTypeFromContents().invoke(
+    guessMimeTypeFromContents.invoke(
         NettyMocks.getQuery(tsdb, ""), buf);
   }
   
@@ -1139,7 +1169,7 @@ public final class TestHttpQuery {
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     ChannelBuffer cb = ChannelBuffers.copiedBuffer("Hello World", 
         Charset.forName("UTF-8"));
-    reflectsendBuffer().invoke(query, HttpResponseStatus.OK, cb);
+    sendBuffer.invoke(query, HttpResponseStatus.OK, cb);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals(cb.toString(Charset.forName("UTF-8")), 
         query.response().getContent().toString(Charset.forName("UTF-8")));
@@ -1150,7 +1180,7 @@ public final class TestHttpQuery {
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     ChannelBuffer cb = ChannelBuffers.copiedBuffer("", 
         Charset.forName("UTF-8"));
-    reflectsendBuffer().invoke(query, HttpResponseStatus.OK, cb);
+    sendBuffer.invoke(query, HttpResponseStatus.OK, cb);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals(cb.toString(Charset.forName("UTF-8")), 
         query.response().getContent().toString(Charset.forName("UTF-8")));
@@ -1161,13 +1191,13 @@ public final class TestHttpQuery {
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     ChannelBuffer cb = ChannelBuffers.copiedBuffer("Hello World", 
         Charset.forName("UTF-8"));
-    reflectsendBuffer().invoke(query, null, cb);
+    sendBuffer.invoke(query, null, cb);
   }
   
   @Test (expected = NullPointerException.class)
   public void sendBufferNullCB() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
-    reflectsendBuffer().invoke(query, HttpResponseStatus.OK, null);
+    sendBuffer.invoke(query, HttpResponseStatus.OK, null);
   }
 
   @Test
@@ -1176,40 +1206,4 @@ public final class TestHttpQuery {
     assertNotNull(HttpQuery.getSerializerStatus());
   }
 
-  /** 
-   * Reflection for the guessMimeTypeFromURI(final String uri) method
-   * @return The method if it was detected
-   * @throws Exception If the method was not found
-   */
-  private Method reflectguessMimeTypeFromUri() throws Exception {
-    Method guessMimeTypeFromUri = HttpQuery.class.getDeclaredMethod(
-        "guessMimeTypeFromUri", String.class);
-    guessMimeTypeFromUri.setAccessible(true);
-    return guessMimeTypeFromUri;
-  }
-
-  /**
-   * Reflection for the ReflectguessMimeTypeFromContents(final ChannelBuffer)
-   * method
-   * @return The method if it was detected
-   * @throws Exception if the method was not found
-   */
-  private Method reflectguessMimeTypeFromContents() throws Exception {
-    Method guessMimeTypeFromContents = HttpQuery.class.getDeclaredMethod(
-        "guessMimeTypeFromContents", ChannelBuffer.class);
-    guessMimeTypeFromContents.setAccessible(true);
-    return guessMimeTypeFromContents;
-  }
-  
-  /**
-   * Reflection for the private sendBuffer() method of HttpQuery for testing
-   * @return The method if it was found
-   * @throws Exception if the method was not found
-   */
-  private Method reflectsendBuffer() throws Exception {
-    Method sendBuffer = HttpQuery.class.getDeclaredMethod("sendBuffer", 
-        HttpResponseStatus.class, ChannelBuffer.class);
-    sendBuffer.setAccessible(true);
-    return sendBuffer;
-  }
 }
