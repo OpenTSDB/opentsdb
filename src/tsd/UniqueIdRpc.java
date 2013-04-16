@@ -23,7 +23,11 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.TSMeta;
+import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 
 /**
  * Handles calls for UID processing including getting UID status, assigning UIDs
@@ -41,6 +45,12 @@ final class UniqueIdRpc implements HttpRpc {
 
     if (endpoint.toLowerCase().equals("assign")) {
       this.handleAssign(tsdb, query);
+      return;
+    } else if (endpoint.toLowerCase().equals("uidmeta")) {
+      this.handleUIDMeta(tsdb, query);
+      return;
+    } else if (endpoint.toLowerCase().equals("tsmeta")) {
+      this.handleTSMeta(tsdb, query);
       return;
     } else {
       throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
@@ -126,5 +136,270 @@ final class UniqueIdRpc implements HttpRpc {
       query.sendReply(HttpResponseStatus.BAD_REQUEST,
           query.serializer().formatUidAssignV1(response));
     }
+  }
+
+  /**
+   * Handles CRUD calls to individual UIDMeta data entries
+   * @param tsdb The TSDB from the RPC router
+   * @param query The query for this request
+   */
+  private void handleUIDMeta(final TSDB tsdb, final HttpQuery query) {
+
+    final HttpMethod method = query.getAPIMethod();
+    // GET
+    if (method == HttpMethod.GET) {
+      final String uid = query.getRequiredQueryStringParam("uid");
+      final UniqueIdType type = UniqueId.stringToUniqueIdType(
+          query.getRequiredQueryStringParam("type"));
+      try {
+        final UIDMeta meta = UIDMeta.getUIDMeta(tsdb, type, uid);
+        query.sendReply(query.serializer().formatUidMetaV1(meta));
+      } catch (NoSuchUniqueName e) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Could not find the requested UID", e);
+      }
+    // POST
+    } else if (method == HttpMethod.POST) {
+      final UIDMeta meta;
+      if (query.hasContent()) {
+        meta = query.serializer().parseUidMetaV1();
+      } else {
+        meta = this.parseUIDMetaQS(query);
+      }
+      try {
+        meta.syncToStorage(tsdb, false);
+        query.sendReply(query.serializer().formatUidMetaV1(meta));
+      } catch (IllegalStateException e) {
+        query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Unable to save UIDMeta information", e);
+      } catch (NoSuchUniqueName e) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Could not find the requested UID", e);
+      }
+    // PUT
+    } else if (method == HttpMethod.PUT) {
+      final UIDMeta meta;
+      if (query.hasContent()) {
+        meta = query.serializer().parseUidMetaV1();
+      } else {
+        meta = this.parseUIDMetaQS(query);
+      }
+      try {
+        meta.syncToStorage(tsdb, true);
+        query.sendReply(query.serializer().formatUidMetaV1(meta));
+      } catch (IllegalStateException e) {
+        query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Unable to save UIDMeta information", e);
+      } catch (NoSuchUniqueName e) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Could not find the requested UID", e);
+      }
+    // DELETE  
+    } else if (method == HttpMethod.DELETE) {
+      final UIDMeta meta;
+      if (query.hasContent()) {
+        meta = query.serializer().parseUidMetaV1();
+      } else {
+        meta = this.parseUIDMetaQS(query);
+      }
+      try {
+        meta.delete(tsdb);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Unable to delete UIDMeta information", e);
+      } catch (NoSuchUniqueName e) {
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Could not find the requested UID", e);
+      }
+      query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
+    } else {
+      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+          "Method not allowed", "The HTTP method [" + method.getName() +
+          "] is not permitted for this endpoint");
+    }
+  }
+  
+  /**
+   * Handles CRUD calls to individual TSMeta data entries
+   * @param tsdb The TSDB from the RPC router
+   * @param query The query for this request
+   */
+  private void handleTSMeta(final TSDB tsdb, final HttpQuery query) {
+
+    final HttpMethod method = query.getAPIMethod();
+    // GET
+    if (method == HttpMethod.GET) {
+      final String tsuid = query.getRequiredQueryStringParam("tsuid");
+      try {
+        final TSMeta meta = TSMeta.getTSMeta(tsdb, tsuid);
+        if (meta != null) {
+          query.sendReply(query.serializer().formatTSMetaV1(meta));
+        } else {
+          throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+              "Could not find Timeseries meta data");
+        } 
+      } catch (NoSuchUniqueName e) {
+        // this would only happen if someone deleted a UID but left the 
+        // the timeseries meta data
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Unable to find one or more UIDs", e);
+      }
+    // POST
+    } else if (method == HttpMethod.POST) {
+      final TSMeta meta;
+      if (query.hasContent()) {
+        meta = query.serializer().parseTSMetaV1();
+      } else {
+        meta = this.parseTSMetaQS(query);
+      }
+      try {
+        meta.syncToStorage(tsdb, false);
+        query.sendReply(query.serializer().formatTSMetaV1(meta));
+      } catch (IllegalStateException e) {
+        query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Unable to save TSMeta information", e);
+      } catch (NoSuchUniqueName e) {
+        // this would only happen if someone deleted a UID but left the 
+        // the timeseries meta data
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Unable to find one or more UIDs", e);
+      }
+    // PUT
+    } else if (method == HttpMethod.PUT) {
+      final TSMeta meta;
+      if (query.hasContent()) {
+        meta = query.serializer().parseTSMetaV1();
+      } else {
+        meta = this.parseTSMetaQS(query);
+      }
+      try {
+        meta.syncToStorage(tsdb, true);
+        query.sendReply(query.serializer().formatTSMetaV1(meta));
+      } catch (IllegalStateException e) {
+        query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Unable to save TSMeta information", e);
+      } catch (NoSuchUniqueName e) {
+        // this would only happen if someone deleted a UID but left the 
+        // the timeseries meta data
+        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
+            "Unable to find one or more UIDs", e);
+      }
+    // DELETE  
+    } else if (method == HttpMethod.DELETE) {
+      final TSMeta meta;
+      if (query.hasContent()) {
+        meta = query.serializer().parseTSMetaV1();
+      } else {
+        meta = this.parseTSMetaQS(query);
+      }
+      try{
+        meta.delete(tsdb);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Unable to delete TSMeta information", e);
+      }
+      query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
+    } else {
+      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+          "Method not allowed", "The HTTP method [" + method.getName() +
+          "] is not permitted for this endpoint");
+    }
+  }
+  
+  /**
+   * Used with verb overrides to parse out values from a query string
+   * @param query The query to parse
+   * @return An UIDMeta object with configured values
+   * @throws BadRequestException if a required value was missing or could not
+   * be parsed
+   */
+  private UIDMeta parseUIDMetaQS(final HttpQuery query) {
+    final String uid = query.getRequiredQueryStringParam("uid");
+    final String type = query.getRequiredQueryStringParam("type");
+    final UIDMeta meta = new UIDMeta(UniqueId.stringToUniqueIdType(type), uid);
+    final String display_name = query.getQueryStringParam("display_name");
+    if (display_name != null) {
+      meta.setDisplayName(display_name);
+    }
+    
+    final String description = query.getQueryStringParam("description");
+    if (description != null) {
+      meta.setDescription(description);
+    }
+    
+    final String notes = query.getQueryStringParam("notes");
+    if (notes != null) {
+      meta.setNotes(notes);
+    }
+    
+    return meta;
+  }
+  
+  /**
+   * Used with verb overrides to parse out values from a query string
+   * @param query The query to parse
+   * @return An TSMeta object with configured values
+   * @throws BadRequestException if a required value was missing or could not
+   * be parsed
+   */
+  private TSMeta parseTSMetaQS(final HttpQuery query) {
+    final String tsuid = query.getRequiredQueryStringParam("tsuid");
+    final TSMeta meta = new TSMeta(tsuid);
+    
+    final String display_name = query.getQueryStringParam("display_name");
+    if (display_name != null) {
+      meta.setDisplayName(display_name);
+    }
+  
+    final String description = query.getQueryStringParam("description");
+    if (description != null) {
+      meta.setDescription(description);
+    }
+    
+    final String notes = query.getQueryStringParam("notes");
+    if (notes != null) {
+      meta.setNotes(notes);
+    }
+    
+    final String units = query.getQueryStringParam("units");
+    if (units != null) {
+      meta.setUnits(units);
+    }
+    
+    final String data_type = query.getQueryStringParam("data_type");
+    if (data_type != null) {
+      meta.setDataType(data_type);
+    }
+    
+    final String retention = query.getQueryStringParam("retention");
+    if (retention != null && !retention.isEmpty()) {
+      try {
+        meta.setRetention(Integer.parseInt(retention));
+      } catch (NumberFormatException nfe) {
+        throw new BadRequestException("Unable to parse 'retention' value");
+      }
+    }
+    
+    final String max = query.getQueryStringParam("max");
+    if (max != null && !max.isEmpty()) {
+      try {
+        meta.setMax(Float.parseFloat(max));
+      } catch (NumberFormatException nfe) {
+        throw new BadRequestException("Unable to parse 'max' value");
+      }
+    }
+    
+    final String min = query.getQueryStringParam("min");
+    if (min != null && !min.isEmpty()) {
+      try {
+        meta.setMin(Float.parseFloat(min));
+      } catch (NumberFormatException nfe) {
+        throw new BadRequestException("Unable to parse 'min' value");
+      }
+    }
+    
+    return meta;
   }
 }

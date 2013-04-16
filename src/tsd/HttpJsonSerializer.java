@@ -37,6 +37,8 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
+import net.opentsdb.meta.TSMeta;
+import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -185,6 +187,44 @@ class HttpJsonSerializer extends HttpSerializer {
     }
     try {
       return JSON.parseToObject(json, TSQuery.class);
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+  
+  /**
+   * Parses a single UIDMeta object
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public UIDMeta parseUidMetaV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    try {
+      return JSON.parseToObject(json, UIDMeta.class);
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+  
+  /**
+   * Parses a single TSMeta object
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public TSMeta parseTSMetaV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    try {
+      return JSON.parseToObject(json, TSMeta.class);
     } catch (IllegalArgumentException iae) {
       throw new BadRequestException("Unable to parse the given JSON", iae);
     }
@@ -356,6 +396,26 @@ class HttpJsonSerializer extends HttpSerializer {
       LOG.error("Unexpected exception", e);
       throw new RuntimeException(e);
     }
+  }
+  
+  /**
+   * Format a single UIDMeta object
+   * @param meta The UIDMeta object to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatUidMetaV1(final UIDMeta meta) {
+    return this.serializeJSON(meta);
+  }
+  
+  /**
+   * Format a single TSMeta object
+   * @param meta The TSMeta object to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTSMetaV1(final TSMeta meta) {
+    return this.serializeJSON(meta);
   }
   
   /**
