@@ -12,8 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +27,8 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
 
+import org.hbase.async.AtomicIncrementRequest;
+import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
@@ -33,9 +38,13 @@ import org.hbase.async.RowLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.stumbleupon.async.Callback;
 
 /**
  * Timeseries Metadata is associated with a particular series of data points
@@ -49,6 +58,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
+@JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class TSMeta {
   private static final Logger LOG = LoggerFactory.getLogger(TSMeta.class);
 
@@ -59,7 +69,10 @@ public final class TSMeta {
   private static final byte[] FAMILY = "name".getBytes(CHARSET);
   
   /** The cell qualifier to use for timeseries meta */
-  private static final byte[] QUALIFIER = "ts_meta".getBytes(CHARSET);
+  private static final byte[] META_QUALIFIER = "ts_meta".getBytes(CHARSET);
+  
+  /** The cell qualifier to use for timeseries meta */
+  private static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(CHARSET);
   
   /** Hexadecimal representation of the TSUID this metadata is associated with */
   private String tsuid = "";
@@ -108,6 +121,9 @@ public final class TSMeta {
   
   /** The last time this data was recorded in seconds */
   private long last_received = 0;
+  
+  /** The total number of data points recorded since meta has been enabled */
+  private long total_dps;
 
   /** Tracks fields that have changed by the user to avoid overwrites */
   private final HashMap<String, Boolean> changed = 
@@ -131,16 +147,17 @@ public final class TSMeta {
   
   /**
    * Constructor for new timeseries that initializes the created and 
-   * last_received times
+   * last_received times to the current system time
    * @param tsuid The UID of the timeseries
    */
-  public TSMeta(final byte[] tsuid) {
+  public TSMeta(final byte[] tsuid, final long created) {
     this.tsuid = UniqueId.uidToString(tsuid);
-    created = System.currentTimeMillis() / 1000;
-    last_received = created;
+    // downgrade to seconds
+    this.created = created > 9999999999L ? created / 1000 : created;
     initializeChangedMap();
+    changed.put("created", true);
   }
-
+  
   /** @return a string with details about this object */
   @Override
   public String toString() {
@@ -159,7 +176,7 @@ public final class TSMeta {
     }
 
     final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
-        UniqueId.stringToUid(tsuid), FAMILY, QUALIFIER);
+        UniqueId.stringToUid(tsuid), FAMILY, META_QUALIFIER);
     try {
       tsdb.getClient().delete(delete);
     } catch (Exception e) {
@@ -228,19 +245,14 @@ public final class TSMeta {
       if (stored_meta != null) {
         syncMeta(stored_meta, overwrite);
       } else {
-        // todo - should we prevent users from posting possibly non-existant
-        // tsuid metas? 
-        // throw new IllegalArgumentException("Requested TSUID did not exist");
+        // users can't create new timeseries, they must be created by the tsd
+        // or the meta sync app
+        throw new IllegalArgumentException("Requested TSUID did not exist");
       }
 
-      // We don't want to store any loaded UIDMeta objects (metric or tags) here
-      // since the UIDMeta's are canonical. We can't just set the fields to null
-      // before storage since callers may be looking at them later. So we'll 
-      // copy all fields BUT the UIDMetas and serialize those
-      stored_meta = copyToStorageObject();
       final PutRequest put = new PutRequest(tsdb.uidTable(), 
-          UniqueId.stringToUid(tsuid), FAMILY, QUALIFIER, 
-          JSON.serializeToBytes(stored_meta), lock);
+          UniqueId.stringToUid(stored_meta.tsuid), FAMILY, META_QUALIFIER, 
+          getStorageJSON(), lock);
       tsdb.hbasePutWithRetry(put, (short)3, (short)800);
       
     } finally {
@@ -251,6 +263,28 @@ public final class TSMeta {
         LOG.error("Error while releasing the lock on row: " + tsuid, e);
       }
     }
+  }
+  
+  /**
+   * Attempts to store a new, blank timeseries meta object.
+   * <b>Note:</b> This should not be called by user accessible methods as it will 
+   * overwrite any data already in the column.
+   * <b>Note:</b> This call does not gaurantee that the UIDs exist before
+   * storing as it should only be called *after* a data point has been recorded
+   * or during a meta sync. 
+   * @param tsdb The TSDB to use for storage access
+   * @throws HBaseException if there was an issue fetching
+   * @throws IllegalArgumentException if parsing failed
+   * @throws JSONException if the object could not be serialized
+   */
+  public void storeNew(final TSDB tsdb) {
+    if (tsuid == null || tsuid.isEmpty()) {
+      throw new IllegalArgumentException("Missing TSUID");
+    }
+
+    final PutRequest put = new PutRequest(tsdb.uidTable(), 
+        UniqueId.stringToUid(tsuid), FAMILY, META_QUALIFIER, getStorageJSON());
+    tsdb.getClient().put(put);
   }
   
   /**
@@ -292,6 +326,78 @@ public final class TSMeta {
   }
   
   /**
+   * Determines if an entry exists in storage or not. This is used by the 
+   * MetaManager thread to determine if we need to write a new TSUID entry or
+   * not. It will not attempt to verify if the stored data is valid, just 
+   * checks to see if something is stored there.
+   * @param tsdb  The TSDB to use for storage access
+   * @param tsuid The UID of the meta to verify
+   * @return True if data was found, false if not
+   * @throws HBaseException if there was an issue fetching
+   */
+  public static boolean metaExistsInStorage(final TSDB tsdb, final String tsuid) {
+    final GetRequest get = new GetRequest(tsdb.uidTable(), 
+        UniqueId.stringToUid(tsuid));
+    get.family(FAMILY);
+    get.qualifier(META_QUALIFIER);
+    
+    try {
+      final ArrayList<KeyValue> row = 
+        tsdb.getClient().get(get).joinUninterruptibly();
+      if (row == null || row.isEmpty()) {
+        return false;
+      }
+      return true;
+    } catch (HBaseException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  /**
+   * Increments the tsuid datapoint counter or creates a new counter. Also
+   * creates a new meta data entry if the counter did not exist.
+   * @param tsdb The TSDB to use for communcation
+   * @param tsuid The TSUID to increment or create
+   */
+  public static void incrementAndGetCounter(final TSDB tsdb, final byte[] tsuid) {
+    /**
+     * Internal callback class that will create a new TSMeta object if the 
+     * increment call returns a 1
+     */
+    final class TSMetaCB implements Callback<Object, Long> {
+      final TSDB tsdb;
+      final byte[] tsuid;
+      
+      public TSMetaCB(final TSDB tsdb, final byte[] tsuid) {
+        this.tsdb = tsdb;
+        this.tsuid = tsuid;
+      }
+      
+      @Override
+      public Object call(final Long incremented_value) throws Exception {
+        if (incremented_value == 1) {
+          final TSMeta meta = new TSMeta(tsuid, 
+              System.currentTimeMillis() / 1000);
+          meta.storeNew(tsdb);
+          tsdb.indexTSMeta(meta);
+          LOG.trace("Created new TSUID entry for: " + meta);
+        }
+        // TODO - maybe update the search index every X number of increments?
+        // Otherwise the search would only get last_updated/count whenever
+        // the user runs the full sync CLI
+        return null;
+      }
+    }
+    
+    final AtomicIncrementRequest inc = new AtomicIncrementRequest(
+        tsdb.uidTable(), tsuid, FAMILY, COUNTER_QUALIFIER);
+    tsdb.getClient().bufferAtomicIncrement(inc).addCallback(
+        new TSMetaCB(tsdb, tsuid));
+  }
+  
+  /**
    * Attempts to fetch the timeseries meta data from storage
    * @param tsdb The TSDB to use for storage access
    * @param tsuid The UID of the meta to fetch
@@ -306,7 +412,7 @@ public final class TSMeta {
       final RowLock lock) {
     final GetRequest get = new GetRequest(tsdb.uidTable(), tsuid);
     get.family(FAMILY);
-    get.qualifier(QUALIFIER);
+    get.qualifiers(new byte[][] { COUNTER_QUALIFIER, META_QUALIFIER });
     if (lock != null) {
       get.withRowLock(lock);
     }    
@@ -317,7 +423,23 @@ public final class TSMeta {
       if (row == null || row.isEmpty()) {
         return null;
       }
-      return JSON.parseToObject(row.get(0).value(), TSMeta.class);
+      long dps = 0;
+      long last_received = 0;
+      TSMeta meta = null;
+      for (KeyValue column : row) {
+        if (Arrays.equals(COUNTER_QUALIFIER, column.qualifier())) {
+          dps = Bytes.getLong(column.value());
+          last_received = column.timestamp() / 1000;
+        } else if (Arrays.equals(META_QUALIFIER, column.qualifier())) {
+          meta = JSON.parseToObject(column.value(), TSMeta.class);
+        }
+      }
+      if (meta == null) {
+        return null;
+      }
+      meta.total_dps = dps;
+      meta.last_received = last_received;
+      return meta;
     } catch (HBaseException e) {
       throw e;
     } catch (IllegalArgumentException e) {
@@ -339,10 +461,17 @@ public final class TSMeta {
    * replaced by the local object
    */
   private void syncMeta(final TSMeta meta, final boolean overwrite) {
-    // copy non-user-accessible data first
-    tsuid = meta.tsuid;
-    created = meta.created;
-    last_received = meta.last_received;
+    // storage *could* have a missing TSUID if something went pear shaped so
+    // only use the one that's configured. If the local is missing, we're foobar
+    if (meta.tsuid != null && !meta.tsuid.isEmpty()) {
+      tsuid = meta.tsuid;
+    }
+    if (tsuid == null || tsuid.isEmpty()) {
+      throw new IllegalArgumentException("TSUID is empty");
+    }
+    if (meta.created > 0 && meta.created < created) {
+      created = meta.created;
+    }
     
     // handle user-accessible stuff
     if (!overwrite && !changed.get("display_name")) {
@@ -373,6 +502,9 @@ public final class TSMeta {
       min = meta.min;
     }
     
+    last_received = meta.last_received;
+    total_dps = meta.total_dps;
+    
     // reset changed flags
     initializeChangedMap();
   }
@@ -385,6 +517,7 @@ public final class TSMeta {
     changed.put("display_name", false);
     changed.put("description", false);
     changed.put("notes", false);
+    changed.put("created", false);
     changed.put("custom", false);
     changed.put("units", false);
     changed.put("data_type", false);
@@ -392,28 +525,47 @@ public final class TSMeta {
     changed.put("max", false);
     changed.put("min", false);
     changed.put("last_received", false);
+    changed.put("created", false); 
   }
   
   /**
-   * Copies local values into a new TSMeta object with the UIDMeta's set to
-   * null so we don't serialize that data; the UIDMetas are canonical
-   * @return A TSMeta object with UIDMetas set to null
+   * Formats the JSON output for writing to storage. It drops objects we don't
+   * need or want to store (such as the UIDMeta objects or the total dps) to
+   * save space.
+   * @return A byte array to write to storage
    */
-  private TSMeta copyToStorageObject() {
-    final TSMeta meta = new TSMeta();
-    meta.tsuid = tsuid;
-    meta.display_name = display_name;
-    meta.description = description;
-    meta.notes = notes;
-    meta.created = created;
-    meta.custom = custom;
-    meta.units = units;
-    meta.data_type = data_type;
-    meta.retention = retention;
-    meta.max = max;
-    meta.min = min;
-    meta.last_received = last_received;
-    return meta;
+  private byte[] getStorageJSON() {
+    // 256 bytes is a good starting value, assumes default info
+    final ByteArrayOutputStream output = new ByteArrayOutputStream(256);
+    try {
+      final JsonGenerator json = JSON.getFactory().createGenerator(output); 
+      json.writeStartObject();
+      json.writeStringField("tsuid", tsuid);
+      json.writeStringField("displayName", display_name);
+      json.writeStringField("description", description);
+      json.writeStringField("notes", notes);
+      json.writeNumberField("created", created);
+      if (custom == null) {
+        json.writeNullField("custom");
+      } else {
+        json.writeStartObject();
+        for (Map.Entry<String, String> entry : custom.entrySet()) {
+          json.writeStringField(entry.getKey(), entry.getValue());
+        }
+        json.writeEndObject();
+      }
+      json.writeStringField("units", units);
+      json.writeStringField("dateType", data_type);
+      json.writeNumberField("retention", retention);
+      json.writeNumberField("max", max);
+      json.writeNumberField("min", min);
+      
+      json.writeEndObject(); 
+      json.close();
+      return output.toByteArray();
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to serialize TSMeta", e);
+    }
   }
   
   // Getters and Setters --------------
@@ -488,6 +640,11 @@ public final class TSMeta {
     return last_received;
   }
 
+  /** @return the total number of data points as tracked by the meta data */
+  public final long getTotalDatapoints() {
+    return this.total_dps;
+  }
+  
   /** @param display_name an optional name for the timeseries */
   public final void setDisplayName(final String display_name) {
     if (!this.display_name.equals(display_name)) {
@@ -512,6 +669,14 @@ public final class TSMeta {
     }
   }
 
+  /** @param created the created timestamp Unix epoch in seconds */
+  public final void setCreated(final long created) {
+    if (this.created != created) {
+      changed.put("created", true);
+      this.created = created;
+    }
+  }
+  
   /** @param custom optional key/value map */
   public final void setCustom(final HashMap<String, String> custom) {
     // equivalency of maps is a pain, users have to submit the whole map
@@ -560,15 +725,6 @@ public final class TSMeta {
     if (this.min != min) {
       changed.put("min", true);
       this.min = min;
-    }
-  }
-
-  /** @param last_received last time a data point was recorded. Should be
-   * set by the TSD only! */
-  public final void setLastReceived(final long last_received) {
-    if (this.last_received != last_received) {
-      changed.put("last_received", true);
-      this.last_received = last_received;
     }
   }
 }
