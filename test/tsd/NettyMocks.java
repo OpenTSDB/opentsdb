@@ -109,9 +109,82 @@ public final class NettyMocks {
    */
   public static HttpQuery postQuery(final TSDB tsdb, final String uri, 
       final String content, final String type) {
+    return contentQuery(tsdb, uri, content, type, HttpMethod.POST);
+  }
+  
+  /**
+   * Returns an HttpQuery object with the given uri, content and type
+   * Method = PUT
+   * @param tsdb The TSDB to associate with, needs to be mocked with the Config
+   * object set
+   * @param uri A URI to use
+   * @param content Content to POST (UTF-8 encoding)
+   * @return an HttpQuery object
+   */
+  public static HttpQuery putQuery(final TSDB tsdb, final String uri, 
+      final String content) {
+    return putQuery(tsdb, uri, content, "application/json; charset=UTF-8");
+  }
+  
+  /**
+   * Returns an HttpQuery object with the given uri, content and type
+   * Method = PUT
+   * @param tsdb The TSDB to associate with, needs to be mocked with the Config
+   * object set
+   * @param uri A URI to use
+   * @param content Content to POST (UTF-8 encoding)
+   * @param type Content-Type value
+   * @return an HttpQuery object
+   */
+  public static HttpQuery putQuery(final TSDB tsdb, final String uri, 
+      final String content, final String type) {
+    return contentQuery(tsdb, uri, content, type, HttpMethod.PUT);
+  }
+  
+  /**
+   * Returns an HttpQuery object with the given uri, content and type
+   * Method = DELETE
+   * @param tsdb The TSDB to associate with, needs to be mocked with the Config
+   * object set
+   * @param uri A URI to use
+   * @param content Content to POST (UTF-8 encoding)
+   * @return an HttpQuery object
+   */
+  public static HttpQuery deleteQuery(final TSDB tsdb, final String uri, 
+      final String content) {
+    return deleteQuery(tsdb, uri, content, "application/json; charset=UTF-8");
+  }
+  
+  /**
+   * Returns an HttpQuery object with the given uri, content and type
+   * Method = DELETE
+   * @param tsdb The TSDB to associate with, needs to be mocked with the Config
+   * object set
+   * @param uri A URI to use
+   * @param content Content to POST (UTF-8 encoding)
+   * @param type Content-Type value
+   * @return an HttpQuery object
+   */
+  public static HttpQuery deleteQuery(final TSDB tsdb, final String uri, 
+      final String content, final String type) {
+    return contentQuery(tsdb, uri, content, type, HttpMethod.DELETE);
+  }
+  
+  /**
+   * Returns an HttpQuery object with the given settings
+   * @param tsdb The TSDB to associate with, needs to be mocked with the Config
+   * object set
+   * @param uri A URI to use
+   * @param content Content to POST (UTF-8 encoding)
+   * @param type Content-Type value
+   * @param method The HTTP method to use, GET, POST, etc.
+   * @return an HttpQuery object
+   */
+  public static HttpQuery contentQuery(final TSDB tsdb, final String uri, 
+      final String content, final String type, final HttpMethod method) {
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
-        HttpMethod.POST, uri);
+        method, uri);
     if (content != null) {
       req.setContent(ChannelBuffers.copiedBuffer(content, 
           Charset.forName("UTF-8")));
