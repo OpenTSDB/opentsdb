@@ -70,10 +70,12 @@ public final class TestTSQuery {
   
   @Test
   public void validateNullEnd() {
+    PowerMockito.mockStatic(System.class);
+    when(System.currentTimeMillis()).thenReturn(1357300800000L);
     TSQuery q = this.getMetricForValidate();
     q.setEnd(null);
     q.validateAndSetQuery();
-    assertEquals(System.currentTimeMillis(), q.endTime());
+    assertEquals(1357300800000L, q.endTime());
   }
   
   @Test
