@@ -74,6 +74,20 @@ final class BadRequestException extends RuntimeException {
   }
   
   /**
+   * Constructor with caller supplied status, message and source exception
+   * <b>Note:</b> This constructor will store the message from the source 
+   * exception in the "details" field of the local exception.
+   * @param status HTTP status code
+   * @param message A brief, descriptive error message
+   * @param cause The source exception if applicable
+   * @since 2.0
+   */
+  public BadRequestException(final HttpResponseStatus status, 
+      final String message, final Throwable cause) {
+    this(status, message, cause.getMessage(), cause);
+  }
+  
+  /**
    * Constructor with caller supplied status, message and details
    * @param status HTTP status code
    * @param message A brief, descriptive error message
