@@ -56,6 +56,7 @@ tsdb_SRC := \
 	src/meta/Annotation.java	\
 	src/meta/TSMeta.java	\
 	src/meta/UIDMeta.java	\
+	src/search/SearchPlugin.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
 	src/tools/ArgP.java	\
@@ -123,6 +124,7 @@ test_SRC := \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
 	test/meta/TestUIDMeta.java	\
+	test/search/TestSearchPlugin.java	\
 	test/stats/TestHistogram.java	\
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestGraphHandler.java	\
@@ -142,11 +144,13 @@ test_SRC := \
 test_plugin_SRC := \
   test/plugin/DummyPluginA.java \
   test/plugin/DummyPluginB.java \
+  test/search/DummySearchPlugin.java \
   test/tsd/DummyHttpSerializer.java
 
 # Do NOT include the test dir path, just the META portion
 test_plugin_SVCS := \
   META-INF/services/net.opentsdb.plugin.DummyPlugin \
+  META-INF/services/net.opentsdb.search.SearchPlugin \
   META-INF/services/net.opentsdb.tsd.HttpSerializer
   
 test_plugin_MF := \
