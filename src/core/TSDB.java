@@ -40,6 +40,10 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.PluginLoader;
+import net.opentsdb.meta.TSMeta;
+import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
@@ -87,6 +91,9 @@ public final class TSDB {
    */
   private final CompactionQueue compactionq;
 
+  /** Search indexer to use if configure */
+  private SearchPlugin search = null;
+  
   /**
    * Constructor
    * @param config An initialized configuration object
@@ -106,10 +113,53 @@ public final class TSDB {
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
 
-    if (config.hasProperty("tsd.core.timezone"))
+    if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
-    
+    }
     LOG.debug(config.dumpConfiguration());
+  }
+  
+  /**
+   * Should be called immediately after construction to initialize plugins and
+   * objects that rely on such. It also moves most of the potential exception
+   * throwing code out of the constructor so TSDMain can shutdown clients and
+   * such properly.
+   * @throws RuntimeException if the plugin path could not be processed
+   * @throws IllegalArgumentException if a plugin could not be initialized
+   * @since 2.0
+   */
+  public void initializePlugins() {
+    final String plugin_path = config.getString("tsd.core.plugin_path");
+    if (plugin_path != null && !plugin_path.isEmpty()) {
+      try {
+        System.out.println("Attempting to load plugins");
+        PluginLoader.loadJARs(plugin_path);
+      } catch (Exception e) {
+        LOG.error("Error loading plugins from plugin path: " + plugin_path, e);
+        throw new RuntimeException("Error loading plugins from plugin path: " + 
+            plugin_path, e);
+      }
+    }
+
+    // load the search plugin if enabled
+    if (config.getBoolean("tsd.search.enable")) {
+      search = PluginLoader.loadSpecificPlugin(
+          config.getString("tsd.search.plugin"), SearchPlugin.class);
+      if (search == null) {
+        throw new IllegalArgumentException("Unable to locate search plugin: " + 
+            config.getString("tsd.search.plugin"));
+      }
+      try {
+        search.initialize(this);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to initialize search plugin", e);
+      }
+      LOG.info("Successfully initialized search plugin [" + 
+          search.getClass().getCanonicalName() + "] version: " 
+          + search.version());
+    } else {
+      search = null;
+    }
   }
   
   /** 
@@ -678,6 +728,46 @@ public final class TSDB {
     throw hbe;
   }
  
+  /**
+   * Index the given timeseries meta object via the configured search plugin
+   * @param meta The meta data object to index
+   */
+  public void indexTSMeta(final TSMeta meta) {
+    if (search != null) {
+      search.indexTSMeta(meta);
+    }
+  }
+  
+  /**
+   * Delete the timeseries meta object from the search index
+   * @param tsuid The TSUID to delete
+   */
+  public void deleteTSMeta(final String tsuid) {
+    if (search != null) {
+      search.deleteTSMeta(tsuid);
+    }
+  }
+  
+  /**
+   * Index the given UID meta object via the configured search plugin
+   * @param meta The meta data object to index
+   */
+  public void indexUIDMeta(final UIDMeta meta) {
+    if (search != null) {
+      search.indexUIDMeta(meta);
+    }
+  }
+  
+  /**
+   * Delete the UID meta object from the search index
+   * @param meta The UID meta object to delete
+   */
+  public void deleteUIDMeta(final UIDMeta meta) {
+    if (search != null) {
+      search.deleteUIDMeta(meta);
+    }
+  }
+  
   // ------------------ //
   // Compaction helpers //
   // ------------------ //

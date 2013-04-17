@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
+import java.util.HashMap;
 
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -37,6 +38,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   CompactionQueue.class})
 public final class TestTSDB {
+  private Config config;
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
   private UniqueId metrics = mock(UniqueId.class);
@@ -46,7 +48,7 @@ public final class TestTSDB {
   
   @Before
   public void before() throws Exception {
-    final Config config = new Config(false);
+    config = new Config(false);
     tsdb = new TSDB(config);
     
     // replace the "real" field objects with mocks
@@ -69,6 +71,65 @@ public final class TestTSDB {
     Field cq = tsdb.getClass().getDeclaredField("compactionq");
     cq.setAccessible(true);
     cq.set(tsdb, compactionq);
+  }
+  
+  @Test
+  public void initializePluginsDefaults() {
+    // no configured plugin path, plugins disabled, no exceptions
+    tsdb.initializePlugins();
+  }
+  
+  @Test
+  public void initializePluginsPathSet() throws Exception {
+    Field properties = config.getClass().getDeclaredField("properties");
+    properties.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    HashMap<String, String> props = 
+      (HashMap<String, String>) properties.get(config);
+    props.put("tsd.core.plugin_path", "./");
+    properties.setAccessible(false);
+    tsdb.initializePlugins();
+  }
+  
+  @Test (expected = RuntimeException.class)
+  public void initializePluginsPathBad() throws Exception {
+    Field properties = config.getClass().getDeclaredField("properties");
+    properties.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    HashMap<String, String> props = 
+      (HashMap<String, String>) properties.get(config);
+    props.put("tsd.core.plugin_path", "./doesnotexist");
+    properties.setAccessible(false);
+    tsdb.initializePlugins();
+  }
+  
+  @Test
+  public void initializePluginsSearch() throws Exception {
+    Field properties = config.getClass().getDeclaredField("properties");
+    properties.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    HashMap<String, String> props = 
+      (HashMap<String, String>) properties.get(config);
+    props.put("tsd.core.plugin_path", "./");
+    props.put("tsd.search.enable", "true");
+    props.put("tsd.search.plugin", "net.opentsdb.search.DummySearchPlugin");
+    props.put("tsd.search.DummySearchPlugin.hosts", "localhost");
+    props.put("tsd.search.DummySearchPlugin.port", "42");
+    properties.setAccessible(false);
+    tsdb.initializePlugins();
+  }
+  
+  @Test (expected = RuntimeException.class)
+  public void initializePluginsSearchNotFound() throws Exception {
+    Field properties = config.getClass().getDeclaredField("properties");
+    properties.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    HashMap<String, String> props = 
+      (HashMap<String, String>) properties.get(config);
+    props.put("tsd.search.enable", "true");
+    props.put("tsd.search.plugin", "net.opentsdb.search.DoesNotExist");
+    properties.setAccessible(false);
+    tsdb.initializePlugins();
   }
   
   @Test
