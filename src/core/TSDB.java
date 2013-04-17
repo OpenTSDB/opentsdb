@@ -132,7 +132,6 @@ public final class TSDB {
     final String plugin_path = config.getString("tsd.core.plugin_path");
     if (plugin_path != null && !plugin_path.isEmpty()) {
       try {
-        System.out.println("Attempting to load plugins");
         PluginLoader.loadJARs(plugin_path);
       } catch (Exception e) {
         LOG.error("Error loading plugins from plugin path: " + plugin_path, e);

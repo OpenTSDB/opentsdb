@@ -17,6 +17,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyShort;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
@@ -550,6 +552,7 @@ public final class TestUniqueIdRpc {
         "{\"uid\":\"000001\",\"type\":\"metric\",\"displayName\":\"Hello!\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    verify(tsdb, times(1)).indexUIDMeta((UIDMeta)any());
   }
   
   @Test
@@ -640,6 +643,7 @@ public final class TestUniqueIdRpc {
         "{\"uid\":\"000001\",\"type\":\"metric\",\"displayName\":\"Hello!\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+    verify(tsdb, times(1)).deleteUIDMeta((UIDMeta)any());
   }
 
   @Test (expected = BadRequestException.class)
@@ -696,6 +700,7 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertTrue(query.response().getContent().toString(Charset.forName("UTF-8"))
         .contains("\"displayName\":\"Hello World\""));    
+    verify(tsdb, times(1)).indexTSMeta((TSMeta)any());
   }
   
   @Test (expected = BadRequestException.class)
@@ -778,6 +783,7 @@ public final class TestUniqueIdRpc {
         "{\"tsuid\":\"000001000001000001\", \"displayName\":\"Hello World\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+    verify(tsdb, times(1)).deleteTSMeta((String)any());
   }
   
   @Test

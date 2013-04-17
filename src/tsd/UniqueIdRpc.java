@@ -168,6 +168,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       try {
         meta.syncToStorage(tsdb, false);
+        tsdb.indexUIDMeta(meta);
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -187,6 +188,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       try {
         meta.syncToStorage(tsdb, true);
+        tsdb.indexUIDMeta(meta);
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -204,8 +206,9 @@ final class UniqueIdRpc implements HttpRpc {
       } else {
         meta = this.parseUIDMetaQS(query);
       }
-      try {
+      try {        
         meta.delete(tsdb);
+        tsdb.deleteUIDMeta(meta);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete UIDMeta information", e);
       } catch (NoSuchUniqueName e) {
@@ -255,6 +258,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       try {
         meta.syncToStorage(tsdb, false);
+        tsdb.indexTSMeta(meta);
         query.sendReply(query.serializer().formatTSMetaV1(meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -276,6 +280,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       try {
         meta.syncToStorage(tsdb, true);
+        tsdb.indexTSMeta(meta);
         query.sendReply(query.serializer().formatTSMetaV1(meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -297,6 +302,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       try{
         meta.delete(tsdb);
+        tsdb.deleteTSMeta(meta.getTSUID());
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete TSMeta information", e);
       }
