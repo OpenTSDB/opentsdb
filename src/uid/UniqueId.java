@@ -763,6 +763,27 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /**
+   * Extracts the TSUID from a storage row key that includes the timestamp.
+   * @param row_key The row key to process
+   * @param metric_width The width of the metric
+   * @param timestamp_width The width of the timestamp
+   * @return The TSUID
+   * @throws ArrayIndexOutOfBoundsException if the row_key is invalid
+   */
+  public static byte[] getTSUIDFromKey(final byte[] row_key, 
+      final short metric_width, final short timestamp_width) {
+    int idx = 0;
+    final byte[] tsuid = new byte[row_key.length - timestamp_width];
+    for (int i = 0; i < row_key.length; i++) {
+      if (i < metric_width || i >= (metric_width + timestamp_width)) {
+        tsuid[idx] = row_key[i];
+        idx++;
+      }
+    }
+    return tsuid;
+  }
+  
+  /**
    * Extracts a list of tagk/tagv pairs from a tsuid
    * @param tsuid The tsuid to parse
    * @param metric_width The width of the metric tag in bytes

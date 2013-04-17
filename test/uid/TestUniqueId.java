@@ -627,7 +627,23 @@ public final class TestUniqueId {
   public void stringToUidNotHex2() {
     UniqueId.stringToUid(" ");
   }
-   
+  
+  @Test
+  public void getTSUIDFromKey() {
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2, 0, 0, 3 }, 
+        tsuid);
+  }
+  
+  @Test
+  public void getTSUIDFromKeyMissingTags() {
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 0, 0, 1, 1, 1, 1, 1 }, (short)3, (short)4);
+    assertArrayEquals(new byte[] { 0, 0, 1 }, 
+        tsuid);
+  }
+  
   @Test
   public void getTagPairsFromTSUID() {
     List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
