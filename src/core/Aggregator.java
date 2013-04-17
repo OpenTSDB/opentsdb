@@ -32,6 +32,12 @@ public interface Aggregator {
   public interface Longs {
 
     /**
+     * Turn interpolation on or off.
+     * @param enable If false, disables interpolation (on by default).
+     */
+    void enableInterpolation(boolean enable);
+
+    /**
      * Returns {@code true} if this sequence has more values.
      * {@code false} otherwise.
      */
@@ -53,6 +59,12 @@ public interface Aggregator {
    * {@code Iterator<double>}.
    */
   public interface Doubles {
+
+    /**
+     * Turn interpolation on or off.
+     * @param enable If false, disables interpolation (on by default).
+     */
+    void enableInterpolation(boolean enable);
 
     /**
      * Returns {@code true} if this sequence has more values.

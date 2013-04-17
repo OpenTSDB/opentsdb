@@ -469,6 +469,10 @@ final class Span implements DataPoints {
       return isInteger() ? longValue() : doubleValue();
     }
 
+    public void enableInterpolation(boolean enable) {
+      // No interpolation done here anyway
+    }
+
     // -------------------------- //
     // Aggregator.Longs interface //
     // -------------------------- //

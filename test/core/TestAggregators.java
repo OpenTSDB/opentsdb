@@ -44,6 +44,9 @@ public final class TestAggregators {
       this.numbers = numbers;
     }
 
+    public void enableInterpolation(boolean enable) {
+    }
+
     public boolean hasNextValue() {
       return i + 1 < numbers.length;
     }
