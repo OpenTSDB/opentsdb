@@ -25,6 +25,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -154,7 +155,7 @@ final class UniqueIdRpc implements HttpRpc {
       try {
         final UIDMeta meta = UIDMeta.getUIDMeta(tsdb, type, uid);
         query.sendReply(query.serializer().formatUidMetaV1(meta));
-      } catch (NoSuchUniqueName e) {
+      } catch (NoSuchUniqueId e) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Could not find the requested UID", e);
       }
@@ -174,7 +175,7 @@ final class UniqueIdRpc implements HttpRpc {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to save UIDMeta information", e);
-      } catch (NoSuchUniqueName e) {
+      } catch (NoSuchUniqueId e) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Could not find the requested UID", e);
       }
@@ -194,7 +195,7 @@ final class UniqueIdRpc implements HttpRpc {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to save UIDMeta information", e);
-      } catch (NoSuchUniqueName e) {
+      } catch (NoSuchUniqueId e) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Could not find the requested UID", e);
       }
@@ -211,7 +212,7 @@ final class UniqueIdRpc implements HttpRpc {
         tsdb.deleteUIDMeta(meta);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete UIDMeta information", e);
-      } catch (NoSuchUniqueName e) {
+      } catch (NoSuchUniqueId e) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Could not find the requested UID", e);
       }
