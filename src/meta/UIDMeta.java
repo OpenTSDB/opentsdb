@@ -140,6 +140,7 @@ public final class UIDMeta {
     this.name = name;
     created = System.currentTimeMillis() / 1000;
     initializeChangedMap();
+    changed.put("created", true);
   }
   
   /** @return a string with details about this object */
@@ -159,6 +160,7 @@ public final class UIDMeta {
    * accessible fields
    * @throws HBaseException if there was an issue fetching
    * @throws IllegalArgumentException if parsing failed
+   * @throws NoSuchUniqueId If the UID does not exist
    * @throws IllegalStateException if the data hasn't changed. This is OK!
    * @throws JSONException if the object could not be serialized
    */
@@ -212,6 +214,33 @@ public final class UIDMeta {
         LOG.error("Error while releasing the lock on row: " + uid, e);
       }
     }
+  }
+  
+  /**
+   * Attempts to store a blank, new UID meta object in the proper location.
+   * <b>Note:</b> This should not be called by user accessible methods as it will 
+   * overwrite any data already in the column.
+   * @param tsdb The TSDB to use for calls
+   * @throws HBaseException if there was an issue writing to storage
+   * @throws IllegalArgumentException if data was missing
+   * @throws JSONException if the object could not be serialized
+   */
+  public void storeNew(final TSDB tsdb) {
+    if (uid == null || uid.isEmpty()) {
+      throw new IllegalArgumentException("Missing UID");
+    }
+    if (type == null) {
+      throw new IllegalArgumentException("Missing type");
+    }
+    if (name == null || name.isEmpty()) {
+      throw new IllegalArgumentException("Missing name");
+    }
+
+    final PutRequest put = new PutRequest(tsdb.uidTable(), 
+        UniqueId.stringToUid(uid), FAMILY, 
+        (type.toString().toLowerCase() + "_meta").getBytes(CHARSET), 
+        JSON.serializeToBytes(this));
+    tsdb.getClient().put(put);
   }
   
   /**
@@ -389,6 +418,7 @@ public final class UIDMeta {
     changed.put("description", false);
     changed.put("notes", false);
     changed.put("custom", false);
+    changed.put("created", false); 
   }
   
   // Getters and Setters --------------
@@ -465,6 +495,14 @@ public final class UIDMeta {
     if (this.custom != null || custom != null) {
       changed.put("custom", true);
       this.custom = custom;
+    }
+  }
+
+  /** @param created the created timestamp Unix epoch in seconds */
+  public final void setCreated(final long created) {
+    if (this.created != created) {
+      changed.put("created", true);
+      this.created = created;
     }
   }
 }

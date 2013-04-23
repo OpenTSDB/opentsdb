@@ -39,11 +39,15 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
 
+@PowerMockIgnore({"javax.management.*", "javax.xml.*",
+  "ch.qos.*", "org.slf4j.*",
+  "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
