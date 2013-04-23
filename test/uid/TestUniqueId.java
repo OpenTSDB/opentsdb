@@ -19,6 +19,9 @@ import java.util.List;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.utils.Config;
+
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
@@ -64,15 +67,15 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HBaseClient.class, RowLock.class })
+@PrepareForTest({ HBaseClient.class, RowLock.class, TSDB.class, Config.class })
 public final class TestUniqueId {
 
   private HBaseClient client = mock(HBaseClient.class);
   private static final byte[] table = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] ID = { 'i', 'd' };
   private UniqueId uid;
-  private static final String kind = "kind";
-  private static final byte[] kind_array = { 'k', 'i', 'n', 'd' };
+  private static final String kind = "metric";
+  private static final byte[] kind_array = { 'm', 'e', 't', 'r', 'i', 'c' };
 
   @Test(expected=IllegalArgumentException.class)
   public void testCtorZeroWidth() {
@@ -255,7 +258,12 @@ public final class TestUniqueId {
   public void getOrCreateIdAssignIdWithSuccess() {
     uid = new UniqueId(client, table, kind, 3);
     final byte[] id = { 0, 0, 5 };
-
+    final Config config = mock(Config.class);
+    when(config.enable_meta_tracking()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    
     RowLock fake_lock = mock(RowLock.class);
     when(client.lockRow(anyRowLockRequest()))
       .thenReturn(Deferred.fromResult(fake_lock));
@@ -307,7 +315,8 @@ public final class TestUniqueId {
   }
 
   @Test  // Test the creation of an ID with a race condition.
-  @PrepareForTest({HBaseClient.class, RowLock.class, Deferred.class})
+  @PrepareForTest({HBaseClient.class, RowLock.class, Deferred.class, 
+    TSDB.class, Config.class })
   public void getOrCreateIdAssignIdWithRaceCondition() {
     // Simulate a race between client A and client B.
     // A does a Get and sees that there's no ID for this name.
@@ -317,9 +326,15 @@ public final class TestUniqueId {
     // ID has already been assigned.
 
     uid = new UniqueId(client, table, kind, 3);  // Used by client A.
+    final TSDB tsdb = mock(TSDB.class);
     HBaseClient client_b = mock(HBaseClient.class);
     final UniqueId uid_b = new UniqueId(client_b, table, kind, 3);  // for client B.
-
+    final Config config = mock(Config.class);
+    when(config.enable_meta_tracking()).thenReturn(false);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    uid_b.setTSDB(tsdb);
+    
     final byte[] id = { 0, 0, 5 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
@@ -420,7 +435,12 @@ public final class TestUniqueId {
   @Test  // ICV throws an exception, we can't get an ID.
   public void getOrCreateIdWithICVFailure() {
     uid = new UniqueId(client, table, kind, 3);
-
+    final Config config = mock(Config.class);
+    when(config.enable_meta_tracking()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    
     RowLock fake_lock = mock(RowLock.class);
     when(client.lockRow(anyRowLockRequest()))
       .thenReturn(Deferred.fromResult(fake_lock));
@@ -453,7 +473,12 @@ public final class TestUniqueId {
   @Test  // Test that the reverse mapping is created before the forward one.
   public void getOrCreateIdPutsReverseMappingFirst() {
     uid = new UniqueId(client, table, kind, 3);
-
+    final Config config = mock(Config.class);
+    when(config.enable_meta_tracking()).thenReturn(false);
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    uid.setTSDB(tsdb);
+    
     RowLock fake_lock = mock(RowLock.class);
     when(client.lockRow(anyRowLockRequest()))
       .thenReturn(Deferred.fromResult(fake_lock));

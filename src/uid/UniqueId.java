@@ -21,6 +21,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.xml.bind.DatatypeConverter;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.UIDMeta;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +79,8 @@ public final class UniqueId implements UniqueIdInterface {
   private final byte[] table;
   /** The kind of UniqueId, used as the column qualifier. */
   private final byte[] kind;
+  /** The type of UID represented by this cache */
+  private final UniqueIdType type;
   /** Number of bytes on which each ID is encoded. */
   private final short idWidth;
 
@@ -92,6 +97,9 @@ public final class UniqueId implements UniqueIdInterface {
   /** Number of times we had to read from HBase and populate the cache. */
   private volatile int cacheMisses;
 
+  /** Whether or not to generate new UIDMetas */
+  private TSDB tsdb;
+  
   /**
    * Constructor.
    * @param client The HBase client to use.
@@ -109,6 +117,7 @@ public final class UniqueId implements UniqueIdInterface {
       throw new IllegalArgumentException("Empty string as 'kind' argument!");
     }
     this.kind = toBytes(kind);
+    type = stringToUniqueIdType(kind);
     if (width < 1 || width > 8) {
       throw new IllegalArgumentException("Invalid width: " + width);
     }
@@ -138,6 +147,11 @@ public final class UniqueId implements UniqueIdInterface {
     return idWidth;
   }
 
+  /** @param Whether or not to track new UIDMeta objects */
+  public void setTSDB(final TSDB tsdb) {
+    this.tsdb = tsdb;
+  }
+  
   /**
    * Causes this instance to discard all its in-memory caches.
    * @since 1.1
@@ -371,6 +385,13 @@ public final class UniqueId implements UniqueIdInterface {
 
         addIdToCache(name, row);
         addNameToCache(row, name);
+        
+        if (tsdb.getConfig().enable_meta_tracking()) {
+          final UIDMeta meta = new UIDMeta(type, row, name);
+          meta.storeNew(tsdb);
+          tsdb.indexUIDMeta(meta);
+        }
+        
         return row;
       } finally {
         unlock(lock);
@@ -718,7 +739,8 @@ public final class UniqueId implements UniqueIdInterface {
    * @since 2.0
    */
   public static UniqueIdType stringToUniqueIdType(final String type) {
-    if (type.toLowerCase().equals("metric")) {
+    if (type.toLowerCase().equals("metric") || 
+        type.toLowerCase().equals("metrics")) {
       return UniqueIdType.METRIC;
     } else if (type.toLowerCase().equals("tagk")) {
       return UniqueIdType.TAGK;
