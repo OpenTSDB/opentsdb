@@ -273,6 +273,20 @@ public final class TestTSMeta {
         Deferred.fromResult((ArrayList<KeyValue>)null));
     assertFalse(TSMeta.metaExistsInStorage(tsdb, "000001000001000001"));
   }
+  
+  @Test
+  public void counterExistsInStorage() throws Exception {
+    assertTrue(TSMeta.counterExistsInStorage(tsdb, 
+        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }));
+  }
+  
+  @Test
+  public void counterExistsInStorageNot() throws Exception {
+    when(client.get((GetRequest) any())).thenReturn(
+        Deferred.fromResult((ArrayList<KeyValue>)null));
+    assertFalse(TSMeta.counterExistsInStorage(tsdb, 
+        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }));
+  }
 
   @Test
   public void incrementAndGetCounter() throws Exception {

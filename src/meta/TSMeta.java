@@ -356,6 +356,33 @@ public final class TSMeta {
   }
   
   /**
+   * Determines if the counter column exists for the TSUID
+   * @param tsdb The TSDB to use for storage access
+   * @param tsuid The UID of the meta to verify
+   * @return True if data was found, false if not
+   * @throws HBaseException if there was an issue fetching
+   */
+  public static boolean counterExistsInStorage(final TSDB tsdb, 
+      final byte[] tsuid) {
+    final GetRequest get = new GetRequest(tsdb.uidTable(), tsuid);
+    get.family(FAMILY);
+    get.qualifier(COUNTER_QUALIFIER);
+    
+    try {
+      final ArrayList<KeyValue> row = 
+        tsdb.getClient().get(get).joinUninterruptibly();
+      if (row == null || row.isEmpty()) {
+        return false;
+      }
+      return true;
+    } catch (HBaseException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  /**
    * Increments the tsuid datapoint counter or creates a new counter. Also
    * creates a new meta data entry if the counter did not exist.
    * @param tsdb The TSDB to use for communcation
