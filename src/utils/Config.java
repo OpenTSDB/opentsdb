@@ -61,6 +61,9 @@ public class Config {
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
   
+  /** tsd.core.meta.enable_tracking */
+  private boolean enable_meta_tracking = false;
+  
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
   
@@ -128,6 +131,11 @@ public class Config {
   /** @return the enable_compaction value */
   public boolean enable_compactions() {
     return this.enable_compactions;
+  }
+  
+  /** @return whether or not to track meta data as new UID/TS are created */
+  public boolean enable_meta_tracking() { 
+    return enable_meta_tracking;
   }
   
   /** @return whether or not chunked requests are supported */
@@ -288,6 +296,7 @@ public class Config {
     default_map.put("tsd.network.keep_alive", "true");
     default_map.put("tsd.network.reuse_address", "true");
     default_map.put("tsd.core.auto_create_metrics", "false");
+    default_map.put("tsd.core.meta.enable_tracking", "false");
     default_map.put("tsd.core.plugin_path", "");
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
@@ -310,6 +319,7 @@ public class Config {
     auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
     enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
     enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
+    enable_meta_tracking = this.getBoolean("tsd.core.meta.enable_tracking");
     if (this.hasProperty("tsd.http.request.max_chunk")) {
       max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
     }
