@@ -116,6 +116,13 @@ public final class TSDB {
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
+    if (config.enable_meta_tracking()) {
+      // this is cleaner than another constructor and defaults to null. UIDs 
+      // will be refactored with DAL code anyways
+      metrics.setTSDB(this);
+      tag_names.setTSDB(this);
+      tag_values.setTSDB(this);
+    }
     LOG.debug(config.dumpConfiguration());
   }
   
@@ -445,6 +452,11 @@ public final class TSDB {
 
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    if (config.enable_meta_tracking()) {
+      final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
+          Const.TIMESTAMP_BYTES);
+      TSMeta.incrementAndGetCounter(this, tsuid);
+    }
     final long base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     Bytes.setInt(row, (int) base_time, metrics.width());
     scheduleForCompaction(row, (int) base_time);
