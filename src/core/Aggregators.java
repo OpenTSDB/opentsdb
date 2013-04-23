@@ -36,16 +36,20 @@ public final class Aggregators {
   /** Aggregator that returns the Standard Deviation of the data points. */
   public static final Aggregator DEV = new StdDev();
 
+  /** Aggregator that sums only explicit data points and does no interpolation */
+  public static final Aggregator ESUM = new ESum();
+
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
 
   static {
-    aggregators = new HashMap<String, Aggregator>(5);
+    aggregators = new HashMap<String, Aggregator>(6);
     aggregators.put("sum", SUM);
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
     aggregators.put("dev", DEV);
+    aggregators.put("esum", ESUM);
   }
 
   private Aggregators() {
@@ -240,6 +244,32 @@ public final class Aggregators {
     public String toString() {
       return "dev";
     }
+  }
+
+  private static final class ESum implements Aggregator {
+
+    public long runLong(final Longs values) {
+      values.enableInterpolation(false);
+      long result = values.nextLongValue();
+      while (values.hasNextValue()) {
+        result += values.nextLongValue();
+      }
+      return result;
+    }
+
+    public double runDouble(final Doubles values) {
+      values.enableInterpolation(false);
+      double result = values.nextDoubleValue();
+      while (values.hasNextValue()) {
+        result += values.nextDoubleValue();
+      }
+      return result;
+    }
+
+    public String toString() {
+      return "esum";
+    }
+
   }
 
 }

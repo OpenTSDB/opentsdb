@@ -73,6 +73,9 @@ final class SpanGroup implements DataPoints {
   /** If true, use rate of change instead of actual values. */
   private boolean rate;
 
+  /** If true (the default) do interpolation. */
+  private boolean do_interpolation;
+
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
 
@@ -115,6 +118,7 @@ final class SpanGroup implements DataPoints {
       }
     }
     this.rate = rate;
+    this.do_interpolation = true;
     this.aggregator = aggregator;
     this.downsampler = downsampler;
     this.sample_interval = interval;
@@ -670,6 +674,10 @@ final class SpanGroup implements DataPoints {
       return isInteger() ? doubleValue() : longValue();
     }
 
+    public void enableInterpolation(boolean enable) {
+      do_interpolation = enable;
+    }
+
     // -------------------------- //
     // Aggregator.Longs interface //
     // -------------------------- //
@@ -707,6 +715,8 @@ final class SpanGroup implements DataPoints {
         }
         if (current == pos) {
           return y0;
+        } else if (!do_interpolation) {
+          return 0;
         }
         final long x = timestamps[current] & TIME_MASK;
         final long x0 = timestamps[pos] & TIME_MASK;
@@ -756,6 +766,8 @@ final class SpanGroup implements DataPoints {
         if (current == pos) {
           //LOG.debug("Exact match, no lerp needed");
           return y0;
+        } else if (!do_interpolation) {
+          return 0;
         }
         final long x = timestamps[current] & TIME_MASK;
         final long x0 = timestamps[pos] & TIME_MASK;
@@ -807,6 +819,7 @@ final class SpanGroup implements DataPoints {
       + ", tags=" + tags
       + ", aggregated_tags=" + aggregated_tags
       + ", rate=" + rate
+      + ", do_interpolation=" + do_interpolation
       + ", aggregator=" + aggregator
       + ", downsampler=" + downsampler
       + ", sample_interval=" + sample_interval
