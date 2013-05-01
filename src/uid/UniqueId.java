@@ -386,7 +386,7 @@ public final class UniqueId implements UniqueIdInterface {
         addIdToCache(name, row);
         addNameToCache(row, name);
         
-        if (tsdb.getConfig().enable_meta_tracking()) {
+        if (tsdb != null && tsdb.getConfig().enable_meta_tracking()) {
           final UIDMeta meta = new UIDMeta(type, row, name);
           meta.storeNew(tsdb);
           tsdb.indexUIDMeta(meta);
