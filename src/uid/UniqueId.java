@@ -19,10 +19,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 import javax.xml.bind.DatatypeConverter;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
+
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,34 +164,77 @@ public final class UniqueId implements UniqueIdInterface {
     idCache.clear();
   }
 
+  /**
+   * Finds the name associated with a given ID.
+   * <p>
+   * <strong>This method is blocking.</strong>  Its use within OpenTSDB itself
+   * is discouraged, please use {@link #getNameAsync} instead.
+   * @param id The ID associated with that name.
+   * @see #getId(String)
+   * @see #getOrCreateId(String)
+   * @throws NoSuchUniqueId if the given ID is not assigned.
+   * @throws HBaseException if there is a problem communicating with HBase.
+   * @throws IllegalArgumentException if the ID given in argument is encoded
+   * on the wrong number of bytes.
+   */
   public String getName(final byte[] id) throws NoSuchUniqueId, HBaseException {
+    try {
+      return getNameAsync(id).joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+
+  /**
+   * Finds the name associated with a given ID.
+   *
+   * @param id The ID associated with that name.
+   * @see #getId(String)
+   * @see #getOrCreateId(String)
+   * @throws NoSuchUniqueId if the given ID is not assigned.
+   * @throws HBaseException if there is a problem communicating with HBase.
+   * @throws IllegalArgumentException if the ID given in argument is encoded
+   * on the wrong number of bytes.
+   * @since 1.1
+   */
+  public Deferred<String> getNameAsync(final byte[] id) {
     if (id.length != idWidth) {
       throw new IllegalArgumentException("Wrong id.length = " + id.length
                                          + " which is != " + idWidth
                                          + " required for '" + kind() + '\'');
     }
-    String name = getNameFromCache(id);
+    final String name = getNameFromCache(id);
     if (name != null) {
       cacheHits++;
-    } else {
-      cacheMisses++;
-      name = getNameFromHBase(id);
-      if (name == null) {
-        throw new NoSuchUniqueId(kind(), id);
-      }
-      addNameToCache(id, name);
-      addIdToCache(name, id);
+      return Deferred.fromResult(name);
     }
-    return name;
+    cacheMisses++;
+    class GetNameCB implements Callback<String, String> {
+      public String call(final String name) {
+        if (name == null) {
+          throw new NoSuchUniqueId(kind(), id);
+        }
+        addNameToCache(id, name);
+        addIdToCache(name, id);
+        return name;
+      }
+    }
+    return getNameFromHBase(id).addCallback(new GetNameCB());
   }
 
   private String getNameFromCache(final byte[] id) {
     return idCache.get(fromBytes(id));
   }
 
-  private String getNameFromHBase(final byte[] id) throws HBaseException {
-    final byte[] name = hbaseGet(id, NAME_FAMILY);
-    return name == null ? null : fromBytes(name);
+  private Deferred<String> getNameFromHBase(final byte[] id) {
+    class NameFromHBaseCB implements Callback<String, byte[]> {
+      public String call(final byte[] name) {
+        return name == null ? null : fromBytes(name);
+      }
+    }
+    return hbaseGet(id, NAME_FAMILY).addCallback(new NameFromHBaseCB());
   }
 
   private void addNameToCache(final byte[] id, final String name) {
@@ -204,31 +250,46 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   public byte[] getId(final String name) throws NoSuchUniqueName, HBaseException {
-    byte[] id = getIdFromCache(name);
+    try {
+      return getIdAsync(name).joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+
+  public Deferred<byte[]> getIdAsync(final String name) {
+    final byte[] id = getIdFromCache(name);
     if (id != null) {
       cacheHits++;
-    } else {
-      cacheMisses++;
-      id = getIdFromHBase(name);
-      if (id == null) {
-        throw new NoSuchUniqueName(kind(), name);
-      }
-      if (id.length != idWidth) {
-        throw new IllegalStateException("Found id.length = " + id.length
-                                        + " which is != " + idWidth
-                                        + " required for '" + kind() + '\'');
-      }
-      addIdToCache(name, id);
-      addNameToCache(id, name);
+      return Deferred.fromResult(id);
     }
-    return id;
+    cacheMisses++;
+    class GetIdCB implements Callback<byte[], byte[]> {
+      public byte[] call(final byte[] id) {
+        if (id == null) {
+          throw new NoSuchUniqueName(kind(), name);
+        }
+        if (id.length != idWidth) {
+          throw new IllegalStateException("Found id.length = " + id.length
+                                          + " which is != " + idWidth
+                                          + " required for '" + kind() + '\'');
+        }
+        addIdToCache(name, id);
+        addNameToCache(id, name);
+        return id;
+      }
+    }
+    Deferred<byte[]> d= getIdFromHBase(name).addCallback(new GetIdCB());
+    return d;
   }
 
   private byte[] getIdFromCache(final String name) {
     return nameCache.get(name);
   }
 
-  private byte[] getIdFromHBase(final String name) throws HBaseException {
+  private Deferred<byte[]> getIdFromHBase(final String name) {
     return hbaseGet(toBytes(name), ID_FAMILY);
   }
 
@@ -302,7 +363,7 @@ public final class UniqueId implements UniqueIdInterface {
           // To be fixed by HBASE-2292.
           { // HACK HACK HACK
             {
-              final byte[] current_maxid = hbaseGet(MAXID_ROW, ID_FAMILY, lock);
+              final byte[] current_maxid = hbaseGet(MAXID_ROW, ID_FAMILY, lock).join();
               if (current_maxid != null) {
                 if (current_maxid.length == 8) {
                   id = Bytes.getLong(current_maxid) + 1;
@@ -407,6 +468,9 @@ public final class UniqueId implements UniqueIdInterface {
 
   /**
    * Attempts to find suggestions of names given a search term.
+   * <p>
+   * <strong>This method is blocking.</strong>  Its use within OpenTSDB itself
+   * is discouraged, please use {@link #suggestAsync} instead.
    * @param search The search term (possibly empty).
    * @param max_results The number of results to return. Must be 1 or greater
    * @return A list of known valid names that have UIDs that sort of match
@@ -436,44 +500,85 @@ public final class UniqueId implements UniqueIdInterface {
     if (max_results < 1) {
       throw new IllegalArgumentException("Count must be greater than 0");
     }
-    // TODO(tsuna): Add caching to try to avoid re-scanning the same thing.
-    final Scanner scanner = getSuggestScanner(search, max_results);
-    final LinkedList<String> suggestions = new LinkedList<String>();
     try {
-      ArrayList<ArrayList<KeyValue>> rows;
-      while ((short) suggestions.size() < max_results
-             && (rows = scanner.nextRows().joinUninterruptibly()) != null) {
-        for (final ArrayList<KeyValue> row : rows) {
-          if (row.size() != 1) {
-            LOG.error("WTF shouldn't happen!  Scanner " + scanner + " returned"
-                      + " a row that doesn't have exactly 1 KeyValue: " + row);
-            if (row.isEmpty()) {
-              continue;
-            }
-          }
-          final byte[] key = row.get(0).key();
-          final String name = fromBytes(key);
-          final byte[] id = row.get(0).value();
-          final byte[] cached_id = nameCache.get(name);
-          if (cached_id == null) {
-            addIdToCache(name, id);
-            addNameToCache(id, name);
-          } else if (!Arrays.equals(id, cached_id)) {
-            throw new IllegalStateException("WTF?  For kind=" + kind()
-              + " name=" + name + ", we have id=" + Arrays.toString(cached_id)
-              + " in cache, but just scanned id=" + Arrays.toString(id));
-          }
-          suggestions.add(name);
-        }
-      }
+      return suggestAsync(search, max_results).joinUninterruptibly();
     } catch (HBaseException e) {
       throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    } finally {
-      scanner.close();
+    } catch (Exception e) {  // Should never happen.
+      final String msg = "Unexpected exception caught by "
+        + this + ".suggest(" + search + ')';
+      LOG.error(msg, e);
+      throw new RuntimeException(msg, e);  // Should never happen.
     }
-    return suggestions;
+  }
+
+  /**
+   * Attempts to find suggestions of names given a search term.
+   * @param search The search term (possibly empty).
+   * @return A list of known valid names that have UIDs that sort of match
+   * the search term.  If the search term is empty, returns the first few
+   * terms.
+   * @throws HBaseException if there was a problem getting suggestions from
+   * HBase.
+   * @since 1.1
+   */
+  public Deferred<List<String>> suggestAsync(final String search, 
+      final int max_results) {
+    return new SuggestCB(search, max_results).search();
+  }
+
+  /**
+   * Helper callback to asynchronously scan HBase for suggestions.
+   */
+  private final class SuggestCB
+    implements Callback<Object, ArrayList<ArrayList<KeyValue>>> {
+    private final LinkedList<String> suggestions = new LinkedList<String>();
+    private final Scanner scanner;
+    private final int max_results;
+
+    SuggestCB(final String search, final int max_results) {
+      this.max_results = max_results;
+      this.scanner = getSuggestScanner(search, max_results);
+    }
+
+    @SuppressWarnings("unchecked")
+    Deferred<List<String>> search() {
+      return (Deferred) scanner.nextRows().addCallback(this);
+    }
+
+    public Object call(final ArrayList<ArrayList<KeyValue>> rows) {
+      if (rows == null) {  // We're done scanning.
+        return suggestions;
+      }
+      
+      for (final ArrayList<KeyValue> row : rows) {
+        if (row.size() != 1) {
+          LOG.error("WTF shouldn't happen!  Scanner " + scanner + " returned"
+                    + " a row that doesn't have exactly 1 KeyValue: " + row);
+          if (row.isEmpty()) {
+            continue;
+          }
+        }
+        final byte[] key = row.get(0).key();
+        final String name = fromBytes(key);
+        final byte[] id = row.get(0).value();
+        final byte[] cached_id = nameCache.get(name);
+        if (cached_id == null) {
+          addIdToCache(name, id);
+          addNameToCache(id, name);
+        } else if (!Arrays.equals(id, cached_id)) {
+          throw new IllegalStateException("WTF?  For kind=" + kind()
+            + " name=" + name + ", we have id=" + Arrays.toString(cached_id)
+            + " in cache, but just scanned id=" + Arrays.toString(id));
+        }
+        suggestions.add(name);
+        if ((short) suggestions.size() > max_results) {  // We have enough.
+          return suggestions;
+        }
+        row.clear();  // free()
+      }
+      return search();  // Get more suggestions.
+    }
   }
 
   /**
@@ -623,29 +728,27 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /** Returns the cell of the specified row, using family:kind. */
-  private byte[] hbaseGet(final byte[] row, final byte[] family) throws HBaseException {
+  private Deferred<byte[]> hbaseGet(final byte[] row, final byte[] family) {
     return hbaseGet(row, family, null);
   }
 
   /** Returns the cell of the specified row key, using family:kind. */
-  private byte[] hbaseGet(final byte[] key, final byte[] family,
-                          final RowLock lock) throws HBaseException {
+  private Deferred<byte[]> hbaseGet(final byte[] key, final byte[] family,
+                                    final RowLock lock) {
     final GetRequest get = new GetRequest(table, key);
     if (lock != null) {
       get.withRowLock(lock);
     }
     get.family(family).qualifier(kind);
-    try {
-      final ArrayList<KeyValue> row = client.get(get).joinUninterruptibly();
-      if (row == null || row.isEmpty()) {
-        return null;
+    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
+      public byte[] call(final ArrayList<KeyValue> row) {
+        if (row == null || row.isEmpty()) {
+          return null;
+        }
+        return row.get(0).value();
       }
-      return row.get(0).value();
-    } catch (HBaseException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
     }
+    return client.get(get).addCallback(new GetCB());
   }
 
   /**
@@ -768,7 +871,7 @@ public final class UniqueId implements UniqueIdInterface {
    * @since 2.0
    */
   public static byte[] stringToUid(final String uid, final short uid_length) {
-    if (uid.isEmpty()) {
+    if (uid == null || uid.isEmpty()) {
       throw new IllegalArgumentException("UID was empty");
     }
     String id = uid;

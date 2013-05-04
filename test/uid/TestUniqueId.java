@@ -338,25 +338,33 @@ public final class TestUniqueId {
     final byte[] id = { 0, 0, 5 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
-    @SuppressWarnings("unchecked")
-    final Deferred<ArrayList<KeyValue>> d = mock(Deferred.class);
+    final Deferred<ArrayList<KeyValue>> d1 = 
+      PowerMockito.spy(new Deferred<ArrayList<KeyValue>>());
+    final Deferred<ArrayList<KeyValue>> d2;
+    {
+      final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+      kvs.add(new KeyValue(byte_name, ID, kind_array, id));
+      d2 = Deferred.fromResult(kvs);
+    }
     when(client.get(anyGet()))
-      .thenReturn(d);
+      .thenReturn(d1)  // For A's the first attempt.
+      .thenReturn(d2);    // For A's second attempt.
 
     final Answer<byte[]> the_race = new Answer<byte[]>() {
-      public byte[] answer(final InvocationOnMock unused_invocation) {
+      public byte[] answer(
+          final InvocationOnMock unused_invocation) throws Exception {
         // While answering A's first Get, B doest a full getOrCreateId.
         assertArrayEquals(id, uid_b.getOrCreateId("foo"));
+        d1.callback(null);
+        Object result = d1.join();  // Throws.
+        fail("Should never be here: " + result);
         return null;
       }
     };
 
+    // Start the race when answering A's first Get.
     try {
-      ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-      kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-      when(d.joinUninterruptibly())
-        .thenAnswer(the_race)  // Start the race when answering A's first Get.
-        .thenReturn(kvs);      // The 2nd Get succeeds because B created the ID.
+      PowerMockito.doAnswer(the_race).when(d1).joinUninterruptibly();
     } catch (Exception e) {
       fail("Should never happen: " + e);
     }
@@ -633,7 +641,7 @@ public final class TestUniqueId {
         UniqueId.stringToUid("0", (short)3));
   }
   
-  @Test (expected = NullPointerException.class)
+  @Test (expected = IllegalArgumentException.class)
   public void stringToUidNull() {
     UniqueId.stringToUid(null);
   }
