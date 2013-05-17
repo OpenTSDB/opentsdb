@@ -22,6 +22,9 @@ import java.util.TreeMap;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -149,58 +152,69 @@ final class UniqueIdRpc implements HttpRpc {
     final HttpMethod method = query.getAPIMethod();
     // GET
     if (method == HttpMethod.GET) {
+      
       final String uid = query.getRequiredQueryStringParam("uid");
       final UniqueIdType type = UniqueId.stringToUniqueIdType(
           query.getRequiredQueryStringParam("type"));
       try {
-        final UIDMeta meta = UIDMeta.getUIDMeta(tsdb, type, uid);
+        final UIDMeta meta = UIDMeta.getUIDMeta(tsdb, type, uid)
+        .joinUninterruptibly();
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (NoSuchUniqueId e) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Could not find the requested UID", e);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
     // POST
-    } else if (method == HttpMethod.POST) {
+    } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+      
       final UIDMeta meta;
       if (query.hasContent()) {
         meta = query.serializer().parseUidMetaV1();
       } else {
         meta = this.parseUIDMetaQS(query);
       }
+      
+      /**
+       * Storage callback used to determine if the storage call was successful
+       * or not. Also returns the updated object from storage.
+       */
+      class SyncCB implements Callback<Deferred<UIDMeta>, Boolean> {
+        
+        @Override
+        public Deferred<UIDMeta> call(Boolean success) throws Exception {
+          if (!success) {
+            throw new BadRequestException(
+                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                "Failed to save the UIDMeta to storage", 
+                "This may be caused by another process modifying storage data");
+          }
+          
+          return UIDMeta.getUIDMeta(tsdb, meta.getType(), meta.getUID());
+        }
+        
+      }
+      
       try {
-        meta.syncToStorage(tsdb, false);
-        tsdb.indexUIDMeta(meta);
-        query.sendReply(query.serializer().formatUidMetaV1(meta));
+        final Deferred<UIDMeta> process_meta = meta.syncToStorage(tsdb, 
+            method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+        final UIDMeta updated_meta = process_meta.joinUninterruptibly();
+        tsdb.indexUIDMeta(updated_meta);
+        query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
       } catch (IllegalArgumentException e) {
-        throw new BadRequestException("Unable to save UIDMeta information", e);
+        throw new BadRequestException(e);
       } catch (NoSuchUniqueId e) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Could not find the requested UID", e);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
-    // PUT
-    } else if (method == HttpMethod.PUT) {
-      final UIDMeta meta;
-      if (query.hasContent()) {
-        meta = query.serializer().parseUidMetaV1();
-      } else {
-        meta = this.parseUIDMetaQS(query);
-      }
-      try {
-        meta.syncToStorage(tsdb, true);
-        tsdb.indexUIDMeta(meta);
-        query.sendReply(query.serializer().formatUidMetaV1(meta));
-      } catch (IllegalStateException e) {
-        query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
-      } catch (IllegalArgumentException e) {
-        throw new BadRequestException("Unable to save UIDMeta information", e);
-      } catch (NoSuchUniqueId e) {
-        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-            "Could not find the requested UID", e);
-      }
-    // DELETE  
+    // DELETE    
     } else if (method == HttpMethod.DELETE) {
+      
       final UIDMeta meta;
       if (query.hasContent()) {
         meta = query.serializer().parseUidMetaV1();
@@ -208,15 +222,18 @@ final class UniqueIdRpc implements HttpRpc {
         meta = this.parseUIDMetaQS(query);
       }
       try {        
-        meta.delete(tsdb);
+        meta.delete(tsdb).joinUninterruptibly();
         tsdb.deleteUIDMeta(meta);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete UIDMeta information", e);
       } catch (NoSuchUniqueId e) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Could not find the requested UID", e);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
       query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
+      
     } else {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
           "Method not allowed", "The HTTP method [" + method.getName() +
@@ -234,9 +251,10 @@ final class UniqueIdRpc implements HttpRpc {
     final HttpMethod method = query.getAPIMethod();
     // GET
     if (method == HttpMethod.GET) {
+      
       final String tsuid = query.getRequiredQueryStringParam("tsuid");
       try {
-        final TSMeta meta = TSMeta.getTSMeta(tsdb, tsuid);
+        final TSMeta meta = TSMeta.getTSMeta(tsdb, tsuid).joinUninterruptibly();
         if (meta != null) {
           query.sendReply(query.serializer().formatTSMetaV1(meta));
         } else {
@@ -247,54 +265,63 @@ final class UniqueIdRpc implements HttpRpc {
         // this would only happen if someone deleted a UID but left the 
         // the timeseries meta data
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-            "Unable to find one or more UIDs", e);
+            "Unable to find one of the UIDs", e);
+      } catch (BadRequestException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
-    // POST
-    } else if (method == HttpMethod.POST) {
+    // POST / PUT
+    } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+      
       final TSMeta meta;
       if (query.hasContent()) {
         meta = query.serializer().parseTSMetaV1();
       } else {
         meta = this.parseTSMetaQS(query);
       }
+      
+      /**
+       * Storage callback used to determine if the storage call was successful
+       * or not. Also returns the updated object from storage.
+       */
+      class SyncCB implements Callback<Deferred<TSMeta>, Boolean> {
+
+        @Override
+        public Deferred<TSMeta> call(Boolean success) throws Exception {
+          if (!success) {
+            throw new BadRequestException(
+                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                "Failed to save the TSMeta to storage", 
+                "This may be caused by another process modifying storage data");
+          }
+          
+          return TSMeta.getTSMeta(tsdb, meta.getTSUID());
+        }
+        
+      }
+      
       try {
-        meta.syncToStorage(tsdb, false);
-        tsdb.indexTSMeta(meta);
-        query.sendReply(query.serializer().formatTSMetaV1(meta));
+        final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb, 
+            method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+        final TSMeta updated_meta = process_meta.joinUninterruptibly();
+        tsdb.indexTSMeta(updated_meta);
+        query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
       } catch (IllegalArgumentException e) {
-        throw new BadRequestException("Unable to save TSMeta information", e);
+        throw new BadRequestException(e);
       } catch (NoSuchUniqueName e) {
         // this would only happen if someone deleted a UID but left the 
         // the timeseries meta data
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Unable to find one or more UIDs", e);
-      }
-    // PUT
-    } else if (method == HttpMethod.PUT) {
-      final TSMeta meta;
-      if (query.hasContent()) {
-        meta = query.serializer().parseTSMetaV1();
-      } else {
-        meta = this.parseTSMetaQS(query);
-      }
-      try {
-        meta.syncToStorage(tsdb, true);
-        tsdb.indexTSMeta(meta);
-        query.sendReply(query.serializer().formatTSMetaV1(meta));
-      } catch (IllegalStateException e) {
-        query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
-      } catch (IllegalArgumentException e) {
-        throw new BadRequestException("Unable to save TSMeta information", e);
-      } catch (NoSuchUniqueName e) {
-        // this would only happen if someone deleted a UID but left the 
-        // the timeseries meta data
-        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-            "Unable to find one or more UIDs", e);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
     // DELETE  
     } else if (method == HttpMethod.DELETE) {
+      
       final TSMeta meta;
       if (query.hasContent()) {
         meta = query.serializer().parseTSMetaV1();

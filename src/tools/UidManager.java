@@ -887,7 +887,7 @@ final class UidManager {
                 // exist, so we can just call sync on this to create a missing
                 // entry
                 UIDMeta meta = UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, 
-                    metric_uid_bytes);
+                    metric_uid_bytes).joinUninterruptibly();
                 // we only want to update the time if it was outside of an hour
                 // otherwise it's probably an accurate timestamp
                 if (meta.getCreated() > (timestamp + 3600) || 
@@ -897,7 +897,8 @@ final class UidManager {
                   if (meta.getUID() == null || meta.getUID().isEmpty() || 
                       meta.getType() == null) {
                     meta = new UIDMeta(UniqueIdType.METRIC, metric_uid_bytes, 
-                        tsdb.getUidName(UniqueIdType.METRIC, metric_uid_bytes));
+                        tsdb.getUidName(UniqueIdType.METRIC, metric_uid_bytes)
+                        .joinUninterruptibly());
                     meta.setCreated(timestamp);
                     meta.syncToStorage(tsdb, true);
                     tsdb.indexUIDMeta(meta);
@@ -940,7 +941,8 @@ final class UidManager {
                 // fetch and update. Returns default object if the meta doesn't
                 // exist, so we can just call sync on this to create a missing
                 // entry
-                UIDMeta meta = UIDMeta.getUIDMeta(tsdb, type, tag);
+                UIDMeta meta = UIDMeta.getUIDMeta(tsdb, type, tag)
+                  .joinUninterruptibly();
                 // we only want to update the time if it was outside of an hour
                 // otherwise it's probably an accurate timestamp
                 if (meta.getCreated() > (timestamp + 3600) || 
@@ -948,7 +950,8 @@ final class UidManager {
                   meta.setCreated(timestamp);
                   if (meta.getUID() == null || meta.getUID().isEmpty() || 
                       meta.getType() == null) {
-                    meta = new UIDMeta(type, tag, tsdb.getUidName(type, tag));
+                    meta = new UIDMeta(type, tag, tsdb.getUidName(type, tag)
+                        .joinUninterruptibly());
                     meta.setCreated(timestamp);
                     meta.syncToStorage(tsdb, true);
                     tsdb.indexUIDMeta(meta);
@@ -973,12 +976,14 @@ final class UidManager {
               
               // handle the timeseres meta last so we don't record it if one
               // or more of the UIDs had an issue
-              TSMeta tsuidmeta = TSMeta.getTSMeta(tsdb, tsuid_string);
+              TSMeta tsuidmeta = TSMeta.getTSMeta(tsdb, tsuid_string)
+                .joinUninterruptibly();
               if (tsuidmeta == null) {
                 // Take care of situations where the counter is created but the
                 // meta data is not. May happen if the TSD crashes or is killed
                 // improperly before the meta is flushed to storage.
-                if (!TSMeta.counterExistsInStorage(tsdb, tsuid)) {
+                if (!TSMeta.counterExistsInStorage(tsdb, tsuid)
+                    .joinUninterruptibly()) {
                   TSMeta.incrementAndGetCounter(tsdb, tsuid);
                   LOG.info("Created counter for timeseries [" + 
                       tsuid_string + "]");

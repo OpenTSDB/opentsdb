@@ -126,6 +126,7 @@ test_SRC := \
 	test/meta/TestUIDMeta.java	\
 	test/search/TestSearchPlugin.java	\
 	test/stats/TestHistogram.java	\
+	test/storage/MockBase.java	\
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestGraphHandler.java	\
 	test/tsd/TestHttpJsonSerializer.java	\

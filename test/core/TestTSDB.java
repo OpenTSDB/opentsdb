@@ -31,10 +31,16 @@ import org.hbase.async.HBaseClient;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.stumbleupon.async.Deferred;
+
 @RunWith(PowerMockRunner.class)
+@PowerMockIgnore({"javax.management.*", "javax.xml.*",
+  "ch.qos.*", "org.slf4j.*",
+  "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   CompactionQueue.class})
 public final class TestTSDB {
@@ -143,54 +149,57 @@ public final class TestTSDB {
   }
   
   @Test
-  public void getUidNameMetric() {
+  public void getUidNameMetric() throws Exception {
     setGetUidName();
     assertEquals("sys.cpu.0", tsdb.getUidName(UniqueIdType.METRIC, 
-        new byte[] { 0, 0, 1 }));
+        new byte[] { 0, 0, 1 }).joinUninterruptibly());
   }
   
   @Test
-  public void getUidNameTagk() {
+  public void getUidNameTagk() throws Exception {
     setGetUidName();
     assertEquals("host", tsdb.getUidName(UniqueIdType.TAGK, 
-        new byte[] { 0, 0, 1 }));
+        new byte[] { 0, 0, 1 }).joinUninterruptibly());
   }
   
   @Test
-  public void getUidNameTagv() {
+  public void getUidNameTagv() throws Exception {
     setGetUidName();
     assertEquals("web01", tsdb.getUidName(UniqueIdType.TAGV, 
-        new byte[] { 0, 0, 1 }));
+        new byte[] { 0, 0, 1 }).joinUninterruptibly());
   }
   
   @Test (expected = NoSuchUniqueId.class)
-  public void getUidNameMetricNSU() {
+  public void getUidNameMetricNSU() throws Exception {
     setGetUidName();
-    tsdb.getUidName(UniqueIdType.METRIC, new byte[] { 0, 0, 2 });
+    tsdb.getUidName(UniqueIdType.METRIC, new byte[] { 0, 0, 2 })
+    .joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueId.class)
-  public void getUidNameTagkNSU() {
+  public void getUidNameTagkNSU() throws Exception {
     setGetUidName();
-    tsdb.getUidName(UniqueIdType.TAGK, new byte[] { 0, 0, 2 });
+    tsdb.getUidName(UniqueIdType.TAGK, new byte[] { 0, 0, 2 })
+    .joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueId.class)
-  public void getUidNameTagvNSU() {
+  public void getUidNameTagvNSU() throws Exception {
     setGetUidName();
-    tsdb.getUidName(UniqueIdType.TAGV, new byte[] { 0, 0, 2 });
+    tsdb.getUidName(UniqueIdType.TAGV, new byte[] { 0, 0, 2 })
+    .joinUninterruptibly();
   }
   
   @Test (expected = NullPointerException.class)
-  public void getUidNameNullType() {
+  public void getUidNameNullType() throws Exception {
     setGetUidName();
-    tsdb.getUidName(null, new byte[] { 0, 0, 2 });
+    tsdb.getUidName(null, new byte[] { 0, 0, 2 }).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void getUidNameNullUID() {
+  public void getUidNameNullUID() throws Exception {
     setGetUidName();
-    tsdb.getUidName(UniqueIdType.TAGV, null);
+    tsdb.getUidName(UniqueIdType.TAGV, null).joinUninterruptibly();
   }
   
   @Test
@@ -343,16 +352,19 @@ public final class TestTSDB {
    * Helper to mock the UID caches with valid responses
    */
   private void setGetUidName() {
-    when(metrics.getName(new byte[] { 0, 0, 1 })).thenReturn("sys.cpu.0");
-    when(metrics.getName(new byte[] { 0, 0, 2 })).thenThrow(
+    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("sys.cpu.0"));
+    when(metrics.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
         new NoSuchUniqueId("metric", new byte[] { 0, 0, 2}));
     
-    when(tag_names.getName(new byte[] { 0, 0, 1 })).thenReturn("host");
-    when(tag_names.getName(new byte[] { 0, 0, 2 })).thenThrow(
+    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("host"));
+    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
         new NoSuchUniqueId("tagk", new byte[] { 0, 0, 2}));
     
-    when(tag_values.getName(new byte[] { 0, 0, 1 })).thenReturn("web01");
-    when(tag_values.getName(new byte[] { 0, 0, 2 })).thenThrow(
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("web01"));
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
         new NoSuchUniqueId("tag_values", new byte[] { 0, 0, 2}));
   }
 }
