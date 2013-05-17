@@ -70,6 +70,9 @@ public class Config {
   /** tsd.http.request.max_chunk */
   private int max_chunked_requests = 4096; 
   
+  /** tsd.core.tree.enable_processing */
+  private boolean enable_tree_processing = false;
+  
   /**
    * The list of properties configured to their defaults or modified by users
    */
@@ -146,6 +149,11 @@ public class Config {
   /** @return max incoming chunk size in bytes */
   public int max_chunked_requests() {
     return this.max_chunked_requests;
+  }
+  
+  /** @return whether or not to process new or updated TSMetas through trees */
+  public boolean enable_tree_processing() {
+    return enable_tree_processing;
   }
   
   /**
@@ -298,6 +306,7 @@ public class Config {
     default_map.put("tsd.core.auto_create_metrics", "false");
     default_map.put("tsd.core.meta.enable_tracking", "false");
     default_map.put("tsd.core.plugin_path", "");
+    default_map.put("tsd.core.tree.enable_processing", "false");
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.storage.flush_interval", "1000");
@@ -323,6 +332,7 @@ public class Config {
     if (this.hasProperty("tsd.http.request.max_chunk")) {
       max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
     }
+    enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
   }
 
   /**
