@@ -143,6 +143,107 @@ public final class TestQueryRpc {
   }
   
   @Test
+  public void parseQueryTSUIDType() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&tsuid=sum:010101");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+  }
+  
+  @Test
+  public void parseQueryTSUIDTypeMulti() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&tsuid=sum:010101,020202");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals(2, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+    assertEquals("020202", sub.getTsuids().get(1));
+  }
+  
+  @Test
+  public void parseQuery2TSUIDType() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&tsuid=sum:010101&tsuid=avg:020202");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    assertEquals(2, tsq.getQueries().size());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+    sub = tsq.getQueries().get(1);
+    assertNotNull(sub);
+    assertEquals("avg", sub.getAggregator());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("020202", sub.getTsuids().get(0));
+  }
+  
+  @Test
+  public void parseQueryTSUIDTypeWRate() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&tsuid=sum:rate:010101");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+    assertTrue(sub.getRate());
+  }
+  
+  @Test
+  public void parseQueryTSUIDTypeWDS() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&tsuid=sum:1m-sum:010101");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+    assertEquals("1m-sum", sub.getDownsample());
+  }
+  
+  @Test
+  public void parseQueryTSUIDTypeWRateAndDS() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&tsuid=sum:1m-sum:rate:010101");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+    assertEquals("1m-sum", sub.getDownsample());
+    assertTrue(sub.getRate());
+  }
+  
+  @Test
   public void parseQueryWPadding() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&m=sum:sys.cpu.0&padding");

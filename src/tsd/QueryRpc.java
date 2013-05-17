@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -193,7 +194,7 @@ final class QueryRpc implements HttpRpc {
     }
     
     if (data_query.getQueries() == null) {
-      final ArrayList<TSSubQuery> subs = new ArrayList<TSSubQuery>();
+      final ArrayList<TSSubQuery> subs = new ArrayList<TSSubQuery>(1);
       data_query.setQueries(subs);
     }
     data_query.getQueries().add(sub_query);
@@ -210,8 +211,42 @@ final class QueryRpc implements HttpRpc {
    */
   private void parseTsuidTypeSubQuery(final String query_string, 
       TSQuery data_query) {
-    // TODO - implement
-    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
-        "TSUID queries are not implemented at this time");
+    if (query_string == null || query_string.isEmpty()) {
+      throw new BadRequestException("The tsuid query string was empty");
+    }
+    
+    // tsuid queries are of the following forms:
+    // agg:[interval-agg:][rate:]tsuid[,s]
+    // where the parts in square brackets `[' .. `]' are optional.
+    final String[] parts = Tags.splitString(query_string, ':');
+    int i = parts.length;
+    if (i < 2 || i > 5) {
+      throw new BadRequestException("Invalid parameter m=" + query_string + " ("
+          + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
+    }
+    
+    final TSSubQuery sub_query = new TSSubQuery();
+    
+    // the aggregator is first
+    sub_query.setAggregator(parts[0]);
+    
+    i--; // Move to the last part (the metric name).
+    final List<String> tsuid_array = Arrays.asList(parts[i].split(","));
+    sub_query.setTsuids(tsuid_array);
+    
+    // parse out the rate and downsampler 
+    for (int x = 1; x < parts.length - 1; x++) {
+      if (parts[x].toLowerCase().equals("rate")) {
+        sub_query.setRate(true);
+      } else if (Character.isDigit(parts[x].charAt(0))) {
+        sub_query.setDownsample(parts[1]);
+      }
+    }
+    
+    if (data_query.getQueries() == null) {
+      final ArrayList<TSSubQuery> subs = new ArrayList<TSSubQuery>(1);
+      data_query.setQueries(subs);
+    }
+    data_query.getQueries().add(sub_query);
   }
 }
