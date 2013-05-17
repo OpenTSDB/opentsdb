@@ -35,6 +35,7 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.RowLock;
 import org.hbase.async.RowLockRequest;
 
+import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -778,6 +779,17 @@ public final class TSDB {
     if (search != null) {
       search.deleteUIDMeta(meta);
     }
+  }
+  
+  /**
+   * Processes the TSMeta through all of the trees if configured to do so
+   * @param meta The meta data to process
+   */
+  public Deferred<Boolean> processTSMetaThroughTrees(final TSMeta meta) {
+    if (config.enable_tree_processing()) {
+      return TreeBuilder.processAllTrees(this, meta);
+    }
+    return Deferred.fromResult(false);
   }
   
   // ------------------ //
