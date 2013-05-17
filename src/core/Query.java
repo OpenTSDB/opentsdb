@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.List;
 import java.util.Map;
 
 import org.hbase.async.HBaseException;
@@ -77,6 +78,26 @@ public interface Query {
   void setTimeSeries(String metric, Map<String, String> tags,
                      Aggregator function, boolean rate) throws NoSuchUniqueName;
 
+  /**
+   * Sets up a query for the given timeseries UIDs. For now, all TSUIDs in the
+   * group must share a common metric. This is to avoid issues where the scanner
+   * may have to traverse the entire data table if one TSUID has a metric of 
+   * 000001 and another has a metric of FFFFFF. After modifying the query code
+   * to run asynchronously and use different scanners, we can allow different 
+   * TSUIDs.
+   * <b>Note:</b> This method will not check to determine if the TSUIDs are 
+   * valid, since that wastes time and we *assume* that the user provides TUSIDs
+   * that are up to date.
+   * @param tsuids A list of one or more TSUIDs to scan for
+   * @param function The aggregation function to use on results
+   * @param rate Whether or not the results should be converted to a rate
+   * @throws IllegalArgumentException if the tsuid list is null, empty or the
+   * TSUIDs do not share a common metric
+   * @since 2.0
+   */
+  public void setTimeSeries(final List<String> tsuids,
+      final Aggregator function, final boolean rate);
+  
   /**
    * Downsamples the results by specifying a fixed interval between points.
    * <p>

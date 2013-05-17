@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -33,6 +34,7 @@ import static org.hbase.async.Bytes.ByteMap;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.uid.UniqueId;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -111,6 +113,9 @@ final class TsdbQuery implements Query {
   /** Minimum time interval (in seconds) wanted between each data point. */
   private int sample_interval;
 
+  /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
+  private List<String> tsuids;
+  
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
@@ -163,6 +168,51 @@ final class TsdbQuery implements Query {
     this.rate = rate;
   }
 
+  /**
+   * Sets up a query for the given timeseries UIDs. For now, all TSUIDs in the
+   * group must share a common metric. This is to avoid issues where the scanner
+   * may have to traverse the entire data table if one TSUID has a metric of 
+   * 000001 and another has a metric of FFFFFF. After modifying the query code
+   * to run asynchronously and use different scanners, we can allow different 
+   * TSUIDs.
+   * <b>Note:</b> This method will not check to determine if the TSUIDs are 
+   * valid, since that wastes time and we *assume* that the user provides TUSIDs
+   * that are up to date.
+   * @param tsuids A list of one or more TSUIDs to scan for
+   * @param function The aggregation function to use on results
+   * @param rate Whether or not the results should be converted to a rate
+   * @throws IllegalArgumentException if the tsuid list is null, empty or the
+   * TSUIDs do not share a common metric
+   * @since 2.0
+   */
+  public void setTimeSeries(final List<String> tsuids,
+      final Aggregator function, final boolean rate) {
+    if (tsuids == null || tsuids.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Empty or missing TSUID list not allowed");
+    }
+    
+    String first_metric = "";
+    for (final String tsuid : tsuids) {
+      if (first_metric.isEmpty()) {
+        first_metric = tsuid.substring(0, TSDB.metrics_width() * 2)
+          .toUpperCase();
+        continue;
+      }
+      
+      final String metric = tsuid.substring(0, TSDB.metrics_width() * 2)
+        .toUpperCase();
+      if (!first_metric.equals(metric)) {
+        throw new IllegalArgumentException(
+          "One or more TSUIDs did not share the same metric");
+      }
+    }
+    
+    this.tsuids = tsuids;
+    aggregator = function;
+    this.rate = rate;
+  }
+  
   public void downsample(final int interval, final Aggregator downsampler) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
@@ -251,6 +301,14 @@ final class TsdbQuery implements Query {
         hbase_time += (System.nanoTime() - starttime) / 1000000;
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] key = row.get(0).key();
+          final byte[] metric;
+          if (tsuids != null && !tsuids.isEmpty()) {
+            final String tsuid_metric = 
+              tsuids.get(0).substring(0, metric_width * 2);
+            metric = UniqueId.stringToUid(tsuid_metric);
+          } else {
+            metric = this.metric;
+          }
           if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
             throw new IllegalDataException("HBase returned a row that doesn't match"
                 + " our scanner (" + scanner + ")! " + row + " does not start"
@@ -363,9 +421,14 @@ final class TsdbQuery implements Query {
   }
 
   /**
-   * Creates the {@link Scanner} to use for this query.
+   * Returns a scanner set for the given metric (from {@link #metric} or from
+   * the first TSUID in the {@link #tsuids}s list. If one or more tags are 
+   * provided, it calls into {@link #createAndSetFilter} to setup a row key 
+   * filter. If one or more TSUIDs have been provided, it calls into
+   * {@link #createAndSetTSUIDFilter} to setup a row key filter.
+   * @return A scanner to use for fetching data points
    */
-  Scanner getScanner() throws HBaseException {
+  protected Scanner getScanner() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
     final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
@@ -380,13 +443,25 @@ final class TsdbQuery implements Query {
                            ? -1  // Will scan until the end (0xFFF...).
                            : (int) getScanEndTime()),
                  metric_width);
-    System.arraycopy(metric, 0, start_row, 0, metric_width);
-    System.arraycopy(metric, 0, end_row, 0, metric_width);
+    
+    // set the metric UID based on the TSUIDs if given, or the metric UID
+    if (tsuids != null && !tsuids.isEmpty()) {
+      final String tsuid = tsuids.get(0);
+      final String metric_uid = tsuid.substring(0, TSDB.metrics_width() * 2);
+      System.arraycopy(UniqueId.stringToUid(metric_uid), 
+          0, start_row, 0, metric_width);
+      System.arraycopy(UniqueId.stringToUid(metric_uid), 0, end_row, 0, metric_width);
+    } else {
+      System.arraycopy(metric, 0, start_row, 0, metric_width);
+      System.arraycopy(metric, 0, end_row, 0, metric_width);
+    }
 
     final Scanner scanner = tsdb.client.newScanner(tsdb.table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
-    if (tags.size() > 0 || group_bys != null) {
+    if (tsuids != null && !tsuids.isEmpty()) {
+      createAndSetTSUIDFilter(scanner);
+    } else if (tags.size() > 0 || group_bys != null) {
       createAndSetFilter(scanner);
     }
     scanner.setFamily(TSDB.FAMILY);
@@ -430,7 +505,7 @@ final class TsdbQuery implements Query {
    * server-side filter that matches a regular expression on the row key.
    * @param scanner The scanner on which to add the filter.
    */
-  void createAndSetFilter(final Scanner scanner) {
+  private void createAndSetFilter(final Scanner scanner) {
     if (group_bys != null) {
       Collections.sort(group_bys, Bytes.MEMCMP);
     }
@@ -492,6 +567,57 @@ final class TsdbQuery implements Query {
    }
 
   /**
+   * Sets the server-side regexp filter on the scanner.
+   * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
+   * storage from returning irrelevant rows.
+   * @param scanner The scanner on which to add the filter.
+   * @since 2.0
+   */
+  private void createAndSetTSUIDFilter(final Scanner scanner) {
+    Collections.sort(tsuids);
+    
+    // first, convert the tags to byte arrays and count up the total length
+    // so we can allocate the string builder
+    final short metric_width = tsdb.metrics.width();
+    int tags_length = 0;
+    final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
+    for (final String tsuid : tsuids) {
+      final String tags = tsuid.substring(metric_width * 2);
+      final byte[] tag_bytes = UniqueId.stringToUid(tags);
+      tags_length += tag_bytes.length;
+      uids.add(tag_bytes);
+    }
+    
+    // Generate a regexp for our tags based on any metric and timestamp (since
+    // those are handled by the row start/stop) and the list of TSUID tagk/v
+    // pairs. The generated regex will look like: ^.{7}(tags|tags|tags)$
+    // where each "tags" is similar to \\Q\000\000\001\000\000\002\\E
+    final StringBuilder buf = new StringBuilder(
+        13  // "(?s)^.{N}(" + ")$"
+        + (tsuids.size() * 11) // "\\Q" + "\\E|"
+        + tags_length); // total # of bytes in tsuids tagk/v pairs
+    
+    // Alright, let's build this regexp.  From the beginning...
+    buf.append("(?s)"  // Ensure we use the DOTALL flag.
+               + "^.{")
+       // ... start by skipping the metric ID and timestamp.
+       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append("}(");
+    
+    for (final byte[] tags : uids) {
+       // quote the bytes
+      buf.append("\\Q");
+      addId(buf, tags);
+      buf.append('|');
+    }
+    
+    // Replace the pipe of the last iteration, close and set
+    buf.setCharAt(buf.length() - 1, ')');
+    buf.append("$");
+    scanner.setKeyRegexp(buf.toString(), CHARSET);
+  }
+  
+  /**
    * Helper comparison function to compare tag name IDs.
    * @param name_width Number of bytes used by a tag name ID.
    * @param tag A tag (array containing a tag name ID and a tag value ID).
@@ -539,17 +665,24 @@ final class TsdbQuery implements Query {
     buf.append("TsdbQuery(start_time=")
        .append(getStartTime())
        .append(", end_time=")
-       .append(getEndTime())
-       .append(", metric=").append(Arrays.toString(metric));
-    try {
-      buf.append(" (").append(tsdb.metrics.getName(metric));
-    } catch (NoSuchUniqueId e) {
-      buf.append(" (<").append(e.getMessage()).append('>');
-    }
-    try {
-      buf.append("), tags=").append(Tags.resolveIds(tsdb, tags));
-    } catch (NoSuchUniqueId e) {
-      buf.append("), tags=<").append(e.getMessage()).append('>');
+       .append(getEndTime());
+   if (tsuids != null && !tsuids.isEmpty()) {
+     buf.append(", tsuids=");
+     for (final String tsuid : tsuids) {
+       buf.append(tsuid).append(",");
+     }
+   } else {
+      buf.append(", metric=").append(Arrays.toString(metric));
+      try {
+        buf.append(" (").append(tsdb.metrics.getName(metric));
+      } catch (NoSuchUniqueId e) {
+        buf.append(" (<").append(e.getMessage()).append('>');
+      }
+      try {
+        buf.append("), tags=").append(Tags.resolveIds(tsdb, tags));
+      } catch (NoSuchUniqueId e) {
+        buf.append("), tags=<").append(e.getMessage()).append('>');
+      }
     }
     buf.append(", rate=").append(rate)
        .append(", aggregator=").append(aggregator)
