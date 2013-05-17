@@ -122,8 +122,12 @@ public final class TSQuery {
       if (sub.downsampler() != null) {
         query.downsample((int)sub.downsampleInterval(), sub.downsampler());
       }
-      query.setTimeSeries(sub.getMetric(), sub.getTags(), sub.aggregator(), 
-          sub.getRate());
+      if (sub.getTsuids() != null && !sub.getTsuids().isEmpty()) {
+        query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate());
+      } else {
+        query.setTimeSeries(sub.getMetric(), sub.getTags(), sub.aggregator(), 
+            sub.getRate());
+      }
       queries[i] = query;
       i++;
     }

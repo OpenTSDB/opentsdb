@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,7 +44,7 @@ public final class TSSubQuery {
   private String metric;
   
   /** User provided list of timeseries UIDs */
-  private ArrayList<String> tsuids;
+  private List<String> tsuids;
   
   /** User supplied list of tags for specificity or grouping. May be null or 
    * empty */
@@ -176,7 +175,7 @@ public final class TSSubQuery {
   }
 
   /** @param tsuids a list of timeseries UIDs as hex encoded strings to fetch */
-  public void setTsuids(ArrayList<String> tsuids) {
+  public void setTsuids(List<String> tsuids) {
     this.tsuids = tsuids;
   }
 
