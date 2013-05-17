@@ -533,7 +533,21 @@ public final class TSMeta {
         // to keep track of and may not be accurate.
         final TSMeta meta = new TSMeta(tsuid, 
             System.currentTimeMillis() / 1000);
+        
+        /**
+         * Called after the meta has been passed through tree processing. The 
+         * result of the processing doesn't matter and the user may not even
+         * have it enabled, so we'll just return the counter.
+         */
+        final class TreeCB implements Callback<Deferred<Long>, Boolean> {
 
+          @Override
+          public Deferred<Long> call(Boolean success) throws Exception {
+            return Deferred.fromResult(incremented_value);
+          }
+          
+        }
+        
         /**
          * Called after retrieving the newly stored TSMeta and loading
          * associated UIDMeta objects. This class will also pass the meta to the
@@ -548,7 +562,8 @@ public final class TSMeta {
             tsdb.indexTSMeta(stored_meta);
             
             // pass through the trees
-            return Deferred.fromResult(incremented_value);
+            return tsdb.processTSMetaThroughTrees(stored_meta)
+              .addCallbackDeferring(new TreeCB());
           }
           
         }
