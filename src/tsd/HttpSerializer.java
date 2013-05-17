@@ -33,6 +33,9 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.tree.Branch;
+import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.TreeRule;
 
 /**
  * Abstract base class for Serializers; plugins that handle converting requests
@@ -226,6 +229,56 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Parses a single Tree object
+   * @return the parsed tree object
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public Tree parseTreeV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseTreeV1");
+  }
+  
+  /**
+   * Parses a single TreeRule object
+   * @return the parsed rule object
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public TreeRule parseTreeRuleV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseTreeRuleV1");
+  }
+  
+  /**
+   * Parses one or more tree rules
+   * @return A list of one or more rules
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public List<TreeRule> parseTreeRulesV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseTreeRulesV1");
+  }
+  
+  /**
+   * Parses a tree ID and optional list of TSUIDs to search for collisions or
+   * not matched TSUIDs.
+   * @return A map with "treeId" as an integer and optionally "tsuids" as a 
+   * List<String> 
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public Map<String, Object> parseTreeTSUIDsListV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseTreeCollisionNotMatchedV1");
+  }
+  
+  /**
    * Formats the results of an HTTP data point storage request
    * @param results A map of results. The map will consist of:
    * <ul><li>success - (long) the number of successfully parsed datapoints</li>
@@ -363,6 +416,94 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatTSMetaV1");
+  }
+  
+  /**
+   * Format a single Branch object
+   * @param branch The branch to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatBranchV1(final Branch branch) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatBranchV1");
+  }
+  
+  /**
+   * Format a single tree object
+   * @param tree tree to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatTreeV1(final Tree tree) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatTreeV1");
+  }
+  
+  /**
+   * Format a list of tree objects. Note that the list may be empty if no trees
+   * were present.
+   * @param trees A list of one or more trees to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatTreesV1(final List<Tree> trees) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatTreesV1");
+  }
+  
+  /**
+   * Format a single TreeRule object
+   * @param rule The rule to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatTreeRuleV1(final TreeRule rule) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatTreeRuleV1");
+  }
+  
+  /**
+   * Format a map of one or more TSUIDs that collided or were not matched
+   * @param results The list of results. Collisions: key = tsuid, value = 
+   * collided TSUID. Not Matched: key = tsuid, value = message about non matched
+   * rules.
+   * @param is_collision Whether or the map is a collision result set (true) or
+   * a not matched set (false).
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatTreeCollisionNotMatchedV1(
+      final Map<String, String> results, final boolean is_collisions) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatTreeCollisionNotMatched");
+  }
+  
+  /**
+   * Format the results of testing one or more TSUIDs through a tree's ruleset
+   * @param results The list of results. Main map key is the tsuid. Child map:
+   * "branch" : Parsed branch result, may be null
+   * "meta" : TSMeta object, may be null
+   * "messages" : An ArrayList<String> of one or more messages 
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatTreeTestV1(final 
+      HashMap<String, HashMap<String, Object>> results) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatTreeTestV1");
   }
   
   /**

@@ -39,6 +39,9 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.tree.Branch;
+import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.TreeRule;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -60,6 +63,13 @@ class HttpJsonSerializer extends HttpSerializer {
   /** Type reference for uid assignments */
   private static TypeReference<HashMap<String, List<String>>> UID_ASSIGN =
     new TypeReference<HashMap<String, List<String>>>() {};
+  /** Type reference for common string/string maps */
+  private static TypeReference<HashMap<String, String>> TR_HASH_MAP = 
+    new TypeReference<HashMap<String, String>>() {};
+  private static TypeReference<ArrayList<TreeRule>> TR_TREE_RULES = 
+    new TypeReference<ArrayList<TreeRule>>() {};
+  private static TypeReference<HashMap<String, Object>> TR_HASH_MAP_OBJ = 
+    new TypeReference<HashMap<String, Object>>() {};
     
   /**
    * Default constructor necessary for plugin implementation
@@ -228,6 +238,110 @@ class HttpJsonSerializer extends HttpSerializer {
     } catch (IllegalArgumentException iae) {
       throw new BadRequestException("Unable to parse the given JSON", iae);
     }
+  }
+  
+  /**
+   * Parses a single Tree object
+   * <b>Note:</b> Incoming data is a hash map of strings instead of directly 
+   * deserializing to a tree. We do it this way because we don't want users 
+   * messing with the timestamp fields. 
+   * @return A parsed Tree
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public Tree parseTreeV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    try {
+      final HashMap<String, String> properties = 
+        JSON.parseToObject(json, TR_HASH_MAP);
+      
+      final Tree tree = new Tree();
+      for (Map.Entry<String, String> entry : properties.entrySet()) {
+        // skip nulls, empty is fine, but nulls are not welcome here
+        if (entry.getValue() == null) {
+          continue;
+        }
+        
+        if (entry.getKey().toLowerCase().equals("treeid")) {
+          tree.setTreeId(Integer.parseInt(entry.getValue()));
+        } else if (entry.getKey().toLowerCase().equals("name")) {
+          tree.setName(entry.getValue());
+        } else if (entry.getKey().toLowerCase().equals("description")) {
+          tree.setDescription(entry.getValue());
+        } else if (entry.getKey().toLowerCase().equals("notes")) {
+          tree.setNotes(entry.getValue());
+        } else if (entry.getKey().toLowerCase().equals("strictMatch")) {
+          if (entry.getValue().toLowerCase().equals("true")) {
+            tree.setStrictMatch(true);
+          } else {
+            tree.setStrictMatch(false);
+          }
+        }
+      }
+      return tree;
+    } catch (NumberFormatException nfe) {
+      throw new BadRequestException("Unable to parse 'tree' value");
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+  
+  /**
+   * Parses a single TreeRule object
+   * @return A parsed tree rule
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public TreeRule parseTreeRuleV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    
+    return JSON.parseToObject(json, TreeRule.class);
+  }
+  
+  /**
+   * Parses one or more tree rules
+   * @return A list of one or more rules
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public List<TreeRule> parseTreeRulesV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    
+    return JSON.parseToObject(json, TR_TREE_RULES);
+  }
+  
+  /**
+   * Parses a tree ID and optional list of TSUIDs to search for collisions or
+   * not matched TSUIDs.
+   * @return A map with "treeId" as an integer and optionally "tsuids" as a 
+   * List<String> 
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public Map<String, Object> parseTreeTSUIDsListV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    
+    return JSON.parseToObject(json, TR_HASH_MAP_OBJ);
   }
   
   /**
@@ -416,6 +530,76 @@ class HttpJsonSerializer extends HttpSerializer {
    */
   public ChannelBuffer formatTSMetaV1(final TSMeta meta) {
     return this.serializeJSON(meta);
+  }
+  
+  /**
+   * Format a single Branch object
+   * @param branch The branch to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatBranchV1(final Branch branch) {
+    return this.serializeJSON(branch);
+  }
+  
+  /**
+   * Format a single tree object
+   * @param tree A tree to format
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTreeV1(final Tree tree) {
+    return this.serializeJSON(tree);
+  }
+  
+  /**
+   * Format a list of tree objects. Note that the list may be empty if no trees
+   * were present.
+   * @param trees A list of one or more trees to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTreesV1(final List<Tree> trees) {
+    return this.serializeJSON(trees);
+  }
+  
+  /**
+   * Format a single TreeRule object
+   * @param rule The rule to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTreeRuleV1(final TreeRule rule) {
+    return serializeJSON(rule);
+  }
+  
+  /**
+   * Format a map of one or more TSUIDs that collided or were not matched
+   * @param results The list of results. Collisions: key = tsuid, value = 
+   * collided TSUID. Not Matched: key = tsuid, value = message about non matched
+   * rules.
+   * @param is_collision Whether or the map is a collision result set (true) or
+   * a not matched set (false).
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTreeCollisionNotMatchedV1(
+      final Map<String, String> results, final boolean is_collisions) {
+    return serializeJSON(results);
+  }
+  
+  /**
+   * Format the results of testing one or more TSUIDs through a tree's ruleset
+   * @param results The list of results. Main map key is the tsuid. Child map:
+   * "branch" : Parsed branch result, may be null
+   * "meta" : TSMeta object, may be null
+   * "messages" : An ArrayList<String> of one or more messages 
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTreeTestV1(final 
+      HashMap<String, HashMap<String, Object>> results) {
+    return serializeJSON(results);
   }
   
   /**
