@@ -23,6 +23,7 @@ import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
 
 /**
@@ -326,6 +327,10 @@ final class IncomingDataPoints implements WritableDataPoints {
     return Collections.emptyList();
   }
 
+  public List<Annotation> getAnnotations() {
+    return null;
+  }
+  
   public int size() {
     return size;
   }

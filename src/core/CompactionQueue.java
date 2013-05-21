@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,7 +32,9 @@ import org.hbase.async.HBaseRpc;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PleaseThrottleException;
 
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.JSON;
 
 /**
  * "Queue" of rows to compact.
@@ -218,9 +221,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * Must contain at least one element.
    * @return A compacted version of this row.
    */
-  KeyValue compact(final ArrayList<KeyValue> row) {
+  KeyValue compact(final ArrayList<KeyValue> row, 
+      List<Annotation> annotations) {
     final KeyValue[] compacted = { null };
-    compact(row, compacted);
+    compact(row, compacted, annotations);
     return compacted[0];
   }
 
@@ -241,7 +245,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * to HBase, otherwise {@code null}.
    */
   private Deferred<Object> compact(final ArrayList<KeyValue> row,
-                                   final KeyValue[] compacted) {
+                                   final KeyValue[] compacted, 
+                                   List<Annotation> annotations) {
     if (row.size() <= 1) {
       if (row.isEmpty()) {  // Maybe the row got deleted in the mean time?
         LOG.debug("Attempted to compact a row that doesn't exist.");
@@ -250,9 +255,12 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         KeyValue kv = row.get(0);
         final byte[] qual = kv.qualifier();
         if (qual.length % 2 != 0 || qual.length == 0) {
-          // Right now we expect all qualifiers to have an even number of
-          // bytes.  We only have one KV and it doesn't look valid so just
-          // ignore this whole row.
+          // This could be a row with only an annotation in it
+          if (qual.length == 3 && qual[0] == Annotation.PREFIX()) {
+            final Annotation note = JSON.parseToObject(kv.value(), 
+                Annotation.class);
+            annotations.add(note);
+          }
           return null;
         }
         final byte[] val = kv.value();
@@ -291,14 +299,19 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         // partially compacted set of cells, with the rest.
         final int len = qual.length;
         if (len != 2) {
-          // Right now we expect all qualifiers to have an even number of
-          // bytes.  If we find one with an odd number of bytes, or an empty
-          // qualifier (which is possible), just skip it, we don't know what
-          // this is.  It could be some junk that somehow got in the table,
-          // or it could be something from a future version of OpenTSDB that
-          // we don't know how to handle, so silently ignore it in order to
-          // help be forward compatible with it.
+          // Datapoints and compacted columns should have qualifiers with an
+          // even number of bytes. If we find one with an odd number, or an
+          // empty qualifier (which is possible), we need to remove it from the
+          // compaction queue. 
           if (len % 2 != 0 || len == 0) {
+            // if the qualifier is 3 bytes and starts with the Annotation prefix,
+            // parse it out.
+            if (qual.length == 3 && qual[0] == Annotation.PREFIX()) {
+              final Annotation note = JSON.parseToObject(kv.value(), 
+                  Annotation.class);
+              annotations.add(note);
+            }
+            
             row.remove(i);  // This is O(n) but should happen *very* rarely.
             nkvs--;
             i--;
@@ -345,7 +358,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         // the case where this KV is an old, incorrectly encoded floating
         // point value that needs to be fixed.  This is guaranteed to not
         // recurse again.
-        return compact(row, compacted);
+        return compact(row, compacted, annotations);
       } else if (trivial) {
         trivial_compactions.incrementAndGet();
         compact = trivialCompact(row, qual_len, val_len);

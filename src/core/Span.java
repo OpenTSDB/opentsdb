@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.meta.Annotation;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,10 @@ final class Span implements DataPoints {
   /** All the rows in this span. */
   private ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
 
+  /** A list of annotations for this span. We can't lazily initialize since we
+   * have to pass a collection to the compaction queue */
+  private ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+  
   Span(final TSDB tsdb) {
     this.tsdb = tsdb;
   }
@@ -76,6 +82,11 @@ final class Span implements DataPoints {
     return 0;
   }
 
+  
+  public List<Annotation> getAnnotations() {
+    return annotations;
+  }
+  
   /**
    * Adds an HBase row to this span, using a row from a scanner.
    * @param row The compacted HBase row to add to this span.

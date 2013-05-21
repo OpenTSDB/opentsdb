@@ -19,6 +19,7 @@ import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
@@ -81,7 +82,8 @@ final class TestCompactionQueue {
   @Test
   public void emptyRow() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(0);
-    compactionq.compact(kvs);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    compactionq.compact(kvs, annotations);
 
     // We had nothing to do so...
     // ... verify there were no put.
@@ -93,9 +95,10 @@ final class TestCompactionQueue {
   @Test
   public void oneCellRow() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     final byte[] qual = { 0x00, 0x03 };
     kvs.add(makekv(qual, Bytes.fromLong(42L)));
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
 
     // We had nothing to do so...
     // ... verify there were no put.
@@ -107,6 +110,7 @@ final class TestCompactionQueue {
   @Test
   public void twoCellRow() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -114,7 +118,7 @@ final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
 
     // We had one row to compact, so one put to do.
     verify(tsdb, times(1)).put(KEY, concat(qual1, qual2),
@@ -126,6 +130,7 @@ final class TestCompactionQueue {
   @Test
   public void fixQualifierFlags() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     // Note: here the flags pretend the value is on 4 bytes, but it's actually
     // on 8 bytes, so we expect the code to fix the flags as it's compacting.
     final byte[] qual1 = { 0x00, 0x03 };   // Pretends 4 bytes...
@@ -136,7 +141,7 @@ final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromLong(5L);
     kvs.add(makekv(qual2, val2));
 
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
 
     // We had one row to compact, so one put to do.
     verify(tsdb, times(1)).put(KEY, concat(cqual1, qual2),
@@ -150,6 +155,7 @@ final class TestCompactionQueue {
     // Check that the compaction process is fixing incorrectly encoded
     // floating point values.
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     // Note: here the flags pretend the value is on 4 bytes, but it's actually
     // on 8 bytes, so we expect the code to fix the flags as it's compacting.
     final byte[] qual1 = { 0x00, 0x07 };
@@ -160,7 +166,7 @@ final class TestCompactionQueue {
     final byte[] cval2 = Bytes.fromInt(Float.floatToRawIntBits(4.2F));
     kvs.add(makekv(qual2, val2));
 
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
 
     // We had one row to compact, so one put to do.
     verify(tsdb, times(1)).put(KEY, concat(qual1, qual2),
@@ -172,6 +178,7 @@ final class TestCompactionQueue {
   @Test(expected=IllegalDataException.class)
   public void overlappingDataPoints() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -180,7 +187,7 @@ final class TestCompactionQueue {
     final byte[] val2 = Bytes.fromInt(4);
     kvs.add(makekv(qual2, val2));
 
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
   }
 
   @Test
@@ -189,6 +196,7 @@ final class TestCompactionQueue {
     // non-compacted form.  This could happen if the TSD dies in between the
     // `put' of a compaction, before getting a change to do the deletes.
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -199,7 +207,7 @@ final class TestCompactionQueue {
     final byte[] valcompact = concat(val1, val2, ZERO);
     kvs.add(makekv(qualcompact, valcompact));
 
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
 
     // We didn't have anything to write.
     verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
@@ -212,6 +220,7 @@ final class TestCompactionQueue {
     // In this test the row has already been compacted, and another data
     // point was written in the mean time.
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     // This is 2 values already compacted together.
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -225,7 +234,7 @@ final class TestCompactionQueue {
     final byte[] val3 = Bytes.fromLong(6L);
     kvs.add(makekv(qual3, val3));
 
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
 
     // We had one row to compact, so one put to do.
     verify(tsdb, times(1)).put(KEY, concat(qual1, qual3, qual2),
@@ -242,6 +251,7 @@ final class TestCompactionQueue {
     // individual data points.  So the rows contains 2 compacted cells and
     // several individual cells.
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(5);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -259,7 +269,7 @@ final class TestCompactionQueue {
     kvs.add(makekv(qual3, val3));
     kvs.add(makekv(qual2, val2));
 
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
 
     // We didn't have anything to write, the last cell is already the correct
     // compacted version of the row.
@@ -275,6 +285,7 @@ final class TestCompactionQueue {
     // data points.  Although a possible scenario, this is extremely unlikely,
     // but we need to test that logic works in this case too.
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(5);
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -292,7 +303,7 @@ final class TestCompactionQueue {
     kvs.add(makekv(qual3, val3));
     kvs.add(makekv(qual2, val2));
 
-    compactionq.compact(kvs);
+    compactionq.compact(kvs, annotations);
 
     // We had one row to compact, so one put to do.
     verify(tsdb, times(1)).put(KEY, concat(qual1, qual3, qual2),

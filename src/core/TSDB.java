@@ -817,8 +817,9 @@ public final class TSDB {
   // Compaction helpers //
   // ------------------ //
 
-  final KeyValue compact(final ArrayList<KeyValue> row) {
-    return compactionq.compact(row);
+  final KeyValue compact(final ArrayList<KeyValue> row, 
+      List<Annotation> annotations) {
+    return compactionq.compact(row, annotations);
   }
 
   /**

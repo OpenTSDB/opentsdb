@@ -15,6 +15,8 @@ package net.opentsdb.core;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.meta.Annotation;
+
 /**
  * Represents a read-only sequence of continuous data points.
  * <p>
@@ -48,6 +50,13 @@ public interface DataPoints extends Iterable<DataPoint> {
    */
   List<String> getAggregatedTags();
 
+  /**
+   * Compiles the annotations for each span into a new array list
+   * @return Null if none of the spans had any annotations, a list if one or
+   * more were found
+   */
+  public List<Annotation> getAnnotations();
+  
   /**
    * Returns the number of data points.
    * <p>

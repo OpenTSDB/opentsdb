@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.meta.Annotation;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -238,6 +240,10 @@ final class RowSeq implements DataPoints {
 
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
+  }
+  
+  public List<Annotation> getAnnotations() {
+    return null;
   }
 
   public int size() {

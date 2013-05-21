@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.meta.Annotation;
+
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
  * <p>
@@ -190,6 +192,25 @@ final class SpanGroup implements DataPoints {
     return aggregated_tags;
   }
 
+  /**
+   * Compiles the annotations for each span into a new array list
+   * @return Null if none of the spans had any annotations, a list if one or
+   * more were found
+   */
+  public List<Annotation> getAnnotations() {
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>();
+    for (Span sp : spans) {
+      if (sp.getAnnotations().size() > 0) {
+        annotations.addAll(sp.getAnnotations());
+      }
+    }
+    
+    if (annotations.size() > 0) {
+      return annotations;
+    }
+    return null;
+  }
+  
   public int size() {
     // TODO(tsuna): There is a way of doing this way more efficiently by
     // inspecting the Spans and counting only data points that fall in
