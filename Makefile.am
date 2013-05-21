@@ -75,6 +75,7 @@ tsdb_SRC := \
 	src/tree/Tree.java	\
 	src/tree/TreeBuilder.java	\
 	src/tree/TreeRule.java	\
+	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
 	src/tsd/ConnectionManager.java	\
 	src/tsd/GnuplotException.java	\
@@ -142,6 +143,7 @@ test_SRC := \
 	test/tree/TestTreeBuilder.java	\
 	test/tree/TestTreeRule.java	\
 	test/tsd/NettyMocks.java	\
+	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\
 	test/tsd/TestHttpJsonSerializer.java	\
 	test/tsd/TestHttpQuery.java	\

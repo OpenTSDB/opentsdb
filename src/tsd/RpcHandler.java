@@ -122,6 +122,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     http_commands.put("api/uid", new UniqueIdRpc());
     http_commands.put("api/query", new QueryRpc());
     http_commands.put("api/tree", new TreeRpc());
+    http_commands.put("api/annotation", new AnnotationRpc());
   }
 
   @Override
