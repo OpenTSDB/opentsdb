@@ -18,6 +18,7 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.utils.Config;
@@ -154,6 +155,36 @@ public final class TestSearchPlugin {
   @Test
   public void deleteUIDMetaNullErrBack() throws Exception  {
     assertNotNull(search.deleteUIDMeta(null).addErrback(new Errback()));
+  }
+  
+  @Test
+  public void indexAnnotation() throws Exception {
+    assertNotNull(search.indexAnnotation(new Annotation()));
+  }
+  
+  @Test
+  public void indexAnnotationNull() throws Exception {
+    assertNotNull(search.indexAnnotation(null));
+  }
+  
+  @Test
+  public void indexAnnotationNullErrBack() throws Exception {
+    assertNotNull(search.indexAnnotation(null).addErrback(new Errback()));
+  }
+  
+  @Test
+  public void deleteAnnotation() throws Exception {
+    assertNotNull(search.deleteAnnotation(new Annotation()));
+  }
+  
+  @Test
+  public void deleteAnnotationNull() throws Exception {
+    assertNotNull(search.deleteAnnotation(null));
+  }
+  
+  @Test
+  public void deleteAnnotationNullErrBack() throws Exception {
+    assertNotNull(search.deleteAnnotation(null).addErrback(new Errback()));
   }
   
   /**

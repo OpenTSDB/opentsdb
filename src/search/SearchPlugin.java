@@ -13,6 +13,7 @@
 package net.opentsdb.search;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 
@@ -103,8 +104,6 @@ public abstract class SearchPlugin {
   /**
    * Indexes a UID metadata object for a metric, tagk or tagv
    * <b>Note:</b> Unique Document ID = UID and the Type "TYPEUID"
-   * <b>Note:</b> Please do not throw exceptions directly, store them in the 
-   * Deferred callback chain.
    * @param meta The UIDMeta to index
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null}
@@ -123,4 +122,24 @@ public abstract class SearchPlugin {
    * (think of it as {@code Deferred<Void>}).
    */
   public abstract Deferred<Object> deleteUIDMeta(final UIDMeta meta);
+
+  /**
+   * Indexes an annotation object
+   * <b>Note:</b> Unique Document ID = TSUID and Start Time
+   * @param note The annotation to index
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null}
+   * (think of it as {@code Deferred<Void>}).
+   */
+  public abstract Deferred<Object> indexAnnotation(final Annotation note);
+
+  /**
+   * Called to remove an annotation object from the index
+   * <b>Note:</b> Unique Document ID = TSUID and Start Time
+   * @param note The annotation to remove
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null}
+   * (think of it as {@code Deferred<Void>}).
+   */
+  public abstract Deferred<Object> deleteAnnotation(final Annotation note);
 }

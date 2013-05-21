@@ -13,6 +13,7 @@
 package net.opentsdb.search;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 
@@ -78,6 +79,26 @@ public final class DummySearchPlugin extends SearchPlugin {
   @Override
   public Deferred<Object> deleteUIDMeta(UIDMeta meta) {
     if (meta == null) {
+      return Deferred.fromError(new IllegalArgumentException("Meta was null"));
+    } else {
+      return Deferred.fromResult(new Object());
+    }
+  }
+
+  
+  @Override
+  public Deferred<Object> indexAnnotation(Annotation note) {
+    if (note == null) {
+      return Deferred.fromError(new IllegalArgumentException("Meta was null"));
+    } else {
+      return Deferred.fromResult(new Object());
+    }
+  }
+  
+
+  @Override
+  public Deferred<Object> deleteAnnotation(Annotation note) {
+    if (note == null) {
       return Deferred.fromError(new IllegalArgumentException("Meta was null"));
     } else {
       return Deferred.fromResult(new Object());
