@@ -518,6 +518,10 @@ class HttpJsonSerializer extends HttpSerializer {
           if (as_arrays) {
             json.writeStartArray();
             for (final DataPoint dp : dps) {
+              if (dp.timestamp() < (data_query.startTime() / 1000) || 
+                  dp.timestamp() > (data_query.endTime() / 1000)) {
+                continue;
+              }
               json.writeStartArray();
               json.writeNumber(dp.timestamp());
               json.writeNumber(
@@ -528,6 +532,10 @@ class HttpJsonSerializer extends HttpSerializer {
           } else {
             json.writeStartObject();
             for (final DataPoint dp : dps) {
+              if (dp.timestamp() < (data_query.startTime() / 1000) || 
+                  dp.timestamp() > (data_query.endTime() / 1000)) {
+                continue;
+              }
               json.writeNumberField(Long.toString(dp.timestamp()), 
                   dp.isInteger() ? dp.longValue() : dp.doubleValue());
             }
