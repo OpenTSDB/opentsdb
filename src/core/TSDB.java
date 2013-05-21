@@ -42,6 +42,7 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchPlugin;
@@ -778,6 +779,26 @@ public final class TSDB {
   public void deleteUIDMeta(final UIDMeta meta) {
     if (search != null) {
       search.deleteUIDMeta(meta);
+    }
+  }
+  
+  /**
+   * Index the given Annotation object via the configured search plugin
+   * @param note The annotation object to index
+   */
+  public void indexAnnotation(final Annotation note) {
+    if (search != null) {
+      search.indexAnnotation(note);
+    }
+  }
+  
+  /**
+   * Delete the annotation object from the search index
+   * @param note The annotation object to delete
+   */
+  public void deleteAnnotation(final Annotation note) {
+    if (search != null) {
+      search.deleteAnnotation(note);
     }
   }
   
