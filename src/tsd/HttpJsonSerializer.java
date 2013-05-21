@@ -15,6 +15,7 @@ package net.opentsdb.tsd;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -445,10 +446,11 @@ class HttpJsonSerializer extends HttpSerializer {
    * Format the results from a timeseries data query
    * @param data_query The TSQuery object used to fetch the results
    * @param results The data fetched from storage
+   * @param globals An optional list of global annotation objects
    * @return A ChannelBuffer object to pass on to the caller
    */
   public ChannelBuffer formatQueryV1(final TSQuery data_query, 
-      final List<DataPoints[]> results) {
+      final List<DataPoints[]> results, final List<Annotation> globals) {
     
     final boolean as_arrays = this.query.hasQueryStringParam("arrays");
     final String jsonp = this.query.getQueryStringParam("jsonp");
@@ -479,7 +481,7 @@ class HttpJsonSerializer extends HttpSerializer {
           }
           json.writeEndObject();
           
-          json.writeFieldName("aggregated_tags");
+          json.writeFieldName("aggregateTags");
           json.writeStartArray();
           if (dps.getAggregatedTags() != null) {
             for (String atag : dps.getAggregatedTags()) {
@@ -487,6 +489,27 @@ class HttpJsonSerializer extends HttpSerializer {
             }
           }
           json.writeEndArray();
+          
+          if (!data_query.getNoAnnotations()) {
+            final List<Annotation> annotations = dps.getAnnotations();
+            if (annotations != null) {
+              Collections.sort(annotations);
+              json.writeArrayFieldStart("annotations");
+              for (Annotation note : annotations) {
+                json.writeObject(note);
+              }
+              json.writeEndArray();
+            }
+            
+            if (globals != null && !globals.isEmpty()) {
+              Collections.sort(globals);
+              json.writeArrayFieldStart("globalAnnotations");
+              for (Annotation note : globals) {
+                json.writeObject(note);
+              }
+              json.writeEndArray();
+            }
+          }
           
           // now the fun stuff, dump the data
           json.writeFieldName("dps");

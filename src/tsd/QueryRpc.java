@@ -29,6 +29,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
+import net.opentsdb.meta.Annotation;
 
 /**
  * Handles queries for timeseries datapoints. Each request is parsed into a
@@ -100,10 +101,24 @@ final class QueryRpc implements HttpRpc {
     }
     tsdbqueries = null;  // free()
     
+    // if the user wants global annotations, we need to scan and fetch
+    List<Annotation> globals = null;
+    if (!data_query.getNoAnnotations() && data_query.getGlobalAnnotations()) {
+      try {
+        globals = Annotation.getGlobalAnnotations(tsdb, 
+            data_query.startTime() / 1000, data_query.endTime() / 1000)
+            .joinUninterruptibly();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      
+    }
+    
     switch (query.apiVersion()) {
     case 0:
     case 1:
-      query.sendReply(query.serializer().formatQueryV1(data_query, results));
+      query.sendReply(query.serializer().formatQueryV1(data_query, results, 
+          globals));
       break;
     default: 
       throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
@@ -127,6 +142,14 @@ final class QueryRpc implements HttpRpc {
     
     if (query.hasQueryStringParam("padding")) {
       data_query.setPadding(true);
+    }
+    
+    if (query.hasQueryStringParam("no_annotations")) {
+      data_query.setNoAnnotations(true);
+    }
+    
+    if (query.hasQueryStringParam("global_annotations")) {
+      data_query.setGlobalAnnotations(true);
     }
     
     // handle tsuid queries first
