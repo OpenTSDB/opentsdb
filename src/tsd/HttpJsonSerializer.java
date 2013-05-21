@@ -37,6 +37,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.tree.Branch;
@@ -345,6 +346,23 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Parses an annotation object
+   * @return An annotation object
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public Annotation parseAnnotationV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    
+    return JSON.parseToObject(json, Annotation.class);
+  }
+  
+  /**
    * Formats the results of an HTTP data point storage request
    * @param results A map of results. The map will consist of:
    * <ul><li>success - (long) the number of successfully parsed datapoints</li>
@@ -600,6 +618,16 @@ class HttpJsonSerializer extends HttpSerializer {
   public ChannelBuffer formatTreeTestV1(final 
       HashMap<String, HashMap<String, Object>> results) {
     return serializeJSON(results);
+  }
+  
+  /**
+   * Format an annotation object
+   * @param note The annotation object to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatAnnotationV1(final Annotation note) {
+    return serializeJSON(note);
   }
   
   /**
