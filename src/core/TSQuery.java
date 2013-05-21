@@ -50,6 +50,12 @@ public final class TSQuery {
    * end dates
    */
   private boolean padding;
+  
+  /** Whether or not to suppress annotation output */
+  private boolean no_annotations;
+  
+  /** Whether or not to scan for global annotations in the same time range */
+  private boolean with_global_annotations;
 
   /** A list of parsed sub queries, must have one or more to fetch data */
   private ArrayList<TSSubQuery> queries;
@@ -169,6 +175,16 @@ public final class TSQuery {
     return padding;
   }
 
+  /** @return whether or not to supress annotatino output */
+  public boolean getNoAnnotations() {
+    return no_annotations;
+  }
+  
+  /** @return whether or not to load global annotations for the time range */
+  public boolean getGlobalAnnotations() {
+    return with_global_annotations;
+  }
+  
   /** @return the list of sub queries */
   public List<TSSubQuery> getQueries() {
     return queries;
@@ -208,6 +224,16 @@ public final class TSQuery {
     this.padding = padding;
   }
 
+  /** @param no_annotations whether or not to suppress annotation output */
+  public void setNoAnnotations(boolean no_annotations) {
+    this.no_annotations = no_annotations;
+  }
+  
+  /** @param with_global whethe ror not to load global annotations */
+  public void setGlobalAnnotations(boolean with_global) {
+    with_global_annotations = with_global;
+  }
+  
   /** @param queries a list of {@link TSSubQuery} objects to store*/
   public void setQueries(ArrayList<TSSubQuery> queries) {
     this.queries = queries;
