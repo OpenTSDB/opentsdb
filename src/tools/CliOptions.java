@@ -115,7 +115,7 @@ final class CliOptions {
     // loop and switch so we can map cli options to tsdb options
     for (Map.Entry<String, String> entry : argp.getParsed().entrySet()) {
       // map the overrides
-      if (entry.getKey().toLowerCase().equals("--auto_metric")) {
+      if (entry.getKey().toLowerCase().equals("--auto-metric")) {
         config.overrideConfig("tsd.core.auto_metric", "true");
       } else if (entry.getKey().toLowerCase().equals("--table")) {
         config.overrideConfig("tsd.storage.hbase.data_table", entry.getValue());
