@@ -131,6 +131,11 @@ public class Config {
     return this.auto_metric;
   }
   
+  /** @param set whether or not to auto create metrics */
+  public void setAutoMetric(boolean auto_metric) {
+    this.auto_metric = auto_metric;
+  }
+  
   /** @return the enable_compaction value */
   public boolean enable_compactions() {
     return this.enable_compactions;

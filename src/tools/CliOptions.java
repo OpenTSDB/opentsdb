@@ -102,6 +102,9 @@ final class CliOptions {
 
     // load CLI overloads
     overloadConfig(argp, config);
+    // the auto metric is recorded to a class boolean flag since it's used so
+    // often. We have to set it manually after overriding.
+    config.setAutoMetric(config.getBoolean("tsd.core.auto_create_metrics"));
     return config;
   }
   
@@ -116,7 +119,7 @@ final class CliOptions {
     for (Map.Entry<String, String> entry : argp.getParsed().entrySet()) {
       // map the overrides
       if (entry.getKey().toLowerCase().equals("--auto-metric")) {
-        config.overrideConfig("tsd.core.auto_metric", "true");
+        config.overrideConfig("tsd.core.auto_create_metrics", "true");
       } else if (entry.getKey().toLowerCase().equals("--table")) {
         config.overrideConfig("tsd.storage.hbase.data_table", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--uidtable")) {
