@@ -91,6 +91,7 @@ tsdb_SRC := \
 	src/tsd/QueryRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/StaticFileRpc.java	\
+	src/tsd/StatsRpc.java	\
 	src/tsd/SuggestRpc.java	\
 	src/tsd/TelnetRpc.java	\
 	src/tsd/TreeRpc.java	\

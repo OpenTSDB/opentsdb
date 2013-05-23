@@ -662,6 +662,16 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Format a list of statistics
+   * @param note The statistics list to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatStatsV1(final List<IncomingDataPoint> stats) {
+    return serializeJSON(stats);
+  }
+  
+  /**
    * Helper object for the format calls to wrap the JSON response in a JSONP
    * function if requested. Used for code dedupe.
    * @param obj The object to serialize

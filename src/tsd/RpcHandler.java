@@ -13,12 +13,10 @@
 package net.opentsdb.tsd;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.fasterxml.jackson.core.JsonGenerationException;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -80,9 +78,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("s", staticfile);
     }
     {
-      final Stats stats = new Stats();
+      final StatsRpc stats = new StatsRpc();
       telnet_commands.put("stats", stats);
       http_commands.put("stats", stats);
+      http_commands.put("api/stats", stats);
     }
     {
       final Version version = new Version();
@@ -320,54 +319,6 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       } else {
         query.sendReply(JSON.serializeToBytes(Aggregators.set()));
       }
-    }
-  }
-
-  /** The "stats" command and the "/stats" endpoint. */
-  private static final class Stats implements TelnetRpc, HttpRpc {
-    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
-                                    final String[] cmd) {
-      final StringBuilder buf = new StringBuilder(1024);
-      final StatsCollector collector = new StatsCollector("tsd") {
-        @Override
-        public final void emit(final String line) {
-          buf.append(line);
-        }
-      };
-      doCollectStats(tsdb, collector);
-      chan.write(buf.toString());
-      return Deferred.fromResult(null);
-    }
-
-    public void execute(final TSDB tsdb, final HttpQuery query) 
-      throws JsonGenerationException, IOException {
-      final boolean json = query.hasQueryStringParam("json");
-      final StringBuilder buf = json ? null : new StringBuilder(2048);
-      final ArrayList<String> stats = json ? new ArrayList<String>(64) : null;
-      final StatsCollector collector = new StatsCollector("tsd") {
-        @Override
-        public final void emit(final String line) {
-          if (json) {
-            stats.add(line.substring(0, line.length() - 1));  // strip the '\n'
-          } else {
-            buf.append(line);
-          }
-        }
-      };
-      doCollectStats(tsdb, collector);
-      if (json) {
-        query.sendReply(JSON.serializeToBytes(stats));
-      } else {
-        query.sendReply(buf);
-      }
-    }
-
-    private void doCollectStats(final TSDB tsdb,
-                                final StatsCollector collector) {
-      collector.addHostTag();
-      ConnectionManager.collectStats(collector);
-      RpcHandler.collectStats(collector);
-      tsdb.collectStats(collector);
     }
   }
 

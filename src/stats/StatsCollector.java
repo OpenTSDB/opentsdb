@@ -35,10 +35,10 @@ public abstract class StatsCollector {
     LoggerFactory.getLogger(StatsCollector.class);
 
   /** Prefix to add to every metric name, for example `tsd'. */
-  private final String prefix;
+  protected final String prefix;
 
   /** Extra tags to add to every data point emitted. */
-  private HashMap<String, String> extratags;
+  protected HashMap<String, String> extratags;
 
   /** Buffer used to build lines emitted. */
   private final StringBuilder buf = new StringBuilder();
@@ -56,8 +56,11 @@ public abstract class StatsCollector {
    * Method to override to actually emit a data point.
    * @param datapoint A data point in a format suitable for a text
    * import.
+   * @throws IllegalStateException if the emitter has not been implemented
    */
-  public abstract void emit(String datapoint);
+  public void emit(String datapoint) {
+    throw new IllegalStateException("Emitter has not been implemented");
+  }
 
   /**
    * Records a data point.
@@ -119,7 +122,7 @@ public abstract class StatsCollector {
    * @throws IllegalArgumentException if {@code xtratag != null} and it
    * doesn't follow the {@code name=value} format.
    */
-  public final void record(final String name,
+  public void record(final String name,
                            final long value,
                            final String xtratag) {
     buf.setLength(0);

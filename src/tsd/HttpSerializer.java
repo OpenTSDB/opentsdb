@@ -534,6 +534,19 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Format a list of statistics
+   * @param note The statistics list to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatStatsV1(final List<IncomingDataPoint> stats) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatStatsV1");
+  }
+  
+  /**
    * Formats a 404 error when an endpoint or file wasn't found
    * <p>
    * <b>WARNING:</b> If overriding, make sure this method catches all errors and
