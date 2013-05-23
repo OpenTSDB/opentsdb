@@ -313,6 +313,15 @@ public final class TestTreeBuilder {
   }
   
   @Test
+  public void processTimeseriesMetBadSeparator() throws Exception {
+    tree.getRules().get(3).get(0).setSeparator(".");
+    treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
+    assertEquals(4, storage.numRows());
+    assertEquals(2, storage.numColumns(
+        Branch.stringToId("00010001A2460001CB54247F7202")));
+  }
+  
+  @Test
   public void processTimeseriesMetaInvalidRegexIdx() throws Exception {
     tree.getRules().get(1).get(1).setRegexGroupIdx(42);
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();

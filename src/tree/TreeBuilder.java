@@ -834,6 +834,14 @@ public final class TreeBuilder {
       
       // split it
       splits = parsed_value.split(rule.getSeparator());
+      if (splits.length < 1) { 
+        testMessage("Separator did not match, created an empty list on rule: " + 
+            rule);
+        // set the index to 1 so the next time through it thinks we're done and
+        // moves on to the next rule
+        split_idx = 1;
+        return;
+      }
       split_idx = 0;
       setCurrentName(parsed_value, splits[split_idx]);
       split_idx++;
