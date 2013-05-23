@@ -322,7 +322,10 @@ public final class Plot {
       final List<Annotation> notes = new ArrayList<Annotation>();
       for (int i = 0; i < nseries; i++) {
         final DataPoints dp = datapoints.get(i);
-        notes.addAll(dp.getAnnotations());
+        final List<Annotation> series_notes = dp.getAnnotations();
+        if (series_notes != null && !series_notes.isEmpty()) {
+          notes.addAll(series_notes);
+        }
       }
       if (globals != null) {
         notes.addAll(globals);
