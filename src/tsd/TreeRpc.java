@@ -575,6 +575,14 @@ final class TreeRpc implements HttpRpc {
         tree.setStrictMatch(false);
       }
     }
+    if (query.hasQueryStringParam("enabled")) {
+      final String enabled = query.getQueryStringParam("description");
+      if (enabled.toLowerCase().equals("true")) {
+        tree.setEnabled(true);
+      } else {
+        tree.setEnabled(false);
+      }
+    }
     return tree;
   }
 
