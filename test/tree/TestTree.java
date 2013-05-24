@@ -98,8 +98,16 @@ public final class TestTree {
     assertTrue(json.contains("\"created\":1356998400"));
     assertTrue(json.contains("\"name\":\"Test Tree\""));
     assertTrue(json.contains("\"description\":\"My Description\""));
+    assertTrue(json.contains("\"enabled\":true"));
   }
 
+  @Test
+  public void deserialize() throws Exception {
+    Tree t = JSON.parseToObject((byte[])TreetoStorageJson.invoke(
+        buildTestTree()), Tree.class);
+    assertTrue(t.getEnabled());
+  }
+  
   @Test
   public void addRule() throws Exception {
     final Tree tree = new Tree();
@@ -331,6 +339,7 @@ public final class TestTree {
     assertNotNull(tree);
     assertEquals("Test Tree", tree.getName());
     assertEquals(2, tree.getRules().size());
+    assertTrue(tree.getEnabled());
   }
   
   @Test
@@ -636,7 +645,8 @@ public final class TestTree {
     tree.setCreated(1356998400L);
     tree.setDescription("My Description");
     tree.setName("Test Tree");
-    tree.setNotes("Details");   
+    tree.setNotes("Details");
+    tree.setEnabled(true);
     buildTestRuleSet(tree);
     
     // reset the changed field via reflection
@@ -673,7 +683,9 @@ public final class TestTree {
     // set pre-test values
     storage.addColumn(key, "tree".getBytes(MockBase.ASCII()), 
         (byte[])TreetoStorageJson.invoke(buildTestTree()));
-    
+    System.out.println(new String((byte[])TreetoStorageJson.invoke(buildTestTree())));
+    Tree t = JSON.parseToObject((byte[])TreetoStorageJson.invoke(buildTestTree()), Tree.class);
+    System.out.println("Enabled: " + t.getEnabled());
     TreeRule rule = new TreeRule(1);
     rule.setField("host");
     rule.setType(TreeRuleType.TAGK);

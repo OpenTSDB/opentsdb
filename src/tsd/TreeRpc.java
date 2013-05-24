@@ -576,7 +576,7 @@ final class TreeRpc implements HttpRpc {
       }
     }
     if (query.hasQueryStringParam("enabled")) {
-      final String enabled = query.getQueryStringParam("description");
+      final String enabled = query.getQueryStringParam("enabled");
       if (enabled.toLowerCase().equals("true")) {
         tree.setEnabled(true);
       } else {

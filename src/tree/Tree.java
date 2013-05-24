@@ -180,6 +180,10 @@ public final class Tree {
       strict_match = tree.strict_match;
       changed.put("strict_match", true);
     }
+    if (overwrite || tree.changed.get("enabled")) {
+      enabled = tree.enabled;
+      changed.put("enabled", true);
+    }
     for (boolean has_changes : changed.values()) {
       if (has_changes) {
         return true;
@@ -317,7 +321,7 @@ public final class Tree {
           Tree stored_tree = fetched_tree;
           final byte[] original_tree = stored_tree == null ? new byte[0] : 
             stored_tree.toStorageJson();
-          
+
           // now copy changes
           if (stored_tree == null) {
             stored_tree = local_tree;
@@ -488,7 +492,8 @@ public final class Tree {
             tree.description = local_tree.description;
             tree.name = local_tree.name;
             tree.notes = local_tree.notes;
-            tree.strict_match = tree.strict_match;
+            tree.strict_match = local_tree.strict_match;
+            tree.enabled = local_tree.enabled;
             
           // Tree rule
           } else if (Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0, 
@@ -975,6 +980,7 @@ public final class Tree {
     changed.put("last_update", false);
     changed.put("version", false);
     changed.put("node_separator", false);
+    changed.put("enabled", false);
   }
   
   /**
@@ -998,7 +1004,6 @@ public final class Tree {
       json.writeBooleanField("strictMatch", strict_match);
       json.writeNumberField("created", created);
       json.writeBooleanField("enabled", enabled);
-      
       json.writeEndObject();
       json.close();
       
@@ -1233,7 +1238,10 @@ public final class Tree {
 
   /** @param enabled Whether or not this tree should process TSMeta objects */
   public void setEnabled(boolean enabled) {
-    this.enabled = enabled;
+    if (this.enabled != enabled) {
+      this.enabled = enabled;
+      changed.put("enabled", true);
+    }
   }
   
   /** @param treeId ID of the tree, users cannot modify this */
