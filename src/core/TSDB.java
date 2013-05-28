@@ -46,6 +46,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
@@ -811,6 +812,22 @@ public final class TSDB {
       return TreeBuilder.processAllTrees(this, meta);
     }
     return Deferred.fromResult(false);
+  }
+  
+  /**
+   * Executes a search query using the search plugin
+   * @param query The query to execute
+   * @return A deferred object to wait on for the results to be fetched
+   * @throws IllegalStateException if the search plugin has not been enabled or
+   * configured
+   */
+  public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
+    if (search == null) {
+      throw new IllegalStateException(
+          "Searching has not been enabled on this TSD");
+    }
+    
+    return search.executeQuery(query);
   }
   
   // ------------------ //
