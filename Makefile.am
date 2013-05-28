@@ -57,6 +57,7 @@ tsdb_SRC := \
 	src/meta/TSMeta.java	\
 	src/meta/UIDMeta.java	\
 	src/search/SearchPlugin.java	\
+	src/search/SearchQuery.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
 	src/tools/ArgP.java	\
@@ -136,6 +137,7 @@ test_SRC := \
 	test/meta/TestTSMeta.java	\
 	test/meta/TestUIDMeta.java	\
 	test/search/TestSearchPlugin.java	\
+	test/search/TestSearchQuery.java	\
 	test/stats/TestHistogram.java	\
 	test/storage/MockBase.java	\
 	test/tree/TestBranch.java	\
