@@ -290,7 +290,7 @@ public final class Tree {
     }
 
     // a list of deferred objects tracking the CAS calls so the caller can wait
-    // until their all complete
+    // until they're all complete
     final ArrayList<Deferred<Boolean>> storage_results = 
       new ArrayList<Deferred<Boolean>>(3);
       
@@ -1230,18 +1230,14 @@ public final class Tree {
   /** @param strict_match Whether or not a TSUID must match all rules in the
    * tree to be included */
   public void setStrictMatch(boolean strict_match) {
-    if (this.strict_match != strict_match) {
-      changed.put("strict_match", true);
-      this.strict_match = strict_match;
-    }
+    changed.put("strict_match", true);
+    this.strict_match = strict_match;    
   }
 
   /** @param enabled Whether or not this tree should process TSMeta objects */
   public void setEnabled(boolean enabled) {
-    if (this.enabled != enabled) {
-      this.enabled = enabled;
-      changed.put("enabled", true);
-    }
+    this.enabled = enabled;
+    changed.put("enabled", true);
   }
   
   /** @param treeId ID of the tree, users cannot modify this */
