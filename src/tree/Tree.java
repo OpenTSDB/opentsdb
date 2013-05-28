@@ -568,7 +568,8 @@ public final class Tree {
               tree.description = local_tree.description;
               tree.name = local_tree.name;
               tree.notes = local_tree.notes;
-              tree.strict_match = tree.strict_match;
+              tree.strict_match = local_tree.strict_match;
+              tree.enabled = local_tree.enabled;
               
               // WARNING: Since the JSON data in storage doesn't contain the tree
               // ID, we need to parse it from the row key
