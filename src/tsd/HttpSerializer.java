@@ -34,6 +34,7 @@ import net.opentsdb.core.TSQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
@@ -191,6 +192,18 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented parseUidAssignV1");
+  }
+  
+  /**
+   * Parses a SearchQuery request
+   * @return The parsed search query
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public SearchQuery parseSearchQueryV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseSearchQueryV1");
   }
   
   /**
@@ -544,6 +557,19 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatStatsV1");
+  }
+  
+  /**
+   * Format the response from a search query
+   * @param note The query (hopefully filled with results) to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatSearchResultsV1(final SearchQuery results) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatSearchResultsV1");
   }
   
   /**
