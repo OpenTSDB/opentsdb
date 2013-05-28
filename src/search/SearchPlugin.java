@@ -142,4 +142,12 @@ public abstract class SearchPlugin {
    * (think of it as {@code Deferred<Void>}).
    */
   public abstract Deferred<Object> deleteAnnotation(final Annotation note);
+
+  /**
+   * Executes a very basic search query, returning the results in the SearchQuery
+   * object passed in.
+   * @param query The query to execute against the search engine
+   * @return The query results
+   */
+  public abstract Deferred<SearchQuery> executeQuery(final SearchQuery query); 
 }

@@ -85,7 +85,6 @@ public final class DummySearchPlugin extends SearchPlugin {
     }
   }
 
-  
   @Override
   public Deferred<Object> indexAnnotation(Annotation note) {
     if (note == null) {
@@ -94,7 +93,6 @@ public final class DummySearchPlugin extends SearchPlugin {
       return Deferred.fromResult(new Object());
     }
   }
-  
 
   @Override
   public Deferred<Object> deleteAnnotation(Annotation note) {
@@ -102,6 +100,16 @@ public final class DummySearchPlugin extends SearchPlugin {
       return Deferred.fromError(new IllegalArgumentException("Meta was null"));
     } else {
       return Deferred.fromResult(new Object());
+    }
+  }
+
+  public Deferred<SearchQuery> executeQuery(final SearchQuery query) {
+    if (query == null) {
+      return Deferred.fromError(new IllegalArgumentException("Query was null"));
+    } else {
+      query.setTime(1.42F);
+      query.setTotalResults(42);
+      return Deferred.fromResult(query);
     }
   }
   
