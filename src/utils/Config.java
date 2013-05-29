@@ -314,6 +314,7 @@ public class Config {
     default_map.put("tsd.core.tree.enable_processing", "false");
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
+    default_map.put("tsd.stats.canonical", "false");
     default_map.put("tsd.storage.flush_interval", "1000");
     default_map.put("tsd.storage.hbase.data_table", "tsdb");
     default_map.put("tsd.storage.hbase.uid_table", "tsdb-uid");
