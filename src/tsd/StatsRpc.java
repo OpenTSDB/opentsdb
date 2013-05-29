@@ -180,6 +180,7 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
       dp.setTimestamp(System.currentTimeMillis() / 1000L);
       dp.setValue(Long.toString(value));
       
+      String tagk = "";
       if (xtratag != null) {
         if (xtratag.indexOf('=') != xtratag.lastIndexOf('=')) {
           throw new IllegalArgumentException("invalid xtratag: " + xtratag
@@ -189,10 +190,8 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
               + " (missing '=' signs), name=" + name + ", value=" + value);
         }
         final String[] pair = xtratag.split("=");
-        if (extratags == null) {
-          extratags = new HashMap<String, String>(1);
-        }
-        extratags.put(pair[0], pair[1]);
+        tagk = pair[0];
+        addExtraTag(tagk, pair[1]);
       }
       
       addHostTag(canonical);
@@ -202,6 +201,9 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
       dp.setTags(tags);
       dps.add(dp);
       
+      if (!tagk.isEmpty()) {
+        clearExtraTag(tagk);
+      }
     }
     
   }
