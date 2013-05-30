@@ -55,6 +55,32 @@ public final class TestTreeRule {
   }
   
   @Test
+  public void copyConstructor() {
+    rule = new TreeRule(1);
+    rule.setCustomField("Custom");    
+    rule.setDescription("Hello World!");
+    rule.setDisplayFormat("Display");
+    rule.setField("Field");
+    rule.setLevel(1);
+    rule.setNotes("Notes");
+    rule.setOrder(2);
+    rule.setRegexGroupIdx(4);
+    rule.setSeparator("\\.");
+    
+    final TreeRule copy = new TreeRule(rule);
+    assertEquals(1, copy.getTreeId());
+    assertEquals("Custom", copy.getCustomField());
+    assertEquals("Hello World!", copy.getDescription());
+    assertEquals("Display", copy.getDisplayFormat());
+    assertEquals("Field", copy.getField());
+    assertEquals(1, copy.getLevel());
+    assertEquals("Notes", copy.getNotes());
+    assertEquals(2, copy.getOrder());
+    assertEquals(4, copy.getRegexGroupIdx());
+    assertEquals("\\.", copy.getSeparator());
+  }
+  
+  @Test
   public void setRegex() {
     rule.setRegex("^HelloWorld$");
     assertNotNull(rule.getCompiledRegex());

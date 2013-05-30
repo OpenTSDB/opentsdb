@@ -133,6 +133,28 @@ public final class TreeRule {
   }
 
   /**
+   * Copy constructor that creates a completely independent copy of the original
+   * object
+   * @param original The original object to copy from
+   * @throws PatternSyntaxException if the regex is invalid
+   */
+  public TreeRule(final TreeRule original) {
+    custom_field = original.custom_field;
+    description = original.description;
+    display_format = original.display_format;
+    field = original.field;
+    level = original.level;
+    notes = original.notes;
+    order = original.order;
+    regex_group_idx = original.regex_group_idx;
+    separator = original.separator;
+    tree_id = original.tree_id;
+    type = original.type;
+    setRegex(original.regex);
+    initializeChangedMap();
+  }
+  
+  /**
    * Copies changed fields from the incoming rule to the local rule
    * @param rule The rule to copy from
    * @param overwrite Whether or not to replace all fields in the local object
