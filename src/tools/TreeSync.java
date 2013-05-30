@@ -129,11 +129,6 @@ final class TreeSync {
       LOG.info("Found [" + tree_builders.size() + "] trees");
     }
     
-    // load or initialize the root for every tree so we save time later on
-    for (TreeBuilder builder : tree_builders) {
-      builder.loadRoot(false).joinUninterruptibly();
-    }
-    
     // setup an array for storing the tree processing calls so we can block 
     // until each call has completed
     final ArrayList<Deferred<Boolean>> tree_calls = 

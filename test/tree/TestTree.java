@@ -66,6 +66,25 @@ public final class TestTree {
   }
   
   @Test
+  public void copyConstructor() {
+    final Tree tree = buildTestTree();
+    tree.setStrictMatch(true);
+    final Tree copy = new Tree(tree);
+    
+    assertEquals(1, copy.getTreeId());
+    assertEquals(1356998400L, copy.getCreated());
+    assertEquals("My Description", copy.getDescription());
+    assertEquals("Test Tree", copy.getName());
+    assertEquals("Details", copy.getNotes());
+    assertTrue(copy.getStrictMatch());
+    assertTrue(copy.getEnabled());
+    assertNull(copy.getCollisions());
+    assertNull(copy.getNotMatched());
+    assertNotNull(copy.getRules());
+    assertTrue(copy.getRules() != tree.getRules());
+  }
+  
+  @Test
   public void copyChanges() throws Exception {
     final Tree tree = buildTestTree();
     final Tree tree2 = buildTestTree();
@@ -214,44 +233,44 @@ public final class TestTree {
   }
   
   @Test
-  public void storeTreeWCollisions() throws Exception {
+  public void flushCollisions() throws Exception {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
     tree.addCollision("010203", "AABBCCDD");
-    assertNotNull(tree.storeTree(storage.getTSDB(), false)
+    assertNotNull(tree.flushCollisions(storage.getTSDB())
         .joinUninterruptibly());
     assertEquals(4, storage.numRows());
     assertEquals(3, storage.numColumns(new byte[] { 0, 1, 1 }));
   }
   
   @Test
-  public void storeTreeWCollisionExisting() throws Exception {
+  public void flushCollisionsWCollisionExisting() throws Exception {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
     tree.addCollision("010101", "AAAAAA");
-    assertNotNull(tree.storeTree(storage.getTSDB(), false)
+    assertNotNull(tree.flushCollisions(storage.getTSDB())
         .joinUninterruptibly());
     assertEquals(4, storage.numRows());
     assertEquals(2, storage.numColumns(new byte[] { 0, 1, 1 }));
   }
   
   @Test
-  public void storeTreeWNotMatched() throws Exception {
+  public void flushNotMatched() throws Exception {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
     tree.addNotMatched("010203", "Failed rule 2:2");
-    assertNotNull(tree.storeTree(storage.getTSDB(), false)
+    assertNotNull(tree.flushNotMatched(storage.getTSDB())
         .joinUninterruptibly());
     assertEquals(4, storage.numRows());
     assertEquals(3, storage.numColumns(new byte[] { 0, 1, 2 }));
   }
   
   @Test
-  public void storeTreeWNotMatchedExisting() throws Exception {
+  public void flushNotMatchedWNotMatchedExisting() throws Exception {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
     tree.addNotMatched("010101", "Failed rule 4:4");
-    assertNotNull(tree.storeTree(storage.getTSDB(), false)
+    assertNotNull(tree.flushNotMatched(storage.getTSDB())
         .joinUninterruptibly());
     assertEquals(4, storage.numRows());
     assertEquals(2, storage.numColumns(new byte[] { 0, 1, 2 }));
@@ -683,7 +702,6 @@ public final class TestTree {
     // set pre-test values
     storage.addColumn(key, "tree".getBytes(MockBase.ASCII()), 
         (byte[])TreetoStorageJson.invoke(buildTestTree()));
-    System.out.println(new String((byte[])TreetoStorageJson.invoke(buildTestTree())));
     Tree t = JSON.parseToObject((byte[])TreetoStorageJson.invoke(buildTestTree()), Tree.class);
     System.out.println("Enabled: " + t.getEnabled());
     TreeRule rule = new TreeRule(1);

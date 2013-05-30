@@ -142,6 +142,43 @@ public final class Tree {
     initializeChangedMap();
   }
   
+  /**
+   * Copy constructor that creates a completely independent copy of the original
+   * object.
+   * @param original The original object to copy from
+   * @throws PatternSyntaxException if one of the rule's regex is invalid
+   */
+  public Tree(final Tree original) {
+    created = original.created;
+    description = original.description;
+    enabled = original.enabled;
+    name = original.name;
+    notes = original.notes;
+    strict_match = original.strict_match;
+    tree_id = original.tree_id;
+    
+    // deep copy rules
+    rules = new TreeMap<Integer, TreeMap<Integer, TreeRule>>();
+    for (Map.Entry<Integer, TreeMap<Integer, TreeRule>> level : 
+      original.rules.entrySet()) {
+      
+      final TreeMap<Integer, TreeRule> orders = new TreeMap<Integer, TreeRule>();
+      for (final TreeRule rule : level.getValue().values()) {
+        orders.put(rule.getOrder(), new TreeRule(rule));
+      }
+      
+      rules.put(level.getKey(), orders);
+    }
+    
+    // copy collisions and not matched
+    if (original.collisions != null) {
+      collisions = new HashMap<String, String>(original.collisions);
+    }
+    if (original.not_matched != null) {
+      not_matched = new HashMap<String, String>(original.not_matched);
+    }
+  }
+  
   /** @return Information about the tree */
   @Override
   public String toString() {
@@ -255,109 +292,76 @@ public final class Tree {
   }
   
   /**
-   * Attempts to store the tree definition and any local collisions or 
-   * not-matched entries via CompareAndSet calls.
+   * Attempts to store the tree definition via a CompareAndSet call.
    * @param tsdb The TSDB to use for access
    * @param lock An optional lock to use on the row
-   * @return A list of deferreds to wait on until all storage calls have
-   * completed.
+   * @return True if the write was successful, false if an error occurred
    * @throws IllegalArgumentException if the tree ID is missing or invalid
    * @throws HBaseException if a storage exception occurred
    */
-  public Deferred<ArrayList<Object>> storeTree(final TSDB tsdb, 
-      final boolean overwrite) {
+  public Deferred<Boolean> storeTree(final TSDB tsdb, final boolean overwrite) {
     if (tree_id < 1 || tree_id > 65535) {
       throw new IllegalArgumentException("Invalid Tree ID");
     }
     
     // if there aren't any changes, save time and bandwidth by not writing to
     // storage
-    boolean has_tree_changes = false;
-    boolean has_set_changes = false;
+    boolean has_changes = false;
     for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
       if (entry.getValue()) {
-        if (entry.getKey().equals("collisions") || 
-            entry.getKey().equals("not_matched")) {
-          has_set_changes = true;
-        } else {
-          has_tree_changes = true;
-        }
+        has_changes = true;
+        break;
       }
     }
-    if (!has_tree_changes && !has_set_changes) {
+    if (!has_changes) {
       LOG.debug(this + " does not have changes, skipping sync to storage");
       throw new IllegalStateException("No changes detected in the tree");
     }
 
-    // a list of deferred objects tracking the CAS calls so the caller can wait
-    // until they're all complete
-    final ArrayList<Deferred<Boolean>> storage_results = 
-      new ArrayList<Deferred<Boolean>>(3);
+    /**
+     * Callback executed after loading a tree from storage so that we can
+     * synchronize changes to the meta data and write them back to storage.
+     */
+    final class StoreTreeCB implements Callback<Deferred<Boolean>, Tree> {
       
-    // if the tree itself has changes, sync them to storage
-    if (has_tree_changes) {
+      final private Tree local_tree;
+      
+      public StoreTreeCB(final Tree local_tree) {
+        this.local_tree = local_tree;
+      }
       
       /**
-       * Callback executed after loading a tree from storage so that we can
-       * synchronize changes to the meta data and write them back to storage.
+       * Synchronizes the stored tree object (if found) with the local tree 
+       * and issues a CAS call to write the update to storage.
+       * @return True if the CAS was successful, false if something changed 
+       * in flight
        */
-      final class StoreTreeCB implements Callback<Deferred<Boolean>, Tree> {
+      @Override
+      public Deferred<Boolean> call(final Tree fetched_tree) throws Exception {
         
-        final private Tree local_tree;
-        
-        public StoreTreeCB(final Tree local_tree) {
-          this.local_tree = local_tree;
-        }
-        
-        /**
-         * Synchronizes the stored tree object (if found) with the local tree 
-         * and issues a CAS call to write the update to storage.
-         * @return True if the CAS was successful, false if something changed 
-         * in flight
-         */
-        @Override
-        public Deferred<Boolean> call(final Tree fetched_tree) throws Exception {
-          
-          Tree stored_tree = fetched_tree;
-          final byte[] original_tree = stored_tree == null ? new byte[0] : 
-            stored_tree.toStorageJson();
+        Tree stored_tree = fetched_tree;
+        final byte[] original_tree = stored_tree == null ? new byte[0] : 
+          stored_tree.toStorageJson();
 
-          // now copy changes
-          if (stored_tree == null) {
-            stored_tree = local_tree;
-          } else {
-            stored_tree.copyChanges(local_tree, overwrite);
-          }
-          
-          // reset the change map so we don't keep writing
-          initializeChangedMap();
-          
-          final PutRequest put = new PutRequest(tsdb.uidTable(), 
-              Tree.idToBytes(tree_id), NAME_FAMILY, TREE_QUALIFIER, 
-              stored_tree.toStorageJson());
-          return tsdb.getClient().compareAndSet(put, original_tree);
+        // now copy changes
+        if (stored_tree == null) {
+          stored_tree = local_tree;
+        } else {
+          stored_tree.copyChanges(local_tree, overwrite);
         }
-      }
-      
-      // initiate the sync by attempting to fetch an existing tree from storage
-      final Deferred<Boolean> process_tree = fetchTree(tsdb, tree_id)
-        .addCallbackDeferring(new StoreTreeCB(this));
-      storage_results.add(process_tree);
-    }
-    
-    // if there were any collisions or not-matched entries found, flush them
-    // as well
-    if (has_set_changes) {
-      if (collisions != null && !collisions.isEmpty()) {
-        storage_results.add(flushCollisions(tsdb));
-      }
-      if (not_matched != null && !not_matched.isEmpty()) {
-        storage_results.add(flushNotMatched(tsdb));
+        
+        // reset the change map so we don't keep writing
+        initializeChangedMap();
+        
+        final PutRequest put = new PutRequest(tsdb.uidTable(), 
+            Tree.idToBytes(tree_id), NAME_FAMILY, TREE_QUALIFIER, 
+            stored_tree.toStorageJson());
+        return tsdb.getClient().compareAndSet(put, original_tree);
       }
     }
     
-    // return the set of deferred CAS calls for the caller to wait on
-    return Deferred.group(storage_results);
+    // initiate the sync by attempting to fetch an existing tree from storage
+    return fetchTree(tsdb, tree_id).addCallbackDeferring(new StoreTreeCB(this));
   }
   
   /**
@@ -402,11 +406,10 @@ public final class Tree {
      * Called after a successful CAS to store the new tree with the new ID.
      * Returns the new ID if successful, 0 if there was an error
      */
-    final class CreatedCB implements Callback<Deferred<Integer>, 
-      ArrayList<Object>> {
+    final class CreatedCB implements Callback<Deferred<Integer>, Boolean> {
       
       @Override
-      public Deferred<Integer> call(final ArrayList<Object> deferreds) 
+      public Deferred<Integer> call(final Boolean cas_success) 
         throws Exception {
         return Deferred.fromResult(tree_id);
       }
@@ -1050,7 +1053,7 @@ public final class Tree {
    * it with tree store calls) for the caller to wait on
    * @throws HBaseException if there was an issue
    */
-  private Deferred<Boolean> flushCollisions(final TSDB tsdb) {
+  public Deferred<Boolean> flushCollisions(final TSDB tsdb) {
     final byte[] row_key = new byte[TREE_ID_WIDTH + 1];
     System.arraycopy(idToBytes(tree_id), 0, row_key, 0, TREE_ID_WIDTH);
     row_key[TREE_ID_WIDTH] = COLLISION_ROW_SUFFIX;
@@ -1103,7 +1106,7 @@ public final class Tree {
    * it with tree store calls) for the caller to wait on
    * @throws HBaseException if there was an issue
    */
-  private Deferred<Boolean> flushNotMatched(final TSDB tsdb) {
+  public Deferred<Boolean> flushNotMatched(final TSDB tsdb) {
     final byte[] row_key = new byte[TREE_ID_WIDTH + 1];
     System.arraycopy(idToBytes(tree_id), 0, row_key, 0, TREE_ID_WIDTH);
     row_key[TREE_ID_WIDTH] = NOT_MATCHED_ROW_SUFFIX;

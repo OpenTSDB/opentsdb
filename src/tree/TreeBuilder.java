@@ -17,6 +17,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 
 import net.opentsdb.core.TSDB;
@@ -58,6 +61,19 @@ import com.stumbleupon.async.Deferred;
  */
 public final class TreeBuilder {
   private static final Logger LOG = LoggerFactory.getLogger(TreeBuilder.class);
+  
+  /** List of trees to use when processing real-time TSMeta  entries */
+  private static final List<Tree> trees = new ArrayList<Tree>();
+  
+  /** List of roots so we don't have to fetch them every time we process a ts */
+  private static final ConcurrentHashMap<Integer, Branch> tree_roots = 
+    new ConcurrentHashMap<Integer, Branch>();
+  
+  /** Timestamp when we last reloaded all of the trees */
+  private static long last_tree_load;
+  
+  /** Lock used to synchronize loading of the tree list */
+  private static final Lock trees_lock = new ReentrantLock();
   
   /** The TSDB to use for fetching/writing data */
   private final TSDB tsdb;
@@ -166,8 +182,8 @@ public final class TreeBuilder {
     
     // setup a list of deferreds to return to the caller so they can wait for
     // storage calls to complete
-    final ArrayList<Deferred<ArrayList<Object>>> storage_calls = 
-      new ArrayList<Deferred<ArrayList<Object>>>();
+    final ArrayList<Deferred<Boolean>> storage_calls = 
+      new ArrayList<Deferred<Boolean>>();
     
     /**
      * Runs the local TSMeta object through the tree's rule set after the root
@@ -203,7 +219,7 @@ public final class TreeBuilder {
           if (!is_testing && tree.getNotMatched() != null && 
               !tree.getNotMatched().isEmpty()) {
             tree.addNotMatched(meta.getTSUID(), not_matched);
-            storage_calls.add(tree.storeTree(tsdb, false));
+            storage_calls.add(tree.flushNotMatched(tsdb));
           }
           
         } else if (current_branch == null) {
@@ -225,7 +241,34 @@ public final class TreeBuilder {
             if (cb.getLeaves() != null || 
                 !processed_branches.containsKey(cb.getBranchId())) {
               LOG.debug("Flushing branch to storage: " + cb);
-              storage_calls.add(cb.storeBranch(tsdb, tree, true));
+
+              /**
+               * Since we need to return a deferred group and we can't just
+               * group the branch storage deferreds with the not-matched and 
+               * collisions, we need to implement a callback that will wait for
+               * the results of the branch stores and group that with the rest.
+               * This CB will return false if ANY of the branches failed to 
+               * be written.
+               */
+              final class BranchCB implements Callback<Deferred<Boolean>, 
+                ArrayList<Object>> {
+
+                @Override
+                public Deferred<Boolean> call(final ArrayList<Object> deferreds)
+                    throws Exception {
+                  
+                  for (Object success : deferreds) {
+                    if (!(Boolean)success) {
+                      return Deferred.fromResult(false);
+                    }
+                  }
+                  return Deferred.fromResult(true);
+                }
+                
+              }
+              final Deferred<Boolean> deferred = cb.storeBranch(tsdb, tree, true)
+                .addCallbackDeferring(new BranchCB());
+              storage_calls.add(deferred);
               processed_branches.put(cb.getBranchId(), true);
             }
             
@@ -243,7 +286,7 @@ public final class TreeBuilder {
           
           // if we have collisions, flush em
           if (tree.getCollisions() != null && !tree.getCollisions().isEmpty()) {
-            storage_calls.add(tree.storeTree(tsdb, false));
+            storage_calls.add(tree.flushCollisions(tsdb));
           }
           
         } else {
@@ -272,12 +315,17 @@ public final class TreeBuilder {
     
     }
 
+    /**
+     * Called after loading or initializing the root and continues the chain
+     * by passing the root onto the ProcessCB
+     */
     final class LoadRootCB implements Callback<Deferred<ArrayList<Object>>, 
-      Boolean> {
+      Branch> {
 
       @Override
-      public Deferred<ArrayList<Object>> call(final Boolean success) 
+      public Deferred<ArrayList<Object>> call(final Branch root) 
         throws Exception {
+        TreeBuilder.this.root = root;
         return new ProcessCB().call(root);
       }
       
@@ -288,7 +336,8 @@ public final class TreeBuilder {
       // if this is a new object or the root has been reset, we need to fetch
       // it from storage or initialize it
       LOG.debug("Fetching root branch for tree: " + tree.getTreeId());
-      return loadRoot(is_testing).addCallbackDeferring(new LoadRootCB());
+      return loadOrInitializeRoot(tsdb, tree.getTreeId(), is_testing)
+        .addCallbackDeferring(new LoadRootCB());
     } else {
       // the root has been set, so just reuse it
       try {
@@ -304,24 +353,37 @@ public final class TreeBuilder {
    * If the is_testing flag is false, the root will be saved if it has to be
    * created. The new or existing root branch will be stored to the local root
    * object.
+   * <b>Note:</b> This will also cache the root in the local store since we 
+   * don't want to keep loading on every TSMeta during real-time processing
+   * @param tsdb The tsdb to use for storage calls
+   * @param tree_id ID of the tree the root should be fetched/initialized for
+   * @param is_testing Whether or not the root should be written to storage if
+   * initialized.
    * @return True if loading or initialization was successful.
    */
-  public Deferred<Boolean> loadRoot(final boolean is_testing) {
-    if (tree == null || tree.getTreeId() < 1) {
-      throw new IllegalStateException("Tree has not been set or is invalid");
-    }
-    
-    /**
-     * Final callback executed after the storage put completed
-     */
-    final class NewRootCB implements Callback<Deferred<Boolean>, 
-      ArrayList<Object>> {
+  public static Deferred<Branch> loadOrInitializeRoot(final TSDB tsdb, 
+      final int tree_id, final boolean is_testing) {
 
+    /**
+     * Final callback executed after the storage put completed. It also caches
+     * the root branch so we don't keep calling and re-calling it, returning a
+     * copy for the local TreeBuilder to use
+     */
+    final class NewRootCB implements Callback<Deferred<Branch>, 
+    ArrayList<Object>> {
+
+      final Branch root;
+      
+      public NewRootCB(final Branch root) {
+        this.root = root;
+      }
+      
       @Override
-      public Deferred<Boolean> call(final ArrayList<Object> storage_call) 
+      public Deferred<Branch> call(final ArrayList<Object> storage_call) 
         throws Exception {
-        LOG.info("Initialized root branch for tree: " + tree.getTreeId());
-        return Deferred.fromResult(true);
+        LOG.info("Initialized root branch for tree: " + tree_id);
+        tree_roots.put(tree_id, root);
+        return Deferred.fromResult(new Branch(root));
       }
       
     }
@@ -330,32 +392,40 @@ public final class TreeBuilder {
      * Called after attempting to fetch the branch. If the branch didn't exist
      * then we'll create a new one and save it if told to
      */
-    final class RootCB implements Callback<Deferred<Boolean>, Branch> {
+    final class RootCB implements Callback<Deferred<Branch>, Branch> {
 
       @Override
-      public Deferred<Boolean> call(final Branch branch) throws Exception {
+      public Deferred<Branch> call(final Branch branch) throws Exception {
         if (branch == null) {
           LOG.info("Couldn't find the root branch, initializing");
-          root = new Branch(tree.getTreeId());
+          final Branch root = new Branch(tree_id);
           root.setDisplayName("ROOT");
-          final TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
+          final TreeMap<Integer, String> root_path = 
+            new TreeMap<Integer, String>();
           root_path.put(0, "ROOT");
           root.prependParentPath(root_path);
           if (is_testing) {
-            return Deferred.fromResult(true);
+            return Deferred.fromResult(root);
           } else {
-            return root.storeBranch(tsdb, tree, true).addCallbackDeferring(new NewRootCB());
+            return root.storeBranch(tsdb, null, true).addCallbackDeferring(
+                new NewRootCB(root));
           }
         } else {
-          root = branch;
-          return Deferred.fromResult(true);
+          return Deferred.fromResult(branch);
         }
       }
       
     }
     
-    LOG.debug("Loading or initializing root for tree: " + tree.getTreeId());
-    return Branch.fetchBranchOnly(tsdb, Tree.idToBytes(tree.getTreeId()))
+    // if the root is already in cache, return it
+    final Branch cached = tree_roots.get(tree_id);
+    if (cached != null) {
+      LOG.debug("Loaded cached root for tree: " + tree_id);
+      return Deferred.fromResult(new Branch(cached));
+    }
+    
+    LOG.debug("Loading or initializing root for tree: " + tree_id);
+    return Branch.fetchBranchOnly(tsdb, Tree.idToBytes(tree_id))
       .addCallbackDeferring(new RootCB());
   }
   
@@ -387,8 +457,8 @@ public final class TreeBuilder {
     }
 
     /**
-     * Callback after loading all of the trees and then processes the TSMeta
-     * object through each tree
+     * Callback that loops through the local list of trees, processing the
+     * TSMeta through each
      */
     final class ProcessTreesCB implements Callback<Deferred<Boolean>, 
       List<Tree>> {
@@ -411,7 +481,7 @@ public final class TreeBuilder {
           if (!tree.getEnabled()) {
             continue;
           }
-          final TreeBuilder builder = new TreeBuilder(tsdb, tree);
+          final TreeBuilder builder = new TreeBuilder(tsdb, new Tree(tree));
           processed_trees.add(builder.processTimeseriesMeta(meta, false));
         }
         
@@ -421,8 +491,79 @@ public final class TreeBuilder {
       
     }
     
-    LOG.debug("Processing TSMeta through all trees: " + meta);
-    return Tree.fetchAllTrees(tsdb).addCallbackDeferring(new ProcessTreesCB());
+    /**
+     * Callback used when loading or re-loading the cached list of trees
+     */
+    final class FetchedTreesCB implements Callback<List<Tree>, List<Tree>> {
+
+      @Override
+      public List<Tree> call(final List<Tree> loaded_trees) 
+        throws Exception {
+        
+        final List<Tree> local_trees;
+        synchronized(trees) {
+          trees.clear();
+          for (final Tree tree : loaded_trees) {
+            if (tree.getEnabled()) {
+              trees.add(tree);
+            }
+          }
+          
+          local_trees = new ArrayList<Tree>(trees.size());
+          local_trees.addAll(trees);
+        }
+        
+        return local_trees;
+      }
+      
+    }
+
+    /**
+     * Since we can't use a try/catch/finally to release the lock we need to 
+     * setup an ErrBack to catch any exception thrown by the loader and
+     * release the lock before returning
+     */
+    final class ErrorCB implements Callback<Object, Exception> {
+
+      @Override
+      public Object call(final Exception e) throws Exception {
+        trees_lock.unlock();
+        throw e;
+      }
+      
+    }
+    
+    // lock to load or 
+    trees_lock.lock();
+    
+    // if we haven't loaded our trees in a while or we've just started, load
+    if (((System.currentTimeMillis() / 1000) - last_tree_load) > 300) {
+      final Deferred<List<Tree>> load_deferred = Tree.fetchAllTrees(tsdb)
+        .addCallback(new FetchedTreesCB()).addErrback(new ErrorCB());
+      last_tree_load = (System.currentTimeMillis() / 1000);
+      return load_deferred.addCallbackDeferring(new ProcessTreesCB());
+    }
+    
+    // copy the tree list so we don't hold up the other threads while we're
+    // processing
+    final List<Tree> local_trees;
+    if (trees.isEmpty()) {
+      LOG.debug("No trees were found to process the meta through");
+      return Deferred.fromResult(true);
+    }
+    
+    local_trees = new ArrayList<Tree>(trees.size());
+    local_trees.addAll(trees);
+    
+    // unlock so the next thread can get a copy of the trees and start
+    // processing
+    trees_lock.unlock();
+    
+    try {
+      return new ProcessTreesCB().call(local_trees);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to process trees", e);
+    }
   }
 
   /**
