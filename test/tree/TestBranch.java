@@ -74,6 +74,20 @@ public final class TestBranch {
   }
   
   @Test
+  public void copyConstructor() {
+    final Branch branch = buildTestBranch(tree);
+    final Branch copy = new Branch(branch);
+    assertEquals(1, copy.getTreeId());
+    assertEquals("ROOT", copy.getDisplayName());
+    assertNotNull(copy.getBranches());
+    assertTrue(copy.getBranches() != branch.getBranches());
+    assertNotNull(copy.getLeaves());
+    assertTrue(copy.getLeaves() != branch.getLeaves());
+    assertNotNull(copy.getPath());
+    assertTrue(copy.getPath() != branch.getPath());
+  }
+  
+  @Test
   public void testHashCode() {
     final Branch branch = buildTestBranch(tree);
     assertEquals(2521314, branch.hashCode());

@@ -128,6 +128,24 @@ public final class Branch implements Comparable<Branch> {
     this.tree_id = tree_id;
   }
   
+  /**
+   * Copy constructor that creates a completely independent copy of the original
+   * @param original The original object to copy from
+   */
+  public Branch(final Branch original) {
+    tree_id = original.tree_id;
+    display_name = original.display_name;
+    if (original.leaves != null) {
+      leaves = new HashMap<Integer, Leaf>(original.leaves);
+    }
+    if (original.branches != null) {
+      branches = new TreeSet<Branch>(original.branches);
+    }
+    if (original.path != null) {
+      path = new TreeMap<Integer, String>(original.path);
+    }
+  }
+  
   /** @return Returns the {@code display_name}'s hash code or 0 if it's not set */
   @Override
   public int hashCode() {
