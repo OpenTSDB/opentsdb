@@ -499,7 +499,7 @@ class HttpJsonSerializer extends HttpSerializer {
           }
           json.writeEndObject();
           
-          json.writeFieldName("aggregateTags");
+          json.writeFieldName("aggregated_tags");
           json.writeStartArray();
           if (dps.getAggregatedTags() != null) {
             for (String atag : dps.getAggregatedTags()) {
