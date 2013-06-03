@@ -133,5 +133,4 @@ public final class TestAggregators {
     final double variance = squaresum / values.length;
     return Math.sqrt(variance);
   }
-
 }
