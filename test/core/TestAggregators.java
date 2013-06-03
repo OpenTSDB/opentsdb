@@ -33,7 +33,7 @@ public final class TestAggregators {
    * this way because our numbers can be extremely large and if you change
    * the scale of the numbers a static precision may no longer work
    */
-  private static final double EPSILON_PERCENTAGE = 0.001;
+  private static final double EPSILON_PERCENTAGE = 0.0001;
 
   /** Helper class to hold a bunch of numbers we can iterate on.  */
   private static final class Numbers implements Aggregator.Longs, Aggregator.Doubles {
@@ -44,14 +44,17 @@ public final class TestAggregators {
       this.numbers = numbers;
     }
 
+    @Override
     public boolean hasNextValue() {
-      return i + 1 < numbers.length;
+      return i < numbers.length;
     }
 
+    @Override
     public long nextLongValue() {
       return numbers[i++];
     }
 
+    @Override
     public double nextDoubleValue() {
       return numbers[i++];
     }
@@ -67,12 +70,13 @@ public final class TestAggregators {
     for (int i = 0; i < values.length; i++) {
       values[i] = i;
     }
-    // Expected value calculated by Octave:
-    //   octave-3.4.0:15> printf("%.12f\n", std([0:9999]));
-    final double expected = 2886.895679907168D;
-    // Normally we should find 2886.4626563783336, which is off by almost 0.5
-    // from what Octave finds.  I wonder why.
-    final double epsilon = 0.44;
+    // Expected value calculated by NumPy
+    // $ python2.7
+    // >>> import numpy
+    // >>> numpy.std(range(10000))
+    // 2886.7513315143719
+    final double expected = 2886.7513315143719D;
+    final double epsilon = 0.01;
     checkSimilarStdDev(values, expected, epsilon);
   }
 
@@ -88,6 +92,22 @@ public final class TestAggregators {
     checkSimilarStdDev(values, expected, epsilon);
   }
 
+  @Test
+  public void testStdDevNoDeviation() {
+    final long[] values = {3,3,3};
+
+    final double expected = 0;
+    checkSimilarStdDev(values, expected, 0);
+  }
+
+  @Test
+  public void testStdDevFewDataInputs() {
+    final long[] values = {1,2};
+
+    final double expected = 0.5;
+    checkSimilarStdDev(values, expected, 0);
+  }
+
   private static void checkSimilarStdDev(final long[] values,
                                          final double expected,
                                          final double epsilon) {
@@ -101,12 +121,10 @@ public final class TestAggregators {
 
   private static double naiveStdDev(long[] values) {
     double sum = 0;
-    double mean = 0;
-
     for (final double value : values) {
       sum += value;
     }
-    mean = sum / values.length;
+    double mean = sum / values.length;
 
     double squaresum = 0;
     for (final double value : values) {
