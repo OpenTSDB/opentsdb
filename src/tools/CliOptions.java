@@ -128,7 +128,7 @@ final class CliOptions {
         config.overrideConfig("tsd.storage.hbase.zk_quorum",
             entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--zkbasedir")) {
-        config.overrideConfig("tsd.storage.hbase.zk_base_dir",
+        config.overrideConfig("tsd.storage.hbase.zk_basedir",
             entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--port")) {
         config.overrideConfig("tsd.network.port", entry.getValue());
