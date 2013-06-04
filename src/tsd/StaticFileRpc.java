@@ -29,7 +29,7 @@ final class StaticFileRpc implements HttpRpc {
     throws IOException {
     final String uri = query.request().getUri();
     if ("/favicon.ico".equals(uri)) {
-      query.sendFile(tsdb.getConfig().getString("tsd.http.staticroot") 
+      query.sendFile(tsdb.getConfig().getString("tsd.http.staticroot")
           + "/favicon.ico", 31536000 /*=1yr*/);
       return;
     }
@@ -43,8 +43,8 @@ final class StaticFileRpc implements HttpRpc {
     }
     final int questionmark = uri.indexOf('?', 3);
     final int pathend = questionmark > 0 ? questionmark : uri.length();
-    query.sendFile(tsdb.getConfig().getString("tsd.http.staticroot") 
-                 + uri.substring(3, pathend),
+    query.sendFile(tsdb.getConfig().getString("tsd.http.staticroot")
+                 + uri.substring(2, pathend),  // Drop the "/s"
                    uri.contains("nocache") ? 0 : 31536000 /*=1yr*/);
   }
 }
