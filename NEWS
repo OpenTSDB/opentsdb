@@ -15,6 +15,12 @@ Noteworthy changes:
   - New store data points over HTTP via JSON
   - New optional chunked encoding support for HTTP requests, configurable
 
+* Version 1.1.1 (2013-??-??) [???????]
+
+Noteworthy changes:
+  - UIDs are now assigned in a lock-less fashion.
+
+
 * Version 1.1.0 (2013-03-08) [12879d7]
 
 Noteworthy changes:

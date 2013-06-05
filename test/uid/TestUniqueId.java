@@ -12,26 +12,22 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.uid;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.AtomicIncrementRequest;
-import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
-import org.hbase.async.HBaseRpc;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
-import org.hbase.async.RowLock;
-import org.hbase.async.RowLockRequest;
 import org.hbase.async.Scanner;
 
 import org.junit.Test;
@@ -49,6 +45,7 @@ import org.mockito.stubbing.Answer;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -67,7 +64,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HBaseClient.class, RowLock.class, TSDB.class, Config.class })
+@PrepareForTest({ HBaseClient.class, TSDB.class, Config.class })
 public final class TestUniqueId {
 
   private HBaseClient client = mock(HBaseClient.class);
@@ -264,18 +261,15 @@ public final class TestUniqueId {
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
     
-    RowLock fake_lock = mock(RowLock.class);
-    when(client.lockRow(anyRowLockRequest()))
-      .thenReturn(Deferred.fromResult(fake_lock));
-
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
     // Watch this! ______,^   I'm writing C++ in Java!
-    when(client.put(anyPut()))
-      .thenReturn(Deferred.fromResult(null));
 
-    // Update once HBASE-2292 is fixed:
-    whenFakeIcvThenReturn(4L);
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true));
 
     assertArrayEquals(id, uid.getOrCreateId("foo"));
     // Should be a cache hit since we created that entry.
@@ -283,16 +277,15 @@ public final class TestUniqueId {
     // Should be a cache hit too for the same reason.
     assertEquals("foo", uid.getName(id));
 
-    // The +1's below are due to the whenFakeIcvThenReturn() hack.
-    verify(client, times(2+1)).get(anyGet()); // Initial Get + double check.
-    verify(client).lockRow(anyRowLockRequest());  // The .maxid row.
-    verify(client, times(2+1)).put(anyPut()); // reverse + forward mappings.
-    verify(client).unlockRow(fake_lock);     // The .maxid row.
+    verify(client).get(anyGet()); // Initial Get.
+    verify(client).atomicIncrement(incrementForRow(MAXID));
+    // Reverse + forward mappings.
+    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
   }
 
   @PrepareForTest({HBaseClient.class, UniqueId.class})
-  @Test  // Test the creation of an ID when unable to acquire the row lock.
-  public void getOrCreateIdUnableToAcquireRowLock() throws Exception {
+  @Test  // Test the creation of an ID when unable to increment MAXID
+  public void getOrCreateIdUnableToIncrementMaxId() throws Exception {
     PowerMockito.mockStatic(Thread.class);
 
     uid = new UniqueId(client, table, kind, 3);
@@ -302,7 +295,7 @@ public final class TestUniqueId {
     // Watch this! ______,^   I'm writing C++ in Java!
 
     HBaseException hbe = fakeHBaseException();
-    when(client.lockRow(anyRowLockRequest()))
+    when(client.atomicIncrement(incrementForRow(MAXID)))
       .thenThrow(hbe);
     PowerMockito.doNothing().when(Thread.class); Thread.sleep(anyInt());
 
@@ -315,8 +308,7 @@ public final class TestUniqueId {
   }
 
   @Test  // Test the creation of an ID with a race condition.
-  @PrepareForTest({HBaseClient.class, RowLock.class, Deferred.class, 
-    TSDB.class, Config.class })
+  @PrepareForTest({HBaseClient.class, Deferred.class})
   public void getOrCreateIdAssignIdWithRaceCondition() {
     // Simulate a race between client A and client B.
     // A does a Get and sees that there's no ID for this name.
@@ -325,89 +317,66 @@ public final class TestUniqueId {
     // Then A attempts to go through the process and should discover that the
     // ID has already been assigned.
 
-    uid = new UniqueId(client, table, kind, 3);  // Used by client A.
-    final TSDB tsdb = mock(TSDB.class);
-    HBaseClient client_b = mock(HBaseClient.class);
-    final UniqueId uid_b = new UniqueId(client_b, table, kind, 3);  // for client B.
-    final Config config = mock(Config.class);
-    when(config.enable_meta_tracking()).thenReturn(false);
-    when(tsdb.getConfig()).thenReturn(config);
-    uid.setTSDB(tsdb);
-    uid_b.setTSDB(tsdb);
+    uid = new UniqueId(client, table, kind, 3); // Used by client A.
+    HBaseClient client_b = mock(HBaseClient.class); // For client B.
+    final UniqueId uid_b = new UniqueId(client_b, table, kind, 3);
     
     final byte[] id = { 0, 0, 5 };
     final byte[] byte_name = { 'f', 'o', 'o' };
+    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(byte_name, ID, kind_array, id));
 
-    final Deferred<ArrayList<KeyValue>> d1 = 
-      PowerMockito.spy(new Deferred<ArrayList<KeyValue>>());
-    final Deferred<ArrayList<KeyValue>> d2;
-    {
-      final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-      kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-      d2 = Deferred.fromResult(kvs);
-    }
+    @SuppressWarnings("unchecked")
+    final Deferred<ArrayList<KeyValue>> d = mock(Deferred.class);
     when(client.get(anyGet()))
-      .thenReturn(d1)  // For A's the first attempt.
-      .thenReturn(d2);    // For A's second attempt.
+      .thenReturn(d)
+      .thenReturn(Deferred.fromResult(kvs));
 
-    final Answer<byte[]> the_race = new Answer<byte[]>() {
-      public byte[] answer(
-          final InvocationOnMock unused_invocation) throws Exception {
-        // While answering A's first Get, B doest a full getOrCreateId.
+    final Answer<Deferred<byte[]>> the_race = new Answer<Deferred<byte[]>>() {
+      public Deferred<byte[]> answer(final InvocationOnMock unused_invocation) {
+        // While answering A's first Get, B does a full getOrCreateId.
         assertArrayEquals(id, uid_b.getOrCreateId("foo"));
-        d1.callback(null);
-        Object result = d1.join();  // Throws.
-        fail("Should never be here: " + result);
-        return null;
+        return Deferred.<byte[]>fromResult(null);
       }
     };
 
-    // Start the race when answering A's first Get.
-    try {
-      PowerMockito.doAnswer(the_race).when(d1).joinUninterruptibly();
-    } catch (Exception e) {
-      fail("Should never happen: " + e);
-    }
+    // trigger the race condition when the initial get request callback is added
+    when(d.addCallback(anyByteCB())).thenAnswer(the_race);
 
-    RowLock fake_lock_a = mock(RowLock.class);
-    when(client.lockRow(anyRowLockRequest()))
-      .thenReturn(Deferred.fromResult(fake_lock_a));
-
-    when(client_b.get(anyGet()))      // null  =>  ID doesn't exist.
+    when(client_b.get(anyGet())) // null => ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
+    // Watch this! ______,^ I'm writing C++ in Java!
 
-    RowLock fake_lock_b = mock(RowLock.class);
-    when(client_b.lockRow(anyRowLockRequest()))
-      .thenReturn(Deferred.fromResult(fake_lock_b));
+    when(client_b.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(5L));
 
-    // Update once HBASE-2292 is fixed:
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(MAXID, ID, kind_array, Bytes.fromLong(4L)));
-    when(client_b.get(getForRow(MAXID)))
-      .thenReturn(Deferred.fromResult(kvs));
+    when(client_b.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true));
 
-    when(client_b.put(anyPut()))
-      .thenReturn(Deferred.fromResult(null));
+    // Now that B is finished, A proceeds and allocates a UID that will be
+    // wasted, and creates the reverse mapping, but fails at creating the
+    // forward mapping.
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(6L));
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true)) // Orphan reverse mapping.
+      .thenReturn(Deferred.fromResult(false)); // Already CAS'ed by A.
 
     // Start the execution.
     assertArrayEquals(id, uid.getOrCreateId("foo"));
 
-    // The +1's below are due to the whenFakeIcvThenReturn() hack.
     // Verify the order of execution too.
     final InOrder order = inOrder(client, client_b);
-    order.verify(client).get(anyGet());             // 1st Get for A.
-    order.verify(client_b).get(anyGet());           // 1st Get for B.
-    order.verify(client_b).lockRow(anyRowLockRequest());  // B starts the process...
-    order.verify(client_b, times(1+1)).get(anyGet()); // double check for B.
-    order.verify(client_b, times(2+1)).put(anyPut()); // both mappings.
-    order.verify(client_b).unlockRow(fake_lock_b);  // ... B finishes.
-    order.verify(client).lockRow(anyRowLockRequest());  // A starts the process...
-    order.verify(client).get(anyGet());             // Finds the ID added by B
-    order.verify(client).unlockRow(fake_lock_a);    // ... and stops here.
-    // Things A shouldn't do because B did them already:
-    verify(client, never()).atomicIncrement(any(AtomicIncrementRequest.class));
-    verify(client, never()).put(anyPut());
+    order.verify(client).get(anyGet()); // 1st Get for A.
+    order.verify(client_b).get(anyGet()); // 1st Get for B.
+    order.verify(client_b).atomicIncrement(incrementForRow(MAXID));
+    order.verify(client_b, times(2)).compareAndSet(anyPut(), // both mappings.
+                                                   emptyArray());
+    order.verify(client).atomicIncrement(incrementForRow(MAXID));
+    order.verify(client, times(2)).compareAndSet(anyPut(), // both mappings.
+                                                 emptyArray());
+    order.verify(client).get(anyGet()); // A retries and gets it.
   }
 
   @Test
@@ -415,16 +384,13 @@ public final class TestUniqueId {
   public void getOrCreateIdWithOverflow() {
     uid = new UniqueId(client, table, kind, 1);  // IDs are only on 1 byte.
 
-    RowLock fake_lock = mock(RowLock.class);
-    when(client.lockRow(anyRowLockRequest()))
-      .thenReturn(Deferred.fromResult(fake_lock));
-
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
     // Watch this! ______,^   I'm writing C++ in Java!
 
     // Update once HBASE-2292 is fixed:
-    whenFakeIcvThenReturn(Byte.MAX_VALUE - Byte.MIN_VALUE);
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(256L));
 
     try {
       final byte[] id = uid.getOrCreateId("foo");
@@ -434,10 +400,8 @@ public final class TestUniqueId {
       // OK.
     }
 
-    // The +1 below is due to the whenFakeIcvThenReturn() hack.
-    verify(client, times(2+1)).get(anyGet());// Initial Get + double check.
-    verify(client).lockRow(anyRowLockRequest());      // The .maxid row.
-    verify(client).unlockRow(fake_lock);     // The .maxid row.
+    verify(client, times(1)).get(anyGet());  // Initial Get.
+    verify(client).atomicIncrement(incrementForRow(MAXID));
   }
 
   @Test  // ICV throws an exception, we can't get an ID.
@@ -449,33 +413,26 @@ public final class TestUniqueId {
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
     
-    RowLock fake_lock = mock(RowLock.class);
-    when(client.lockRow(anyRowLockRequest()))
-      .thenReturn(Deferred.fromResult(fake_lock));
-
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
     // Watch this! ______,^   I'm writing C++ in Java!
 
     // Update once HBASE-2292 is fixed:
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(MAXID, ID, kind_array, Bytes.fromLong(4L)));
-
     HBaseException hbe = fakeHBaseException();
-    when(client.get(getForRow(MAXID)))
+    when(client.atomicIncrement(incrementForRow(MAXID)))
       .thenThrow(hbe)
-      .thenReturn(Deferred.fromResult(kvs));
+      .thenReturn(Deferred.fromResult(5L));
 
-    when(client.put(anyPut()))
-      .thenReturn(Deferred.fromResult(null));
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true));
 
     final byte[] id = { 0, 0, 5 };
     assertArrayEquals(id, uid.getOrCreateId("foo"));
-    // The +2/+1 below are due to the whenFakeIcvThenReturn() hack.
-    verify(client, times(4+2)).get(anyGet());  // Initial Get + double check x2.
-    verify(client, times(2)).lockRow(anyRowLockRequest());   // The .maxid row x2.
-    verify(client, times(2+1)).put(anyPut());         // Both mappings.
-    verify(client, times(2)).unlockRow(fake_lock);  // The .maxid row x2.
+    verify(client, times(2)).get(anyGet()); // Initial Get + retry.
+    // First increment (failed) + retry.
+    verify(client, times(2)).atomicIncrement(incrementForRow(MAXID));
+    // Reverse + forward mappings.
+    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
   }
 
   @Test  // Test that the reverse mapping is created before the forward one.
@@ -487,19 +444,15 @@ public final class TestUniqueId {
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
     
-    RowLock fake_lock = mock(RowLock.class);
-    when(client.lockRow(anyRowLockRequest()))
-      .thenReturn(Deferred.fromResult(fake_lock));
-
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
     // Watch this! ______,^   I'm writing C++ in Java!
 
-    when(client.put(anyPut()))
-      .thenReturn(Deferred.fromResult(null));
+    when(client.atomicIncrement(incrementForRow(MAXID)))
+      .thenReturn(Deferred.fromResult(6L));
 
-    // Update once HBASE-2292 is fixed:
-    whenFakeIcvThenReturn(5L);
+    when(client.compareAndSet(anyPut(), emptyArray()))
+      .thenReturn(Deferred.fromResult(true));
 
     final byte[] id = { 0, 0, 6 };
     final byte[] row = { 'f', 'o', 'o' };
@@ -507,16 +460,9 @@ public final class TestUniqueId {
 
     final InOrder order = inOrder(client);
     order.verify(client).get(anyGet());            // Initial Get.
-    order.verify(client).lockRow(anyRowLockRequest());  // The .maxid row.
-    // Update once HBASE-2292 is fixed:
-    // HACK HACK HACK
-    order.verify(client).get(getForRow(new byte[] { 'f', 'o', 'o' }));
-    order.verify(client).get(getForRow(MAXID));    // "ICV".
-    order.verify(client).put(putForRow(MAXID));    // "ICV".
-    // end HACK HACK HACK
-    order.verify(client).put(putForRow(id));
-    order.verify(client).put(putForRow(row));
-    order.verify(client).unlockRow(fake_lock);     // The .maxid row.
+    order.verify(client).atomicIncrement(incrementForRow(MAXID));
+    order.verify(client).compareAndSet(putForRow(id), emptyArray());
+    order.verify(client).compareAndSet(putForRow(row), emptyArray());
   }
 
   @PrepareForTest({HBaseClient.class, Scanner.class})
@@ -739,27 +685,22 @@ public final class TestUniqueId {
   // Helper functions. //
   // ----------------- //
 
+  private static byte[] emptyArray() {
+    return eq(HBaseClient.EMPTY_ARRAY);
+  }
+
   private static GetRequest anyGet() {
     return any(GetRequest.class);
   }
 
-  private static byte[] extractKey(final HBaseRpc rpc) {
-    try {
-      final Field key = HBaseRpc.class.getDeclaredField("key");
-      key.setAccessible(true);
-      return (byte[]) key.get(rpc);
-    } catch (Exception e) {
-      throw new RuntimeException("failed to extract the key out of " + rpc, e);
-    }
-  }
-
-  private static GetRequest getForRow(final byte[] row) {
-    return argThat(new ArgumentMatcher<GetRequest>() {
-      public boolean matches(Object get) {
-        return Arrays.equals(extractKey((GetRequest) get), row);
+  private static AtomicIncrementRequest incrementForRow(final byte[] row) {
+    return argThat(new ArgumentMatcher<AtomicIncrementRequest>() {
+      public boolean matches(Object incr) {
+        return Arrays.equals(((AtomicIncrementRequest) incr).key(), row);
       }
       public void describeTo(org.hamcrest.Description description) {
-        description.appendText("GetRequest for row " + Arrays.toString(row));
+        description.appendText("AtomicIncrementRequest for row "
+                               + Arrays.toString(row));
       }
     });
   }
@@ -767,20 +708,21 @@ public final class TestUniqueId {
   private static PutRequest anyPut() {
     return any(PutRequest.class);
   }
+  
+  @SuppressWarnings("unchecked")
+  private static Callback<byte[], ArrayList<KeyValue>> anyByteCB() {
+    return any(Callback.class);
+  }
 
   private static PutRequest putForRow(final byte[] row) {
     return argThat(new ArgumentMatcher<PutRequest>() {
       public boolean matches(Object put) {
-        return Arrays.equals(extractKey((PutRequest) put), row);
+        return Arrays.equals(((PutRequest) put).key(), row);
       }
       public void describeTo(org.hamcrest.Description description) {
         description.appendText("PutRequest for row " + Arrays.toString(row));
       }
     });
-  }
-
-  private static RowLockRequest anyRowLockRequest() {
-    return any(RowLockRequest.class);
   }
 
   private static HBaseException fakeHBaseException() {
@@ -794,16 +736,5 @@ public final class TestUniqueId {
   }
 
   private static final byte[] MAXID = { 0 };
-
-  /** Temporary hack until we can do proper ICVs -- see HBASE 2292. */
-  private void whenFakeIcvThenReturn(final long value) {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(MAXID, ID, kind_array, Bytes.fromLong(value)));
-    Deferred<ArrayList<KeyValue>> maxid_result = Deferred.fromResult(kvs);
-    when(client.get(getForRow(MAXID)))
-      .thenReturn(maxid_result);
-    when(client.put(anyPut()))
-      .thenReturn(Deferred.fromResult(null));
-  }
 
 }
