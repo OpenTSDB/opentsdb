@@ -91,6 +91,7 @@ tsdb_SRC := \
 	src/tsd/PutDataPointRpc.java	\
 	src/tsd/QueryRpc.java	\
 	src/tsd/RpcHandler.java	\
+	src/tsd/RTPublisher.java	\
 	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
 	src/tsd/StatsRpc.java	\
@@ -153,6 +154,7 @@ test_SRC := \
 	test/tsd/TestHttpQuery.java	\
 	test/tsd/TestPutRpc.java	\
 	test/tsd/TestQueryRpc.java	\
+	test/tsd/TestRTPublisher.java	\
 	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestSuggestRpc.java	\
 	test/tsd/TestTreeRpc.java	\
@@ -168,13 +170,15 @@ test_plugin_SRC := \
   test/plugin/DummyPluginA.java \
   test/plugin/DummyPluginB.java \
   test/search/DummySearchPlugin.java \
-  test/tsd/DummyHttpSerializer.java
+  test/tsd/DummyHttpSerializer.java \
+  test/tsd/DummyRTPublisher.java
 
 # Do NOT include the test dir path, just the META portion
 test_plugin_SVCS := \
   META-INF/services/net.opentsdb.plugin.DummyPlugin \
   META-INF/services/net.opentsdb.search.SearchPlugin \
-  META-INF/services/net.opentsdb.tsd.HttpSerializer
+  META-INF/services/net.opentsdb.tsd.HttpSerializer \
+  META-INF/services/net.opentsdb.tsd.RTPublisher
   
 test_plugin_MF := \
   test/META-INF/MANIFEST.MF
