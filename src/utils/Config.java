@@ -312,6 +312,8 @@ public class Config {
     default_map.put("tsd.core.meta.enable_tracking", "false");
     default_map.put("tsd.core.plugin_path", "");
     default_map.put("tsd.core.tree.enable_processing", "false");
+    default_map.put("tsd.rtpublisher.enable", "false");
+    default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.stats.canonical", "false");
