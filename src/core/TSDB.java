@@ -800,7 +800,7 @@ public final class TSDB {
    */
   public void indexTSMeta(final TSMeta meta) {
     if (search != null) {
-      search.indexTSMeta(meta);
+      search.indexTSMeta(meta).addErrback(new PluginError());
     }
   }
   
@@ -811,7 +811,7 @@ public final class TSDB {
    */
   public void deleteTSMeta(final String tsuid) {
     if (search != null) {
-      search.deleteTSMeta(tsuid);
+      search.deleteTSMeta(tsuid).addErrback(new PluginError());
     }
   }
   
@@ -822,7 +822,7 @@ public final class TSDB {
    */
   public void indexUIDMeta(final UIDMeta meta) {
     if (search != null) {
-      search.indexUIDMeta(meta);
+      search.indexUIDMeta(meta).addErrback(new PluginError());
     }
   }
   
@@ -833,7 +833,7 @@ public final class TSDB {
    */
   public void deleteUIDMeta(final UIDMeta meta) {
     if (search != null) {
-      search.deleteUIDMeta(meta);
+      search.deleteUIDMeta(meta).addErrback(new PluginError());
     }
   }
   
@@ -844,7 +844,7 @@ public final class TSDB {
    */
   public void indexAnnotation(final Annotation note) {
     if (search != null) {
-      search.indexAnnotation(note);
+      search.indexAnnotation(note).addErrback(new PluginError());
     }
   }
   
@@ -855,7 +855,7 @@ public final class TSDB {
    */
   public void deleteAnnotation(final Annotation note) {
     if (search != null) {
-      search.deleteAnnotation(note);
+      search.deleteAnnotation(note).addErrback(new PluginError());
     }
   }
   
@@ -886,6 +886,19 @@ public final class TSDB {
     }
     
     return search.executeQuery(query);
+  }
+  
+  /**
+   * Simply logs plugin errors when they're thrown by attaching as an errorback. 
+   * Without this, exceptions will just disappear (unless logged by the plugin) 
+   * since we don't wait for a result.
+   */
+  final class PluginError implements Callback<Object, Exception> {
+    @Override
+    public Object call(final Exception e) throws Exception {
+      LOG.error("Exception from Search plugin indexer", e);
+      return null;
+    }
   }
   
   // ------------------ //
