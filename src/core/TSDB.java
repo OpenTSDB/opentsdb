@@ -32,8 +32,6 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
-import org.hbase.async.RowLock;
-import org.hbase.async.RowLockRequest;
 
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
@@ -709,90 +707,7 @@ public final class TSDB {
   public byte[] dataTable() {
     return this.table;
   }
-  
-  /**
-   * Attempts to run the PutRequest given in argument, retrying if needed.
-   * <p>
-   * <b>Note:</b> Puts are synchronized.
-   * <p>
-   * @param put The PutRequest to execute.
-   * @param attempts The maximum number of attempts.
-   * @param wait The initial amount of time in ms to sleep for after a
-   * failure.  This amount is doubled after each failed attempt.
-   * @throws HBaseException if all the attempts have failed.  This exception
-   * will be the exception of the last attempt.
-   * @since 2.0
-   */
-  public void hbasePutWithRetry(final PutRequest put, short attempts, short wait)
-    throws HBaseException {
-    put.setBufferable(false);  // TODO(tsuna): Remove once this code is async.
-    while (attempts-- > 0) {
-      try {
-        client.put(put).joinUninterruptibly();
-        return;
-      } catch (HBaseException e) {
-        if (attempts > 0) {
-          LOG.error("Put failed, attempts left=" + attempts
-                    + " (retrying in " + wait + " ms), put=" + put, e);
-          try {
-            Thread.sleep(wait);
-          } catch (InterruptedException ie) {
-            throw new RuntimeException("interrupted", ie);
-          }
-          wait *= 2;
-        } else {
-          throw e;
-        }
-      } catch (Exception e) {
-        LOG.error("WTF?  Unexpected exception type, put=" + put, e);
-      }
-    }
-    throw new IllegalStateException("This code should never be reached!");
-  }
-  
-  /**
-   * Attempt to acquire a lock on the given row
-   * <b>Warning:</b> Caller MUST release this lock or it will sit there for
-   * minutes (by default)
-   * @param table The table to acquire a lock on
-   * @param row The row to acquire a lock on
-   * @param attempts The maximum number of attempts to try, must be 1 or greater
-   * @return A row lock if successful
-   * @throws HBaseException if the lock could not be acquired
-   * @since 2.0
-   */
-  public RowLock hbaseAcquireLock(final byte[] table, final byte[] row, 
-      short attempts) {
-    final short max_attempts = attempts;
-    HBaseException hbe = null;
-    while (attempts-- > 0) {
-      RowLock lock;
-      try {
-        lock = client.lockRow(
-            new RowLockRequest(table, row)).joinUninterruptibly();
-      } catch (HBaseException e) {
-        try {
-          Thread.sleep(61000 / max_attempts);
-        } catch (InterruptedException ie) {
-          break;  // We've been asked to stop here, let's bail out.
-        }
-        hbe = e;
-        continue;
-      } catch (Exception e) {
-        throw new RuntimeException("Should never be here", e);
-      }
-      if (lock == null) {  // Should not happen.
-        LOG.error("WTF, got a null pointer as a RowLock!");
-        continue;
-      }
-      return lock;
-    }
-    if (hbe == null) {
-      throw new IllegalStateException("Should never happen!");
-    }
-    throw hbe;
-  }
- 
+
   /**
    * Index the given timeseries meta object via the configured search plugin
    * @param meta The meta data object to index
