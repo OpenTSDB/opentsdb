@@ -1,0 +1,3 @@
+/etc/init.d/opentsdb
+/etc/opentsdb/opentsdb.conf
+/etc/opentsdb/logback.xml

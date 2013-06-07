@@ -234,6 +234,7 @@ edit_tsdb_script := srcdir=''; test -f ./$$script.in || srcdir=$(srcdir)/; \
         sed -e "s:@pkgdatadir[@]:$$pkgdatadir:g" \
             -e "s:@abs_srcdir[@]:$$abs_srcdir:g" \
             -e "s:@abs_builddir[@]:$$abs_builddir:g" \
+            -e "s:@configdir[@]:$$configdir:g" \
             $${srcdir}$$script.in >$$script.tmp
 
 tsdb: $(srcdir)/tsdb.in
@@ -512,6 +513,37 @@ $(RPM): opentsdb.spec
 	  test -f "$$rpm" && mv "$$rpm" $@ && break; \
 	done
 	if test -d noarch; then rmdir noarch; fi
+
+debian: dist staticroot
+	$(mkdir_p) $(distdir)/debian
+	$(mkdir_p) $(distdir)/debian/DEBIAN
+	$(mkdir_p) $(distdir)/debian/etc/init.d
+	$(mkdir_p) $(distdir)/debian/etc/opentsdb
+	$(mkdir_p) $(distdir)/debian/usr/share/opentsdb/bin
+	$(mkdir_p) $(distdir)/debian/usr/share/opentsdb/lib
+	$(mkdir_p) $(distdir)/debian/usr/share/opentsdb/plugins
+	$(mkdir_p) $(distdir)/debian/usr/share/opentsdb/static
+	$(mkdir_p) $(distdir)/debian/usr/share/opentsdb/tools
+	cp $(top_srcdir)/build-aux/deb/logback.xml $(distdir)/debian/etc/opentsdb
+	cp $(top_srcdir)/build-aux/deb/opentsdb.conf $(distdir)/debian/etc/opentsdb
+	cp $(srcdir)/src/mygnuplot.sh $(distdir)/debian/usr/share/opentsdb/bin
+	script=tsdb; pkgdatadir='/usr/share/opentsdb'; configdir='/etc/opentsdb'; \
+       abs_srcdir=''; abs_builddir=''; $(edit_tsdb_script)
+	cat tsdb.tmp >"$(distdir)/debian/usr/share/opentsdb/bin/tsdb"
+	rm -f tsdb.tmp
+	chmod 755 $(distdir)/debian/usr/share/opentsdb/bin/tsdb
+	cp $(top_srcdir)/build-aux/deb/control/* $(distdir)/debian/DEBIAN
+	sed -e "s:@version[@]:$(PACKAGE_VERSION):g" \
+	     $(distdir)/debian/DEBIAN/control >$(distdir)/debian/DEBIAN/control.tmp
+	mv $(distdir)/debian/DEBIAN/control.tmp $(distdir)/debian/DEBIAN/control
+	chmod 755 $(distdir)/debian/DEBIAN/*
+	cp $(top_srcdir)/build-aux/deb/init.d/opentsdb $(distdir)/debian/etc/init.d
+	cp $(jar) $(distdir)/debian/usr/share/opentsdb/lib
+	cp -r staticroot/* $(distdir)/debian/usr/share/opentsdb/static
+	`for dep_jar in $(tsdb_DEPS); do cp $$dep_jar \
+	     $(distdir)/debian/usr/share/opentsdb/lib; done;`
+	cp $(top_srcdir)/tools/* $(distdir)/debian/usr/share/opentsdb/tools
+	dpkg -b $(distdir)/debian $(distdir)/optsdb-$(PACKAGE_VERSION)_all.deb
 
 .PHONY: jar doc check gwtc gwtdev printdeps staticroot gwttsd rpm
 include third_party/include.mk

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <!--<jmxConfigurator/>-->
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>
+        %d{ISO8601} %-5level [%thread] %logger{0}: %msg%n
+      </pattern>
+    </encoder>
+  </appender>
+  
+  <appender name="CYCLIC" class="ch.qos.logback.core.read.CyclicBufferAppender">
+    <MaxSize>1024</MaxSize>
+  </appender>
+  
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>/var/log/opentsdb/opentsdb.log</file>
+    <append>true</append>
+    
+    <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+      <fileNamePattern>/var/log/opentsdb/opentsdb.log.%i</fileNamePattern>
+      <minIndex>1</minIndex>
+      <maxIndex>3</maxIndex>
+    </rollingPolicy>
+
+    <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+      <maxFileSize>128MB</maxFileSize>
+    </triggeringPolicy>
+
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} %-5level [%logger{0}.%M] - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="org.apache.zookeeper" level="INFO"/>
+  <logger name="org.hbase.async" level="INFO"/>
+  <logger name="com.stumbleupon.async" level="INFO"/>
+  <root level="INFO">
+    <appender-ref ref="STDOUT"/>
+    <appender-ref ref="CYCLIC"/>
+    <appender-ref ref="FILE"/>
+  </root>
+</configuration>

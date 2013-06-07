@@ -1,0 +1,41 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+	[ -z "$TSD_USER" ] && TSD_USER="opentsdb"
+	[ -z "$TSD_GROUP" ] && TSD_GROUP="opentsdb"
+	if ! getent group "$TSD_GROUP" > /dev/null 2>&1 ; then
+	    addgroup --system "$TSD_GROUP" --quiet
+	fi
+	if ! id $TSD_USER > /dev/null 2>&1 ; then
+	    adduser --system --home /usr/share/opentsdb --no-create-home \
+		--ingroup "$TSD_GROUP" --disabled-password --shell /bin/false \
+		"$TSD_USER"
+	fi
+
+	# Set user permissions on /tmp/opentsdb and /var/log/opentsdb
+	mkdir -p /tmp/opentsdb /var/log/opentsdb
+	chown -R $TSD_USER:$TSD_GROUP /tmp/opentsdb /var/log/opentsdb
+	chmod 755 /tmp/opentsdb /var/log/opentsdb
+	
+	# configuration files should not be modifiable by opentsdb user, as this can be a security issue
+	chown -Rh root:root /etc/opentsdb/*
+	chmod 755 /etc/opentsdb
+	chmod 644 /etc/opentsdb/*
+    ;;
+esac
+
+
+if [ -e "/etc/init.d/opentsdb" ]; then
+  chmod 755 /etc/init.d/opentsdb
+	update-rc.d opentsdb defaults 95 10 >/dev/null
+	
+# don't start automatically, the user will almost always need to tweak their config
+#	if [ -e "`which invoke-rc.d 2>/dev/null`" ]; then
+#		invoke-rc.d opentsdb start || true
+#	else
+#		/etc/init.d/opentsdb start || true
+#	fi
+fi
+
