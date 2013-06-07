@@ -36,6 +36,7 @@ import org.hbase.async.RowLock;
 import org.hbase.async.RowLockRequest;
 
 import net.opentsdb.tree.TreeBuilder;
+import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -96,6 +97,9 @@ public final class TSDB {
 
   /** Search indexer to use if configure */
   private SearchPlugin search = null;
+  
+  /** Optional real time pulblisher plugin to use if configured */
+  private RTPublisher rt_publisher = null;
   
   /**
    * Constructor
@@ -168,6 +172,28 @@ public final class TSDB {
           + search.version());
     } else {
       search = null;
+    }
+    
+    // load the real time publisher plugin if enabled
+    if (config.getBoolean("tsd.rtpublisher.enable")) {
+      rt_publisher = PluginLoader.loadSpecificPlugin(
+          config.getString("tsd.rtpublisher.plugin"), RTPublisher.class);
+      if (rt_publisher == null) {
+        throw new IllegalArgumentException(
+            "Unable to locate real time publisher plugin: " + 
+            config.getString("tsd.rtpublisher.plugin"));
+      }
+      try {
+        rt_publisher.initialize(this);
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "Failed to initialize real time publisher plugin", e);
+      }
+      LOG.info("Successfully initialized real time publisher plugin [" + 
+          rt_publisher.getClass().getCanonicalName() + "] version: " 
+          + rt_publisher.version());
+    } else {
+      rt_publisher = null;
     }
   }
   
@@ -455,12 +481,7 @@ public final class TSDB {
     }
 
     IncomingDataPoints.checkMetricAndTags(metric, tags);
-    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
-    if (config.enable_meta_tracking()) {
-      final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
-          Const.TIMESTAMP_BYTES);
-      TSMeta.incrementAndGetCounter(this, tsuid);
-    }
+    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);  
     final long base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     Bytes.setInt(row, (int) base_time, metrics.width());
     scheduleForCompaction(row, (int) base_time);
@@ -468,9 +489,38 @@ public final class TSDB {
                                      | flags);
     final PutRequest point = new PutRequest(table, row, FAMILY,
                                             Bytes.fromShort(qualifier), value);
+    
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
-    return client.put(point);
+    Deferred<Object> result = client.put(point);
+    if (!config.enable_meta_tracking() && rt_publisher == null) {
+      return result;
+    }
+    
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
+        Const.TIMESTAMP_BYTES); 
+    if (config.enable_meta_tracking()) {
+      TSMeta.incrementAndGetCounter(this, tsuid);
+    }
+    if (rt_publisher != null) {
+      
+      /**
+       * Simply logs real time publisher errors when they're thrown. Without
+       * this, exceptions will just disappear (unless logged by the plugin) 
+       * since we don't wait for a result.
+       */
+      final class RTError implements Callback<Object, Exception> {
+        @Override
+        public Object call(final Exception e) throws Exception {
+          LOG.error("Exception from Real Time Publisher", e);
+          return null;
+        }
+      }
+      
+      rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags)
+        .addErrback(new RTError());
+    }
+    return result;
   }
 
   /**
