@@ -16,6 +16,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.stats.StatsCollector;
 
 import com.stumbleupon.async.Deferred;
 
@@ -61,8 +62,6 @@ public abstract class SearchPlugin {
   /**
    * Called to gracefully shutdown the plugin. Implementations should close 
    * any IO they have open
-   * <b>Note:</b> Please do not throw exceptions directly, store them in the 
-   * Deferred callback chain.
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null}
    * (think of it as {@code Deferred<Void>}).
@@ -78,10 +77,16 @@ public abstract class SearchPlugin {
   public abstract String version();
   
   /**
+   * Called by the TSD when a request for statistics collection has come in. The
+   * implementation may provide one or more statistics. If no statistics are
+   * available for the implementation, simply stub the method.
+   * @param collector The collector used for emitting statistics
+   */
+  public abstract void collectStats(final StatsCollector collector);
+  
+  /**
    * Indexes a timeseries metadata object in the search engine
    * <b>Note:</b> Unique Document ID = TSUID 
-   * <b>Note:</b> Please do not throw exceptions directly, store them in the 
-   * Deferred callback chain.
    * @param meta The TSMeta to index
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null}
@@ -92,8 +97,6 @@ public abstract class SearchPlugin {
   /**
    * Called when we need to remove a timeseries meta object from the engine
    * <b>Note:</b> Unique Document ID = TSUID 
-   * <b>Note:</b> Please do not throw exceptions directly, store them in the 
-   * Deferred callback chain.
    * @param tsuid The hex encoded TSUID to remove
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null}
@@ -114,8 +117,6 @@ public abstract class SearchPlugin {
   /**
    * Called when we need to remove a UID meta object from the engine
    * <b>Note:</b> Unique Document ID = UID and the Type "TYPEUID"
-   * <b>Note:</b> Please do not throw exceptions directly, store them in the 
-   * Deferred callback chain.
    * @param meta The UIDMeta to remove
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null}

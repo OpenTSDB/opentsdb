@@ -16,6 +16,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.stats.StatsCollector;
 
 import com.stumbleupon.async.Deferred;
 
@@ -48,6 +49,11 @@ public final class DummySearchPlugin extends SearchPlugin {
     return "2.0.0";
   }
 
+  @Override
+  public void collectStats(StatsCollector collector) {
+    // Nothing to do now
+  }
+  
   @Override
   public Deferred<Object> indexTSMeta(TSMeta meta) {
     if (meta == null) {
@@ -112,5 +118,6 @@ public final class DummySearchPlugin extends SearchPlugin {
       return Deferred.fromResult(query);
     }
   }
+
   
 }
