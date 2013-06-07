@@ -702,8 +702,7 @@ public final class TestTree {
     // set pre-test values
     storage.addColumn(key, "tree".getBytes(MockBase.ASCII()), 
         (byte[])TreetoStorageJson.invoke(buildTestTree()));
-    Tree t = JSON.parseToObject((byte[])TreetoStorageJson.invoke(buildTestTree()), Tree.class);
-    System.out.println("Enabled: " + t.getEnabled());
+
     TreeRule rule = new TreeRule(1);
     rule.setField("host");
     rule.setType(TreeRuleType.TAGK);
