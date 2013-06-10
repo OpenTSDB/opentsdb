@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.TreeMap;
@@ -79,21 +78,23 @@ import com.stumbleupon.async.Deferred;
 public final class MockBase {
   private static final Charset ASCII = Charset.forName("ISO-8859-1");
   private TSDB tsdb;
-  private TreeMap<String, HashMap<String, byte[]>> storage = 
-    new TreeMap<String, HashMap<String, byte[]>>();
-  private HashSet<Integer> used_scanners = new HashSet<Integer>(2);
-  private MockScanner local_scanner;
-  private Scanner current_scanner;
+  private TreeMap<String, TreeMap<String, byte[]>> storage = 
+    new TreeMap<String, TreeMap<String, byte[]>>();
+  private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
+  private byte[] family;
   
   /**
    * Setups up mock intercepts for all of the calls. Depending on the given
    * flags, some mocks may not be enabled, allowing local unit tests to setup
    * their own mocks.
+   * @param tsdb A real TSDB (not mocked) that should have it's client set with
+   * the given mock
+   * @param client A mock client that may have been instantiated and should be
+   * captured for use with MockBase
    * @param default_get Enable the default .get() mock
    * @param default_put Enable the default .put() and .compareAndSet() mocks
    * @param default_delete Enable the default .delete() mock
    * @param default_scan Enable the Scanner mock implementation
-   * @return
    */
   public MockBase(
       final TSDB tsdb, final HBaseClient client,
@@ -137,9 +138,6 @@ public final class MockBase {
     }
     
     if (default_scan) {
-      current_scanner = mock(Scanner.class);
-      local_scanner = new MockScanner(current_scanner);
-
       // to facilitate unit tests where more than one scanner is used (i.e. in a
       // callback chain) we have to provide a new mock scanner for each new
       // scanner request. That's the way the mock scanner method knows when a
@@ -148,12 +146,9 @@ public final class MockBase {
 
         @Override
         public Scanner answer(InvocationOnMock arg0) throws Throwable {
-          if (used_scanners.contains(current_scanner.hashCode())) {            
-            current_scanner = mock(Scanner.class);
-            local_scanner = new MockScanner(current_scanner);
-          }
-          when(current_scanner.nextRows()).thenAnswer(local_scanner);
-          return current_scanner;
+          final Scanner scanner = mock(Scanner.class);
+          scanners.add(new MockScanner(scanner));
+          return scanner;
         }
         
       });      
@@ -166,6 +161,15 @@ public final class MockBase {
     .then(new MockAtomicIncrement());
   }
 
+  /**
+   * Setups up mock intercepts for all of the calls. Depending on the given
+   * flags, some mocks may not be enabled, allowing local unit tests to setup
+   * their own mocks.
+   * @param default_get Enable the default .get() mock
+   * @param default_put Enable the default .put() and .compareAndSet() mocks
+   * @param default_delete Enable the default .delete() mock
+   * @param default_scan Enable the Scanner mock implementation
+   */
   public MockBase(
       final boolean default_get, 
       final boolean default_put,
@@ -173,6 +177,11 @@ public final class MockBase {
       final boolean default_scan) throws IOException {
     this(new TSDB(new Config(false)), mock(HBaseClient.class), 
         default_get, default_put, default_delete, default_scan);
+  }
+  
+  /** @param family Sets the family for calls that need it */
+  public void setFamily(final byte[] family) {
+    this.family = family;
   }
   
   /**
@@ -186,7 +195,7 @@ public final class MockBase {
   public void addColumn(final byte[] key, final byte[] qualifier, 
       final byte[] value) {
     if (!storage.containsKey(bytesToString(key))) {
-      storage.put(bytesToString(key), new HashMap<String, byte[]>(1));
+      storage.put(bytesToString(key), new TreeMap<String, byte[]>());
     }
     storage.get(bytesToString(key)).put(bytesToString(qualifier), value);
   }
@@ -254,11 +263,11 @@ public final class MockBase {
    */
   public void dumpToSystemOut(final boolean qualifier_ascii) {
     if (storage.isEmpty()) {
-      System.out.println("Empty");
+      System.out.println("Storage is Empty");
       return;
     }
     
-    for (Map.Entry<String, HashMap<String, byte[]>> row : storage.entrySet()) {
+    for (Map.Entry<String, TreeMap<String, byte[]>> row : storage.entrySet()) {
       System.out.println("Row: " + row.getKey());
       
       for (Map.Entry<String, byte[]> column : row.getValue().entrySet()) {
@@ -308,7 +317,7 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       final GetRequest get = (GetRequest)args[0];
       final String key = bytesToString(get.key());
-      final HashMap<String, byte[]> row = storage.get(key);
+      final TreeMap<String, byte[]> row = storage.get(key);
 
       if (row == null) {
         return Deferred.fromResult((ArrayList<KeyValue>)null);
@@ -363,9 +372,9 @@ public final class MockBase {
       final PutRequest put = (PutRequest)args[0];
       final String key = bytesToString(put.key());
       
-      HashMap<String, byte[]> column = storage.get(key);
+      TreeMap<String, byte[]> column = storage.get(key);
       if (column == null) {
-        column = new HashMap<String, byte[]>();
+        column = new TreeMap<String, byte[]>();
         storage.put(key, column);
       }
       
@@ -396,13 +405,13 @@ public final class MockBase {
       final byte[] expected = (byte[])args[1];
       final String key = bytesToString(put.key());
       
-      HashMap<String, byte[]> column = storage.get(key);
+      TreeMap<String, byte[]> column = storage.get(key);
       if (column == null) {
         if (expected != null && expected.length > 0) {
           return Deferred.fromResult(false);
         }
         
-        column = new HashMap<String, byte[]>();
+        column = new TreeMap<String, byte[]>();
         storage.put(key, column);
       }
       
@@ -450,7 +459,7 @@ public final class MockBase {
         return Deferred.fromResult(new Object());
       }
       
-      HashMap<String, byte[]> column = storage.get(key);
+      TreeMap<String, byte[]> column = storage.get(key);
       final byte[][] qualfiers = delete.qualifiers();       
       
       for (byte[] qualifier : qualfiers) {
@@ -496,6 +505,7 @@ public final class MockBase {
     private String stop = null;
     private HashSet<String> scnr_qualifiers = null;
     private String regex = null;
+    private boolean called;
     
     public MockScanner(final Scanner mock_scanner) {
 
@@ -506,8 +516,17 @@ public final class MockBase {
           final Object[] args = invocation.getArguments();
           regex = (String)args[0];
           return null;
-        }      
+        }
       }).when(mock_scanner).setKeyRegexp(anyString());
+      
+      doAnswer(new Answer<Object>() {
+        @Override
+        public Object answer(InvocationOnMock invocation) throws Throwable {
+          final Object[] args = invocation.getArguments();
+          regex = (String)args[0];
+          return null;
+        }
+      }).when(mock_scanner).setKeyRegexp(anyString(), (Charset)any());
       
       doAnswer(new Answer<Object>() {
         @Override
@@ -550,6 +569,8 @@ public final class MockBase {
         }      
       }).when(mock_scanner).setQualifiers((byte[][])any());
       
+      when(mock_scanner.nextRows()).thenAnswer(this);
+      
     }
     
     @Override
@@ -559,24 +580,25 @@ public final class MockBase {
       // It's critical to see if this scanner has been processed before, 
       // otherwise the code under test will likely wind up in an infinite loop.
       // If the scanner has been seen before, we return null.
-      if (used_scanners.contains(current_scanner.hashCode())) {
+      if (called) {
         return Deferred.fromResult(null);
       }
-      used_scanners.add(current_scanner.hashCode());
+      called = true;
       
       Pattern pattern = null;
       if (regex != null && !regex.isEmpty()) {
         try {
-          Pattern.compile(regex);
+          pattern = Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
           e.printStackTrace();
         }
       }
       
+      
       // return all matches
       ArrayList<ArrayList<KeyValue>> results = 
         new ArrayList<ArrayList<KeyValue>>();
-      for (Map.Entry<String, HashMap<String, byte[]>> row : storage.entrySet()) {
+      for (Map.Entry<String, TreeMap<String, byte[]>> row : storage.entrySet()) {
         
         // if it's before the start row, after the end row or doesn't
         // match the given regex, continue on to the next row
@@ -586,8 +608,12 @@ public final class MockBase {
         if (stop != null && row.getKey().compareTo(stop) > 0) {
           continue;
         }
-        if (pattern != null && !pattern.matcher(row.getKey()).find()) {
-          continue;
+        if (pattern != null) {
+          final String from_bytes = new String(stringToBytes(row.getKey()), 
+              MockBase.ASCII);
+          if (!pattern.matcher(from_bytes).find()) {
+            continue;
+          }
         }
         
         // loop on the columns
@@ -605,6 +631,9 @@ public final class MockBase {
           when(kv.key()).thenReturn(stringToBytes(row.getKey()));
           when(kv.value()).thenReturn(entry.getValue());
           when(kv.qualifier()).thenReturn(stringToBytes(entry.getKey()));
+          when(kv.family()).thenReturn(family);
+          when(kv.toString()).thenReturn("[k '" + row.getKey() + "' q '" +
+              entry.getKey() + "' v '" + bytesToString(entry.getValue()) + "']");
           kvs.add(kv);
         }
         
@@ -635,9 +664,9 @@ public final class MockBase {
       final long amount = air.getAmount();
       final String qualifier = bytesToString(air.qualifier());
       
-      HashMap<String, byte[]> column = storage.get(key);
+      TreeMap<String, byte[]> column = storage.get(key);
       if (column == null) {
-        column = new HashMap<String, byte[]>(1);
+        column = new TreeMap<String, byte[]>();
         storage.put(key, column);
       }
       
