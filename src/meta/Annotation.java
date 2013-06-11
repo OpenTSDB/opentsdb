@@ -158,7 +158,6 @@ public final class Annotation implements Comparable<Annotation> {
     boolean has_changes = false;
     for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
       if (entry.getValue()) {
-        System.out.println(entry.getKey());
         has_changes = true;
         break;
       }
