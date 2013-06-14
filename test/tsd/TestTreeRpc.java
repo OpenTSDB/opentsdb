@@ -393,7 +393,7 @@ public final class TestTreeRpc {
     assertTrue(query.response().getContent().toString(MockBase.ASCII())
         .contains("\"displayName\":\"ROOT\""));
     assertTrue(query.response().getContent().toString(MockBase.ASCII())
-        .contains("\"branches\":["));
+        .contains("\"branches\":null"));
   }
   
   @Test
