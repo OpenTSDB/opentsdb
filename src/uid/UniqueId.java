@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Random;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -160,7 +161,9 @@ public final class UniqueId implements UniqueIdInterface {
       cacheMisses++;
       name = getNameFromHBase(id);
       if (name == null) {
-        throw new NoSuchUniqueId(kind(), id);
+        Random generator = new Random();
+        name = "!ERROR-" + Integer.toString(generator.nextInt());
+//        throw new NoSuchUniqueId(kind(), id);
       }
       addNameToCache(id, name);
       addIdToCache(name, id);
