@@ -252,6 +252,43 @@ public final class TSDB {
   }
 
   /**
+   * Adds a double precision floating-point value data point in the TSDB.
+   * @param metric A non-empty string.
+   * @param timestamp The timestamp associated with the value.
+   * @param value The value of the data point.
+   * @param tags The tags on this series.  This map must be non-empty.
+   * @return A deferred object that indicates the completion of the request.
+   * The {@link Object} has not special meaning and can be {@code null} (think
+   * of it as {@code Deferred<Void>}). But you probably want to attach at
+   * least an errback to this {@code Deferred} to handle failures.
+   * @throws IllegalArgumentException if the timestamp is less than or equal
+   * to the previous timestamp added or 0 for the first timestamp, or if the
+   * difference with the previous timestamp is too large.
+   * @throws IllegalArgumentException if the metric name is empty or contains
+   * illegal characters.
+   * @throws IllegalArgumentException if the value is NaN or infinite.
+   * @throws IllegalArgumentException if the tags list is empty or one of the
+   * elements contains illegal characters.
+   * @throws HBaseException (deferred) if there was a problem while persisting
+   * data.
+   * @since 1.2
+   */
+  public Deferred<Object> addPoint(final String metric,
+                                   final long timestamp,
+                                   final double value,
+                                   final Map<String, String> tags) {
+    if (Double.isNaN(value) || Double.isInfinite(value)) {
+      throw new IllegalArgumentException("value is NaN or Infinite: " + value
+                                         + " for metric=" + metric
+                                         + " timestamp=" + timestamp);
+    }
+    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 4 bytes.
+    return addPointInternal(metric, timestamp,
+                            Bytes.fromLong(Double.doubleToRawLongBits(value)),
+                            tags, flags);
+  }
+
+  /**
    * Adds a single floating-point value data point in the TSDB.
    * @param metric A non-empty string.
    * @param timestamp The timestamp associated with the value.
