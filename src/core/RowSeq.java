@@ -425,12 +425,12 @@ final class RowSeq implements DataPoints {
     // ------------------- //
 
     public long timestamp() {
-      assert qualifier != 0: "not initialized: " + this;
+      assert qual_index > 0: "not initialized: " + this;
       return base_time + ((qualifier & 0xFFFF) >>> Const.FLAG_BITS);
     }
 
     public boolean isInteger() {
-      assert qualifier != 0: "not initialized: " + this;
+      assert qual_index > 0: "not initialized: " + this;
       return (qualifier & Const.FLAG_FLOAT) == 0x0;
     }
 
