@@ -498,9 +498,18 @@ public final class TSDB {
                                    final long timestamp,
                                    final long value,
                                    final Map<String, String> tags) {
-    final short flags = 0x7;  // An int stored on 8 bytes.
-    return addPointInternal(metric, timestamp, Bytes.fromLong(value),
-                            tags, flags);
+    final byte[] v;
+    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+      v = new byte[] { (byte) value };
+    } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
+      v = Bytes.fromShort((short) value);
+    } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
+      v = Bytes.fromInt((int) value);
+    } else {
+      v = Bytes.fromLong(value);
+    }
+    final short flags = (short) (v.length - 1);  // Just the length.
+    return addPointInternal(metric, timestamp, v, tags, flags);
   }
 
   /**
