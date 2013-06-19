@@ -359,7 +359,15 @@ public final class TSMeta {
 
     final PutRequest put = new PutRequest(tsdb.uidTable(), 
         UniqueId.stringToUid(tsuid), FAMILY, META_QUALIFIER, getStorageJSON());
-    return tsdb.getClient().compareAndSet(put, new byte[0]);
+    
+    final class PutCB implements Callback<Deferred<Boolean>, Object> {
+      @Override
+      public Deferred<Boolean> call(Object arg0) throws Exception {
+        return Deferred.fromResult(true);
+      }      
+    }
+    
+    return tsdb.getClient().put(put).addCallbackDeferring(new PutCB());
   }
   
   /**
