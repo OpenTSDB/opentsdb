@@ -540,7 +540,8 @@ debian: dist staticroot
 	chmod 755 $(distdir)/debian/DEBIAN/*
 	cp $(top_srcdir)/build-aux/deb/init.d/opentsdb $(distdir)/debian/etc/init.d
 	cp $(jar) $(distdir)/debian/usr/share/opentsdb/lib
-	cp -r staticroot/* $(distdir)/debian/usr/share/opentsdb/static
+	cp -r staticroot/favicon.ico $(distdir)/debian/usr/share/opentsdb/static
+	cp -r gwt/queryui/* $(distdir)/debian/usr/share/opentsdb/static
 	`for dep_jar in $(tsdb_DEPS); do cp $$dep_jar \
 	     $(distdir)/debian/usr/share/opentsdb/lib; done;`
 	cp $(top_srcdir)/tools/* $(distdir)/debian/usr/share/opentsdb/tools
