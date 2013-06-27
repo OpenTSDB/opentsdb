@@ -226,7 +226,7 @@ package_dir := $(subst .,/,$(package))
 UNITTESTS := $(test_SRC:test/%.java=$(package_dir)/%.class)
 PLUGINTESTS := $(test_plugin_SRC:test/%.java=$(package_dir)/%.class)
 PLUGINSVCS := $(test_plugin_SVCS:%=-C $(srcdir)/test %)
-AM_JAVACFLAGS = -Xlint -source 6
+AM_JAVACFLAGS = -Xlint -source 6 -encoding utf-8
 JVM_ARGS =
 classes := $(tsdb_SRC:src/%.java=$(package_dir)/%.class) \
         $(builddata_SRC:src/%.java=$(package_dir)/%.class)
