@@ -220,10 +220,7 @@ final class UidManager {
         tsdb.getClient().ensureTableExists(
             tsdb.getConfig().getString(
                 "tsd.storage.hbase.uid_table")).joinUninterruptibly();
-        final MetaPurge purge = new MetaPurge(tsdb);
-        final long purged_columns = purge.purge().joinUninterruptibly();
-        LOG.info("Purged [" + purged_columns + "] columns from storage");
-        return 0;
+        return metaPurge(tsdb);
       } catch (Exception e) {
         LOG.error("Unexpected exception", e);
         return 3;
@@ -805,6 +802,72 @@ final class UidManager {
     for (int i = 0; i < workers; i++) {
       threads[i] = new MetaSync(tsdb, index, quotient, processed_tsuids, 
           metric_uids, tagk_uids, tagv_uids, i);
+      threads[i].setName("MetaSync # " + i);
+      threads[i].start();
+      index += quotient;
+      if (index < max_id) {
+        index++;
+      }
+    }
+    
+    // wait till we're all done
+    for (int i = 0; i < workers; i++) {
+      threads[i].join();
+      LOG.info("[" + i + "] Finished");
+    }
+    
+    // make sure buffered data is flushed to storage before exiting
+    tsdb.flush().joinUninterruptibly();
+    
+    final long duration = (System.currentTimeMillis() / 1000) - start_time;
+    LOG.info("Completed meta data synchronization in [" + 
+        duration + "] seconds");
+    return 0;
+  }
+  
+  /**
+   * Runs through the tsdb-uid table and removes TSMeta, UIDMeta and TSUID 
+   * counter entries from the table
+   * The process is as follows:
+   * <ul><li>Fetch the max number of Metric UIDs</li>
+   * <li>Split the # of UIDs amongst worker threads</li>
+   * <li>Create a delete request with the qualifiers of any matching meta data
+   * columns</li></ul>
+   * <li>Continue on to the next unprocessed timeseries data row</li></ul>
+   * @param tsdb The tsdb to use for processing, including a search plugin
+   * @return 0 if completed successfully, something else if it dies
+   */
+  private static int metaPurge(final TSDB tsdb) throws Exception {
+    final long start_time = System.currentTimeMillis() / 1000;
+
+    // first up, we need the max metric ID so we can split up the data table
+    // amongst threads.
+    final GetRequest get = new GetRequest(tsdb.uidTable(), new byte[] { 0 });
+    get.family("id".getBytes(CHARSET));
+    get.qualifier("metrics".getBytes(CHARSET));
+    final ArrayList<KeyValue> row = 
+      tsdb.getClient().get(get).joinUninterruptibly();
+    if (row == null || row.isEmpty()) {
+      throw new IllegalStateException("No data in the metric max UID cell");
+    }
+    final byte[] id_bytes = row.get(0).value();
+    if (id_bytes.length != 8) {
+      throw new IllegalStateException("Invalid metric max UID, wrong # of bytes");
+    }
+    final long max_id = Bytes.getLong(id_bytes);
+    
+    // now figure out how many IDs to divy up between the workers
+    final int workers = Runtime.getRuntime().availableProcessors() * 2;
+    final double quotient = (double)max_id / (double)workers;
+    
+    long index = 1;
+    
+    LOG.info("Max metric ID is [" + max_id + "]");
+    LOG.info("Spooling up [" + workers + "] worker threads");
+    final Thread[] threads = new Thread[workers];
+    for (int i = 0; i < workers; i++) {
+      threads[i] = new MetaPurge(tsdb, index, quotient, i);
+      threads[i].setName("MetaSync # " + i);
       threads[i].start();
       index += quotient;
       if (index < max_id) {

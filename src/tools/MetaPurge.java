@@ -36,7 +36,7 @@ import com.stumbleupon.async.Deferred;
  * <b>Note:</b> After you execute this, you may want to perform a "flush" on
  * the UID table in HBase so that the data doesn't mysteriously come back.
  */
-final class MetaPurge {
+final class MetaPurge extends Thread {
   private static final Logger LOG = LoggerFactory.getLogger(MetaPurge.class);
   
   /** Charset used to convert Strings to byte arrays and back. */
@@ -50,6 +50,15 @@ final class MetaPurge {
   /** Number of columns deleted */
   private long columns;
   
+  /** The ID to start the sync with for this thread */
+  final long start_id;
+  
+  /** The end of the ID block to work on */
+  final long end_id;
+  
+  /** Diagnostic ID for this thread */
+  final int thread_id;
+  
   /**
    * Constructor that sets local variables
    * @param tsdb The TSDB to process with
@@ -57,8 +66,26 @@ final class MetaPurge {
    * @param quotient The total number of IDs in our block
    * @param thread_id The ID of this thread (starts at 0)
    */
-  public MetaPurge(final TSDB tsdb) {
+  public MetaPurge(final TSDB tsdb, final long start_id, final double quotient, 
+      final int thread_id) {
     this.tsdb = tsdb;
+    this.start_id = start_id;
+    this.end_id = start_id + (long) quotient + 1; // teensy bit of overlap
+    this.thread_id = thread_id;
+  }
+  
+  /**
+   * Loops through the entire tsdb-uid table and exits when complete.
+   */
+  public void run() {
+    long purged_columns;
+    try {
+      purged_columns = purge().joinUninterruptibly();
+      LOG.info("Thread [" + thread_id + "] finished. Purged [" + purged_columns + "] columns from storage");
+    } catch (Exception e) {
+      LOG.error("Unexpected exception", e);
+    }
+    
   }
   
   /**
@@ -148,7 +175,7 @@ final class MetaPurge {
           @Override
           public Deferred<Long> call(ArrayList<Object> deletes)
               throws Exception {
-            LOG.debug("Processed [" + deletes.size() 
+            LOG.debug("[" + thread_id + "] Processed [" + deletes.size() 
                 + "] delete calls");
             delete_calls.clear();
             return scan();
@@ -170,33 +197,16 @@ final class MetaPurge {
   }
   
   /**
-   * Returns a scanner to run over the entire UID table
+   * Returns a scanner to run over the UID table starting at the given row
    * @return A scanner configured for the entire table
    * @throws HBaseException if something goes boom
    */
   private Scanner getScanner() throws HBaseException {
-    
-    // calculate the max and min widths for the scanner
-    short min_uid_width = TSDB.metrics_width();
-    short max_uid_width = min_uid_width;
-    if (TSDB.tagk_width() > max_uid_width) {
-      max_uid_width = TSDB.tagk_width();
-    }
-    if (TSDB.tagk_width() < min_uid_width) {
-      min_uid_width = TSDB.tagk_width();
-    }
-    if (TSDB.tagv_width() < max_uid_width) {
-      max_uid_width = TSDB.tagv_width();
-    }
-    if (TSDB.tagv_width() < min_uid_width) {
-      min_uid_width = TSDB.tagv_width();
-    }
-    
-    final byte[] start_row = new byte[min_uid_width];
-    Arrays.fill(start_row, (byte)0);
-    final byte[] end_row = new byte[max_uid_width];
-    Arrays.fill(end_row, (byte)0xFF);
-
+    short metric_width = TSDB.metrics_width();
+    final byte[] start_row = 
+      Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
+    final byte[] end_row = 
+      Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
     final Scanner scanner = tsdb.getClient().newScanner(tsdb.uidTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
