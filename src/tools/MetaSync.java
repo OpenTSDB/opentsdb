@@ -445,7 +445,7 @@ final class MetaSync extends Thread {
                 LOG.warn("Timeseries [" + tsuid_string + 
                     "] includes a non-existant UID: " + ex.getMessage());
               } else {
-                LOG.warn("Unmatched Exception: " + ex.getClass());
+                LOG.error("Unmatched Exception: " + ex.getClass());
                 throw e;
               }
               
@@ -480,9 +480,32 @@ final class MetaSync extends Thread {
           
         }
         
+        /**
+         * Catch exceptions in one of the grouped calls and continue scanning.
+         * Without this the user may not see the exception and the thread will
+         * just die silently.
+         */
+        final class ContinueEB implements Callback<Object, Exception> {
+          @Override
+          public Object call(Exception e) throws Exception {
+            
+            Throwable ex = e;
+            while (ex.getClass().equals(DeferredGroupException.class)) {
+              if (ex.getCause() == null) {
+                LOG.warn("Unable to get to the root cause of the DGE");
+                break;
+              }
+              ex = ex.getCause();
+            }
+            LOG.error("[" + thread_id + "] Upstream Exception: ", ex);
+            return scan();
+          }
+        }
+        
         // call ourself again but wait for the current set of storage calls to
         // complete so we don't OOM
-        Deferred.group(storage_calls).addCallback(new ContinueCB());
+        Deferred.group(storage_calls).addCallback(new ContinueCB())
+          .addErrback(new ContinueEB());
         return null;
       }
       
