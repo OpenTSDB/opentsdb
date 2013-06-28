@@ -18,33 +18,35 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import net.opentsdb.core.Aggregator;
-import net.opentsdb.core.Aggregators;
-import net.opentsdb.core.DataPoint;
-import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Query;
-import net.opentsdb.core.RateOptions;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
-import net.opentsdb.graph.Plot;
-
-import org.hbase.async.HBaseClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.hbase.async.HBaseClient;
+
+import net.opentsdb.core.Aggregator;
+import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.Query;
+import net.opentsdb.core.DataPoint;
+import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.Tags;
+import net.opentsdb.core.RateOptions;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.graph.Plot;
 
 final class CliQuery {
 
   private static final Logger LOG = LoggerFactory.getLogger(CliQuery.class);
 
-  /** Prints usage and exits with the given retval. */
+  /** Prints usage and exits with the given retval.  */
   private static void usage(final ArgP argp, final String errmsg,
-      final int retval) {
+                            final int retval) {
     System.err.println(errmsg);
     System.err.println("Usage: query"
         + " [Gnuplot opts] START-DATE [END-DATE] <query> [queries...]\n"
         + "A query has the form:\n"
-        + "  FUNC [rate] [downsample FUNC N] SERIES [TAGS]\n"
-        + "For example:\n" + " 2010/03/11-20:57 sum my.awsum.metric host=blah"
+        + "  FUNC [rate] [counter,max,reset] [downsample FUNC N] SERIES [TAGS]\n"
+        + "For example:\n"
+        + " 2010/03/11-20:57 sum my.awsum.metric host=blah"
         + " sum some.other.metric host=blah state=foo\n"
         + "Dates must follow this format: [YYYY/MM/DD-]HH:MM[:SS]\n"
         + "Supported values for FUNC: " + Aggregators.set()
@@ -59,24 +61,24 @@ final class CliQuery {
   private static long parseDate(final String s) {
     SimpleDateFormat format;
     switch (s.length()) {
-    case 5:
-      format = new SimpleDateFormat("HH:mm");
-      break;
-    case 8:
-      format = new SimpleDateFormat("HH:mm:ss");
-      break;
-    case 10:
-      format = new SimpleDateFormat("yyyy/MM/dd");
-      break;
-    case 16:
-      format = new SimpleDateFormat("yyyy/MM/dd-HH:mm");
-      break;
-    case 19:
-      format = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
-      break;
-    default:
-      usage(null, "Invalid date: " + s, 3);
-      return -1; // Never executed as usage() exits.
+      case 5:
+        format = new SimpleDateFormat("HH:mm");
+        break;
+      case 8:
+        format = new SimpleDateFormat("HH:mm:ss");
+        break;
+      case 10:
+        format = new SimpleDateFormat("yyyy/MM/dd");
+        break;
+      case 16:
+        format = new SimpleDateFormat("yyyy/MM/dd-HH:mm");
+        break;
+      case 19:
+        format = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
+        break;
+      default:
+        usage(null, "Invalid date: " + s, 3);
+        return -1; // Never executed as usage() exits.
     }
     try {
       return format.parse(s).getTime() / 1000;
@@ -91,8 +93,9 @@ final class CliQuery {
     CliOptions.addCommon(argp);
     CliOptions.addVerbose(argp);
     argp.addOption("--graph", "BASEPATH",
-        "Output data points to a set of files for gnuplot."
-            + "  The path of the output files will start with" + " BASEPATH.");
+                   "Output data points to a set of files for gnuplot."
+                   + "  The path of the output files will start with"
+                   + " BASEPATH.");
     args = CliOptions.parse(argp, args);
     if (args == null) {
       usage(argp, "Invalid usage.", 1);
@@ -101,8 +104,8 @@ final class CliQuery {
     }
 
     final HBaseClient client = CliOptions.clientFromOptions(argp);
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"), argp.get(
-        "--uidtable", "tsdb-uid"));
+    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
+                               argp.get("--uidtable", "tsdb-uid"));
     final String basepath = argp.get("--graph");
     argp = null;
 
@@ -129,8 +132,9 @@ final class CliQuery {
     }
   }
 
-  private static Plot doQuery(final TSDB tsdb, final String args[],
-      final boolean want_plot) {
+  private static Plot doQuery(final TSDB tsdb,
+                              final String args[],
+                              final boolean want_plot) {
     final ArrayList<String> plotparams = new ArrayList<String>();
     final ArrayList<Query> queries = new ArrayList<Query>();
     final ArrayList<String> plotoptions = new ArrayList<String>();
@@ -140,7 +144,8 @@ final class CliQuery {
     }
 
     final Plot plot = (want_plot ? new Plot(queries.get(0).getStartTime(),
-        queries.get(0).getEndTime()) : null);
+                                            queries.get(0).getEndTime())
+                       : null);
     if (want_plot) {
       plot.setParams(parsePlotParams(plotparams));
     }
@@ -155,8 +160,10 @@ final class CliQuery {
           final String metric = datapoints.metricName();
           final String tagz = datapoints.getTags().toString();
           for (final DataPoint datapoint : datapoints) {
-            buf.append(metric).append(' ').append(datapoint.timestamp())
-                .append(' ');
+            buf.append(metric)
+               .append(' ')
+               .append(datapoint.timestamp())
+               .append(' ');
             if (datapoint.isInteger()) {
               buf.append(datapoint.longValue());
             } else {
@@ -174,27 +181,25 @@ final class CliQuery {
 
   /**
    * Parses the query from the command lines.
-   * 
-   * @param args
-   *          The command line arguments.
-   * @param tsdb
-   *          The TSDB to use.
-   * @param queries
-   *          The list in which {@link Query}s will be appended.
-   * @param plotparams
-   *          The list in which global plot parameters will be appended. Ignored
-   *          if {@code null}.
-   * @param plotoptions
-   *          The list in which per-line plot options will be appended. Ignored
-   *          if {@code null}.
+   * @param args The command line arguments.
+   * @param tsdb The TSDB to use.
+   * @param queries The list in which {@link Query}s will be appended.
+   * @param plotparams The list in which global plot parameters will be
+   * appended.  Ignored if {@code null}.
+   * @param plotoptions The list in which per-line plot options will be
+   * appended.  Ignored if {@code null}.
    */
-  static void parseCommandLineQuery(final String[] args, final TSDB tsdb,
-      final ArrayList<Query> queries, final ArrayList<String> plotparams,
-      final ArrayList<String> plotoptions) {
+  static void parseCommandLineQuery(final String[] args,
+                                    final TSDB tsdb,
+                                    final ArrayList<Query> queries,
+                                    final ArrayList<String> plotparams,
+                                    final ArrayList<String> plotoptions) {
     final long start_ts = parseDate(args[0]);
     final long end_ts = (args.length > 3
-        && (args[1].charAt(0) != '+' && (args[1].indexOf(':') >= 0 || args[1]
-            .indexOf('/') >= 0)) ? parseDate(args[1]) : -1);
+                         && (args[1].charAt(0) != '+'
+                             && (args[1].indexOf(':') >= 0
+                                 || args[1].indexOf('/') >= 0))
+                         ? parseDate(args[1]) : -1);
 
     int i = end_ts < 0 ? 1 : 2;
     while (i < args.length && args[i].charAt(0) == '+') {
@@ -235,7 +240,7 @@ final class CliQuery {
       final String metric = args[i++];
       final HashMap<String, String> tags = new HashMap<String, String>();
       while (i < args.length && args[i].indexOf(' ', 1) < 0
-          && args[i].indexOf('=', 1) > 0) {
+             && args[i].indexOf('=', 1) > 0) {
         Tags.parse(tags, args[i++]);
       }
       if (i < args.length && args[i].indexOf(' ', 1) > 0) {
@@ -254,10 +259,9 @@ final class CliQuery {
     }
   }
 
-  private static HashMap<String, String> parsePlotParams(
-      final ArrayList<String> params) {
-    final HashMap<String, String> result = new HashMap<String, String>(
-        params.size());
+  private static HashMap<String, String> parsePlotParams(final ArrayList<String> params) {
+    final HashMap<String, String> result =
+      new HashMap<String, String>(params.size());
     for (final String param : params) {
       Tags.parse(result, param.substring(1));
     }
