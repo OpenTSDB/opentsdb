@@ -9,3 +9,6 @@ config.log
 config.status
 configure
 pom.xml
+.project
+.settings
+.classpath
