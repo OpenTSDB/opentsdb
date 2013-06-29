@@ -291,7 +291,6 @@ final class SpanGroup implements DataPoints {
    * iterator of that Span.
    * <p>
    * Here is an example when the SpanGroup contains 2 Spans:
-   * 
    * <pre>              current    |     next
    *               +-------+-------+-------+-------+
    *   timestamps: |  T1   |  T2   |  T3   |  T4   |
@@ -340,7 +339,6 @@ final class SpanGroup implements DataPoints {
    *   pos: 0
    *   iterators: [ it0, it1 ]
    * </pre>
-   * 
    * Then all you need is to "rinse and repeat".
    * <p>
    * More details: Since each value above can be either an integer or a
@@ -372,7 +370,6 @@ final class SpanGroup implements DataPoints {
    *   pos: 0
    *   iterators: [ it0, it1 ]
    * </pre>
-   * 
    * Notice we just extend the table a little bit to be able to save one extra
    * value per time series.  When returning a value, we use "prev" and
    * "current" to compute the rate.  Once a value has been used, instead of
