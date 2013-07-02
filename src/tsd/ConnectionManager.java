@@ -55,7 +55,9 @@ final class ConnectionManager extends SimpleChannelHandler {
    * @param collector The collector to use.
    */
   public static void collectStats(final StatsCollector collector) {
-    collector.record("connectionmgr.connections", connections_established);
+    collector.record("connectionmgr.connections", channels.size(), "type=open");
+    collector.record("connectionmgr.connections", connections_established, 
+        "type=total");
     collector.record("connectionmgr.exceptions", exceptions_caught);
   }
 
