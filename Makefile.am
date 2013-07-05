@@ -133,6 +133,7 @@ test_SRC := \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestInternal.java	\
 	test/core/TestRowSeq.java	\
+	test/core/TestSpan.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
 	test/core/TestTsdbQuery.java	\
