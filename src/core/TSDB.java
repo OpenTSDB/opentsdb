@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -60,6 +61,8 @@ public final class TSDB {
   
   static final byte[] FAMILY = { 't' };
 
+  /** Charset used to convert Strings to byte arrays and back. */
+  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   private static final String METRICS_QUAL = "metrics";
   private static final short METRICS_WIDTH = 3;
   private static final String TAG_NAME_QUAL = "tagk";
@@ -299,9 +302,39 @@ public final class TSDB {
    * @param collector The collector to use.
    */
   public void collectStats(final StatsCollector collector) {
-    collectUidStats(metrics, collector);
-    collectUidStats(tag_names, collector);
-    collectUidStats(tag_values, collector);
+    final byte[][] kinds = { 
+        METRICS_QUAL.getBytes(CHARSET), 
+        TAG_NAME_QUAL.getBytes(CHARSET), 
+        TAG_VALUE_QUAL.getBytes(CHARSET) 
+      };
+    try {
+      final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)
+        .joinUninterruptibly();
+      
+      collectUidStats(metrics, collector);
+      collector.record("uid.ids-used", used_uids.get(METRICS_QUAL), 
+          "kind=" + METRICS_QUAL);
+      collector.record("uid.ids-available", 
+          (metrics.maxPossibleId() - used_uids.get(METRICS_QUAL)), 
+          "kind=" + METRICS_QUAL);
+      
+      collectUidStats(tag_names, collector);
+      collector.record("uid.ids-used", used_uids.get(TAG_NAME_QUAL), 
+          "kind=" + TAG_NAME_QUAL);
+      collector.record("uid.ids-available", 
+          (tag_names.maxPossibleId() - used_uids.get(TAG_NAME_QUAL)), 
+          "kind=" + TAG_NAME_QUAL);
+      
+      collectUidStats(tag_values, collector);
+      collector.record("uid.ids-used", used_uids.get(TAG_VALUE_QUAL), 
+          "kind=" + TAG_VALUE_QUAL);
+      collector.record("uid.ids-available", 
+          (tag_values.maxPossibleId() - used_uids.get(TAG_VALUE_QUAL)), 
+          "kind=" + TAG_VALUE_QUAL);
+      
+    } catch (Exception e) {
+      throw new RuntimeException("Shouldn't be here", e);
+    }
 
     {
       final Runtime runtime = Runtime.getRuntime();
