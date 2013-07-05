@@ -49,10 +49,6 @@ public final class TestDateTime {
     assertNull(DateTime.timezones.get("Nothere"));
   }
   
-  // NOTE: These relative tests *should* complete fast enough to pass
-  // but there's a possibility that when run on a heavily used system
-  // that the current time will change between calls. Thus the epsilon
-  // is 5 ms
   @Test
   public void parseDateTimeStringRelativeS() {
     long t = DateTime.parseDateTimeString("60s-ago", null);
@@ -68,27 +64,29 @@ public final class TestDateTime {
   @Test
   public void parseDateTimeStringRelativeH() {
     long t = DateTime.parseDateTimeString("2h-ago", null);
-    assertEquals(7200000, (System.currentTimeMillis() - t));
+    assertEquals(7200000L, (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeD() {
     long t = DateTime.parseDateTimeString("2d-ago", null);
-    assertEquals((2 * 3600 * 24 * 1000), (System.currentTimeMillis() - t));
+    long x = 2 * 3600 * 24 * 1000;
+    assertEquals(x, (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeW() {
     long t = DateTime.parseDateTimeString("3w-ago", null);
-    assertEquals((3 * 7 * 3600 * 24 * 1000), (System.currentTimeMillis() - t));
+    long x = 3 * 7 * 3600 * 24 * 1000;
+    assertEquals(x, (System.currentTimeMillis() - t));
   }
   
   @Test
   public void parseDateTimeStringRelativeN() {
     long t = DateTime.parseDateTimeString("2n-ago", null);
-    long diff = 2 * 30 * 3600 * 24;
-    diff *= 1000;
-    assertEquals(diff, (System.currentTimeMillis() - t));
+    long x = 2 * 30 * 3600 * 24;
+    x *= 1000;
+    assertEquals(x, (System.currentTimeMillis() - t));
   }
   
   @Test
@@ -105,9 +103,57 @@ public final class TestDateTime {
     assertEquals(1355961600000L, t);
   }
   
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDateTimeStringUnixSecondsInvalidShort() {
+    long t = DateTime.parseDateTimeString("135596160", null);
+    assertEquals(1355961600000L, t);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDateTimeStringUnixSecondsInvalidLong() {
+    long t = DateTime.parseDateTimeString("13559616000", null);
+    assertEquals(1355961600000L, t);
+  }
+  
   @Test
   public void parseDateTimeStringUnixMS() {
     long t = DateTime.parseDateTimeString("1355961603418", null);
+    assertEquals(1355961603418L, t);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDateTimeStringUnixMSInvalidShort2() {
+    long t = DateTime.parseDateTimeString("13559616034", null);
+    assertEquals(1355961603418L, t);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDateTimeStringUnixMSShort1() {
+    long t = DateTime.parseDateTimeString("135596160341", null);
+    assertEquals(1355961603418L, t);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDateTimeStringUnixMSLong() {
+    long t = DateTime.parseDateTimeString("13559616034180", null);
+    assertEquals(1355961603418L, t);
+  }
+  
+  @Test
+  public void parseDateTimeStringUnixMSDot() {
+    long t = DateTime.parseDateTimeString("1355961603.418", null);
+    assertEquals(1355961603418L, t);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDateTimeStringUnixMSDotInvalid() {
+    long t = DateTime.parseDateTimeString("135596160.418", null);
+    assertEquals(1355961603418L, t);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDateTimeStringUnixMSDotInvalid2() {
+    long t = DateTime.parseDateTimeString("1355961603.4180", null);
     assertEquals(1355961603418L, t);
   }
   
@@ -169,51 +215,57 @@ public final class TestDateTime {
   }
   
   @Test
+  public void parseDurationMS() {
+    long t = DateTime.parseDuration("60ms");
+    assertEquals(60, t);
+  }
+  
+  @Test
   public void parseDurationS() {
     long t = DateTime.parseDuration("60s");
-    assertEquals(60, t);
+    assertEquals(60 * 1000, t);
   }
   
   @Test
   public void parseDurationCase() {
     long t = DateTime.parseDuration("60S");
-    assertEquals(60, t);
+    assertEquals(60 * 1000, t);
   }
   
   @Test
   public void parseDurationM() {
     long t = DateTime.parseDuration("60m");
-    assertEquals(60 * 60, t);
+    assertEquals(60 * 60 * 1000, t);
   }
   
   @Test
   public void parseDurationH() {
     long t = DateTime.parseDuration("24h");
-    assertEquals(24 * 60 * 60, t);
+    assertEquals(24 * 60 * 60 * 1000, t);
   }
   
   @Test
   public void parseDurationD() {
     long t = DateTime.parseDuration("1d");
-    assertEquals(24 * 60 * 60, t);
+    assertEquals(24 * 60 * 60 * 1000, t);
   }
   
   @Test
   public void parseDurationW() {
     long t = DateTime.parseDuration("1w");
-    assertEquals(7 * 24 * 60 * 60, t);
+    assertEquals(7 * 24 * 60 * 60 * 1000, t);
   }
   
   @Test
   public void parseDurationN() {
     long t = DateTime.parseDuration("1n");
-    assertEquals(30 * 24 * 60 * 60, t);
+    assertEquals(((long)30 * 24 * 60 * 60 * 1000), t);
   }
   
   @Test
   public void parseDurationY() {
     long t = DateTime.parseDuration("2y");
-    assertEquals(2 * 365 * 24 * 60 * 60, t);
+    assertEquals((2 * 365L * 24 * 60 * 60 * 1000), t);
   }
   
   @Test (expected = IllegalArgumentException.class)

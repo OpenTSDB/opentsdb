@@ -60,7 +60,8 @@ public class DateTime {
    * <li>"yyyy/MM/dd"</li></ul></li>
    * <li>Unix Timestamp in seconds or milliseconds: 
    * <ul><li>1355961600</li>
-   * <li>1355961600000</li></ul></li>
+   * <li>1355961600000</li>
+   * <li>1355961600.000</li></ul></li>
    * </ul>
    * @param datetime The string to parse a value for
    * @return A Unix epoch timestamp in milliseconds
@@ -73,7 +74,7 @@ public class DateTime {
       return -1;
     if (datetime.toLowerCase().endsWith("-ago")) {
       long interval = DateTime.parseDuration(
-        datetime.substring(0, datetime.length() - 4)) * 1000;
+        datetime.substring(0, datetime.length() - 4));
       return System.currentTimeMillis() - interval;
     }
     
@@ -119,8 +120,20 @@ public class DateTime {
       }
     } else {
       try {
-        // todo - maybe deal with sssss.mmm unix times?
-        long time = Tags.parseLong(datetime);   
+        long time;
+        if (datetime.length() == 14) {
+          if (datetime.charAt(10) != '.') {
+            throw new IllegalArgumentException("Invalid time: " + datetime  
+                + ".");
+          }
+          time = Tags.parseLong(datetime.replace(".", ""));   
+        } else {
+          if (datetime.length() != 10 && datetime.length() != 13) {
+            throw new IllegalArgumentException("Invalid time: " + datetime  
+                + ".");
+          }
+          time = Tags.parseLong(datetime);
+        }
         // this is a nasty hack to determine if the incoming request is
         // in seconds or milliseconds. This will work until November 2286
         if (datetime.length() <= 10)
@@ -137,6 +150,7 @@ public class DateTime {
    * Parses a human-readable duration (e.g, "10m", "3h", "14d") into seconds.
    * <p>
    * Formats supported:<ul>
+   * <li>{@code ms}: milliseconds</li>
    * <li>{@code s}: seconds</li>
    * <li>{@code m}: minutes</li>
    * <li>{@code h}: hours</li>
@@ -144,32 +158,36 @@ public class DateTime {
    * <li>{@code w}: weeks</li> 
    * <li>{@code n}: month (30 days)</li>
    * <li>{@code y}: years (365 days)</li></ul>
-   * Milliseconds are not supported since a relative request can't be submitted
-   * by a human that fast. If an application needs it, they could use an 
-   * absolute time.
    * @param duration The human-readable duration to parse.
-   * @return A strictly positive number of seconds.
+   * @return A strictly positive number of milliseconds.
    * @throws IllegalArgumentException if the interval was malformed.
    */
   public static final long parseDuration(final String duration) {
     int interval;
-    final int lastchar = duration.length() - 1;
+    int unit = 0;
+    while (Character.isDigit(duration.charAt(unit))) {
+      unit++;
+    }
     try {
-      interval = Integer.parseInt(duration.substring(0, lastchar));
+      interval = Integer.parseInt(duration.substring(0, unit));
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid duration (number): " + duration);
     }
     if (interval <= 0) {
       throw new IllegalArgumentException("Zero or negative duration: " + duration);
     }
-    switch (duration.toLowerCase().charAt(lastchar)) {
-      case 's': return interval;                    // seconds
-      case 'm': return interval * 60;               // minutes
-      case 'h': return interval * 3600;             // hours
-      case 'd': return interval * 3600 * 24;        // days
-      case 'w': return interval * 3600 * 24 * 7;    // weeks
-      case 'n': return interval * 3600 * 24 * 30;   // month (average)
-      case 'y': return interval * 3600 * 24 * 365;  // years (screw leap years)
+    switch (duration.toLowerCase().charAt(duration.length() - 1)) {
+      case 's': 
+        if (duration.charAt(duration.length() - 2) == 'm') {
+          return interval;
+        }
+        return interval * 1000;                    // seconds
+      case 'm': return (interval * 60) * 1000;               // minutes
+      case 'h': return (interval * 3600) * 1000;             // hours
+      case 'd': return (interval * 3600 * 24) * 1000;        // days
+      case 'w': return (interval * 3600 * 24 * 7) * 1000;    // weeks
+      case 'n': return (interval * 3600L * 24 * 30) * 1000;   // month (average)
+      case 'y': return (interval * 3600L * 24 * 365) * 1000;  // years (screw leap years)
     }
     throw new IllegalArgumentException("Invalid duration (suffix): " + duration);
   }
