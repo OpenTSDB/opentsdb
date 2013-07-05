@@ -351,6 +351,20 @@ public final class TestTSDB {
   }
   
   @Test
+  public void addPointLongMs() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        new byte[] { (byte) 0xF0, 0, 0x7D, 7 });
+    assertNotNull(value);
+    assertEquals(42, Bytes.getLong(value));
+  }
+  
+  @Test
   public void addPointLongMany() throws Exception {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -364,6 +378,24 @@ public final class TestTSDB {
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(1, value[0]);
+    assertEquals(50, storage.numColumns(row));
+  }
+  
+  @Test
+  public void addPointLongManyMs() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400500L;
+    for (int i = 1; i <= 50; i++) {
+      tsdb.addPoint("sys.cpu.user", timestamp++, i, tags).joinUninterruptibly();
+    }
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        new byte[] { (byte) 0xF0, 0, 0x7D, 7 });
+    assertNotNull(value);
+    assertEquals(1, Bytes.getLong(value));
     assertEquals(50, storage.numColumns(row));
   }
   
@@ -421,6 +453,14 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 4294967296L, 42, tags).joinUninterruptibly();
   }
   
+  @Test (expected = IllegalArgumentException.class)
+  public void addPointInvalidTimestampBigMs() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 17592186044416L, 42, tags).joinUninterruptibly();
+  }
+  
   @Test
   public void addPointFloat() throws Exception {
     setupAddPointStorage();
@@ -430,6 +470,21 @@ public final class TestTSDB {
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
+    assertNotNull(value);
+    // should have 7 digits of precision
+    assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+  }
+  
+  @Test
+  public void addPointFloatMs() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -455,7 +510,8 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5123459999F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5123459999F, tags)
+      .joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
@@ -480,7 +536,7 @@ public final class TestTSDB {
   }
   
   @Test
-  public void addPointBothSameTime() throws Exception {
+  public void addPointBothSameTimeIntAndFloat() throws Exception {
     // this is an odd situation that can occur if the user puts an int and then
     // a float (or vice-versa) with the same timestamp. What happens in the
     // aggregators when this occurs? 
@@ -499,6 +555,49 @@ public final class TestTSDB {
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+  }
+  
+  @Test
+  public void addPointBothSameTimeIntAndFloatMs() throws Exception {
+    // this is an odd situation that can occur if the user puts an int and then
+    // a float (or vice-versa) with the same timestamp. What happens in the
+    // aggregators when this occurs? 
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 7 });
+    assertEquals(2, storage.numColumns(row));
+    assertNotNull(value);
+    assertEquals(42, Bytes.getLong(value));
+    value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
+    assertNotNull(value);
+    // should have 7 digits of precision
+    assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+  }
+  
+  @Test
+  public void addPointBothSameTimeSecondAndMs() throws Exception {
+    // this can happen if a second and an ms data point are stored for the same
+    // timestamp.
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400000L, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    assertEquals(2, storage.numColumns(row));
+    assertNotNull(value);
+    assertEquals(42, Bytes.getLong(value));
+    value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0, 7 });
+    assertNotNull(value);
+    // should have 7 digits of precision
+    assertEquals(42, Bytes.getLong(value));
   }
   
   /**

@@ -600,8 +600,9 @@ public final class TSDB {
                                             final byte[] value,
                                             final Map<String, String> tags,
                                             final short flags) {
-    if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
-      // => timestamp < 0 || timestamp > Integer.MAX_VALUE
+    // we only accept unix epoch timestamps in seconds or milliseconds
+    if ((timestamp & Const.SECOND_MASK) != 0 && 
+        (timestamp < 1000000000000L || timestamp > 9999999999999L)) {
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
           + " timestamp=" + timestamp
           + " when trying to add value=" + Arrays.toString(value) + '/' + flags
@@ -610,13 +611,20 @@ public final class TSDB {
 
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);  
-    final long base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    final long base_time;
+    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
+    
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      base_time = ((timestamp / 1000) - 
+          ((timestamp / 1000) % Const.MAX_TIMESPAN));
+    } else {
+      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    }
+    
     Bytes.setInt(row, (int) base_time, metrics.width());
     scheduleForCompaction(row, (int) base_time);
-    final short qualifier = (short) ((timestamp - base_time) << Const.FLAG_BITS
-                                     | flags);
-    final PutRequest point = new PutRequest(table, row, FAMILY,
-                                            Bytes.fromShort(qualifier), value);
+    final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
     
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
