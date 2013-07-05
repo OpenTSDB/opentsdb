@@ -46,11 +46,11 @@ import net.opentsdb.meta.Annotation;
  * iterator when using the {@link Span.DownsamplingIterator}.
  */
 final class SpanGroup implements DataPoints {
-
-  /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
+  
+  /** Start time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
   private final long start_time;
 
-  /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
+  /** End time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
   private final long end_time;
 
   /**
@@ -99,7 +99,7 @@ final class SpanGroup implements DataPoints {
    * @param rate If {@code true}, the rate of the series will be used instead
    * of the actual values.
    * @param aggregator The aggregation function to use.
-   * @param interval Number of seconds wanted between each data point.
+   * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
    */
@@ -109,8 +109,10 @@ final class SpanGroup implements DataPoints {
             final boolean rate,
             final Aggregator aggregator,
             final int interval, final Aggregator downsampler) {
-    this.start_time = start_time;
-    this.end_time = end_time;
+    this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
+        start_time * 1000 : start_time;
+    this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
+        end_time * 1000 : end_time;
     if (spans != null) {
       for (final Span span : spans) {
         add(span);
@@ -134,11 +136,24 @@ final class SpanGroup implements DataPoints {
       throw new AssertionError("The set of tags has already been computed"
                                + ", you can't add more Spans to " + this);
     }
-    if (span.timestamp(0) <= end_time
-        // The following call to timestamp() will throw an
-        // IndexOutOfBoundsException if size == 0, which is OK since it would
-        // be a programming error.
-        && span.timestamp(span.size() - 1) >= start_time) {
+    
+    // normalize timestamps to milliseconds for proper comparison
+    final long start = (start_time & Const.SECOND_MASK) == 0 ? 
+        start_time * 1000 : start_time;
+    final long end = (end_time & Const.SECOND_MASK) == 0 ? 
+        end_time * 1000 : end_time;
+    long first_dp = span.timestamp(0);
+    if ((first_dp & Const.SECOND_MASK) == 0) {
+      first_dp *= 1000;
+    }
+    // The following call to timestamp() will throw an
+    // IndexOutOfBoundsException if size == 0, which is OK since it would
+    // be a programming error.
+    long last_dp = span.timestamp(span.size() - 1);
+    if ((last_dp & Const.SECOND_MASK) == 0) {
+      last_dp *= 1000;
+    }
+    if (first_dp <= end && last_dp >= start) {
       this.spans.add(span);
     }
   }
@@ -750,7 +765,7 @@ final class SpanGroup implements DataPoints {
         final long r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
         //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
         //          + " -> " + y1 + " @ " + x1 + " => " + r);
-        if ((x1 & 0xFFFFFFFF00000000L) != 0) {
+        if ((x1 & Const.MILLISECOND_MASK) != 0) {
           throw new AssertionError("x1=" + x1 + " in " + this);
         }
         return r;
@@ -777,7 +792,10 @@ final class SpanGroup implements DataPoints {
           assert x0 > x1: ("Next timestamp (" + x0 + ") is supposed to be "
             + " strictly greater than the previous one (" + x1 + "), but it's"
             + " not.  this=" + this);
-          final double r = (y0 - y1) / (x0 - x1);
+          // TODO - for backwards compatibility we'll convert the ms to seconds
+          // but in the future we should add a ratems flag that will calculate
+          // the rate as is.
+          final double r = (y0 - y1) / ((double)(x0 - x1) / (double)1000);
           //LOG.debug("Rate for " + y1 + " @ " + x1
           //          + " -> " + y0 + " @ " + x0 + " => " + r);
           return r;
