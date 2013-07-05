@@ -199,7 +199,7 @@ public final class Plot {
       final PrintWriter datafile = new PrintWriter(datafiles[i]);
       try {
         for (final DataPoint d : datapoints.get(i)) {
-          final long ts = d.timestamp();
+          final long ts = d.timestamp() / 1000;
           if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
             npoints++;
           }
