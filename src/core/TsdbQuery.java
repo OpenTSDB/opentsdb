@@ -66,10 +66,10 @@ final class TsdbQuery implements Query {
   private static final int UNSET = -1;
 
   /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int start_time = UNSET;
+  private long start_time = UNSET;
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private int end_time = UNSET;
+  private long end_time = UNSET;
 
   /** ID of the metric being looked up. */
   private byte[] metric;
@@ -121,42 +121,69 @@ final class TsdbQuery implements Query {
     this.tsdb = tsdb;
   }
 
+  /**
+   * Sets the start time for the query
+   * @param timestamp Unix epoch timestamp in seconds or milliseconds
+   * @throws IllegalArgumentException if the timestamp is invalid or greater
+   * than the end time (if set)
+   */
   public void setStartTime(final long timestamp) {
-    if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
+    if ((timestamp & Const.SECOND_MASK) != 0 && 
+        (timestamp < 1000000000000L || timestamp > 9999999999999L)) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
     } else if (end_time != UNSET && timestamp >= getEndTime()) {
       throw new IllegalArgumentException("new start time (" + timestamp
           + ") is greater than or equal to end time: " + getEndTime());
     }
-    // Keep the 32 bits.
-    start_time = (int) timestamp;
+    start_time = timestamp;
   }
 
+  /**
+   * @returns the start time for the query
+   * @throws IllegalStateException if the start time hasn't been set yet
+   */
   public long getStartTime() {
     if (start_time == UNSET) {
       throw new IllegalStateException("setStartTime was never called!");
     }
-    return start_time & 0x00000000FFFFFFFFL;
+    return start_time;
   }
 
+  /**
+   * Sets the end time for the query. If this isn't set, the system time will be
+   * used when the query is executed or {@link #getEndTime} is called
+   * @param timestamp Unix epoch timestamp in seconds or milliseconds
+   * @throws IllegalArgumentException if the timestamp is invalid or less
+   * than the start time (if set)
+   */
   public void setEndTime(final long timestamp) {
-    if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
+    if ((timestamp & Const.SECOND_MASK) != 0 && 
+        (timestamp < 1000000000000L || timestamp > 9999999999999L)) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
     } else if (start_time != UNSET && timestamp <= getStartTime()) {
       throw new IllegalArgumentException("new end time (" + timestamp
           + ") is less than or equal to start time: " + getStartTime());
     }
-    // Keep the 32 bits.
-    end_time = (int) timestamp;
+    end_time = timestamp;
   }
 
+  /** @return the configured end time. If the end time hasn't been set, the
+   * current system time will be stored and returned.
+   */
   public long getEndTime() {
     if (end_time == UNSET) {
-      setEndTime(System.currentTimeMillis() / 1000);
+      setEndTime(System.currentTimeMillis());
     }
     return end_time;
   }
 
+  /**
+   * Sets up a query for the given metric and optional tags
+   * @param metric Name of the metric to query for
+   * @param tags An optional list of tags and/or grouping operators
+   * @param function Aggregation function to use
+   * @param rate Whether or not the result should be a rate
+   */
   public void setTimeSeries(final String metric,
                             final Map<String, String> tags,
                             final Aggregator function,
@@ -213,6 +240,13 @@ final class TsdbQuery implements Query {
     this.rate = rate;
   }
   
+  /**
+   * Sets an optional downsampling function on this query
+   * @param interval The interval, in milliseconds to rollup data points
+   * @param downsampler An aggregation function to use when rolling up data points
+   * @throws NullPointerException if the aggregation function is null
+   * @throws IllegalArgumentException if the interval is not greater than 0
+   */
   public void downsample(final int interval, final Aggregator downsampler) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
@@ -272,6 +306,10 @@ final class TsdbQuery implements Query {
     }
   }
 
+  /**
+   * Executes the query
+   * @return An array of data points with one time series per array value
+   */
   public DataPoints[] run() throws HBaseException {
     return groupByAndAggregate(findSpans());
   }
@@ -482,7 +520,12 @@ final class TsdbQuery implements Query {
     // but this doesn't really matter.
     // Additionally, in case our sample_interval is large, we need to look
     // even further before/after, so use that too.
-    final long ts = getStartTime() - Const.MAX_TIMESPAN * 2 - sample_interval;
+    long start = getStartTime();
+    // down cast to seconds if we have a query in ms
+    if ((start & Const.SECOND_MASK) != 0) {
+      start /= 1000;
+    }
+    final long ts = start - Const.MAX_TIMESPAN * 2 - sample_interval;
     return ts > 0 ? ts : 0;
   }
 
@@ -496,7 +539,11 @@ final class TsdbQuery implements Query {
     // again that doesn't really matter.
     // Additionally, in case our sample_interval is large, we need to look
     // even further before/after, so use that too.
-    return getEndTime() + Const.MAX_TIMESPAN + 1 + sample_interval;
+    long end = getEndTime();
+    if ((end & Const.SECOND_MASK) != 0) {
+      end /= 1000;
+    }
+    return end + Const.MAX_TIMESPAN + 1 + sample_interval;
   }
 
   /**
