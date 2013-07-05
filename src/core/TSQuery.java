@@ -71,6 +71,9 @@ public final class TSQuery {
    * <b>Do not set directly</b> */
   private long end_time;
   
+  /** Whether or not the user wasn't millisecond resolution */
+  private boolean ms_resolution;
+  
   /**
    * Default constructor necessary for POJO de/serialization
    */
@@ -116,7 +119,10 @@ public final class TSQuery {
   }
   
   /**
-   * Compiles the TSQuery into an array of Query objects for execution
+   * Compiles the TSQuery into an array of Query objects for execution.
+   * If the user has not set a down sampler explicitly, and they don't want 
+   * millisecond resolution, then we set the down sampler to 1 second to handle
+   * situations where storage may have multiple data points per second.
    * @param tsdb The tsdb to use for {@link newQuery}
    * @return An array of queries
    */
@@ -125,11 +131,14 @@ public final class TSQuery {
     int i = 0;
     for (TSSubQuery sub : this.queries) {
       final Query query = tsdb.newQuery();
-      // TODO - fix this when we support ms timestamps
-      query.setStartTime(start_time / 1000);
-      query.setEndTime(end_time / 1000);
+      query.setStartTime(start_time);
+      query.setEndTime(end_time);
       if (sub.downsampler() != null) {
         query.downsample((int)sub.downsampleInterval(), sub.downsampler());
+      } else if (!ms_resolution) {
+        // we *may* have multiple millisecond data points in the set so we have
+        // to downsample. use the sub query's aggregator
+        query.downsample(1000, sub.aggregator());
       }
       if (sub.getTsuids() != null && !sub.getTsuids().isEmpty()) {
         query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate());
@@ -198,6 +207,11 @@ public final class TSQuery {
     return queries;
   }
 
+  /** @return whether or not the requestor wants millisecond resolution */
+  public boolean getMsResolution() {
+    return ms_resolution;
+  }
+  
   /**
    * Sets the start time for further parsing. This can be an absolute or 
    * relative value. See {@link DateTime#parseDateTimeString} for details.
@@ -252,4 +266,8 @@ public final class TSQuery {
     this.queries = queries;
   }
 
+  /** @param ms_resolution whether or not the user wants millisecond resolution */
+  public void setMsResolution(boolean ms_resolution) {
+    this.ms_resolution = ms_resolution;
+  }
 }
