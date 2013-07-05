@@ -15,6 +15,7 @@ package net.opentsdb.uid;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -23,6 +24,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.AtomicIncrementRequest;
+import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
@@ -686,6 +688,53 @@ public final class TestUniqueId {
   @Test (expected = IllegalArgumentException.class)
   public void getTagPairsFromTSUIDEmpty() {
     UniqueId.getTagPairsFromTSUID("", (short)3, (short)3, (short)3);
+  }
+  
+  @Test
+  public void getUsedUIDs() throws Exception {
+    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3);
+    final byte[] metrics = { 'm', 'e', 't', 'r', 'i', 'c', 's' };
+    final byte[] tagk = { 't', 'a', 'g', 'k' };
+    final byte[] tagv = { 't', 'a', 'g', 'v' };
+    kvs.add(new KeyValue(MAXID, ID, metrics, Bytes.fromLong(64L)));
+    kvs.add(new KeyValue(MAXID, ID, tagk, Bytes.fromLong(42L)));
+    kvs.add(new KeyValue(MAXID, ID, tagv, Bytes.fromLong(1024L)));
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getClient()).thenReturn(client);
+    when(tsdb.uidTable()).thenReturn(new byte[] { 'u', 'i', 'd' });
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+    
+    final byte[][] kinds = { metrics, tagk, tagv };
+    final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb, kinds)
+      .joinUninterruptibly();
+    assertNotNull(uids);
+    assertEquals(3, uids.size());
+    assertEquals(64L, uids.get("metrics").longValue());
+    assertEquals(42L, uids.get("tagk").longValue());
+    assertEquals(1024L, uids.get("tagv").longValue());
+  }
+  
+  @Test
+  public void getUsedUIDsEmptyRow() throws Exception {
+    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(0);
+    final byte[] metrics = { 'm', 'e', 't', 'r', 'i', 'c', 's' };
+    final byte[] tagk = { 't', 'a', 'g', 'k' };
+    final byte[] tagv = { 't', 'a', 'g', 'v' };
+    final TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getClient()).thenReturn(client);
+    when(tsdb.uidTable()).thenReturn(new byte[] { 'u', 'i', 'd' });
+    when(client.get(anyGet()))
+      .thenReturn(Deferred.fromResult(kvs));
+    
+    final byte[][] kinds = { metrics, tagk, tagv };
+    final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb, kinds)
+      .joinUninterruptibly();
+    assertNotNull(uids);
+    assertEquals(3, uids.size());
+    assertEquals(0L, uids.get("metrics").longValue());
+    assertEquals(0L, uids.get("tagk").longValue());
+    assertEquals(0L, uids.get("tagv").longValue());
   }
   
   // ----------------- //

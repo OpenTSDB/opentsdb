@@ -15,8 +15,10 @@ package net.opentsdb.uid;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.stumbleupon.async.Callback;
@@ -895,4 +897,52 @@ public final class UniqueId implements UniqueIdInterface {
     }
     return tags;
    }
+  
+  /**
+   * Returns a map of max UIDs from storage for the given list of UID types 
+   * @param tsdb The TSDB to which we belong
+   * @param kinds A list of qualifiers to fetch
+   * @return A map with the "kind" as the key and the maximum assigned UID as
+   * the value
+   * @since 2.0
+   */
+  public static Deferred<Map<String, Long>> getUsedUIDs(final TSDB tsdb,
+      final byte[][] kinds) {
+    
+    /**
+     * Returns a map with 0 if the max ID row hasn't been initialized yet, 
+     * otherwise the map has actual data
+     */
+    final class GetCB implements Callback<Map<String, Long>, 
+      ArrayList<KeyValue>> {
+
+      @Override
+      public Map<String, Long> call(final ArrayList<KeyValue> row)
+          throws Exception {
+        
+        final Map<String, Long> results = new HashMap<String, Long>(3);
+        if (row == null || row.isEmpty()) {
+          // it could be the case that this is the first time the TSD has run
+          // and the user hasn't put any metrics in, so log and return 0s
+          LOG.info("Could not find the UID assignment row");
+          for (final byte[] kind : kinds) {
+            results.put(new String(kind, CHARSET), 0L);
+          }
+          return results;
+        }
+        
+        for (final KeyValue column : row) {
+          results.put(new String(column.qualifier(), CHARSET), 
+              Bytes.getLong(column.value()));
+        }
+        return results;
+      }
+      
+    }
+    
+    final GetRequest get = new GetRequest(tsdb.uidTable(), MAXID_ROW);
+    get.family(ID_FAMILY);
+    get.qualifiers(kinds);
+    return tsdb.getClient().get(get).addCallback(new GetCB());
+  }
 }
