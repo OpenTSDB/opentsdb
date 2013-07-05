@@ -793,7 +793,7 @@ final class GraphHandler implements HttpRpc {
         for (final DataPoint d : dp) {
           asciifile.print(metric);
           asciifile.print(' ');
-          asciifile.print(d.timestamp());
+          asciifile.print((d.timestamp() / 1000));
           asciifile.print(' ');
           if (d.isInteger()) {
             asciifile.print(d.longValue());
@@ -874,6 +874,8 @@ final class GraphHandler implements HttpRpc {
         }
         final int interval = (int) DateTime.parseDuration(parts[1].substring(0, dash));
         tsdbquery.downsample(interval, downsampler);
+      } else {
+        tsdbquery.downsample(1000, agg);
       }
       tsdbqueries[nqueries++] = tsdbquery;
     }
