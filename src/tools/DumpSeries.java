@@ -17,7 +17,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
-import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
@@ -25,6 +24,7 @@ import org.hbase.async.Scanner;
 
 import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
+import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
@@ -149,30 +149,12 @@ final class DumpSeries {
   }
 
   private static void formatKeyValue(final StringBuilder buf,
-                                     final TSDB tsdb,
-                                     final boolean importformat,
-                                     final KeyValue kv,
-                                     final long base_time,
-                                     final String metric) {
-    if (importformat) {
-      buf.append(metric).append(' ');
-    }
-    final byte[] qualifier = kv.qualifier();
-    final byte[] cell = kv.value();
-    if (qualifier.length != 2 && cell[cell.length - 1] != 0) {
-      throw new IllegalDataException("Don't know how to read this value:"
-        + Arrays.toString(cell) + " found in " + kv
-        + " -- this compacted value might have been written by a future"
-        + " version of OpenTSDB, or could be corrupt.");
-    }
-    final int nvalues = qualifier.length / 2;
-    final boolean multi_val = nvalues != 1 && !importformat;
-    if (multi_val) {
-      buf.append(Arrays.toString(qualifier))
-        .append(' ').append(Arrays.toString(cell))
-        .append(" = ").append(nvalues).append(" values:");
-    }
-
+      final TSDB tsdb,
+      final boolean importformat,
+      final KeyValue kv,
+      final long base_time,
+      final String metric) {
+        
     final String tags;
     if (importformat) {
       final StringBuilder tagsbuf = new StringBuilder();
@@ -185,56 +167,87 @@ final class DumpSeries {
     } else {
       tags = null;
     }
-
-    int value_offset = 0;
-    for (int i = 0; i < nvalues; i++) {
-      if (multi_val) {
-        buf.append("\n    ");
+    
+    final byte[] qualifier = kv.qualifier();
+    final byte[] value = kv.value();
+    final int q_len = qualifier.length;
+    
+    if (!importformat) {
+      buf.append(Arrays.toString(qualifier)).append('\t');
+    }
+    
+    if (q_len % 2 != 0) {
+      if (!importformat) {
+        // custom data object, not a data point
+        buf.append(Arrays.toString(value))
+          .append("\t[Not a data point]");
       }
-      final short qual = Bytes.getShort(qualifier, i * 2);
-      final byte flags = (byte) qual;
-      final int value_len = (flags & 0x7) + 1;
-      final short delta = (short) ((0x0000FFFF & qual) >>> 4);
-      if (importformat) {
-        buf.append(base_time + delta).append(' ');
+    } else if (q_len == 2 || q_len == 4 && Internal.inMilliseconds(qualifier)) {
+      // regular data point
+      final Cell cell = Internal.parseSingleValue(kv);
+      if (cell == null) {
+        throw new IllegalDataException("Unable to parse row: " + kv);
+      }
+      if (!importformat) {
+        appendRawCell(buf, cell, base_time);
       } else {
-        final byte[] v = multi_val
-          ? Arrays.copyOfRange(cell, value_offset, value_offset + value_len)
-          : cell;
-        buf.append(Arrays.toString(Bytes.fromShort(qual)))
-           .append(' ')
-           .append(Arrays.toString(v))
-           .append('\t')
-           .append(delta)
-           .append('\t');
+        buf.append(metric).append(' ');
+        appendImportCell(buf, cell, base_time, tags);
       }
-      if ((qual & 0x8) == 0x8) {
-        if (cell.length == 8 && value_len == 4
-            && cell[0] == 0 && cell[1] == 0 && cell[2] == 0 && cell[3] == 0) {
-          // Incorrect encoded floating point value.
-          // See CompactionQueue.fixFloatingPointValue() for more details.
-          value_offset += 4;
+    } else {
+      // compacted column
+      final ArrayList<Cell> cells = Internal.extractDataPoints(kv);
+      if (!importformat) {
+        buf.append(Arrays.toString(kv.value()))
+           .append(" = ")
+           .append(cells.size())
+           .append(" values:");
+      }
+      
+      int i = 0;
+      for (Cell cell : cells) {
+        if (!importformat) {
+          buf.append("\n    ");
+          appendRawCell(buf, cell, base_time);
+        } else {
+          buf.append(metric).append(' ');
+          appendImportCell(buf, cell, base_time, tags);
+          if (i < cells.size() - 1) {
+            buf.append("\n");
+          }
         }
-        buf.append(importformat ? "" : "f ")
-           .append(Internal.extractFloatingPointValue(cell, value_offset, flags));
-      } else {
-        buf.append(importformat ? "" : "l ")
-           .append(Internal.extractIntegerValue(cell, value_offset, flags));
+        i++;
       }
-      if (importformat) {
-        buf.append(tags);
-        if (nvalues > 1 && i + 1 < nvalues) {
-          buf.append('\n').append(metric).append(' ');
-        }
-      } else {
-        buf.append('\t')
-           .append(base_time + delta)
-           .append(" (").append(date(base_time + delta)).append(')');
-      }
-      value_offset += value_len;
     }
   }
-
+  
+  static void appendRawCell(final StringBuilder buf, final Cell cell, 
+      final long base_time) {
+    buf.append(Arrays.toString(cell.qualifier()))
+    .append("\t")
+    .append(Arrays.toString(cell.value()))
+    .append("\t")
+    .append(Internal.getOffsetFromQualifier(cell.qualifier()) / 1000)
+    .append("\t")
+    .append(cell.isInteger() ? "l" : "f")
+    .append("\t")
+    .append(cell.parseValue())
+    .append("\t")
+    .append(cell.absoluteTimestamp(base_time))
+    .append("\t")
+    .append("(")
+    .append(date(cell.absoluteTimestamp(base_time)))
+    .append(")");
+  }
+  
+  static void appendImportCell(final StringBuilder buf, final Cell cell, 
+      final long base_time, final String tags) {
+    buf.append(cell.absoluteTimestamp(base_time))
+    .append(" ")
+    .append(Arrays.toString(cell.value()))
+    .append(tags);
+  }
+  
   /** Transforms a UNIX timestamp into a human readable date.  */
   static String date(final long timestamp) {
     return new Date(timestamp * 1000).toString();
