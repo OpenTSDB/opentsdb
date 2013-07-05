@@ -548,12 +548,14 @@ class HttpJsonSerializer extends HttpSerializer {
           if (as_arrays) {
             json.writeStartArray();
             for (final DataPoint dp : dps) {
-              if (dp.timestamp() < (data_query.startTime() / 1000) || 
-                  dp.timestamp() > (data_query.endTime() / 1000)) {
+              if (dp.timestamp() < data_query.startTime() || 
+                  dp.timestamp() > data_query.endTime()) {
                 continue;
               }
+              final long timestamp = data_query.getMsResolution() ? 
+                  dp.timestamp() : dp.timestamp() / 1000;
               json.writeStartArray();
-              json.writeNumber(dp.timestamp());
+              json.writeNumber(timestamp);
               json.writeNumber(
                   dp.isInteger() ? dp.longValue() : dp.doubleValue());
               json.writeEndArray();
@@ -562,11 +564,13 @@ class HttpJsonSerializer extends HttpSerializer {
           } else {
             json.writeStartObject();
             for (final DataPoint dp : dps) {
-              if (dp.timestamp() < (data_query.startTime() / 1000) || 
-                  dp.timestamp() > (data_query.endTime() / 1000)) {
+              if (dp.timestamp() < (data_query.startTime()) || 
+                  dp.timestamp() > (data_query.endTime())) {
                 continue;
               }
-              json.writeNumberField(Long.toString(dp.timestamp()), 
+              final long timestamp = data_query.getMsResolution() ? 
+                  dp.timestamp() : dp.timestamp() / 1000;
+              json.writeNumberField(Long.toString(timestamp), 
                   dp.isInteger() ? dp.longValue() : dp.doubleValue());
             }
             json.writeEndObject();
