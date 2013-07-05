@@ -44,7 +44,7 @@ public final class TestTSQuery {
     assertEquals("lga", q.getQueries().get(0).getTags().get("dc"));
     assertEquals(Aggregators.SUM, q.getQueries().get(0).aggregator());
     assertEquals(Aggregators.AVG, q.getQueries().get(0).downsampler());
-    assertEquals(300, q.getQueries().get(0).downsampleInterval());
+    assertEquals(300000, q.getQueries().get(0).downsampleInterval());
   }
   
   @Test (expected = IllegalArgumentException.class)

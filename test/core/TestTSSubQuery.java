@@ -37,7 +37,7 @@ public final class TestTSSubQuery {
     assertEquals("lga", sub.getTags().get("dc"));
     assertEquals(Aggregators.SUM, sub.aggregator());
     assertEquals(Aggregators.AVG, sub.downsampler());
-    assertEquals(300, sub.downsampleInterval());
+    assertEquals(300000, sub.downsampleInterval());
   }
   
   @Test
@@ -53,7 +53,7 @@ public final class TestTSSubQuery {
     assertEquals("lga", sub.getTags().get("dc"));
     assertEquals(Aggregators.SUM, sub.aggregator());
     assertEquals(Aggregators.AVG, sub.downsampler());
-    assertEquals(300, sub.downsampleInterval());
+    assertEquals(300000, sub.downsampleInterval());
   }
   
   @Test
