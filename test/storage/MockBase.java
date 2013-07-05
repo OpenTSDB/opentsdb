@@ -304,6 +304,25 @@ public final class MockBase {
   }
   
   /**
+   * Concatenates byte arrays into one big array
+   * @param arrays Any number of arrays to concatenate
+   * @return The concatenated array
+   */
+  public static byte[] concatByteArrays(final byte[]... arrays) {
+    int len = 0;
+    for (final byte[] array : arrays) {
+      len += array.length;
+    }
+    final byte[] result = new byte[len];
+    len = 0;
+    for (final byte[] array : arrays) {
+      System.arraycopy(array, 0, result, len, array.length);
+      len += array.length;
+    }
+    return result;
+  }
+  
+  /**
    * Gets one or more columns from a row. If the row does not exist, a null is
    * returned. If no qualifiers are given, the entire row is returned.
    */
