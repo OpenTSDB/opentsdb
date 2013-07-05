@@ -79,7 +79,7 @@ public final class TestTsdbQuery {
     config = new Config(false);
     tsdb = new TSDB(config);
     query = new TsdbQuery(tsdb);
-    
+
     // replace the "real" field objects with mocks
     Field cl = tsdb.getClass().getDeclaredField("client");
     cl.setAccessible(true);
@@ -129,13 +129,18 @@ public final class TestTsdbQuery {
   }
   
   @Test (expected = IllegalArgumentException.class)
+  public void setStartTimeInvalid() throws Exception {
+    query.setStartTime(13717504770L);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
   public void setStartTimeInvalidNegative() throws Exception {
     query.setStartTime(-1L);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void setStartTimeInvalidTooBig() throws Exception {
-    query.setStartTime(4294967296L);
+    query.setStartTime(17592186044416L);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -168,7 +173,7 @@ public final class TestTsdbQuery {
   
   @Test (expected = IllegalArgumentException.class)
   public void setEndTimeInvalidTooBig() throws Exception {
-    query.setEndTime(4294967296L);
+    query.setEndTime(17592186044416L);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -187,7 +192,7 @@ public final class TestTsdbQuery {
   public void getEndTimeNotSet() throws Exception {
     PowerMockito.mockStatic(System.class);
     when(System.currentTimeMillis()).thenReturn(1357300800000L);
-    assertEquals(1357300800L, query.getEndTime());
+    assertEquals(1357300800000L, query.getEndTime());
   }
   
   @Test
@@ -277,12 +282,37 @@ public final class TestTsdbQuery {
   
   @Test
   public void runLongSingleTS() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    int value = 1;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.longValue());
+      value++;
+    }
+    assertEquals(300, dps[0].aggregatedSize());
+  }
+  
+  @Test
+  public void runLongSingleTSMs() throws Exception {
+    storeLongTimeSeriesMs();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
     assertEquals("sys.cpu.user", dps[0].metricName());
@@ -313,13 +343,35 @@ public final class TestTsdbQuery {
   
   @Test
   public void runLongTwoAggSum() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>();
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
+    query.setStartTime(1356998400L);
+    query.setEndTime(1357041600L);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
+    System.out.println("# of spans: "+ dps.length);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+    
+    for (DataPoint dp : dps[0]) {
+      assertEquals(301, dp.longValue());
+    }
+    assertEquals(300, dps[0].size());
+  }
+  
+  @Test
+  public void runLongTwoAggSumMs() throws Exception {
+    storeLongTimeSeriesMs();
+    HashMap<String, String> tags = new HashMap<String, String>();
+    query.setStartTime(1356998400L);
+    query.setEndTime(1357041600L);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    System.out.println("# of spans: "+ dps.length);
     assertEquals("sys.cpu.user", dps[0].metricName());
     assertEquals("host", dps[0].getAggregatedTags().get(0));
     assertNull(dps[0].getAnnotations());
@@ -333,7 +385,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runLongTwoGroup() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "*");
     query.setStartTime(1356998400);
@@ -370,7 +422,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runLongSingleTSRate() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
@@ -390,13 +442,58 @@ public final class TestTsdbQuery {
   }
   
   @Test
-  public void runLongSingleTSDownsample() throws Exception {
-    storeLongTimeSeries();
+  public void runLongSingleTSRateMs() throws Exception {
+    storeLongTimeSeriesMs();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
-    query.downsample(60, Aggregators.AVG);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    for (DataPoint dp : dps[0]) {
+      assertEquals(2.0F, dp.doubleValue(), 0.001);
+    }
+    assertEquals(299, dps[0].size());
+  }
+  
+  @Test
+  public void runLongSingleTSDownsample() throws Exception {
+    storeLongTimeSeriesSeconds();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(60000, Aggregators.AVG);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    int i = 1;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(i, dp.longValue());
+      i += 2;
+    }
+    assertEquals(150, dps[0].size());
+  }
+  
+  @Test
+  public void runLongSingleTSDownsampleMs() throws Exception {
+    storeLongTimeSeriesMs();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(1000, Aggregators.AVG);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
@@ -415,12 +512,12 @@ public final class TestTsdbQuery {
   
   @Test
   public void runLongSingleTSDownsampleAndRate() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
-    query.downsample(60, Aggregators.AVG);
+    query.downsample(60000, Aggregators.AVG);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
@@ -431,6 +528,28 @@ public final class TestTsdbQuery {
     
     for (DataPoint dp : dps[0]) {
       assertEquals(0.033F, dp.doubleValue(), 0.001);
+    }
+    assertEquals(149, dps[0].size());
+  }
+  
+  @Test
+  public void runLongSingleTSDownsampleAndRateMs() throws Exception {
+    storeLongTimeSeriesMs();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(1000, Aggregators.AVG);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    for (DataPoint dp : dps[0]) {
+      assertEquals(2.0F, dp.doubleValue(), 0.001);
     }
     assertEquals(149, dps[0].size());
   }
@@ -483,7 +602,30 @@ public final class TestTsdbQuery {
   
   @Test
   public void runFloatSingleTS() throws Exception {
-    storeFloatTimeSeries();
+    storeFloatTimeSeriesSeconds();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    double value = 1.25D;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.doubleValue(), 0.001);
+      value += 0.25D;
+    }
+    assertEquals(300, dps[0].size());
+  }
+  
+  @Test
+  public void runFloatSingleTSMs() throws Exception {
+    storeFloatTimeSeriesMs();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
@@ -506,7 +648,27 @@ public final class TestTsdbQuery {
   
   @Test
   public void runFloatTwoAggSum() throws Exception {
-    storeFloatTimeSeries();
+    storeFloatTimeSeriesSeconds();
+    HashMap<String, String> tags = new HashMap<String, String>();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+    
+    for (DataPoint dp : dps[0]) {
+      assertEquals(76.25, dp.doubleValue(), 0.00001);
+    }
+    assertEquals(300, dps[0].size());
+  }
+  
+  @Test
+  public void runFloatTwoAggSumMs() throws Exception {
+    storeFloatTimeSeriesMs();
     HashMap<String, String> tags = new HashMap<String, String>();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
@@ -526,7 +688,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runFloatTwoGroup() throws Exception {
-    storeFloatTimeSeries();
+    storeFloatTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "*");
     query.setStartTime(1356998400);
@@ -563,7 +725,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runFloatSingleTSRate() throws Exception {
-    storeFloatTimeSeries();
+    storeFloatTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
@@ -583,13 +745,58 @@ public final class TestTsdbQuery {
   }
   
   @Test
-  public void runFloatSingleTSDownsample() throws Exception {
-    storeFloatTimeSeries();
+  public void runFloatSingleTSRateMs() throws Exception {
+    storeFloatTimeSeriesMs();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
-    query.downsample(60, Aggregators.AVG);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    for (DataPoint dp : dps[0]) {
+      assertEquals(0.5F, dp.doubleValue(), 0.00001);
+    }
+    assertEquals(299, dps[0].size());
+  }
+  
+  @Test
+  public void runFloatSingleTSDownsample() throws Exception {
+    storeFloatTimeSeriesSeconds();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(60000, Aggregators.AVG);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    double i = 1.375D;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(i, dp.doubleValue(), 0.00001);
+      i += 0.5D;
+    }
+    assertEquals(150, dps[0].size());
+  }
+  
+  @Test
+  public void runFloatSingleTSDownsampleMs() throws Exception {
+    storeFloatTimeSeriesMs();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(1000, Aggregators.AVG);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
@@ -608,12 +815,12 @@ public final class TestTsdbQuery {
   
   @Test
   public void runFloatSingleTSDownsampleAndRate() throws Exception {
-    storeFloatTimeSeries();
+    storeFloatTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
-    query.downsample(60, Aggregators.AVG);
+    query.downsample(60000, Aggregators.AVG);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
@@ -624,6 +831,28 @@ public final class TestTsdbQuery {
     
     for (DataPoint dp : dps[0]) {
       assertEquals(0.00833F, dp.doubleValue(), 0.00001);
+    }
+    assertEquals(149, dps[0].size());
+  }
+  
+  @Test
+  public void runFloatSingleTSDownsampleAndRateMs() throws Exception {
+    storeFloatTimeSeriesMs();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(1000, Aggregators.AVG);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    for (DataPoint dp : dps[0]) {
+      assertEquals(0.5F, dp.doubleValue(), 0.00001);
     }
     assertEquals(149, dps[0].size());
   }
@@ -653,7 +882,40 @@ public final class TestTsdbQuery {
   
   @Test
   public void runMixedSingleTS() throws Exception {
-    storeMixedTimeSeries();
+    storeMixedTimeSeriesSeconds();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.AVG, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    double float_value = 1.25D;
+    int int_value = 76;
+    // due to aggregation, the only int that will be returned will be the very
+    // last value of 76 since the agg will convert every point in between to a
+    // double
+    for (DataPoint dp : dps[0]) {
+      if (dp.isInteger()) {
+        assertEquals(int_value, dp.longValue());
+        int_value++;
+        float_value = int_value;
+      } else {
+        assertEquals(float_value, dp.doubleValue(), 0.001);
+        float_value += 0.25D;
+      }
+    }
+    assertEquals(300, dps[0].size());
+  }
+  
+  @Test
+  public void runMixedSingleTSMsAndS() throws Exception {
+    storeMixedTimeSeriesMsAndS();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
@@ -686,7 +948,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runMixedSingleTSPostCompaction() throws Exception {
-    storeMixedTimeSeries();
+    storeMixedTimeSeriesSeconds();
     
     final Field compact = Config.class.getDeclaredField("enable_compactions");
     compact.setAccessible(true);
@@ -769,7 +1031,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runEndTime() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
@@ -788,7 +1050,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runCompactPostQuery() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     
     final Field compact = Config.class.getDeclaredField("enable_compactions");
     compact.setAccessible(true);
@@ -839,7 +1101,7 @@ public final class TestTsdbQuery {
     // if a row has an integer and a float for the same timestamp, there will be
     // two different qualifiers that will resolve to the same offset. This tosses
     // an exception
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1356998430, 42.5F, tags).joinUninterruptibly();
@@ -851,7 +1113,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runWithAnnotation() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     
     final Annotation note = new Annotation();
     note.setTSUID("000001000001000001");
@@ -880,7 +1142,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runWithAnnotationPostCompact() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     
     final Annotation note = new Annotation();
     note.setTSUID("000001000001000001");
@@ -929,7 +1191,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runWithOnlyAnnotation() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     
     // verifies that we can pickup an annotation stored all bye it's lonesome
     // in a row without any data
@@ -965,7 +1227,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runTSUIDQuery() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
@@ -988,7 +1250,7 @@ public final class TestTsdbQuery {
   
   @Test
   public void runTSUIDsAggSum() throws Exception {
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
@@ -1040,7 +1302,7 @@ public final class TestTsdbQuery {
   public void runTSUIDQueryNSU() throws Exception {
     when(metrics.getName(new byte[] { 0, 0, 1 }))
       .thenThrow(new NoSuchUniqueId("metrics", new byte[] { 0, 0, 1 }));
-    storeLongTimeSeries();
+    storeLongTimeSeriesSeconds();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
@@ -1051,8 +1313,262 @@ public final class TestTsdbQuery {
     dps[0].metricName();
   }
   
-  // TODO - other UTs
-  // - fix floating points (CompactionQueue:L267
+  @Test
+  public void runMultiCompact() throws Exception {
+    final byte[] qual1 = { 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(1L);
+    final byte[] qual2 = { 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(2L);
+
+    // 2nd compaction
+    final byte[] qual3 = { 0x00, 0x37 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x47 };
+    final byte[] val4 = Bytes.fromLong(4L);
+
+    // 3rd compaction
+    final byte[] qual5 = { 0x00, 0x57 };
+    final byte[] val5 = Bytes.fromLong(5L);
+    final byte[] qual6 = { 0x00, 0x67 };
+    final byte[] val6 = Bytes.fromLong(6L);
+
+    final byte[] KEY = { 0, 0, 1, 0x50, (byte) 0xE2, 
+        0x27, 0x00, 0, 0, 1, 0, 0, 1 };
+    
+    setQueryStorage();
+    storage.addColumn(KEY, 
+        MockBase.concatByteArrays(qual1, qual2), 
+        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
+    storage.addColumn(KEY, 
+        MockBase.concatByteArrays(qual3, qual4), 
+        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    storage.addColumn(KEY, 
+        MockBase.concatByteArrays(qual5, qual6), 
+        MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
+    
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    int value = 1;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.longValue());
+      value++;
+    }
+    assertEquals(6, dps[0].aggregatedSize());
+  }
+
+  @Test
+  public void runMultiCompactAndSingles() throws Exception {
+    final byte[] qual1 = { 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(1L);
+    final byte[] qual2 = { 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(2L);
+
+    // 2nd compaction
+    final byte[] qual3 = { 0x00, 0x37 };
+    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] qual4 = { 0x00, 0x47 };
+    final byte[] val4 = Bytes.fromLong(4L);
+
+    // 3rd compaction
+    final byte[] qual5 = { 0x00, 0x57 };
+    final byte[] val5 = Bytes.fromLong(5L);
+    final byte[] qual6 = { 0x00, 0x67 };
+    final byte[] val6 = Bytes.fromLong(6L);
+
+    final byte[] KEY = { 0, 0, 1, 0x50, (byte) 0xE2, 
+        0x27, 0x00, 0, 0, 1, 0, 0, 1 };
+    
+    setQueryStorage();
+    storage.addColumn(KEY, 
+        MockBase.concatByteArrays(qual1, qual2), 
+        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
+    storage.addColumn(KEY, qual3, val3);
+    storage.addColumn(KEY, qual4, val4);
+    storage.addColumn(KEY, 
+        MockBase.concatByteArrays(qual5, qual6), 
+        MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
+    
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    int value = 1;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.longValue());
+      value++;
+    }
+    assertEquals(6, dps[0].aggregatedSize());
+  }
+  
+  @Test
+  public void runInterpolationSeconds() throws Exception {
+    setQueryStorage();
+    
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400;
+    for (int i = 1; i <= 300; i++) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 30, i, tags)
+        .joinUninterruptibly();
+    }
+    
+    tags.clear();
+    tags.put("host", "web02");
+    timestamp = 1356998415;
+    for (int i = 300; i > 0; i--) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 30, i, tags)
+        .joinUninterruptibly();
+    }
+    
+    tags.clear();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+    
+    long v = 1;
+    long ts = 1356998430000L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(ts, dp.timestamp());
+      ts += 15000;
+      assertEquals(v, dp.longValue());
+      
+      if (dp.timestamp() == 1357007400000L) {
+        v = 1;
+      } else if (v == 1 || v == 302) {
+        v = 301;
+      } else {
+        v = 302;
+      }
+    }
+    assertEquals(600, dps[0].size());
+  }
+  
+  @Test
+  public void runInterpolationMs() throws Exception {
+    setQueryStorage();
+    
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400000L;
+    for (int i = 1; i <= 300; i++) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags)
+        .joinUninterruptibly();
+    }
+    
+    tags.clear();
+    tags.put("host", "web02");
+    timestamp = 1356998400250L;
+    for (int i = 300; i > 0; i--) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags)
+        .joinUninterruptibly();
+    }
+    
+    tags.clear();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+    
+    long v = 1;
+    long ts = 1356998400500L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(ts, dp.timestamp());
+      ts += 250;
+      assertEquals(v, dp.longValue());
+      
+      if (dp.timestamp() == 1356998550000L) {
+        v = 1;
+      } else if (v == 1 || v == 302) {
+        v = 301;
+      } else {
+        v = 302;
+      }
+    }
+    assertEquals(600, dps[0].size());
+  }
+  
+  @Test
+  public void runInterpolationMsDownsampled() throws Exception {
+    setQueryStorage();
+    
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400000L;
+    for (int i = 1; i <= 300; i++) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags)
+        .joinUninterruptibly();
+    }
+    
+    tags.clear();
+    tags.put("host", "web02");
+    timestamp = 1356998400250L;
+    for (int i = 300; i > 0; i--) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags)
+        .joinUninterruptibly();
+    }
+    
+    tags.clear();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    query.downsample(1000, Aggregators.SUM);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+    
+    long v = 3;
+    long ts = 1356998400750L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(ts, dp.timestamp());
+      if ((ts % 1000) != 0) {
+        ts += 250;
+      } else {
+        ts += 750;
+      }
+      assertEquals(v, dp.longValue());
+      
+      if (dp.timestamp() == 1356998549750L) {
+        v = 3;
+      } else {
+        v = 603;
+      }
+    }
+    assertEquals(300, dps[0].size());
+  }
   
   // ----------------- //
   // Helper functions. //
@@ -1063,7 +1579,7 @@ public final class TestTsdbQuery {
     storage.setFamily("t".getBytes(MockBase.ASCII()));
   }
   
-  private void storeLongTimeSeries() throws Exception {
+  private void storeLongTimeSeriesSeconds() throws Exception {
     setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
@@ -1085,7 +1601,29 @@ public final class TestTsdbQuery {
     }
   }
 
-  private void storeFloatTimeSeries() throws Exception {
+  private void storeLongTimeSeriesMs() throws Exception {
+    setQueryStorage();
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400000L;
+    for (int i = 1; i <= 300; i++) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly();
+      tsdb.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly();
+    }
+
+    // dump a parallel set but invert the values
+    tags.clear();
+    tags.put("host", "web02");
+    timestamp = 1356998400000L;
+    for (int i = 300; i > 0; i--) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly();
+      tsdb.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly();
+    }
+  }
+  
+  private void storeFloatTimeSeriesSeconds() throws Exception {
     setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
@@ -1107,7 +1645,29 @@ public final class TestTsdbQuery {
     }
   }
   
-  private void storeMixedTimeSeries() throws Exception {
+  private void storeFloatTimeSeriesMs() throws Exception {
+    setQueryStorage();
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400000L;
+    for (float i = 1.25F; i <= 76; i += 0.25F) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly();
+      tsdb.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly();
+    }
+
+    // dump a parallel set but invert the values
+    tags.clear();
+    tags.put("host", "web02");
+    timestamp = 1356998400000L;
+    for (float i = 75F; i > 0; i -= 0.25F) {
+      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly();
+      tsdb.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly();
+    }
+  }
+  
+  private void storeMixedTimeSeriesSeconds() throws Exception {
     setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -1119,6 +1679,25 @@ public final class TestTsdbQuery {
       } else {
         tsdb.addPoint("sys.cpu.user", timestamp += 30, i, tags)
           .joinUninterruptibly();
+      }
+    }
+  }
+  
+  // dumps ints, floats, seconds and ms
+  private void storeMixedTimeSeriesMsAndS() throws Exception {
+    setQueryStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400000L;
+    for (float i = 1.25F; i <= 76; i += 0.25F) {
+      long ts = timestamp += 500;
+      if (ts % 1000 == 0) {
+        ts /= 1000;
+      }
+      if (i % 2 == 0) {
+        tsdb.addPoint("sys.cpu.user", ts, (long)i, tags).joinUninterruptibly();
+      } else {
+        tsdb.addPoint("sys.cpu.user", ts, i, tags).joinUninterruptibly();
       }
     }
   }
@@ -1200,7 +1779,8 @@ public final class TestTsdbQuery {
     
     byte[] column_qualifier = new byte[119 * 4];
     for (int index = 0; index < column_qualifier.length; index += 4) {
-      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, column_qualifier, index, 4);
+      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, 
+          column_qualifier, index, 4);
       value += 0.25F;
     }
     storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"), 
@@ -1219,7 +1799,8 @@ public final class TestTsdbQuery {
     
     column_qualifier = new byte[120 * 4];
     for (int index = 0; index < column_qualifier.length; index += 4) {
-      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, column_qualifier, index, 4);
+      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, 
+          column_qualifier, index, 4);
       value += 0.25F;
     }
     storage.addColumn(MockBase.stringToBytes("00000150E23510000001000001"), 
@@ -1238,7 +1819,8 @@ public final class TestTsdbQuery {
     
     column_qualifier = new byte[61 * 4];
     for (int index = 0; index < column_qualifier.length; index += 4) {
-      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, column_qualifier, index, 4);
+      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, 
+          column_qualifier, index, 4);
       value += 0.25F;
     }
     storage.addColumn(MockBase.stringToBytes("00000150E24320000001000001"), 
@@ -1257,7 +1839,8 @@ public final class TestTsdbQuery {
       if (q_counter % 1 == 0) {
         column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
       } else {
-        column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
+        column = Bytes.fromShort(
+            (short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       }
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
@@ -1273,7 +1856,8 @@ public final class TestTsdbQuery {
         System.arraycopy(Bytes.fromLong((long)value), 0, column_qualifier, idx, 8);
         idx += 8;
       } else {
-        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, column_qualifier, idx, 4);
+        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, 
+            column_qualifier, idx, 4);
         idx += 4;
       }
       value += 0.25F;
@@ -1290,7 +1874,8 @@ public final class TestTsdbQuery {
       if (q_counter % 1 == 0) {
         column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
       } else {
-         column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
+         column = Bytes.fromShort(
+             (short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       }
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
@@ -1305,7 +1890,8 @@ public final class TestTsdbQuery {
         System.arraycopy(Bytes.fromLong((long)value), 0, column_qualifier, idx, 8);
         idx += 8;
       } else {
-        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, column_qualifier, idx, 4);
+        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, 
+            column_qualifier, idx, 4);
         idx += 4;
       }
       value += 0.25F;
@@ -1322,7 +1908,8 @@ public final class TestTsdbQuery {
       if (q_counter % 1 == 0) {
         column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
       } else {
-         column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
+         column = Bytes.fromShort(
+             (short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       }
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
@@ -1330,14 +1917,16 @@ public final class TestTsdbQuery {
     }
     
     num = 61;
-    column_qualifier = new byte[(((num / 4) + 1) * 8) + ((num - ((num / 4) + 1)) * 4)];
+    column_qualifier = 
+      new byte[(((num / 4) + 1) * 8) + ((num - ((num / 4) + 1)) * 4)];
     idx = 0;
     while (idx < column_qualifier.length) {
       if (value % 1 == 0) {
         System.arraycopy(Bytes.fromLong((long)value), 0, column_qualifier, idx, 8);
         idx += 8;
       } else {
-        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, column_qualifier, idx, 4);
+        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0, 
+            column_qualifier, idx, 4);
         idx += 4;
       }
       value += 0.25F;
