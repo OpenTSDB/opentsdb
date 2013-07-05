@@ -107,6 +107,13 @@ public final class TestUniqueId {
   }
 
   @Test
+  public void testMaxPossibleId() {
+    assertEquals(255, (new UniqueId(client, table, kind, 1)).maxPossibleId());
+    assertEquals(65535, (new UniqueId(client, table, kind, 2)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, kind, 3)).maxPossibleId());
+  } 
+  
+  @Test
   public void getNameSuccessfulHBaseLookup() {
     uid = new UniqueId(client, table, kind, 3);
     final byte[] id = { 0, 'a', 0x42 };

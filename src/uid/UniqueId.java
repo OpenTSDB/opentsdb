@@ -154,6 +154,11 @@ public final class UniqueId implements UniqueIdInterface {
     this.tsdb = tsdb;
   }
   
+  /** The largest possible ID given the number of bytes the IDs are represented on. */
+  public long maxPossibleId() {
+    return (1 << idWidth * Byte.SIZE) - 1;
+  }
+  
   /**
    * Causes this instance to discard all its in-memory caches.
    * @since 1.1
