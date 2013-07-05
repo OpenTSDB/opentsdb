@@ -228,7 +228,12 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     if (metric.length() <= 0) {
       throw new IllegalArgumentException("empty metric name");
     }
-    final long timestamp = Tags.parseLong(words[2]);
+    final long timestamp;
+    if (words[2].contains(".")) {
+      timestamp = Tags.parseLong(words[2].replace(".", "")); 
+    } else {
+      timestamp = Tags.parseLong(words[2]);
+    }
     if (timestamp <= 0) {
       throw new IllegalArgumentException("invalid timestamp: " + timestamp);
     }
