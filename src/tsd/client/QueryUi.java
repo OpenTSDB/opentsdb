@@ -573,14 +573,16 @@ public class QueryUi implements EntryPoint, HistoryListener {
         final JSONObject bd = json.isObject();
         final JSONString shortrev = bd.get("short_revision").isString();
         final JSONString status = bd.get("repo_status").isString();
-        final JSONNumber stamp = bd.get("timestamp").isNumber();
+        final JSONString stamp = bd.get("timestamp").isString();
         final JSONString user = bd.get("user").isString();
         final JSONString host = bd.get("host").isString();
         final JSONString repo = bd.get("repo").isString();
+        final JSONString version = bd.get("version").isString();
         build_data.setHTML(
-          "OpenTSDB built from revision " + shortrev.stringValue()
+          "OpenTSDB version [" + version.stringValue() + "] built from revision " 
+          + shortrev.stringValue()
           + " in a " + status.stringValue() + " state<br/>"
-          + "Built on " + new Date((long) (stamp.doubleValue() * 1000))
+          + "Built on " + new Date((Long.parseLong(stamp.stringValue()) * 1000))
           + " by " + user.stringValue() + '@' + host.stringValue()
           + ':' + repo.stringValue());
       }
