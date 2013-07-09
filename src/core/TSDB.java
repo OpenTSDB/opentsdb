@@ -78,6 +78,8 @@ public final class TSDB {
   final byte[] table;
   /** Name of the table in which UID information is stored. */
   final byte[] uidtable;
+  /** Name of the table where tree data is stored. */
+  final byte[] treetable;
 
   /** Unique IDs for the metric names. */
   final UniqueId metrics;
@@ -117,8 +119,9 @@ public final class TSDB {
         config.getString("tsd.storage.hbase.zk_quorum"),
         config.getString("tsd.storage.hbase.zk_basedir"));
     this.client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
-    table = config.getString("tsd.storage.hbase.data_table").getBytes();
-    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes();
+    table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
+    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
+    treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
 
     metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
@@ -304,10 +307,17 @@ public final class TSDB {
    * @since 2.0
    */
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    return Deferred.group(client.ensureTableExists(
-        config.getString("tsd.storage.hbase.data_table")),
-        client.ensureTableExists(
-            config.getString("tsd.storage.hbase.uid_table")));
+    final ArrayList<Deferred<Object>> checks = 
+      new ArrayList<Deferred<Object>>(2);
+    checks.add(client.ensureTableExists(
+        config.getString("tsd.storage.hbase.data_table")));
+    checks.add(client.ensureTableExists(
+        config.getString("tsd.storage.hbase.uid_table")));
+    if (config.enable_tree_processing()) {
+      checks.add(client.ensureTableExists(
+          config.getString("tsd.storage.hbase.tree_table")));
+    }
+    return Deferred.group(checks);
   }
   
   /** Number of cache hits during lookups involving UIDs. */
@@ -804,6 +814,11 @@ public final class TSDB {
   /** @return the name of the data table as a byte array for client requests */
   public byte[] dataTable() {
     return this.table;
+  }
+  
+  /** @return the name of the tree table as a byte array for client requests */
+  public byte[] treeTable() {
+    return this.treetable;
   }
 
   /**
