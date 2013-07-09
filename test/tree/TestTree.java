@@ -236,11 +236,23 @@ public final class TestTree {
   public void flushCollisions() throws Exception {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
+    tree.setStoreFailures(true);
     tree.addCollision("010203", "AABBCCDD");
     assertNotNull(tree.flushCollisions(storage.getTSDB())
         .joinUninterruptibly());
     assertEquals(4, storage.numRows());
     assertEquals(3, storage.numColumns(new byte[] { 0, 1, 1 }));
+  }
+  
+  @Test
+  public void flushCollisionsDisabled() throws Exception {
+    setupStorage(true, true);
+    final Tree tree = buildTestTree();
+    tree.addCollision("010203", "AABBCCDD");
+    assertNotNull(tree.flushCollisions(storage.getTSDB())
+        .joinUninterruptibly());
+    assertEquals(4, storage.numRows());
+    assertEquals(2, storage.numColumns(new byte[] { 0, 1, 1 }));
   }
   
   @Test
@@ -258,11 +270,23 @@ public final class TestTree {
   public void flushNotMatched() throws Exception {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
+    tree.setStoreFailures(true);
     tree.addNotMatched("010203", "Failed rule 2:2");
     assertNotNull(tree.flushNotMatched(storage.getTSDB())
         .joinUninterruptibly());
     assertEquals(4, storage.numRows());
     assertEquals(3, storage.numColumns(new byte[] { 0, 1, 2 }));
+  }
+  
+  @Test
+  public void flushNotMatchedDisabled() throws Exception {
+    setupStorage(true, true);
+    final Tree tree = buildTestTree();
+    tree.addNotMatched("010203", "Failed rule 2:2");
+    assertNotNull(tree.flushNotMatched(storage.getTSDB())
+        .joinUninterruptibly());
+    assertEquals(4, storage.numRows());
+    assertEquals(2, storage.numColumns(new byte[] { 0, 1, 2 }));
   }
   
   @Test

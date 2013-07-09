@@ -583,6 +583,14 @@ final class TreeRpc implements HttpRpc {
         tree.setEnabled(false);
       }
     }
+    if (query.hasQueryStringParam("store_failures")) {
+      if (query.getQueryStringParam("store_failures").toLowerCase()
+          .equals("true")) {
+        tree.setStoreFailures(true);
+      } else {
+        tree.setStoreFailures(false);
+      }
+    }
     return tree;
   }
 

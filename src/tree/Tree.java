@@ -107,6 +107,9 @@ public final class Tree {
   
   /** Whether or not the tree should process meta data or not */
   private boolean enabled;
+
+  /** Whether or not to store not matched and collisions */
+  private boolean store_failures;
   
   /** Sorted, two dimensional map of the tree's rules */
   private TreeMap<Integer, TreeMap<Integer, TreeRule>> rules;
@@ -152,6 +155,7 @@ public final class Tree {
     created = original.created;
     description = original.description;
     enabled = original.enabled;
+    store_failures = original.store_failures;
     name = original.name;
     notes = original.notes;
     strict_match = original.strict_match;
@@ -220,6 +224,10 @@ public final class Tree {
     if (overwrite || tree.changed.get("enabled")) {
       enabled = tree.enabled;
       changed.put("enabled", true);
+    }
+    if (overwrite || tree.changed.get("store_failures")) {
+      store_failures = tree.store_failures;
+      changed.put("store_failures", true);
     }
     for (boolean has_changes : changed.values()) {
       if (has_changes) {
@@ -497,6 +505,7 @@ public final class Tree {
             tree.notes = local_tree.notes;
             tree.strict_match = local_tree.strict_match;
             tree.enabled = local_tree.enabled;
+            tree.store_failures = local_tree.store_failures;
             
           // Tree rule
           } else if (Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0, 
@@ -573,6 +582,7 @@ public final class Tree {
               tree.notes = local_tree.notes;
               tree.strict_match = local_tree.strict_match;
               tree.enabled = local_tree.enabled;
+              tree.store_failures = local_tree.store_failures;
               
               // WARNING: Since the JSON data in storage doesn't contain the tree
               // ID, we need to parse it from the row key
@@ -990,6 +1000,7 @@ public final class Tree {
     changed.put("version", false);
     changed.put("node_separator", false);
     changed.put("enabled", false);
+    changed.put("store_failures", false);
   }
   
   /**
@@ -1013,6 +1024,7 @@ public final class Tree {
       json.writeBooleanField("strictMatch", strict_match);
       json.writeNumberField("created", created);
       json.writeBooleanField("enabled", enabled);
+      json.writeBooleanField("storeFailures", store_failures);
       json.writeEndObject();
       json.close();
       
@@ -1059,6 +1071,11 @@ public final class Tree {
    * @throws HBaseException if there was an issue
    */
   public Deferred<Boolean> flushCollisions(final TSDB tsdb) {
+    if (!store_failures) {
+      collisions.clear();
+      return Deferred.fromResult(true);
+    }
+    
     final byte[] row_key = new byte[TREE_ID_WIDTH + 1];
     System.arraycopy(idToBytes(tree_id), 0, row_key, 0, TREE_ID_WIDTH);
     row_key[TREE_ID_WIDTH] = COLLISION_ROW_SUFFIX;
@@ -1112,6 +1129,11 @@ public final class Tree {
    * @throws HBaseException if there was an issue
    */
   public Deferred<Boolean> flushNotMatched(final TSDB tsdb) {
+    if (!store_failures) {
+      not_matched.clear();
+      return Deferred.fromResult(true);
+    }
+    
     final byte[] row_key = new byte[TREE_ID_WIDTH + 1];
     System.arraycopy(idToBytes(tree_id), 0, row_key, 0, TREE_ID_WIDTH);
     row_key[TREE_ID_WIDTH] = NOT_MATCHED_ROW_SUFFIX;
@@ -1190,6 +1212,11 @@ public final class Tree {
     return enabled;
   }
   
+  /** @return Whether or not to store not matched and collisions */
+  public boolean getStoreFailures() {
+    return store_failures;
+  }
+  
   /** @return The tree's rule set */
   public Map<Integer, TreeMap<Integer, TreeRule>> getRules() {
     return rules;
@@ -1247,6 +1274,12 @@ public final class Tree {
   public void setEnabled(boolean enabled) {
     this.enabled = enabled;
     changed.put("enabled", true);
+  }
+  
+  /** @param store_failures Whether or not to store not matched or collisions */
+  public void setStoreFailures(boolean store_failures) {
+    this.store_failures = store_failures;
+    changed.put("store_failures", true);
   }
   
   /** @param treeId ID of the tree, users cannot modify this */
