@@ -91,8 +91,6 @@ public final class Branch implements Comparable<Branch> {
   
   /** Charset used to convert Strings to byte arrays and back. */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  /** Name of the CF where trees and branches are stored */
-  private static final byte[] NAME_FAMILY = "name".getBytes(CHARSET);
   /** Integer width in bytes */
   private static final short INT_WIDTH = 4;
   /** Name of the branch qualifier ID */
@@ -359,7 +357,7 @@ public final class Branch implements Comparable<Branch> {
     // missing anything important
     final byte[] storage_data = toStorageJson();
 
-    final PutRequest put = new PutRequest(tsdb.uidTable(), row, NAME_FAMILY, 
+    final PutRequest put = new PutRequest(tsdb.treeTable(), row, Tree.TREE_FAMILY(), 
         BRANCH_QUALIFIER, storage_data);
     put.setBufferable(true);
     storage_results.add(tsdb.getClient().compareAndSet(put, new byte[0]));
@@ -387,8 +385,8 @@ public final class Branch implements Comparable<Branch> {
   public static Deferred<Branch> fetchBranchOnly(final TSDB tsdb, 
       final byte[] branch_id) {
     
-    final GetRequest get = new GetRequest(tsdb.uidTable(), branch_id);
-    get.family(NAME_FAMILY);
+    final GetRequest get = new GetRequest(tsdb.treeTable(), branch_id);
+    get.family(Tree.TREE_FAMILY());
     get.qualifier(BRANCH_QUALIFIER);
     
     /**
@@ -655,7 +653,7 @@ public final class Branch implements Comparable<Branch> {
       final byte[] branch_id) {
     final byte[] start = branch_id;
     final byte[] end = Arrays.copyOf(branch_id, branch_id.length);
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.uidTable());
+    final Scanner scanner = tsdb.getClient().newScanner(tsdb.treeTable());
     scanner.setStartKey(start);
     
     // increment the tree ID so we scan the whole tree
@@ -669,7 +667,7 @@ public final class Branch implements Comparable<Branch> {
       end[i] = tree_id[i + (INT_WIDTH - Tree.TREE_ID_WIDTH())];
     }
     scanner.setStopKey(end);
-    scanner.setFamily(NAME_FAMILY);
+    scanner.setFamily(Tree.TREE_FAMILY());
 
     // TODO - use the column filter to fetch only branches and leaves, ignore
     // collisions, no matches and other meta

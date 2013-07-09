@@ -81,7 +81,7 @@ final class TreeSync {
     final byte[] end_row = new byte[TSDB.metrics_width()];
     Arrays.fill(end_row, (byte)0xFF);
 
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.uidTable());
+    final Scanner scanner = tsdb.getClient().newScanner(tsdb.treeTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily("name".getBytes(CHARSET));

@@ -69,8 +69,6 @@ public final class TreeRule {
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** ASCII Rule prefix. Qualifier is tree_rule:<level>:<order> */
   private static final byte[] RULE_PREFIX = "tree_rule:".getBytes(CHARSET);
-  /** Name of the CF where trees and branches are stored */
-  private static final byte[] NAME_FAMILY = "name".getBytes(CHARSET);
   
   /** Type of rule */
   @JsonDeserialize(using = JSON.TreeRuleTypeDeserializer.class)
@@ -305,9 +303,9 @@ public final class TreeRule {
         // validate before storing
         stored_rule.validateRule();
         
-        final PutRequest put = new PutRequest(tsdb.uidTable(), 
-            Tree.idToBytes(tree_id), NAME_FAMILY, getQualifier(level, order), 
-            JSON.serializeToBytes(stored_rule));
+        final PutRequest put = new PutRequest(tsdb.treeTable(), 
+            Tree.idToBytes(tree_id), Tree.TREE_FAMILY(), 
+            getQualifier(level, order), JSON.serializeToBytes(stored_rule));
         return tsdb.getClient().compareAndSet(put, original_rule);
       }
       
@@ -361,9 +359,9 @@ public final class TreeRule {
     }
     
     // fetch the whole row
-    final GetRequest get = new GetRequest(tsdb.uidTable(), 
+    final GetRequest get = new GetRequest(tsdb.treeTable(), 
         Tree.idToBytes(tree_id));
-    get.family(NAME_FAMILY);
+    get.family(Tree.TREE_FAMILY());
     get.qualifier(getQualifier(level, order));
     
     /**
@@ -408,8 +406,8 @@ public final class TreeRule {
       throw new IllegalArgumentException("Invalid rule order");
     }
     
-    final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
-        Tree.idToBytes(tree_id), NAME_FAMILY, getQualifier(level, order));
+    final DeleteRequest delete = new DeleteRequest(tsdb.treeTable(), 
+        Tree.idToBytes(tree_id), Tree.TREE_FAMILY(), getQualifier(level, order));
     return tsdb.getClient().delete(delete);
   }
   
@@ -430,9 +428,9 @@ public final class TreeRule {
     }
     
     // fetch the whole row
-    final GetRequest get = new GetRequest(tsdb.uidTable(), 
+    final GetRequest get = new GetRequest(tsdb.treeTable(), 
         Tree.idToBytes(tree_id));
-    get.family(NAME_FAMILY);
+    get.family(Tree.TREE_FAMILY());
     
     /**
      * Called after fetching the requested row. If the row is empty, we just
@@ -459,8 +457,8 @@ public final class TreeRule {
           }
         }
         
-        final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
-            Tree.idToBytes(tree_id), NAME_FAMILY, 
+        final DeleteRequest delete = new DeleteRequest(tsdb.treeTable(), 
+            Tree.idToBytes(tree_id), Tree.TREE_FAMILY(), 
             qualifiers.toArray(new byte[qualifiers.size()][]));
         return tsdb.getClient().delete(delete);
       }

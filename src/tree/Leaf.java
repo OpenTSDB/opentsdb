@@ -61,9 +61,7 @@ public final class Leaf implements Comparable<Leaf> {
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** ASCII Leaf prefix */
   private static final byte[] LEAF_PREFIX = "leaf:".getBytes(CHARSET);
-  /** Name of the CF where trees and branches are stored */
-  private static final byte[] NAME_FAMILY = "name".getBytes(CHARSET);
-  
+
   /** The metric associated with this TSUID */
   private String metric = "";
   
@@ -242,8 +240,8 @@ public final class Leaf implements Comparable<Leaf> {
     }
     
     // execute the CAS call to start the callback chain
-    final PutRequest put = new PutRequest(tsdb.uidTable(), branch_id, 
-        NAME_FAMILY, columnQualifier(), toStorageJson());
+    final PutRequest put = new PutRequest(tsdb.treeTable(), branch_id, 
+        Tree.TREE_FAMILY(), columnQualifier(), toStorageJson());
     return tsdb.getClient().compareAndSet(put, new byte[0])
       .addCallbackDeferring(new LeafStoreCB(this));
   }
@@ -425,8 +423,8 @@ public final class Leaf implements Comparable<Leaf> {
     final Leaf leaf = new Leaf();
     leaf.setDisplayName(display_name);
     
-    final GetRequest get = new GetRequest(tsdb.uidTable(), branch_id);
-    get.family(NAME_FAMILY);
+    final GetRequest get = new GetRequest(tsdb.treeTable(), branch_id);
+    get.family(Tree.TREE_FAMILY());
     get.qualifier(leaf.columnQualifier());
     
     /**
