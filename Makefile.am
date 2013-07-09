@@ -56,6 +56,7 @@ tsdb_SRC := \
 	src/tools/CliQuery.java	\
 	src/tools/DumpSeries.java	\
 	src/tools/Fsck.java	\
+	src/tools/MigrateSeries.java	\
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/UidManager.java	\

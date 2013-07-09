@@ -75,6 +75,9 @@ case $1 in
   (uid)
     MAINCLASS=UidManager
     ;;
+  (migrate)
+    MAINCLASS=MigrateSeries
+    ;;
   (*)
     echo >&2 "$me: error: unknown command '$1'"
     usage
