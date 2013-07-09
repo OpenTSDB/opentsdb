@@ -571,10 +571,10 @@ public final class TSDB {
   }
 
   /**
-   * Gracefully shuts down this instance.
+   * Gracefully shuts down this TSD instance.
    * <p>
-   * This does the same thing as {@link #flush} and also releases all other
-   * resources.
+   * The method must call {@code shutdown()} on all plugins as well as flush the
+   * compaction queue.
    * @return A {@link Deferred} that will be called once all the un-committed
    * data has been successfully and durably stored, and all resources used by
    * this instance have been released.  The value of the deferred object
@@ -585,6 +585,9 @@ public final class TSDB {
    * recoverable by retrying, some are not.
    */
   public Deferred<Object> shutdown() {
+    final ArrayList<Deferred<Object>> deferreds = 
+      new ArrayList<Deferred<Object>>();
+    
     final class HClientShutdown implements Callback<Object, ArrayList<Object>> {
       public Object call(final ArrayList<Object> args) {
         return client.shutdown();
@@ -593,6 +596,7 @@ public final class TSDB {
         return "shutdown HBase client";
       }
     }
+    
     final class ShutdownErrback implements Callback<Object, Exception> {
       public Object call(final Exception e) {
         final Logger LOG = LoggerFactory.getLogger(ShutdownErrback.class);
@@ -600,11 +604,11 @@ public final class TSDB {
           final DeferredGroupException ge = (DeferredGroupException) e;
           for (final Object r : ge.results()) {
             if (r instanceof Exception) {
-              LOG.error("Failed to flush the compaction queue", (Exception) r);
+              LOG.error("Failed to shutdown the TSD", (Exception) r);
             }
           }
         } else {
-          LOG.error("Failed to flush the compaction queue", e);
+          LOG.error("Failed to shutdown the TSD", e);
         }
         return client.shutdown();
       }
@@ -612,10 +616,27 @@ public final class TSDB {
         return "shutdown HBase client after error";
       }
     }
-    // First flush the compaction queue, then shutdown the HBase client.
-    return config.enable_compactions()
-      ? compactionq.flush().addCallbacks(new HClientShutdown(),
-                                         new ShutdownErrback())
+    
+    final class CompactCB implements Callback<Object, ArrayList<Object>> {
+      public Object call(ArrayList<Object> compactions) throws Exception {
+        return null;
+      }
+    }
+    
+    if (config.enable_compactions()) {
+      deferreds.add(compactionq.flush().addCallback(new CompactCB()));
+    }
+    if (search != null) {
+      deferreds.add(search.shutdown());
+    }
+    if (rt_publisher != null) {
+      deferreds.add(rt_publisher.shutdown());
+    }
+    
+    // wait for plugins to shutdown before we close the client
+    return deferreds.size() > 0
+      ? Deferred.group(deferreds).addCallbacks(new HClientShutdown(),
+                                               new ShutdownErrback())
       : client.shutdown();
   }
 
