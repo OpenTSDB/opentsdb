@@ -51,6 +51,12 @@ public interface DataPoints extends Iterable<DataPoint> {
   List<String> getAggregatedTags();
 
   /**
+   * Returns a list of unique TSUIDs contained in the results
+   * @return an empty list if there were no results, otherwise a list of TSUIDs
+   */
+  public List<String> getTSUIDs();
+  
+  /**
    * Compiles the annotations for each span into a new array list
    * @return Null if none of the spans had any annotations, a list if one or
    * more were found

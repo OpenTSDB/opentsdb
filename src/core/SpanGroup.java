@@ -192,6 +192,14 @@ final class SpanGroup implements DataPoints {
     return aggregated_tags;
   }
 
+  public List<String> getTSUIDs() {
+    List<String> tsuids = new ArrayList<String>(spans.size());
+    for (Span sp : spans) {
+      tsuids.addAll(sp.getTSUIDs());
+    }
+    return tsuids;
+  }
+  
   /**
    * Compiles the annotations for each span into a new array list
    * @return Null if none of the spans had any annotations, a list if one or

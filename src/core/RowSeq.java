@@ -242,6 +242,10 @@ final class RowSeq implements DataPoints {
     return Collections.emptyList();
   }
   
+  public List<String> getTSUIDs() {
+    return Collections.emptyList();
+  }
+  
   public List<Annotation> getAnnotations() {
     return null;
   }

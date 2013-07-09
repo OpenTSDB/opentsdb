@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.UniqueId;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +83,16 @@ final class Span implements DataPoints {
     return 0;
   }
 
+  public List<String> getTSUIDs() {
+    if (rows.size() < 1) {
+      return null;
+    }
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(rows.get(0).key, 
+        TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
+    final List<String> tsuids = new ArrayList<String>(1);
+    tsuids.add(UniqueId.uidToString(tsuid));
+    return tsuids;
+  }
   
   public List<Annotation> getAnnotations() {
     return annotations;
