@@ -57,6 +57,9 @@ public final class TSQuery {
   /** Whether or not to scan for global annotations in the same time range */
   private boolean with_global_annotations;
 
+  /** Whether or not to show TSUIDs when returning data */
+  private boolean show_tsuids;
+  
   /** A list of parsed sub queries, must have one or more to fetch data */
   private ArrayList<TSSubQuery> queries;
 
@@ -185,6 +188,11 @@ public final class TSQuery {
     return with_global_annotations;
   }
   
+  /** @return whether or not to display TSUIDs with the results */
+  public boolean getShowTSUIDs() {
+    return show_tsuids;
+  }
+  
   /** @return the list of sub queries */
   public List<TSSubQuery> getQueries() {
     return queries;
@@ -229,9 +237,14 @@ public final class TSQuery {
     this.no_annotations = no_annotations;
   }
   
-  /** @param with_global whethe ror not to load global annotations */
+  /** @param with_global whether or not to load global annotations */
   public void setGlobalAnnotations(boolean with_global) {
     with_global_annotations = with_global;
+  }
+  
+  /** @param show_tsuids whether or not to show TSUIDs in output */
+  public void setShowTSUIDs(boolean show_tsuids) {
+    this.show_tsuids = show_tsuids;
   }
   
   /** @param queries a list of {@link TSSubQuery} objects to store*/

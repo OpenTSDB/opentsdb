@@ -152,6 +152,10 @@ final class QueryRpc implements HttpRpc {
       data_query.setGlobalAnnotations(true);
     }
     
+    if (query.hasQueryStringParam("show_tsuids")) {
+      data_query.setShowTSUIDs(true);
+    }
+    
     // handle tsuid queries first
     if (query.hasQueryStringParam("tsuid")) {
       final List<String> tsuids = query.getQueryStringParams("tsuid");     

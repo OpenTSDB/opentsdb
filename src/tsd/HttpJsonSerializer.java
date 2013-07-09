@@ -508,6 +508,17 @@ class HttpJsonSerializer extends HttpSerializer {
           }
           json.writeEndArray();
           
+          if (data_query.getShowTSUIDs()) {
+            json.writeFieldName("tsuids");
+            json.writeStartArray();
+            final List<String> tsuids = dps.getTSUIDs();
+            Collections.sort(tsuids);
+            for (String tsuid : tsuids) {
+              json.writeString(tsuid);
+            }
+            json.writeEndArray();
+          }
+          
           if (!data_query.getNoAnnotations()) {
             final List<Annotation> annotations = dps.getAnnotations();
             if (annotations != null) {
