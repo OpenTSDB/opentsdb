@@ -84,7 +84,7 @@ public class MigrateSeries {
   private static void usage(final ArgP argp, final String errmsg,
                             final int retval) {
     System.err.println(errmsg);
-    System.err.println("Usage: migrate"
+    System.err.println("Usage: migrate "
         + "START-DATE END-DATE aggregator metric_pattern [excluded_metrics_list]\n"
         + "Migrates the metric for a specific set of dates to another TSDB instance.");
     System.err.print(argp.usage());
