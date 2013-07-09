@@ -91,7 +91,7 @@ public final class TestTSDB {
   @Test
   public void initializePluginsDefaults() {
     // no configured plugin path, plugins disabled, no exceptions
-    tsdb.initializePlugins();
+    tsdb.initializePlugins(true);
   }
   
   @Test
@@ -103,7 +103,7 @@ public final class TestTSDB {
       (HashMap<String, String>) properties.get(config);
     props.put("tsd.core.plugin_path", "./");
     properties.setAccessible(false);
-    tsdb.initializePlugins();
+    tsdb.initializePlugins(true);
   }
   
   @Test (expected = RuntimeException.class)
@@ -115,7 +115,7 @@ public final class TestTSDB {
       (HashMap<String, String>) properties.get(config);
     props.put("tsd.core.plugin_path", "./doesnotexist");
     properties.setAccessible(false);
-    tsdb.initializePlugins();
+    tsdb.initializePlugins(true);
   }
   
   @Test
@@ -131,7 +131,7 @@ public final class TestTSDB {
     props.put("tsd.search.DummySearchPlugin.hosts", "localhost");
     props.put("tsd.search.DummySearchPlugin.port", "42");
     properties.setAccessible(false);
-    tsdb.initializePlugins();
+    tsdb.initializePlugins(true);
   }
   
   @Test (expected = RuntimeException.class)
@@ -144,7 +144,7 @@ public final class TestTSDB {
     props.put("tsd.search.enable", "true");
     props.put("tsd.search.plugin", "net.opentsdb.search.DoesNotExist");
     properties.setAccessible(false);
-    tsdb.initializePlugins();
+    tsdb.initializePlugins(true);
   }
   
   @Test

@@ -36,6 +36,7 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
+import net.opentsdb.tsd.RpcPlugin;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -102,6 +103,9 @@ public final class TSDB {
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
   
+  /** List of activated RPC plugins */
+  private List<RpcPlugin> rpc_plugins = null;
+  
   /**
    * Constructor
    * @param config An initialized configuration object
@@ -139,11 +143,12 @@ public final class TSDB {
    * objects that rely on such. It also moves most of the potential exception
    * throwing code out of the constructor so TSDMain can shutdown clients and
    * such properly.
+   * @param init_rpcs Whether or not to initialize RPC plugins as well
    * @throws RuntimeException if the plugin path could not be processed
    * @throws IllegalArgumentException if a plugin could not be initialized
    * @since 2.0
    */
-  public void initializePlugins() {
+  public void initializePlugins(final boolean init_rpcs) {
     final String plugin_path = config.getString("tsd.core.plugin_path");
     if (plugin_path != null && !plugin_path.isEmpty()) {
       try {
@@ -195,6 +200,32 @@ public final class TSDB {
           + rt_publisher.version());
     } else {
       rt_publisher = null;
+    }
+    
+    if (init_rpcs && config.hasProperty("tsd.rpc.plugins")) {
+      final String[] plugins = config.getString("tsd.rpc.plugins").split(",");
+      for (final String plugin : plugins) {
+        final RpcPlugin rpc = PluginLoader.loadSpecificPlugin(plugin.trim(), 
+            RpcPlugin.class);
+        if (rpc == null) {
+          throw new IllegalArgumentException(
+              "Unable to locate RPC plugin: " + plugin.trim());
+        }
+        try {
+          rpc.initialize(this);
+        } catch (Exception e) {
+          throw new RuntimeException(
+              "Failed to initialize RPC plugin", e);
+        }
+        
+        if (rpc_plugins == null) {
+          rpc_plugins = new ArrayList<RpcPlugin>(1);
+        }
+        rpc_plugins.add(rpc);
+        LOG.info("Successfully initialized RPC plugin [" + 
+            rpc.getClass().getCanonicalName() + "] version: " 
+            + rpc.version());
+      }
     }
   }
   
@@ -624,13 +655,26 @@ public final class TSDB {
     }
     
     if (config.enable_compactions()) {
+      LOG.info("Flushing compaction queue");
       deferreds.add(compactionq.flush().addCallback(new CompactCB()));
     }
     if (search != null) {
+      LOG.info("Shutting down search plugin: " + 
+          search.getClass().getCanonicalName());
       deferreds.add(search.shutdown());
     }
     if (rt_publisher != null) {
+      LOG.info("Shutting down RT plugin: " + 
+          rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
+    }
+    
+    if (rpc_plugins != null && !rpc_plugins.isEmpty()) {
+      for (final RpcPlugin rpc : rpc_plugins) {
+        LOG.info("Shutting down RPC plugin: " + 
+            rpc.getClass().getCanonicalName());
+        deferreds.add(rpc.shutdown());
+      }
     }
     
     // wait for plugins to shutdown before we close the client

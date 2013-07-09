@@ -207,7 +207,7 @@ final class UidManager {
         tsdb.getClient().ensureTableExists(
             tsdb.getConfig().getString(
                 "tsd.storage.hbase.data_table")).joinUninterruptibly();
-        tsdb.initializePlugins();
+        tsdb.initializePlugins(false);
         return metaSync(tsdb);
       } catch (Exception e) {
         LOG.error("Unexpected exception", e);
