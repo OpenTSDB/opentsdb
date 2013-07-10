@@ -53,9 +53,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final ListBox downsampler = new ListBox();
   private final ValidatedTextBox interval = new ValidatedTextBox();
   private final CheckBox rate = new CheckBox("Rate");
-  private final CheckBox rateCounter = new CheckBox("Counter");
-  private final TextBox counterMax = new TextBox();
-  private final TextBox counterResetValue = new TextBox();
+  private final CheckBox rate_counter = new CheckBox("Counter");
+  private final TextBox counter_max = new TextBox();
+  private final TextBox counter_reset_value = new TextBox();
   private final CheckBox x1y2 = new CheckBox("Right Axis");
   private final ListBox aggregators = new ListBox();
   private final ValidatedTextBox metric = new ValidatedTextBox();
@@ -69,11 +69,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     interval.addBlurHandler(handler);
     interval.addKeyPressHandler(handler);
     rate.addClickHandler(handler);
-    rateCounter.addClickHandler(handler);
-    counterMax.addBlurHandler(handler);
-    counterMax.addKeyPressHandler(handler);
-    counterResetValue.addBlurHandler(handler);
-    counterResetValue.addKeyPressHandler(handler);
+    rate_counter.addClickHandler(handler);
+    counter_max.addBlurHandler(handler);
+    counter_max.addKeyPressHandler(handler);
+    counter_reset_value.addBlurHandler(handler);
+    counter_reset_value.addKeyPressHandler(handler);
     x1y2.addClickHandler(handler);
     aggregators.addChangeHandler(handler);
     metric.addBlurHandler(handler);
@@ -168,11 +168,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
     final boolean rate = parts[--i].startsWith("rate");
     this.rate.setValue(rate, false);
-    Object[] rateOptions = parseRateOptions(rate, parts[i]);
-    this.rateCounter.setValue((Boolean) rateOptions[0], false);
-    this.counterMax.setValue(Long.toString((Long) rateOptions[1]), false);
-    this.counterResetValue
-        .setValue(Long.toString((Long) rateOptions[2]), false);
+    Object[] rate_options = parseRateOptions(rate, parts[i]);
+    this.rate_counter.setValue((Boolean) rate_options[0], false);
+    this.counter_max.setValue(Long.toString((Long) rate_options[1]), false);
+    this.counter_reset_value
+        .setValue(Long.toString((Long) rate_options[2]), false);
     if (rate) {
       i--;
     }
@@ -233,7 +233,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       {
         final HorizontalPanel hbox = new HorizontalPanel();
         hbox.add(rate);
-        hbox.add(rateCounter);
+        hbox.add(rate_counter);
         hbox.add(x1y2);
         vbox.add(hbox);
       }
@@ -241,14 +241,14 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         final HorizontalPanel hbox = new HorizontalPanel();
         final InlineLabel l = new InlineLabel("Counter Max");
         hbox.add(l);
-        hbox.add(counterMax);
+        hbox.add(counter_max);
         vbox.add(hbox);
       }
       {
         final HorizontalPanel hbox = new HorizontalPanel();
         final InlineLabel l = new InlineLabel("Counter Reset");
         hbox.add(l);
-        hbox.add(counterResetValue);
+        hbox.add(counter_reset_value);
         vbox.add(hbox);
       }
       {
@@ -296,10 +296,10 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     if (rate.getValue()) {
       url.append(":rate");
-      if (rateCounter.getValue()) {
+      if (rate_counter.getValue()) {
         url.append('{').append("counter");
-        final String max = counterMax.getValue().trim();
-        final String reset = counterResetValue.getValue().trim();
+        final String max = counter_max.getValue().trim();
+        final String reset = counter_reset_value.getValue().trim();
         if (max.length() > 0 && reset.length() > 0) {
           url.append(',').append(max).append(',').append(reset);
         } else if (max.length() > 0 && reset.length() == 0) {

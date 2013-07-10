@@ -212,7 +212,7 @@ final class CliQuery {
     while (i < args.length) {
       final Aggregator agg = Aggregators.get(args[i++]);
       final boolean rate = args[i].equals("rate");
-      RateOptions rateOptions = new RateOptions(false, Long.MAX_VALUE,
+      RateOptions rate_options = new RateOptions(false, Long.MAX_VALUE,
           RateOptions.DEFAULT_RESET_VALUE);
       if (rate) {
         i++;
@@ -227,7 +227,7 @@ final class CliQuery {
           if (parts.length >= 3 && parts[2].length() > 0) {
             resetValue = Long.parseLong(parts[2]);
           }
-          rateOptions = new RateOptions(true, counterMax, resetValue);
+          rate_options = new RateOptions(true, counterMax, resetValue);
           i++;
         }
       }
@@ -251,7 +251,7 @@ final class CliQuery {
       if (end_ts > 0) {
         query.setEndTime(end_ts);
       }
-      query.setTimeSeries(metric, tags, agg, rate, rateOptions);
+      query.setTimeSeries(metric, tags, agg, rate, rate_options);
       if (downsample) {
         query.downsample(interval, sampler);
       }

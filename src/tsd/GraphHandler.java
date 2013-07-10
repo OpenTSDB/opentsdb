@@ -835,7 +835,7 @@ final class GraphHandler implements HttpRpc {
     int nqueries = 0;
     for (final String m : ms) {
       // m is of the following forms:
-      //   agg:[interval-agg:][rate[{counter[,countermax]}]:]metric[{tag=value,...}]
+      //   agg:[interval-agg:][rate[{counter[,[countermax][,resetvalue]]}]:]metric[{tag=value,...}]
       // Where the parts in square brackets `[' .. `]' are optional.
       final String[] parts = Tags.splitString(m, ':');
       int i = parts.length;
@@ -848,13 +848,13 @@ final class GraphHandler implements HttpRpc {
       final HashMap<String, String> parsedtags = new HashMap<String, String>();
       final String metric = Tags.parseWithMetric(parts[i], parsedtags);
       final boolean rate = parts[--i].startsWith("rate");
-      final RateOptions rateOptions = parseRateOptions(rate, parts[i]);
+      final RateOptions rate_options = parseRateOptions(rate, parts[i]);
       if (rate) {
         i--;  // Move to the next part.
       }
       final Query tsdbquery = tsdb.newQuery();
       try {
-        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, rateOptions);
+        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, rate_options);
       } catch (NoSuchUniqueName e) {
         throw new BadRequestException(e.getMessage());
       }
@@ -1093,7 +1093,19 @@ final class GraphHandler implements HttpRpc {
     LOG.error(query.channel().toString() + ' ' + msg, e);
   }
 
-  static final public RateOptions parseRateOptions(boolean rate, String spec) {
+  /**
+   * Parses the "rate" section of the query string and returns an instance
+   * of the RateOptions class that contains the values found.
+   * <p/>
+   * The format of the rate specification is rate[{counter[,#[,#]]}].
+   * @param rate If true, then the query is set as a rate query and the rate
+   * specification will be parsed. If false, a default RateOptions instance
+   * will be returned and largely ignored by the rest of the processing
+   * @param spec The part of the query string that pertains to the rate
+   * @return An initialized RateOptions instance based on the specification
+   */
+  static final public RateOptions parseRateOptions(final boolean rate,
+      final String spec) {
     if (!rate || spec.length() == 4) {
       return new RateOptions(false, Long.MAX_VALUE,
           RateOptions.DEFAULT_RESET_VALUE);
@@ -1108,7 +1120,7 @@ final class GraphHandler implements HttpRpc {
         .splitString(spec.substring(5, spec.length() - 1), ',');
     if (parts.length < 1 || parts.length > 3) {
       throw new BadRequestException(
-          "Incorrect number of values in rate optiosn specification, must be counter[,counter max value,reset value], recieved: "
+          "Incorrect number of values in rate options specification, must be counter[,counter max value,reset value], recieved: "
               + parts.length + " parts");
     }
 
