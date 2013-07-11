@@ -249,7 +249,7 @@ final class TestCompactionQueue {
     compactionq.compact(kvs, annotations);
   }
   
-  @Test// (expected=IllegalDataException.class)
+  @Test (expected=IllegalDataException.class)
   public void msOutOfOrder() throws Exception {
     // all rows with an ms qualifier will go through the complex compaction 
     // process and they'll be sorted

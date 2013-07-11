@@ -469,22 +469,22 @@ public final class TestInternal {
   
   // since all the qualifier methods share the validateQualifier() method, we
   // can test them once
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = NullPointerException.class)
   public void getValueLengthFromQualifierNull() {
     Internal.getValueLengthFromQualifier(null);
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void getValueLengthFromQualifierEmpty() {
     Internal.getValueLengthFromQualifier(new byte[0]);
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void getValueLengthFromQualifierNegativeOffset() {
     Internal.getValueLengthFromQualifier(new byte[] { 0, 0x4B }, -42);
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void getValueLengthFromQualifierBadOffset() {
     Internal.getValueLengthFromQualifier(new byte[] { 0, 0x4B }, 42);
   }
@@ -500,7 +500,7 @@ public final class TestInternal {
         new byte[] { (byte) 0xF0, 0x00, 0x00, 0x07 }));
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void getQualifierLengthSecondsTooShort() {
     Internal.getQualifierLength(new byte[] { 0x0F });
   }
@@ -542,7 +542,7 @@ public final class TestInternal {
     assertEquals(4000, Internal.getOffsetFromQualifier(qual, 2));
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = IllegalDataException.class)
   public void getOffsetFromQualifierBadOffset() {
     final byte[] qual = { 0x00, 0x37, 0x00, 0x47 };
     assertEquals(4000, Internal.getOffsetFromQualifier(qual, 3));
