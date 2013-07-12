@@ -37,7 +37,10 @@ final class ConnectionManager extends SimpleChannelHandler {
   private static final Logger LOG = LoggerFactory.getLogger(ConnectionManager.class);
 
   private static final AtomicLong connections_established = new AtomicLong();
-  private static final AtomicLong exceptions_caught = new AtomicLong();
+  private static final AtomicLong exceptions_unknown = new AtomicLong();
+  private static final AtomicLong exceptions_closed = new AtomicLong();
+  private static final AtomicLong exceptions_reset = new AtomicLong();
+  private static final AtomicLong exceptions_timeout = new AtomicLong();
 
   private static final DefaultChannelGroup channels =
     new DefaultChannelGroup("all-channels");
@@ -58,7 +61,14 @@ final class ConnectionManager extends SimpleChannelHandler {
     collector.record("connectionmgr.connections", channels.size(), "type=open");
     collector.record("connectionmgr.connections", connections_established, 
         "type=total");
-    collector.record("connectionmgr.exceptions", exceptions_caught);
+    collector.record("connectionmgr.exceptions", exceptions_closed, 
+        "type=closed");
+    collector.record("connectionmgr.exceptions", exceptions_reset, 
+        "type=reset");
+    collector.record("connectionmgr.exceptions", exceptions_timeout, 
+        "type=timeout");
+    collector.record("connectionmgr.exceptions", exceptions_unknown, 
+        "type=unknown");
   }
 
   @Override
@@ -82,15 +92,18 @@ final class ConnectionManager extends SimpleChannelHandler {
                               final ExceptionEvent e) {
     final Throwable cause = e.getCause();
     final Channel chan = ctx.getChannel();
-    exceptions_caught.incrementAndGet();
     if (cause instanceof ClosedChannelException) {
+      exceptions_closed.incrementAndGet();
       LOG.warn("Attempt to write to closed channel " + chan);
       return;
     }
     if (cause instanceof IOException) {
       final String message = cause.getMessage();
-      if ("Connection reset by peer".equals(message)
-          || "Connection timed out".equals(message)) {
+      if ("Connection reset by peer".equals(message)) {
+        exceptions_reset.incrementAndGet();
+        return;
+      } else if ("Connection timed out".equals(message)) {
+        exceptions_timeout.incrementAndGet();
         // Do nothing.  A client disconnecting isn't really our problem.  Oh,
         // and I'm not kidding you, there's no better way to detect ECONNRESET
         // in Java.  Like, people have been bitching about errno for years,
@@ -98,6 +111,7 @@ final class ConnectionManager extends SimpleChannelHandler {
         return;
       }
     }
+    exceptions_unknown.incrementAndGet();
     LOG.error("Unexpected exception from downstream for " + chan, cause);
     e.getChannel().close();
   }
