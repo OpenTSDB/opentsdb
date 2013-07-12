@@ -274,7 +274,7 @@ public final class Tags {
   }
 
   /**
-   * Ensures that a given string is a valid metric name or tag name/value.
+   * Ensures that a given Unicode string is a valid metric name or tag name/value.
    * @param what A human readable description of what's being validated.
    * @param s The string to validate.
    * @throws IllegalArgumentException if the string isn't valid.
@@ -286,10 +286,7 @@ public final class Tags {
     final int n = s.length();
     for (int i = 0; i < n; i++) {
       final char c = s.charAt(i);
-      if (!(('a' <= c && c <= 'z')
-            || ('A' <= c && c <= 'Z')
-            || ('0' <= c && c <= '9')
-            || c == '-' || c == '_' || c == '.' || c == '/')) {
+      if (!(Character.isLetterOrDigit(c) || c == '_' || c == '.' || c == '/' )) {
         throw new IllegalArgumentException("Invalid " + what
             + " (\"" + s + "\"): illegal character: " + c);
       }
