@@ -286,10 +286,9 @@ public final class Tags {
     final int n = s.length();
     for (int i = 0; i < n; i++) {
       final char c = s.charAt(i);
-      if (!(('a' <= c && c <= 'z')
-            || ('A' <= c && c <= 'Z')
-            || ('0' <= c && c <= '9')
-            || c == '-' || c == '_' || c == '.' || c == '/')) {
+      if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') 
+          || ('0' <= c && c <= '9') || c == '-' || c == '_' || c == '.' 
+          || c == '/' || Character.isLetter(c))) {
         throw new IllegalArgumentException("Invalid " + what
             + " (\"" + s + "\"): illegal character: " + c);
       }
