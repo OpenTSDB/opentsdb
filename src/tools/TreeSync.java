@@ -81,7 +81,7 @@ final class TreeSync {
     final byte[] end_row = new byte[TSDB.metrics_width()];
     Arrays.fill(end_row, (byte)0xFF);
 
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.treeTable());
+    final Scanner scanner = tsdb.getClient().newScanner(tsdb.uidTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily("name".getBytes(CHARSET));
@@ -135,7 +135,7 @@ final class TreeSync {
       new ArrayList<Deferred<Boolean>>();
     
     final Deferred<Boolean> completed = new Deferred<Boolean>();
-    
+
     /**
      * Scanner callback that loops through the UID table recursively until 
      * the scanner returns a null row set.
@@ -157,12 +157,12 @@ final class TreeSync {
       public Deferred<Boolean> call(ArrayList<ArrayList<KeyValue>> rows)
           throws Exception {
         if (rows == null) {
+          System.out.println("returning null from scanner");
           completed.callback(true);
           return null;
         }
         
         for (final ArrayList<KeyValue> row : rows) {
-          
           // convert to a string one time
           final String tsuid = UniqueId.uidToString(row.get(0).key());
           
@@ -276,8 +276,19 @@ final class TreeSync {
       
     }
     
+    final class ErrBack implements Callback<Deferred<Boolean>, Exception> {
+      
+      @Override
+      public Deferred<Boolean> call(Exception e) throws Exception {
+        LOG.error("Unexpected exception", e);
+        completed.callback(false);
+        return Deferred.fromResult(false);
+      }
+      
+    }
+    
     final TsuidScanner tree_scanner = new TsuidScanner();
-    tree_scanner.scan();
+    tree_scanner.scan().addErrback(new ErrBack());
     completed.joinUninterruptibly();
     return 0;
   }
