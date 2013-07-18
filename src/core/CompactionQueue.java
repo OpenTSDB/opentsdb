@@ -879,8 +879,9 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           // or (2) we have too many rows to recompact already.
           // Note that in the case (2) we might not be able to flush anything
           // if the rows aren't old enough.
-          if (last_flush - now > Const.MAX_TIMESPAN  // (1)
+          if (now - last_flush > Const.MAX_TIMESPAN  // (1)
               || size > maxflushes) {                // (2)
+            last_flush = now;
             flush(now / 1000 - Const.MAX_TIMESPAN - 1, maxflushes);
             if (LOG.isDebugEnabled()) {
               final int newsize = size();
