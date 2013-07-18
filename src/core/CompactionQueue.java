@@ -866,18 +866,13 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     }
 
     public void run() {
-      long last_flush = 0;
       while (true) {
         try {
-          final long now = System.currentTimeMillis();
           final int size = size();
-          // Flush if either (1) it's been too long since the last flush
-          // or (2) we have too many rows to recompact already.
-          // Note that in the case (2) we might not be able to flush anything
-          // if the rows aren't old enough.
-          if (now - last_flush > Const.MAX_TIMESPAN  // (1)
-              || size > MIN_FLUSH_THRESHOLD) {       // (2)
-            last_flush = now;
+          // Flush if  we have too many rows to recompact.
+          // Note that in we might not be able to actually
+          // flush anything if the rows aren't old enough.
+          if (size > MIN_FLUSH_THRESHOLD) {
             // How much should we flush during this iteration?  This scheme is
             // adaptive and flushes at a rate that is proportional to the size
             // of the queue, so we flush more aggressively if the queue is big.
@@ -898,6 +893,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
             // that we evict old entries from the queue a bit faster.
             final int maxflushes = Math.max(MIN_FLUSH_THRESHOLD,
               size * FLUSH_INTERVAL * FLUSH_SPEED / Const.MAX_TIMESPAN);
+            final long now = System.currentTimeMillis();
             flush(now / 1000 - Const.MAX_TIMESPAN - 1, maxflushes);
             if (LOG.isDebugEnabled()) {
               final int newsize = size();
