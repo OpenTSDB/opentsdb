@@ -76,6 +76,9 @@ final class TSDMain {
                    "Number for async io workers (default: cpu * 2).");
     argp.addOption("--async-io", "true|false",
                    "Use async NIO (default true) or traditional blocking io");
+    argp.addOption("--backlog", "NUM",
+                   "Size of connection attempt queue (default: 3072 or kernel"
+                   + " somaxconn.");
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
@@ -147,9 +150,15 @@ final class TSDMain {
       final ServerBootstrap server = new ServerBootstrap(factory);
 
       server.setPipelineFactory(new PipelineFactory(tsdb));
-      server.setOption("child.tcpNoDelay", config.getBoolean("tsd.network.tcp_no_delay"));
-      server.setOption("child.keepAlive", config.getBoolean("tsd.network.keep_alive"));
-      server.setOption("reuseAddress", config.getBoolean("tsd.network.reuse_address"));
+      if (config.hasProperty("tsd.network.backlog")) {
+        server.setOption("backlog", config.getInt("tsd.network.backlog")); 
+      }
+      server.setOption("child.tcpNoDelay", 
+          config.getBoolean("tsd.network.tcp_no_delay"));
+      server.setOption("child.keepAlive", 
+          config.getBoolean("tsd.network.keep_alive"));
+      server.setOption("reuseAddress", 
+          config.getBoolean("tsd.network.reuse_address"));
 
       // null is interpreted as the wildcard address.
       InetAddress bindAddress = null;

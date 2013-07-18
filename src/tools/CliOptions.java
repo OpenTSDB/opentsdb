@@ -138,6 +138,8 @@ final class CliOptions {
         config.overrideConfig("tsd.http.cachedir", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--flush-interval")) {
         config.overrideConfig("tsd.core.flushinterval", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--backlog")) {
+        config.overrideConfig("tsd.network.backlog", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--bind")) {
         config.overrideConfig("tsd.network.bind", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--async-io")) {
