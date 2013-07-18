@@ -858,30 +858,33 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         try {
           final long now = System.currentTimeMillis();
           final int size = size();
-          // Let's suppose MAX_TIMESPAN = 1h.  We have `size' rows to compact,
-          // and we better compact them all before in less than 1h, otherwise
-          // we're going to "fall behind" when a new hour start (as we'll be
-          // creating a ton of new rows then).  So slice MAX_TIMESPAN using
-          // FLUSH_INTERVAL to compute what fraction of `size' we need to
-          // flush at each iteration.  Note that `size' will usually account
-          // for many rows that can't be flushed yet (not old enough) so we're
-          // overshooting a bit (flushing more aggressively than necessary).
-          // This isn't a problem at all.  The only thing that matters is that
-          // the rate at which we flush stuff is proportional to how much work
-          // is sitting in the queue.  The multiplicative factor FLUSH_SPEED
-          // is added to make flush even faster than we need.  For example, if
-          // FLUSH_SPEED is 2, then instead of taking 1h to flush what we have
-          // for the previous hour, we'll take only 30m.  This is desirable so
-          // that we evict old entries from the queue a bit faster.
-          final int maxflushes = Math.max(MIN_FLUSH_THRESHOLD,
-            size * FLUSH_INTERVAL * FLUSH_SPEED / Const.MAX_TIMESPAN);
           // Flush if either (1) it's been too long since the last flush
           // or (2) we have too many rows to recompact already.
           // Note that in the case (2) we might not be able to flush anything
           // if the rows aren't old enough.
           if (now - last_flush > Const.MAX_TIMESPAN  // (1)
-              || size > maxflushes) {                // (2)
+              || size > MIN_FLUSH_THRESHOLD) {       // (2)
             last_flush = now;
+            // How much should we flush during this iteration?  This scheme is
+            // adaptive and flushes at a rate that is proportional to the size
+            // of the queue, so we flush more aggressively if the queue is big.
+            // Let's suppose MAX_TIMESPAN = 1h.  We have `size' rows to compact,
+            // and we better compact them all in less than 1h, otherwise we're
+            // going to "fall behind" when after a new hour starts (as we'll be
+            // inserting a ton of new rows then).  So slice MAX_TIMESPAN using
+            // FLUSH_INTERVAL to compute what fraction of `size' we need to
+            // flush at each iteration.  Note that `size' will usually account
+            // for many rows that can't be flushed yet (not old enough) so we're
+            // overshooting a bit (flushing more aggressively than necessary).
+            // This isn't a problem at all.  The only thing that matters is that
+            // the rate at which we flush stuff is proportional to how much work
+            // is sitting in the queue.  The multiplicative factor FLUSH_SPEED
+            // is added to make flush even faster than we need.  For example, if
+            // FLUSH_SPEED is 2, then instead of taking 1h to flush what we have
+            // for the previous hour, we'll take only 30m.  This is desirable so
+            // that we evict old entries from the queue a bit faster.
+            final int maxflushes = Math.max(MIN_FLUSH_THRESHOLD,
+              size * FLUSH_INTERVAL * FLUSH_SPEED / Const.MAX_TIMESPAN);
             flush(now / 1000 - Const.MAX_TIMESPAN - 1, maxflushes);
             if (LOG.isDebugEnabled()) {
               final int newsize = size();
