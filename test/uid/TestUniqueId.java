@@ -318,7 +318,7 @@ public final class TestUniqueId {
 
   @Test  // Test the creation of an ID with a race condition.
   @PrepareForTest({HBaseClient.class, Deferred.class})
-  public void getOrCreateIdAssignIdWithRaceCondition() {
+   public void getOrCreateIdAssignIdWithRaceCondition() {
     // Simulate a race between client A and client B.
     // A does a Get and sees that there's no ID for this name.
     // B does a Get and sees that there's no ID too, and B actually goes
@@ -329,28 +329,32 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, kind, 3); // Used by client A.
     HBaseClient client_b = mock(HBaseClient.class); // For client B.
     final UniqueId uid_b = new UniqueId(client_b, table, kind, 3);
-    
+
     final byte[] id = { 0, 0, 5 };
     final byte[] byte_name = { 'f', 'o', 'o' };
     final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
     kvs.add(new KeyValue(byte_name, ID, kind_array, id));
 
     @SuppressWarnings("unchecked")
-    final Deferred<ArrayList<KeyValue>> d = mock(Deferred.class);
+    final Deferred<ArrayList<KeyValue>> d = PowerMockito.spy(new Deferred<ArrayList<KeyValue>>());
     when(client.get(anyGet()))
       .thenReturn(d)
       .thenReturn(Deferred.fromResult(kvs));
 
-    final Answer<Deferred<byte[]>> the_race = new Answer<Deferred<byte[]>>() {
-      public Deferred<byte[]> answer(final InvocationOnMock unused_invocation) {
-        // While answering A's first Get, B does a full getOrCreateId.
+    final Answer<byte[]> the_race = new Answer<byte[]>() {
+      public byte[] answer(final InvocationOnMock unused_invocation) throws Exception {
+        // While answering A's first Get, B doest a full getOrCreateId.
         assertArrayEquals(id, uid_b.getOrCreateId("foo"));
         return Deferred.<byte[]>fromResult(null);
       }
     };
 
-    // trigger the race condition when the initial get request callback is added
-    when(d.addCallback(anyByteCB())).thenAnswer(the_race);
+    // Start the race when answering A's first Get.
+    try {
+      PowerMockito.doAnswer(the_race).when(d).joinUninterruptibly();
+    } catch (Exception e) {
+      fail("Should never happen: " + e);
+    }
 
     when(client_b.get(anyGet())) // null => ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
