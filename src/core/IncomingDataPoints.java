@@ -12,12 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
@@ -116,20 +118,41 @@ final class IncomingDataPoints implements WritableDataPoints {
                     + tag_value_width * num_tags);
     final byte[] row = new byte[row_size];
 
-    short pos = 0;
-
-    copyInRowKey(row, pos, (tsdb.config.auto_metric() ? 
-        tsdb.metrics.getOrCreateId(metric)
-        : tsdb.metrics.getId(metric)));
-    pos += metric_width;
-
-    pos += Const.TIMESTAMP_BYTES;
-
-    for(final byte[] tag : Tags.resolveOrCreateAll(tsdb, tags)) {
-      copyInRowKey(row, pos, tag);
-      pos += tag.length;
+    // Lookup or create the metric ID.
+    final Deferred<byte[]> metricid;
+    if (tsdb.config.auto_metric()) {
+      metricid = tsdb.metrics.getOrCreateIdAsync(metric);
+    } else {
+      metricid = tsdb.metrics.getIdAsync(metric);
     }
-    return Deferred.fromResult(row);
+
+    // Copy the metric ID at the beginning of the row key.
+    class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
+      public byte[] call(final byte[] metricid) {
+        copyInRowKey(row, (short) 0, metricid);
+        return row;
+      }
+    }
+
+    // Copy the tag IDs in the row key.
+    class CopyTagsInRowKeyCB
+      implements Callback<Deferred<byte[]>, ArrayList<byte[]>> {
+      public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
+        short pos = metric_width;
+        pos += Const.TIMESTAMP_BYTES;
+        for (final byte[] tag : tags) {
+          copyInRowKey(row, pos, tag);
+          pos += tag.length;
+        }
+        // Once we've resolved all the tags, schedule the copy of the metric
+        // ID and return the row key we produced.
+        return metricid.addCallback(new CopyMetricInRowKeyCB());
+      }
+    }
+
+    // Kick off the resolution of all tags.
+    return Tags.resolveOrCreateAll(tsdb, tags)
+      .addCallbackDeferring(new CopyTagsInRowKeyCB());
   }
 
   public void setSeries(final String metric, final Map<String, String> tags) {

@@ -21,6 +21,9 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
 import org.hbase.async.Bytes;
 
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -307,7 +310,13 @@ public final class Tags {
   static ArrayList<byte[]> resolveAll(final TSDB tsdb,
                                       final Map<String, String> tags)
     throws NoSuchUniqueName {
-    return resolveAllInternal(tsdb, tags, false);
+    try {
+      return resolveAllInternal(tsdb, tags, false).joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never happen!", e);
+    }
   }
 
   /**
@@ -318,33 +327,66 @@ public final class Tags {
    * seen, it will be assigned an ID.
    * @return an array of sorted tags (tag id, tag name).
    */
-  static ArrayList<byte[]> resolveOrCreateAll(final TSDB tsdb,
-                                              final Map<String, String> tags) {
+  static Deferred<ArrayList<byte[]>>
+    resolveOrCreateAll(final TSDB tsdb, final Map<String, String> tags) {
     return resolveAllInternal(tsdb, tags, true);
   }
 
-  private
-    static ArrayList<byte[]> resolveAllInternal(final TSDB tsdb,
-                                                final Map<String, String> tags,
-                                                final boolean create)
-    throws NoSuchUniqueName {
-    final ArrayList<byte[]> tag_ids = new ArrayList<byte[]>(tags.size());
+  private static Deferred<ArrayList<byte[]>>
+    resolveAllInternal(final TSDB tsdb,
+                       final Map<String, String> tags,
+                       final boolean create) {
+    final ArrayList<Deferred<byte[]>> tag_ids =
+      new ArrayList<Deferred<byte[]>>(tags.size());
+
+    // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      final byte[] tag_id = (create
-                             ? tsdb.tag_names.getOrCreateId(entry.getKey())
-                             : tsdb.tag_names.getId(entry.getKey()));
-      final byte[] value_id = (create
-                               ? tsdb.tag_values.getOrCreateId(entry.getValue())
-                               : tsdb.tag_values.getId(entry.getValue()));
-      final byte[] thistag = new byte[tag_id.length + value_id.length];
-      System.arraycopy(tag_id, 0, thistag, 0, tag_id.length);
-      System.arraycopy(value_id, 0, thistag, tag_id.length, value_id.length);
-      tag_ids.add(thistag);
+      final Deferred<byte[]> name_id = create
+        ? tsdb.tag_names.getOrCreateIdAsync(entry.getKey())
+        : tsdb.tag_names.getIdAsync(entry.getKey());
+      final Deferred<byte[]> value_id = create
+        ? tsdb.tag_values.getOrCreateIdAsync(entry.getValue())
+        : tsdb.tag_values.getIdAsync(entry.getValue());
+
+      // Then once the tag name is resolved, get the resolved tag value.
+      class TagNameResolvedCB implements Callback<Deferred<byte[]>, byte[]> {
+        public Deferred<byte[]> call(final byte[] nameid) {
+          // And once the tag value too is resolved, paste the two together.
+          class TagValueResolvedCB implements Callback<byte[], byte[]> {
+            public byte[] call(final byte[] valueid) {
+              final byte[] thistag = new byte[nameid.length + valueid.length];
+              System.arraycopy(nameid, 0, thistag, 0, nameid.length);
+              System.arraycopy(valueid, 0, thistag, nameid.length, valueid.length);
+              return thistag;
+            }
+          }
+
+          return value_id.addCallback(new TagValueResolvedCB());
+        }
+      }
+
+      // Put all the deferred tag resolutions in this list.
+      tag_ids.add(name_id.addCallbackDeferring(new TagNameResolvedCB()));
     }
-    // Now sort the tags.
-    Collections.sort(tag_ids, Bytes.MEMCMP);
-    return tag_ids;
+
+    // And then once we have all the tags resolved, sort them.
+    return Deferred.group(tag_ids).addCallback(SORT_CB);
   }
+
+  /**
+   * Sorts a list of tags.
+   * Each entry in the list expected to be a byte array that contains the tag
+   * name UID followed by the tag value UID.
+   */
+  private static class SortResolvedTagsCB
+    implements Callback<ArrayList<byte[]>, ArrayList<byte[]>> {
+    public ArrayList<byte[]> call(final ArrayList<byte[]> tags) {
+      // Now sort the tags.
+      Collections.sort(tags, Bytes.MEMCMP);
+      return tags;
+    }
+  }
+  private static final SortResolvedTagsCB SORT_CB = new SortResolvedTagsCB();
 
   /**
    * Resolves all the tags IDs (name followed by value) into the a map.
