@@ -186,14 +186,14 @@ final class TreeSync extends Thread {
            * complete processing through the trees before continuing on with 
            * the next set.
            */
-          final class TreeBuilderBufferCB implements Callback<Deferred<Boolean>, 
-            ArrayList<Object>> {
+          final class TreeBuilderBufferCB implements Callback<Boolean, 
+            ArrayList<ArrayList<Boolean>>> {
 
             @Override
-            public Deferred<Boolean> call(ArrayList<Object> builder_calls)
+            public Boolean call(ArrayList<ArrayList<Boolean>> builder_calls)
                 throws Exception {
               //LOG.debug("Processed [" + builder_calls.size() + "] tree_calls");
-              return Deferred.fromResult(true);
+              return true;
             }
             
           }
@@ -208,8 +208,8 @@ final class TreeSync extends Thread {
            */
           final class ParseCB implements Callback<Deferred<Boolean>, TSMeta> {
 
-            final ArrayList<Deferred<ArrayList<Object>>> builder_calls = 
-              new ArrayList<Deferred<ArrayList<Object>>>();
+            final ArrayList<Deferred<ArrayList<Boolean>>> builder_calls = 
+              new ArrayList<Deferred<ArrayList<Boolean>>>();
             
             @Override
             public Deferred<Boolean> call(TSMeta meta) throws Exception {
@@ -220,7 +220,7 @@ final class TreeSync extends Thread {
                   builder_calls.add(builder.processTimeseriesMeta(meta));
                 }
                 return Deferred.group(builder_calls)
-                  .addCallbackDeferring(new TreeBuilderBufferCB());
+                  .addCallback(new TreeBuilderBufferCB());
               } else {
                 return Deferred.fromResult(false);
               }
@@ -271,10 +271,10 @@ final class TreeSync extends Thread {
          * the scanner. This necessary to avoid OOM issues.
          */
         final class ContinueCB implements Callback<Deferred<Boolean>, 
-          ArrayList<Object>> {
+          ArrayList<Boolean>> {
 
           @Override
-          public Deferred<Boolean> call(ArrayList<Object> tsuids)
+          public Deferred<Boolean> call(ArrayList<Boolean> tsuids)
               throws Exception {
             LOG.debug("Processed [" + tsuids.size() + "] tree_calls, continuing");
             tree_calls.clear();
@@ -286,7 +286,7 @@ final class TreeSync extends Thread {
         // request the next set of rows from the scanner, but wait until the
         // current set of TSMetas has been processed so we don't slaughter our
         // host
-        Deferred.group(tree_calls).addCallbackDeferring(new ContinueCB());
+        Deferred.group(tree_calls).addCallback(new ContinueCB());
         return Deferred.fromResult(null);
       }
       

@@ -143,7 +143,7 @@ public final class TreeBuilder {
    * @return A list of deferreds to wait on for storage completion
    * @throws IllegalArgumentException if the tree has not been set or is invalid
    */
-  public Deferred<ArrayList<Object>> processTimeseriesMeta(final TSMeta meta) {
+  public Deferred<ArrayList<Boolean>> processTimeseriesMeta(final TSMeta meta) {
     if (tree == null || tree.getTreeId() < 1) {
       throw new IllegalArgumentException(
           "The tree has not been set or is invalid");
@@ -166,7 +166,7 @@ public final class TreeBuilder {
    * @throws IllegalArgumentException if the tree has not been set or is invalid
    * @throws HBaseException if a storage exception occurred
    */
-  public Deferred<ArrayList<Object>> processTimeseriesMeta(final TSMeta meta, 
+  public Deferred<ArrayList<Boolean>> processTimeseriesMeta(final TSMeta meta, 
       final boolean is_testing) {
     if (tree == null || tree.getTreeId() < 1) {
       throw new IllegalArgumentException(
@@ -191,7 +191,7 @@ public final class TreeBuilder {
      * root or if the root is set, it's called directly from this method. The
      * response is the deferred group for the caller to wait on.
      */
-    final class ProcessCB implements Callback<Deferred<ArrayList<Object>>, 
+    final class ProcessCB implements Callback<Deferred<ArrayList<Boolean>>, 
       Branch> {
 
       /**
@@ -200,7 +200,7 @@ public final class TreeBuilder {
        * @return A group of deferreds to wait on for storage call completion
        */
       @Override
-      public Deferred<ArrayList<Object>> call(final Branch branch) 
+      public Deferred<ArrayList<Boolean>> call(final Branch branch) 
         throws Exception {
         
         // start processing with the depth set to 1 since we'll start adding 
@@ -251,14 +251,14 @@ public final class TreeBuilder {
                * be written.
                */
               final class BranchCB implements Callback<Deferred<Boolean>, 
-                ArrayList<Object>> {
+                ArrayList<Boolean>> {
 
                 @Override
-                public Deferred<Boolean> call(final ArrayList<Object> deferreds)
+                public Deferred<Boolean> call(final ArrayList<Boolean> deferreds)
                     throws Exception {
                   
-                  for (Object success : deferreds) {
-                    if (!(Boolean)success) {
+                  for (Boolean success : deferreds) {
+                    if (!success) {
                       return Deferred.fromResult(false);
                     }
                   }
@@ -319,11 +319,11 @@ public final class TreeBuilder {
      * Called after loading or initializing the root and continues the chain
      * by passing the root onto the ProcessCB
      */
-    final class LoadRootCB implements Callback<Deferred<ArrayList<Object>>, 
+    final class LoadRootCB implements Callback<Deferred<ArrayList<Boolean>>, 
       Branch> {
 
       @Override
-      public Deferred<ArrayList<Object>> call(final Branch root) 
+      public Deferred<ArrayList<Boolean>> call(final Branch root) 
         throws Exception {
         TreeBuilder.this.root = root;
         return new ProcessCB().call(root);
@@ -370,7 +370,7 @@ public final class TreeBuilder {
      * copy for the local TreeBuilder to use
      */
     final class NewRootCB implements Callback<Deferred<Branch>, 
-    ArrayList<Object>> {
+    ArrayList<Boolean>> {
 
       final Branch root;
       
@@ -379,7 +379,7 @@ public final class TreeBuilder {
       }
       
       @Override
-      public Deferred<Branch> call(final ArrayList<Object> storage_call) 
+      public Deferred<Branch> call(final ArrayList<Boolean> storage_call) 
         throws Exception {
         LOG.info("Initialized root branch for tree: " + tree_id);
         tree_roots.put(tree_id, root);
@@ -446,14 +446,13 @@ public final class TreeBuilder {
      * Simple final callback that waits on all of the processing calls before
      * returning
      */
-    final class FinalCB implements Callback<Deferred<Boolean>, 
-      ArrayList<Object>> {
-
+    final class FinalCB implements Callback<Boolean, 
+      ArrayList<ArrayList<Boolean>>> {
       @Override
-      public Deferred<Boolean> call(ArrayList<Object> arg0) throws Exception {
-        return Deferred.fromResult(true);
+      public Boolean call(final ArrayList<ArrayList<Boolean>> groups) 
+        throws Exception {
+        return true;
       }
-      
     }
 
     /**
@@ -464,7 +463,7 @@ public final class TreeBuilder {
       List<Tree>> {
       
       // stores the tree deferred calls for later joining. Lazily initialized
-      ArrayList<Deferred<ArrayList<Object>>> processed_trees;
+      ArrayList<Deferred<ArrayList<Boolean>>> processed_trees;
       
       @Override
       public Deferred<Boolean> call(List<Tree> trees) throws Exception {
@@ -476,7 +475,7 @@ public final class TreeBuilder {
         }
         
         processed_trees = 
-          new ArrayList<Deferred<ArrayList<Object>>>(trees.size());
+          new ArrayList<Deferred<ArrayList<Boolean>>>(trees.size());
         for (Tree tree : trees) {
           if (!tree.getEnabled()) {
             continue;
@@ -485,8 +484,7 @@ public final class TreeBuilder {
           processed_trees.add(builder.processTimeseriesMeta(meta, false));
         }
         
-        return Deferred.group(processed_trees)
-          .addCallbackDeferring(new FinalCB());
+        return Deferred.group(processed_trees).addCallback(new FinalCB());
       }
       
     }

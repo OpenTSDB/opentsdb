@@ -340,7 +340,7 @@ public final class Branch implements Comparable<Branch> {
    * @throws IllegalArgumentException if the tree ID was missing or data was 
    * missing
    */
-  public Deferred<ArrayList<Object>> storeBranch(final TSDB tsdb, 
+  public Deferred<ArrayList<Boolean>> storeBranch(final TSDB tsdb, 
       final Tree tree, final boolean store_leaves) {  
     if (tree_id < 1 || tree_id > 65535) {
       throw new IllegalArgumentException("Missing or invalid tree ID");

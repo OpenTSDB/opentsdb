@@ -469,10 +469,10 @@ final class MetaSync extends Thread {
          * process the Scanner's limit in rows, wait for all of the storage
          * calls to complete, then continue on to the next set.
          */
-        final class ContinueCB implements Callback<Object, ArrayList<Object>> {
+        final class ContinueCB implements Callback<Object, ArrayList<Boolean>> {
 
           @Override
-          public Object call(ArrayList<Object> puts)
+          public Object call(ArrayList<Boolean> puts)
               throws Exception {
             storage_calls.clear();
             return scan();
