@@ -38,6 +38,7 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.utils.Config;
 
 /**
  * Abstract base class for Serializers; plugins that handle converting requests
@@ -561,7 +562,7 @@ public abstract class HttpSerializer {
   
   /**
    * Format the response from a search query
-   * @param note The query (hopefully filled with results) to serialize
+   * @param results The query (hopefully filled with results) to serialize
    * @return A ChannelBuffer object to pass on to the caller
    * @throws BadRequestException if the plugin has not implemented this method
    */
@@ -570,6 +571,19 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatSearchResultsV1");
+  }
+  
+  /**
+   * Format the running configuration
+   * @param config The running config to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatConfigV1(final Config config) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatConfigV1");
   }
   
   /**

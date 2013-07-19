@@ -45,6 +45,7 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -708,6 +709,16 @@ class HttpJsonSerializer extends HttpSerializer {
    */
   public ChannelBuffer formatSearchResultsV1(final SearchQuery results) {
     return serializeJSON(results);
+  }
+  
+  /**
+   * Format the running configuration
+   * @param config The running config to serialize
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatConfigV1(final Config config) {
+    return serializeJSON(config.getMap());
   }
   
   /**

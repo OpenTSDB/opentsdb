@@ -123,6 +123,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     http_commands.put("api/tree", new TreeRpc());
     http_commands.put("api/annotation", new AnnotationRpc());
     http_commands.put("api/search", new SearchRpc());
+    http_commands.put("api/config", new ShowConfig());
   }
 
   @Override
@@ -466,6 +467,31 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
               query.apiVersion() + " is not implemented");
       }
     }
+  }
+  
+  private static final class ShowConfig implements HttpRpc {
+
+    @Override
+    public void execute(TSDB tsdb, HttpQuery query) throws IOException {
+   // only accept GET/POST
+      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+            "Method not allowed", "The HTTP method [" + query.method().getName() +
+            "] is not permitted for this endpoint");
+      }
+      
+      switch (query.apiVersion()) {
+        case 0:
+        case 1:
+          query.sendReply(query.serializer().formatConfigV1(tsdb.getConfig()));
+          break;
+        default: 
+          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+              "Requested API version not implemented", "Version " + 
+              query.apiVersion() + " is not implemented");
+      }
+    }
+    
   }
   
   // ---------------- //

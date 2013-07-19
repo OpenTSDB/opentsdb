@@ -24,6 +24,8 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.ImmutableMap;
+
 /**
  * OpenTSDB Configuration Class
  * 
@@ -293,6 +295,11 @@ public class Config {
     return response.toString();
   }
 
+  /** @return An immutable copy of the configuration map */
+  public final Map<String, String> getMap() {
+    return ImmutableMap.copyOf(properties);
+  }
+  
   /**
    * Loads default entries that were not provided by a file or command line
    * 
