@@ -15,8 +15,10 @@ package net.opentsdb.tsd;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.net.HttpHeaders;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -54,17 +56,41 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   private final TelnetRpc unknown_cmd = new Unknown();
   /** Commands we serve on the HTTP interface. */
   private final HashMap<String, HttpRpc> http_commands;
+  /** List of domains to allow access to HTTP. By default this will be empty and
+   * all CORS headers will be ignored. */
+  private final HashSet<String> cors_domains;
 
   /** The TSDB to use. */
   private final TSDB tsdb;
 
   /**
-   * Constructor.
+   * Constructor that loads the CORS domain list and configures the route maps 
+   * for telnet and HTTP requests
    * @param tsdb The TSDB to use.
+   * @throws IllegalArgumentException if there was an error with the CORS domain
+   * list
    */
   public RpcHandler(final TSDB tsdb) {
     this.tsdb = tsdb;
 
+    final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
+    if (cors == null || cors.isEmpty()) {
+      cors_domains = null;
+      LOG.info("CORS domain list was empty, CORS will not be enabled");
+    } else {
+      final String[] domains = cors.split(",");
+      cors_domains = new HashSet<String>(domains.length);
+      for (final String domain : domains) {
+        if (domain.equals("*") && domains.length > 1) {
+          throw new IllegalArgumentException(
+              "tsd.http.request.cors_domains must be a public resource (*) or " 
+              + "a list of specific domains, you cannot mix both.");
+        }
+        cors_domains.add(domain.trim().toUpperCase());
+        LOG.info("Loaded CORS domain (" + domain + ")");
+      }
+    }
+    
     telnet_commands = new HashMap<String, TelnetRpc>(7);
     http_commands = new HashMap<String, HttpRpc>(11);
     {
@@ -167,6 +193,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /**
    * Finds the right handler for an HTTP query and executes it.
+   * Also handles simple and pre-flight CORS requests if configured, rejecting
+   * requests that do not match a domain in the list.
    * @param chan The channel on which the query was received.
    * @param req The parsed HTTP request.
    */
@@ -183,6 +211,44 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       try {        
         final String route = query.getQueryBaseRoute();
         query.setSerializer();
+        
+        final String domain = req.getHeader("Origin");
+        
+        // catch CORS requests and add the header or refuse them if the domain
+        // list has been configured
+        if (query.method() == HttpMethod.OPTIONS || 
+            (cors_domains != null && domain != null && !domain.isEmpty())) {          
+          if (cors_domains == null || domain == null || domain.isEmpty()) {
+            throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+                "Method not allowed", "The HTTP method [" + 
+                query.method().getName() + "] is not permitted");
+          }
+          
+          if (cors_domains.contains("*") || 
+              cors_domains.contains(domain.toUpperCase())) {
+            
+            // when a domain has matched successfully, we need to add the header
+            query.response().addHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, 
+                domain);
+            query.response().addHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, 
+                "GET, POST, PUT, DELETE");
+            
+            // if the method requested was for OPTIONS then we'll return an OK
+            // here and no further processing is needed.
+            if (query.method() == HttpMethod.OPTIONS) {
+              query.sendStatusOnly(HttpResponseStatus.OK);
+              return;
+            }
+          } else {
+            // You'd think that they would want the server to return a 403 if
+            // the Origin wasn't in the CORS domain list, but they want a 200
+            // without the allow origin header. We'll return an error in the
+            // body though.
+            throw new BadRequestException(HttpResponseStatus.OK, 
+                "CORS domain not allowed", "The domain [" + domain + 
+                "] is not permitted access");
+          }
+        }
         
         final HttpRpc rpc = http_commands.get(route);
         if (rpc != null) {
