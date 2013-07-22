@@ -188,7 +188,7 @@ public final class TSMeta {
       throw new IllegalArgumentException("Missing UID");
     }
 
-    final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
+    final DeleteRequest delete = new DeleteRequest(tsdb.metaTable(), 
         UniqueId.stringToUid(tsuid), FAMILY, META_QUALIFIER);
     return tsdb.getClient().delete(delete);
   }
@@ -311,7 +311,7 @@ public final class TSMeta {
           final byte[] original_meta = stored_meta.getStorageJSON();
           local_meta.syncMeta(stored_meta, overwrite);
 
-          final PutRequest put = new PutRequest(tsdb.uidTable(), 
+          final PutRequest put = new PutRequest(tsdb.metaTable(), 
               UniqueId.stringToUid(local_meta.tsuid), FAMILY, META_QUALIFIER, 
               local_meta.getStorageJSON());
 
@@ -357,7 +357,7 @@ public final class TSMeta {
       throw new IllegalArgumentException("Missing TSUID");
     }
 
-    final PutRequest put = new PutRequest(tsdb.uidTable(), 
+    final PutRequest put = new PutRequest(tsdb.metaTable(), 
         UniqueId.stringToUid(tsuid), FAMILY, META_QUALIFIER, getStorageJSON());
     
     final class PutCB implements Callback<Deferred<Boolean>, Object> {
@@ -436,8 +436,9 @@ public final class TSMeta {
    * @return True if data was found, false if not
    * @throws HBaseException if there was an issue fetching
    */
-  public static Deferred<Boolean> metaExistsInStorage(final TSDB tsdb, final String tsuid) {
-    final GetRequest get = new GetRequest(tsdb.uidTable(), 
+  public static Deferred<Boolean> metaExistsInStorage(final TSDB tsdb, 
+      final String tsuid) {
+    final GetRequest get = new GetRequest(tsdb.metaTable(), 
         UniqueId.stringToUid(tsuid));
     get.family(FAMILY);
     get.qualifier(META_QUALIFIER);
@@ -473,7 +474,7 @@ public final class TSMeta {
    */
   public static Deferred<Boolean> counterExistsInStorage(final TSDB tsdb, 
       final byte[] tsuid) {
-    final GetRequest get = new GetRequest(tsdb.uidTable(), tsuid);
+    final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
     get.family(FAMILY);
     get.qualifier(COUNTER_QUALIFIER);
     
@@ -607,7 +608,7 @@ public final class TSMeta {
 
     // setup the increment request and execute
     final AtomicIncrementRequest inc = new AtomicIncrementRequest(
-        tsdb.uidTable(), tsuid, FAMILY, COUNTER_QUALIFIER);
+        tsdb.metaTable(), tsuid, FAMILY, COUNTER_QUALIFIER);
     return tsdb.getClient().bufferAtomicIncrement(inc).addCallbackDeferring(
         new TSMetaCB());
   }
@@ -667,7 +668,7 @@ public final class TSMeta {
       
     }
     
-    final GetRequest get = new GetRequest(tsdb.uidTable(), tsuid);
+    final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
     get.family(FAMILY);
     get.qualifiers(new byte[][] { COUNTER_QUALIFIER, META_QUALIFIER });
     return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
@@ -681,6 +682,11 @@ public final class TSMeta {
   /** @return The configured counter column qualifier byte array*/
   public static byte[] COUNTER_QUALIFIER() {
     return COUNTER_QUALIFIER;
+  }
+  
+  /** @return The configured meta data family byte array*/
+  public static byte[] FAMILY() {
+    return FAMILY;
   }
   
   /**
