@@ -80,6 +80,8 @@ public final class TSDB {
   final byte[] uidtable;
   /** Name of the table where tree data is stored. */
   final byte[] treetable;
+  /** Name of the table where meta data is stored. */
+  final byte[] meta_table;
 
   /** Unique IDs for the metric names. */
   final UniqueId metrics;
@@ -122,6 +124,7 @@ public final class TSDB {
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
+    meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
     metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
@@ -301,7 +304,9 @@ public final class TSDB {
   }
   
   /**
-   * Verifies that the data and UID tables exist in HBase
+   * Verifies that the data and UID tables exist in HBase and optionally the
+   * tree and meta data tables if the user has enabled meta tracking or tree
+   * building
    * @return An ArrayList of objects to wait for
    * @throws TableNotFoundException
    * @since 2.0
@@ -316,6 +321,10 @@ public final class TSDB {
     if (config.enable_tree_processing()) {
       checks.add(client.ensureTableExists(
           config.getString("tsd.storage.hbase.tree_table")));
+    }
+    if (config.enable_meta_tracking()) {
+      checks.add(client.ensureTableExists(
+          config.getString("tsd.storage.hbase.meta_table")));
     }
     return Deferred.group(checks);
   }
@@ -865,6 +874,11 @@ public final class TSDB {
   /** @return the name of the tree table as a byte array for client requests */
   public byte[] treeTable() {
     return this.treetable;
+  }
+  
+  /** @return the name of the meta table as a byte array for client requests */
+  public byte[] metaTable() {
+    return this.meta_table;
   }
 
   /**
