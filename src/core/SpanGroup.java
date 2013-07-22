@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.RateOptions;
+
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
  * <p>
@@ -71,7 +73,12 @@ final class SpanGroup implements DataPoints {
   private final ArrayList<Span> spans = new ArrayList<Span>();
 
   /** If true, use rate of change instead of actual values. */
-  private boolean rate;
+  private final boolean rate;
+
+  /**
+   * Specifies the various options for rate calcuations
+   */
+  private RateOptions rate_options;
 
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
@@ -85,6 +92,7 @@ final class SpanGroup implements DataPoints {
   /** Minimum time interval (in seconds) wanted between each data point. */
   private final int sample_interval;
 
+  
   /**
    * Ctor.
    * @param tsdb The TSDB we belong to.
@@ -107,6 +115,34 @@ final class SpanGroup implements DataPoints {
             final boolean rate,
             final Aggregator aggregator,
             final int interval, final Aggregator downsampler) {
+    this(tsdb, start_time, end_time, spans, rate, new RateOptions(false, 
+        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
+        downsampler);
+  }
+  
+  /**
+   * Ctor.
+   * @param tsdb The TSDB we belong to.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}.  Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation options.
+   * @param aggregator The aggregation function to use.
+   * @param interval Number of seconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   */
+  SpanGroup(final TSDB tsdb,
+            final long start_time, final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate, final RateOptions rate_options,
+            final Aggregator aggregator,
+            final int interval, final Aggregator downsampler) {
     this.start_time = start_time;
     this.end_time = end_time;
     if (spans != null) {
@@ -115,6 +151,7 @@ final class SpanGroup implements DataPoints {
       }
     }
     this.rate = rate;
+    this.rate_options = rate_options;
     this.aggregator = aggregator;
     this.downsampler = downsampler;
     this.sample_interval = interval;
@@ -748,6 +785,20 @@ final class SpanGroup implements DataPoints {
           assert x0 > x1: ("Next timestamp (" + x0 + ") is supposed to be "
             + " strictly greater than the previous one (" + x1 + "), but it's"
             + " not.  this=" + this);
+
+          // If we have a counter rate of change calculation, y0 and y1
+          // have values such that the rate would be < 0 then calculate the
+          // new rate value assuming a roll over
+          if (rate_options.isCounter() && y1 > y0) {
+            final double r = (rate_options.getCounterMax() - y1 + y0) / (x0 - x1);
+            if (rate_options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+                && r > rate_options.getResetValue()) {
+              return 0.0;
+            }
+            //LOG.debug("Rolled Rate for " + y1 + " @ " + x1
+            //          + " -> " + y0 + " @ " + x0 + " => " + r);
+            return r;
+          }
           final double r = (y0 - y1) / (x0 - x1);
           //LOG.debug("Rate for " + y1 + " @ " + x1
           //          + " -> " + y0 + " @ " + x0 + " => " + r);
@@ -807,6 +858,9 @@ final class SpanGroup implements DataPoints {
       + ", tags=" + tags
       + ", aggregated_tags=" + aggregated_tags
       + ", rate=" + rate
+      + ", counter=" + rate_options.isCounter()
+      + ", counterMax=" + rate_options.getCounterMax()
+      + ", resetValue=" + rate_options.getResetValue()
       + ", aggregator=" + aggregator
       + ", downsampler=" + downsampler
       + ", sample_interval=" + sample_interval
