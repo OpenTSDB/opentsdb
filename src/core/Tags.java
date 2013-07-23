@@ -257,23 +257,64 @@ public final class Tags {
    */
   static Map<String, String> getTags(final TSDB tsdb,
                                      final byte[] row) throws NoSuchUniqueId {
+    try {
+      return getTagsAsync(tsdb, row).joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  /**
+   * Returns the tags stored in the given row key.
+   * @param tsdb The TSDB instance to use for Unique ID lookups.
+   * @param row The row key from which to extract the tags.
+   * @return A map of tag names (keys), tag values (values).
+   * @throws NoSuchUniqueId if the row key contained an invalid ID (unlikely).
+   * @since 1.2
+   */
+  static Deferred<Map<String, String>> getTagsAsync(final TSDB tsdb,
+                                     final byte[] row) throws NoSuchUniqueId {
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
     final short tag_bytes = (short) (name_width + value_width);
-    final byte[] tmp_name = new byte[name_width];
-    final byte[] tmp_value = new byte[value_width];
     final short metric_ts_bytes = (short) (tsdb.metrics.width()
                                            + Const.TIMESTAMP_BYTES);
-    final HashMap<String, String> result
-      = new HashMap<String, String>((row.length - metric_ts_bytes) / tag_bytes);
+    
+    final ArrayList<Deferred<String>> deferreds = 
+      new ArrayList<Deferred<String>>((row.length - metric_ts_bytes) / tag_bytes);
+    
     for (short pos = metric_ts_bytes; pos < row.length; pos += tag_bytes) {
+      final byte[] tmp_name = new byte[name_width];
+      final byte[] tmp_value = new byte[value_width];
+
       System.arraycopy(row, pos, tmp_name, 0, name_width);
-      final String name = tsdb.tag_names.getName(tmp_name);
+      deferreds.add(tsdb.tag_names.getNameAsync(tmp_name));
+
       System.arraycopy(row, pos + name_width, tmp_value, 0, value_width);
-      final String value = tsdb.tag_values.getName(tmp_value);
-      result.put(name, value);
+      deferreds.add(tsdb.tag_values.getNameAsync(tmp_value));
     }
-    return result;
+    
+    class NameCB implements Callback<Map<String, String>, ArrayList<String>> {
+      public Map<String, String> call(final ArrayList<String> names) 
+        throws Exception {
+        final HashMap<String, String> result = new HashMap<String, String>(
+            (row.length - metric_ts_bytes) / tag_bytes);
+        String tagk = "";
+        for (String name : names) {
+          if (tagk.isEmpty()) {
+            tagk = name;
+          } else {
+            result.put(tagk, name);
+            tagk = "";
+          }
+        }
+        return result;
+      }
+    }
+    
+    return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
   }
 
   /**
@@ -366,7 +407,9 @@ public final class Tags {
       }
 
       // Put all the deferred tag resolutions in this list.
-      tag_ids.add(name_id.addCallbackDeferring(new TagNameResolvedCB()));
+      final Deferred<byte[]> resolve = 
+        name_id.addCallbackDeferring(new TagNameResolvedCB());
+      tag_ids.add(resolve);
     }
 
     // And then once we have all the tags resolved, sort them.
