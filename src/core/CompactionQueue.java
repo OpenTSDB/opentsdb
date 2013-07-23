@@ -260,7 +260,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         final byte[] qual = kv.qualifier();
         if (qual.length % 2 != 0 || qual.length == 0) {
           // This could be a row with only an annotation in it
-          if (qual.length == 3 && qual[0] == Annotation.PREFIX()) {
+          if ((qual[0] | Annotation.PREFIX()) == Annotation.PREFIX()) {
             final Annotation note = JSON.parseToObject(kv.value(), 
                 Annotation.class);
             annotations.add(note);
@@ -311,7 +311,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           if (len % 2 != 0 || len == 0) {
             // if the qualifier is 3 bytes and starts with the Annotation prefix,
             // parse it out.
-            if (qual.length == 3 && qual[0] == Annotation.PREFIX()) {
+            if ((qual[0] | Annotation.PREFIX()) == Annotation.PREFIX()) {
               final Annotation note = JSON.parseToObject(kv.value(), 
                   Annotation.class);
               annotations.add(note);
@@ -519,9 +519,12 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       System.arraycopy(v, 0, value, val_idx, v.length);
       val_idx += v.length;
     }
-    // Right now we leave the last byte all zeros, this last byte will be
-    // used in the future to introduce more formats/encodings.
-
+ 
+    // Set the meta flag in the values if we have a mix of seconds and ms,
+    // otherwise we just leave them alone.
+    if (sort) {
+      value[value.length - 1] |= Const.MS_MIXED_COMPACT;
+    }
     final KeyValue first = row.get(0);
     return new KeyValue(first.key(), first.family(), qualifier, value);
   }
@@ -624,9 +627,12 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       System.arraycopy(b, 0, value, val_idx, b.length);
       val_idx += b.length;
     }
-    // Right now we leave the last byte all zeros, this last byte will be
-    // used in the future to introduce more formats/encodings.
-
+    
+    // Set the meta flag in the values if we have a mix of seconds and ms,
+    // otherwise we just leave them alone.
+    if (sort) {
+      value[value.length - 1] |= Const.MS_MIXED_COMPACT;
+    }
     final KeyValue first = row.get(0);
     final KeyValue kv = new KeyValue(first.key(), first.family(),
                                      qualifier, value);

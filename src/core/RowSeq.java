@@ -207,10 +207,16 @@ final class RowSeq implements DataPoints {
       qualifiers = Arrays.copyOfRange(merged_qualifiers, 0, merged_q_index);
     }
     
-    // we need to leave a meta byte on the end of the values array, so no
-    // matter the index value, just increment it by one. The merged_values will
-    // have two meta bytes, we only want one.
+    // set the meta bit based on the local and remote metas
+    byte meta = 0;
+    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
+                                     Const.MS_MIXED_COMPACT || 
+        (remote_val[remote_val.length - 1] & Const.MS_MIXED_COMPACT) == 
+                                             Const.MS_MIXED_COMPACT) {
+      meta = Const.MS_MIXED_COMPACT;
+    }
     values = Arrays.copyOfRange(merged_values, 0, merged_v_index + 1);
+    values[values.length - 1] = meta;
   }
 
   /**
@@ -287,14 +293,23 @@ final class RowSeq implements DataPoints {
    * Unfortunately we must walk the entire array as there may be a mix of
    * second and millisecond timestamps */
   public int size() {
-    int size = 0;
-    for (int i = 0; i < qualifiers.length; i += 2) {
-      if ((qualifiers[i] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-        i += 2;
+    // if we don't have a mix of second and millisecond qualifiers we can run
+    // this in O(1), otherwise we have to run O(n)
+    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
+      Const.MS_MIXED_COMPACT) {
+      int size = 0;
+      for (int i = 0; i < qualifiers.length; i += 2) {
+        if ((qualifiers[i] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
+          i += 2;
+        }
+        size++;
       }
-      size++;
+      return size;
+    } else if ((qualifiers[0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
+      return qualifiers.length / 4;
+    } else {
+      return qualifiers.length / 2;
     }
-    return size;
   }
 
   /** @return 0 since aggregation cannot happen at the row level */
@@ -331,17 +346,25 @@ final class RowSeq implements DataPoints {
 
   public long timestamp(final int i) {
     checkIndex(i);
+    // if we don't have a mix of second and millisecond qualifiers we can run
+    // this in O(1), otherwise we have to run O(n)
     // Important: Span.addRow assumes this method to work in O(1).
-    // ^^ Can't do that with mixed support as seconds are on 2 bytes and ms on 4
-    int index = 0;
-    for (int idx = 0; idx < qualifiers.length; idx += 2) {
-      if (i == index) {
-        return Internal.getTimestampFromQualifier(qualifiers, baseTime(), idx);
+    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
+      Const.MS_MIXED_COMPACT) {
+      int index = 0;
+      for (int idx = 0; idx < qualifiers.length; idx += 2) {
+        if (i == index) {
+          return Internal.getTimestampFromQualifier(qualifiers, baseTime(), idx);
+        }
+        if (Internal.inMilliseconds(qualifiers[idx])) {
+          idx += 2;
+        }      
+        index++;
       }
-      if (Internal.inMilliseconds(qualifiers[idx])) {
-        idx += 2;
-      }      
-      index++;
+    } else if ((qualifiers[0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
+      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 4);
+    } else {
+      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 2);
     }
     
     throw new RuntimeException(

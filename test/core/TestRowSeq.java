@@ -316,7 +316,8 @@ public final class TestRowSeq {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     final RowSeq rs = new RowSeq(tsdb);
-    rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
+    rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, 
+        new byte[] { 1 })));
     assertEquals(2, rs.size());
     
     final byte[] qual3 = { 0x00, 0x37 };
@@ -324,7 +325,8 @@ public final class TestRowSeq {
     final byte[] qual4 = { (byte) 0xF0, 0x01, 0x09, 0x07 };
     final byte[] val4 = Bytes.fromLong(7L);
     final byte[] qual34 = MockBase.concatByteArrays(qual3, qual4);
-    rs.addRow(makekv(qual34, MockBase.concatByteArrays(val3, val4, ZERO)));
+    rs.addRow(makekv(qual34, MockBase.concatByteArrays(val3, val4, 
+        new byte[] { 1 })));
     
     assertEquals(4, rs.size());
     assertEquals(1356998400000L, rs.timestamp(0));

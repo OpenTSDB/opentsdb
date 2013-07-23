@@ -43,9 +43,12 @@ public final class Const {
   /** Flag to set on millisecond qualifier timestamps */
   public static final int MS_FLAG = 0xF0000000;
   
+  /** Flag to determine if a compacted column is a mix of seconds and ms */
+  public static final byte MS_MIXED_COMPACT = 1;
+  
   /** Mask to select all the FLAG_BITS.  */
   public static final short FLAGS_MASK = FLAG_FLOAT | LENGTH_MASK;
-
+  
   /** Mask to verify a timestamp on 4 bytes in seconds */
   public static final long SECOND_MASK = 0xFFFFFFFF00000000L;
   
