@@ -226,7 +226,7 @@ final class TestCompactionQueue {
 
     // We had one row to compact, so one put to do.
     verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual3, qual2),
-                               MockBase.concatByteArrays(val1, val3, val2, ZERO));
+         MockBase.concatByteArrays(val1, val3, val2, new byte[] { 1 }));
     // And we had to delete individual cells.
     verify(tsdb, times(1)).delete(KEY, new byte[][] { qual1, qual3, qual2 });
   }
@@ -289,7 +289,7 @@ final class TestCompactionQueue {
 
     // We had one row to compact, so one put to do.
     verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual2),
-                               MockBase.concatByteArrays(val1, val2, ZERO));
+         MockBase.concatByteArrays(val1, val2, new byte[] { 1 }));
     // And we had to delete individual cells.
     verify(tsdb, times(1)).delete(KEY, new byte[][] { qual1, qual2 });
   }
