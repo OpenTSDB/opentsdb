@@ -59,17 +59,24 @@ import com.stumbleupon.async.DeferredGroupException;
   Scanner.class, UIDMeta.class, TSMeta.class, AtomicIncrementRequest.class})
 public final class TestTSMeta {
   private TSDB tsdb;
+  private Config config;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
   private TSMeta meta = new TSMeta();
   
   @Before
   public void before() throws Exception {
-    final Config config = new Config(false);
+    config = mock(Config.class);
+    when(config.getString("tsd.storage.hbase.data_table")).thenReturn("tsdb");
+    when(config.getString("tsd.storage.hbase.uid_table")).thenReturn("tsdb-uid");
+    when(config.getString("tsd.storage.hbase.meta_table")).thenReturn("tsdb-meta");
+    when(config.getString("tsd.storage.hbase.tree_table")).thenReturn("tsdb-tree");
+    when(config.enable_tsuid_incrementing()).thenReturn(true);
+    when(config.enable_realtime_ts()).thenReturn(true);
+    
     PowerMockito.whenNew(HBaseClient.class)
       .withArguments(anyString(), anyString()).thenReturn(client);
     tsdb = new TSDB(config);
-    
     storage = new MockBase(tsdb, client, true, true, true, true);
     
     storage.addColumn(new byte[] { 0, 0, 1 }, 
@@ -319,7 +326,6 @@ public final class TestTSMeta {
   @Test (expected = NoSuchUniqueId.class)
   public void incrementAndGetCounterNSU() throws Exception {
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 2 };
-    
     class ErrBack implements Callback<Object, Exception> {
       @Override
       public Object call(Exception e) throws Exception {

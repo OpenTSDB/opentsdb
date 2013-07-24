@@ -134,7 +134,7 @@ public final class TSDB {
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
-    if (config.enable_meta_tracking()) {
+    if (config.enable_realtime_ts() || config.enable_realtime_uid()) {
       // this is cleaner than another constructor and defaults to null. UIDs 
       // will be refactored with DAL code anyways
       metrics.setTSDB(this);
@@ -322,7 +322,8 @@ public final class TSDB {
       checks.add(client.ensureTableExists(
           config.getString("tsd.storage.hbase.tree_table")));
     }
-    if (config.enable_meta_tracking()) {
+    if (config.enable_realtime_ts() || config.enable_realtime_uid() || 
+        config.enable_tsuid_incrementing()) {
       checks.add(client.ensureTableExists(
           config.getString("tsd.storage.hbase.meta_table")));
     }
@@ -620,15 +621,17 @@ public final class TSDB {
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
     Deferred<Object> result = client.put(point);
-    if (!config.enable_meta_tracking() && rt_publisher == null) {
+    if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
+        rt_publisher == null) {
       return result;
     }
     
     final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
         Const.TIMESTAMP_BYTES); 
-    if (config.enable_meta_tracking()) {
+    if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
       TSMeta.incrementAndGetCounter(this, tsuid);
     }
+    
     if (rt_publisher != null) {
       
       /**

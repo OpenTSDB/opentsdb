@@ -265,7 +265,7 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, kind, 3);
     final byte[] id = { 0, 0, 5 };
     final Config config = mock(Config.class);
-    when(config.enable_meta_tracking()).thenReturn(false);
+    when(config.enable_realtime_uid()).thenReturn(false);
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
@@ -417,7 +417,7 @@ public final class TestUniqueId {
   public void getOrCreateIdWithICVFailure() {
     uid = new UniqueId(client, table, kind, 3);
     final Config config = mock(Config.class);
-    when(config.enable_meta_tracking()).thenReturn(false);
+    when(config.enable_realtime_uid()).thenReturn(false);
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);
@@ -448,7 +448,7 @@ public final class TestUniqueId {
   public void getOrCreateIdPutsReverseMappingFirst() {
     uid = new UniqueId(client, table, kind, 3);
     final Config config = mock(Config.class);
-    when(config.enable_meta_tracking()).thenReturn(false);
+    when(config.enable_realtime_uid()).thenReturn(false);
     final TSDB tsdb = mock(TSDB.class);
     when(tsdb.getConfig()).thenReturn(config);
     uid.setTSDB(tsdb);

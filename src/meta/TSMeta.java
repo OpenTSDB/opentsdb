@@ -609,6 +609,11 @@ public final class TSMeta {
     // setup the increment request and execute
     final AtomicIncrementRequest inc = new AtomicIncrementRequest(
         tsdb.metaTable(), tsuid, FAMILY, COUNTER_QUALIFIER);
+    // if the user has disabled real time TSMeta tracking (due to OOM issues)
+    // then we only want to increment the data point count.
+    if (!tsdb.getConfig().enable_realtime_ts()) {
+      return tsdb.getClient().bufferAtomicIncrement(inc);
+    }
     return tsdb.getClient().bufferAtomicIncrement(inc).addCallbackDeferring(
         new TSMetaCB());
   }
