@@ -829,9 +829,21 @@ public class QueryUi implements EntryPoint, HistoryListener {
       }
     }
     final StringBuilder url = new StringBuilder();
-    url.append("/q?start=").append(FULLDATE.format(start));
+    url.append("/q?start=");
+    final String start_text = start_datebox.getTextBox().getText();
+    if (start_text.endsWith(" ago") || start_text.endsWith("-ago")) {
+      url.append(start_text);
+    } else {
+      url.append(FULLDATE.format(start));
+    }
     if (end != null && !autoreload.getValue()) {
-      url.append("&end=").append(FULLDATE.format(end));
+      url.append("&end=");
+      final String end_text = end_datebox.getTextBox().getText();
+      if (end_text.endsWith(" ago") || end_text.endsWith("-ago")) {
+        url.append(end_text);
+      } else {
+        url.append(FULLDATE.format(end));
+      }
     } else {
       // If there's no end-time, the graph may change while the URL remains
       // the same.  No browser seems to re-fetch an image once it's been
