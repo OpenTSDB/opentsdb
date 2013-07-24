@@ -190,6 +190,23 @@ public final class TestAnnotation {
   }
   
   @Test
+  public void syncToStorageMilliseconds() throws Exception {
+    note.setTSUID("000001000001000001");
+    note.setStartTime(1388450562500L);
+    note.setDescription("Synced!");
+    note.syncToStorage(tsdb, false).joinUninterruptibly();
+    final byte[] col = storage.getColumn(
+        new byte[] { 0, 0, 1, (byte) 0x52, (byte) 0xC2, (byte) 0x09, 
+            0, 0, 0, 1, 0, 0, 1 },
+        new byte[] { 1, 0x00, 0x27, 0x19, (byte) 0xC4 });
+    note = JSON.parseToObject(col, Annotation.class);
+    assertEquals("000001000001000001", note.getTSUID());
+    assertEquals("Synced!", note.getDescription());
+    assertEquals("", note.getNotes());
+    assertEquals(1388450562500L, note.getStartTime());
+  }
+  
+  @Test
   public void syncToStorageGlobal() throws Exception {
     note.setStartTime(1328140800L);
     note.setDescription("Synced!");
@@ -201,6 +218,20 @@ public final class TestAnnotation {
     assertEquals("", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
     assertEquals("Notes", note.getNotes());
+  }
+  
+  @Test
+  public void syncToStorageGlobalMilliseconds() throws Exception {
+    note.setStartTime(1328140800500L);
+    note.setDescription("Synced!");
+    note.syncToStorage(tsdb, false).joinUninterruptibly();
+    final byte[] col = storage.getColumn(
+        new byte[] { 0, 0, 0, (byte) 0x4F, (byte) 0x29, (byte) 0xD2, 0 }, 
+        new byte[] { 1, 0, 0, 1, (byte) 0xF4 });
+    note = JSON.parseToObject(col, Annotation.class);
+    assertEquals("", note.getTSUID());
+    assertEquals("Synced!", note.getDescription());
+    assertEquals("", note.getNotes());
   }
   
   @Test (expected = IllegalArgumentException.class)

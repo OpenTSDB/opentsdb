@@ -464,8 +464,8 @@ public final class Annotation implements Comparable<Annotation> {
    * Calculates and returns the column qualifier. The qualifier is the offset
    * of the {@code #start_time} from the row key's base time stamp in seconds
    * with a prefix of {@code #PREFIX}. Thus if the offset is 0 and the prefix is
-   * 1, the qualifier would be [1, 0, 0].
-   * TODO - modify this for ms support
+   * 1 and the timestamp is in seconds, the qualifier would be [1, 0, 0]. 
+   * Millisecond timestamps will have a 5 byte qualifier
    * @return The column qualifier as a byte array
    * @throws IllegalArgumentException if the start_time has not been set
    */
@@ -474,11 +474,22 @@ public final class Annotation implements Comparable<Annotation> {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
     
-    final long base_time = (start_time - (start_time % Const.MAX_TIMESPAN));
-    final short offset = (short) (start_time - base_time);
-    final byte[] qualifier = new byte[3];
+    final long base_time;
+    final byte[] qualifier;
+    if ((start_time & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      base_time = ((start_time / 1000) - 
+          ((start_time / 1000) % Const.MAX_TIMESPAN));
+      qualifier = new byte[5];
+      final int offset = (int) (start_time - (base_time * 1000));
+      System.arraycopy(Bytes.fromInt(offset), 0, qualifier, 1, 4);
+    } else {
+      base_time = (start_time - (start_time % Const.MAX_TIMESPAN));
+      qualifier = new byte[3];
+      final short offset = (short) (start_time - base_time);
+      System.arraycopy(Bytes.fromShort(offset), 0, qualifier, 1, 2);
+    }
     qualifier[0] = PREFIX;
-    System.arraycopy(Bytes.fromShort(offset), 0, qualifier, 1, 2);
     return qualifier;
   }
   
@@ -495,7 +506,14 @@ public final class Annotation implements Comparable<Annotation> {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
     
-    final long base_time = (start_time - (start_time % Const.MAX_TIMESPAN));
+    final long base_time;
+    if ((start_time & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      base_time = ((start_time / 1000) - 
+          ((start_time / 1000) % Const.MAX_TIMESPAN));
+    } else {
+      base_time = (start_time - (start_time % Const.MAX_TIMESPAN));
+    }
     
     // if the TSUID is empty, then we're a global annotation. The row key will 
     // just be an empty byte array of metric width plus the timestamp
