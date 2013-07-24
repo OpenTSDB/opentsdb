@@ -24,6 +24,7 @@ import java.util.HashMap;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.dom.client.Style;
+import com.google.gwt.dom.client.Style.Cursor;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.DomEvent;
@@ -36,6 +37,10 @@ import com.google.gwt.event.dom.client.MouseDownHandler;
 import com.google.gwt.event.dom.client.MouseEvent;
 import com.google.gwt.event.dom.client.MouseMoveEvent;
 import com.google.gwt.event.dom.client.MouseMoveHandler;
+import com.google.gwt.event.dom.client.MouseOutEvent;
+import com.google.gwt.event.dom.client.MouseOutHandler;
+import com.google.gwt.event.dom.client.MouseOverEvent;
+import com.google.gwt.event.dom.client.MouseOverHandler;
 import com.google.gwt.event.dom.client.MouseUpEvent;
 import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.event.logical.shared.BeforeSelectionEvent;
@@ -383,6 +388,18 @@ public class QueryUi implements EntryPoint, HistoryListener {
       graphbox.add(graph, 0, 0);
       zoom_box.setVisible(false);
       graphbox.add(zoom_box, 0, 0);
+      graph.addMouseOverHandler(new MouseOverHandler() {
+        public void onMouseOver(final MouseOverEvent event) {
+          final Style style = graphbox.getElement().getStyle();
+          style.setCursor(Cursor.CROSSHAIR);
+        }
+      });
+      graph.addMouseOutHandler(new MouseOutHandler() {
+        public void onMouseOut(final MouseOutEvent event) {
+          final Style style = graphbox.getElement().getStyle();
+          style.setCursor(Cursor.AUTO);
+        }
+      });
 
       graphvbox.add(graphbox);
       graph.addErrorHandler(new ErrorHandler() {
