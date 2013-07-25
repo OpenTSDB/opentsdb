@@ -440,6 +440,7 @@ public final class UniqueId implements UniqueIdInterface {
       if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
         final UIDMeta meta = new UIDMeta(type, row, name);
         meta.storeNew(tsdb);
+        LOG.info("Wrote UIDMeta for: " + name);
         tsdb.indexUIDMeta(meta);
       }
       

@@ -591,7 +591,7 @@ public final class TSMeta {
               return Deferred.fromResult(0L);
             }
             
-            LOG.debug("Successfullly created new TSUID entry for: " + meta);
+            LOG.info("Successfullly created new TSUID entry for: " + meta);
             final Deferred<TSMeta> meta = getFromStorage(tsdb, tsuid)
               .addCallbackDeferring(
                 new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)));
