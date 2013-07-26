@@ -36,6 +36,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.google.protobuf.ByteString;
+import com.google.protobuf.ZeroCopyLiteralByteString;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.util.CharsetUtil;
 
@@ -273,6 +276,16 @@ public final class Bytes {
     final byte[] b = new byte[8];
     setLong(b, n);
     return b;
+  }
+
+  /**
+   * Extracts the byte array from the given {@link ByteString} without copy.
+   * @param buf A buffer from which to extract the array.  This buffer must be
+   * actually an instance of a {@code LiteralByteString}.
+   * @since 1.5
+   */
+  public static byte[] get(final ByteString buf) {
+    return ZeroCopyLiteralByteString.zeroCopyGetBytes(buf);
   }
 
   /** Transforms a string into an UTF-8 encoded byte array.  */
