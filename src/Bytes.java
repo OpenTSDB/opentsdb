@@ -279,6 +279,15 @@ public final class Bytes {
   }
 
   /**
+   * Wraps a byte array in a {@link ByteString} without copying it.
+   * @param array A byte array that must be considered read-only from there on.
+   * @since 1.5
+   */
+  public static ByteString wrap(final byte[] array) {
+    return ZeroCopyLiteralByteString.wrap(array);
+  }
+
+  /**
    * Extracts the byte array from the given {@link ByteString} without copy.
    * @param buf A buffer from which to extract the array.  This buffer must be
    * actually an instance of a {@code LiteralByteString}.
