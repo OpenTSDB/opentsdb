@@ -194,9 +194,9 @@ final class Fsck {
               continue;
             } else if (qual.length >= 4 && !Internal.inMilliseconds(qual[0])) {
               // compacted row
-              if (value[value.length - 1] != 0) {
+              if (value[value.length - 1] > Const.MS_MIXED_COMPACT) {
                 errors++;
-                LOG.error("The last byte of a compacted should be 0.  Either"
+                LOG.error("The last byte of a compacted should be 0 or 1. Either"
                           + " this value is corrupted or it was written by a"
                           + " future version of OpenTSDB.\n\t" + kv);
                 continue;
