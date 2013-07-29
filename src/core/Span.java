@@ -136,11 +136,11 @@ final class Span implements DataPoints {
       // row key of the last RowSeq we created and the timestamp of the
       // last data point in `row' is small enough, we can merge `row' into
       // the last RowSeq.
-      if (RowSeq.canTimeDeltaFit(lastTimestampInRow(metric_width, row)
-                                 - last.baseTime())) {
-        last.addRow(row);
-        return;
-      }
+      //if (RowSeq.canTimeDeltaFit(lastTimestampInRow(metric_width, row)
+      //                           - last.baseTime())) {
+      //  last.addRow(row);
+      //  return;
+      //}
     }
 
     final RowSeq rowseq = new RowSeq(tsdb);
