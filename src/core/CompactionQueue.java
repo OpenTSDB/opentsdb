@@ -328,6 +328,13 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
             longest = kv;
             longest_idx = i;
           }
+          
+          // we need to check the value meta flag to see if the already compacted
+          // column has a mixture of second and millisecond timestamps
+          if ((kv.value()[kv.value().length - 1] & Const.MS_MIXED_COMPACT) == 
+            Const.MS_MIXED_COMPACT) {
+            ms_in_row = s_in_row = true;
+          }
         } else {
           if (Internal.inMilliseconds(qual[0])) {
             ms_in_row = true;
