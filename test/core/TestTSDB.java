@@ -359,9 +359,9 @@ public final class TestTSDB {
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, 
-        new byte[] { (byte) 0xF0, 0, 0x7D, 7 });
+        new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
-    assertEquals(42, Bytes.getLong(value));
+    assertEquals(42, value[0]);
   }
   
   @Test
@@ -393,9 +393,9 @@ public final class TestTSDB {
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, 
-        new byte[] { (byte) 0xF0, 0, 0x7D, 7 });
+        new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
-    assertEquals(1, Bytes.getLong(value));
+    assertEquals(1, value[0]);
     assertEquals(50, storage.numColumns(row));
   }
   
@@ -569,10 +569,10 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 7 });
+    byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertEquals(2, storage.numColumns(row));
     assertNotNull(value);
-    assertEquals(42, Bytes.getLong(value));
+    assertEquals(42, value[0]);
     value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -590,14 +590,14 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400000L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertEquals(2, storage.numColumns(row));
     assertNotNull(value);
-    assertEquals(42, Bytes.getLong(value));
-    value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0, 7 });
+    assertEquals(42, value[0]);
+    value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0, 0 });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(42, Bytes.getLong(value));
+    assertEquals(42, value[0]);
   }
   
   /**
