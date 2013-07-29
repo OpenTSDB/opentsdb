@@ -22,9 +22,6 @@ import java.util.NoSuchElementException;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
@@ -34,8 +31,6 @@ import org.hbase.async.KeyValue;
  * This class stores a continuous sequence of {@link RowSeq}s in memory.
  */
 final class Span implements DataPoints {
-
-  private static final Logger LOG = LoggerFactory.getLogger(Span.class);
 
   /** The {@link TSDB} instance we belong to. */
   private final TSDB tsdb;
@@ -47,30 +42,55 @@ final class Span implements DataPoints {
    * have to pass a collection to the compaction queue */
   private ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
   
+  /** 
+   * Whether or not the rows have been sorted. This should be toggled by the
+   * first call to an iterator method
+   */
+  private boolean sorted;
+  
+  /**
+   * Default constructor.
+   * @param tsdb The TSDB to which we belong
+   */
   Span(final TSDB tsdb) {
     this.tsdb = tsdb;
   }
 
+  /** @throws IllegalStateException if the span doesn't have any rows */
   private void checkNotEmpty() {
     if (rows.size() == 0) {
       throw new IllegalStateException("empty Span");
     }
   }
 
+  /** 
+   * @return the name of the metric associated with the rows in this span
+   * @throws IllegalStateException if the span was empty
+   * @throws NoSuchUniqueId if the row key UID did not exist
+   */
   public String metricName() {
     checkNotEmpty();
     return rows.get(0).metricName();
   }
 
+  /**
+   * @return the list of tag pairs for the rows in this span
+   * @throws IllegalStateException if the span was empty
+   * @throws NoSuchUniqueId if the any of the tagk/v UIDs did not exist
+   */
   public Map<String, String> getTags() {
     checkNotEmpty();
     return rows.get(0).getTags();
   }
 
+  /** @return an empty list since aggregated tags cannot exist on a single span */
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
   }
 
+  /** @return the number of data points in this span, O(n)
+   * Unfortunately we must walk the entire array for every row as there may be a 
+   * mix of second and millisecond timestamps */
   public int size() {
     int size = 0;
     for (final RowSeq row : rows) {
@@ -79,6 +99,7 @@ final class Span implements DataPoints {
     return size;
   }
 
+  /** @return 0 since aggregation cannot happen at the span level */
   public int aggregatedSize() {
     return 0;
   }
@@ -94,17 +115,17 @@ final class Span implements DataPoints {
     return tsuids;
   }
   
+  /** @return a list of annotations associated with this span. May be empty */
   public List<Annotation> getAnnotations() {
     return annotations;
   }
   
   /**
-   * Adds an HBase row to this span, using a row from a scanner.
-   * @param row The compacted HBase row to add to this span.
+   * Adds a compacted row to the span, merging with an existing RowSeq or 
+   * creating a new one if necessary. 
+   * @param row The compacted row to add to this span.
    * @throws IllegalArgumentException if the argument and this span are for
    * two different time series.
-   * @throws IllegalArgumentException if the argument represents a row for
-   * data points that are older than those already added to this span.
    */
   void addRow(final KeyValue row) {
     long last_ts = 0;
@@ -129,27 +150,22 @@ final class Span implements DataPoints {
             + " whereas the row key being added is " + Arrays.toString(key)
             + " and metric_width=" + metric_width);
       }
-      last_ts = last.timestamp(last.size() - 1);  // O(1)
-      // Optimization: check whether we can put all the data points of `row'
-      // into the last RowSeq object we created, instead of making a new
-      // RowSeq.  If the time delta between the timestamp encoded in the
-      // row key of the last RowSeq we created and the timestamp of the
-      // last data point in `row' is small enough, we can merge `row' into
-      // the last RowSeq.
-      //if (RowSeq.canTimeDeltaFit(lastTimestampInRow(metric_width, row)
-      //                           - last.baseTime())) {
-      //  last.addRow(row);
-      //  return;
-      //}
+      last_ts = last.timestamp(last.size() - 1);  // O(n)
     }
 
     final RowSeq rowseq = new RowSeq(tsdb);
     rowseq.setRow(row);
+    sorted = false;
     if (last_ts >= rowseq.timestamp(0)) {
-      LOG.error("New RowSeq added out of order to this Span! Last = " +
-                rows.get(rows.size() - 1) + ", new = " + rowseq);
-      return;
+      // scan to see if we need to merge into an existing row
+      for (final RowSeq rs : rows) {
+        if (Bytes.memcmp(rs.key, row.key()) == 0) {
+          rs.addRow(row);
+          return;
+        }
+      }
     }
+    
     rows.add(rowseq);
   }
 
@@ -157,19 +173,25 @@ final class Span implements DataPoints {
    * Package private helper to access the last timestamp in an HBase row.
    * @param metric_width The number of bytes on which metric IDs are stored.
    * @param row A compacted HBase row.
-   * @return A strictly positive 32-bit timestamp.
+   * @return A strictly positive timestamp in seconds or ms.
    * @throws IllegalArgumentException if {@code row} doesn't contain any cell.
    */
   static long lastTimestampInRow(final short metric_width,
                                  final KeyValue row) {
     final long base_time = Bytes.getUnsignedInt(row.key(), metric_width);
     final byte[] qual = row.qualifier();
+    if (qual.length >= 4 && Internal.inMilliseconds(qual[qual.length - 4])) {
+      return (base_time * 1000) + ((Bytes.getUnsignedInt(qual, qual.length - 4) & 
+          0x0FFFFFC0) >>> (Const.MS_FLAG_BITS));
+    }
     final short last_delta = (short)
       (Bytes.getUnsignedShort(qual, qual.length - 2) >>> Const.FLAG_BITS);
     return base_time + last_delta;
   }
 
+  /** @return an iterator to run over the list of data points */
   public SeekableView iterator() {
+    checkRowOrder();
     return spanIterator();
   }
 
@@ -180,6 +202,7 @@ final class Span implements DataPoints {
    * in {@code rows} and the second is offset in that {@link RowSeq} instance.
    */
   private long getIdxOffsetFor(final int i) {
+    checkRowOrder();
     int idx = 0;
     int offset = 0;
     for (final RowSeq row : rows) {
@@ -193,28 +216,68 @@ final class Span implements DataPoints {
     return ((long) idx << 32) | (i - offset);
   }
 
+  /**
+   * Returns the timestamp for a data point at index {@code i} if it exists.
+   * <b>Note:</b> To get to a timestamp this method must walk the entire byte
+   * array, i.e. O(n) so call this sparingly. Use the iterator instead.
+   * @param i A 0 based index incremented per the number of data points in the
+   * span.
+   * @return A Unix epoch timestamp in milliseconds
+   * @throws IndexOutOfBoundsException if the index would be out of bounds
+   */
   public long timestamp(final int i) {
+    checkRowOrder();
     final long idxoffset = getIdxOffsetFor(i);
     final int idx = (int) (idxoffset >>> 32);
     final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
     return rows.get(idx).timestamp(offset);
   }
 
+  /**
+   * Determines whether or not the value at index {@code i} is an integer
+   * @param i A 0 based index incremented per the number of data points in the
+   * span.
+   * @return True if the value is an integer, false if it's a floating point
+   * @throws IndexOutOfBoundsException if the index would be out of bounds
+   */
   public boolean isInteger(final int i) {
+    checkRowOrder();
     final long idxoffset = getIdxOffsetFor(i);
     final int idx = (int) (idxoffset >>> 32);
     final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
     return rows.get(idx).isInteger(offset);
   }
 
+  /**
+   * Returns the value at index {@code i}
+   * @param i A 0 based index incremented per the number of data points in the
+   * span.
+   * @return the value as a long
+   * @throws IndexOutOfBoundsException if the index would be out of bounds
+   * @throws ClassCastException if the value is a float instead. Call 
+   * {@link #isInteger} first
+   * @throws IllegalDataException if the data is malformed
+   */
   public long longValue(final int i) {
+    checkRowOrder();
     final long idxoffset = getIdxOffsetFor(i);
     final int idx = (int) (idxoffset >>> 32);
     final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
     return rows.get(idx).longValue(offset);
   }
 
+  /**
+   * Returns the value at index {@code i}
+   * @param i A 0 based index incremented per the number of data points in the
+   * span.
+   * @return the value as a double
+   * @throws IndexOutOfBoundsException if the index would be out of bounds
+   * @throws ClassCastException if the value is an integer instead. Call 
+   * {@link #isInteger} first
+   * @throws IllegalDataException if the data is malformed
+   */
   public double doubleValue(final int i) {
+    checkRowOrder();
     final long idxoffset = getIdxOffsetFor(i);
     final int idx = (int) (idxoffset >>> 32);
     final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
@@ -222,6 +285,7 @@ final class Span implements DataPoints {
   }
 
   /** Returns a human readable string representation of the object. */
+  @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("Span(")
@@ -243,6 +307,7 @@ final class Span implements DataPoints {
    * @return A strictly positive index in the {@code rows} array.
    */
   private short seekRow(final long timestamp) {
+    checkRowOrder();
     short row_index = 0;
     RowSeq row = null;
     final int nrows = rows.size();
@@ -261,8 +326,24 @@ final class Span implements DataPoints {
     return row_index;
   }
 
+  /**
+   * Checks the sorted flag and sorts the rows if necessary. Should be called
+   * by any iteration method.
+   * Since 2.0
+   */
+  private void checkRowOrder() {
+    if (!sorted) {
+      Collections.sort(rows, new RowSeq.RowSeqComparator());
+      sorted = true;
+    }
+  }
+  
   /** Package private iterator method to access it as a Span.Iterator. */
   Span.Iterator spanIterator() {
+    if (!sorted) {
+      Collections.sort(rows, new RowSeq.RowSeqComparator());
+      sorted = true;
+    }
     return new Span.Iterator();
   }
 
@@ -338,7 +419,7 @@ final class Span implements DataPoints {
     /** Mask to use in order to get rid of the flag above. */
     private static final long TIME_MASK  = 0x7FFFFFFFFFFFFFFFL;
 
-    /** The "sampling" interval, in seconds. */
+    /** The "sampling" interval, in milliseconds. */
     private final int interval;
 
     /** Function to use to for downsampling. */
@@ -409,7 +490,8 @@ final class Span implements DataPoints {
       final int saved_state = current_row.saveState();
       // Since we know hasNext() returned true, we have at least 1 point.
       moveToNext();
-      time = current_row.timestamp() + interval;  // end of this interval.
+      time = current_row.timestamp() + interval;  // end of interval
+      //LOG.info("End of interval: " + time + " Interval: " + interval);
       boolean integer = true;
       int npoints = 0;
       do {
