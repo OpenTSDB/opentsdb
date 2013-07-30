@@ -168,7 +168,10 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     this.rate.setValue(rate, false);
     Object[] rate_options = parseRateOptions(rate, parts[i]);
     this.rate_counter.setValue((Boolean) rate_options[0], false);
-    this.counter_max.setValue(Long.toString((Long) rate_options[1]), false);
+    final long rate_counter_max = (Long) rate_options[1];
+    this.counter_max.setValue(
+        rate_counter_max == Long.MAX_VALUE ? "" : Long.toString(rate_counter_max), 
+        false);
     this.counter_reset_value
         .setValue(Long.toString((Long) rate_options[2]), false);
     if (rate) {
