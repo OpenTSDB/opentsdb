@@ -475,8 +475,8 @@ final class HttpQuery {
     if (this.method() != HttpMethod.GET) {
       return this.method();
     } else {
-      if (this.hasQueryStringParam("method")) {
-        final String qs_method = this.getQueryStringParam("method");
+      if (this.hasQueryStringParam("method_override")) {
+        final String qs_method = this.getQueryStringParam("method_override");
         if (qs_method == null || qs_method.isEmpty()) {
           throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,
               "Missing method override value");
