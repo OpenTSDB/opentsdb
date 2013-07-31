@@ -47,6 +47,15 @@ public class RateOptions {
 
   /**
    * Ctor
+   */
+  public RateOptions() {
+    this.counter = false;
+    this.counter_max = Long.MAX_VALUE;
+    this.reset_value = DEFAULT_RESET_VALUE;
+  }
+  
+  /**
+   * Ctor
    * @param counter If true, indicates that the rate calculation should assume
    * that the underlying data is from a counter
    * @param counter_max Specifies the maximum value for the counter before it
