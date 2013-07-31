@@ -68,4 +68,10 @@ public final class Const {
     'A', 'B', 'C', 'D', 'E', 'F'
   };
 
+  /** 
+   * Necessary for rate calculations where we may be trying to convert a 
+   * large Long value to a double. Doubles can only take integers up to 2^53
+   * before losing precision.
+   */
+  public static final long MAX_INT_IN_DOUBLE = 0xFFE0000000000000L;
 }
