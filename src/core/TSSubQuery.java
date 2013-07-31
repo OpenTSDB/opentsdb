@@ -56,6 +56,9 @@ public final class TSSubQuery {
   /** Whether or not the user wants to perform a rate conversion */
   private boolean rate;
   
+  /** Rate options for counter rollover/reset */
+  private RateOptions rate_options;
+  
   /** Parsed aggregation function */
   private Aggregator agg;
   
@@ -164,6 +167,11 @@ public final class TSSubQuery {
     return rate;
   }
 
+  /** @return options to use for rate calculations */
+  public RateOptions getRateOptions() {
+    return rate_options;
+  }
+  
   /** @param aggregator the name of an aggregation function */
   public void setAggregator(String aggregator) {
     this.aggregator = aggregator;
@@ -192,5 +200,10 @@ public final class TSSubQuery {
   /** @param rate whether or not the result should be rate converted */
   public void setRate(boolean rate) {
     this.rate = rate;
+  }
+
+  /** @param options Options to set when calculating rates */
+  public void setRateOptions(RateOptions options) {
+    this.rate_options = options;
   }
 }

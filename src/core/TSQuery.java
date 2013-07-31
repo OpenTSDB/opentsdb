@@ -141,7 +141,12 @@ public final class TSQuery {
         query.downsample(1000, sub.aggregator());
       }
       if (sub.getTsuids() != null && !sub.getTsuids().isEmpty()) {
-        query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate());
+        if (sub.getRateOptions() != null) {
+          query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate(), 
+              sub.getRateOptions());
+        } else {
+          query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate());
+        }
       } else {
         query.setTimeSeries(sub.getMetric(), sub.getTags(), sub.aggregator(), 
             sub.getRate());
