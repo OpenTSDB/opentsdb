@@ -41,6 +41,7 @@ tsdb_SRC := \
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
 	src/core/Query.java	\
+	src/core/RateOptions.java  \
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
 	src/core/SeekableView.java	\
