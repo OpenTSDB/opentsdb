@@ -79,6 +79,23 @@ public interface Query {
                      Aggregator function, boolean rate) throws NoSuchUniqueName;
 
   /**
+   * Sets the time series to the query.
+   * @param metric The metric to retreive from the TSDB.
+   * @param tags The set of tags of interest.
+   * @param function The aggregation function to use.
+   * @param rate If true, the rate of the series will be used instead of the
+   * actual values.
+   * @param rate_options If included specifies additional options that are used
+   * when calculating and graph rate values
+   * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
+   * does not exist.
+   * @since 2.0
+   */
+  void setTimeSeries(String metric, Map<String, String> tags,
+      Aggregator function, boolean rate, RateOptions rate_options)
+    throws NoSuchUniqueName;
+  
+  /**
    * Sets up a query for the given timeseries UIDs. For now, all TSUIDs in the
    * group must share a common metric. This is to avoid issues where the scanner
    * may have to traverse the entire data table if one TSUID has a metric of 
