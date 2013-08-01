@@ -21,31 +21,64 @@ import java.util.Set;
  */
 public final class Aggregators {
 
+  /**
+   * Different interpolation methods
+   */
+  public enum Interpolation {
+    LERP,   /* Regular linear interpolation */
+    ZIM,    /* Returns 0 when a data point is missing */
+    MAX,    /* Returns the <type>.MaxValue when a data point is missing */
+    MIN     /* Returns the <type>.MinValue when a data point is missing */
+  }
+  
   /** Aggregator that sums up all the data points. */
-  public static final Aggregator SUM = new Sum();
+  public static final Aggregator SUM = new Sum(
+      Interpolation.LERP, "sum");
 
   /** Aggregator that returns the minimum data point. */
-  public static final Aggregator MIN = new Min();
+  public static final Aggregator MIN = new Min(
+      Interpolation.LERP, "min");
 
   /** Aggregator that returns the maximum data point. */
-  public static final Aggregator MAX = new Max();
+  public static final Aggregator MAX = new Max(
+      Interpolation.LERP, "max");
 
   /** Aggregator that returns the average value of the data point. */
-  public static final Aggregator AVG = new Avg();
+  public static final Aggregator AVG = new Avg(
+      Interpolation.LERP, "avg");
 
   /** Aggregator that returns the Standard Deviation of the data points. */
-  public static final Aggregator DEV = new StdDev();
+  public static final Aggregator DEV = new StdDev(
+      Interpolation.LERP, "dev");
+  
+  /** Sums data points but will cause the SpanGroup to return a 0 if timesamps
+   * don't line up instead of interpolating. */
+  public static final Aggregator ZIMSUM = new Sum(
+      Interpolation.ZIM, "zimsum");
 
+  /** Returns the minimum data point, causing SpanGroup to set <type>.MaxValue
+   * if timestamps don't line up instead of interpolating. */
+  public static final Aggregator MIMMIN = new Min(
+      Interpolation.MAX, "mimmin");
+  
+  /** Returns the maximum data point, causing SpanGroup to set <type>.MinValue
+   * if timestamps don't line up instead of interpolating. */
+  public static final Aggregator MIMMAX = new Max(
+      Interpolation.MIN, "mimmax");
+  
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
 
   static {
-    aggregators = new HashMap<String, Aggregator>(5);
+    aggregators = new HashMap<String, Aggregator>(8);
     aggregators.put("sum", SUM);
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
     aggregators.put("dev", DEV);
+    aggregators.put("zimsum", ZIMSUM);
+    aggregators.put("mimmin", MIMMIN);
+    aggregators.put("mimmax", MIMMAX);
   }
 
   private Aggregators() {
@@ -74,7 +107,14 @@ public final class Aggregators {
   }
 
   private static final class Sum implements Aggregator {
-
+    private final Interpolation method;
+    private final String name;
+    
+    public Sum(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
     public long runLong(final Longs values) {
       long result = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -92,13 +132,24 @@ public final class Aggregators {
     }
 
     public String toString() {
-      return "sum";
+      return name;
     }
 
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+    
   }
 
   private static final class Min implements Aggregator {
-
+    private final Interpolation method;
+    private final String name;
+    
+    public Min(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
     public long runLong(final Longs values) {
       long min = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -122,13 +173,24 @@ public final class Aggregators {
     }
 
     public String toString() {
-      return "min";
+      return name;
     }
 
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+    
   }
 
   private static final class Max implements Aggregator {
-
+    private final Interpolation method;
+    private final String name;
+    
+    public Max(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
     public long runLong(final Longs values) {
       long max = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -152,13 +214,24 @@ public final class Aggregators {
     }
 
     public String toString() {
-      return "max";
+      return name;
     }
 
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+    
   }
 
   private static final class Avg implements Aggregator {
-
+    private final Interpolation method;
+    private final String name;
+    
+    public Avg(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
     public long runLong(final Longs values) {
       long result = values.nextLongValue();
       int n = 1;
@@ -180,8 +253,13 @@ public final class Aggregators {
     }
 
     public String toString() {
-      return "avg";
+      return name;
     }
+  
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+   
   }
 
   /**
@@ -194,7 +272,14 @@ public final class Aggregators {
    * Computer Programming, Vol 2, page 232, 3rd edition
    */
   private static final class StdDev implements Aggregator {
-
+    private final Interpolation method;
+    private final String name;
+    
+    public StdDev(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
     public long runLong(final Longs values) {
       double old_mean = values.nextLongValue();
 
@@ -238,8 +323,13 @@ public final class Aggregators {
     }
 
     public String toString() {
-      return "dev";
+      return name;
     }
+    
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+    
   }
 
 }
