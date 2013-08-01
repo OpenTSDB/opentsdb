@@ -129,7 +129,7 @@ public final class TestAnnotationRpc {
   public void postNew() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?tsuid=000001000001000001&start_time=1388450563" + 
-    "&description=Boo&method=post");
+    "&description=Boo&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String data = query.response().getContent()
@@ -144,7 +144,7 @@ public final class TestAnnotationRpc {
   public void postNewGlobal() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?start_time=1328140801" + 
-    "&description=Boo&method=post");
+    "&description=Boo&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String data = query.response().getContent()
@@ -159,7 +159,7 @@ public final class TestAnnotationRpc {
   public void postNewMissingStart() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?tsuid=000001000001000001" + 
-    "&description=Boo&method=post");
+    "&description=Boo&method_override=post");
     rpc.execute(tsdb, query);
   }
   
@@ -167,7 +167,7 @@ public final class TestAnnotationRpc {
   public void modify() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?tsuid=000001000001000001&start_time=1388450562" + 
-    "&description=Boo&method=post");
+    "&description=Boo&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String data = query.response().getContent()
@@ -180,7 +180,7 @@ public final class TestAnnotationRpc {
   public void modifyGlobal() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?start_time=1328140800" + 
-    "&description=Boo&method=post");
+    "&description=Boo&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String data = query.response().getContent()
@@ -219,7 +219,7 @@ public final class TestAnnotationRpc {
   public void modifyPut() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?tsuid=000001000001000001&start_time=1388450562" + 
-    "&description=Boo&method=put");
+    "&description=Boo&method_override=put");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String data = query.response().getContent()
@@ -233,7 +233,7 @@ public final class TestAnnotationRpc {
   public void modifyPutGlobal() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?start_time=1328140800" + 
-    "&description=Boo&method=put");
+    "&description=Boo&method_override=put");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String data = query.response().getContent()
@@ -247,7 +247,7 @@ public final class TestAnnotationRpc {
   public void modifyNoChange() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/annotation?tsuid=000001000001000001&start_time=1388450562" + 
-      "&method=post");
+      "&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NOT_MODIFIED, query.response().getStatus());
   }
@@ -256,7 +256,7 @@ public final class TestAnnotationRpc {
   public void delete() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/annotation?tsuid=000001000001000001&start_time=1388450562" + 
-      "&method=delete");
+      "&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     assertEquals(-1, storage.numColumns(new byte[] { 0, 0, 1, (byte) 0x52, 
@@ -267,7 +267,7 @@ public final class TestAnnotationRpc {
   public void deleteGlobal() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/annotation?start_time=1328140800" + 
-      "&method=delete");
+      "&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     assertEquals(-1, storage.numColumns(

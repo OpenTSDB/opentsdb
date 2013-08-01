@@ -577,7 +577,7 @@ public final class TestUniqueIdRpc {
   public void uidPostQS() throws Exception {
     setupUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/uid/uidmeta?uid=000001&type=metric&display_name=Hello&method=post");
+        "/api/uid/uidmeta?uid=000001&type=metric&display_name=Hello&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
@@ -628,7 +628,7 @@ public final class TestUniqueIdRpc {
   public void uidPutQS() throws Exception {
     setupUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/uid/uidmeta?uid=000001&type=metric&display_name=Hello&method=put");
+        "/api/uid/uidmeta?uid=000001&type=metric&display_name=Hello&method_override=put");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
@@ -662,7 +662,7 @@ public final class TestUniqueIdRpc {
   public void uidDeleteQS() throws Exception {
     setupUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/uid/uidmeta?uid=000001&type=metric&method=delete");
+        "/api/uid/uidmeta?uid=000001&type=metric&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -726,7 +726,7 @@ public final class TestUniqueIdRpc {
   public void tsuidPostQS() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-    "/api/uid/tsmeta?tsuid=000001000001000001&display_name=42&method=post");
+    "/api/uid/tsmeta?tsuid=000001000001000001&display_name=42&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertTrue(query.response().getContent().toString(Charset.forName("UTF-8"))
@@ -737,7 +737,7 @@ public final class TestUniqueIdRpc {
   public void tsuidPostQSNoTSUID() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-    "/api/uid/tsmeta?display_name=42&method=post");
+    "/api/uid/tsmeta?display_name=42&method_override=post");
     rpc.execute(tsdb, query);
   }
   
@@ -773,7 +773,7 @@ public final class TestUniqueIdRpc {
   public void tsuidPutQS() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-    "/api/uid/tsmeta?tsuid=000001000001000001&display_name=42&method=put");
+    "/api/uid/tsmeta?tsuid=000001000001000001&display_name=42&method_override=put");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertTrue(query.response().getContent().toString(Charset.forName("UTF-8"))
@@ -784,7 +784,7 @@ public final class TestUniqueIdRpc {
   public void tsuidPutQSNoTSUID() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-    "/api/uid/tsmeta?display_name=42&method=put");
+    "/api/uid/tsmeta?display_name=42&method_override=put");
     rpc.execute(tsdb, query);
   }
   
@@ -801,7 +801,7 @@ public final class TestUniqueIdRpc {
   public void tsuidDeleteQS() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-    "/api/uid/tsmeta?tsuid=000001000001000001&method=delete");
+    "/api/uid/tsmeta?tsuid=000001000001000001&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }

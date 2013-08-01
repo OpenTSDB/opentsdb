@@ -188,7 +188,7 @@ public final class TestTreeRpc {
   public void handleTreeQSCreate() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?name=NewTree&method=post");
+      "/api/tree?name=NewTree&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals(1, storage.numColumns(new byte[] { 0, 3 }));
@@ -198,7 +198,7 @@ public final class TestTreeRpc {
   public void handleTreeQSCreateNoName() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?method=post&description=HelloWorld");
+      "/api/tree?method_override=post&description=HelloWorld");
     rpc.execute(tsdb, query);
   }
   
@@ -208,7 +208,7 @@ public final class TestTreeRpc {
     storage.addColumn(new byte[] { (byte) 0xFF, (byte) 0xFF }, 
         "tree".getBytes(MockBase.ASCII()), "{}".getBytes(MockBase.ASCII()));
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?method=post");
+      "/api/tree?method_override=post");
     rpc.execute(tsdb, query);
   }
     
@@ -226,7 +226,7 @@ public final class TestTreeRpc {
   public void handleTreeQSModify() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=1&method=post&description=HelloWorld");
+      "/api/tree?treeid=1&method_override=post&description=HelloWorld");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertTrue(query.response().getContent().toString(MockBase.ASCII())
@@ -239,7 +239,7 @@ public final class TestTreeRpc {
   public void handleTreeQSModifyNotFound() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=3&method=post&description=HelloWorld");
+      "/api/tree?treeid=3&method_override=post&description=HelloWorld");
     rpc.execute(tsdb, query);
   }
   
@@ -247,7 +247,7 @@ public final class TestTreeRpc {
   public void handleTreeQSModifyNotModified() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=1&method=post");
+      "/api/tree?treeid=1&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NOT_MODIFIED, query.response().getStatus());
   }
@@ -269,7 +269,7 @@ public final class TestTreeRpc {
   public void handleTreeQSPutNotFound() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=3&method=put&description=HelloWorld");
+      "/api/tree?treeid=3&method_override=put&description=HelloWorld");
     rpc.execute(tsdb, query);
   }
   
@@ -277,7 +277,7 @@ public final class TestTreeRpc {
   public void handleTreeQSPutNotModified() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=1&method=put");
+      "/api/tree?treeid=1&method_override=put");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NOT_MODIFIED, query.response().getStatus());
   }
@@ -286,7 +286,7 @@ public final class TestTreeRpc {
   public void handleTreeQSPut() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=1&method=put&description=HelloWorld");
+      "/api/tree?treeid=1&method_override=put&description=HelloWorld");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertTrue(query.response().getContent().toString(MockBase.ASCII())
@@ -312,7 +312,7 @@ public final class TestTreeRpc {
   public void handleTreeQSDeleteDefault() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=1&method=delete");
+      "/api/tree?treeid=1&method_override=delete");
     // make sure the root is there BEFORE we delete
     assertEquals(4, storage.numColumns(new byte[] { 0, 1 }));
     rpc.execute(tsdb, query);
@@ -329,7 +329,7 @@ public final class TestTreeRpc {
   public void handleTreeQSDeleteDefinition() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=1&method=delete&definition=true");
+      "/api/tree?treeid=1&method_override=delete&definition=true");
     // make sure the root is there BEFORE we delete
     assertEquals(4, storage.numColumns(new byte[] { 0, 1 }));
     rpc.execute(tsdb, query);
@@ -380,7 +380,7 @@ public final class TestTreeRpc {
   public void handleTreeQSDeleteNotFound() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree?treeid=3&method=delete");
+      "/api/tree?treeid=3&method_override=delete");
     rpc.execute(tsdb, query);
   }
 
@@ -492,7 +492,7 @@ public final class TestTreeRpc {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/tree/rule?treeid=1&level=2&order=1&description=Testing" +
-      "&method=post&type=metric");
+      "&method_override=post&type=metric");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertTrue(query.response().getContent().toString(MockBase.ASCII())
@@ -506,7 +506,7 @@ public final class TestTreeRpc {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/tree/rule?treeid=1&level=2&order=1&description=Testing" +
-      "&method=post&type=tagk");
+      "&method_override=post&type=tagk");
     rpc.execute(tsdb, query);
   }
   
@@ -514,7 +514,7 @@ public final class TestTreeRpc {
   public void handleRuleQSNewMissingType() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree/rule?treeid=1&level=2&order=1&description=Testing&method=post");
+      "/api/tree/rule?treeid=1&level=2&order=1&description=Testing&method_override=post");
     rpc.execute(tsdb, query);
   }
   
@@ -522,7 +522,7 @@ public final class TestTreeRpc {
   public void handleRuleQSNotModified() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree/rule?treeid=1&level=1&order=0&method=post");
+      "/api/tree/rule?treeid=1&level=1&order=0&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NOT_MODIFIED, query.response().getStatus());
   }
@@ -531,7 +531,7 @@ public final class TestTreeRpc {
   public void handleRuleQSModify() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree/rule?treeid=1&level=1&order=0&description=Testing&method=post");
+      "/api/tree/rule?treeid=1&level=1&order=0&description=Testing&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertTrue(query.response().getContent().toString(MockBase.ASCII())
@@ -585,7 +585,7 @@ public final class TestTreeRpc {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/tree/rule?treeid=1&level=1&order=0&description=Testing" + 
-      "&method=put&type=metric");
+      "&method_override=put&type=metric");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertTrue(query.response().getContent().toString(MockBase.ASCII())
@@ -600,7 +600,7 @@ public final class TestTreeRpc {
   public void handleRuleQSPutMissingType() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree/rule?treeid=1&level=1&order=0&description=Testing&method=put");
+      "/api/tree/rule?treeid=1&level=1&order=0&description=Testing&method_override=put");
     rpc.execute(tsdb, query);
   }
   
@@ -624,7 +624,7 @@ public final class TestTreeRpc {
   public void handleRuleQSDelete() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree/rule?treeid=1&level=1&order=0&method=delete");
+      "/api/tree/rule?treeid=1&level=1&order=0&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     assertEquals(3, storage.numColumns(new byte[] { 0, 1 }));
@@ -634,7 +634,7 @@ public final class TestTreeRpc {
   public void handleRuleQSDeleteNotFound() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree/rule?treeid=1&level=2&order=0&method=delete");
+      "/api/tree/rule?treeid=1&level=2&order=0&method_override=delete");
     rpc.execute(tsdb, query);
   }
   
@@ -721,7 +721,7 @@ public final class TestTreeRpc {
   public void handleRulesDeleteQS() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-      "/api/tree/rules?treeid=1&method=delete");
+      "/api/tree/rules?treeid=1&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     assertEquals(2, storage.numColumns(new byte[] { 0, 1 }));

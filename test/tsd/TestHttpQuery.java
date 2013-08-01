@@ -546,41 +546,41 @@ public final class TestHttpQuery {
   @Test
   public void getAPIMethodOverrideGet() {
     assertEquals(HttpMethod.GET, 
-        NettyMocks.getQuery(tsdb, "/?method=get").getAPIMethod());
+        NettyMocks.getQuery(tsdb, "/?method_override=get").getAPIMethod());
   }
   
   @Test
   public void getAPIMethodOverridePost() {
     assertEquals(HttpMethod.POST, 
-        NettyMocks.getQuery(tsdb, "/?method=post").getAPIMethod());
+        NettyMocks.getQuery(tsdb, "/?method_override=post").getAPIMethod());
   }
   
   @Test
   public void getAPIMethodOverridePut() {
     assertEquals(HttpMethod.PUT, 
-        NettyMocks.getQuery(tsdb, "/?method=put").getAPIMethod());
+        NettyMocks.getQuery(tsdb, "/?method_override=put").getAPIMethod());
   }
   
   @Test
   public void getAPIMethodOverrideDelete() {
     assertEquals(HttpMethod.DELETE, 
-        NettyMocks.getQuery(tsdb, "/?method=delete").getAPIMethod());
+        NettyMocks.getQuery(tsdb, "/?method_override=delete").getAPIMethod());
   }
   
   @Test
   public void getAPIMethodOverrideDeleteCase() {
     assertEquals(HttpMethod.DELETE, 
-        NettyMocks.getQuery(tsdb, "/?method=DeLeTe").getAPIMethod());
+        NettyMocks.getQuery(tsdb, "/?method_override=DeLeTe").getAPIMethod());
   }
   
   @Test (expected = BadRequestException.class)
   public void getAPIMethodOverrideMissingValue() {
-    NettyMocks.getQuery(tsdb, "/?method").getAPIMethod();
+    NettyMocks.getQuery(tsdb, "/?method_override").getAPIMethod();
   }
   
   @Test (expected = BadRequestException.class)
   public void getAPIMethodOverrideInvalidMEthod() {
-    NettyMocks.getQuery(tsdb, "/?method=notaverb").getAPIMethod();
+    NettyMocks.getQuery(tsdb, "/?method_override=notaverb").getAPIMethod();
   }
   
   @Test
