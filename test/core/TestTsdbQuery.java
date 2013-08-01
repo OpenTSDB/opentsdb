@@ -1314,6 +1314,98 @@ public final class TestTsdbQuery {
   }
   
   @Test
+  public void runRateCounterDefault() throws Exception {
+    setQueryStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400;
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, (long)(Long.MAX_VALUE - 55), tags)
+      .joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, (long)(Long.MAX_VALUE - 25), tags)
+      .joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 5, tags).joinUninterruptibly();
+    
+    RateOptions ro = new RateOptions(true, Long.MAX_VALUE, 0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true, ro);
+    final DataPoints[] dps = query.run();
+
+    for (DataPoint dp : dps[0]) {
+      assertEquals(1.0, dp.doubleValue(), 0.001);
+    }
+    assertEquals(2, dps[0].size());
+  }
+  
+  @Test
+  public void runRateCounterDefaultNoOp() throws Exception {
+    setQueryStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400;
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 30, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 60, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 90, tags).joinUninterruptibly();
+    
+    RateOptions ro = new RateOptions(true, Long.MAX_VALUE, 0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true, ro);
+    final DataPoints[] dps = query.run();
+
+    for (DataPoint dp : dps[0]) {
+      assertEquals(1.0, dp.doubleValue(), 0.001);
+    }
+    assertEquals(2, dps[0].size());
+  }
+  
+  @Test
+  public void runRateCounterMaxSet() throws Exception {
+    setQueryStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400;
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 45, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 75, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 5, tags).joinUninterruptibly();
+    
+    RateOptions ro = new RateOptions(true, 100, 0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true, ro);
+    final DataPoints[] dps = query.run();
+
+    for (DataPoint dp : dps[0]) {
+      assertEquals(1.0, dp.doubleValue(), 0.001);
+    }
+    assertEquals(2, dps[0].size());
+  }
+  
+  @Test
+  public void runRateCounterAnomally() throws Exception {
+    setQueryStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998400;
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 45, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 75, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, 25, tags).joinUninterruptibly();
+    
+    RateOptions ro = new RateOptions(true, 10000, 35);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true, ro);
+    final DataPoints[] dps = query.run();
+
+    assertEquals(1.0, dps[0].doubleValue(0), 0.001);
+    assertEquals(0, dps[0].doubleValue(1), 0.001);
+    assertEquals(2, dps[0].size());
+  }
+  
+  // TODO - other UTs
+  // - fix floating points (CompactionQueue:L267
+  
+  @Test
   public void runMultiCompact() throws Exception {
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(1L);
