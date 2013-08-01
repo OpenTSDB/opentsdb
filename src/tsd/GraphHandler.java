@@ -43,6 +43,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
+import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.graph.Plot;
@@ -836,7 +837,8 @@ final class GraphHandler implements HttpRpc {
     int nqueries = 0;
     for (final String m : ms) {
       // m is of the following forms:
-      //   agg:[interval-agg:][rate:]metric[{tag=value,...}]
+      //   agg:[interval-agg:][rate[{counter[,[countermax][,resetvalue]]}]:]
+      //     metric[{tag=value,...}] 
       // Where the parts in square brackets `[' .. `]' are optional.
       final String[] parts = Tags.splitString(m, ':');
       int i = parts.length;
@@ -855,7 +857,7 @@ final class GraphHandler implements HttpRpc {
       }
       final Query tsdbquery = tsdb.newQuery();
       try {
-        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate);
+        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, rate_options);
       } catch (NoSuchUniqueName e) {
         throw new BadRequestException(e.getMessage());
       }
