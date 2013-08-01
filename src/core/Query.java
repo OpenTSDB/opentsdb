@@ -66,6 +66,23 @@ public interface Query {
   long getEndTime();
 
   /**
+  * Sets the time series to the query.
+  * @param metric The metric to retreive from the TSDB.
+  * @param tags The set of tags of interest.
+  * @param function The aggregation function to use.
+  * @param rate If true, the rate of the series will be used instead of the
+  * actual values.
+  * @param rate_options If included specifies additional options that are used
+  * when calculating and graph rate values
+  * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
+  * does not exist.
+  * @since 2.0
+  */
+  void setTimeSeries(String metric, Map<String, String> tags, 
+                    Aggregator function, boolean rate, RateOptions rate_options) 
+      throws NoSuchUniqueName;
+    
+  /**
    * Sets the time series to the query.
    * @param metric The metric to retreive from the TSDB.
    * @param tags The set of tags of interest.
@@ -78,23 +95,6 @@ public interface Query {
   void setTimeSeries(String metric, Map<String, String> tags,
                      Aggregator function, boolean rate) throws NoSuchUniqueName;
 
-  /**
-   * Sets the time series to the query.
-   * @param metric The metric to retreive from the TSDB.
-   * @param tags The set of tags of interest.
-   * @param function The aggregation function to use.
-   * @param rate If true, the rate of the series will be used instead of the
-   * actual values.
-   * @param rate_options If included specifies additional options that are used
-   * when calculating and graph rate values
-   * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
-   * does not exist.
-   * @since 2.0
-   */
-  void setTimeSeries(String metric, Map<String, String> tags,
-      Aggregator function, boolean rate, RateOptions rate_options)
-    throws NoSuchUniqueName;
-  
   /**
    * Sets up a query for the given timeseries UIDs. For now, all TSUIDs in the
    * group must share a common metric. This is to avoid issues where the scanner
@@ -114,6 +114,29 @@ public interface Query {
    */
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate);
+  
+  /**
+   * Sets up a query for the given timeseries UIDs. For now, all TSUIDs in the
+   * group must share a common metric. This is to avoid issues where the scanner
+   * may have to traverse the entire data table if one TSUID has a metric of 
+   * 000001 and another has a metric of FFFFFF. After modifying the query code
+   * to run asynchronously and use different scanners, we can allow different 
+   * TSUIDs.
+   * <b>Note:</b> This method will not check to determine if the TSUIDs are 
+   * valid, since that wastes time and we *assume* that the user provides TUSIDs
+   * that are up to date.
+   * @param tsuids A list of one or more TSUIDs to scan for
+   * @param function The aggregation function to use on results
+   * @param rate Whether or not the results should be converted to a rate
+   * @param rate_options If included specifies additional options that are used
+   * when calculating and graph rate values
+   * @throws IllegalArgumentException if the tsuid list is null, empty or the
+   * TSUIDs do not share a common metric
+   * @since 2.0
+   */
+  public void setTimeSeries(final List<String> tsuids,
+      final Aggregator function, final boolean rate, 
+      final RateOptions rate_options);
   
   /**
    * Downsamples the results by specifying a fixed interval between points.
