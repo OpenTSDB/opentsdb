@@ -152,7 +152,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     //  agg:[interval-agg:][rate[{counter[,max[,reset]]}:]metric[{tag=value,...}]
     // Where the parts in square brackets `[' .. `]' are optional.
     final String[] parts = m.split(":");
-    final int nparts = parts.length;
     int i = parts.length;
     if (i < 2 || i > 4) {
       return;  // Malformed.
@@ -166,14 +165,14 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
     final boolean rate = parts[--i].startsWith("rate");
     this.rate.setValue(rate, false);
-    Object[] rate_options = parseRateOptions(rate, parts[i]);
-    this.rate_counter.setValue((Boolean) rate_options[0], false);
-    final long rate_counter_max = (Long) rate_options[1];
+    LocalRateOptions rate_options = parseRateOptions(rate, parts[i]);
+    this.rate_counter.setValue(rate_options.is_counter, false);
+    final long rate_counter_max = rate_options.counter_max;
     this.counter_max.setValue(
         rate_counter_max == Long.MAX_VALUE ? "" : Long.toString(rate_counter_max), 
         false);
     this.counter_reset_value
-        .setValue(Long.toString((Long) rate_options[2]), false);
+        .setValue(Long.toString(rate_options.reset_value), false);
     if (rate) {
       i--;
     }
@@ -531,29 +530,49 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
   }
 
-  static final public Object[] parseRateOptions(boolean rate, String spec) {
-    if (!rate || spec.length() == 4) {
-      return new Object[] { false, Long.MAX_VALUE, 0 };
-    }
-
-    if (spec.length() < 6) {
-      return new Object[] { false, Long.MAX_VALUE, 0 };
+  /**
+   * Class used for parsing and rate options
+   */
+  private static class LocalRateOptions {
+    public boolean is_counter;
+    public long counter_max = Long.MAX_VALUE;
+    public long reset_value = 0;
+  }
+  
+  /**
+   * Parses the "rate" section of the query string and returns an instance
+   * of the LocalRateOptions class that contains the values found.
+   * <p/>
+   * The format of the rate specification is rate[{counter[,#[,#]]}].
+   * If the spec is invalid or we were unable to parse properly, it returns a
+   * default options object.
+   * @param rate If true, then the query is set as a rate query and the rate
+   * specification will be parsed. If false, a default RateOptions instance
+   * will be returned and largely ignored by the rest of the processing
+   * @param spec The part of the query string that pertains to the rate
+   * @return An initialized LocalRateOptions instance based on the specification
+   * @since 2.0
+   */
+  static final public LocalRateOptions parseRateOptions(boolean rate, String spec) {
+    if (!rate || spec.length() < 6) {
+      return new LocalRateOptions();
     }
 
     String[] parts = spec.split(spec.substring(5, spec.length() - 1), ',');
     if (parts.length < 1 || parts.length > 3) {
-      return new Object[] { false, Long.MAX_VALUE, 0 };
+      return new LocalRateOptions();
     }
 
     try {
-      return new Object[] {
-          "counter".equals(parts[0]),
-          parts.length >= 2 && parts[1].length() > 0 ? Long.parseLong(parts[1])
-              : Long.MAX_VALUE,
-          parts.length >= 3 && parts[2].length() > 0 ? Long.parseLong(parts[2])
-              : 0 };
+      LocalRateOptions options = new LocalRateOptions();
+      options.is_counter = "counter".equals(parts[0]);
+      options.counter_max = (parts.length >= 2 && parts[1].length() > 0 ? Long
+          .parseLong(parts[1]) : Long.MAX_VALUE);
+      options.reset_value = (parts.length >= 3 && parts[2].length() > 0 ? Long
+          .parseLong(parts[2]) : 0);
+      return options;
     } catch (NumberFormatException e) {
-      return new Object[] { false, Long.MAX_VALUE, 0 };
+      return new LocalRateOptions();
     }
   }
   
