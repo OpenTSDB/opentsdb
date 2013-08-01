@@ -848,7 +848,8 @@ final class GraphHandler implements HttpRpc {
       i--;  // Move to the last part (the metric name).
       final HashMap<String, String> parsedtags = new HashMap<String, String>();
       final String metric = Tags.parseWithMetric(parts[i], parsedtags);
-      final boolean rate = "rate".equals(parts[--i]);
+      final boolean rate = parts[--i].startsWith("rate");
+      final RateOptions rate_options = QueryRpc.parseRateOptions(rate, parts[i]); 
       if (rate) {
         i--;  // Move to the next part.
       }
@@ -942,6 +943,7 @@ final class GraphHandler implements HttpRpc {
       + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
       + "  CLASSPATH=" + System.getProperty("java.class.path"));
   }
+
 
   // ---------------- //
   // Logging helpers. //

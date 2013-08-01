@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
+import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
@@ -217,10 +218,13 @@ final class QueryRpc implements HttpRpc {
     
     // parse out the rate and downsampler 
     for (int x = 1; x < parts.length - 1; x++) {
-      if (parts[x].toLowerCase().equals("rate")) {
+      if (parts[x].toLowerCase().startsWith("rate")) {
         sub_query.setRate(true);
+        if (parts[x].indexOf("{") >= 0) {
+          sub_query.setRateOptions(QueryRpc.parseRateOptions(true, parts[x]));
+        }
       } else if (Character.isDigit(parts[x].charAt(0))) {
-        sub_query.setDownsample(parts[1]);
+        sub_query.setDownsample(parts[x]);
       }
     }
     
@@ -267,10 +271,13 @@ final class QueryRpc implements HttpRpc {
     
     // parse out the rate and downsampler 
     for (int x = 1; x < parts.length - 1; x++) {
-      if (parts[x].toLowerCase().equals("rate")) {
+      if (parts[x].toLowerCase().startsWith("rate")) {
         sub_query.setRate(true);
+        if (parts[x].indexOf("{") >= 0) {
+          sub_query.setRateOptions(QueryRpc.parseRateOptions(true, parts[x]));
+        }
       } else if (Character.isDigit(parts[x].charAt(0))) {
-        sub_query.setDownsample(parts[1]);
+        sub_query.setDownsample(parts[x]);
       }
     }
     
@@ -280,4 +287,57 @@ final class QueryRpc implements HttpRpc {
     }
     data_query.getQueries().add(sub_query);
   }
+  
+  /**
+   * Parses the "rate" section of the query string and returns an instance
+   * of the RateOptions class that contains the values found.
+   * <p/>
+   * The format of the rate specification is rate[{counter[,#[,#]]}].
+   * @param rate If true, then the query is set as a rate query and the rate
+   * specification will be parsed. If false, a default RateOptions instance
+   * will be returned and largely ignored by the rest of the processing
+   * @param spec The part of the query string that pertains to the rate
+   * @return An initialized RateOptions instance based on the specification
+   * @throws BadRequestException if the parameter is malformed
+   * @since 2.0
+   */
+   static final public RateOptions parseRateOptions(final boolean rate,
+       final String spec) {
+     if (!rate || spec.length() == 4) {
+       return new RateOptions(false, Long.MAX_VALUE,
+           RateOptions.DEFAULT_RESET_VALUE);
+     }
+
+     if (spec.length() < 6) {
+       throw new BadRequestException("Invalid rate options specification: "
+           + spec);
+     }
+
+     String[] parts = Tags
+         .splitString(spec.substring(5, spec.length() - 1), ',');
+     if (parts.length < 1 || parts.length > 3) {
+       throw new BadRequestException(
+           "Incorrect number of values in rate options specification, must be " +
+           "counter[,counter max value,reset value], recieved: "
+               + parts.length + " parts");
+     }
+
+     final boolean counter = "counter".equals(parts[0]);
+     try {
+       final long max = (parts.length >= 2 && parts[1].length() > 0 ? Long
+           .parseLong(parts[1]) : Long.MAX_VALUE);
+       try {
+         final long reset = (parts.length >= 3 && parts[2].length() > 0 ? Long
+             .parseLong(parts[2]) : RateOptions.DEFAULT_RESET_VALUE);
+         return new RateOptions(counter, max, reset);
+       } catch (NumberFormatException e) {
+         throw new BadRequestException(
+             "Reset value of counter was not a number, received '" + parts[2]
+                 + "'");
+       }
+     } catch (NumberFormatException e) {
+       throw new BadRequestException(
+           "Max value of counter was not a number, received '" + parts[1] + "'");
+     }
+   }
 }
