@@ -24,6 +24,7 @@ import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
@@ -41,7 +42,7 @@ final class CliQuery {
     System.err.println("Usage: query"
         + " [Gnuplot opts] START-DATE [END-DATE] <query> [queries...]\n"
         + "A query has the form:\n"
-        + "  FUNC [rate] [downsample FUNC N] SERIES [TAGS]\n"
+        + "  FUNC [rate] [counter,max,reset] [downsample FUNC N] SERIES [TAGS]\n"
         + "For example:\n"
         + " 2010/03/11-20:57 sum my.awsum.metric host=blah"
         + " sum some.other.metric host=blah state=foo\n"
@@ -198,8 +199,24 @@ final class CliQuery {
     while (i < args.length) {
       final Aggregator agg = Aggregators.get(args[i++]);
       final boolean rate = args[i].equals("rate");
+      RateOptions rate_options = new RateOptions(false, Long.MAX_VALUE,
+          RateOptions.DEFAULT_RESET_VALUE);
       if (rate) {
         i++;
+        
+        long counterMax = Long.MAX_VALUE;
+        long resetValue = RateOptions.DEFAULT_RESET_VALUE;
+        if (args[i].startsWith("counter")) {
+          String[] parts = Tags.splitString(args[i], ',');
+          if (parts.length >= 2 && parts[1].length() > 0) {
+            counterMax = Long.parseLong(parts[1]);
+          }
+          if (parts.length >= 3 && parts[2].length() > 0) {
+            resetValue = Long.parseLong(parts[2]);
+          }
+          rate_options = new RateOptions(true, counterMax, resetValue);
+          i++;
+        }
       }
       final boolean downsample = args[i].equals("downsample");
       if (downsample) {
@@ -221,7 +238,7 @@ final class CliQuery {
       if (end_ts > 0) {
         query.setEndTime(end_ts);
       }
-      query.setTimeSeries(metric, tags, agg, rate);
+      query.setTimeSeries(metric, tags, agg, rate, rate_options);
       if (downsample) {
         query.downsample(interval, sampler);
       }
