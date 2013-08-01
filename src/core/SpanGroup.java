@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.Aggregators.Interpolation;
 import net.opentsdb.meta.Annotation;
 
 /**
@@ -271,7 +272,7 @@ final class SpanGroup implements DataPoints {
     // TODO(tsuna): There is a way of doing this way more efficiently by
     // inspecting the Spans and counting only data points that fall in
     // our time range.
-    final SGIterator it = new SGIterator();
+    final SGIterator it = new SGIterator(aggregator.interpolationMethod());
     int size = 0;
     while (it.hasNext()) {
       it.next();
@@ -289,7 +290,7 @@ final class SpanGroup implements DataPoints {
   }
 
   public SeekableView iterator() {
-    return new SGIterator();
+    return new SGIterator(aggregator.interpolationMethod());
   }
 
   /**
@@ -301,7 +302,7 @@ final class SpanGroup implements DataPoints {
       throw new IndexOutOfBoundsException("negative index: " + i);
     }
     final int saved_i = i;
-    final SGIterator it = new SGIterator();
+    final SGIterator it = new SGIterator(aggregator.interpolationMethod());
     DataPoint dp = null;
     while (it.hasNext() && i >= 0) {
       dp = it.next();
@@ -458,6 +459,9 @@ final class SpanGroup implements DataPoints {
      */
     private static final long TIME_MASK  = 0x7FFFFFFFFFFFFFFFL;
 
+    /** Interpolation method to use when aggregating time series */
+    private final Interpolation method;
+    
     /**
      * Where we are in each {@link Span} in the group.
      * The iterators in this array always points to 2 values ahead of the
@@ -509,7 +513,8 @@ final class SpanGroup implements DataPoints {
     private int pos;
 
     /** Creates a new iterator for this {@link SpanGroup}. */
-    SGIterator() {
+    public SGIterator(final Interpolation method) {
+      this.method = method;
       final int size = spans.size();
       iterators = new SeekableView[size];
       timestamps = new long[size * (rate ? 3 : 2)];
@@ -744,7 +749,7 @@ final class SpanGroup implements DataPoints {
     }
 
     public double toDouble() {
-      return isInteger() ? doubleValue() : longValue();
+      return isInteger() ? longValue() : doubleValue();
     }
 
     // -------------------------- //
@@ -795,11 +800,27 @@ final class SpanGroup implements DataPoints {
         if (x == x1) {
           return y1;
         }
-        final long r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
-        //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
-        //          + " -> " + y1 + " @ " + x1 + " => " + r);
         if ((x1 & Const.MILLISECOND_MASK) != 0) {
           throw new AssertionError("x1=" + x1 + " in " + this);
+        }
+        final long r;
+        switch (method) {
+          case LERP: 
+            r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+            //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
+            //          + " -> " + y1 + " @ " + x1 + " => " + r);
+            break;
+          case ZIM:
+            r = 0;
+            break;
+          case MAX:
+            r = Long.MAX_VALUE;
+            break;
+          case MIN:
+            r = Long.MIN_VALUE;
+            break;
+          default:
+            throw new IllegalDataException("Invalid interploation somehow??");
         }
         return r;
       }
@@ -903,12 +924,28 @@ final class SpanGroup implements DataPoints {
           //LOG.debug("No lerp needed x == x1 (" + x + " == "+x1+") => " + y1);
           return y1;
         }
-        final double r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
-        //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
-        //          + " -> " + y1 + " @ " + x1 + " => " + r);
-        if ((x1 & 0xFFFFFFFF00000000L) != 0) {
+        if ((x1 & Const.MILLISECOND_MASK) != 0) {
           throw new AssertionError("x1=" + x1 + " in " + this);
         }
+        final double r;
+        switch (method) {
+        case LERP: 
+          r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+          //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
+          //          + " -> " + y1 + " @ " + x1 + " => " + r);
+          break;
+        case ZIM:
+          r = 0;
+          break;
+        case MAX:
+          r = Double.MAX_VALUE;
+          break;
+        case MIN:
+          r = Double.MIN_VALUE;
+          break;
+        default:
+          throw new IllegalDataException("Invalid interploation somehow??");
+      }
         return r;
       }
       throw new NoSuchElementException("no more doubles in " + this);
