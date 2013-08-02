@@ -29,6 +29,10 @@ import org.hbase.async.Bytes;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
 import static org.hbase.async.Bytes.ByteMap;
 
 import net.opentsdb.stats.Histogram;
@@ -230,6 +234,7 @@ final class TsdbQuery implements Query {
       }
     }
     
+    // the metric will be set with the scanner is configured 
     this.tsuids = tsuids;
     aggregator = function;
     this.rate = rate;
@@ -307,7 +312,17 @@ final class TsdbQuery implements Query {
    * @return An array of data points with one time series per array value
    */
   public DataPoints[] run() throws HBaseException {
-    return groupByAndAggregate(findSpans());
+    try {
+      return runAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  public Deferred<DataPoints[]> runAsync() throws HBaseException {
+    return findSpans().addCallback(new GroupByAndAggregateCB());
   }
 
   /**
@@ -321,137 +336,179 @@ final class TsdbQuery implements Query {
    * perform the search.
    * @throws IllegalArgumentException if bad data was retreived from HBase.
    */
-  private TreeMap<byte[], Span> findSpans() throws HBaseException {
+  private Deferred<TreeMap<byte[], Span>> findSpans() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
-    final TreeMap<byte[], Span> spans =  // The key is a row key from HBase.
+    final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
       new TreeMap<byte[], Span>(new SpanCmp(metric_width));
-    int nrows = 0;
-    int hbase_time = 0;  // milliseconds.
-    long starttime = System.nanoTime();
     final Scanner scanner = getScanner();
-    try {
-      ArrayList<ArrayList<KeyValue>> rows;
-      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
-        hbase_time += (System.nanoTime() - starttime) / 1000000;
-        for (final ArrayList<KeyValue> row : rows) {
-          final byte[] key = row.get(0).key();
-          final byte[] metric;
-          if (tsuids != null && !tsuids.isEmpty()) {
-            final String tsuid_metric = 
-              tsuids.get(0).substring(0, metric_width * 2);
-            metric = UniqueId.stringToUid(tsuid_metric);
-          } else {
-            metric = this.metric;
-          }
-          if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
-            throw new IllegalDataException("HBase returned a row that doesn't match"
-                + " our scanner (" + scanner + ")! " + row + " does not start"
-                + " with " + Arrays.toString(metric));
-          }
-          Span datapoints = spans.get(key);
-          if (datapoints == null) {
-            datapoints = new Span(tsdb);
-            spans.put(key, datapoints);
-          }
-          final KeyValue compacted = tsdb.compact(row, datapoints.getAnnotations());
-          if (compacted != null) {  // Can be null if we ignored all KVs.
-            datapoints.addRow(compacted);
-            nrows++;
-          }
-          starttime = System.nanoTime();
-        }
-      }
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    } finally {
-      hbase_time += (System.nanoTime() - starttime) / 1000000;
-      scanlatency.add(hbase_time);
-    }
-    LOG.info(this + " matched " + nrows + " rows in " + spans.size() + " spans");
-    if (nrows == 0) {
-      return null;
-    }
-    return spans;
+    final Deferred<TreeMap<byte[], Span>> results =
+      new Deferred<TreeMap<byte[], Span>>();
+    
+    /**
+    * Scanner callback executed recursively each time we get a set of data
+    * from storage. This is responsible for determining what columns are
+    * returned and issuing requests to load leaf objects.
+    * When the scanner returns a null set of rows, the method initiates the
+    * final callback.
+    */
+    final class ScannerCB implements Callback<Object,
+      ArrayList<ArrayList<KeyValue>>> {
+      
+      int nrows = 0;
+      int hbase_time = 0; // milliseconds.
+      long starttime = System.nanoTime();
+      
+      /**
+      * Starts the scanner and is called recursively to fetch the next set of
+      * rows from the scanner.
+      * @return The map of spans if loaded successfully, null if no data was
+      * found
+      */
+       public Object scan() {
+         starttime = System.nanoTime();
+         return scanner.nextRows().addCallback(this);
+       }
+  
+      /**
+      * Loops through each row of the scanner results and parses out data
+      * points and optional meta data
+      * @return null if no rows were found, otherwise the TreeMap with spans
+      */
+       @Override
+       public Object call(final ArrayList<ArrayList<KeyValue>> rows)
+         throws Exception {
+         hbase_time += (System.nanoTime() - starttime) / 1000000;
+         try {
+           if (rows == null) {
+             hbase_time += (System.nanoTime() - starttime) / 1000000;
+             scanlatency.add(hbase_time);
+             LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
+                 spans.size() + " spans");
+             if (nrows < 1) {
+               results.callback(null);
+             } else {
+               results.callback(spans);
+             }
+             return null;
+           }
+           
+           for (final ArrayList<KeyValue> row : rows) {
+             final byte[] key = row.get(0).key();
+             if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
+               throw new IllegalDataException(
+                   "HBase returned a row that doesn't match"
+                   + " our scanner (" + scanner + ")! " + row + " does not start"
+                   + " with " + Arrays.toString(metric));
+             }
+             Span datapoints = spans.get(key);
+             if (datapoints == null) {
+               datapoints = new Span(tsdb);
+               spans.put(key, datapoints);
+             }
+             final KeyValue compacted = 
+               tsdb.compact(row, datapoints.getAnnotations());
+             if (compacted != null) { // Can be null if we ignored all KVs.
+               datapoints.addRow(compacted);
+               nrows++;
+             }
+           }
+           
+           return scan();
+         } catch (Exception e) {
+           results.callback(e);
+           return null;
+         }
+       }
+     }
+
+     new ScannerCB().scan();
+     return results;
   }
 
   /**
-   * Creates the {@link SpanGroup}s to form the final results of this query.
-   * @param spans The {@link Span}s found for this query ({@link #findSpans}).
-   * Can be {@code null}, in which case the array returned will be empty.
-   * @return A possibly empty array of {@link SpanGroup}s built according to
-   * any 'GROUP BY' formulated in this query.
-   */
-  private DataPoints[] groupByAndAggregate(final TreeMap<byte[], Span> spans) {
-    if (spans == null || spans.size() <= 0) {
-      return NO_RESULT;
-    }
-    if (group_bys == null) {
-      // We haven't been asked to find groups, so let's put all the spans
-      // together in the same group.
-      final SpanGroup group = new SpanGroup(tsdb,
-                                            getScanStartTime(),
-                                            getScanEndTime(),
-                                            spans.values(),
-                                            rate, rate_options,
-                                            aggregator,
-                                            sample_interval, downsampler);
-      return new SpanGroup[] { group };
-    }
-
-    // Maps group value IDs to the SpanGroup for those values.  Say we've
-    // been asked to group by two things: foo=* bar=* Then the keys in this
-    // map will contain all the value IDs combinations we've seen.  If the
-    // name IDs for `foo' and `bar' are respectively [0, 0, 7] and [0, 0, 2]
-    // then we'll have group_bys=[[0, 0, 2], [0, 0, 7]] (notice it's sorted
-    // by ID, so bar is first) and say we find foo=LOL bar=OMG as well as
-    // foo=LOL bar=WTF and that the IDs of the tag values are:
-    //   LOL=[0, 0, 1]  OMG=[0, 0, 4]  WTF=[0, 0, 3]
-    // then the map will have two keys:
-    //   - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
-    //   - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
-    final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
-    final short value_width = tsdb.tag_values.width();
-    final byte[] group = new byte[group_bys.size() * value_width];
-    for (final Map.Entry<byte[], Span> entry : spans.entrySet()) {
-      final byte[] row = entry.getKey();
-      byte[] value_id = null;
-      int i = 0;
-      // TODO(tsuna): The following loop has a quadratic behavior.  We can
-      // make it much better since both the row key and group_bys are sorted.
-      for (final byte[] tag_id : group_bys) {
-        value_id = Tags.getValueId(tsdb, row, tag_id);
-        if (value_id == null) {
-          break;
+  * Callback that should be attached the the output of
+  * {@link TsdbQuery#findSpans} to group and sort the results.
+  */
+  private class GroupByAndAggregateCB implements 
+    Callback<DataPoints[], TreeMap<byte[], Span>>{
+    
+    /**
+    * Creates the {@link SpanGroup}s to form the final results of this query.
+    * @param spans The {@link Span}s found for this query ({@link #findSpans}).
+    * Can be {@code null}, in which case the array returned will be empty.
+    * @return A possibly empty array of {@link SpanGroup}s built according to
+    * any 'GROUP BY' formulated in this query.
+    */
+    public DataPoints[] call(final TreeMap<byte[], Span> spans) throws Exception {
+      if (spans == null || spans.size() <= 0) {
+        return NO_RESULT;
+      }
+      if (group_bys == null) {
+        // We haven't been asked to find groups, so let's put all the spans
+        // together in the same group.
+        final SpanGroup group = new SpanGroup(tsdb,
+                                              getScanStartTime(),
+                                              getScanEndTime(),
+                                              spans.values(),
+                                              rate, rate_options,
+                                              aggregator,
+                                              sample_interval, downsampler);
+        return new SpanGroup[] { group };
+      }
+  
+      // Maps group value IDs to the SpanGroup for those values. Say we've
+      // been asked to group by two things: foo=* bar=* Then the keys in this
+      // map will contain all the value IDs combinations we've seen. If the
+      // name IDs for `foo' and `bar' are respectively [0, 0, 7] and [0, 0, 2]
+      // then we'll have group_bys=[[0, 0, 2], [0, 0, 7]] (notice it's sorted
+      // by ID, so bar is first) and say we find foo=LOL bar=OMG as well as
+      // foo=LOL bar=WTF and that the IDs of the tag values are:
+      // LOL=[0, 0, 1] OMG=[0, 0, 4] WTF=[0, 0, 3]
+      // then the map will have two keys:
+      // - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
+      // - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
+      final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
+      final short value_width = tsdb.tag_values.width();
+      final byte[] group = new byte[group_bys.size() * value_width];
+      for (final Map.Entry<byte[], Span> entry : spans.entrySet()) {
+        final byte[] row = entry.getKey();
+        byte[] value_id = null;
+        int i = 0;
+        // TODO(tsuna): The following loop has a quadratic behavior. We can
+        // make it much better since both the row key and group_bys are sorted.
+        for (final byte[] tag_id : group_bys) {
+          value_id = Tags.getValueId(tsdb, row, tag_id);
+          if (value_id == null) {
+            break;
+          }
+          System.arraycopy(value_id, 0, group, i, value_width);
+          i += value_width;
         }
-        System.arraycopy(value_id, 0, group, i, value_width);
-        i += value_width;
+        if (value_id == null) {
+          LOG.error("WTF? Dropping span for row " + Arrays.toString(row)
+                   + " as it had no matching tag from the requested groups,"
+                   + " which is unexpected. Query=" + this);
+          continue;
+        }
+        //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
+        SpanGroup thegroup = groups.get(group);
+        if (thegroup == null) {
+          thegroup = new SpanGroup(tsdb, getScanStartTime(), getScanEndTime(),
+                                   null, rate, rate_options, aggregator,
+                                   sample_interval, downsampler);
+          // Copy the array because we're going to keep `group' and overwrite
+          // its contents. So we want the collection to have an immutable copy.
+          final byte[] group_copy = new byte[group.length];
+          System.arraycopy(group, 0, group_copy, 0, group.length);
+          groups.put(group_copy, thegroup);
+        }
+        thegroup.add(entry.getValue());
       }
-      if (value_id == null) {
-        LOG.error("WTF?  Dropping span for row " + Arrays.toString(row)
-                 + " as it had no matching tag from the requested groups,"
-                 + " which is unexpected.  Query=" + this);
-        continue;
-      }
-      //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
-      SpanGroup thegroup = groups.get(group);
-      if (thegroup == null) {
-        thegroup = new SpanGroup(tsdb, getScanStartTime(), getScanEndTime(),
-                                 null, rate, rate_options, aggregator,
-                                 sample_interval, downsampler);
-        // Copy the array because we're going to keep `group' and overwrite
-        // its contents.  So we want the collection to have an immutable copy.
-        final byte[] group_copy = new byte[group.length];
-        System.arraycopy(group, 0, group_copy, 0, group.length);
-        groups.put(group_copy, thegroup);
-      }
-      thegroup.add(entry.getValue());
+      //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
+      // LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
+      //}
+      return groups.values().toArray(new SpanGroup[groups.size()]);
     }
-    //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
-    //  LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
-    //}
-    return groups.values().toArray(new SpanGroup[groups.size()]);
   }
 
   /**
@@ -482,9 +539,9 @@ final class TsdbQuery implements Query {
     if (tsuids != null && !tsuids.isEmpty()) {
       final String tsuid = tsuids.get(0);
       final String metric_uid = tsuid.substring(0, TSDB.metrics_width() * 2);
-      System.arraycopy(UniqueId.stringToUid(metric_uid), 
-          0, start_row, 0, metric_width);
-      System.arraycopy(UniqueId.stringToUid(metric_uid), 0, end_row, 0, metric_width);
+      metric = UniqueId.stringToUid(metric_uid);
+      System.arraycopy(metric, 0, start_row, 0, metric_width);
+      System.arraycopy(metric, 0, end_row, 0, metric_width); 
     } else {
       System.arraycopy(metric, 0, start_row, 0, metric_width);
       System.arraycopy(metric, 0, end_row, 0, metric_width);
