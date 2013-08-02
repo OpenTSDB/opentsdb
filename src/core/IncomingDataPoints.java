@@ -103,9 +103,9 @@ final class IncomingDataPoints implements WritableDataPoints {
    * Returns a partially initialized row key for this metric and these tags.
    * The only thing left to fill in is the base timestamp.
    */
-  static byte[] rowKeyTemplate(final TSDB tsdb,
-                               final String metric,
-                               final Map<String, String> tags) {
+  static Deferred<byte[]> rowKeyTemplate(final TSDB tsdb,
+                                         final String metric,
+                                         final Map<String, String> tags) {
     final short metric_width = tsdb.metrics.width();
     final short tag_name_width = tsdb.tag_names.width();
     final short tag_value_width = tsdb.tag_values.width();
@@ -129,12 +129,18 @@ final class IncomingDataPoints implements WritableDataPoints {
       copyInRowKey(row, pos, tag);
       pos += tag.length;
     }
-    return row;
+    return Deferred.fromResult(row);
   }
 
   public void setSeries(final String metric, final Map<String, String> tags) {
     checkMetricAndTags(metric, tags);
-    row = rowKeyTemplate(tsdb, metric, tags);
+    try {
+      row = rowKeyTemplate(tsdb, metric, tags).joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never happen", e);
+    }
     size = 0;
   }
 
