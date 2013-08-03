@@ -23,6 +23,9 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RateOptions;
@@ -84,25 +87,29 @@ final class QueryRpc implements HttpRpc {
     final int nqueries = tsdbqueries.length;
     final ArrayList<DataPoints[]> results = 
       new ArrayList<DataPoints[]>(nqueries);
+    final ArrayList<Deferred<DataPoints[]>> deferreds =
+      new ArrayList<Deferred<DataPoints[]>>(nqueries);
     
     for (int i = 0; i < nqueries; i++) {
-      try {  // execute the TSDB query!
-        // XXX This is slow and will block Netty.  TODO(tsuna): Don't block.
-        // TODO(tsuna): Optimization: run each query in parallel.
-        final DataPoints[] series = tsdbqueries[i].run();
-        if (series.length < 1){
-          continue;
-        }
-        results.add(series);
-      } catch (RuntimeException e) {
-        LOG.info("Query failed (stack trace coming): " + tsdbqueries[i]);
-        throw e;
-      }
-      tsdbqueries[i] = null;  // free()
+      deferreds.add(tsdbqueries[i].runAsync());
     }
-    tsdbqueries = null;  // free()
+
+    /**
+    * After all of the queries have run, we get the results in the order given
+    * and add dump the results in an array
+    */
+    class QueriesCB implements Callback<Object, ArrayList<DataPoints[]>> {
+      public Object call(final ArrayList<DataPoints[]> query_results) 
+        throws Exception {
+        results.addAll(query_results);
+        return null;
+      }
+    }
     
     // if the user wants global annotations, we need to scan and fetch
+    // TODO(cl) need to async this at some point. It's not super straight
+    // forward as we can't just add it to the "deferreds" queue since the types
+    // are different.
     List<Annotation> globals = null;
     if (!data_query.getNoAnnotations() && data_query.getGlobalAnnotations()) {
       try {
@@ -110,9 +117,15 @@ final class QueryRpc implements HttpRpc {
             data_query.startTime() / 1000, data_query.endTime() / 1000)
             .joinUninterruptibly();
       } catch (Exception e) {
-        throw new RuntimeException(e);
+        throw new RuntimeException("Shouldn't be here", e);
       }
-      
+    }
+    
+    try {
+      Deferred.groupInOrder(deferreds).addCallback(new QueriesCB())
+        .joinUninterruptibly();
+    } catch (Exception e) {
+      throw new RuntimeException("Shouldn't be here", e);
     }
     
     switch (query.apiVersion()) {
