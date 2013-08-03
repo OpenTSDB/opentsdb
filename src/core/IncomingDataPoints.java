@@ -341,19 +341,44 @@ final class IncomingDataPoints implements WritableDataPoints {
   }
 
   public String metricName() {
+    try {
+      return metricNameAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  public Deferred<String> metricNameAsync() {
     if (row == null) {
       throw new IllegalStateException("setSeries never called before!");
     }
     final byte[] id = Arrays.copyOfRange(row, 0, tsdb.metrics.width());
-    return tsdb.metrics.getName(id);
+    return tsdb.metrics.getNameAsync(id);
   }
 
   public Map<String, String> getTags() {
-    return Tags.getTags(tsdb, row);
+    try {
+      return getTagsAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  public Deferred<Map<String, String>> getTagsAsync() {
+    return Tags.getTagsAsync(tsdb, row);
   }
 
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
+  }
+  
+  public Deferred<List<String>> getAggregatedTagsAsync() {
+    final List<String> empty = Collections.emptyList();
+    return Deferred.fromResult(empty);
   }
 
   public List<String> getTSUIDs() {

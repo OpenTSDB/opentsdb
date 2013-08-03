@@ -15,6 +15,8 @@ package net.opentsdb.core;
 import java.util.List;
 import java.util.Map;
 
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.meta.Annotation;
 
 /**
@@ -28,12 +30,25 @@ public interface DataPoints extends Iterable<DataPoint> {
    * Returns the name of the series.
    */
   String metricName();
+  
+  /**
+   * Returns the name of the series.
+   * @since 1.2
+   */
+  Deferred<String> metricNameAsync();
 
   /**
    * Returns the tags associated with these data points.
    * @return A non-{@code null} map of tag names (keys), tag values (values).
    */
   Map<String, String> getTags();
+  
+  /**
+   * Returns the tags associated with these data points.
+   * @return A non-{@code null} map of tag names (keys), tag values (values).
+   * @since 1.2
+   */
+  Deferred<Map<String, String>> getTagsAsync();
 
   /**
    * Returns the tags associated with some but not all of the data points.
@@ -49,6 +64,22 @@ public interface DataPoints extends Iterable<DataPoint> {
    * @return A non-{@code null} list of tag names.
    */
   List<String> getAggregatedTags();
+  
+  /**
+   * Returns the tags associated with some but not all of the data points.
+   * <p>
+   * When this instance represents the aggregation of multiple time series
+   * (same metric but different tags), {@link #getTags} returns the tags that
+   * are common to all data points (intersection set) whereas this method
+   * returns all the tags names that are not common to all data points (union
+   * set minus the intersection set, also called the symmetric difference).
+   * <p>
+   * If this instance does not represent an aggregation of multiple time
+   * series, the list returned is empty.
+   * @return A non-{@code null} list of tag names.
+   * @since 1.2
+   */
+  Deferred<List<String>> getAggregatedTagsAsync();
 
   /**
    * Returns a list of unique TSUIDs contained in the results

@@ -25,6 +25,8 @@ import net.opentsdb.meta.Annotation;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
+import com.stumbleupon.async.Deferred;
+
 /**
  * Represents a read-only sequence of continuous HBase rows.
  * <p>
@@ -264,19 +266,44 @@ final class RowSeq implements DataPoints {
   }
 
   public String metricName() {
+    try {
+      return metricNameAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+
+  public Deferred<String> metricNameAsync() {
     if (key == null) {
       throw new IllegalStateException("the row key is null!");
     }
-    return RowKey.metricName(tsdb, key);
+    return RowKey.metricNameAsync(tsdb, key);
   }
-
+  
   public Map<String, String> getTags() {
-    return Tags.getTags(tsdb, key);
+    try {
+      return getTagsAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  public Deferred<Map<String, String>> getTagsAsync() {
+    return Tags.getTagsAsync(tsdb, key);
   }
 
   /** @return an empty list since aggregated tags cannot exist on a single row */
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
+  }
+  
+  public Deferred<List<String>> getAggregatedTagsAsync() {
+    final List<String> empty = Collections.emptyList();
+    return Deferred.fromResult(empty);
   }
   
   public List<String> getTSUIDs() {

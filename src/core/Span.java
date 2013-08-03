@@ -25,6 +25,8 @@ import net.opentsdb.uid.UniqueId;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
+import com.stumbleupon.async.Deferred;
+
 /**
  * Represents a read-only sequence of continuous data points.
  * <p>
@@ -69,8 +71,18 @@ final class Span implements DataPoints {
    * @throws NoSuchUniqueId if the row key UID did not exist
    */
   public String metricName() {
+    try {
+      return metricNameAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  public Deferred<String> metricNameAsync() {
     checkNotEmpty();
-    return rows.get(0).metricName();
+    return rows.get(0).metricNameAsync();
   }
 
   /**
@@ -79,13 +91,28 @@ final class Span implements DataPoints {
    * @throws NoSuchUniqueId if the any of the tagk/v UIDs did not exist
    */
   public Map<String, String> getTags() {
-    checkNotEmpty();
-    return rows.get(0).getTags();
+    try {
+      return getTagsAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
   }
 
+  public Deferred<Map<String, String>> getTagsAsync() {
+    checkNotEmpty();
+    return rows.get(0).getTagsAsync();
+  }
+  
   /** @return an empty list since aggregated tags cannot exist on a single span */
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
+  }
+  
+  public Deferred<List<String>> getAggregatedTagsAsync() {
+    final List<String> empty = Collections.emptyList();
+    return Deferred.fromResult(empty);
   }
 
   /** @return the number of data points in this span, O(n)
