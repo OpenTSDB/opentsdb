@@ -34,6 +34,8 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
+import com.stumbleupon.async.Deferred;
+
 @RunWith(PowerMockRunner.class)
 //"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
 //because they fiddle with the class loader.  We don't test them anyway.
@@ -60,7 +62,8 @@ public final class TestRowSeq {
     Whitebox.setInternalState(tsdb, "config", config);
     when(tsdb.getConfig()).thenReturn(config);
     when(tsdb.metrics.width()).thenReturn((short)3);
-    when(RowKey.metricName(tsdb, KEY)).thenReturn("sys.cpu.user");
+    when(RowKey.metricNameAsync(tsdb, KEY))
+      .thenReturn(Deferred.fromResult("sys.cpu.user"));
   }
   
   @Test
