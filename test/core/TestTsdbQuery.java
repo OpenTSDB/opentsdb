@@ -106,28 +106,34 @@ public final class TestTsdbQuery {
     
     // mock UniqueId
     when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getName(new byte[] { 0, 0, 1 })).thenReturn("sys.cpu.user");
+    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("sys.cpu.user"));
     when(metrics.getId("sys.cpu.system"))
       .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
     when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
-    when(metrics.getName(new byte[] { 0, 0, 2 })).thenReturn("sys.cpu.nice");
+    when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
+      .thenReturn(Deferred.fromResult("sys.cpu.nice"));
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getIdAsync("host")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_names.getName(new byte[] { 0, 0, 1 })).thenReturn("host");
+    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("host"));
     when(tag_names.getOrCreateIdAsync("host")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_names.getIdAsync("dc")).thenThrow(new NoSuchUniqueName("dc", "metric"));
+    when(tag_names.getIdAsync("dc"))
+      .thenThrow(new NoSuchUniqueName("dc", "metric"));
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_values.getName(new byte[] { 0, 0, 1 })).thenReturn("web01");
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("web01"));
     when(tag_values.getOrCreateIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getIdAsync("web02")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(tag_values.getName(new byte[] { 0, 0, 2 })).thenReturn("web02");
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
+      .thenReturn(Deferred.fromResult("web02"));
     when(tag_values.getOrCreateIdAsync("web02")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getId("web03"))
@@ -1316,7 +1322,7 @@ public final class TestTsdbQuery {
   
   @Test (expected = NoSuchUniqueId.class)
   public void runTSUIDQueryNSU() throws Exception {
-    when(metrics.getName(new byte[] { 0, 0, 1 }))
+    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenThrow(new NoSuchUniqueId("metrics", new byte[] { 0, 0, 1 }));
     storeLongTimeSeriesSeconds(true, false);;
     query.setStartTime(1356998400);
