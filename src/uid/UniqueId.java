@@ -96,6 +96,9 @@ public final class UniqueId implements UniqueIdInterface {
    * The ID in the key is a byte[] converted to a String to be Comparable. */
   private final ConcurrentHashMap<String, String> id_cache =
     new ConcurrentHashMap<String, String>();
+  /** Map of pending UID assignments */
+  private final ConcurrentHashMap<String, Deferred<byte[]>> pending_assignments =
+    new ConcurrentHashMap<String, Deferred<byte[]>>();
 
   /** Number of times we avoided reading from HBase thanks to the cache. */
   private volatile int cache_hits;
@@ -326,6 +329,7 @@ public final class UniqueId implements UniqueIdInterface {
    */
   private final class UniqueIdAllocator implements Callback<Object, Object> {
     private final String name;  // What we're trying to allocate an ID for.
+    private final Deferred<byte[]> assignment; // deferred to call back
     private short attempt = MAX_ATTEMPTS_ASSIGN_ID;  // Give up when zero.
 
     private HBaseException hbe = null;  // Last exception caught.
@@ -339,15 +343,16 @@ public final class UniqueId implements UniqueIdInterface {
     private static final byte DONE = 3;
     private byte state = ALLOCATE_UID;  // Current state of the process.
 
-    UniqueIdAllocator(final String name) {
+    UniqueIdAllocator(final String name, final Deferred<byte[]> assignment) {
       this.name = name;
+      this.assignment = assignment;
     }
 
-    @SuppressWarnings("unchecked")
     Deferred<byte[]> tryAllocate() {
       attempt--;
       state = ALLOCATE_UID;
-      return (Deferred<byte[]>) call(null);
+      call(null);
+      return assignment;
     }
 
     @SuppressWarnings("unchecked")
@@ -375,6 +380,13 @@ public final class UniqueId implements UniqueIdInterface {
         }
       }
 
+      class ErrBack implements Callback<Object, Exception> {
+        public Object call(final Exception e) throws Exception {
+          assignment.callback(e);
+          return assignment;
+        }
+      }
+      
       final Deferred d;
       switch (state) {
         case ALLOCATE_UID:
@@ -391,7 +403,7 @@ public final class UniqueId implements UniqueIdInterface {
         default:
           throw new AssertionError("Should never be here!");
       }
-      return d.addBoth(this);
+      return d.addBoth(this).addErrback(new ErrBack());
     }
 
     private Deferred<Long> allocateUid() {
@@ -492,7 +504,14 @@ public final class UniqueId implements UniqueIdInterface {
         // manage to CAS this KV into existence.  The one that loses the
         // race will retry and discover the UID assigned by the winner TSD,
         // and a UID will have been wasted in the process.  No big deal.
-        return getIdAsync(name);
+        
+        class GetIdCB implements Callback<Deferred<byte[]>, byte[]> {
+          public Deferred<byte[]> call(final byte[] row) throws Exception {
+            assignment.callback(row);
+            return assignment;
+          }
+        }
+        return getIdAsync(name).addCallbackDeferring(new GetIdCB());
       }
 
       cacheMapping(name, row);
@@ -504,7 +523,9 @@ public final class UniqueId implements UniqueIdInterface {
         tsdb.indexUIDMeta(meta);
       }
       
-      return Deferred.fromResult(row);
+      pending_assignments.remove(name);
+      assignment.callback(row);
+      return assignment;
     }
 
   }
@@ -563,8 +584,28 @@ public final class UniqueId implements UniqueIdInterface {
     class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
       public Object call(final Exception e) {
         if (e instanceof NoSuchUniqueName) {
-          return new UniqueIdAllocator(name).tryAllocate();
+          
+          Deferred<byte[]> assignment = null;
+          synchronized (pending_assignments) {
+            assignment = pending_assignments.get(name);
+            if (assignment == null) {
+              // to prevent UID leaks that can be caused when multiple time
+              // series for the same metric or tags arrive, we need to write a 
+              // deferred to the pending map as quickly as possible. Then we can 
+              // start the assignment process after we've stashed the deferred 
+              // and released the lock
+              assignment = new Deferred<byte[]>();
+              pending_assignments.put(name, assignment);
+            } else {
+              LOG.info("Already waiting for UID assignment: " + name);
+              return assignment;
+            }
+          }
+          
+          // start the assignment dance after stashing the deferred
+          return new UniqueIdAllocator(name, assignment).tryAllocate();
         }
+        System.out.println("Caught an exception here");
         return e;  // Other unexpected exception, let it bubble up.
       }
     }
