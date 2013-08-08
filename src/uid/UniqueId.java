@@ -1096,6 +1096,14 @@ public final class UniqueId implements UniqueIdInterface {
           results.put(new String(column.qualifier(), CHARSET), 
               Bytes.getLong(column.value()));
         }
+        
+        // if the user is starting with a fresh UID table, we need to account
+        // for missing columns
+        for (final byte[] kind : kinds) {
+          if (results.get(new String(kind, CHARSET)) == null) {
+            results.put(new String(kind, CHARSET), 0L);
+          }
+        }
         return results;
       }
       
