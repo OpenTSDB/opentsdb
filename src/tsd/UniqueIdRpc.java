@@ -259,7 +259,6 @@ final class UniqueIdRpc implements HttpRpc {
       if (query.hasQueryStringParam("tsuid")) {
       	tsuid = query.getRequiredQueryStringParam("tsuid");
     	} else {
-    	// FIXME: parse ?m=<metric>{k1=v1,...,kn=vn}, lookup UIDs, check whether they form an existing TSUID.
     		String metric = query.getRequiredQueryStringParam("m");
     		tsuid = getTSUIDForMetric(metric, tsdb);
     	}

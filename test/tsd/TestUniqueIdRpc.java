@@ -678,6 +678,20 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
   
+  @Test
+  public void tsuidGetByM() throws Exception {
+		when(tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.0")).thenReturn(
+				new byte[] { 0, 0, 1 });
+		when(tsdb.getUID(UniqueIdType.TAGK, "host")).thenReturn(
+				new byte[] { 0, 0, 1 });
+		when(tsdb.getUID(UniqueIdType.TAGV, "web01")).thenReturn(
+				new byte[] { 0, 0, 1 });
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/uid/tsmeta?m=sys.cpu.0{host=web01}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+  
   @Test (expected = BadRequestException.class)
   public void tsuidGetNotFound() throws Exception {
     setupTSUID();
@@ -941,6 +955,7 @@ public final class TestUniqueIdRpc {
     storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
+    
 //    
 //    when(tsdb.getClient()).thenReturn(client);
 //    when(tsdb.uidTable()).thenReturn("tsdb-uid".getBytes());
