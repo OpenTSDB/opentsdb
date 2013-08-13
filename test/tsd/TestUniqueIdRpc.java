@@ -720,6 +720,22 @@ public final class TestUniqueIdRpc {
   }
   
   @Test (expected = BadRequestException.class)
+  public void tsuidGetByMEmpty() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/uid/tsmeta?m=");
+    rpc.execute(tsdb, query);
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void tsuidGetByMBadSyntax() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/uid/tsmeta?m=sys.cpu.0{datacenter=dc");
+    rpc.execute(tsdb, query);
+  }
+  
+  @Test (expected = BadRequestException.class)
   public void tsuidGetNotFound() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
