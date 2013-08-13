@@ -229,7 +229,8 @@ final class TreeRpc implements HttpRpc {
       }
       
       // fetch it
-      final Branch branch = Branch.fetchBranch(tsdb, branch_id, true).join();
+      final Branch branch = Branch.fetchBranch(tsdb, branch_id, true)
+        .joinUninterruptibly();
       if (branch == null) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Unable to locate branch '" + Branch.idToString(branch_id) + 
@@ -302,7 +303,7 @@ final class TreeRpc implements HttpRpc {
               "Unable to locate rule: " + rule);
         }
         TreeRule.deleteRule(tsdb, tree.getTreeId(), rule.getLevel(), 
-            rule.getOrder()); 
+            rule.getOrder()).joinUninterruptibly(); 
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
   
       } else {
@@ -364,16 +365,17 @@ final class TreeRpc implements HttpRpc {
         
         // purge the existing tree rules if we're told to PUT
         if (method == HttpMethod.PUT) {
-          TreeRule.deleteAllRules(tsdb, tree_id);
+          TreeRule.deleteAllRules(tsdb, tree_id).joinUninterruptibly();
         }
         for (TreeRule rule : rules) {
-          rule.syncToStorage(tsdb, method == HttpMethod.PUT);
+          rule.syncToStorage(tsdb, method == HttpMethod.PUT)
+            .joinUninterruptibly();
         }
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
   
       } else if (method == HttpMethod.DELETE) {
   
-        TreeRule.deleteAllRules(tsdb, tree_id);
+        TreeRule.deleteAllRules(tsdb, tree_id).joinUninterruptibly();
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
   
       } else {
