@@ -353,7 +353,7 @@ final class TreeSync extends Thread {
 
     LOG.debug("[" + thread_id + "] Start row: " + UniqueId.uidToString(start_row));
     LOG.debug("[" + thread_id + "] End row: " + UniqueId.uidToString(end_row));
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.uidTable());
+    final Scanner scanner = tsdb.getClient().newScanner(tsdb.metaTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily("name".getBytes(CHARSET));

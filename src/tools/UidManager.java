@@ -138,8 +138,7 @@ final class UidManager {
     } else if (args.length < 1) {
       usage(argp, "Not enough arguments");
       System.exit(2);
-    }
-    final byte[] table = argp.get("--uidtable", "tsdb-uid").getBytes();
+    }   
     final short idwidth = (argp.has("--idwidth")
                            ? Short.parseShort(argp.get("--idwidth"))
                            : 3);
@@ -148,8 +147,11 @@ final class UidManager {
       System.exit(3);
     }
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
+    
     // get a config object
     Config config = CliOptions.getConfig(argp);
+    final byte[] table = config.getString("tsd.storage.hbase.uid_table")
+      .getBytes();
     
     final TSDB tsdb = new TSDB(config);
     tsdb.getClient().ensureTableExists(
