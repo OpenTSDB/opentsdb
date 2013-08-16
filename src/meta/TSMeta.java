@@ -1004,6 +1004,11 @@ public final class TSMeta {
     return this.total_dps;
   }
   
+  /** @param tsuid The TSUID of the timeseries */
+  public final void setTSUID(final String tsuid) {
+  	this.tsuid = tsuid;
+  }
+  
   /** @param display_name an optional name for the timeseries */
   public final void setDisplayName(final String display_name) {
     if (!this.display_name.equals(display_name)) {

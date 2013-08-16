@@ -299,6 +299,8 @@ final class UniqueIdRpc implements HttpRpc {
 			} else {
 				meta = this.parseTSMetaQS(query);
 			}
+			
+			System.out.println(meta.getTSUID());
 
 			/**
 			 * Storage callback used to determine if the storage call was successful
@@ -320,23 +322,50 @@ final class UniqueIdRpc implements HttpRpc {
 
 			}
 
-			try {
-				final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
-						method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
-				final TSMeta updated_meta = process_meta.joinUninterruptibly();
-				tsdb.indexTSMeta(updated_meta);
-				query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
-			} catch (IllegalStateException e) {
-				query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
-			} catch (IllegalArgumentException e) {
-				throw new BadRequestException(e);
-			} catch (NoSuchUniqueName e) {
-				// this would only happen if someone deleted a UID but left the
-				// the timeseries meta data
-				throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
-						"Unable to find one or more UIDs", e);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
+			if (meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
+				// we got a JSON object without TSUID. Try to find a timeseries spec of
+				// the form "m": "metric{tagk=tagv,...}"
+				String metric = query.getRequiredQueryStringParam("m");
+				String tsuid = getTSUIDForMetric(metric, tsdb);
+				// set TSUID
+				meta.setTSUID(tsuid);
+				try {
+					final Deferred<TSMeta> process_meta = meta.storeNew(tsdb).
+							addCallbackDeferring(new SyncCB());
+					final TSMeta updated_meta = process_meta.joinUninterruptibly();
+					tsdb.indexTSMeta(updated_meta);
+					query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
+				} catch (IllegalStateException e) {
+					query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
+				} catch (IllegalArgumentException e) {
+					throw new BadRequestException(e);
+				} catch (NoSuchUniqueName e) {
+					// this would only happen if someone deleted a UID but left the
+					// the timeseries meta data
+					throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+							"Unable to find one or more UIDs", e);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
+			} else {
+				try {
+					final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
+							method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+					final TSMeta updated_meta = process_meta.joinUninterruptibly();
+					tsdb.indexTSMeta(updated_meta);
+					query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
+				} catch (IllegalStateException e) {
+					query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
+				} catch (IllegalArgumentException e) {
+					throw new BadRequestException(e);
+				} catch (NoSuchUniqueName e) {
+					// this would only happen if someone deleted a UID but left the
+					// the timeseries meta data
+					throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+							"Unable to find one or more UIDs", e);
+				} catch (Exception e) {
+					throw new RuntimeException(e);
+				}
 			}
 			// DELETE
 		} else if (method == HttpMethod.DELETE) {
