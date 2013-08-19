@@ -41,6 +41,9 @@ public class IncomingDataPoint {
   /** A hash map of tag name/values */
   private HashMap<String, String> tags;
   
+  /** TSUID for the data point */
+  private String tsuid;
+  
   /**
    * Empty constructor necessary for some de/serializers
    */
@@ -49,7 +52,7 @@ public class IncomingDataPoint {
   }
   
   /**
-   * Constructor used to initialize all values
+   * Constructor used when working with a metric and tags
    * @param metric The metric name
    * @param timestamp The Unix epoch timestamp
    * @param value The value as a string
@@ -63,6 +66,20 @@ public class IncomingDataPoint {
     this.timestamp = timestamp;
     this.value = value;
     this.tags = tags;
+  }
+  
+  /**
+   * Constructor used when working with tsuids
+   * @param tsuid The TSUID
+   * @param timestamp The Unix epoch timestamp
+   * @param value The value as a string
+   */
+  public IncomingDataPoint(final String tsuid,
+      final long timestamp,
+      final String value) {
+    this.tsuid = tsuid;
+    this.timestamp = timestamp;
+    this.value = value;
   }
   
   /**
@@ -102,6 +119,11 @@ public class IncomingDataPoint {
     return tags;
   }
 
+  /** @return the TSUID */
+  public final String getTSUID() {
+    return tsuid;
+  }
+  
   /** @param metric the metric to set */
   public final void setMetric(String metric) {
     this.metric = metric;
@@ -117,8 +139,13 @@ public class IncomingDataPoint {
     this.value = value;
   }
 
-  /** * @param tags the tags to set */
+  /** @param tags the tags to set */
   public final void setTags(HashMap<String, String> tags) {
     this.tags = tags;
+  }
+
+  /** @param tsuid the TSUID to set */
+  public final void setTSUID(String tsuid) {
+    this.tsuid = tsuid;
   }
 }
