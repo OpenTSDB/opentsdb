@@ -300,8 +300,6 @@ final class UniqueIdRpc implements HttpRpc {
 				meta = this.parseTSMetaQS(query);
 			}
 			
-			System.out.println(meta.getTSUID());
-
 			/**
 			 * Storage callback used to determine if the storage call was successful
 			 * or not. Also returns the updated object from storage.
@@ -334,6 +332,7 @@ final class UniqueIdRpc implements HttpRpc {
 							addCallbackDeferring(new SyncCB());
 					final TSMeta updated_meta = process_meta.joinUninterruptibly();
 					tsdb.indexTSMeta(updated_meta);
+					tsdb.processTSMetaThroughTrees(updated_meta);
 					query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
 				} catch (IllegalStateException e) {
 					query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
