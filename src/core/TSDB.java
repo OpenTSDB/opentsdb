@@ -632,13 +632,21 @@ public final class TSDB {
         // timing in a moving Histogram (once we have a class for this).
         Deferred<Object> result = client.put(point);
         if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
-            rt_publisher == null) {
+            !config.enable_tsuid_tracking() && rt_publisher == null) {
           return result;
         }
         
         final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
-            Const.TIMESTAMP_BYTES); 
-        if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
+            Const.TIMESTAMP_BYTES);
+        
+        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
+        // counter field for a TSUID with the proper timestamp. If the user would
+        // rather have TSUID incrementing enabled, that will trump the PUT
+        if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
+          final PutRequest tracking = new PutRequest(meta_table, tsuid, 
+              TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
+          client.put(tracking);
+        } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
           TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
         }
         
