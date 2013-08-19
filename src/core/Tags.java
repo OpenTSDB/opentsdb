@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -348,7 +349,7 @@ public final class Tags {
    * @throws NoSuchUniqueName if one of the elements in the map contained an
    * unknown tag name or tag value.
    */
-  static ArrayList<byte[]> resolveAll(final TSDB tsdb,
+  public static ArrayList<byte[]> resolveAll(final TSDB tsdb,
                                       final Map<String, String> tags)
     throws NoSuchUniqueName {
     try {
@@ -442,30 +443,67 @@ public final class Tags {
    * @throws IllegalArgumentException if one of the elements in the array had
    * the wrong number of bytes.
    */
-  static HashMap<String, String> resolveIds(final TSDB tsdb,
+  public static HashMap<String, String> resolveIds(final TSDB tsdb,
                                             final ArrayList<byte[]> tags)
+    throws NoSuchUniqueId {
+    try {
+      return resolveIdsAsync(tsdb, tags).joinUninterruptibly();
+    } catch (Exception e) {
+      throw new RuntimeException("Shouldn't be here", e);
+    }
+  }
+
+  /**
+   * Resolves all the tags IDs asynchronously (name followed by value) into a map.
+   * This function is the opposite of {@link #resolveAll}.
+   * @param tsdb The TSDB to use for UniqueId lookups.
+   * @param tags The tag IDs to resolve.
+   * @return A map mapping tag names to tag values.
+   * @throws NoSuchUniqueId if one of the elements in the array contained an
+   * invalid ID.
+   * @throws IllegalArgumentException if one of the elements in the array had
+   * the wrong number of bytes.
+   * @since 2.0
+   */
+  public static Deferred<HashMap<String, String>> resolveIdsAsync(final TSDB tsdb,
+                                            final List<byte[]> tags)
     throws NoSuchUniqueId {
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
     final short tag_bytes = (short) (name_width + value_width);
-    final byte[] tmp_name = new byte[name_width];
-    final byte[] tmp_value = new byte[value_width];
     final HashMap<String, String> result
       = new HashMap<String, String>(tags.size());
+    final ArrayList<Deferred<String>> deferreds 
+      = new ArrayList<Deferred<String>>(tags.size());
+    
     for (final byte[] tag : tags) {
+      final byte[] tmp_name = new byte[name_width];
+      final byte[] tmp_value = new byte[value_width];
       if (tag.length != tag_bytes) {
         throw new IllegalArgumentException("invalid length: " + tag.length
             + " (expected " + tag_bytes + "): " + Arrays.toString(tag));
       }
       System.arraycopy(tag, 0, tmp_name, 0, name_width);
-      final String name = tsdb.tag_names.getName(tmp_name);
+      deferreds.add(tsdb.tag_names.getNameAsync(tmp_name));
       System.arraycopy(tag, name_width, tmp_value, 0, value_width);
-      final String value = tsdb.tag_values.getName(tmp_value);
-      result.put(name, value);
+      deferreds.add(tsdb.tag_values.getNameAsync(tmp_value));
     }
-    return result;
+    
+    class GroupCB implements Callback<HashMap<String, String>, ArrayList<String>> {
+      public HashMap<String, String> call(final ArrayList<String> names)
+          throws Exception {
+        for (int i = 0; i < names.size(); i++) {
+          if (i % 2 != 0) {
+            result.put(names.get(i - 1), names.get(i));
+          }
+        }
+        return result;
+      }
+    }
+    
+    return Deferred.groupInOrder(deferreds).addCallback(new GroupCB());
   }
-
+  
   /**
    * Returns true if the given string looks like an integer.
    * <p>
