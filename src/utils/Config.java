@@ -72,6 +72,9 @@ public class Config {
   /** tsd.core.meta.enable_tsuid_incrementing */
   private boolean enable_tsuid_incrementing = false;
   
+  /** tsd.core.meta.enable_tsuid_tracking */
+  private boolean enable_tsuid_tracking = false;
+  
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
   
@@ -162,6 +165,11 @@ public class Config {
   /** @return whether or not to increment TSUID counters */
   public boolean enable_tsuid_incrementing() { 
     return enable_tsuid_incrementing;
+  }
+  
+  /** @return whether or not to record a 1 for every TSUID */
+  public boolean enable_tsuid_tracking() {
+    return enable_tsuid_tracking;
   }
   
   /** @return whether or not chunked requests are supported */
@@ -335,6 +343,7 @@ public class Config {
     default_map.put("tsd.core.meta.enable_realtime_ts", "false");
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");
+    default_map.put("tsd.core.meta.enable_tsuid_tracking", "false");
     default_map.put("tsd.core.plugin_path", "");
     default_map.put("tsd.core.tree.enable_processing", "false");
     default_map.put("tsd.rtpublisher.enable", "false");
@@ -368,6 +377,8 @@ public class Config {
     enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
     enable_tsuid_incrementing = 
       this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
+    enable_tsuid_tracking = 
+      this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
     if (this.hasProperty("tsd.http.request.max_chunk")) {
       max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
     }
