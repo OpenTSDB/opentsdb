@@ -22,6 +22,8 @@ import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
+import com.stumbleupon.async.Callback;
+
 /**
  * <strong>This class is not part of the public API.</strong>
  * <p><pre>
@@ -374,6 +376,47 @@ public final class Internal {
     
   }
 
+  /**
+   * Callback used to fetch only the last data point from a row returned as the
+   * result of a GetRequest. Non data points will be parsed out and the
+   * resulting time and value stored in an IncomingDataPoint if found. If no 
+   * valid data was found, a null is returned.
+   * @since 2.0
+   */
+  public static class GetLastDataPointCB implements Callback<IncomingDataPoint, 
+    ArrayList<KeyValue>> {
+    final TSDB tsdb;
+    
+    public GetLastDataPointCB(final TSDB tsdb) {
+      this.tsdb = tsdb;
+    }
+    
+    /**
+     * Returns the last data point from a data row in the TSDB table.
+     * @param row The row from HBase
+     * @return null if no data was found, a data point if one was
+     */
+    public IncomingDataPoint call(final ArrayList<KeyValue> row) 
+      throws Exception {
+      if (row == null || row.size() < 1) {
+        return null;
+      }
+      
+      // check to see if the cells array is empty as it will flush out all
+      // non-data points.
+      final ArrayList<Cell> cells = extractDataPoints(row, row.size());
+      if (cells.isEmpty()) {
+        return null;
+      }
+      final Cell cell = cells.get(cells.size() - 1);
+      final IncomingDataPoint dp = new IncomingDataPoint();
+      final long base_time = baseTime(tsdb, row.get(0).key());
+      dp.setTimestamp(getTimestampFromQualifier(cell.qualifier(), base_time));
+      dp.setValue(cell.parseValue().toString());
+      return dp;
+    }
+  }
+  
   /**
    * Compares two data point byte arrays with offsets.
    * Can be used on:
