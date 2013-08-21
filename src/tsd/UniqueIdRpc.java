@@ -464,16 +464,22 @@ final class UniqueIdRpc implements HttpRpc {
     // m is of the following forms:
     // metric[{tag=value,...}]
     // where the parts in square brackets `[' .. `]' are optional.
-    HashMap<String, String> tags = new HashMap<String, String>();
-    String metric = Tags.parseWithMetric(query_string, tags);
-    TreeMap<String, String> sortedTags = new TreeMap<String, String>(tags);
-    ByteArrayOutputStream buf = new ByteArrayOutputStream();
+    final HashMap<String, String> tags = new HashMap<String, String>();
+    String metric = null;
+    try {
+    	metric = Tags.parseWithMetric(query_string, tags);
+    } catch (IllegalArgumentException e) {
+    	throw new BadRequestException(e);
+    }
+    final TreeMap<String, String> sortedTags = new TreeMap<String, String>(tags);
+    // Byte Buffer to generate TSUID, pre allocated to the size of the TSUID
+    final ByteArrayOutputStream buf = new ByteArrayOutputStream(3 + sortedTags.size() * 6);
     buf.write(tsdb.getUID(UniqueIdType.METRIC, metric), 0, 3);
     for (Entry<String, String> e: sortedTags.entrySet()) {
     	buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
     	buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
     }
-    String tsuid = UniqueId.uidToString(buf.toByteArray());
+    final String tsuid = UniqueId.uidToString(buf.toByteArray());
     
     return tsuid;
   }
