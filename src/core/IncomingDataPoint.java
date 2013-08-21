@@ -15,6 +15,8 @@ package net.opentsdb.core;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 /**
  * Bridging class that stores a normalized data point parsed from the "put" 
  * RPC methods and gets it ready for storage. Also has some helper methods that
@@ -28,6 +30,7 @@ import java.util.Map;
  * overload with their own fields or parsing methods.
  * @since 2.0
  */
+@JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
 public class IncomingDataPoint {
   /** The incoming metric name */
   private String metric;

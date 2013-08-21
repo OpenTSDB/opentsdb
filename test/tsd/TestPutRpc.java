@@ -309,7 +309,7 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":null,\"timestamp\""
+    assertEquals("{\"errors\":[{\"datapoint\":{\"timestamp\""
         + ":1365465600,\"value\":\"42\",\"tags\":{\"host\":\"web01\"}},"
         + "\"error\":\"Metric name was empty\"}],\"failed\":1,\"success\":0}", 
         query.response().getContent().toString(Charset.forName("UTF-8")));
@@ -323,7 +323,7 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":null,\"timestamp\""
+    assertEquals("{\"errors\":[{\"datapoint\":{\"timestamp\""
         + ":1365465600,\"value\":\"42\",\"tags\":{\"host\":\"web01\"}},"
         + "\"error\":\"Metric name was empty\"}],\"failed\":1,\"success\":0}", 
         query.response().getContent().toString(Charset.forName("UTF-8")));
@@ -380,7 +380,7 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":null,\"tags\":" 
+        + "\"timestamp\":1365465600,\"tags\":" 
         + "{\"host\":\"web01\"}},\"error\":\"Empty value\"}],\"failed\":1,"
         + "\"success\":0}", 
         query.response().getContent().toString(Charset.forName("UTF-8")));
@@ -395,7 +395,7 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":null,\"tags\":" 
+        + "\"timestamp\":1365465600,\"tags\":" 
         + "{\"host\":\"web01\"}},\"error\":\"Empty value\"}],\"failed\":1,"
         + "\"success\":0}", 
         query.response().getContent().toString(Charset.forName("UTF-8")));
@@ -551,8 +551,8 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"42\",\"tags\":" 
-        + "null},\"error\":\"Missing tags\"}],\"failed\":1,"
+        + "\"timestamp\":1365465600,\"value\":\"42\"},"
+        + "\"error\":\"Missing tags\"}],\"failed\":1,"
         + "\"success\":0}", 
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
@@ -566,8 +566,8 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"42\",\"tags\":" 
-        + "null},\"error\":\"Missing tags\"}],\"failed\":1,"
+        + "\"timestamp\":1365465600,\"value\":\"42\""
+        + "},\"error\":\"Missing tags\"}],\"failed\":1,"
         + "\"success\":0}", 
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
