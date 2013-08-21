@@ -473,11 +473,16 @@ final class UniqueIdRpc implements HttpRpc {
     }
     final TreeMap<String, String> sortedTags = new TreeMap<String, String>(tags);
     // Byte Buffer to generate TSUID, pre allocated to the size of the TSUID
-    final ByteArrayOutputStream buf = new ByteArrayOutputStream(3 + sortedTags.size() * 6);
-    buf.write(tsdb.getUID(UniqueIdType.METRIC, metric), 0, 3);
-    for (Entry<String, String> e: sortedTags.entrySet()) {
-    	buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
-    	buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
+    final ByteArrayOutputStream buf = new ByteArrayOutputStream(
+    		TSDB.metrics_width() + sortedTags.size() * (TSDB.tagk_width() + TSDB.tagv_width()));
+    try {
+    buf.write(tsdb.getUID(UniqueIdType.METRIC, metric));
+	    for (Entry<String, String> e: sortedTags.entrySet()) {
+	    	buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
+	    	buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
+	    }
+    } catch (IOException e) {
+    	throw new BadRequestException(e);
     }
     final String tsuid = UniqueId.uidToString(buf.toByteArray());
     
