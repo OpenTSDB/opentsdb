@@ -237,7 +237,7 @@ final class RowSeq implements DataPoints {
       case 7: return Bytes.getLong(values, value_idx);
       case 3: return Bytes.getInt(values, value_idx);
       case 1: return Bytes.getShort(values, value_idx);
-      case 0: return values[value_idx] & 0xFF;
+      case 0: return values[value_idx];
     }
     throw new IllegalDataException("Integer value @ " + value_idx
                                    + " not on 8/4/2/1 bytes in "
