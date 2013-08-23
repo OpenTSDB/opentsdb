@@ -949,6 +949,68 @@ public final class UniqueId implements UniqueIdInterface {
   }
   
   /**
+   * Converts a UID byte array to a long
+   * @param uid The UID to convert
+   * @param width The width of the UID in bytes
+   * @return The UID as a long
+   * @since 2.1
+   */
+  public static long uidToLong(final byte[] uid, final short width) {
+    if (uid.length != width) {
+      throw new IllegalArgumentException("UID array width " + uid.length + 
+          " is not equal to required width " + width);
+    }
+    final byte[] padded = new byte[8];
+    System.arraycopy(uid, 0, padded, (8 - width), width);
+    return Bytes.getLong(padded);
+  }
+  
+  /**
+   * Converts a Long to a byte array with the proper UID width
+   * @param uid The UID to convert
+   * @param width The width of the UID in bytes
+   * @return The UID as a byte array
+   * @throws IllegalStateException if the UID is larger than the width would
+   * allow
+   * @since 2.1
+   */
+  public static byte[] longToUID(final long uid, final short width) {
+    // Verify that we're going to drop bytes that are 0.
+    final byte[] padded = Bytes.fromLong(uid);
+    for (int i = 0; i < padded.length - width; i++) {
+      if (padded[i] != 0) {
+        final String message = "UID " + Long.toString(uid) + 
+          " was too large for " + width + " bytes";
+        LOG.error("OMG " + message);
+        throw new IllegalStateException(message);
+      }
+    }
+    // Shrink the ID on the requested number of bytes.
+    return Arrays.copyOfRange(padded, padded.length - width, padded.length);
+  }
+  
+  /**
+   * Appends the given UID to the given string buffer, followed by "\\E".
+   * @param buf The buffer to append
+   * @param id The UID to add as a binary regex pattern
+   * @since 2.1
+   */
+  public static void addIdToRegexp(final StringBuilder buf, final byte[] id) {
+    boolean backslash = false;
+    for (final byte b : id) {
+      buf.append((char) (b & 0xFF));
+      if (b == 'E' && backslash) {  // If we saw a `\' and now we have a `E'.
+        // So we just terminated the quoted section because we just added \E
+        // to `buf'.  So let's put a literal \E now and start quoting again.
+        buf.append("\\\\E\\Q");
+      } else {
+        backslash = b == '\\';
+      }
+    }
+    buf.append("\\E");
+  }
+  
+  /**
    * Attempts to convert the given string to a type enumerator
    * @param type The string to convert
    * @return a valid UniqueIdType if matched
@@ -1023,41 +1085,98 @@ public final class UniqueId implements UniqueIdInterface {
   }
   
   /**
-   * Extracts a list of tagk/tagv pairs from a tsuid
+   * Extracts a list of tagks and tagvs as individual values in a list
    * @param tsuid The tsuid to parse
-   * @param metric_width The width of the metric tag in bytes
-   * @param tagk_width The width of tagks in bytes
-   * @param tagv_width The width of tagvs in bytes
-   * @return A list of tagk/tagv pairs alternating with tagk, tagv, tagk, tagv
+   * @return A list of tagk/tagv UIDs alternating with tagk, tagv, tagk, tagv
    * @throws IllegalArgumentException if the TSUID is malformed
+   * @since 2.1
    */
-   public static List<byte[]> getTagPairsFromTSUID(final String tsuid,
-      final short metric_width, final short tagk_width, 
-      final short tagv_width) {
+  public static List<byte[]> getTagsFromTSUID(final String tsuid) {
     if (tsuid == null || tsuid.isEmpty()) {
       throw new IllegalArgumentException("Missing TSUID");
     }
-    if (tsuid.length() <= metric_width * 2) {
+    if (tsuid.length() <= TSDB.metrics_width() * 2) {
       throw new IllegalArgumentException(
           "TSUID is too short, may be missing tags");
     }
      
     final List<byte[]> tags = new ArrayList<byte[]>();
-    final int pair_width = (tagk_width * 2) + (tagv_width * 2);
+    final int pair_width = (TSDB.tagk_width() * 2) + (TSDB.tagv_width() * 2);
     
     // start after the metric then iterate over each tagk/tagv pair
-    for (int i = metric_width * 2; i < tsuid.length(); i+= pair_width) {
+    for (int i = TSDB.metrics_width() * 2; i < tsuid.length(); i+= pair_width) {
       if (i + pair_width > tsuid.length()){
         throw new IllegalArgumentException(
             "The TSUID appears to be malformed, improper tag width");
       }
-      String tag = tsuid.substring(i, i + (tagk_width * 2));
+      String tag = tsuid.substring(i, i + (TSDB.tagk_width() * 2));
       tags.add(UniqueId.stringToUid(tag));
-      tag = tsuid.substring(i + (tagk_width * 2), i + pair_width);
+      tag = tsuid.substring(i + (TSDB.tagk_width() * 2), i + pair_width);
       tags.add(UniqueId.stringToUid(tag));
     }
     return tags;
+  }
+   
+  /**
+   * Extracts a list of tagk/tagv pairs from a tsuid
+   * @param tsuid The tsuid to parse
+   * @return A list of tagk/tagv UID pairs
+   * @throws IllegalArgumentException if the TSUID is malformed
+   * @since 2.0
+   */
+  public static List<byte[]> getTagPairsFromTSUID(final String tsuid) {
+     if (tsuid == null || tsuid.isEmpty()) {
+       throw new IllegalArgumentException("Missing TSUID");
+     }
+     if (tsuid.length() <= TSDB.metrics_width() * 2) {
+       throw new IllegalArgumentException(
+           "TSUID is too short, may be missing tags");
+     }
+      
+     final List<byte[]> tags = new ArrayList<byte[]>();
+     final int pair_width = (TSDB.tagk_width() * 2) + (TSDB.tagv_width() * 2);
+     
+     // start after the metric then iterate over each tagk/tagv pair
+     for (int i = TSDB.metrics_width() * 2; i < tsuid.length(); i+= pair_width) {
+       if (i + pair_width > tsuid.length()){
+         throw new IllegalArgumentException(
+             "The TSUID appears to be malformed, improper tag width");
+       }
+       String tag = tsuid.substring(i, i + pair_width);
+       tags.add(UniqueId.stringToUid(tag));
+     }
+     return tags;
    }
+  
+  /**
+   * Extracts a list of tagk/tagv pairs from a tsuid
+   * @param tsuid The tsuid to parse
+   * @return A list of tagk/tagv UID pairs
+   * @throws IllegalArgumentException if the TSUID is malformed
+   * @since 2.0
+   */
+  public static List<byte[]> getTagPairsFromTSUID(final byte[] tsuid) {
+    if (tsuid == null) {
+      throw new IllegalArgumentException("Missing TSUID");
+    }
+    if (tsuid.length <= TSDB.metrics_width()) {
+      throw new IllegalArgumentException(
+          "TSUID is too short, may be missing tags");
+    }
+     
+    final List<byte[]> tags = new ArrayList<byte[]>();
+    final int pair_width = TSDB.tagk_width() + TSDB.tagv_width();
+    
+    // start after the metric then iterate over each tagk/tagv pair
+    for (int i = TSDB.metrics_width(); i < tsuid.length; i+= pair_width) {
+      if (i + pair_width > tsuid.length){
+        throw new IllegalArgumentException(
+            "The TSUID appears to be malformed, improper tag width");
+      }
+      tags.add(Arrays.copyOfRange(tsuid, i, i + pair_width));
+    }
+    return tags;
+  }
   
   /**
    * Returns a map of max UIDs from storage for the given list of UID types 

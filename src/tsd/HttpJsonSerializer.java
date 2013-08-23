@@ -45,6 +45,7 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
@@ -201,6 +202,26 @@ class HttpJsonSerializer extends HttpSerializer {
     }
     try {
       return JSON.parseToObject(json, TSQuery.class);
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+  
+  /**
+   * Parses a last data point query
+   * @return A LastPointQuery to work with
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public LastPointQuery parseLastPointQueryV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    try {
+      return JSON.parseToObject(json, LastPointQuery.class);
     } catch (IllegalArgumentException iae) {
       throw new BadRequestException("Unable to parse the given JSON", iae);
     }
@@ -593,6 +614,17 @@ class HttpJsonSerializer extends HttpSerializer {
       LOG.error("Unexpected exception", e);
       throw new RuntimeException(e);
     }
+  }
+  
+  /**
+   * Format a list of last data points
+   * @param data_points The results of the query
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatLastPointQueryV1(
+      final List<IncomingDataPoint> data_points) {
+    return this.serializeJSON(data_points);
   }
   
   /**

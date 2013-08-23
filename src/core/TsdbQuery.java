@@ -639,10 +639,10 @@ final class TsdbQuery implements Query {
       // Skip any number of tags.
       buf.append("(?:.{").append(tagsize).append("})*\\Q");
       if (isTagNext(name_width, tag, group_by)) {
-        addId(buf, tag);
+        UniqueId.addIdToRegexp(buf, tag);
         tag = tags.hasNext() ? tags.next() : null;
       } else {  // Add a group_by.
-        addId(buf, group_by);
+        UniqueId.addIdToRegexp(buf, group_by);
         final byte[][] value_ids = (group_by_values == null
                                     ? null
                                     : group_by_values.get(group_by));
@@ -652,7 +652,7 @@ final class TsdbQuery implements Query {
           buf.append("(?:");
           for (final byte[] value_id : value_ids) {
             buf.append("\\Q");
-            addId(buf, value_id);
+            UniqueId.addIdToRegexp(buf, value_id);
             buf.append('|');
           }
           // Replace the pipe of the last iteration.
@@ -707,7 +707,7 @@ final class TsdbQuery implements Query {
     for (final byte[] tags : uids) {
        // quote the bytes
       buf.append("\\Q");
-      addId(buf, tags);
+      UniqueId.addIdToRegexp(buf, tags);
       buf.append('|');
     }
     
@@ -740,24 +740,6 @@ final class TsdbQuery implements Query {
           + " 'group_bys' in " + this);
     }
     return cmp < 0;
-  }
-
-  /**
-   * Appends the given ID to the given buffer, followed by "\\E".
-   */
-  private static void addId(final StringBuilder buf, final byte[] id) {
-    boolean backslash = false;
-    for (final byte b : id) {
-      buf.append((char) (b & 0xFF));
-      if (b == 'E' && backslash) {  // If we saw a `\' and now we have a `E'.
-        // So we just terminated the quoted section because we just added \E
-        // to `buf'.  So let's put a litteral \E now and start quoting again.
-        buf.append("\\\\E\\Q");
-      } else {
-        backslash = b == '\\';
-      }
-    }
-    buf.append("\\E");
   }
 
   public String toString() {

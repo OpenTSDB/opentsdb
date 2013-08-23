@@ -12,13 +12,49 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
+import net.opentsdb.storage.MockBase;
+import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.Config;
+
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.GetRequest;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.hbase.async.PutRequest;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.stumbleupon.async.Deferred;
+
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
+@PowerMockIgnore({"javax.management.*", "javax.xml.*",
+  "ch.qos.*", "org.slf4j.*",
+  "com.sum.*", "org.xml.*"})
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class})
 public final class TestTags {
-
+  private TSDB tsdb;
+  private Config config;
+  private HBaseClient client;
+  private MockBase storage;
+  private UniqueId metrics = mock(UniqueId.class);
+  private UniqueId tag_names = mock(UniqueId.class);
+  private UniqueId tag_values = mock(UniqueId.class);
+  
   @Test
   public void parseSuccessful() {
     final HashMap<String, String> tags = new HashMap<String, String>(2);
@@ -146,4 +182,87 @@ public final class TestTags {
     Tags.parseLong("-9223372036854775809"); // MIN_VALUE - 1
   }
 
+  @Test
+  public void resolveIdsAsync() throws Exception {
+    setupStorage();
+    setupResolveIds();
+    
+    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    ids.add(new byte[] { 0, 0, 1, 0, 0, 1 });
+    final HashMap<String, String> tags = Tags.resolveIdsAsync(tsdb, ids)
+      .joinUninterruptibly();
+    assertEquals("web01", tags.get("host"));
+  }
+  
+  @Test (expected = NoSuchUniqueId.class)
+  public void resolveIdsAsyncNSUI() throws Exception {
+    setupStorage();
+    setupResolveIds();
+    
+    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    ids.add(new byte[] { 0, 0, 1, 0, 0, 2 });
+    Tags.resolveIdsAsync(tsdb, ids).joinUninterruptibly();
+  }
+  
+  @Test
+  public void resolveIdsAsyncEmptyList() throws Exception {
+    setupStorage();
+    setupResolveIds();
+    
+    final List<byte[]> ids = new ArrayList<byte[]>(0);
+    final HashMap<String, String> tags = Tags.resolveIdsAsync(tsdb, ids)
+      .joinUninterruptibly();
+    assertNotNull(tags);
+    assertEquals(0, tags.size());
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void resolveIdsAsyncWrongLength() throws Exception {
+    setupStorage();
+    setupResolveIds();
+    
+    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    ids.add(new byte[] { 0, 0, 1, 0, 0, 0, 2 });
+    Tags.resolveIdsAsync(tsdb, ids).joinUninterruptibly();
+  }
+  
+  private void setupStorage() throws Exception {
+    config = new Config(false);
+    client = mock(HBaseClient.class);
+    tsdb = new TSDB(config);
+    storage = new MockBase(tsdb, client, true, true, true, true);
+
+    // replace the "real" field objects with mocks
+    Field cl = tsdb.getClass().getDeclaredField("client");
+    cl.setAccessible(true);
+    cl.set(tsdb, client);
+    
+    Field met = tsdb.getClass().getDeclaredField("metrics");
+    met.setAccessible(true);
+    met.set(tsdb, metrics);
+    
+    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
+    tagk.setAccessible(true);
+    tagk.set(tsdb, tag_names);
+    
+    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
+    tagv.setAccessible(true);
+    tagv.set(tsdb, tag_values);
+    
+    when(metrics.width()).thenReturn((short)3);
+    when(tag_names.width()).thenReturn((short)3);
+    when(tag_values.width()).thenReturn((short)3);
+  }
+  
+  private void setupResolveIds() throws Exception {
+
+    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("host"));
+    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
+      .thenThrow(new NoSuchUniqueId("tagk", new byte[] { 0, 0, 2 }));
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("web01"));
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
+        .thenThrow(new NoSuchUniqueId("tagv", new byte[] { 0, 0, 2 }));
+  }
 }

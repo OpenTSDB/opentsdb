@@ -344,7 +344,7 @@ public final class TestTSDB {
   }
 
   @Test
-  public void addPointLong() throws Exception {
+  public void addPointLong1Byte() throws Exception {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -354,6 +354,97 @@ public final class TestTSDB {
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
+  }
+  
+  @Test
+  public void addPointLong1ByteNegative() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, -42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    assertNotNull(value);
+    assertEquals(-42, value[0]);
+  }
+  
+  @Test
+  public void addPointLong2Bytes() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 257, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
+    assertNotNull(value);
+    assertEquals(257, Bytes.getShort(value));
+  }
+  
+  @Test
+  public void addPointLong2BytesNegative() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, -257, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
+    assertNotNull(value);
+    assertEquals(-257, Bytes.getShort(value));
+  }
+  
+  @Test
+  public void addPointLong4Bytes() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 65537, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
+    assertNotNull(value);
+    assertEquals(65537, Bytes.getInt(value));
+  }
+  
+  @Test
+  public void addPointLong4BytesNegative() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, -65537, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
+    assertNotNull(value);
+    assertEquals(-65537, Bytes.getInt(value));
+  }
+  
+  @Test
+  public void addPointLong8Bytes() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 4294967296L, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    assertNotNull(value);
+    assertEquals(4294967296L, Bytes.getLong(value));
+  }
+  
+  @Test
+  public void addPointLong8BytesNegative() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, -4294967296L, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    assertNotNull(value);
+    assertEquals(-4294967296L, Bytes.getLong(value));
   }
   
   @Test
@@ -481,6 +572,20 @@ public final class TestTSDB {
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+  }
+  
+  @Test
+  public void addPointFloatNegative() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, -42.5F, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
+    assertNotNull(value);
+    // should have 7 digits of precision
+    assertEquals(-42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
   }
   
   @Test

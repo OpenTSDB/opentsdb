@@ -381,9 +381,7 @@ final class MetaSync extends Thread {
           }
           
           // loop through the tags and process their meta
-          final List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
-              tsuid_string, TSDB.metrics_width(), TSDB.tagk_width(), 
-              TSDB.tagv_width());
+          final List<byte[]> tags = UniqueId.getTagsFromTSUID(tsuid_string);
           int idx = 0;
           for (byte[] tag : tags) {
             final UniqueIdType type = (idx % 2 == 0) ? UniqueIdType.TAGK : 
