@@ -537,71 +537,90 @@ public final class TSMeta {
           return Deferred.fromResult(incremented_value);
         }
         
-        // create a new meta object with the current system timestamp. Ideally
-        // we would want the data point's timestamp, but that's much more data
-        // to keep track of and may not be accurate.
-        final TSMeta meta = new TSMeta(tsuid, 
-            System.currentTimeMillis() / 1000);
-        
         /**
-         * Called after the meta has been passed through tree processing. The 
-         * result of the processing doesn't matter and the user may not even
-         * have it enabled, so we'll just return the counter.
+         * Checks wether TSMeta exists, if not triggers creation.
+         * @author carsten
+         *
          */
-        final class TreeCB implements Callback<Deferred<Long>, Boolean> {
+        final class CheckTSMetaCB implements Callback<Deferred<Long>, Boolean> {
 
           @Override
-          public Deferred<Long> call(Boolean success) throws Exception {
-            return Deferred.fromResult(incremented_value);
+          public Deferred<Long> call(Boolean exists) throws Exception {
+          	if (exists) {
+          		return Deferred.fromResult(incremented_value);
+          	} else {
+              // create a new meta object with the current system timestamp. Ideally
+              // we would want the data point's timestamp, but that's much more data
+              // to keep track of and may not be accurate.
+              final TSMeta meta = new TSMeta(tsuid, 
+                  System.currentTimeMillis() / 1000);
+              
+              /**
+               * Called after the meta has been passed through tree processing. The 
+               * result of the processing doesn't matter and the user may not even
+               * have it enabled, so we'll just return the counter.
+               */
+              final class TreeCB implements Callback<Deferred<Long>, Boolean> {
+
+                @Override
+                public Deferred<Long> call(Boolean success) throws Exception {
+                  return Deferred.fromResult(incremented_value);
+                }
+                
+              }
+              
+              /**
+               * Called after retrieving the newly stored TSMeta and loading
+               * associated UIDMeta objects. This class will also pass the meta to the
+               * search plugin and run it through any configured trees
+               */
+              final class FetchNewCB implements Callback<Deferred<Long>, TSMeta> {
+
+                @Override
+                public Deferred<Long> call(TSMeta stored_meta) throws Exception {
+                  
+                  // pass to the search plugin
+                  tsdb.indexTSMeta(stored_meta);
+                  
+                  // pass through the trees
+                  return tsdb.processTSMetaThroughTrees(stored_meta)
+                    .addCallbackDeferring(new TreeCB());
+                }
+                
+              }
+              
+              /**
+               * Called after the CAS to store the new TSMeta object. If the CAS
+               * failed then we return immediately with a 0 for the counter value.
+               * Otherwise we keep processing to load the meta and pass it on.
+               */
+              final class StoreNewCB implements Callback<Deferred<Long>, Boolean> {
+
+                @Override
+                public Deferred<Long> call(Boolean success) throws Exception {
+                  if (!success) {
+                    LOG.warn("Unable to save metadata: " + meta);
+                    return Deferred.fromResult(0L);
+                  }
+                  
+                  LOG.info("Successfullly created new TSUID entry for: " + meta);
+                  final Deferred<TSMeta> meta = getFromStorage(tsdb, tsuid)
+                    .addCallbackDeferring(
+                      new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)));
+                  return meta.addCallbackDeferring(new FetchNewCB());
+                }
+                
+              }
+              
+              // store the new TSMeta object and setup the callback chain
+              return meta.storeNew(tsdb).addCallbackDeferring(new StoreNewCB());          
+          	}
           }
           
         }
         
-        /**
-         * Called after retrieving the newly stored TSMeta and loading
-         * associated UIDMeta objects. This class will also pass the meta to the
-         * search plugin and run it through any configured trees
-         */
-        final class FetchNewCB implements Callback<Deferred<Long>, TSMeta> {
-
-          @Override
-          public Deferred<Long> call(TSMeta stored_meta) throws Exception {
-            
-            // pass to the search plugin
-            tsdb.indexTSMeta(stored_meta);
-            
-            // pass through the trees
-            return tsdb.processTSMetaThroughTrees(stored_meta)
-              .addCallbackDeferring(new TreeCB());
-          }
-          
-        }
+        return metaExistsInStorage(tsdb, UniqueId.uidToString(tsuid)).addCallbackDeferring(new CheckTSMetaCB()); 
         
-        /**
-         * Called after the CAS to store the new TSMeta object. If the CAS
-         * failed then we return immediately with a 0 for the counter value.
-         * Otherwise we keep processing to load the meta and pass it on.
-         */
-        final class StoreNewCB implements Callback<Deferred<Long>, Boolean> {
-
-          @Override
-          public Deferred<Long> call(Boolean success) throws Exception {
-            if (!success) {
-              LOG.warn("Unable to save metadata: " + meta);
-              return Deferred.fromResult(0L);
-            }
-            
-            LOG.info("Successfullly created new TSUID entry for: " + meta);
-            final Deferred<TSMeta> meta = getFromStorage(tsdb, tsuid)
-              .addCallbackDeferring(
-                new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)));
-            return meta.addCallbackDeferring(new FetchNewCB());
-          }
-          
-        }
-        
-        // store the new TSMeta object and setup the callback chain
-        return meta.storeNew(tsdb).addCallbackDeferring(new StoreNewCB());          
       }
       
     }
@@ -1002,6 +1021,11 @@ public final class TSMeta {
   /** @return the total number of data points as tracked by the meta data */
   public final long getTotalDatapoints() {
     return this.total_dps;
+  }
+  
+  /** @param tsuid The TSUID of the timeseries */
+  public final void setTSUID(final String tsuid) {
+  	this.tsuid = tsuid;
   }
   
   /** @param display_name an optional name for the timeseries */
