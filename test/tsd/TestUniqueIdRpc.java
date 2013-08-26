@@ -694,6 +694,23 @@ public final class TestUniqueIdRpc {
   }
   
   @Test
+  public void tsuidPostByM() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/tsmeta?m=sys.cpu.0{host=web02}&create=true", 
+        "{\"displayName\":\"Hello World\"}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void tsuidPostByMNoCreate() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/tsmeta?m=sys.cpu.0{host=web02}", 
+        "{\"displayName\":\"Hello World\"}");
+    rpc.execute(tsdb, query);
+  }
+  
+  @Test
   public void tsuidGetByMMultiTagWrongOrder() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 

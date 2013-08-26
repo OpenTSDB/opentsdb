@@ -347,21 +347,56 @@ final class UniqueIdRpc implements HttpRpc {
 			if (meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
 				// we got a JSON object without TSUID. Try to find a timeseries spec of
 				// the form "m": "metric{tagk=tagv,...}"
-				String metric = query.getRequiredQueryStringParam("m");
-				String tsuid = getTSUIDForMetric(metric, tsdb);
-				// set TSUID
-				meta.setTSUID(tsuid);
+				final String metric = query.getRequiredQueryStringParam("m");
+				final boolean create = query.getQueryStringParam("create") != null
+						&& query.getQueryStringParam("create").equals("true");
+				final String tsuid = getTSUIDForMetric(metric, tsdb);
+				
+				class WriteCounterIfNotPresentCB implements Callback<Boolean, Boolean> {
+
+					@Override
+					public Boolean call(Boolean exists) throws Exception {
+						if (!exists && create) {
+							TSMeta.storeZeroCounter(tsdb,
+									UniqueId.stringToUid(tsuid));
+						}
+
+						return exists;
+					}
+
+				}
+
 				try {
-					final Deferred<TSMeta> process_meta = meta.storeNew(tsdb).
-							addCallbackDeferring(new SyncCB());
-					final TSMeta updated_meta = process_meta.joinUninterruptibly();
-					tsdb.indexTSMeta(updated_meta);
-					tsdb.processTSMetaThroughTrees(updated_meta);
-					query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
+					final boolean exists = TSMeta
+							.counterExistsInStorage(tsdb,
+									UniqueId.stringToUid(tsuid))
+							.addCallback(new WriteCounterIfNotPresentCB())
+							.joinUninterruptibly();
+					// set TSUID
+					meta.setTSUID(tsuid);
+					
+					if (!exists && create) {
+						final Deferred<TSMeta> process_meta = meta.storeNew(tsdb)
+								.addCallbackDeferring(new SyncCB());
+						final TSMeta updated_meta = process_meta.joinUninterruptibly();
+						tsdb.indexTSMeta(updated_meta);
+						tsdb.processTSMetaThroughTrees(updated_meta);
+						query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
+					} else if (exists) {
+						final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
+								method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+						final TSMeta updated_meta = process_meta.joinUninterruptibly();
+						tsdb.indexTSMeta(updated_meta);
+						query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
+					} else {
+						throw new BadRequestException("Could not find TSMeta, specify create=true to create a new one.");
+					}
 				} catch (IllegalStateException e) {
 					query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
 				} catch (IllegalArgumentException e) {
 					throw new BadRequestException(e);
+				} catch (BadRequestException e) {
+					throw e;
 				} catch (NoSuchUniqueName e) {
 					// this would only happen if someone deleted a UID but left the
 					// the timeseries meta data
