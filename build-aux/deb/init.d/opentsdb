@@ -74,13 +74,14 @@ start)
 				--user "$TSD_USER" --exec "$JAVA_HOME/bin/java" \
 				>/dev/null; then
 			
-				if [ -f "$PID_FILE" ]; then
-            				rm -f "$PID_FILE"
-          			fi
+				log_action _end_msg 0
 			
-				log_failure_msg "Failed to start the TSD"
-			else
-				log_action_end_msg 0
+                        else
+                                if [ -f "$PID_FILE"]; then
+                                        rm -f "$PID_FILE"
+                                fi
+
+				log_action_end_msg "Failed to start the TSD"
 			fi
 	  
 		else
