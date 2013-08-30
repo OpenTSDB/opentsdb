@@ -367,15 +367,19 @@ final class UniqueIdRpc implements HttpRpc {
 				}
 
 				try {
+					// Check whether we have a TSMeta stored already
 					final boolean exists = TSMeta
-							.counterExistsInStorage(tsdb,
-									UniqueId.stringToUid(tsuid))
-							.addCallback(new WriteCounterIfNotPresentCB())
+							.metaExistsInStorage(tsdb, tsuid)
 							.joinUninterruptibly();
 					// set TSUID
 					meta.setTSUID(tsuid);
 					
 					if (!exists && create) {
+						// Write 0 to counter column if not present
+						TSMeta.counterExistsInStorage(tsdb, UniqueId.stringToUid(tsuid))
+								.addCallback(new WriteCounterIfNotPresentCB())
+								.joinUninterruptibly();
+						// set TSUID
 						final Deferred<TSMeta> process_meta = meta.storeNew(tsdb)
 								.addCallbackDeferring(new SyncCB());
 						final TSMeta updated_meta = process_meta.joinUninterruptibly();
