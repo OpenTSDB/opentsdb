@@ -185,7 +185,9 @@ public class TSUIDQuery {
 			@Override
 			public List<TSMeta> call(ArrayList<TSMeta> ts) throws Exception {
 				for (TSMeta tsm: ts) {
-					tsmetas.add(tsm);
+					if (tsm != null) {
+						tsmetas.add(tsm);
+					}
 				}
 				results.callback(tsmetas);
 				return null;
