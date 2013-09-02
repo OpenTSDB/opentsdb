@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import org.hbase.async.Bytes;
+import org.hbase.async.PutRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
@@ -258,10 +260,7 @@ final class UniqueIdRpc implements HttpRpc {
       
       String tsuid = null;
       if (query.hasQueryStringParam("tsuid")) {
-      	tsuid = query.getRequiredQueryStringParam("tsuid");
-        if (tsuid == null) {
-        	throw new BadRequestException("Metric was not specified. Provide tsuid or metric + tags.");
-        }
+      	tsuid = query.getQueryStringParam("tsuid");
         try {
           final TSMeta meta = TSMeta.getTSMeta(tsdb, tsuid).joinUninterruptibly();
           if (meta != null) {
@@ -292,17 +291,11 @@ final class UniqueIdRpc implements HttpRpc {
         } catch (IllegalArgumentException e) {
         	throw new BadRequestException(e);
         }
-        TSUIDQuery tsuid_query = new TSUIDQuery(tsdb);
+        final TSUIDQuery tsuid_query = new TSUIDQuery(tsdb);
         try {
           tsuid_query.setQuery(metric, tags);
-        	List<TSMeta> tsmetas = tsuid_query.getTSMetas().joinUninterruptibly();
-        	if (tsmetas.isEmpty()) {
-        		throw new BadRequestException("Unable to find TSMeta.");
-        	} else if (tsmetas.size() > 1) {
-        		throw new BadRequestException("Ambiguous query. Please specify metric and tags " +
-        				"for a single time series only.");
-        	}
-        	query.sendReply(query.serializer().formatTSMetaV1(tsmetas.get(0)));
+        	final List<TSMeta> tsmetas = tsuid_query.getTSMetas().joinUninterruptibly();
+        	query.sendReply(query.serializer().formatTSMetaListV1(tsmetas));
         } catch (NoSuchUniqueName e) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
               "Unable to find one of the UIDs", e);
@@ -357,8 +350,9 @@ final class UniqueIdRpc implements HttpRpc {
 					@Override
 					public Boolean call(Boolean exists) throws Exception {
 						if (!exists && create) {
-							TSMeta.storeZeroCounter(tsdb,
-									UniqueId.stringToUid(tsuid));
+					    final PutRequest put = new PutRequest(tsdb.metaTable(), 
+					        UniqueId.stringToUid(tsuid), TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(0));    
+					    tsdb.getClient().put(put);
 						}
 
 						return exists;

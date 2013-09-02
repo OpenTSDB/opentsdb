@@ -370,35 +370,6 @@ public final class TSMeta {
   }
   
   /**
-   * Attempts to store a zero in the counter column. Used when TSMetas are created
-   * explicitly.
-   * <b>Note:</b> This should not be called by user accessible methods as it will 
-   * overwrite any data already in the column.
-   * <b>Note:</b> This call does not guarantee that the UIDs exist before
-   * storing. 
-   * @param tsdb The TSDB to use for storage access
-   * @param tsuid The TSUID to write the counter for.
-   * @return True if the CAS completed successfully (and no TSMeta existed 
-   * previously), false if something was already stored in the TSMeta column.
-   * @throws HBaseException if there was an issue fetching
-   * @throws IllegalArgumentException if parsing failed
-   * @throws JSONException if the object could not be serialized
-   */
-  public static Deferred<Boolean> storeZeroCounter(final TSDB tsdb, byte[] tsuid) {
-    final PutRequest put = new PutRequest(tsdb.metaTable(), 
-        tsuid, FAMILY, COUNTER_QUALIFIER, Bytes.fromLong(0));
-    
-    final class PutCB implements Callback<Deferred<Boolean>, Object> {
-      @Override
-      public Deferred<Boolean> call(Object arg0) throws Exception {
-        return Deferred.fromResult(true);
-      }      
-    }
-    
-    return tsdb.getClient().put(put).addCallbackDeferring(new PutCB());
-  }
-  
-  /**
    * Attempts to fetch the timeseries meta data and associated UIDMeta objects
    * from storage.
    * <b>Note:</b> Until we have a caching layer implemented, this will make at

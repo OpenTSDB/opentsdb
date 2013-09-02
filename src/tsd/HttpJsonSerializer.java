@@ -648,6 +648,16 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Format a a list of TSMeta objects
+   * @param meta The list of TSMeta objects to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTSMetaListV1(final List<TSMeta> metas) {
+    return this.serializeJSON(metas);
+  }
+  
+  /**
    * Format a single Branch object
    * @param branch The branch to serialize
    * @return A JSON structure

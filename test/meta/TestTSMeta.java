@@ -340,13 +340,6 @@ public final class TestTSMeta {
     TSMeta.incrementAndGetCounter(tsdb, tsuid).addErrback(new ErrBack())
     .joinUninterruptibly();
   }
-
-  @Test
-  public void setZeroCounter() throws Exception {
-    final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
-    TSMeta.storeZeroCounter(tsdb, tsuid).joinUninterruptibly();
-    verify(client).put((PutRequest)any());
-  }
   
   @Test
   public void META_QUALIFIER() throws Exception {

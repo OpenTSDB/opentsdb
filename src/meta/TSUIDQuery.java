@@ -163,6 +163,14 @@ public class TSUIDQuery {
     return results;
   }
   
+  /**
+   * Returns all TSMeta objects stored for timeseries defined by this query. The query
+   * is similar to TsdbQuery without any aggregations. Returns an empty list, when
+   * no TSMetas are found. Only returns stored TSMetas.
+   * @return A list of existing TSMetas for the timeseries covered by the query.
+   * @throws IllegalArgumentException When either no metric was specified or the tag map
+   * was null (Empty map is OK).
+   */
   public Deferred<List<TSMeta>> getTSMetas() {
     // we need at least a metric name and the tags can't be null. Empty tags are
     // fine, but the map can't be null.
@@ -174,7 +182,7 @@ public class TSUIDQuery {
     }
     
     final Scanner scanner = getScanner();
-    scanner.setQualifier(TSMeta.COUNTER_QUALIFIER());
+    scanner.setQualifier(TSMeta.META_QUALIFIER());
     final Deferred<List<TSMeta>> results = new Deferred<List<TSMeta>>();
     final List<TSMeta> tsmetas = new ArrayList<TSMeta>();
     final List<Deferred<TSMeta>> tsmeta_group = new ArrayList<Deferred<TSMeta>>();
@@ -230,8 +238,7 @@ public class TSUIDQuery {
             return null;
           }
           for (final ArrayList<KeyValue> row : rows) {
-            final byte[] tsuid = row.get(0).key();
-            tsmeta_group.add(TSMeta.getTSMeta(tsdb, UniqueId.uidToString(tsuid)));
+            tsmeta_group.add(TSMeta.parseFromColumn(tsdb, row.get(0), true));
           }
           return scan();
         } catch (Exception e) {
