@@ -22,7 +22,7 @@ import requests # see http://www.python-requests.org/en/latest/
 product_name = "py-tsdbtool"
 version = '0.2.0'
 
-custom_header = {'User-Agent': '%s/%s' % (product_name, version)}
+custom_headers = {'User-Agent': '%s/%s' % (product_name, version)}
 
 
 def my_ctime(t, timetype='local', format='%Y-%m-%d %H:%M:%S'):
@@ -34,13 +34,11 @@ def my_ctime(t, timetype='local', format='%Y-%m-%d %H:%M:%S'):
         tz = "UTC"
     return time.strftime("%s %s" % (format, tz), tstruct)
 
-
-
 class _LogObject(logging.Logger):
     """TODO
 """
-    
-logger = _LogObject(product_name)
+import logging    
+logger = logging
 
 
 class _TSDHost(object):
@@ -80,7 +78,7 @@ was last used to satisfy a query.
         
 
     def __repr__(self):
-        rstr = "<_TSDHost instance, host '%s', "
+        rstr = "<_TSDHost instance,\n\thost '%s', "
         if self._connection == None:
             rstr += "not connected>"
         else:
@@ -89,6 +87,9 @@ was last used to satisfy a query.
                 rstr += "up, "
             else:
                 rstr += "down, "
+        rstr += "\n\tcreated: %s \n\tlast use: %s \n\tlast success: %s>\n"
+        rstr %= (self._host, my_ctime(self._created), 
+                 my_ctime(self._last_use), my_ctime(self._last_success))
         return rstr
 
     def _fix_schema(self):
@@ -102,11 +103,26 @@ there is none, assume http.
             pass
 
 
+    def _post(self, url, data):
+        self._last_use = time.time()
+        response = None
+        print "DEBUG: POST %s data: %s" % (url, data) 
+        try:
+            response = self._connection.post(url, data,
+                                             timeout = self._options['timeout']
+                                            )
+        except requests.exceptions.RequestException:
+            logger.error("Post failed") # TODO
+            self._is_up = False 
+        else:
+            self._is_up = True
+            self._last_success = self._last_use
+        return response
 
     def _get(self, url):
         self._last_use = time.time()
-        success = False
         response = None
+        print "DEBUG: GET %s" % url
         try:
             response = self._connection.get(url,
                                             timeout = self._options['timeout'],
@@ -114,14 +130,9 @@ there is none, assume http.
         except requests.exceptions.RequestException:
             logger.error("Get failed") # TODO
             self._is_up = False
-        if response:
-            if response.status_code > 399:
-                logger.error("Get failed") # TODO
-                self._is_up = False
-                response = None
-            else:
-                self._is_up = True
-                self._last_success = self._last_use
+        else:
+            self._is_up = True
+            self._last_success = self._last_use
         return response
 
 
@@ -135,13 +146,18 @@ to define it.
         self._created = time.time()
         response = self._get('%s/' % (self._host))
         return response
-        
+
+    def post(self, query, data):
+        if not self._connection:
+            self._connect()
+        response = self._post('%s/%s' % (self._host, query), data)
+        return response        
 
     def get(self, query):
         if not self._connection:
             self._connect()
-        qresult = self._get('%s/%s' % (self._host, query))
-        return qresult
+        response = self._get('%s/%s' % (self._host, query))
+        return response
 
     def is_available(self, force=False):
         """Check if connection is available. Set force = True to force
@@ -153,7 +169,7 @@ a reconnect try even if we're in the retry interval.
         #if we're still within the retry interval, we're down.
 
         now = time.time()
-        if (now - self._last_use) < self._options['retry_interval']:
+        if (now - self._last_use) < self._options['retry-interval']:
             return False
 
         # enough time has elapsed. Let's try again
@@ -183,7 +199,7 @@ object expects it. See help(TSDBPool) for more details on the proxies
 dictionary behavior.
 """),
 
-"retry"
+"retry":
     (int, 0,
     """An integer that tells the query pool mechanism how many times to retry
 a query before giving up. Each retry will potentially be against the same
@@ -264,8 +280,6 @@ HostOptions = _HostOptions()
 class TSDBPool(object):
     """Class which defines which TSDs to speak to when using the library
 """
-    def __init__(self, hosts, balance='random', retry_interval=300, 
-                 retry = 0, proxies=None):
     def __init__(self, hosts, global_options={}):
         """TSDBPool initializer:
     c = TSDBPool(hosts, global_options)
@@ -314,7 +328,7 @@ class TSDBPool(object):
             self._host_pointer = ret_host
         else:
             try:
-                my_new_host = ((hosts.index(self._pointer) + 1) % 
+                my_new_host = ((hosts.index(self._host_pointer) + 1) % 
                               len(hosts))
             except ValueError:
                 # The last host we used in the round robin is no longer
@@ -328,13 +342,13 @@ class TSDBPool(object):
         """Pick a random host from the list sent"""
         return random.choice(hosts)
 
-    def _find_next_host(self):
-        """Find the next host to contact using the balancing strategy defined.
-Returns the host connection for the host.
-
+    def _get_up_hosts(self):
+        """Returns the subset of hosts configured that are currently in an
+up state. Will try to contact down hosts that have exceeded their retry 
+interval and will try to contact all hosts if all configured hosts are down,
+even if their retry intervals have not been met.
 """
-
-        up_hosts = [h for h in self._hostlist if 
+        up_hosts = [h for h in self._hostlist if
                     self._hostconns[h].is_available()]
         if not len(up_hosts):
             # if everything is down, force a repoll of all hosts regardless
@@ -343,43 +357,95 @@ Returns the host connection for the host.
                         self._hostconns[h].is_available(force=True)]
             if len(up_hosts) == 0: # really down
                 logger.error("All hosts down, cannot find one to connect to.")
-                return None
+        return up_hosts
+
+    def _find_next_host(self):
+        """Find the next host to contact using the balancing strategy defined.
+Returns the host connection for the host.
+
+"""
+        up_hosts = self._get_up_hosts()
+        if len(up_hosts) == 0:
+            return None
         if len(up_hosts) == 1: # with only one up host, there is no strategy.
             self._host_pointer = self._hostconns[up_hosts[0]]
             return self._hostconns[up_hosts[0]]
-        if self._balance == 'rr':
+        balance = self._options['balance']
+        if balance == 'rr':
             ret_host = self._find_next_round_robin(up_hosts)
-        elif self._balance == 'random':
+        elif balance == 'random':
             ret_host = self._find_next_random(up_hosts)
         else:
-            logger.error("Undefined source selection strategy '%s'." % self._balance)
-
+            logger.error("Undefined balance strategy '%s'. Using random." % balance)
+            ret_host = self._find_next_random(up_hosts)
         return self._hostconns[ret_host]
+
+
+    def _run_http_verb(self, verb, query, data=None, retry=None):
+        verb = verb.upper()
+        if verb not in ('GET','POST'):
+            raise ValueError("Unsupported HTTP verb '%s'" % verb)
+        if retry == None:
+            retry = self._options['retry']
+        try:
+            tries = int(retry + 1)
+        except (ValueError, TypeError):
+            raise ValueError("invalid argument for retry: %s" % retry)
+        response = None
+        for t in range(tries):
+            node = self._find_next_host()
+            if not node:
+                continue
+            if verb == 'GET':
+                response = node.get(query)
+            elif verb == 'POST':
+                response = node.post(query, data)
+            else:
+                raise ValueError("Didn't we check %s already?" % verb)
+        return response
+
         
-    def query_pool(self, query, retry=None):
-        """Run a query against TSDB. This method will retry the operation 
+    def get_from_pool(self, query, retry=None):
+        """Run a get against TSDB. This method will retry the operation 
 against another host according to the balancing strategy up to the number of 
 times specified in the retry config or the retry argument, if supplied. 
 Returns None if the query fails."""
+        return self._run_http_verb('GET', query)
 
-        if retry = None:
-            retry = 
+
+    def post_to_pool(self, query, data=None, retry=None):
+        """Run a post against TSDB. This method will retry the operation 
+against another host according to the balancing strategy up to the number of 
+times specified in the retry config or the retry argument, if supplied. 
+Returns None if the query fails."""
+        return self._run_http_verb('POST', query, data)
+
+
+        if retry == None:
+            retry = self._options['retry']
         try:
             tries = int(retry + 1)
         except ValueError:
-            logger.error("query_pool invalid argument for retry: %s" % retry)
+            logger.error("get_from_pool invalid argument for retry: %s" % retry)
             return None
         if tries < 1:
-            logger.error("query_pool invalid argument for retry: %s" % retry)
+            logger.error("get_from_pool invalid argument for retry: %s" % retry)
             return None
         response = None
         last_node = None
-        while t in range(tries):
+        for t in range(tries):
             node = self._find_next_host()
-            response = node.query(query)
+            if not node:
+                continue
+            response = node.get(query)
             if response:
                 break
         return response
+
+    def __repr__(self):
+        rstr = "<TSDBPool instance, hosts in pool: %s, selection strategy %s>" % (self._hostlist, self._options['balance'])
+        return rstr
+
 
 
 class TSDBPoolConfig(object):
@@ -388,12 +454,26 @@ this library should query."""
 
 
 
-    def __init__(self, config_file="./py-tsdbtool.config"):
+    def __init__(self, configfile="./py-tsdbtool.config", init=False):
+        """TSDBPoolConfig init:
+    configfile - Name the configuration file to use to set up the TSD query
+                 pool.
 
-        cfh = file(config_file)
+    init - set to true if you want to set up the query pool on initialization,
+           The default is false which means to defer query pool set up until
+           either the first query is requested, or if the get_pool() method
+           is invoked.
+"""
+
+        cfh = file(configfile)
         self._read_config_file(cfh)
         cfh.close()
         self._parse_config()
+        if init:
+            self.get_pool()
+        else:
+            self._TSDPool = None
+        
 
 
     def _read_config_file(self, fh):
@@ -420,18 +500,42 @@ not strictly JSON as comment lines that start with # or // are also accepted
             global_conf = {}
         if not config.has_key('hosts') or len(config['hosts']) == 0:
             raise ValueError('tsdbtool configuration requires at least one host.')
-        
-        self._TSDPool = TSDBPool(config['hosts'], global_conf)
+        self._globalconf = global_conf
+        self._hostconf = config['hosts'] 
          
-    def query(self, query):
-        """Query againse the pool of TSDs in this configuration.
+    def _get(self, query):
+        """GET against the pool of TSDs in this configuration.
 """
-        return self._TSDPool.query_pool(query)
+        if not self._TSDPool:
+            self.return_pool()
+        return self._TSDPool.get_from_pool(query)
 
-    def get_pool(self):
+
+    def _post(self, query, data=None):
+        if not self._TSDPool:
+            self.return_pool()
+        return self._TSDPool.post_to_pool(query, data)
+
+
+    def query(self, start, queries, end=None, noannotations=False, 
+              globalannotations=False, msresolution=False, showtsuids=False):
+        """Run a TSD query against the pool of TSDs we have configured.
+"""
+
+        if type(queries) == str: # allow a single query to be passed as a str
+            queries = (queries,)
+                
+                
+        pass # TODO
+
+    def return_pool(self):
         """Returns the TSD server pool associated with this configuration.
 """
+        if not self._TSDPool:
+            self._TSDPool = TSDBPool(self._hostconf, self._globalconf)
         return self._TSDPool
 
         
+def test(conf_file="llnw-prod.config"):
+    return TSDBPoolConfig(conf_file)
 
