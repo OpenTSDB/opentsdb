@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -151,8 +152,11 @@ public final class TSSubQuery {
     return tsuids;
   }
 
-  /** @return the user supplied list of query tags, may be null or empty */
+  /** @return the user supplied list of query tags, may be empty */
   public Map<String, String> getTags() {
+    if (tags == null) {
+      return Collections.emptyMap();
+    }
     return tags;
   }
 
