@@ -765,8 +765,3 @@ api_query() method.
         self._validate_aggregator(aggregator)
         return {'aggregator':aggregator, 'tsuids':tsuids}    
         
-
-        
-def test(conf_file="llnw-dev.config"):
-    return TSD_protocol(conf_file)
-
