@@ -12,12 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
+import java.util.List;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
@@ -77,10 +79,19 @@ public final class TestTSUIDQuery {
     
     storage.addColumn(new byte[] { 0, 0, 1 }, 
         "metrics".getBytes(MockBase.ASCII()),
-        "sys.cpu.0".getBytes(MockBase.ASCII()));
+        "sys.cpu.user".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1 }, 
         "metric_meta".getBytes(MockBase.ASCII()), 
-        ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
+        ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.user\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"System CPU\"}")
+        .getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "metrics".getBytes(MockBase.ASCII()),
+        "sys.cpu.nice".getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "metric_meta".getBytes(MockBase.ASCII()), 
+        ("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.nice\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"System CPU\"}")
         .getBytes(MockBase.ASCII()));
@@ -94,6 +105,15 @@ public final class TestTSUIDQuery {
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Host server name\"}")
         .getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "tagk".getBytes(MockBase.ASCII()),
+        "datacenter".getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "tagk_meta".getBytes(MockBase.ASCII()), 
+        ("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"Datecenter name\"}")
+        .getBytes(MockBase.ASCII()));
 
     storage.addColumn(new byte[] { 0, 0, 1 }, 
         "tagv".getBytes(MockBase.ASCII()),
@@ -104,6 +124,24 @@ public final class TestTSUIDQuery {
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}")
         .getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "tagv".getBytes(MockBase.ASCII()),
+        "web02".getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "tagv_meta".getBytes(MockBase.ASCII()), 
+        ("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"web02\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"Web server 2\"}")
+        .getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 3 }, 
+        "tagv".getBytes(MockBase.ASCII()),
+        "dc01".getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 3 }, 
+        "tagv_meta".getBytes(MockBase.ASCII()), 
+        ("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"Web server 2\"}")
+        .getBytes(MockBase.ASCII()));
 
     storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
         "ts_meta".getBytes(MockBase.ASCII()),
@@ -113,6 +151,26 @@ public final class TestTSUIDQuery {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
+        "ts_ctr".getBytes(MockBase.ASCII()),
+        Bytes.fromLong(1L));
+    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 },
+        "ts_meta".getBytes(MockBase.ASCII()),
+        ("{\"tsuid\":\"000001000001000002\",\"" +
+        "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
+        "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
+        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
+        .getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 },
+        "ts_ctr".getBytes(MockBase.ASCII()),
+        Bytes.fromLong(1L));
+    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 2, 0, 0, 3, 0, 0, 1, 0, 0, 1 },
+        "ts_meta".getBytes(MockBase.ASCII()),
+        ("{\"tsuid\":\"000002000002000003000001000001\",\"" +
+        "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
+        "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
+        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
+        .getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 2, 0, 0, 3, 0, 0, 1, 0, 0, 1 },
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
     
@@ -142,6 +200,7 @@ public final class TestTSUIDQuery {
     when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
     when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("sys.cpu.nice"));
+    
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getIdAsync("host")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
@@ -151,6 +210,12 @@ public final class TestTSUIDQuery {
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_names.getIdAsync("dc"))
       .thenThrow(new NoSuchUniqueName("dc", "metric"));
+    when(tag_names.getId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_names.getIdAsync("datacenter")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
+    	.thenReturn(Deferred.fromResult("datacenter"));
+    
+    
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
@@ -167,6 +232,10 @@ public final class TestTSUIDQuery {
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getIdAsync("web03"))
       .thenThrow(new NoSuchUniqueName("web03", "metric"));
+    when(tag_values.getId("dc01")).thenReturn(new byte[] { 0, 0, 3 });
+    when(tag_values.getIdAsync("dc01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 3 }))
+    	.thenReturn(Deferred.fromResult("dc01"));
     
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
@@ -215,4 +284,40 @@ public final class TestTSUIDQuery {
     query.getLastWriteTimes().joinUninterruptibly();
   }
   
+  @Test
+  public void getTSMetasSingle() throws Exception {
+  	query = new TSUIDQuery(tsdb);
+  	HashMap<String, String> tags = new HashMap<String, String>();
+  	tags.put("host", "web01");
+  	query.setQuery("sys.cpu.user", tags);
+  	List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+  	assertEquals(1, tsmetas.size());
+  }
+  
+  @Test
+  public void getTSMetasMulti() throws Exception {
+  	query = new TSUIDQuery(tsdb);
+  	HashMap<String, String> tags = new HashMap<String, String>();
+  	query.setQuery("sys.cpu.user", tags);
+  	List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+  	assertEquals(2, tsmetas.size());
+  }
+  
+  @Test
+  public void getTSMetasMultipleTags() throws Exception {
+  	query = new TSUIDQuery(tsdb);
+  	HashMap<String, String> tags = new HashMap<String, String>();
+  	query.setQuery("sys.cpu.nice", tags);
+  	tags.put("host", "web01");
+  	tags.put("datacenter", "dc01");
+  	List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+  	assertEquals(1, tsmetas.size());
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTSMetasNullMetric() throws Exception {
+  	query = new TSUIDQuery(tsdb);
+  	query.getTSMetas().joinUninterruptibly();
+  }
+
 }
