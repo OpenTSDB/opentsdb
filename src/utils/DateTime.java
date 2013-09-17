@@ -183,9 +183,9 @@ public class DateTime {
         }
         return interval * 1000;                    // seconds
       case 'm': return (interval * 60) * 1000;               // minutes
-      case 'h': return (interval * 3600) * 1000;             // hours
-      case 'd': return (interval * 3600 * 24) * 1000;        // days
-      case 'w': return (interval * 3600 * 24 * 7) * 1000;    // weeks
+      case 'h': return (interval * 3600L) * 1000;             // hours
+      case 'd': return (interval * 3600L * 24) * 1000;        // days
+      case 'w': return (interval * 3600L * 24 * 7) * 1000;    // weeks
       case 'n': return (interval * 3600L * 24 * 30) * 1000;   // month (average)
       case 'y': return (interval * 3600L * 24 * 365) * 1000;  // years (screw leap years)
     }

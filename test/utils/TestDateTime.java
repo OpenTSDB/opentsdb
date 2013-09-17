@@ -75,6 +75,15 @@ public final class TestDateTime {
   }
   
   @Test
+  public void parseDateTimeStringRelativeD30() {
+    long t = DateTime.parseDateTimeString("30d-ago", null);
+    long x = 30 * 3600;
+    x *= 24;
+    x *= 1000;
+    assertEquals(x, (System.currentTimeMillis() - t));
+  }
+  
+  @Test
   public void parseDateTimeStringRelativeW() {
     long t = DateTime.parseDateTimeString("3w-ago", null);
     long x = 3 * 7 * 3600 * 24 * 1000;
