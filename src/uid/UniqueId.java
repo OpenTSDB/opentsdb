@@ -720,7 +720,7 @@ public final class UniqueId implements UniqueIdInterface {
             + " in cache, but just scanned id=" + Arrays.toString(id));
         }
         suggestions.add(name);
-        if ((short) suggestions.size() > max_results) {  // We have enough.
+        if ((short) suggestions.size() >= max_results) {  // We have enough.
           return suggestions;
         }
         row.clear();  // free()
