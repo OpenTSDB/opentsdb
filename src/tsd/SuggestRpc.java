@@ -56,14 +56,11 @@ final class SuggestRpc implements HttpRpc {
       if (type == null || type.isEmpty()) {
         throw new BadRequestException("Missing 'type' parameter");
       }
-      q = map.get("q");
-      if (q == null) {
-        throw new BadRequestException("Missing 'q' parameter");
-      }
+      q = map.get("q") == null ? "" : map.get("q");
       max = map.get("max");
     } else { 
       type = query.getRequiredQueryStringParam("type");
-      q = query.getRequiredQueryStringParam("q");
+      q = query.hasQueryStringParam("q") ? query.getQueryStringParam("q") : "";
       max = query.getQueryStringParam("max");
     }
     
