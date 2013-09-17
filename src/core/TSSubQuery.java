@@ -76,6 +76,48 @@ public final class TSSubQuery {
     
   }
   
+  public String toString() {
+    final StringBuilder buf = new StringBuilder();
+    buf.append("TSSubQuery(metric=")
+      .append(metric == null || metric.isEmpty() ? "" : metric);
+    buf.append(", tags=[");
+    if (tags != null && !tags.isEmpty()) {
+      int counter = 0;
+      for (Map.Entry<String, String> entry : tags.entrySet()) {
+        if (counter > 0) {
+          buf.append(", ");
+        }
+        buf.append(entry.getKey())
+          .append("=")
+          .append(entry.getValue());
+        counter++;
+      }
+    }
+    buf.append("], tsuids=[");
+    if (tsuids != null && !tsuids.isEmpty()) {
+      int counter = 0;
+      for (String tsuid : tsuids) {
+        if (counter > 0) {
+          buf.append(", ");
+        }
+        buf.append(tsuid);
+        counter++;
+      }
+    }
+    buf.append("], agg=")
+      .append(aggregator)
+      .append(", downsample=")
+      .append(downsample)
+      .append(", ds_interval=")
+      .append(downsample_interval)
+      .append(", rate=")
+      .append(rate)
+      .append(", rate_options=")
+      .append(rate_options);
+    buf.append(")");
+    return buf.toString();
+  }
+  
   /**
    * Runs through query parameters to make sure it's a valid request.
    * This includes parsing the aggregator, downsampling info, metrics, tags or

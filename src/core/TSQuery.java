@@ -105,7 +105,8 @@ public final class TSQuery {
     }
     if (end_time <= start_time) {
       throw new IllegalArgumentException(
-          "End time must be greater than the start time");
+          "End time [" + end_time + "] must be greater than the start time ["
+          + start_time +"]");
     }
     
     if (queries == null || queries.isEmpty()) {
@@ -155,6 +156,55 @@ public final class TSQuery {
       i++;
     }
     return queries;
+  }
+  
+  public String toString() {
+    final StringBuilder buf = new StringBuilder();
+    buf.append("TSQuery(start_time=")
+      .append(start)
+      .append(", end_time=")
+      .append(end)
+      .append(", subQueries[");
+    if (queries != null && !queries.isEmpty()) {
+      int counter = 0;
+      for (TSSubQuery sub : queries) {
+        if (counter > 0) {
+          buf.append(", ");
+        }
+        buf.append(sub);
+        counter++;
+      }
+    }
+    buf.append("] padding=")
+      .append(padding)
+      .append(", no_annotations=")
+      .append(no_annotations)
+      .append(", with_global_annotations=")
+      .append(with_global_annotations)
+      .append(", show_tsuids=")
+      .append(show_tsuids)
+      .append(", ms_resolution=")
+      .append(ms_resolution)
+      .append(", options=[");
+    if (options != null && !options.isEmpty()) {
+      int counter = 0;
+      for (Map.Entry<String, ArrayList<String>> entry : options.entrySet()) {
+        if (counter > 0) {
+          buf.append(", ");
+        }
+        buf.append(entry.getKey())
+          .append("=[");
+        final ArrayList<String> values = entry.getValue();
+        for (int i = 0; i < values.size(); i++) {
+          if (i > 0) {
+            buf.append(", ");
+          }
+          buf.append(values.get(i));
+        }
+      }
+    }
+    buf.append("])");
+    return buf.toString();
   }
   
   /** @return the parsed start time for all queries */
