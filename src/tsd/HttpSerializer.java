@@ -474,6 +474,19 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Format a a list of TSMeta objects
+   * @param meta The list of TSMeta objects to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTSMetaListV1(final List<TSMeta> metas) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatTSMetaV1");
+  }
+  
+  /**
    * Format a single Branch object
    * @param branch The branch to serialize
    * @return A ChannelBuffer object to pass on to the caller
