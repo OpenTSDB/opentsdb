@@ -260,7 +260,7 @@ final class UniqueIdRpc implements HttpRpc {
       
       String tsuid = null;
       if (query.hasQueryStringParam("tsuid")) {
-      	tsuid = query.getQueryStringParam("tsuid");
+        tsuid = query.getQueryStringParam("tsuid");
         try {
           final TSMeta meta = TSMeta.getTSMeta(tsdb, tsuid).joinUninterruptibly();
           if (meta != null) {
@@ -279,150 +279,153 @@ final class UniqueIdRpc implements HttpRpc {
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
-    	} else {
-    		String mquery = query.getRequiredQueryStringParam("m");
+      } else {
+        String mquery = query.getRequiredQueryStringParam("m");
         // m is of the following forms:
         // metric[{tag=value,...}]
         // where the parts in square brackets `[' .. `]' are optional.
         final HashMap<String, String> tags = new HashMap<String, String>();
         String metric = null;
         try {
-        	metric = Tags.parseWithMetric(mquery, tags);
+          metric = Tags.parseWithMetric(mquery, tags);
         } catch (IllegalArgumentException e) {
-        	throw new BadRequestException(e);
+          throw new BadRequestException(e);
         }
         final TSUIDQuery tsuid_query = new TSUIDQuery(tsdb);
         try {
           tsuid_query.setQuery(metric, tags);
-        	final List<TSMeta> tsmetas = tsuid_query.getTSMetas().joinUninterruptibly();
-        	query.sendReply(query.serializer().formatTSMetaListV1(tsmetas));
+          final List<TSMeta> tsmetas = tsuid_query.getTSMetas()
+          .joinUninterruptibly();
+          query.sendReply(query.serializer().formatTSMetaListV1(tsmetas));
         } catch (NoSuchUniqueName e) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
               "Unable to find one of the UIDs", e);
         } catch (BadRequestException e) {
-        	throw e;
+          throw e;
         } catch (RuntimeException e) {
-        	throw new BadRequestException(e);
+          throw new BadRequestException(e);
         } catch (Exception e) {
-        	throw new RuntimeException(e);
+          throw new RuntimeException(e);
         }
-    	}
+      }
     // POST / PUT
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
 
-			final TSMeta meta;
-			if (query.hasContent()) {
-				meta = query.serializer().parseTSMetaV1();
-			} else {
-				meta = this.parseTSMetaQS(query);
-			}
-			
-			/**
-			 * Storage callback used to determine if the storage call was successful
-			 * or not. Also returns the updated object from storage.
-			 */
-			class SyncCB implements Callback<Deferred<TSMeta>, Boolean> {
+      final TSMeta meta;
+      if (query.hasContent()) {
+        meta = query.serializer().parseTSMetaV1();
+      } else {
+        meta = this.parseTSMetaQS(query);
+      }
+      
+      /**
+       * Storage callback used to determine if the storage call was successful
+       * or not. Also returns the updated object from storage.
+       */
+      class SyncCB implements Callback<Deferred<TSMeta>, Boolean> {
 
-				@Override
-				public Deferred<TSMeta> call(Boolean success) throws Exception {
-					if (!success) {
-						throw new BadRequestException(
-								HttpResponseStatus.INTERNAL_SERVER_ERROR,
-								"Failed to save the TSMeta to storage",
-								"This may be caused by another process modifying storage data");
-					}
+        @Override
+        public Deferred<TSMeta> call(Boolean success) throws Exception {
+          if (!success) {
+            throw new BadRequestException(
+                HttpResponseStatus.INTERNAL_SERVER_ERROR,
+                "Failed to save the TSMeta to storage",
+                "This may be caused by another process modifying storage data");
+          }
 
-					return TSMeta.getTSMeta(tsdb, meta.getTSUID());
-				}
+          return TSMeta.getTSMeta(tsdb, meta.getTSUID());
+        }
 
-			}
+      }
 
-			if (meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
-				// we got a JSON object without TSUID. Try to find a timeseries spec of
-				// the form "m": "metric{tagk=tagv,...}"
-				final String metric = query.getRequiredQueryStringParam("m");
-				final boolean create = query.getQueryStringParam("create") != null
-						&& query.getQueryStringParam("create").equals("true");
-				final String tsuid = getTSUIDForMetric(metric, tsdb);
-				
-				class WriteCounterIfNotPresentCB implements Callback<Boolean, Boolean> {
+      if (meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
+        // we got a JSON object without TSUID. Try to find a timeseries spec of
+        // the form "m": "metric{tagk=tagv,...}"
+        final String metric = query.getRequiredQueryStringParam("m");
+        final boolean create = query.getQueryStringParam("create") != null
+            && query.getQueryStringParam("create").equals("true");
+        final String tsuid = getTSUIDForMetric(metric, tsdb);
+        
+        class WriteCounterIfNotPresentCB implements Callback<Boolean, Boolean> {
 
-					@Override
-					public Boolean call(Boolean exists) throws Exception {
-						if (!exists && create) {
-					    final PutRequest put = new PutRequest(tsdb.metaTable(), 
-					        UniqueId.stringToUid(tsuid), TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(0));    
-					    tsdb.getClient().put(put);
-						}
+          @Override
+          public Boolean call(Boolean exists) throws Exception {
+            if (!exists && create) {
+              final PutRequest put = new PutRequest(tsdb.metaTable(), 
+                  UniqueId.stringToUid(tsuid), TSMeta.FAMILY(), 
+                  TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(0));    
+              tsdb.getClient().put(put);
+            }
 
-						return exists;
-					}
+            return exists;
+          }
 
-				}
+        }
 
-				try {
-					// Check whether we have a TSMeta stored already
-					final boolean exists = TSMeta
-							.metaExistsInStorage(tsdb, tsuid)
-							.joinUninterruptibly();
-					// set TSUID
-					meta.setTSUID(tsuid);
-					
-					if (!exists && create) {
-						// Write 0 to counter column if not present
-						TSMeta.counterExistsInStorage(tsdb, UniqueId.stringToUid(tsuid))
-								.addCallback(new WriteCounterIfNotPresentCB())
-								.joinUninterruptibly();
-						// set TSUID
-						final Deferred<TSMeta> process_meta = meta.storeNew(tsdb)
-								.addCallbackDeferring(new SyncCB());
-						final TSMeta updated_meta = process_meta.joinUninterruptibly();
-						tsdb.indexTSMeta(updated_meta);
-						tsdb.processTSMetaThroughTrees(updated_meta);
-						query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
-					} else if (exists) {
-						final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
-								method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
-						final TSMeta updated_meta = process_meta.joinUninterruptibly();
-						tsdb.indexTSMeta(updated_meta);
-						query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
-					} else {
-						throw new BadRequestException("Could not find TSMeta, specify create=true to create a new one.");
-					}
-				} catch (IllegalStateException e) {
-					query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
-				} catch (IllegalArgumentException e) {
-					throw new BadRequestException(e);
-				} catch (BadRequestException e) {
-					throw e;
-				} catch (NoSuchUniqueName e) {
-					// this would only happen if someone deleted a UID but left the
-					// the timeseries meta data
-					throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
-							"Unable to find one or more UIDs", e);
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			} else {
-				try {
-					final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
-							method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
-					final TSMeta updated_meta = process_meta.joinUninterruptibly();
-					tsdb.indexTSMeta(updated_meta);
-					query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
-				} catch (IllegalStateException e) {
-					query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
-				} catch (IllegalArgumentException e) {
-					throw new BadRequestException(e);
-				} catch (NoSuchUniqueName e) {
-					// this would only happen if someone deleted a UID but left the
-					// the timeseries meta data
-					throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
-							"Unable to find one or more UIDs", e);
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
-			}
+        try {
+          // Check whether we have a TSMeta stored already
+          final boolean exists = TSMeta
+              .metaExistsInStorage(tsdb, tsuid)
+              .joinUninterruptibly();
+          // set TSUID
+          meta.setTSUID(tsuid);
+          
+          if (!exists && create) {
+            // Write 0 to counter column if not present
+            TSMeta.counterExistsInStorage(tsdb, UniqueId.stringToUid(tsuid))
+                .addCallback(new WriteCounterIfNotPresentCB())
+                .joinUninterruptibly();
+            // set TSUID
+            final Deferred<TSMeta> process_meta = meta.storeNew(tsdb)
+                .addCallbackDeferring(new SyncCB());
+            final TSMeta updated_meta = process_meta.joinUninterruptibly();
+            tsdb.indexTSMeta(updated_meta);
+            tsdb.processTSMetaThroughTrees(updated_meta);
+            query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
+          } else if (exists) {
+            final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
+                method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+            final TSMeta updated_meta = process_meta.joinUninterruptibly();
+            tsdb.indexTSMeta(updated_meta);
+            query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
+          } else {
+            throw new BadRequestException(
+                "Could not find TSMeta, specify \"create=true\" to create a new one.");
+          }
+        } catch (IllegalStateException e) {
+          query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
+        } catch (IllegalArgumentException e) {
+          throw new BadRequestException(e);
+        } catch (BadRequestException e) {
+          throw e;
+        } catch (NoSuchUniqueName e) {
+          // this would only happen if someone deleted a UID but left the
+          // the timeseries meta data
+          throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+              "Unable to find one or more UIDs", e);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      } else {
+        try {
+          final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
+              method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+          final TSMeta updated_meta = process_meta.joinUninterruptibly();
+          tsdb.indexTSMeta(updated_meta);
+          query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
+        } catch (IllegalStateException e) {
+          query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
+        } catch (IllegalArgumentException e) {
+          throw new BadRequestException(e);
+        } catch (NoSuchUniqueName e) {
+          // this would only happen if someone deleted a UID but left the
+          // the timeseries meta data
+          throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+              "Unable to find one or more UIDs", e);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
     // DELETE  
     } else if (method == HttpMethod.DELETE) {
       
@@ -559,22 +562,23 @@ final class UniqueIdRpc implements HttpRpc {
     final HashMap<String, String> tags = new HashMap<String, String>();
     String metric = null;
     try {
-    	metric = Tags.parseWithMetric(query_string, tags);
+      metric = Tags.parseWithMetric(query_string, tags);
     } catch (IllegalArgumentException e) {
-    	throw new BadRequestException(e);
+      throw new BadRequestException(e);
     }
     final TreeMap<String, String> sortedTags = new TreeMap<String, String>(tags);
     // Byte Buffer to generate TSUID, pre allocated to the size of the TSUID
     final ByteArrayOutputStream buf = new ByteArrayOutputStream(
-    		TSDB.metrics_width() + sortedTags.size() * (TSDB.tagk_width() + TSDB.tagv_width()));
+        TSDB.metrics_width() + sortedTags.size() * 
+        (TSDB.tagk_width() + TSDB.tagv_width()));
     try {
     buf.write(tsdb.getUID(UniqueIdType.METRIC, metric));
-	    for (Entry<String, String> e: sortedTags.entrySet()) {
-	    	buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
-	    	buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
-	    }
+      for (Entry<String, String> e: sortedTags.entrySet()) {
+        buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
+        buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
+      }
     } catch (IOException e) {
-    	throw new BadRequestException(e);
+      throw new BadRequestException(e);
     }
     final String tsuid = UniqueId.uidToString(buf.toByteArray());
     

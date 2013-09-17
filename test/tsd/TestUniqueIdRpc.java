@@ -729,14 +729,6 @@ public final class TestUniqueIdRpc {
   }
   
   @Test (expected = BadRequestException.class)
-  public void tsuidGetByMIncomplete() throws Exception {
-    setupTSUID();
-    HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/uid/tsmeta?m=sys.cpu.2{datacenter=dc01}");
-    rpc.execute(tsdb, query);
-  }
-  
-  @Test (expected = BadRequestException.class)
   public void tsuidGetByMEmpty() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -1083,33 +1075,33 @@ public final class TestUniqueIdRpc {
     when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
     when(metrics.getIdAsync("sys.cpu.0")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
-    	.thenReturn(Deferred.fromResult("sys.cpu.0"));
+      .thenReturn(Deferred.fromResult("sys.cpu.0"));
     when(metrics.getId("sys.cpu.2")).thenReturn(new byte[] { 0, 0, 2 });
     when(metrics.getIdAsync("sys.cpu.2")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
-    	.thenReturn(Deferred.fromResult("sys.cpu.2"));
+      .thenReturn(Deferred.fromResult("sys.cpu.2"));
 
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getIdAsync("host")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
-    	.thenReturn(Deferred.fromResult("host"));
+      .thenReturn(Deferred.fromResult("host"));
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getIdAsync("web01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
-  		.thenReturn(Deferred.fromResult("web01"));
+      .thenReturn(Deferred.fromResult("web01"));
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 3 });
     when(tag_values.getIdAsync("web02")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 3 }))
-  		.thenReturn(Deferred.fromResult("web02"));
+      .thenReturn(Deferred.fromResult("web02"));
 
     when(tag_names.getId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_names.getIdAsync("datacenter")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
-    	.thenReturn(Deferred.fromResult("datacenter"));
+      .thenReturn(Deferred.fromResult("datacenter"));
     when(tag_values.getId("dc01")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getIdAsync("dc01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
-  		.thenReturn(Deferred.fromResult("dc01"));
+      .thenReturn(Deferred.fromResult("dc01"));
     
 //    
 //    when(tsdb.getClient()).thenReturn(client);

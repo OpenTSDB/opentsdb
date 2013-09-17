@@ -1035,9 +1035,9 @@ public final class TSMeta {
   }
   
   /** @param tsuid The TSUID of the timeseries. */
-	public final void setTSUID(final String tsuid) {
-		this.tsuid = tsuid;
-	}
+  public final void setTSUID(final String tsuid) {
+    this.tsuid = tsuid;
+  }
   
   /** @param custom optional key/value map */
   public final void setCustom(final HashMap<String, String> custom) {

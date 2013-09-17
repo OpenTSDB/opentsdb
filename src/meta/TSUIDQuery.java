@@ -16,10 +16,8 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.Internal;
@@ -164,12 +162,12 @@ public class TSUIDQuery {
   }
   
   /**
-   * Returns all TSMeta objects stored for timeseries defined by this query. The query
-   * is similar to TsdbQuery without any aggregations. Returns an empty list, when
-   * no TSMetas are found. Only returns stored TSMetas.
+   * Returns all TSMeta objects stored for timeseries defined by this query. The 
+   * query is similar to TsdbQuery without any aggregations. Returns an empty 
+   * list, when no TSMetas are found. Only returns stored TSMetas.
    * @return A list of existing TSMetas for the timeseries covered by the query.
-   * @throws IllegalArgumentException When either no metric was specified or the tag map
-   * was null (Empty map is OK).
+   * @throws IllegalArgumentException When either no metric was specified or the
+   * tag map was null (Empty map is OK).
    */
   public Deferred<List<TSMeta>> getTSMetas() {
     // we need at least a metric name and the tags can't be null. Empty tags are
@@ -190,20 +188,20 @@ public class TSUIDQuery {
     final class TSMetaGroupCB implements Callback<Object,
     ArrayList<TSMeta>> {
 
-			@Override
-			public List<TSMeta> call(ArrayList<TSMeta> ts) throws Exception {
-				for (TSMeta tsm: ts) {
-					if (tsm != null) {
-						tsmetas.add(tsm);
-					}
-				}
-				results.callback(tsmetas);
-				return null;
-			}
-    	
+      @Override
+      public List<TSMeta> call(ArrayList<TSMeta> ts) throws Exception {
+        for (TSMeta tsm: ts) {
+          if (tsm != null) {
+            tsmetas.add(tsm);
+          }
+        }
+        results.callback(tsmetas);
+        return null;
+      }
+      
     }
 
-    	/**
+      /**
      * Scanner callback that will call itself while iterating through the 
      * tsdb-meta table.
      * 
@@ -213,7 +211,7 @@ public class TSUIDQuery {
      */
     final class ScannerCB implements Callback<Object,
       ArrayList<ArrayList<KeyValue>>> {
-    	
+      
       /**
        * Starts the scanner and is called recursively to fetch the next set of
        * rows from the scanner.
@@ -234,7 +232,7 @@ public class TSUIDQuery {
         throws Exception {
         try {
           if (rows == null) {
-          	Deferred.group(tsmeta_group).addCallback(new TSMetaGroupCB());
+            Deferred.group(tsmeta_group).addCallback(new TSMetaGroupCB());
             return null;
           }
           for (final ArrayList<KeyValue> row : rows) {
@@ -249,7 +247,7 @@ public class TSUIDQuery {
     }
     
     new ScannerCB().scan();
-  	return results;
+    return results;
   }
   
   public String toString() {

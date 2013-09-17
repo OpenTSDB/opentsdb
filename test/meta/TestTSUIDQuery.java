@@ -213,7 +213,7 @@ public final class TestTSUIDQuery {
     when(tag_names.getId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_names.getIdAsync("datacenter")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
-    	.thenReturn(Deferred.fromResult("datacenter"));
+      .thenReturn(Deferred.fromResult("datacenter"));
     
     
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
@@ -235,7 +235,7 @@ public final class TestTSUIDQuery {
     when(tag_values.getId("dc01")).thenReturn(new byte[] { 0, 0, 3 });
     when(tag_values.getIdAsync("dc01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 3 }))
-    	.thenReturn(Deferred.fromResult("dc01"));
+      .thenReturn(Deferred.fromResult("dc01"));
     
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
@@ -286,38 +286,38 @@ public final class TestTSUIDQuery {
   
   @Test
   public void getTSMetasSingle() throws Exception {
-  	query = new TSUIDQuery(tsdb);
-  	HashMap<String, String> tags = new HashMap<String, String>();
-  	tags.put("host", "web01");
-  	query.setQuery("sys.cpu.user", tags);
-  	List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
-  	assertEquals(1, tsmetas.size());
+    query = new TSUIDQuery(tsdb);
+    HashMap<String, String> tags = new HashMap<String, String>();
+    tags.put("host", "web01");
+    query.setQuery("sys.cpu.user", tags);
+    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+    assertEquals(1, tsmetas.size());
   }
   
   @Test
   public void getTSMetasMulti() throws Exception {
-  	query = new TSUIDQuery(tsdb);
-  	HashMap<String, String> tags = new HashMap<String, String>();
-  	query.setQuery("sys.cpu.user", tags);
-  	List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
-  	assertEquals(2, tsmetas.size());
+    query = new TSUIDQuery(tsdb);
+    HashMap<String, String> tags = new HashMap<String, String>();
+    query.setQuery("sys.cpu.user", tags);
+    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+    assertEquals(2, tsmetas.size());
   }
   
   @Test
   public void getTSMetasMultipleTags() throws Exception {
-  	query = new TSUIDQuery(tsdb);
-  	HashMap<String, String> tags = new HashMap<String, String>();
-  	query.setQuery("sys.cpu.nice", tags);
-  	tags.put("host", "web01");
-  	tags.put("datacenter", "dc01");
-  	List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
-  	assertEquals(1, tsmetas.size());
+    query = new TSUIDQuery(tsdb);
+    HashMap<String, String> tags = new HashMap<String, String>();
+    query.setQuery("sys.cpu.nice", tags);
+    tags.put("host", "web01");
+    tags.put("datacenter", "dc01");
+    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+    assertEquals(1, tsmetas.size());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getTSMetasNullMetric() throws Exception {
-  	query = new TSUIDQuery(tsdb);
-  	query.getTSMetas().joinUninterruptibly();
+    query = new TSUIDQuery(tsdb);
+    query.getTSMetas().joinUninterruptibly();
   }
 
 }
