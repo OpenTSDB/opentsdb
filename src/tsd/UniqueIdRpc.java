@@ -12,11 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -26,6 +28,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.Tags;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -252,7 +255,16 @@ final class UniqueIdRpc implements HttpRpc {
     // GET
     if (method == HttpMethod.GET) {
       
-      final String tsuid = query.getRequiredQueryStringParam("tsuid");
+      String tsuid = null;
+      if (query.hasQueryStringParam("tsuid")) {
+      	tsuid = query.getRequiredQueryStringParam("tsuid");
+    	} else {
+    		String metric = query.getRequiredQueryStringParam("m");
+    		tsuid = getTSUIDForMetric(metric, tsdb);
+    	}
+      if (tsuid == null) {
+      	throw new BadRequestException("Metric was not specified. Provide tsuid or metric + tags.");
+      }
       try {
         final TSMeta meta = TSMeta.getTSMeta(tsdb, tsuid).joinUninterruptibly();
         if (meta != null) {
@@ -436,4 +448,45 @@ final class UniqueIdRpc implements HttpRpc {
     
     return meta;
   }
+
+  /**
+   * Parses a query string "m=metric{tagk1=tagv1,...}" type query and returns
+   * a tsuid.
+   * @param data_query The query we're building
+   * @throws BadRequestException if we are unable to parse the query or it is
+   * missing components
+   */
+  private String getTSUIDForMetric(final String query_string, TSDB tsdb) {
+    if (query_string == null || query_string.isEmpty()) {
+      throw new BadRequestException("The query string was empty");
+    }
+    
+    // m is of the following forms:
+    // metric[{tag=value,...}]
+    // where the parts in square brackets `[' .. `]' are optional.
+    final HashMap<String, String> tags = new HashMap<String, String>();
+    String metric = null;
+    try {
+    	metric = Tags.parseWithMetric(query_string, tags);
+    } catch (IllegalArgumentException e) {
+    	throw new BadRequestException(e);
+    }
+    final TreeMap<String, String> sortedTags = new TreeMap<String, String>(tags);
+    // Byte Buffer to generate TSUID, pre allocated to the size of the TSUID
+    final ByteArrayOutputStream buf = new ByteArrayOutputStream(
+    		TSDB.metrics_width() + sortedTags.size() * (TSDB.tagk_width() + TSDB.tagv_width()));
+    try {
+    buf.write(tsdb.getUID(UniqueIdType.METRIC, metric));
+	    for (Entry<String, String> e: sortedTags.entrySet()) {
+	    	buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
+	    	buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
+	    }
+    } catch (IOException e) {
+    	throw new BadRequestException(e);
+    }
+    final String tsuid = UniqueId.uidToString(buf.toByteArray());
+    
+    return tsuid;
+  }
+  
 }
