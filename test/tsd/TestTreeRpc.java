@@ -922,8 +922,10 @@ public final class TestTreeRpc {
         "/api/tree/collisions?treeid=1");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"010101\":\"AAAAAA\",\"020202\":\"BBBBBB\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"010101\":\"AAAAAA\""));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"020202\":\"BBBBBB\""));
   }
   
   @Test
@@ -944,8 +946,10 @@ public final class TestTreeRpc {
         "/api/tree/collisions?treeid=1&tsuids=010101,020202");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"010101\":\"AAAAAA\",\"020202\":\"BBBBBB\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"010101\":\"AAAAAA\""));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"020202\":\"BBBBBB\""));
   }
   
   @Test
@@ -966,8 +970,10 @@ public final class TestTreeRpc {
         "/api/tree/collisions", "{\"treeId\":1}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"010101\":\"AAAAAA\",\"020202\":\"BBBBBB\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"010101\":\"AAAAAA\""));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"020202\":\"BBBBBB\""));
   }
   
   @Test
@@ -989,8 +995,10 @@ public final class TestTreeRpc {
         "[\"010101\",\"020202\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"010101\":\"AAAAAA\",\"020202\":\"BBBBBB\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"010101\":\"AAAAAA\""));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"020202\":\"BBBBBB\""));
   }
   
   @Test (expected = BadRequestException.class)
@@ -1024,9 +1032,10 @@ public final class TestTreeRpc {
         "/api/tree/notmatched?treeid=1");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"010101\":\"Failed rule 0:0\",\"020202\":\"Failed rule 1:1\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"010101\":\"Failed rule 0:0\""));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
   @Test
@@ -1047,9 +1056,10 @@ public final class TestTreeRpc {
         "/api/tree/notmatched?treeid=1&tsuids=010101,020202");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"010101\":\"Failed rule 0:0\",\"020202\":\"Failed rule 1:1\"}",
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"010101\":\"Failed rule 0:0\""));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
   @Test
@@ -1070,9 +1080,10 @@ public final class TestTreeRpc {
         "/api/tree/notmatched", "{\"treeId\":1}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"010101\":\"Failed rule 0:0\",\"020202\":\"Failed rule 1:1\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"010101\":\"Failed rule 0:0\""));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
   @Test
@@ -1094,9 +1105,10 @@ public final class TestTreeRpc {
         "[\"010101\",\"020202\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(
-        "{\"010101\":\"Failed rule 0:0\",\"020202\":\"Failed rule 1:1\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"010101\":\"Failed rule 0:0\""));
+    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+        .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
   @Test (expected = BadRequestException.class)
