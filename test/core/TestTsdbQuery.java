@@ -1341,9 +1341,9 @@ public final class TestTsdbQuery {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
-    tsdb.addPoint("sys.cpu.user", timestamp += 30, (long)(Long.MAX_VALUE - 55), tags)
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, Long.MAX_VALUE - 55, tags)
       .joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp += 30, (long)(Long.MAX_VALUE - 25), tags)
+    tsdb.addPoint("sys.cpu.user", timestamp += 30, Long.MAX_VALUE - 25, tags)
       .joinUninterruptibly();
     tsdb.addPoint("sys.cpu.user", timestamp += 30, 5, tags).joinUninterruptibly();
     
