@@ -23,6 +23,7 @@ import java.util.regex.PatternSyntaxException;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.core.TSDB;
@@ -32,6 +33,7 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.utils.JSON;
 
 /**
  * Handles API calls for trees such as fetching, editing or deleting trees, 
@@ -39,7 +41,10 @@ import net.opentsdb.uid.NoSuchUniqueId;
  * @since 2.0
  */
 final class TreeRpc implements HttpRpc {
-
+  /** Type reference for common string/string maps */
+  private static TypeReference<HashMap<String, String>> TR_HASH_MAP = 
+    new TypeReference<HashMap<String, String>>() {};
+    
   /** The TSDB to use for storage access */
   private TSDB tsdb;
   
@@ -161,18 +166,26 @@ final class TreeRpc implements HttpRpc {
         
       // handle DELETE requests
       } else if (method == HttpMethod.DELETE) {
+        boolean delete_definition = false;
         
-        final String delete_all = query.getQueryStringParam("definition");
-        final boolean delete_definition;
-        if (delete_all == null) {
-          delete_definition = false;
+        if (query.hasContent()) {
+          // since we don't want to complicate the Tree class with a "delete 
+          // description" flag, we can just double parse the hash map in delete
+          // calls
+          final String json = query.getContent();
+          final HashMap<String, String> properties = 
+            JSON.parseToObject(json, TR_HASH_MAP);
+          final String delete_all = properties.get("definition");
+          if (delete_all != null && delete_all.toLowerCase().equals("true")) {
+              delete_definition = true;
+          }
         } else {
+          final String delete_all = query.getQueryStringParam("definition");
           if (delete_all.toLowerCase().equals("true")) {
             delete_definition = true;
-          } else {
-            delete_definition = false;
           }
         }
+        
         if (Tree.fetchTree(tsdb, tree.getTreeId()).joinUninterruptibly() == 
           null) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
