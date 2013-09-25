@@ -150,13 +150,6 @@ public final class TestSuggestRpc {
   }
   
   @Test (expected = BadRequestException.class)
-  public void missingQ() throws Exception {
-    HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/suggest?type=metrics");
-    s.execute(tsdb, query);
-  }
-  
-  @Test (expected = BadRequestException.class)
   public void missingContent() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/suggest", 
         "", "application/json");
@@ -175,14 +168,6 @@ public final class TestSuggestRpc {
   public void missingTypePOST() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/suggest", 
         "{\"q\":\"w\"}", "application/json");
-    query.getQueryBaseRoute();
-    s.execute(tsdb, query);
-  }
-  
-  @Test (expected = BadRequestException.class)
-  public void missingQPOST() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/suggest", 
-        "{\"type\":\"metrics\"}", "application/json");
     query.getQueryBaseRoute();
     s.execute(tsdb, query);
   }
