@@ -97,8 +97,8 @@ public final class UniqueId implements UniqueIdInterface {
   private final ConcurrentHashMap<String, String> id_cache =
     new ConcurrentHashMap<String, String>();
   /** Map of pending UID assignments */
-  private final ConcurrentHashMap<String, Deferred<byte[]>> pending_assignments =
-    new ConcurrentHashMap<String, Deferred<byte[]>>();
+  private final HashMap<String, Deferred<byte[]>> pending_assignments =
+    new HashMap<String, Deferred<byte[]>>();
 
   /** Number of times we avoided reading from HBase thanks to the cache. */
   private volatile int cache_hits;

@@ -119,11 +119,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     final byte[] row = new byte[row_size];
 
     // Lookup or create the metric ID.
-    final Deferred<byte[]> metricid;
+    final Deferred<byte[]> metric_id;
     if (tsdb.config.auto_metric()) {
-      metricid = tsdb.metrics.getOrCreateIdAsync(metric);
+      metric_id = tsdb.metrics.getOrCreateIdAsync(metric);
     } else {
-      metricid = tsdb.metrics.getIdAsync(metric);
+      metric_id = tsdb.metrics.getIdAsync(metric);
     }
 
     // Copy the metric ID at the beginning of the row key.
@@ -146,7 +146,7 @@ final class IncomingDataPoints implements WritableDataPoints {
         }
         // Once we've resolved all the tags, schedule the copy of the metric
         // ID and return the row key we produced.
-        return metricid.addCallback(new CopyMetricInRowKeyCB());
+        return metric_id.addCallback(new CopyMetricInRowKeyCB());
       }
     }
 

@@ -108,7 +108,14 @@ final class QueryRpc implements HttpRpc {
     }
     
     // validate and then compile the queries
-    data_query.validateAndSetQuery();    
+    try {
+      LOG.debug(data_query.toString());
+      data_query.validateAndSetQuery();
+    } catch (Exception e) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
+          e.getMessage(), data_query.toString(), e);
+    }
+    
     Query[] tsdbqueries = data_query.buildQueries(tsdb);
     final int nqueries = tsdbqueries.length;
     final ArrayList<DataPoints[]> results = 
