@@ -15,6 +15,7 @@ package net.opentsdb.tsd;
 import static org.mockito.Mockito.when;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;
@@ -101,8 +102,10 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"failed\":0,\"success\":1}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"failed\":0"));
+    assertTrue(response.contains("\"success\":1"));
   }
   
   @Test
@@ -113,8 +116,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"errors\":[],\"failed\":0,\"success\":1}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"failed\":0"));
+    assertTrue(response.contains("\"success\":1"));
+    assertTrue(response.contains("\"errors\":[]"));
   }
   
   @Test
@@ -125,8 +131,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"errors\":[],\"failed\":0,\"success\":1}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"failed\":0"));
+    assertTrue(response.contains("\"success\":1"));
+    assertTrue(response.contains("\"errors\":[]"));
   }
   
   @Test
@@ -139,8 +148,10 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"failed\":0,\"success\":2}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"failed\":0"));
+    assertTrue(response.contains("\"success\":2"));
   }
   
   @Test
@@ -294,11 +305,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"doesnotexist\","
-        + "\"timestamp\":1365465600,\"value\":\"42\",\"tags\":{\"host\":"
-        + "\"web01\"}},\"error\":\"Unknown metric\"}],\"failed\":1,"
-        + "\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Unknown metric\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
 
   @Test
@@ -309,10 +320,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"timestamp\""
-        + ":1365465600,\"value\":\"42\",\"tags\":{\"host\":\"web01\"}},"
-        + "\"error\":\"Metric name was empty\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Metric name was empty\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
  
   @Test
@@ -323,10 +335,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"timestamp\""
-        + ":1365465600,\"value\":\"42\",\"tags\":{\"host\":\"web01\"}},"
-        + "\"error\":\"Metric name was empty\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Metric name was empty\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
 
   @Test
@@ -337,10 +350,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":0,\"value\":\"42\",\"tags\":{\"host\":\"web01\"}},"
-        + "\"error\":\"Invalid timestamp\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Invalid timestamp\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test
@@ -351,10 +365,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":0,\"value\":\"42\",\"tags\":{\"host\":\"web01\"}},"
-        + "\"error\":\"Invalid timestamp\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Invalid timestamp\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
 
   @Test
@@ -365,10 +380,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":-1,\"value\":\"42\",\"tags\":{\"host\":\"web01\"}},"
-        + "\"error\":\"Invalid timestamp\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Invalid timestamp\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
 
   @Test
@@ -379,11 +395,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Empty value\"}],\"failed\":1,"
-        + "\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Empty value\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
 
   @Test
@@ -394,11 +410,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Empty value\"}],\"failed\":1,"
-        + "\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Empty value\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test
@@ -409,11 +425,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"\",\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Empty value\"}],\"failed\":1,"
-        + "\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Empty value\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test
@@ -424,11 +440,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"notanumber\",\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Unable to parse value to a number"
-        + "\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
 
   @Test
@@ -439,11 +455,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"NaN\",\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Unable to parse value to a number"
-        + "\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test (expected = BadRequestException.class)
@@ -463,11 +479,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"+INF\",\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Unable to parse value to a number"
-        + "\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test
@@ -478,11 +494,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"-INF\",\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Unable to parse value to a number"
-        + "\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test (expected = BadRequestException.class)
@@ -511,11 +527,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"+Infinity\",\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Unable to parse value to a number"
-        + "\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test
@@ -526,11 +542,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"-Infinity\",\"tags\":" 
-        + "{\"host\":\"web01\"}},\"error\":\"Unable to parse value to a number"
-        + "\"}],\"failed\":1,\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test (expected = BadRequestException.class)
@@ -550,11 +566,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"42\"},"
-        + "\"error\":\"Missing tags\"}],\"failed\":1,"
-        + "\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Missing tags\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
 
   @Test
@@ -565,11 +581,11 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"42\""
-        + "},\"error\":\"Missing tags\"}],\"failed\":1,"
-        + "\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Missing tags\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test
@@ -580,10 +596,10 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"errors\":[{\"datapoint\":{\"metric\":\"sys.cpu.nice\","
-        + "\"timestamp\":1365465600,\"value\":\"42\",\"tags\":" 
-        + "{}},\"error\":\"Missing tags\"}],\"failed\":1,"
-        + "\"success\":0}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Missing tags\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
 }

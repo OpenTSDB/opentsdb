@@ -33,9 +33,9 @@ JDK_DIRS="/usr/lib/jvm/java-7-oracle /usr/lib/jvm/java-7-openjdk \
 
 # Look for the right JVM to use
 for jdir in $JDK_DIRS; do
-    if [ -r "$jdir/bin/java" -a -z "${JAVA_HOME}" ]; then
-       JAVA_HOME="$jdir"
-    fi
+  if [ -r "$jdir/bin/java" -a -z "${JAVA_HOME}" ]; then
+    JAVA_HOME="$jdir"
+  fi
 done
 export JAVA_HOME
 
@@ -48,80 +48,80 @@ DAEMON_OPTS=tsd
 case "$1" in
 start)
  
-	if [ -z "$JAVA_HOME" ]; then
-		log_failure_msg "no JDK found - please set JAVA_HOME"
-		exit 1
-	fi
+  if [ -z "$JAVA_HOME" ]; then
+    log_failure_msg "no JDK found - please set JAVA_HOME"
+    exit 1
+  fi
 
-	log_action_begin_msg "Starting TSD"
-	if start-stop-daemon --test --start --pidfile "$PID_FILE" \
-		--user "$TSD_USER" --exec "$JAVA_HOME/bin/java" \
-		>/dev/null; then
+  log_action_begin_msg "Starting TSD"
+  if start-stop-daemon --test --start --pidfile "$PID_FILE" \
+    --user "$TSD_USER" --exec "$JAVA_HOME/bin/java" \
+    >/dev/null; then
 
-		touch "$PID_FILE" && chown "$TSD_USER":"$TSD_GROUP" "$PID_FILE"
-		
-		if [ -n "$MAX_OPEN_FILES" ]; then
-			ulimit -n $MAX_OPEN_FILES
-		fi
+    touch "$PID_FILE" && chown "$TSD_USER":"$TSD_GROUP" "$PID_FILE"
+    
+    if [ -n "$MAX_OPEN_FILES" ]; then
+      ulimit -n $MAX_OPEN_FILES
+    fi
 
-		# start the daemon
-		start-stop-daemon --start -b --user "$TSD_USER" -c "$TSD_USER" \
-			--make-pidfile --pidfile "$PID_FILE" \
-			--exec /bin/bash -- -c "$DAEMON $DAEMON_OPTS"
+    # start the daemon
+    start-stop-daemon --start -b --user "$TSD_USER" -c "$TSD_USER" \
+      --make-pidfile --pidfile "$PID_FILE" \
+      --exec /bin/bash -- -c "$DAEMON $DAEMON_OPTS"
 
-			sleep 1
-			if start-stop-daemon --test --start --pidfile "$PID_FILE" \
-				--user "$TSD_USER" --exec "$JAVA_HOME/bin/java" \
-				>/dev/null; then
-			
-				if [ -f "$PID_FILE" ]; then
-            				rm -f "$PID_FILE"
-          			fi
-			
-				log_failure_msg "Failed to start the TSD"
-			else
-				log_action_end_msg 0
-			fi
-	  
-		else
-			log_action_cont_msg "TSD is already running"
+    sleep 1
+    if start-stop-daemon --test --start --pidfile "$PID_FILE" \
+      --user "$TSD_USER" --exec "$JAVA_HOME/bin/java" \
+      >/dev/null; then
+    
+      log_action _end_msg 0
+    
+    else
+      if [ -f "$PID_FILE"]; then
+        rm -f "$PID_FILE"
+      fi
 
-		log_action_end_msg 0
-	fi
-	;;
+      log_action_end_msg "Failed to start the TSD"
+    fi
+    
+  else
+    log_action_cont_msg "TSD is already running"
+    log_action_end_msg 0
+  fi
+  ;;
 
 stop)
-	log_action_begin_msg "Stopping TSD"
-	set +e
-	if [ -f "$PID_FILE" ]; then 
-		start-stop-daemon --stop --pidfile "$PID_FILE" \
-			--user "$TSD_USER" --retry=TERM/20/KILL/5 >/dev/null
-		if [ $? -eq 1 ]; then
-			log_action_cont_msg "TSD is not running but pid file exists, cleaning up"
-		elif [ $? -eq 3 ]; then
-			PID="`cat $PID_FILE`"
-			log_failure_msg "Failed to stop TSD (pid $PID)"
-			exit 1
-		fi
-		rm -f "$PID_FILE"
-	else
-		log_action_cont_msg "TSD was not running"
-	fi
-	log_action_end_msg 0
-	set -e
-	;;
+  log_action_begin_msg "Stopping TSD"
+  set +e
+  if [ -f "$PID_FILE" ]; then 
+    start-stop-daemon --stop --pidfile "$PID_FILE" \
+      --user "$TSD_USER" --retry=TERM/20/KILL/5 >/dev/null
+    if [ $? -eq 1 ]; then
+      log_action_cont_msg "TSD is not running but pid file exists, cleaning up"
+    elif [ $? -eq 3 ]; then
+      PID="`cat $PID_FILE`"
+      log_failure_msg "Failed to stop TSD (pid $PID)"
+      exit 1
+    fi
+    rm -f "$PID_FILE"
+  else
+    log_action_cont_msg "TSD was not running"
+  fi
+  log_action_end_msg 0
+  set -e
+  ;;
 
 restart|force-reload)
   if [ -f "$PID_FILE" ]; then
-		$0 stop
-		sleep 1
-	fi
-	$0 start
-	;;
+    $0 stop
+    sleep 1
+  fi
+  $0 start
+  ;;
 *)
-	echo "Usage: /etc/init.d/opentsdb {start|stop|restart}"
-	exit 1
-	;;
+  echo "Usage: /etc/init.d/opentsdb {start|stop|restart}"
+  exit 1
+  ;;
 esac
 
 exit 0

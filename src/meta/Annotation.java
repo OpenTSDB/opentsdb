@@ -326,8 +326,6 @@ public final class Annotation implements Comparable<Annotation> {
                                       Const.TIMESTAMP_BYTES];
         final byte[] end = new byte[TSDB.metrics_width() + 
                                     Const.TIMESTAMP_BYTES];
-        Arrays.fill(start, (byte)0);
-        Arrays.fill(end, (byte)0);
         
         final long normalized_start = (start_time - 
             (start_time % Const.MAX_TIMESPAN));
@@ -519,7 +517,6 @@ public final class Annotation implements Comparable<Annotation> {
     // just be an empty byte array of metric width plus the timestamp
     if (tsuid == null || tsuid.length < 1) {
       final byte[] row = new byte[TSDB.metrics_width() + Const.TIMESTAMP_BYTES];
-      Arrays.fill(row, (byte)0);
       Bytes.setInt(row, (int) base_time, TSDB.metrics_width());
       return row;
     }

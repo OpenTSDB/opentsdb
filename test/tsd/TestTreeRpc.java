@@ -363,7 +363,7 @@ public final class TestTreeRpc {
   public void handleTreePOSTDeleteDefinition() throws Exception {
     setupStorage();
     HttpQuery query = NettyMocks.deleteQuery(tsdb, 
-      "/api/tree?definition=true", "{\"treeId\":1}");
+      "/api/tree", "{\"treeId\":1,\"definition\":true}");
     // make sure the root is there BEFORE we delete
     assertEquals(4, storage.numColumns(new byte[] { 0, 1 }));
     rpc.execute(tsdb, query);

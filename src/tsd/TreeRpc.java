@@ -181,7 +181,7 @@ final class TreeRpc implements HttpRpc {
           }
         } else {
           final String delete_all = query.getQueryStringParam("definition");
-          if (delete_all.toLowerCase().equals("true")) {
+          if (delete_all != null && delete_all.toLowerCase().equals("true")) {
             delete_definition = true;
           }
         }
