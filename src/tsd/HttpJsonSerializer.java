@@ -728,7 +728,13 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatConfigV1(final Config config) {
-    return serializeJSON(config.getMap());
+    TreeMap<String, String> map = new TreeMap<String, String>(config.getMap());
+    for (Map.Entry<String, String> entry : map.entrySet()) {
+      if (entry.getKey().toUpperCase().contains("PASS")) {
+        map.put(entry.getKey(), "********");
+      }
+    }
+    return serializeJSON(map);
   }
   
   /**

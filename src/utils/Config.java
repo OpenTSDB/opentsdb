@@ -312,9 +312,19 @@ public class Config {
 
     StringBuilder response = new StringBuilder("TSD Configuration:\n");
     response.append("File [" + this.config_location + "]\n");
+    int line = 0;
     for (Map.Entry<String, String> entry : this.properties.entrySet()) {
-      response.append("Key [" + entry.getKey() + "]  Value [").
-          append(entry.getValue() + "]\n");
+      if (line > 0) {
+        response.append("\n");
+      }
+      response.append("Key [" + entry.getKey() + "]  Value [");
+      if (entry.getKey().toUpperCase().contains("PASS")) {
+         response.append("********");
+      } else {
+        response.append(entry.getValue());
+      }
+      response.append("]");
+      line++;
     }
     return response.toString();
   }
