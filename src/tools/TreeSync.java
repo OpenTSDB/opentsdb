@@ -97,52 +97,32 @@ final class TreeSync extends Thread {
   public void run() {
     final Scanner scanner = getScanner();
 
-    /**
-     * Called after loading all of the trees so we can setup a list of 
-     * {@link TreeBuilder} objects to pass on to the table scanner. On success
-     * this will return the a list of TreeBuilder objects or null if no trees
-     * were defined.
-     */
-    final class LoadAllTreesCB implements Callback<ArrayList<TreeBuilder>, 
-      List<Tree>> {
-
-      @Override
-      public ArrayList<TreeBuilder> call(List<Tree> trees) throws Exception {
-        if (trees == null || trees.isEmpty()) {
-          return null;
-        }
-        
-        final ArrayList<TreeBuilder> tree_builders = 
-          new ArrayList<TreeBuilder>(trees.size());
-        for (Tree tree : trees) {
-          if (!tree.getEnabled()) {
-            continue;
-          }
-          final TreeBuilder builder = new TreeBuilder(tsdb, tree);
-          tree_builders.add(builder);
-        }
-        
-        return tree_builders;
-      }
-      
-    }
-    
     // start the process by loading all of the trees in the system
-    final ArrayList<TreeBuilder> tree_builders;
+    final List<Tree> trees;
     try {
-      tree_builders = Tree.fetchAllTrees(tsdb).addCallback(new LoadAllTreesCB())
-      .joinUninterruptibly();
+      trees = Tree.fetchAllTrees(tsdb).joinUninterruptibly();
       LOG.info("[" + thread_id + "] Complete");
     } catch (Exception e) {
       LOG.error("[" + thread_id + "] Unexpected Exception", e);
       throw new RuntimeException("[" + thread_id + "] Unexpected exception", e);
     }
     
-    if (tree_builders == null) {
-      LOG.warn("No enabled trees were found in the system");
+    if (trees == null) {
+      LOG.warn("No tree definitions were found");
       return;
     } else {
-      LOG.info("Found [" + tree_builders.size() + "] trees");
+      boolean has_enabled_tree = false;
+      for (Tree tree : trees) {
+        if (tree.getEnabled()) {
+          has_enabled_tree = true;
+          break;
+        }
+      }
+      if (!has_enabled_tree) {
+        LOG.warn("No enabled trees were found");
+        return;
+      }
+      LOG.info("Found [" + trees.size() + "] trees");
     }
     
     // setup an array for storing the tree processing calls so we can block 
@@ -216,6 +196,20 @@ final class TreeSync extends Thread {
               if (meta != null) {
                 LOG.debug("Processing TSMeta: " + meta + " w value: " + 
                     JSON.serializeToString(meta));
+                
+                // copy the trees into a tree builder object and iterate through
+                // each builder. We need to do this as a builder is not thread
+                // safe and cannot be used asynchronously.
+                final ArrayList<TreeBuilder> tree_builders = 
+                new ArrayList<TreeBuilder>(trees.size());
+                for (Tree tree : trees) {
+                  if (!tree.getEnabled()) {
+                    continue;
+                  }
+                  final TreeBuilder builder = new TreeBuilder(tsdb, tree);
+                  tree_builders.add(builder);
+                }
+                
                 for (TreeBuilder builder : tree_builders) {
                   builder_calls.add(builder.processTimeseriesMeta(meta));
                 }
