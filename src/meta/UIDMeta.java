@@ -229,8 +229,8 @@ public final class UIDMeta {
             stored_meta.initializeChangedMap();
           }
           
-          final byte[] original_meta = stored_meta == null ? new byte[0] :
-            stored_meta.getStorageJSON();
+          final byte[] original_meta = row == null || row.isEmpty() ? 
+              new byte[0] : row.get(0).value();
 
           if (stored_meta != null) {
             local_meta.syncMeta(stored_meta, overwrite);
@@ -257,7 +257,7 @@ public final class UIDMeta {
        */
       @Override
       public Deferred<Boolean> call(final String name) throws Exception {
-
+        
         final GetRequest get = new GetRequest(tsdb.uidTable(), 
             UniqueId.stringToUid(uid));
         get.family(FAMILY);
@@ -406,6 +406,10 @@ public final class UIDMeta {
             final UIDMeta meta = JSON.parseToObject(row.get(0).value(), 
                 UIDMeta.class);
             
+            // overwrite the name and UID
+            meta.name = name;
+            meta.uid = UniqueId.uidToString(uid);
+            
             // fix missing types
             if (meta.type == null) {
               final String qualifier = 
@@ -441,7 +445,9 @@ public final class UIDMeta {
    */
   private void syncMeta(final UIDMeta meta, final boolean overwrite) {
     // copy non-user-accessible data first
-    uid = meta.uid;
+    if (meta.uid != null && !meta.uid.isEmpty()) {
+      uid = meta.uid;
+    }
     if (meta.name != null && !meta.name.isEmpty()) {
       name = meta.name;
     }
@@ -496,9 +502,7 @@ public final class UIDMeta {
     try {
       final JsonGenerator json = JSON.getFactory().createGenerator(output); 
       json.writeStartObject();
-      json.writeStringField("uid", uid);
       json.writeStringField("type", type.toString());
-      json.writeStringField("name", name);
       json.writeStringField("displayName", display_name);
       json.writeStringField("description", description);
       json.writeStringField("notes", notes);
