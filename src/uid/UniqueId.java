@@ -383,6 +383,12 @@ public final class UniqueId implements UniqueIdInterface {
       class ErrBack implements Callback<Object, Exception> {
         public Object call(final Exception e) throws Exception {
           assignment.callback(e);
+          synchronized(pending_assignments) {
+            if (pending_assignments.containsKey(name)) {
+              pending_assignments.remove(name);
+              LOG.warn("Failed pending assignment for: " + name);
+            }
+          }
           return assignment;
         }
       }
@@ -508,6 +514,12 @@ public final class UniqueId implements UniqueIdInterface {
         class GetIdCB implements Callback<Deferred<byte[]>, byte[]> {
           public Deferred<byte[]> call(final byte[] row) throws Exception {
             assignment.callback(row);
+            synchronized(pending_assignments) {
+              if (pending_assignments.containsKey(name)) {
+                pending_assignments.remove(name);
+                LOG.info("Completed pending assignment for: " + name);
+              }
+            }
             return assignment;
           }
         }
@@ -523,8 +535,13 @@ public final class UniqueId implements UniqueIdInterface {
         tsdb.indexUIDMeta(meta);
       }
       
-      pending_assignments.remove(name);
       assignment.callback(row);
+      synchronized(pending_assignments) {
+        if (pending_assignments.containsKey(name)) {
+          pending_assignments.remove(name);
+          LOG.info("Completed pending assignment for: " + name);
+        }
+      }
       return assignment;
     }
 
