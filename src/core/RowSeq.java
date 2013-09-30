@@ -509,10 +509,15 @@ final class RowSeq implements DataPoints {
     private int qualifier;
 
     /** Next index in {@link #qualifiers}.  */
-    private short qual_index;
+    // TODO - This was a short, which was fine for the second qualifiers but
+    // now with ms support we can have up to 2^22 = 4194304 values in a row. 
+    // Changing to an int helps a little but will rollover at 2,147,483,647 at 
+    // which point we can't reference the array. We need to redo the RowSeq 
+    // storage so it can be referenced above 2.1M data points
+    private int qual_index;
 
     /** Next index in {@link #values}.  */
-    private short value_index;
+    private int value_index;
 
     /** Pre-extracted base time of this row sequence.  */
     private final long base_time = baseTime();
