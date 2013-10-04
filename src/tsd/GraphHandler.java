@@ -342,6 +342,7 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
+    qs.remove("silent");
     return cachedir + Integer.toHexString(qs.hashCode());
   }
 
@@ -850,7 +851,7 @@ final class GraphHandler implements HttpRpc {
       if (rate) {
         i--;  // Move to the next part.
       }
-      final Query tsdbquery = tsdb.newQuery();
+      Query tsdbquery = tsdb.newQuery();
       try {
         tsdbquery.setTimeSeries(metric, parsedtags, agg, rate);
       } catch (NoSuchUniqueName e) {
@@ -859,9 +860,9 @@ final class GraphHandler implements HttpRpc {
         // that does not exist in TSDB. Based on a query option the
         // entire query can fail, or this metric query will be ignored
         // and not results returned for it, as if a tag key, tag value
-        // or metric name does not exists there can be no matching 
+        // or metric name does not exists there can be no matching
         // data points.
-        if (false) {
+        if (!query.hasQueryStringParam("silent")) {
           throw new BadRequestException(e.getMessage());
         } else {
           tsdbquery = null;
@@ -890,6 +891,15 @@ final class GraphHandler implements HttpRpc {
         }
         tsdbqueries[nqueries++] = tsdbquery;
       }
+    }
+
+    // If the actual number of parsed queries is < the number of queries
+    // specified that means that some where invalid and the caller was OK with
+    // that so shink the result arrray
+    if (nqueries < ms.size()) {
+      final Query[] shrink = new Query[nqueries];
+      System.arraycopy(tsdbqueries, 0, shrink, 0, nqueries);
+      return shrink;
     }
     return tsdbqueries;
   }
