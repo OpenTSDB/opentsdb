@@ -854,26 +854,42 @@ final class GraphHandler implements HttpRpc {
       try {
         tsdbquery.setTimeSeries(metric, parsedtags, agg, rate);
       } catch (NoSuchUniqueName e) {
-        throw new BadRequestException(e.getMessage());
-      }
-      // downsampling function & interval.
-      if (i > 0) {
-        final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
-        if (dash < 0) {
-          throw new BadRequestException("Invalid downsampling specifier '"
-                                        + parts[1] + "' in m=" + m);
+
+        // A query was specified with a tag key, tag value, or metric
+        // that does not exist in TSDB. Based on a query option the
+        // entire query can fail, or this metric query will be ignored
+        // and not results returned for it, as if a tag key, tag value
+        // or metric name does not exists there can be no matching 
+        // data points.
+        if (false) {
+          throw new BadRequestException(e.getMessage());
+        } else {
+          tsdbquery = null;
         }
-        Aggregator downsampler;
-        try {
-          downsampler = Aggregators.get(parts[1].substring(dash + 1));
-        } catch (NoSuchElementException e) {
-          throw new BadRequestException("No such downsampling function: "
-                                        + parts[1].substring(dash + 1));
-        }
-        final int interval = parseDuration(parts[1].substring(0, dash));
-        tsdbquery.downsample(interval, downsampler);
       }
-      tsdbqueries[nqueries++] = tsdbquery;
+
+      // Only continue if tsdbquery != null, because that indicates that
+      // the query is valid (tag key, tag values, and metrics exist)
+      if (tsdbquery != null) {
+        // downsampling function & interval.
+        if (i > 0) {
+          final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
+          if (dash < 0) {
+            throw new BadRequestException("Invalid downsampling specifier '"
+                                          + parts[1] + "' in m=" + m);
+          }
+          Aggregator downsampler;
+          try {
+            downsampler = Aggregators.get(parts[1].substring(dash + 1));
+          } catch (NoSuchElementException e) {
+            throw new BadRequestException("No such downsampling function: "
+                                          + parts[1].substring(dash + 1));
+          }
+          final int interval = parseDuration(parts[1].substring(0, dash));
+          tsdbquery.downsample(interval, downsampler);
+        }
+        tsdbqueries[nqueries++] = tsdbquery;
+      }
     }
     return tsdbqueries;
   }
