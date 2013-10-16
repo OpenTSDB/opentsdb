@@ -942,7 +942,7 @@ final class HttpQuery {
         logWarn("Found a file with mtime=" + mtime + ": " + path);
       }
       response.setHeader(HttpHeaders.Names.CACHE_CONTROL,
-                         max_age == 0 ? "no-cache" : "max-age=" + max_age);
+                         "max-age=" + max_age);
       HttpHeaders.setContentLength(response, length);
       chan.write(response);
     }
