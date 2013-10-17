@@ -19,7 +19,6 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.HashMap;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
