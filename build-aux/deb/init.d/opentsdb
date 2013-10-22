@@ -74,7 +74,7 @@ start)
       --user "$TSD_USER" --exec "$JAVA_HOME/bin/java" \
       >/dev/null; then
     
-      log_action _end_msg 0
+      log_action_end_msg 0
     
     else
       if [ -f "$PID_FILE"]; then
