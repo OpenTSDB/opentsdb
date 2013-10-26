@@ -61,9 +61,9 @@ final class GraphHandler implements HttpRpc {
   private static final Logger LOG =
     LoggerFactory.getLogger(GraphHandler.class);
 
-  private static final boolean IS_WINDOWS = 
-    System.getProperty("os.name").contains("Windows");
-  
+  private static final boolean IS_WINDOWS =
+    System.getProperty("os.name", "").contains("Windows");
+
   /** Number of times we had to do all the work up to running Gnuplot. */
   private static final AtomicInteger graphs_generated
     = new AtomicInteger();
