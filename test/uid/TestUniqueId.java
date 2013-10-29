@@ -858,7 +858,12 @@ public final class TestUniqueId {
   public void uidToLong() throws Exception {
     assertEquals(42, UniqueId.uidToLong(new byte[] { 0, 0, 0x2A }, (short)3));
   }
-  
+
+  @Test
+  public void uidToLongFromString() throws Exception {
+    assertEquals(42L, UniqueId.uidToLong("00002A", (short) 3));
+  }
+
   @Test (expected = IllegalArgumentException.class)
   public void uidToLongTooLong() throws Exception {
     UniqueId.uidToLong(new byte[] { 0, 0, 0, 0x2A }, (short)3);
@@ -871,7 +876,7 @@ public final class TestUniqueId {
   
   @Test (expected = NullPointerException.class)
   public void uidToLongNull() throws Exception {
-    UniqueId.uidToLong(null, (short)3);
+    UniqueId.uidToLong((byte[])null, (short)3);
   }
   
   @Test
@@ -884,7 +889,7 @@ public final class TestUniqueId {
   public void longToUIDTooBig() throws Exception {
     UniqueId.longToUID(257, (short)1);
   }
-  
+
   // ----------------- //
   // Helper functions. //
   // ----------------- //
