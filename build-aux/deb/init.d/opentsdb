@@ -29,7 +29,8 @@ MAX_OPEN_FILES=65535
 JDK_DIRS="/usr/lib/jvm/java-7-oracle /usr/lib/jvm/java-7-openjdk \
    /usr/lib/jvm/java-7-openjdk-amd64/ /usr/lib/jvm/java-7-openjdk-i386/ \
    /usr/lib/jvm/java-6-sun /usr/lib/jvm/java-6-openjdk \
-   /usr/lib/jvm/java-6-openjdk-amd64 /usr/lib/jvm/java-6-openjdk-i386"
+   /usr/lib/jvm/java-6-openjdk-amd64 /usr/lib/jvm/java-6-openjdk-i386 \
+   /usr/lib/jvm/default-java"
 
 # Look for the right JVM to use
 for jdir in $JDK_DIRS; do
@@ -37,6 +38,11 @@ for jdir in $JDK_DIRS; do
     JAVA_HOME="$jdir"
   fi
 done
+
+if [ -r /etc/default/opentsdb ]; then
+    . /etc/default/opentsdb
+fi
+
 export JAVA_HOME
 
 # Define other required variables
@@ -70,18 +76,18 @@ start)
       --exec /bin/bash -- -c "$DAEMON $DAEMON_OPTS"
 
     sleep 1
-    if start-stop-daemon --test --start --pidfile "$PID_FILE" \
+    if start-stop-daemon --test --stop --pidfile "$PID_FILE" \
       --user "$TSD_USER" --exec "$JAVA_HOME/bin/java" \
       >/dev/null; then
     
-      log_action _end_msg 0
+      log_action_end_msg 0
     
     else
-      if [ -f "$PID_FILE"]; then
+      if [ -f "$PID_FILE" ]; then
         rm -f "$PID_FILE"
       fi
 
-      log_action_end_msg "Failed to start the TSD"
+      log_action_end_msg 1
     fi
     
   else

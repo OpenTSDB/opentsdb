@@ -61,9 +61,9 @@ final class GraphHandler implements HttpRpc {
   private static final Logger LOG =
     LoggerFactory.getLogger(GraphHandler.class);
 
-  private static final boolean IS_WINDOWS = 
-    System.getProperty("os.name").contains("Windows");
-  
+  private static final boolean IS_WINDOWS =
+    System.getProperty("os.name", "").contains("Windows");
+
   /** Number of times we had to do all the work up to running Gnuplot. */
   private static final AtomicInteger graphs_generated
     = new AtomicInteger();
@@ -128,9 +128,9 @@ final class GraphHandler implements HttpRpc {
 
   private void doGraph(final TSDB tsdb, final HttpQuery query)
     throws IOException {
-    final String basepath = getGnuplotBasePath(tsdb, query); 
+    final String basepath = getGnuplotBasePath(tsdb, query);
     long start_time = DateTime.parseDateTimeString(
-      query.getRequiredQueryStringParam("start"), 
+      query.getRequiredQueryStringParam("start"),
       query.getQueryStringParam("tz"));
     final boolean nocache = query.hasQueryStringParam("nocache");
     if (start_time == -1) {
@@ -142,7 +142,7 @@ final class GraphHandler implements HttpRpc {
       start_time /= 1000;
     }
     long end_time = DateTime.parseDateTimeString(
-        query.getQueryStringParam("end"), 
+        query.getQueryStringParam("end"),
         query.getQueryStringParam("tz"));
     final long now = System.currentTimeMillis() / 1000;
     if (end_time == -1) {
@@ -347,7 +347,7 @@ final class GraphHandler implements HttpRpc {
   }
 
   /** Returns the base path to use for the Gnuplot files. */
-  private String getGnuplotBasePath(final TSDB tsdb, final HttpQuery query) { 
+  private String getGnuplotBasePath(final TSDB tsdb, final HttpQuery query) {
     final Map<String, List<String>> q = query.getQueryString();
     q.remove("ignore");
     // Super cheap caching mechanism: hash the query string.
@@ -357,7 +357,7 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    return tsdb.getConfig().getString("tsd.http.cachedir") + Integer.toHexString(qs.hashCode()); 
+    return tsdb.getConfig().getString("tsd.http.cachedir") + Integer.toHexString(qs.hashCode());
   }
 
   /**
@@ -390,7 +390,7 @@ final class GraphHandler implements HttpRpc {
         return false;
       }
       if (query.hasQueryStringParam("json")) {
-        HashMap<String, Object> map = loadCachedJson(query, end_time, 
+        HashMap<String, Object> map = loadCachedJson(query, end_time,
             max_age, basepath);
         if (map == null) {
           map = new HashMap<String, Object>();
@@ -411,11 +411,11 @@ final class GraphHandler implements HttpRpc {
     }
     // We didn't find an image.  Do a negative cache check.  If we've seen
     // this query before but there was no result, we at least wrote the JSON.
-    final HashMap<String, Object> map = loadCachedJson(query, end_time, 
+    final HashMap<String, Object> map = loadCachedJson(query, end_time,
         max_age, basepath);
     // If we don't have a JSON file it's a complete cache miss.  If we have
     // one, and it says 0 data points were plotted, it's a negative cache hit.
-    if (map == null || !map.containsKey("plotted") || 
+    if (map == null || !map.containsKey("plotted") ||
         ((Integer)map.get("plotted")) == 0) {
       return false;
     }
@@ -567,8 +567,8 @@ final class GraphHandler implements HttpRpc {
   private HashMap<String, Object> loadCachedJson(final HttpQuery query,
                                        final long end_time,
                                        final long max_age,
-                                       final String basepath) 
-                                       throws JsonParseException, 
+                                       final String basepath)
+                                       throws JsonParseException,
                                        JsonMappingException, IOException {
     final String json_path = basepath + ".json";
     File json_cache = new File(json_path);
@@ -580,7 +580,7 @@ final class GraphHandler implements HttpRpc {
       return null;
     }
     json_cache = null;
-    
+
     return (HashMap<String, Object>) JSON.parseToObject(json, HashMap.class);
   }
 
@@ -838,7 +838,7 @@ final class GraphHandler implements HttpRpc {
     for (final String m : ms) {
       // m is of the following forms:
       //   agg:[interval-agg:][rate[{counter[,[countermax][,resetvalue]]}]:]
-      //     metric[{tag=value,...}] 
+      //     metric[{tag=value,...}]
       // Where the parts in square brackets `[' .. `]' are optional.
       final String[] parts = Tags.splitString(m, ':');
       int i = parts.length;
@@ -851,7 +851,7 @@ final class GraphHandler implements HttpRpc {
       final HashMap<String, String> parsedtags = new HashMap<String, String>();
       final String metric = Tags.parseWithMetric(parts[i], parsedtags);
       final boolean rate = parts[--i].startsWith("rate");
-      final RateOptions rate_options = QueryRpc.parseRateOptions(rate, parts[i]); 
+      final RateOptions rate_options = QueryRpc.parseRateOptions(rate, parts[i]);
       if (rate) {
         i--;  // Move to the next part.
       }
@@ -909,9 +909,9 @@ final class GraphHandler implements HttpRpc {
   }
 
   /** Name of the wrapper script we use to execute Gnuplot.  */
-  private static final String WRAPPER = 
+  private static final String WRAPPER =
     IS_WINDOWS ? "mygnuplot.bat" : "mygnuplot.sh";
-  
+
   /** Path to the wrapper script.  */
   private static final String GNUPLOT;
   static {
