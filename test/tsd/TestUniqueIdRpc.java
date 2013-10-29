@@ -51,11 +51,12 @@ import org.powermock.modules.junit4.PowerMockRunner;
   HBaseClient.class, RowLock.class, UniqueIdRpc.class, KeyValue.class, 
   GetRequest.class, Scanner.class})
 public final class TestUniqueIdRpc {
+  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
   private UniqueIdRpc rpc = new UniqueIdRpc();
-
+  
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
@@ -851,45 +852,22 @@ public final class TestUniqueIdRpc {
     storage = new MockBase(tsdb, client, true, true, true, true);
     
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()), 
         "sys.cpu.0".getBytes(MockBase.ASCII()));
 
     storage.addColumn(new byte[] { 0, 0, 3 }, 
+        NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()), 
         "sys.cpu.2".getBytes(MockBase.ASCII()));
 
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"displayName\":\"System CPU\",\"description\":\"Description\"," +
         "\"notes\":\"MyNotes\",\"created\":1328140801,\"custom\":null}")
         .getBytes(MockBase.ASCII()));
-    
-//    when(tsdb.getUidName(UniqueIdType.METRIC,
-//        new byte[] { 0, 0, 1 })).thenReturn(Deferred.fromResult("sys.cpu.0"));
-//    when(tsdb.getUidName(UniqueIdType.METRIC, 
-//        new byte[] { 0, 0, 2 })).thenThrow(
-//        new NoSuchUniqueId("metric", new byte[] { 0, 0, 2 }));
-//
-//    when(tsdb.getClient()).thenReturn(client);
-//    when(tsdb.uidTable()).thenReturn("tsdb-uid".getBytes());
-//    when(tsdb.hbaseAcquireLock((byte[])any(), (byte[])any(), anyShort()))
-//      .thenReturn(mock(RowLock.class));
-//    
-//    KeyValue kv = mock(KeyValue.class);
-//    String json = 
-//      "{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
-//      "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-//      "1328140801,\"displayName\":\"System CPU\"}";
-//    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>();
-//    kvs.add(kv);
-//    when(kv.value()).thenReturn(json.getBytes());
-//    when(client.get((GetRequest) any())).thenReturn(
-//        Deferred.fromResult(kvs));
-//    when(client.delete((DeleteRequest) any())).thenReturn(
-//        new Deferred<Object>());
-//    when(client.put((PutRequest) any())).thenReturn(
-//        new Deferred<Object>());
   }
 
   /**
@@ -903,35 +881,43 @@ public final class TestUniqueIdRpc {
     tsdb = new TSDB(config);
     
     storage = new MockBase(tsdb, client, true, true, true, true);
+    storage.setFamily(NAME_FAMILY);
     
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 },
+        NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.0".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"System CPU\"}").getBytes(MockBase.ASCII()));
     
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "host".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "tagk_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Host server name\"}").getBytes(MockBase.ASCII()));
 
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "web01".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "tagv_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
 
     storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
+        NAME_FAMILY,
         "ts_meta".getBytes(MockBase.ASCII()),
         ("{\"tsuid\":\"000001000001000001\",\"displayName\":\"Display\"," +
             "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
@@ -939,46 +925,9 @@ public final class TestUniqueIdRpc {
             "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
             .getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
+        NAME_FAMILY,
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
-//    
-//    when(tsdb.getClient()).thenReturn(client);
-//    when(tsdb.uidTable()).thenReturn("tsdb-uid".getBytes());
-//    when(tsdb.hbaseAcquireLock((byte[])any(), (byte[])any(), anyShort()))
-//      .thenReturn(mock(RowLock.class));
-//    KeyValue kv = mock(KeyValue.class);
-//    String json = 
-//      "{\"tsuid\":\"ABCD\",\"" +
-//      "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
-//      "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-//      "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}";
-//    KeyValue ctr = mock(KeyValue.class);
-//    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>();
-//    kvs.add(kv);
-//    kvs.add(ctr);
-//    when(kv.value()).thenReturn(json.getBytes());
-//    when(kv.qualifier()).thenReturn("ts_meta".getBytes(
-//        Charset.forName("ISO-8859-1")));
-//    when(ctr.value()).thenReturn(Bytes.fromLong(1));
-//    when(ctr.timestamp()).thenReturn(1328140801000L);
-//    when(ctr.qualifier()).thenReturn("ts_ctr".getBytes(
-//        Charset.forName("ISO-8859-1")));
-//    when(client.get((GetRequest) any())).thenReturn(
-//        Deferred.fromResult(kvs));
-//    
-//    final UIDMeta metric = 
-//      new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 1}, "sys.cpu.0");
-//    final UIDMeta tagk = 
-//      new UIDMeta(UniqueIdType.TAGK, new byte[] {0, 0, 1}, "host");
-//    final UIDMeta tagv = 
-//      new UIDMeta(UniqueIdType.TAGV, new byte[] {0, 0, 1}, "web01");
-//    
-//    PowerMockito.mockStatic(UIDMeta.class);
-//    when(UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, new byte[] {0, 0, 1}))
-//      .thenReturn(Deferred.fromResult(metric));
-//    when(UIDMeta.getUIDMeta(tsdb, UniqueIdType.TAGK, new byte[] {0, 0, 1}))
-//      .thenReturn(Deferred.fromResult(tagk));
-//    when(UIDMeta.getUIDMeta(tsdb, UniqueIdType.TAGV, new byte[] {0, 0, 1}))
-//      .thenReturn(Deferred.fromResult(tagv));
+
   }
 }

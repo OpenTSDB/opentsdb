@@ -50,6 +50,7 @@ import com.stumbleupon.async.DeferredGroupException;
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
   Scanner.class })
 public final class TestLeaf {
+  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
@@ -63,17 +64,17 @@ public final class TestLeaf {
     
     storage = new MockBase(tsdb, client, true, true, true, true);
     
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.0".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "host".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "web01".getBytes(MockBase.ASCII()));
     
-    storage.addColumn(new byte[] { 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 1 }, Tree.TREE_FAMILY(),
         new Leaf("0", "000001000001000001").columnQualifier(), 
         ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
         .getBytes(MockBase.ASCII()));
