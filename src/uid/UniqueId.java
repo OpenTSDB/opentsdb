@@ -552,9 +552,35 @@ public final class UniqueId implements UniqueIdInterface {
    */
   public byte[] getOrCreateId(final String name) throws HBaseException {
     try {
-      return getOrCreateIdAsync(name).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
+      return getIdAsync(name).joinUninterruptibly();
+    } catch (NoSuchUniqueName e) {
+      Deferred<byte[]> assignment = null;
+      synchronized (pending_assignments) {
+        assignment = pending_assignments.get(name);
+        if (assignment == null) {
+          // to prevent UID leaks that can be caused when multiple time
+          // series for the same metric or tags arrive, we need to write a 
+          // deferred to the pending map as quickly as possible. Then we can 
+          // start the assignment process after we've stashed the deferred 
+          // and released the lock
+          assignment = new Deferred<byte[]>();
+          pending_assignments.put(name, assignment);
+        } else {
+          LOG.info("Already waiting for UID assignment: " + name);
+          try {
+            return assignment.joinUninterruptibly();
+          } catch (Exception e1) {
+            throw new RuntimeException("Should never be here", e);
+          }
+        }
+      }
+      
+      // start the assignment dance after stashing the deferred
+      try {
+        return new UniqueIdAllocator(name, assignment).tryAllocate().joinUninterruptibly();
+      } catch (Exception e1) {
+        throw new RuntimeException("Should never be here", e);
+      }
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
     }

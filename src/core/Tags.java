@@ -352,7 +352,7 @@ public final class Tags {
                                       final Map<String, String> tags)
     throws NoSuchUniqueName {
     try {
-      return resolveAllInternal(tsdb, tags, false).joinUninterruptibly();
+      return resolveAllInternal(tsdb, tags, false);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -361,22 +361,60 @@ public final class Tags {
   }
 
   /**
+  * Resolves (and creates, if necessary) all the tags (name=value) into the a
+  * sorted byte arrays.
+  * @param tsdb The TSDB to use for UniqueId lookups.
+  * @param tags The tags to resolve. If a new tag name or tag value is
+  * seen, it will be assigned an ID.
+  * @return an array of sorted tags (tag id, tag name).
+  */
+  static ArrayList<byte[]> resolveOrCreateAll(final TSDB tsdb,
+                                              final Map<String, String> tags) {
+    return resolveAllInternal(tsdb, tags, true);
+  }
+  
+  private
+  static ArrayList<byte[]> resolveAllInternal(final TSDB tsdb,
+                                              final Map<String, String> tags,
+                                              final boolean create)
+    throws NoSuchUniqueName {
+    final ArrayList<byte[]> tag_ids = new ArrayList<byte[]>(tags.size());
+    for (final Map.Entry<String, String> entry : tags.entrySet()) {
+      final byte[] tag_id = (create
+                             ? tsdb.tag_names.getOrCreateId(entry.getKey())
+                             : tsdb.tag_names.getId(entry.getKey()));
+      final byte[] value_id = (create
+                               ? tsdb.tag_values.getOrCreateId(entry.getValue())
+                               : tsdb.tag_values.getId(entry.getValue()));
+      final byte[] thistag = new byte[tag_id.length + value_id.length];
+      System.arraycopy(tag_id, 0, thistag, 0, tag_id.length);
+      System.arraycopy(value_id, 0, thistag, tag_id.length, value_id.length);
+      tag_ids.add(thistag);
+    }
+    // Now sort the tags.
+    Collections.sort(tag_ids, Bytes.MEMCMP);
+    return tag_ids;
+  }
+
+
+  /**
    * Resolves (and creates, if necessary) all the tags (name=value) into the a
    * sorted byte arrays.
    * @param tsdb The TSDB to use for UniqueId lookups.
    * @param tags The tags to resolve.  If a new tag name or tag value is
    * seen, it will be assigned an ID.
    * @return an array of sorted tags (tag id, tag name).
+   * @since 2.0
    */
   static Deferred<ArrayList<byte[]>>
-    resolveOrCreateAll(final TSDB tsdb, final Map<String, String> tags) {
-    return resolveAllInternal(tsdb, tags, true);
+    resolveOrCreateAllAsync(final TSDB tsdb, final Map<String, String> tags) {
+    return resolveAllInternalAsync(tsdb, tags, true);
   }
-
+  
   private static Deferred<ArrayList<byte[]>>
-    resolveAllInternal(final TSDB tsdb,
-                       final Map<String, String> tags,
-                       final boolean create) {
+    resolveAllInternalAsync(final TSDB tsdb,
+                            final Map<String, String> tags,
+                            final boolean create) {
     final ArrayList<Deferred<byte[]>> tag_ids =
       new ArrayList<Deferred<byte[]>>(tags.size());
 

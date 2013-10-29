@@ -102,10 +102,43 @@ final class IncomingDataPoints implements WritableDataPoints {
   }
 
   /**
+  * Returns a partially initialized row key for this metric and these tags.
+  * The only thing left to fill in is the base timestamp.
+  */
+  static byte[] rowKeyTemplate(final TSDB tsdb,
+                               final String metric,
+                               final Map<String, String> tags) {
+    final short metric_width = tsdb.metrics.width();
+    final short tag_name_width = tsdb.tag_names.width();
+    final short tag_value_width = tsdb.tag_values.width();
+    final short num_tags = (short) tags.size();
+
+    int row_size = (metric_width + Const.TIMESTAMP_BYTES
+                    + tag_name_width * num_tags
+                    + tag_value_width * num_tags);
+    final byte[] row = new byte[row_size];
+
+    short pos = 0;
+
+    copyInRowKey(row, pos, (tsdb.config.auto_metric() ? 
+        tsdb.metrics.getOrCreateId(metric) : tsdb.metrics.getId(metric)));
+    pos += metric_width;
+
+    pos += Const.TIMESTAMP_BYTES;
+
+    for(final byte[] tag : Tags.resolveOrCreateAll(tsdb, tags)) {
+      copyInRowKey(row, pos, tag);
+      pos += tag.length;
+    }
+    return row;
+  }
+  
+  /**
    * Returns a partially initialized row key for this metric and these tags.
    * The only thing left to fill in is the base timestamp.
+   * @since 2.0
    */
-  static Deferred<byte[]> rowKeyTemplate(final TSDB tsdb,
+  static Deferred<byte[]> rowKeyTemplateAsync(final TSDB tsdb,
                                          final String metric,
                                          final Map<String, String> tags) {
     final short metric_width = tsdb.metrics.width();
@@ -151,14 +184,14 @@ final class IncomingDataPoints implements WritableDataPoints {
     }
 
     // Kick off the resolution of all tags.
-    return Tags.resolveOrCreateAll(tsdb, tags)
+    return Tags.resolveOrCreateAllAsync(tsdb, tags)
       .addCallbackDeferring(new CopyTagsInRowKeyCB());
   }
 
   public void setSeries(final String metric, final Map<String, String> tags) {
     checkMetricAndTags(metric, tags);
     try {
-      row = rowKeyTemplate(tsdb, metric, tags).joinUninterruptibly();
+      row = rowKeyTemplate(tsdb, metric, tags);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {

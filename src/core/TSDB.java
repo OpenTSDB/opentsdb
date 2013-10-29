@@ -610,70 +610,48 @@ public final class TSDB {
     }
 
     IncomingDataPoints.checkMetricAndTags(metric, tags);
+    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    final long base_time;
+    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
     
-    class AddPointCB implements Callback<Deferred<Object>, byte[]> { 
-      public Deferred<Object> call(final byte[] row) { 
-        final long base_time;
-        final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
-        
-        if ((timestamp & Const.SECOND_MASK) != 0) {
-          // drop the ms timestamp to seconds to calculate the base timestamp
-          base_time = ((timestamp / 1000) - 
-              ((timestamp / 1000) % Const.MAX_TIMESPAN));
-        } else {
-          base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-        }
-        
-        Bytes.setInt(row, (int) base_time, metrics.width());
-        scheduleForCompaction(row, (int) base_time);
-        final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
-        
-        // TODO(tsuna): Add a callback to time the latency of HBase and store the
-        // timing in a moving Histogram (once we have a class for this).
-        Deferred<Object> result = client.put(point);
-        if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
-            !config.enable_tsuid_tracking() && rt_publisher == null) {
-          return result;
-        }
-        
-        final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
-            Const.TIMESTAMP_BYTES);
-        
-        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-        // counter field for a TSUID with the proper timestamp. If the user would
-        // rather have TSUID incrementing enabled, that will trump the PUT
-        if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
-          final PutRequest tracking = new PutRequest(meta_table, tsuid, 
-              TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
-          client.put(tracking);
-        } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
-          TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
-        }
-        
-        if (rt_publisher != null) {
-          
-          /**
-           * Simply logs real time publisher errors when they're thrown. Without
-           * this, exceptions will just disappear (unless logged by the plugin) 
-           * since we don't wait for a result.
-           */
-          final class RTError implements Callback<Object, Exception> {
-            @Override
-            public Object call(final Exception e) throws Exception {
-              LOG.error("Exception from Real Time Publisher", e);
-              return null;
-            }
-          }
-          
-          rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags)
-            .addErrback(new RTError());
-        }
-        return result;
-      }
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      base_time = ((timestamp / 1000) - 
+          ((timestamp / 1000) % Const.MAX_TIMESPAN));
+    } else {
+      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     }
     
-    return IncomingDataPoints.rowKeyTemplate(this, metric, tags)
-      .addCallbackDeferring(new AddPointCB()); 
+    Bytes.setInt(row, (int) base_time, metrics.width());
+    scheduleForCompaction(row, (int) base_time);
+    final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
+    
+    // TODO(tsuna): Add a callback to time the latency of HBase and store the
+    // timing in a moving Histogram (once we have a class for this).
+    Deferred<Object> result = client.put(point);
+    if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
+        !config.enable_tsuid_tracking() && rt_publisher == null) {
+      return result;
+    }
+    
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
+        Const.TIMESTAMP_BYTES);
+    
+    // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
+    // counter field for a TSUID with the proper timestamp. If the user would
+    // rather have TSUID incrementing enabled, that will trump the PUT
+    if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
+      final PutRequest tracking = new PutRequest(meta_table, tsuid, 
+          TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
+      client.put(tracking);
+    } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
+      TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+    }
+    
+    if (rt_publisher != null) {
+      rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
+    }
+    return result;
   }
 
   /**
