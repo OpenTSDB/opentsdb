@@ -125,7 +125,7 @@ restart|force-reload)
   $0 start
   ;;
 status)
-  status_of_proc -p "$PID_FILE" "$DAEMON" "$NAME" && exit 0 || exit $?
+  status_of_proc -p "$PID_FILE" "$DAEMON" "$NAME"
   ;;
 *)
   echo "Usage: /etc/init.d/opentsdb {start|stop|restart|status}"
