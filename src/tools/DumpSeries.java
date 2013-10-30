@@ -231,7 +231,7 @@ final class DumpSeries {
     .append("\t")
     .append(cell.isInteger() ? "l" : "f")
     .append("\t")
-    .append(cell.parseValue())
+    .append(Arrays.toString(cell.value()))
     .append("\t")
     .append(cell.absoluteTimestamp(base_time))
     .append("\t")
@@ -244,7 +244,7 @@ final class DumpSeries {
       final long base_time, final String tags) {
     buf.append(cell.absoluteTimestamp(base_time))
     .append(" ")
-    .append(Arrays.toString(cell.value()))
+    .append(cell.parseValue())
     .append(tags);
   }
   
