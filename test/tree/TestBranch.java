@@ -51,6 +51,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({ TSDB.class, HBaseClient.class, GetRequest.class,
   PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class })
 public final class TestBranch {
+  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private MockBase storage;
   private Tree tree = TestTree.buildTestTree();
   final static private Method toStorageJson;
@@ -268,22 +269,28 @@ public final class TestBranch {
     setupStorage();
     
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.0".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "host".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "web01".getBytes(MockBase.ASCII()));
     
     storage.addColumn(new byte[] { 0, 0, 2 }, 
+        NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.1".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 2 }, 
+        NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "owner".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 2 }, 
+        NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "ops".getBytes(MockBase.ASCII()));
     
@@ -302,12 +309,15 @@ public final class TestBranch {
     setupStorage();
     
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.0".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "host".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "web01".getBytes(MockBase.ASCII()));
     
@@ -391,7 +401,7 @@ public final class TestBranch {
     final Branch branch = buildTestBranch(tree);
     Leaf leaf = new Leaf("Alarms", "ABCD");
     byte[] qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     branch.storeBranch(storage.getTSDB(), tree, true);
@@ -411,7 +421,7 @@ public final class TestBranch {
     final Branch branch = buildTestBranch(tree);
     Leaf leaf = new Leaf("Alarms", "0101");
     byte[] qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     branch.storeBranch(storage.getTSDB(), tree, true);
@@ -567,18 +577,18 @@ public final class TestBranch {
     path.put(2, "cpu");
     branch.prependParentPath(path);
     branch.setDisplayName("cpu");
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])toStorageJson.invoke(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
     byte[] qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     leaf = new Leaf("nice", "000002000002000002");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     // child branch
@@ -586,13 +596,13 @@ public final class TestBranch {
     path.put(3, "mboard");
     branch.prependParentPath(path);
     branch.setDisplayName("mboard");
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])toStorageJson.invoke(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
   }
 }

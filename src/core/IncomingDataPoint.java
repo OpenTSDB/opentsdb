@@ -15,7 +15,8 @@ package net.opentsdb.core;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 /**
  * Bridging class that stores a normalized data point parsed from the "put" 
@@ -30,7 +31,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
  * overload with their own fields or parsing methods.
  * @since 2.0
  */
-@JsonSerialize(include=JsonSerialize.Inclusion.NON_NULL)
+@JsonInclude(Include.NON_NULL)
 public class IncomingDataPoint {
   /** The incoming metric name */
   private String metric;

@@ -49,6 +49,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
   Scanner.class, UIDMeta.class})
 public final class TestUIDMeta {
+  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
@@ -64,14 +65,17 @@ public final class TestUIDMeta {
     storage = new MockBase(tsdb, client, true, true, true, true);
 
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()), 
         "sys.cpu.0".getBytes(MockBase.ASCII()));
 
     storage.addColumn(new byte[] { 0, 0, 3 }, 
+        NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()), 
         "sys.cpu.2".getBytes(MockBase.ASCII()));
 
     storage.addColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
@@ -249,6 +253,7 @@ public final class TestUIDMeta {
     meta = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
     meta.storeNew(tsdb).joinUninterruptibly();
     meta = JSON.parseToObject(storage.getColumn(new byte[] { 0, 0, 1 }, 
+        NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII())), UIDMeta.class);
     assertEquals("", meta.getDisplayName());
     assertEquals("sys.cpu.1", meta.getName());

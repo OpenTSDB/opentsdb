@@ -75,10 +75,10 @@ import com.stumbleupon.async.Deferred;
 public final class MockBase {
   private static final Charset ASCII = Charset.forName("ISO-8859-1");
   private TSDB tsdb;
-  private Bytes.ByteMap<Bytes.ByteMap<byte[]>> storage = 
-    new Bytes.ByteMap<Bytes.ByteMap<byte[]>>();
+  private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<byte[]>>> storage = 
+    new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<byte[]>>>();
   private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
-  private byte[] family;
+  private byte[] default_family;
   
   /**
    * Setups up mock intercepts for all of the calls. Depending on the given
@@ -100,7 +100,9 @@ public final class MockBase {
       final boolean default_delete,
       final boolean default_scan) {
     this.tsdb = tsdb;
- 
+    
+    default_family = "t".getBytes(ASCII);  // set a default
+    
     // replace the "real" field objects with mocks
     Field cl;
     try {
@@ -178,23 +180,45 @@ public final class MockBase {
   
   /** @param family Sets the family for calls that need it */
   public void setFamily(final byte[] family) {
-    this.family = family;
+    this.default_family = family;
   }
   
   /**
-   * Add a column to the hash table. The proper row will be created if it doesn't
-   * exist. If the column already exists, the original value will be overwritten 
-   * with the new data
+   * Add a column to the hash table using the default column family. 
+   * The proper row will be created if it doesn't exist. If the column already 
+   * exists, the original value will be overwritten with the new data
    * @param key The row key
    * @param qualifier The qualifier
    * @param value The value to store
    */
   public void addColumn(final byte[] key, final byte[] qualifier, 
       final byte[] value) {
-    if (!storage.containsKey(key)) {
-      storage.put(key, new Bytes.ByteMap<byte[]>());
+    addColumn(key, default_family, qualifier, value);
+  }
+  
+  /**
+   * Add a column to the hash table 
+   * The proper row will be created if it doesn't exist. If the column already 
+   * exists, the original value will be overwritten with the new data
+   * @param key The row key
+   * @param family The column family to store the value in
+   * @param qualifier The qualifier
+   * @param value The value to store
+   */
+  public void addColumn(final byte[] key, final byte[] family, 
+      final byte[] qualifier, final byte[] value) {
+    Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(key);
+    if (row == null) {
+      row = new Bytes.ByteMap<Bytes.ByteMap<byte[]>>();
+      storage.put(key, row);
     }
-    storage.get(key).put(qualifier, value);
+    
+    Bytes.ByteMap<byte[]> cf = row.get(family);
+    if (cf == null) {
+      cf = new Bytes.ByteMap<byte[]>();
+      row.put(family, cf);
+    }
+    cf.put(qualifier, value);
   }
   
   /** @return TTotal number of rows in the hash table */
@@ -203,28 +227,96 @@ public final class MockBase {
   }
   
   /**
-   * Total number of columns in the given row
+   * Return the total number of column families for the row
+   * @param key The row to search for
+   * @return -1 if the row did not exist, otherwise the number of column families.
+   */
+  public int numColumnFamilies(final byte[] key) {
+    final Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(key);
+    if (row == null) {
+      return -1;
+    }
+    return row.size();
+  }
+  
+  /**
+   * Total number of columns in the given row across all column families
    * @param key The row to search for
    * @return -1 if the row did not exist, otherwise the number of columns.
    */
-  public int numColumns(final byte[] key) {
-    if (!storage.containsKey(key)) {
+  public long numColumns(final byte[] key) {
+    final Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(key);
+    if (row == null) {
       return -1;
     }
-    return storage.get(key).size();
+    long size = 0;
+    for (Map.Entry<byte[], Bytes.ByteMap<byte[]>> entry : row) {
+      size += entry.getValue().size();
+    }
+    return size;
+  }
+  
+  /**
+   * Return the total number of columns for a specific row and family
+   * @param key The row to search for
+   * @param family The column family to search for
+   * @return -1 if the row did not exist, otherwise the number of columns.
+   */
+  public int numColumnsInFamily(final byte[] key, final byte[] family) {
+    final Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(key);
+    if (row == null) {
+      return -1;
+    }
+    final Bytes.ByteMap<byte[]> cf = row.get(family);
+    if (cf == null) {
+      return -1;
+    }
+    return cf.size();
   }
 
   /**
-   * Retrieve the contents of a single column
+   * Retrieve the contents of a single column with the default family
    * @param key The row key of the column
    * @param qualifier The column qualifier
    * @return The byte array of data or null if not found
    */
-  public byte[] getColumn (final byte[] key, final byte[] qualifier) {
-    if (!storage.containsKey(key)) {
+  public byte[] getColumn(final byte[] key, final byte[] qualifier) {
+    return getColumn(key, default_family, qualifier);
+  }
+  
+  /**
+   * Retrieve the contents of a single column
+   * @param key The row key of the column
+   * @param family The column family
+   * @param qualifier The column qualifier
+   * @return The byte array of data or null if not found
+   */
+  public byte[] getColumn(final byte[] key, final byte[] family, 
+      final byte[] qualifier) {
+    final Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(key);
+    if (row == null) {
       return null;
     }
-    return storage.get(key).get(qualifier);
+    final Bytes.ByteMap<byte[]> cf = row.get(family);
+    if (cf == null) {
+      return null;
+    }
+    return cf.get(qualifier);
+  }
+
+  /**
+   * Returns all of the columns for a given column family
+   * @param key The row key
+   * @param family The column family ID
+   * @return A hash of columns if the CF was found, null if no such CF
+   */
+  public Bytes.ByteMap<byte[]> getColumnFamily(final byte[] key, 
+      final byte[] family) {
+    final Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(key);
+    if (row == null) {
+      return null;
+    }
+    return row.get(family);
   }
   
   /**
@@ -251,27 +343,73 @@ public final class MockBase {
   }
   
   /**
-   * Dumps the entire storage hash to stdout with the row keys and (optionally)
-   * qualifiers as hex encoded byte strings. The byte values will pass be
-   * converted to ASCII strings. Useful for debugging when writing unit tests,
-   * but don't depend on it.
-   * @param qualifier_ascii Whether or not the qualifiers should be converted
-   * to ASCII.
+   * Removes the entire column family from the hash table for ALL rows
+   * @param family The family to remove
    */
-  public void dumpToSystemOut(final boolean qualifier_ascii) {
+  public void flushFamily(final byte[] family) {
+    for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<byte[]>>> row : 
+      storage.entrySet()) {
+      row.getValue().remove(family);
+    }
+  }
+  
+  /**
+   * Removes the given column from the hash map
+   * @param key Row key
+   * @param family Column family
+   * @param qualifier Column qualifier
+   */
+  public void flushColumn(final byte[] key, final byte[] family, 
+      final byte[] qualifier) {
+    final Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(key);
+    if (row == null) {
+      return;
+    }
+    final Bytes.ByteMap<byte[]> cf = row.get(family);
+    if (cf == null) {
+      return;
+    }
+    cf.remove(qualifier);
+  }
+  
+  /**
+   * Dumps the entire storage hash to stdout in a sort of tree style format with
+   * all byte arrays hex encoded
+   */
+  public void dumpToSystemOut() {
+    dumpToSystemOut(false);
+  }
+  
+  /**
+   * Dumps the entire storage hash to stdout in a sort of tree style format
+   * @param ascii Whether or not the values should be converted to ascii
+   */
+  public void dumpToSystemOut(final boolean ascii) {
     if (storage.isEmpty()) {
       System.out.println("Storage is Empty");
       return;
     }
     
-    for (Map.Entry<byte[], Bytes.ByteMap<byte[]>> row : storage.entrySet()) {
-      System.out.println("Row: " + row.getKey());
+    for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<byte[]>>> row : 
+      storage.entrySet()) {
+      System.out.println("[Row] " + (ascii ? new String(row.getKey(), ASCII) : 
+          bytesToString(row.getKey())));
       
-      for (Map.Entry<byte[], byte[]> column : row.getValue().entrySet()) {
-        System.out.println("  Qualifier: " + (qualifier_ascii ?
-            "\"" + new String(column.getKey(), ASCII) + "\""
-            : column.getKey()));
-        System.out.println("    Value: " + new String(column.getValue(), ASCII));
+      for (Map.Entry<byte[], Bytes.ByteMap<byte[]>> cf : 
+        row.getValue().entrySet()) {
+        
+        final String family = ascii ? new String(cf.getKey(), ASCII) :
+          bytesToString(cf.getKey());
+        System.out.println("  [CF] " + family);
+        
+        for (Map.Entry<byte[], byte[]> column : cf.getValue().entrySet()) {
+          System.out.println("    [Qual] " + (ascii ?
+              "\"" + new String(column.getKey(), ASCII) + "\""
+              : bytesToString(column.getKey())));
+          System.out.println("      [Value] " + (ascii ? 
+              new String(column.getValue(), ASCII) 
+              : bytesToString(column.getValue())));
+        }
       }
     }
   }
@@ -332,45 +470,51 @@ public final class MockBase {
         throws Throwable {
       final Object[] args = invocation.getArguments();
       final GetRequest get = (GetRequest)args[0];
-      final Bytes.ByteMap<byte[]> row = storage.get(get.key());
+      
+      final Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(get.key());
 
       if (row == null) {
         return Deferred.fromResult((ArrayList<KeyValue>)null);
-      } if (get.qualifiers() == null || get.qualifiers().length == 0) { 
-
-        // return all columns from the given row
-        final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(row.size());
-        for (Map.Entry<byte[], byte[]> entry : row.entrySet()) {
+      } 
+      
+      final byte[] family = get.family();
+      if (family != null && family.length > 0) {
+        if (!row.containsKey(family)) {
+          return Deferred.fromResult((ArrayList<KeyValue>)null);
+        }
+      }
+      
+      // compile a set of qualifiers to use as a filter if necessary
+      Bytes.ByteMap<Object> qualifiers = new Bytes.ByteMap<Object>();
+      if (get.qualifiers() != null && get.qualifiers().length > 0) { 
+        for (byte[] q : get.qualifiers()) {
+          qualifiers.put(q, null);
+        }
+      }
+      
+      final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(row.size());
+      for (Map.Entry<byte[], Bytes.ByteMap<byte[]>> cf : row.entrySet()) {
+        
+        // column family filter
+        if (family != null && family.length > 0 && 
+            !Bytes.equals(family, cf.getKey())) {
+          continue;
+        }
+        
+        for (Map.Entry<byte[], byte[]> entry : cf.getValue().entrySet()) {
+          // qualifier filter
+          if (!qualifiers.isEmpty() && !qualifiers.containsKey(entry.getKey())) {
+            continue;
+          }
+          
           KeyValue kv = mock(KeyValue.class);
           when(kv.value()).thenReturn(entry.getValue());
           when(kv.qualifier()).thenReturn(entry.getKey());
           when(kv.key()).thenReturn(get.key());
           kvs.add(kv);
         }
-        return Deferred.fromResult(kvs);
-        
-      } else {
-        
-        final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(
-            get.qualifiers().length);
-        
-        for (byte[] q : get.qualifiers()) {
-          if (!row.containsKey(q)) {
-            continue;
-          }
-
-          KeyValue kv = mock(KeyValue.class);
-          when(kv.value()).thenReturn(row.get(q));
-          when(kv.qualifier()).thenReturn(q);
-          when(kv.key()).thenReturn(get.key());
-          kvs.add(kv);
-        }
-        
-        if (kvs.size() < 1) {
-          return Deferred.fromResult((ArrayList<KeyValue>)null);
-        }
-        return Deferred.fromResult(kvs);
       }
+      return Deferred.fromResult(kvs);
     }
   }
   
@@ -385,14 +529,20 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       final PutRequest put = (PutRequest)args[0];
 
-      Bytes.ByteMap<byte[]> column = storage.get(put.key());
-      if (column == null) {
-        column = new Bytes.ByteMap<byte[]>();
-        storage.put(put.key(), column);
+      Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(put.key());
+      if (row == null) {
+        row = new Bytes.ByteMap<Bytes.ByteMap<byte[]>>();
+        storage.put(put.key(), row);
+      }
+      
+      Bytes.ByteMap<byte[]> cf = row.get(put.family());
+      if (cf == null) {
+        cf = new Bytes.ByteMap<byte[]>();
+        row.put(put.family(), cf);
       }
       
       for (int i = 0; i < put.qualifiers().length; i++) {
-        column.put(put.qualifiers()[i], put.values()[i]);
+        cf.put(put.qualifiers()[i], put.values()[i]);
       }
       
       return Deferred.fromResult(true);
@@ -417,19 +567,29 @@ public final class MockBase {
       final PutRequest put = (PutRequest)args[0];
       final byte[] expected = (byte[])args[1];
       
-      Bytes.ByteMap<byte[]> column = storage.get(put.key());
-      if (column == null) {
+      Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(put.key());
+      if (row == null) {
         if (expected != null && expected.length > 0) {
           return Deferred.fromResult(false);
         }
         
-        column = new Bytes.ByteMap<byte[]>();
-        storage.put(put.key(), column);
+        row = new Bytes.ByteMap<Bytes.ByteMap<byte[]>>();
+        storage.put(put.key(), row);
+      }
+      
+      Bytes.ByteMap<byte[]> cf = row.get(put.family());
+      if (cf == null) {
+        if (expected != null && expected.length > 0) {
+          return Deferred.fromResult(false);
+        }
+        
+        cf = new Bytes.ByteMap<byte[]>();
+        row.put(put.family(), cf);
       }
       
       // CAS can only operate on one cell, so if the put request has more than 
       // one, we ignore any but the first
-      final byte[] stored = column.get(put.qualifiers()[0]); 
+      final byte[] stored = cf.get(put.qualifiers()[0]); 
       if (stored == null && (expected != null && expected.length > 0)) {
         return Deferred.fromResult(false);
       }
@@ -442,7 +602,7 @@ public final class MockBase {
       }
       
       // passed CAS!
-      column.put(put.qualifiers()[0], put.value());
+      cf.put(put.qualifiers()[0], put.value());
       return Deferred.fromResult(true);
     }
     
@@ -460,30 +620,68 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       final DeleteRequest delete = (DeleteRequest)args[0];
       
-      if (!storage.containsKey(delete.key())) {
+      Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(delete.key());
+      if (row == null) {
         return Deferred.fromResult(null);
       }
       
-      // if no qualifiers, then delete the row
-      if (delete.qualifiers() == null) {
-        storage.remove(delete.key());
+      // if no qualifiers or family, then delete the row
+      if ((delete.qualifiers() == null || delete.qualifiers().length < 1) && 
+          (delete.family() == null || delete.family().length < 1)) {
         return Deferred.fromResult(new Object());
       }
       
-      Bytes.ByteMap<byte[]> column = storage.get(delete.key());
-      final byte[][] qualfiers = delete.qualifiers();       
+      final byte[] family = delete.family();
+      if (family != null && family.length > 0) {
+        if (!row.containsKey(family)) {
+          return Deferred.fromResult(null);
+        }
+      }
       
-      for (byte[] qualifier : qualfiers) {
-        if (!column.containsKey(qualifier)) {
+      // compile a set of qualifiers to use as a filter if necessary
+      Bytes.ByteMap<Object> qualifiers = new Bytes.ByteMap<Object>();
+      if (delete.qualifiers() != null || delete.qualifiers().length > 0) { 
+        for (byte[] q : delete.qualifiers()) {
+          qualifiers.put(q, null);
+        }
+      }
+      
+      // if the request only has a column family and no qualifiers, we delete
+      // the entire family
+      if (family != null && qualifiers.isEmpty()) {
+        row.remove(family);
+        if (row.isEmpty()) {
+          storage.remove(delete.key());
+        }
+        return Deferred.fromResult(new Object());
+      }
+      
+      ArrayList<byte[]> cf_removals = new ArrayList<byte[]>(row.entrySet().size());
+      for (Map.Entry<byte[], Bytes.ByteMap<byte[]>> cf : row.entrySet()) {
+        
+        // column family filter
+        if (family != null && family.length > 0 && 
+            !Bytes.equals(family, cf.getKey())) {
           continue;
         }
-        column.remove(qualifier);
+        
+        for (byte[] qualifier : qualifiers.keySet()) {
+          cf.getValue().remove(qualifier);
+        }
+        
+        if (cf.getValue().isEmpty()) {
+          cf_removals.add(cf.getKey());
+        }
       }
       
-      // if all columns were deleted, wipe the row
-      if (column.isEmpty()) {
+      for (byte[] cf : cf_removals) {
+        row.remove(cf);
+      }
+      
+      if (row.isEmpty()) {
         storage.remove(delete.key());
       }
+      
       return Deferred.fromResult(new Object());
     }
     
@@ -511,6 +709,7 @@ public final class MockBase {
     private byte[] start = null;
     private byte[] stop = null;
     private HashSet<String> scnr_qualifiers = null;
+    private byte[] family = null;
     private String regex = null;
     private boolean called;
     
@@ -552,6 +751,15 @@ public final class MockBase {
           return null;
         }      
       }).when(mock_scanner).setStopKey((byte[])any());
+      
+      doAnswer(new Answer<Object>() {
+        @Override
+        public Object answer(InvocationOnMock invocation) throws Throwable {
+          final Object[] args = invocation.getArguments();
+          family = (byte[])args[0];
+          return null;
+        }      
+      }).when(mock_scanner).setFamily((byte[])any());
       
       doAnswer(new Answer<Object>() {
         @Override
@@ -601,11 +809,11 @@ public final class MockBase {
         }
       }
       
-      
       // return all matches
       ArrayList<ArrayList<KeyValue>> results = 
         new ArrayList<ArrayList<KeyValue>>();
-      for (Map.Entry<byte[], Bytes.ByteMap<byte[]>> row : storage.entrySet()) {
+      for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<byte[]>>> row : 
+        storage.entrySet()) {
         
         // if it's before the start row, after the end row or doesn't
         // match the given regex, continue on to the next row
@@ -622,26 +830,37 @@ public final class MockBase {
           }
         }
         
-        // loop on the columns
+        // loop on the column families
         final ArrayList<KeyValue> kvs = 
           new ArrayList<KeyValue>(row.getValue().size());
-        for (Map.Entry<byte[], byte[]> entry : row.getValue().entrySet()) {
+        for (Map.Entry<byte[], Bytes.ByteMap<byte[]>> cf : 
+          row.getValue().entrySet()) {
           
-          // if the qualifier isn't in the set, continue
-          if (scnr_qualifiers != null && 
-              !scnr_qualifiers.contains(bytesToString(entry.getKey()))) {
+          // column family filter
+          if (family != null && family.length > 0 && 
+              !Bytes.equals(family, cf.getKey())) {
             continue;
           }
-          
-          KeyValue kv = mock(KeyValue.class);
-          when(kv.key()).thenReturn(row.getKey());
-          when(kv.value()).thenReturn(entry.getValue());
-          when(kv.qualifier()).thenReturn(entry.getKey());
-          when(kv.family()).thenReturn(family);
-          when(kv.toString()).thenReturn("[k '" + bytesToString(row.getKey()) + 
-              "' q '" + bytesToString(entry.getKey()) + "' v '" + 
-              bytesToString(entry.getValue()) + "']");
-          kvs.add(kv);
+        
+          for (Map.Entry<byte[], byte[]> entry : cf.getValue().entrySet()) {
+            
+            // if the qualifier isn't in the set, continue
+            if (scnr_qualifiers != null && 
+                !scnr_qualifiers.contains(bytesToString(entry.getKey()))) {
+              continue;
+            }
+            
+            KeyValue kv = mock(KeyValue.class);
+            when(kv.key()).thenReturn(row.getKey());
+            when(kv.value()).thenReturn(entry.getValue());
+            when(kv.qualifier()).thenReturn(entry.getKey());
+            when(kv.family()).thenReturn(cf.getKey());
+            when(kv.toString()).thenReturn("[k '" + bytesToString(row.getKey()) + 
+                "' q '" + bytesToString(entry.getKey()) + "' v '" + 
+                bytesToString(entry.getValue()) + "']");
+            kvs.add(kv);
+          }
+        
         }
         
         if (!kvs.isEmpty()) {
@@ -668,21 +887,26 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       final AtomicIncrementRequest air = (AtomicIncrementRequest)args[0];
       final long amount = air.getAmount();
-      
-      Bytes.ByteMap<byte[]> column = storage.get(air.key());
-      if (column == null) {
-        column = new Bytes.ByteMap<byte[]>();
-        storage.put(air.key(), column);
+      Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(air.key());
+      if (row == null) {
+        row = new Bytes.ByteMap<Bytes.ByteMap<byte[]>>();
+        storage.put(air.key(), row);
       }
       
-      if (!column.containsKey(air.qualifier())) {
-        column.put(air.qualifier(), Bytes.fromLong(amount));
+      Bytes.ByteMap<byte[]> cf = row.get(air.family());
+      if (cf == null) {
+        cf = new Bytes.ByteMap<byte[]>();
+        row.put(air.family(), cf);
+      }
+      
+      if (!cf.containsKey(air.qualifier())) {
+        cf.put(air.qualifier(), Bytes.fromLong(amount));
         return Deferred.fromResult(amount);
       }
       
-      long incremented_value = Bytes.getLong(column.get(air.qualifier()));
+      long incremented_value = Bytes.getLong(cf.get(air.qualifier()));
       incremented_value += amount;
-      column.put(air.qualifier(), Bytes.fromLong(incremented_value));
+      cf.put(air.qualifier(), Bytes.fromLong(incremented_value));
       return Deferred.fromResult(incremented_value);
     }
     

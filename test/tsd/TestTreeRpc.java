@@ -62,6 +62,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({ TSDB.class, HBaseClient.class, GetRequest.class, Tree.class,
   PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class })
 public final class TestTreeRpc {
+  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
@@ -1151,13 +1152,13 @@ public final class TestTreeRpc {
     root.setDisplayName("ROOT");
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(root.compileBranchId(), 
+    storage.addColumn(root.compileBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])branchToStorageJson.invoke(root));
     
     // store the first tree
     byte[] key = new byte[] { 0, 1 };
-    storage.addColumn(key, "tree".getBytes(MockBase.ASCII()), 
+    storage.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(MockBase.ASCII()), 
         (byte[])TreetoStorageJson.invoke(TestTree.buildTestTree()));
     
     TreeRule rule = new TreeRule(1);
@@ -1165,7 +1166,8 @@ public final class TestTreeRpc {
     rule.setDescription("Hostname rule");
     rule.setType(TreeRuleType.TAGK);
     rule.setDescription("Host Name");
-    storage.addColumn(key, "tree_rule:0:0".getBytes(MockBase.ASCII()), 
+    storage.addColumn(key, Tree.TREE_FAMILY(), 
+        "tree_rule:0:0".getBytes(MockBase.ASCII()), 
         JSON.serializeToBytes(rule));
 
     rule = new TreeRule(1);
@@ -1173,7 +1175,8 @@ public final class TestTreeRpc {
     rule.setLevel(1);
     rule.setNotes("Metric rule");
     rule.setType(TreeRuleType.METRIC);
-    storage.addColumn(key, "tree_rule:1:0".getBytes(MockBase.ASCII()), 
+    storage.addColumn(key, Tree.TREE_FAMILY(),
+        "tree_rule:1:0".getBytes(MockBase.ASCII()), 
         JSON.serializeToBytes(rule));
     
     root = new Branch(1);
@@ -1181,7 +1184,8 @@ public final class TestTreeRpc {
     root_path = new TreeMap<Integer, String>();
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(key, "branch".getBytes(MockBase.ASCII()), 
+    storage.addColumn(key, Tree.TREE_FAMILY(), 
+        "branch".getBytes(MockBase.ASCII()), 
         (byte[])branchToStorageJson.invoke(root));
     
     // tree 2
@@ -1191,20 +1195,22 @@ public final class TestTreeRpc {
     tree2.setTreeId(2);
     tree2.setName("2nd Tree");
     tree2.setDescription("Other Tree");
-    storage.addColumn(key, "tree".getBytes(MockBase.ASCII()), 
+    storage.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(MockBase.ASCII()), 
         (byte[])TreetoStorageJson.invoke(tree2));
     
     rule = new TreeRule(2);
     rule.setField("host");
     rule.setType(TreeRuleType.TAGK);
-    storage.addColumn(key, "tree_rule:0:0".getBytes(MockBase.ASCII()), 
+    storage.addColumn(key, Tree.TREE_FAMILY(), 
+        "tree_rule:0:0".getBytes(MockBase.ASCII()), 
         JSON.serializeToBytes(rule));
     
     rule = new TreeRule(2);
     rule.setField("");
     rule.setLevel(1);
     rule.setType(TreeRuleType.METRIC);
-    storage.addColumn(key, "tree_rule:1:0".getBytes(MockBase.ASCII()), 
+    storage.addColumn(key, Tree.TREE_FAMILY(), 
+        "tree_rule:1:0".getBytes(MockBase.ASCII()), 
         JSON.serializeToBytes(rule));
     
     root = new Branch(2);
@@ -1212,7 +1218,8 @@ public final class TestTreeRpc {
     root_path = new TreeMap<Integer, String>();
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(key, "branch".getBytes(MockBase.ASCII()), 
+    storage.addColumn(key, Tree.TREE_FAMILY(), 
+        "branch".getBytes(MockBase.ASCII()), 
         (byte[])branchToStorageJson.invoke(root));
     
     // sprinkle in some collisions and no matches for fun
@@ -1226,7 +1233,8 @@ public final class TestTreeRpc {
     byte[] tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length, 
         tsuid_bytes.length);
-    storage.addColumn(key, qualifier, "AAAAAA".getBytes(MockBase.ASCII()));
+    storage.addColumn(key, Tree.TREE_FAMILY(), qualifier, 
+        "AAAAAA".getBytes(MockBase.ASCII()));
     
     tsuid = "020202";
     qualifier = new byte[Tree.COLLISION_PREFIX().length + 
@@ -1236,7 +1244,8 @@ public final class TestTreeRpc {
     tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length, 
         tsuid_bytes.length);
-    storage.addColumn(key, qualifier, "BBBBBB".getBytes(MockBase.ASCII()));
+    storage.addColumn(key, Tree.TREE_FAMILY(), qualifier, 
+        "BBBBBB".getBytes(MockBase.ASCII()));
     
     // not matched
     key = new byte[] { 0, 1, 2 };
@@ -1248,7 +1257,8 @@ public final class TestTreeRpc {
     tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
     tsuid_bytes.length);
-    storage.addColumn(key, qualifier, "Failed rule 0:0".getBytes(MockBase.ASCII()));
+    storage.addColumn(key, Tree.TREE_FAMILY(), qualifier, 
+        "Failed rule 0:0".getBytes(MockBase.ASCII()));
     
     tsuid = "020202";
     qualifier = new byte[Tree.NOT_MATCHED_PREFIX().length + 
@@ -1258,7 +1268,8 @@ public final class TestTreeRpc {
     tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
     tsuid_bytes.length);
-    storage.addColumn(key, qualifier, "Failed rule 1:1".getBytes(MockBase.ASCII()));
+    storage.addColumn(key, Tree.TREE_FAMILY(), qualifier, 
+        "Failed rule 1:1".getBytes(MockBase.ASCII()));
     
     // drop some branches in for tree 1
     Branch branch = new Branch(1);
@@ -1268,18 +1279,18 @@ public final class TestTreeRpc {
     path.put(2, "cpu");
     branch.prependParentPath(path);
     branch.setDisplayName("cpu");
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])branchToStorageJson.invoke(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     leaf = new Leaf("nice", "000002000002000002");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
     
     // child branch
@@ -1287,13 +1298,13 @@ public final class TestTreeRpc {
     path.put(3, "mboard");
     branch.prependParentPath(path);
     branch.setDisplayName("mboard");
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         "branch".getBytes(MockBase.ASCII()), 
         (byte[])branchToStorageJson.invoke(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), 
+    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
         qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
   }
   
@@ -1303,13 +1314,13 @@ public final class TestTreeRpc {
    * find their name maps.
    */
   private void setupBranch() {
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
         "sys.cpu.0".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "host".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "web01".getBytes(MockBase.ASCII()));
   }
@@ -1322,39 +1333,39 @@ public final class TestTreeRpc {
   private void setupTSMeta() throws Exception {
     final TSMeta meta = new TSMeta("000001000001000001000002000002");
     storage.addColumn(UniqueId.stringToUid("000001000001000001000002000002"), 
-        "ts_meta".getBytes(MockBase.ASCII()), 
+        NAME_FAMILY, "ts_meta".getBytes(MockBase.ASCII()), 
         (byte[])TSMetagetStorageJSON.invoke(meta));
     
     final UIDMeta metric = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, 
         "sys.cpu.0");
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII()), 
         (byte[])UIDMetagetStorageJSON.invoke(metric));
     final UIDMeta tagk1 = new UIDMeta(UniqueIdType.TAGK, new byte[] { 0, 0, 1 }, 
         "host");
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "tagk_meta".getBytes(MockBase.ASCII()), 
         (byte[])UIDMetagetStorageJSON.invoke(tagk1));
     final UIDMeta tagv1 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 0, 0, 1 }, 
         "web-01.lga.mysite.com");
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "tagv_meta".getBytes(MockBase.ASCII()), 
         (byte[])UIDMetagetStorageJSON.invoke(tagv1));
     final UIDMeta tagk2 = new UIDMeta(UniqueIdType.TAGK, new byte[] { 0, 0, 2 }, 
         "type");
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "tagk_meta".getBytes(MockBase.ASCII()), 
         (byte[])UIDMetagetStorageJSON.invoke(tagk2));
     final UIDMeta tagv2 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 0, 0, 2 }, 
         "user");
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "tagv_meta".getBytes(MockBase.ASCII()), 
         (byte[])UIDMetagetStorageJSON.invoke(tagv2));
     
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "type".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2 }, 
+    storage.addColumn(new byte[] { 0, 0, 2 }, NAME_FAMILY,
         "tagv".getBytes(MockBase.ASCII()),
         "user".getBytes(MockBase.ASCII()));
   }
