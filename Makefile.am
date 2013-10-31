@@ -85,6 +85,7 @@ tsdb_DEPS = \
 	$(LOGBACK_CLASSIC)	\
 	$(LOGBACK_CORE)	\
 	$(NETTY)	\
+        $(PROTOBUF)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
 	$(ZOOKEEPER)
