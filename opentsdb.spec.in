@@ -66,6 +66,7 @@ rm -rf %{buildroot}
 %defattr(644,root,root,755)
 %attr(0755,root,root) %{_bindir}/*
 %attr(0755,root,root) %{_datarootdir}/opentsdb/*.sh
+%attr(0755,root,root) %{_datarootdir}/opentsdb/*.py
 %doc
 %{_datarootdir}/opentsdb
 %{_bindir}/tsdb
