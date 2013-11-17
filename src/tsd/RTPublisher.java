@@ -18,6 +18,7 @@ import org.hbase.async.Bytes;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 
@@ -96,12 +97,23 @@ public abstract class RTPublisher {
   public final Deferred<Object> sinkDataPoint(final String metric, 
       final long timestamp, final byte[] value, final Map<String, String> tags, 
       final byte[] tsuid, final short flags) {
-    
+   
     // One of two possible values from TSDB.addPoint(). Either it's an 8 byte
-    // integer or a 4 byte float. Compare on the integer flag to avoid an or
-    // calculation
-    if (flags == 0x7) {
-      return publishDataPoint(metric, timestamp, Bytes.getLong(value), tags, tsuid);
+    // integer or a 4 byte float.
+    if (flags != (Const.FLAG_FLOAT | 0x7)) {
+      switch(value.length*8){
+        case Long.SIZE:
+          return publishDataPoint(metric, timestamp, Bytes.getLong(value), tags, tsuid);
+        case Integer.SIZE:
+          return publishDataPoint(metric, timestamp, Bytes.getInt(value), tags, tsuid);
+        case Short.SIZE:
+          return publishDataPoint(metric, timestamp, Bytes.getShort(value), tags, tsuid);
+        case Byte.SIZE:
+          return publishDataPoint(metric, timestamp, value[0], tags, tsuid);
+        default:
+          throw new IllegalStateException(
+                  "byte[] length does not match any anticipated numeric types.  This shouldn't be possible");
+      }
     } else {
       return publishDataPoint(metric, timestamp, 
           Float.intBitsToFloat(Bytes.getInt(value)), tags, tsuid);
