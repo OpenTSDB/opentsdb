@@ -253,4 +253,10 @@ public final class TestConfig {
   public void getDirectoryNameNull() throws Exception {
     config.getDirectoryName("tsd.unitest");
   }
+
+  @Test
+  public void getRegularIntervalForAggregation() {
+    // Checks if the default value is 10 seconds.
+    assertEquals(10000, config.getRegularIntervalForAggregation());
+  }
 }

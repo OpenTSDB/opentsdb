@@ -119,12 +119,16 @@ final class TsdbQuery implements Query {
   /** Minimum time interval (in milliseconds) wanted between each data point. */
   private long sample_interval_ms;
 
+  /** Interval to fix underlying timeseries before aggregation. */
+  private final long regular_interval_ms;
+
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
   
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
+    this.regular_interval_ms = tsdb.getConfig().getRegularIntervalForAggregation();
   }
 
   /**
@@ -448,13 +452,13 @@ final class TsdbQuery implements Query {
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
-        final SpanGroup group = new SpanGroup(tsdb,
-                                              getScanStartTimeSeconds(),
+        final SpanGroup group = new SpanGroup(getScanStartTimeSeconds(),
                                               getScanEndTimeSeconds(),
                                               spans.values(),
                                               rate, rate_options,
                                               aggregator,
-                                              sample_interval_ms, downsampler);
+                                              sample_interval_ms, downsampler,
+                                              regular_interval_ms);
         return new SpanGroup[] { group };
       }
   
@@ -495,10 +499,11 @@ final class TsdbQuery implements Query {
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
         SpanGroup thegroup = groups.get(group);
         if (thegroup == null) {
-          thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
+          thegroup = new SpanGroup(getScanStartTimeSeconds(),
                                    getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
-                                   sample_interval_ms, downsampler);
+                                   sample_interval_ms, downsampler,
+                                   regular_interval_ms);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];

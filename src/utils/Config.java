@@ -321,7 +321,12 @@ public class Config {
     }
     return directory + "/";
   }
-  
+
+  /** @return Interval to fix underlying timeseries before aggregation. */
+  public long getRegularIntervalForAggregation() {
+    return getLong("tsd.core.regular_interval_ms_for_aggregation");
+  }
+
   /**
    * Determines if the given propery is in the map
    * @param property The property to search for
@@ -407,6 +412,7 @@ public class Config {
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
     default_map.put("tsd.http.request.cors_domains", "");
+    default_map.put("tsd.core.regular_interval_ms_for_aggregation", "10000");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))

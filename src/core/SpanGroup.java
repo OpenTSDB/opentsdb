@@ -90,9 +90,11 @@ final class SpanGroup implements DataPoints {
   /** Minimum time interval (in seconds) wanted between each data point. */
   private final long sample_interval;
 
+  /** Interval to fix underlying timeseries before aggregation. */
+  private final long regular_interval_ms;
+
   /**
    * Ctor.
-   * @param tsdb The TSDB we belong to.
    * @param start_time Any data point strictly before this timestamp will be
    * ignored.
    * @param end_time Any data point strictly after this timestamp will be
@@ -105,21 +107,23 @@ final class SpanGroup implements DataPoints {
    * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
+   * @param regular_interval_ms Interval to fix underlying timeseries before
+   * aggregation
    */
-  SpanGroup(final TSDB tsdb,
-            final long start_time, final long end_time,
+  SpanGroup(final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate,
             final Aggregator aggregator,
-            final long interval, final Aggregator downsampler) {
-    this(tsdb, start_time, end_time, spans, rate, new RateOptions(false,
+            final long interval,
+            final Aggregator downsampler,
+            final long regular_interval_ms) {
+    this(start_time, end_time, spans, rate, new RateOptions(false,
         Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
-        downsampler);
+        downsampler, regular_interval_ms);
   }
 
   /**
    * Ctor.
-   * @param tsdb The TSDB we belong to.
    * @param start_time Any data point strictly before this timestamp will be
    * ignored.
    * @param end_time Any data point strictly after this timestamp will be
@@ -133,14 +137,17 @@ final class SpanGroup implements DataPoints {
    * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
+   * @param regular_interval_ms Interval to fix underlying timeseries before
+   * aggregation
    * @since 2.0
    */
-  SpanGroup(final TSDB tsdb,
-            final long start_time, final long end_time,
+  SpanGroup(final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,
-            final long interval, final Aggregator downsampler) {
+            final long interval,
+            final Aggregator downsampler,
+            final long regular_interval_ms) {
      this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
          start_time * 1000 : start_time;
      this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
@@ -155,6 +162,7 @@ final class SpanGroup implements DataPoints {
      this.aggregator = aggregator;
      this.downsampler = downsampler;
      this.sample_interval = interval;
+     this.regular_interval_ms = regular_interval_ms;
   }
 
   /**
@@ -365,11 +373,29 @@ final class SpanGroup implements DataPoints {
     return size;
   }
 
-  public SeekableView iterator() {
+  private SeekableView newAggregationIter(long downsample_interval_ms) {
     return AggregationIter.create(spans, start_time, end_time, aggregator,
                                   aggregator.interpolationMethod(),
-                                  downsampler, sample_interval,
+                                  downsampler, downsample_interval_ms,
                                   rate, rate_options);
+  }
+
+  public SeekableView iterator() {
+    if (downsampler == null) {
+      // NOTE: downsample interval will be ignored unless there is a downsampler.
+      return newAggregationIter(0);
+    } if (sample_interval <= regular_interval_ms) {
+      // Honors the given sample interval if it is too small.
+      return newAggregationIter(sample_interval);
+    } else {
+      // Downsamples aggregated values.
+      // 1. Downsamples each timeseries to {@link #regular_interval_ms}.
+      // 2. Aggregates values across downsampled timeseries. It is done to
+      //    reduce the overhead of interpolation while aggregating.
+      // 3. Downsamples aggregated values.
+      SeekableView aggregation_iter = newAggregationIter(regular_interval_ms);
+      return new Downsampler(aggregation_iter, sample_interval, downsampler);
+    }
   }
 
   /**
