@@ -342,7 +342,7 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    qs.remove("silent");
+    qs.remove("ignore_unknown_tags");
     return cachedir + Integer.toHexString(qs.hashCode());
   }
 
@@ -862,7 +862,7 @@ final class GraphHandler implements HttpRpc {
         // and not results returned for it, as if a tag key, tag value
         // or metric name does not exists there can be no matching
         // data points.
-        if (!query.hasQueryStringParam("silent")) {
+        if (!query.hasQueryStringParam("ignore_unknown_tags")) {
           throw new BadRequestException(e.getMessage());
         } else {
           tsdbquery = null;
