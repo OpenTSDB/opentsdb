@@ -509,11 +509,6 @@ final class RowSeq implements DataPoints {
     private int qualifier;
 
     /** Next index in {@link #qualifiers}.  */
-    // TODO - This was a short, which was fine for the second qualifiers but
-    // now with ms support we can have up to 2^22 = 4194304 values in a row. 
-    // Changing to an int helps a little but will rollover at 2,147,483,647 at 
-    // which point we can't reference the array. We need to redo the RowSeq 
-    // storage so it can be referenced above 2.1M data points
     private int qual_index;
 
     /** Next index in {@link #values}.  */
@@ -631,15 +626,15 @@ final class RowSeq implements DataPoints {
     // ---------------- //
 
     /** Helper to take a snapshot of the state of this iterator.  */
-    int saveState() {
-      return (qual_index << 16) | (value_index & 0xFFFF);
+    long saveState() {
+      return ((long)qual_index << 32) | ((long)value_index & 0xFFFFFFFF);
     }
 
     /** Helper to restore a snapshot of the state of this iterator.  */
-    void restoreState(int state) {
-      value_index = (short) (state & 0xFFFF);
-      state >>>= 16;
-      qual_index = (short) state;
+    void restoreState(long state) {
+      value_index = (int) state & 0xFFFFFFFF;
+      state >>>= 32;
+      qual_index = (int) state;
       qualifier = 0;
     }
 

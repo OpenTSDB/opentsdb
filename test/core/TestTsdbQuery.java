@@ -532,6 +532,47 @@ public final class TestTsdbQuery {
     assertEquals(150, dps[0].size());
   }
   
+  /**
+   * This test is storing > Short.MAX_VALUE data points in a single row and 
+   * making sure the state and iterators function properly. 1.x used a short as
+   * we would only have a max of 3600 data points but now we can have over 4M
+   * so we have to index with an int and store the state in a long.
+   */
+  @Test
+  public void runLongSingleTSDownsampleMsLarge() throws Exception {
+    setQueryStorage();
+    long ts = 1356998400500L;
+    // mimicks having 64K data points in a row
+    final int limit = 64000;
+    final byte[] qualifier = new byte[4 * limit];
+    for (int i = 0; i < limit; i++) {
+      System.arraycopy(Internal.buildQualifier(ts, (short) 0), 0, 
+          qualifier, i * 4, 4);
+      ts += 50;
+    }
+    final byte[] values = new byte[limit + 2];
+    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"), 
+        qualifier, values);
+    
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(1000, Aggregators.AVG);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    for (DataPoint dp : dps[0]) {
+      assertEquals(0, dp.longValue());
+    }
+    assertEquals(3200, dps[0].size());
+  }
+  
   @Test
   public void runLongSingleTSDownsampleAndRate() throws Exception {
     storeLongTimeSeriesSeconds(true, false);;

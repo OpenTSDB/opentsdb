@@ -20,7 +20,7 @@ package net.opentsdb.core;
 public interface DataPoint {
 
   /**
-   * Returns the timestamp (in seconds) associated with this data point.
+   * Returns the timestamp (in milliseconds) associated with this data point.
    * @return A strictly positive, 32 bit integer.
    */
   long timestamp();

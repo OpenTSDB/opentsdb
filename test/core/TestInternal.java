@@ -523,6 +523,23 @@ public final class TestInternal {
         new byte[] { (byte) 0xF0, 0x00, 0x02, 0x07 }, 1356998400);
     assertEquals(1356998400008L, ts);
   }
+  
+  @Test
+  public void getTimestampFromQualifierMsLarge() {
+    long ts = 1356998400500L;
+    // mimicks having 64K data points in a row
+    final int limit = 64000;
+    final byte[] qualifier = new byte[4 * limit];
+    for (int i = 0; i < limit; i++) {
+      System.arraycopy(Internal.buildQualifier(ts, (short) 7), 0, 
+          qualifier, i * 4, 4);
+      ts += 50;
+    }
+    assertEquals(1356998400550L, 
+        Internal.getTimestampFromQualifier(qualifier, 1356998400, 4));
+    assertEquals(1357001600450L, 
+        Internal.getTimestampFromQualifier(qualifier, 1356998400, (limit - 1) * 4));
+  }
 
   @Test
   public void getOffsetFromQualifier() {
@@ -531,11 +548,40 @@ public final class TestInternal {
   }
   
   @Test
+  public void getOffsetFromQualifierMs1ms() {
+    assertEquals(1, Internal.getOffsetFromQualifier(
+        new byte[] { (byte) 0xF0, 0x00, 0x00, 0x47 }));
+  }
+
+  @Test
   public void getOffsetFromQualifierMs() {
     assertEquals(8, Internal.getOffsetFromQualifier(
         new byte[] { (byte) 0xF0, 0x00, 0x02, 0x07 }));
   }
-
+  
+  @Test
+  public void getOffsetFromQualifierMs2() {
+    assertEquals(12, Internal.getOffsetFromQualifier(
+        new byte[] { (byte) 0xF0, 0x00, 0x02, 0x07, 
+            (byte) 0xF0, 0x00, 0x03, 0x07 }, 4));
+  }
+  
+  @Test
+  public void getOffsetFromQualifierMsLarge() {
+    long ts = 1356998400500L;
+    // mimicks having 64K data points in a row
+    final int limit = 64000;
+    final byte[] qualifier = new byte[4 * limit];
+    for (int i = 0; i < limit; i++) {
+      System.arraycopy(Internal.buildQualifier(ts, (short) 7), 0, 
+          qualifier, i * 4, 4);
+      ts += 50;
+    }
+    assertEquals(500, Internal.getOffsetFromQualifier(qualifier, 0));
+    assertEquals(3200450, 
+        Internal.getOffsetFromQualifier(qualifier, (limit - 1) * 4));
+  }
+  
   @Test
   public void getOffsetFromQualifierOffset() {
     final byte[] qual = { 0x00, 0x37, 0x00, 0x47 };
@@ -570,11 +616,23 @@ public final class TestInternal {
     final byte[] q = Internal.buildQualifier(1356998403, (short) 7);
     assertArrayEquals(new byte[] { 0x00, 0x37 }, q);
   }
+  
+  @Test
+  public void buildQualifierSecond8ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999, (short) 7);
+    assertArrayEquals(new byte[] { (byte) 0xE0, (byte) 0xF7 }, q);
+  }
 
   @Test
   public void buildQualifierSecond6ByteLong() {
     final byte[] q = Internal.buildQualifier(1356998403, (short) 5);
     assertArrayEquals(new byte[] { 0x00, 0x35 }, q);
+  }
+  
+  @Test
+  public void buildQualifierSecond6ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999, (short) 5);
+    assertArrayEquals(new byte[] { (byte) 0xE0, (byte) 0xF5 }, q);
   }
   
   @Test
@@ -584,15 +642,33 @@ public final class TestInternal {
   }
   
   @Test
+  public void buildQualifierSecond4ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999, (short) 3);
+    assertArrayEquals(new byte[] { (byte) 0xE0, (byte) 0xF3 }, q);
+  }
+  
+  @Test
   public void buildQualifierSecond2ByteLong() {
     final byte[] q = Internal.buildQualifier(1356998403, (short) 1);
     assertArrayEquals(new byte[] { 0x00, 0x31 }, q);
   }
   
   @Test
+  public void buildQualifierSecond2ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999, (short) 1);
+    assertArrayEquals(new byte[] { (byte) 0xE0, (byte) 0xF1 }, q);
+  }
+  
+  @Test
   public void buildQualifierSecond1ByteLong() {
     final byte[] q = Internal.buildQualifier(1356998403, (short) 0);
     assertArrayEquals(new byte[] { 0x00, 0x30 }, q);
+  }
+  
+  @Test
+  public void buildQualifierSecond1ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999, (short) 0);
+    assertArrayEquals(new byte[] { (byte) 0xE0, (byte) 0xF0 }, q);
   }
   
   @Test
@@ -603,10 +679,24 @@ public final class TestInternal {
   }
   
   @Test
+  public void buildQualifierSecond8ByteFloatEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999, 
+        (short) ( 7 | Const.FLAG_FLOAT));
+    assertArrayEquals(new byte[] { (byte) 0xE0, (byte) 0xFF }, q);
+  }
+  
+  @Test
   public void buildQualifierSecond4ByteFloat() {
     final byte[] q = Internal.buildQualifier(1356998403, 
         (short) ( 3 | Const.FLAG_FLOAT));
     assertArrayEquals(new byte[] { 0x00, 0x3B }, q);
+  }
+  
+  @Test
+  public void buildQualifierSecond4ByteFloatEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999, 
+        (short) ( 3 | Const.FLAG_FLOAT));
+    assertArrayEquals(new byte[] { (byte) 0xE0, (byte) 0xFB }, q);
   }
   
   @Test
@@ -616,9 +706,23 @@ public final class TestInternal {
   }
   
   @Test
+  public void buildQualifierMilliSecond8ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999999L, (short) 7);
+    assertArrayEquals(new byte[] {
+        (byte) 0xFD, (byte) 0xBB, (byte) 0x9F, (byte) 0xC7 }, q);
+  }
+  
+  @Test
   public void buildQualifierMilliSecond6ByteLong() {
     final byte[] q = Internal.buildQualifier(1356998400008L, (short) 5);
     assertArrayEquals(new byte[] {(byte) 0xF0, 0x00, 0x02, 0x05 }, q);
+  }
+  
+  @Test
+  public void buildQualifierMilliSecond6ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999999L, (short) 5);
+    assertArrayEquals(new byte[] {
+        (byte) 0xFD, (byte) 0xBB, (byte) 0x9F, (byte) 0xC5 }, q);
   }
   
   @Test
@@ -628,15 +732,36 @@ public final class TestInternal {
   }
   
   @Test
+  public void buildQualifierMilliSecond4ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999999L, (short) 3);
+    assertArrayEquals(new byte[] {
+        (byte) 0xFD, (byte) 0xBB, (byte) 0x9F, (byte) 0xC3 }, q);
+  }
+  
+  @Test
   public void buildQualifierMilliSecond2ByteLong() {
     final byte[] q = Internal.buildQualifier(1356998400008L, (short) 1);
     assertArrayEquals(new byte[] {(byte) 0xF0, 0x00, 0x02, 0x01 }, q);
   }
   
   @Test
+  public void buildQualifierMilliSecond2ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999999L, (short) 1);
+    assertArrayEquals(new byte[] {
+        (byte) 0xFD, (byte) 0xBB, (byte) 0x9F, (byte) 0xC1 }, q);
+  }
+  
+  @Test
   public void buildQualifierMilliSecond1ByteLong() {
     final byte[] q = Internal.buildQualifier(1356998400008L, (short) 0);
     assertArrayEquals(new byte[] {(byte) 0xF0, 0x00, 0x02, 0x00 }, q);
+  }
+  
+  @Test
+  public void buildQualifierMilliSecond0ByteLongEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999999L, (short) 0);
+    assertArrayEquals(new byte[] {
+        (byte) 0xFD, (byte) 0xBB, (byte) 0x9F, (byte) 0xC0 }, q);
   }
   
   @Test
@@ -647,12 +772,28 @@ public final class TestInternal {
   }
   
   @Test
+  public void buildQualifierMilliSecond8ByteFloatEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999999L, 
+        (short) ( 7 | Const.FLAG_FLOAT));
+    assertArrayEquals(new byte[] {
+        (byte) 0xFD, (byte) 0xBB, (byte) 0x9F, (byte) 0xCF }, q);
+  }
+  
+  @Test
   public void buildQualifierMilliSecond4ByteFloat() {
     final byte[] q = Internal.buildQualifier(1356998400008L, 
         (short) ( 3 | Const.FLAG_FLOAT));
     assertArrayEquals(new byte[] {(byte) 0xF0, 0x00, 0x02, 0x0B }, q);
   }
 
+  @Test
+  public void buildQualifierMilliSecond4ByteFloatEOH() {
+    final byte[] q = Internal.buildQualifier(1357001999999L, 
+        (short) ( 3 | Const.FLAG_FLOAT));
+    assertArrayEquals(new byte[] {
+        (byte) 0xFD, (byte) 0xBB, (byte) 0x9F, (byte) 0xCB }, q);
+  }
+  
   @Test
   public void extractQualifierSeconds() {
     final byte[] qual = { 0x00, 0x37, (byte) 0xF0, 0x00, 0x02, 0x07, 0x00, 
