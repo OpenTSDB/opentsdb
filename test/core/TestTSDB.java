@@ -764,10 +764,10 @@ public final class TestTSDB {
     PowerMockito.mockStatic(IncomingDataPoints.class);   
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 
     PowerMockito.doAnswer(
-        new Answer<Deferred<byte[]>>() {
-          public Deferred<byte[]> answer(final InvocationOnMock unused) 
+        new Answer<byte[]>() {
+          public byte[] answer(final InvocationOnMock unused) 
             throws Exception {
-            return Deferred.fromResult(row);
+            return row;
           }
         }
     ).when(IncomingDataPoints.class, "rowKeyTemplate", (TSDB)any(), anyString(), 
