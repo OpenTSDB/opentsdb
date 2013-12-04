@@ -506,7 +506,7 @@ public final class UIDMeta {
       if (custom == null) {
         json.writeNullField("custom");
       } else {
-        json.writeObjectFieldStart("custom");
+        json.writeStartObject();
         for (Map.Entry<String, String> entry : custom.entrySet()) {
           json.writeStringField(entry.getKey(), entry.getValue());
         }
