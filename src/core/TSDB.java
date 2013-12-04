@@ -428,6 +428,33 @@ public final class TSDB {
                      stats.numRpcDelayedDueToNSRE());
 
     compactionq.collectStats(collector);
+    // Collect Stats from Plugins
+    if (rt_publisher != null) {
+      try {
+	collector.addExtraTag("plugin", "publish");
+        rt_publisher.collectStats(collector);
+      } finally {
+	collector.clearExtraTag("plugin");
+      }                        
+    }
+    if (search != null) {
+      try {
+	collector.addExtraTag("plugin", "search");
+	search.collectStats(collector);
+      } finally {
+	collector.clearExtraTag("plugin");
+      }                        
+    }
+    if (rpc_plugins != null) {
+      try {
+	collector.addExtraTag("plugin", "rpc");
+	for(RpcPlugin rpc: rpc_plugins) {
+		rpc.collectStats(collector);
+	}                                
+      } finally {
+	collector.clearExtraTag("plugin");
+      }                        
+    }        
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
