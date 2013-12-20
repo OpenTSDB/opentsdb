@@ -155,31 +155,156 @@ public class TestTextImporter {
   }
   
   @Test
-  public void importFileGoodIntegers() throws Exception {
+  public void importFileGoodIntegers1Byte() throws Exception {
     String data = 
-      "sys.cpu.user 1356998400 24 host=web01\n" +
-      "sys.cpu.user 1356998400 42 host=web02";
+      "sys.cpu.user 1356998400 0 host=web01\n" +
+      "sys.cpu.user 1356998400 127 host=web02";
     setData(data);
     Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
-    assertEquals(24, value[7]);
+    assertEquals(0, value[0]);
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 7 });
+    value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
-    assertEquals(42, value[7]);
+    assertEquals(127, value[0]);
   }
   
   @Test
-  public void importFileGoodIntegersNegative() throws Exception {
+  public void importFileGoodIntegers1ByteNegative() throws Exception {
     String data = 
-      "sys.cpu.user 1356998400 -24 host=web01\n" +
-      "sys.cpu.user 1356998400 -42 host=web02";
+      "sys.cpu.user 1356998400 -0 host=web01\n" +
+      "sys.cpu.user 1356998400 -128 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    
+    byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    assertNotNull(value);
+    assertEquals(0, value[0]);
+    row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { 0, 0 });
+    assertNotNull(value);
+    assertEquals(-128, value[0]);
+  }
+  
+  @Test
+  public void importFileGoodIntegers2Byte() throws Exception {
+    String data = 
+      "sys.cpu.user 1356998400 128 host=web01\n" +
+      "sys.cpu.user 1356998400 32767 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    
+    byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
+    assertNotNull(value);
+    assertEquals(128, Bytes.getShort(value));
+    row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { 0, 1 });
+    assertNotNull(value);
+    assertEquals(32767, Bytes.getShort(value));
+  }
+  
+  @Test
+  public void importFileGoodIntegers2ByteNegative() throws Exception {
+    String data = 
+      "sys.cpu.user 1356998400 -129 host=web01\n" +
+      "sys.cpu.user 1356998400 -32768 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    
+    byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
+    assertNotNull(value);
+    assertEquals(-129, Bytes.getShort(value));
+    row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { 0, 1 });
+    assertNotNull(value);
+    assertEquals(-32768, Bytes.getShort(value));
+  }
+  
+  @Test
+  public void importFileGoodIntegers4Byte() throws Exception {
+    String data = 
+      "sys.cpu.user 1356998400 32768 host=web01\n" +
+      "sys.cpu.user 1356998400 2147483647 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    
+    byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
+    assertNotNull(value);
+    assertEquals(32768, Bytes.getInt(value));
+    row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { 0, 3 });
+    assertNotNull(value);
+    assertEquals(2147483647, Bytes.getInt(value));
+  }
+  
+  @Test
+  public void importFileGoodIntegers4ByteNegative() throws Exception {
+    String data = 
+      "sys.cpu.user 1356998400 -32769 host=web01\n" +
+      "sys.cpu.user 1356998400 -2147483648 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    
+    byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
+    assertNotNull(value);
+    assertEquals(-32769, Bytes.getInt(value));
+    row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { 0, 3 });
+    assertNotNull(value);
+    assertEquals(-2147483648, Bytes.getInt(value));
+  }
+  
+  @Test
+  public void importFileGoodIntegers8Byte() throws Exception {
+    String data = 
+      "sys.cpu.user 1356998400 2147483648 host=web01\n" +
+      "sys.cpu.user 1356998400 9223372036854775807 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    assertNotNull(value);
+    assertEquals(2147483648L, Bytes.getLong(value));
+    row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { 0, 7 });
+    assertNotNull(value);
+    assertEquals(9223372036854775807L, Bytes.getLong(value));
+  }
+  
+  @Test
+  public void importFileGoodIntegers8ByteNegative() throws Exception {
+    String data = 
+      "sys.cpu.user 1356998400 -2147483649 host=web01\n" +
+      "sys.cpu.user 1356998400 -9223372036854775808 host=web02";
     setData(data);
     Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
     assertEquals(2, (int)points);
@@ -188,12 +313,42 @@ public class TestTextImporter {
         0, 0, 1, 0, 0, 1};
     byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
-    assertEquals(-24, value[7]);
+    assertEquals(-2147483649L, Bytes.getLong(value));
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
     value = storage.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
-    assertEquals(-42, value[7]);
+    assertEquals(-9223372036854775808L, Bytes.getLong(value));
+  }
+  
+  @Test
+  public void importFileMSTimestamp() throws Exception {
+    String data = 
+      "sys.cpu.user 1356998400500 24 host=web01\n" +
+      "sys.cpu.user 1356998400500 42 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    
+    byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
+    assertNotNull(value);
+    assertEquals(24, value[0]);
+    row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void importFileMSTimestampTooBig() throws Exception {
+    String data = 
+      "sys.cpu.user 13569984005001 24 host=web01\n" +
+      "sys.cpu.user 13569984005001 42 host=web02";
+    setData(data);
+    importFile.invoke(null, client, tsdb, "file");
   }
   
   @Test
@@ -329,10 +484,10 @@ public class TestTextImporter {
   }
   
   @Test (expected = RuntimeException.class)
-  public void importFileMSTimestamp() throws Exception {
+  public void importFileNegativeTimestamp() throws Exception {
     String data = 
       "sys.cpu.user 1356998400 24 host=web01\n" +
-      "sys.cpu.user 1356998400500 42 host=web02";
+      "sys.cpu.user -1356998400 42 host=web02";
     setData(data);
     importFile.invoke(null, client, tsdb, "file");
   }

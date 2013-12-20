@@ -64,6 +64,9 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   /** Each value in the row. */
   private long[] values;
+  
+  /** Track the last timestamp written for this series */
+  private long last_ts;
 
   /** Number of data points in this row. */
   private short size;
@@ -77,8 +80,11 @@ final class IncomingDataPoints implements WritableDataPoints {
    */
   IncomingDataPoints(final TSDB tsdb) {
     this.tsdb = tsdb;
-    this.qualifiers = new short[3];
-    this.values = new long[3];
+    // the qualifiers and values were meant for pre-compacting the rows. We 
+    // could implement this later, but for now we don't need to track the values
+    // as they'll just consume space during an import
+    //this.qualifiers = new short[3];
+    //this.values = new long[3];
   }
 
   /**
@@ -240,56 +246,48 @@ final class IncomingDataPoints implements WritableDataPoints {
    */
   private Deferred<Object> addPointInternal(final long timestamp, final byte[] value,
                                             final short flags) {
-    // This particular code path only expects integers on 8 bytes or floating
-    // point values on 4 bytes.
-    assert value.length == 8 || value.length == 4 : Bytes.pretty(value);
     if (row == null) {
       throw new IllegalStateException("setSeries() never called!");
     }
-    if ((timestamp & 0xFFFFFFFF00000000L) != 0) {
-      // => timestamp < 0 || timestamp > Integer.MAX_VALUE
+    final boolean ms_timestamp = (timestamp & Const.SECOND_MASK) != 0;
+    
+    // we only accept unix epoch timestamps in seconds or milliseconds
+    if (ms_timestamp && 
+        (timestamp < 1000000000000L || timestamp > 9999999999999L)) {
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
           + " timestamp=" + timestamp
           + " when trying to add value=" + Arrays.toString(value) + " to " + this);
     }
 
-    long base_time;
-    if (size > 0) {
-      base_time = baseTime();
-      final long last_ts = base_time + (delta(qualifiers[size - 1]));
-      if (timestamp <= last_ts) {
-        throw new IllegalArgumentException("New timestamp=" + timestamp
-            + " is less than or equal to previous=" + last_ts
-            + " when trying to add value=" + Arrays.toString(value)
-            + " to " + this);
-      } else if (timestamp - base_time >= Const.MAX_TIMESPAN) {
-        // Need to start a new row as we've exceeded Const.MAX_TIMESPAN.
-        base_time = updateBaseTime(timestamp);
-        size = 0;
-        //LOG.info("Starting a new row @ " + this);
-      }
-    } else {
-      // This is the first data point, let's record the starting timestamp.
-      base_time = updateBaseTime(timestamp);
-      Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
+    // always maintain last_ts in milliseconds
+    if ((ms_timestamp ? timestamp : timestamp * 1000) <= last_ts) {
+      throw new IllegalArgumentException("New timestamp=" + timestamp
+          + " is less than or equal to previous=" + last_ts
+          + " when trying to add value=" + Arrays.toString(value)
+          + " to " + this);
     }
-
-    if (values.length == size) {
-      grow();
+    last_ts = (ms_timestamp ? timestamp : timestamp * 1000);   
+    
+    long base_time = baseTime();
+    long incoming_base_time;
+    if (ms_timestamp) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      incoming_base_time = ((timestamp / 1000) - 
+          ((timestamp / 1000) % Const.MAX_TIMESPAN));
+    } else {
+      incoming_base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    }
+    
+    if (incoming_base_time - base_time >= Const.MAX_TIMESPAN) {
+      // Need to start a new row as we've exceeded Const.MAX_TIMESPAN.
+      base_time = updateBaseTime((ms_timestamp ? timestamp / 1000: timestamp));
     }
 
     // Java is so stupid with its auto-promotion of int to float.
-    final short qualifier = (short) ((timestamp - base_time) << Const.FLAG_BITS
-                                     | flags);
-    qualifiers[size] = qualifier;
-    values[size] = (value.length == 8
-                    ? Bytes.getLong(value)
-                    : Bytes.getInt(value) & 0x00000000FFFFFFFFL);
-    size++;
+    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
 
     final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
-                                            Bytes.fromShort(qualifier),
-                                            value);
+                                            qualifier, value);
     // TODO(tsuna): The following timing is rather useless.  First of all,
     // the histogram never resets, so it tends to converge to a certain
     // distribution and never changes.  What we really want is a moving
@@ -330,8 +328,18 @@ final class IncomingDataPoints implements WritableDataPoints {
   }
 
   public Deferred<Object> addPoint(final long timestamp, final long value) {
-    final short flags = 0x7;  // An int stored on 8 bytes.
-    return addPointInternal(timestamp, Bytes.fromLong(value), flags);
+    final byte[] v;
+    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+      v = new byte[] { (byte) value };
+    } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
+      v = Bytes.fromShort((short) value);
+    } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
+      v = Bytes.fromInt((int) value);
+    } else {
+      v = Bytes.fromLong(value);
+    }
+    final short flags = (short) (v.length - 1);  // Just the length.
+    return addPointInternal(timestamp, v, flags);
   }
 
   public Deferred<Object> addPoint(final long timestamp, final float value) {
