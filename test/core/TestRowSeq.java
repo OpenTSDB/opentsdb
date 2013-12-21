@@ -514,6 +514,32 @@ public final class TestRowSeq {
   }
 
   @Test
+  public void iterateMsLarge() throws Exception {
+    long ts = 1356998400500L;
+    // mimicks having 64K data points in a row
+    final int limit = 64000;
+    final byte[] qualifier = new byte[4 * limit];
+    for (int i = 0; i < limit; i++) {
+      System.arraycopy(Internal.buildQualifier(ts, (short) 7), 0, 
+          qualifier, i * 4, 4);
+      ts += 50;
+    }
+    final byte[] values = new byte[(4 * limit) + 1];
+    final KeyValue kv = makekv(qualifier, values);
+    
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(kv);
+
+    final SeekableView it = rs.iterator();
+    ts = 1356998400500L;
+    while (it.hasNext()) {
+      assertEquals(ts, it.next().timestamp());
+      ts += 50;
+    }
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void seekMs() throws Exception {
     final RowSeq rs = new RowSeq(tsdb);
     rs.setRow(getMs());
