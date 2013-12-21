@@ -962,6 +962,9 @@ public final class TSDB {
    * @since 2.0
    */
   public void indexAnnotation(final Annotation note) {
+    if (rt_publisher != null) {
+      rt_publisher.publishAnnotation(note).addErrback(new PluginError());
+    }
     if (search != null) {
       search.indexAnnotation(note).addErrback(new PluginError());
     }
