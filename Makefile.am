@@ -149,6 +149,7 @@ test_SRC := \
 	test/stats/TestHistogram.java	\
 	test/storage/MockBase.java	\
 	test/tools/TestFsck.java	\
+	test/tools/TestTextImporter.java	\
 	test/tree/TestBranch.java	\
 	test/tree/TestLeaf.java	\
 	test/tree/TestTree.java	\
