@@ -69,6 +69,7 @@ tsdb_SRC := \
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
 	src/tsd/PutDataPointRpc.java	\
+	src/tsd/IncDataPointRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/StaticFileRpc.java	\
 	src/tsd/TelnetRpc.java	\
