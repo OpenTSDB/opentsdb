@@ -570,9 +570,9 @@ public final class Internal {
   public static int getOffsetFromQualifier(final byte[] qualifier, 
       final int offset) {
     validateQualifier(qualifier, offset);
-    if ((qualifier[offset + 0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
+    if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
       return (int)(Bytes.getUnsignedInt(qualifier, offset) & 0x0FFFFFC0) 
-        >>> (Const.MS_FLAG_BITS);        
+        >>> Const.MS_FLAG_BITS;
     } else {
       final int seconds = (Bytes.getUnsignedShort(qualifier, offset) & 0xFFFF) 
         >>> Const.FLAG_BITS;
@@ -766,7 +766,8 @@ public final class Internal {
       final int offset) {
     if (offset < 0 || offset >= qualifier.length - 1) {
       throw new IllegalDataException("Offset of [" + offset + 
-          "] is greater than the qualifier length [" + qualifier.length + "]");
+          "] is out of bounds for the qualifier length of [" + 
+          qualifier.length + "]");
     }
   }
 }

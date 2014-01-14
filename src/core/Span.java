@@ -514,7 +514,7 @@ final class Span implements DataPoints {
       // average timestamp of all the datapoints in that interval.
       long newtime = 0;
       final short saved_row_index = row_index;
-      final int saved_state = current_row.saveState();
+      final long saved_state = current_row.saveState();
       // Since we know hasNext() returned true, we have at least 1 point.
       moveToNext();
       time = current_row.timestamp() + interval;  // end of interval

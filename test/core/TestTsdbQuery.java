@@ -104,7 +104,7 @@ public final class TestTsdbQuery {
     tagv.setAccessible(true);
     tagv.set(tsdb, tag_values);
     
-    // mock UniqueId
+ // mock UniqueId
     when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
     when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenReturn(Deferred.fromResult("sys.cpu.user"));
@@ -530,6 +530,47 @@ public final class TestTsdbQuery {
       i += 2;
     }
     assertEquals(150, dps[0].size());
+  }
+  
+  /**
+   * This test is storing > Short.MAX_VALUE data points in a single row and 
+   * making sure the state and iterators function properly. 1.x used a short as
+   * we would only have a max of 3600 data points but now we can have over 4M
+   * so we have to index with an int and store the state in a long.
+   */
+  @Test
+  public void runLongSingleTSDownsampleMsLarge() throws Exception {
+    setQueryStorage();
+    long ts = 1356998400500L;
+    // mimicks having 64K data points in a row
+    final int limit = 64000;
+    final byte[] qualifier = new byte[4 * limit];
+    for (int i = 0; i < limit; i++) {
+      System.arraycopy(Internal.buildQualifier(ts, (short) 0), 0, 
+          qualifier, i * 4, 4);
+      ts += 50;
+    }
+    final byte[] values = new byte[limit + 2];
+    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"), 
+        qualifier, values);
+    
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(1000, Aggregators.AVG);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    
+    for (DataPoint dp : dps[0]) {
+      assertEquals(0, dp.longValue());
+    }
+    assertEquals(3200, dps[0].size());
   }
   
   @Test
@@ -2683,8 +2724,8 @@ public final class TestTsdbQuery {
 
     PowerMockito.mockStatic(IncomingDataPoints.class);   
     PowerMockito.doAnswer(
-        new Answer<Deferred<byte[]>>() {
-          public Deferred<byte[]> answer(final InvocationOnMock args) 
+        new Answer<byte[]>() {
+          public byte[] answer(final InvocationOnMock args) 
             throws Exception {
             final String metric = (String)args.getArguments()[1];
             final Map<String, String> tags = 
@@ -2692,19 +2733,15 @@ public final class TestTsdbQuery {
             
             if (metric.equals("sys.cpu.user")) {
               if (tags.get("host").equals("web01")) {
-                return Deferred.fromResult(
-                    new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1});
+                return new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
               } else {
-                return Deferred.fromResult(
-                    new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2});
+                return new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2};
               }
             } else {
               if (tags.get("host").equals("web01")) {
-                return Deferred.fromResult(
-                    new byte[] { 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1});
+                return new byte[] { 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
               } else {
-                return Deferred.fromResult(
-                    new byte[] { 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2});
+                return new byte[] { 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2};
               }
             }
           }

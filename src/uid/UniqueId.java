@@ -383,12 +383,7 @@ public final class UniqueId implements UniqueIdInterface {
       class ErrBack implements Callback<Object, Exception> {
         public Object call(final Exception e) throws Exception {
           assignment.callback(e);
-          synchronized(pending_assignments) {
-            if (pending_assignments.containsKey(name)) {
-              pending_assignments.remove(name);
-              LOG.warn("Failed pending assignment for: " + name);
-            }
-          }
+          LOG.warn("Failed pending assignment for: " + name);
           return assignment;
         }
       }
@@ -502,28 +497,22 @@ public final class UniqueId implements UniqueIdInterface {
         LOG.warn("Race condition: tried to assign ID " + id + " to "
                  + kind() + ":" + name + ", but CAS failed on "
                  + forwardMapping() + ", which indicates this UID must have"
-                 + " been allocated concurrently by another TSD. So ID "
-                 + id + " was leaked.");
+                 + " been allocated concurrently by another TSD or thread. "
+                 + "So ID " + id + " was leaked.");
         // If two TSDs attempted to allocate a UID for the same name at the
         // same time, they would both have allocated a UID, and created a
         // reverse mapping, and upon getting here, only one of them would
         // manage to CAS this KV into existence.  The one that loses the
         // race will retry and discover the UID assigned by the winner TSD,
         // and a UID will have been wasted in the process.  No big deal.
-        
-        class GetIdCB implements Callback<Deferred<byte[]>, byte[]> {
-          public Deferred<byte[]> call(final byte[] row) throws Exception {
+        class GetIdCB implements Callback<Object, byte[]> {
+          public Object call(final byte[] row) throws Exception {
             assignment.callback(row);
-            synchronized(pending_assignments) {
-              if (pending_assignments.containsKey(name)) {
-                pending_assignments.remove(name);
-                LOG.info("Completed pending assignment for: " + name);
-              }
-            }
-            return assignment;
+            return null;
           }
         }
-        return getIdAsync(name).addCallbackDeferring(new GetIdCB());
+        getIdAsync(name).addCallback(new GetIdCB());
+        return assignment;
       }
 
       cacheMapping(name, row);
@@ -569,9 +558,49 @@ public final class UniqueId implements UniqueIdInterface {
    */
   public byte[] getOrCreateId(final String name) throws HBaseException {
     try {
-      return getOrCreateIdAsync(name).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
+      return getIdAsync(name).joinUninterruptibly();
+    } catch (NoSuchUniqueName e) {
+      Deferred<byte[]> assignment = null;
+      boolean pending = false;
+      synchronized (pending_assignments) {
+        assignment = pending_assignments.get(name);
+        if (assignment == null) {
+          // to prevent UID leaks that can be caused when multiple time
+          // series for the same metric or tags arrive, we need to write a 
+          // deferred to the pending map as quickly as possible. Then we can 
+          // start the assignment process after we've stashed the deferred 
+          // and released the lock
+          assignment = new Deferred<byte[]>();
+          pending_assignments.put(name, assignment);
+        } else {
+          pending = true;
+        }
+      }
+      
+      if (pending) {
+        LOG.info("Already waiting for UID assignment: " + name);
+        try {
+          return assignment.joinUninterruptibly();
+        } catch (Exception e1) {
+          throw new RuntimeException("Should never be here", e1);
+        }
+      }
+      
+      // start the assignment dance after stashing the deferred
+      byte[] uid = null;
+      try {
+        uid = new UniqueIdAllocator(name, assignment).tryAllocate().joinUninterruptibly();
+      } catch (RuntimeException e1) {
+        throw e1;
+      } catch (Exception e1) {
+        throw new RuntimeException("Should never be here", e);
+      } finally {
+        LOG.info("Completed pending assignment for: " + name);
+        synchronized (pending_assignments) {
+          pending_assignments.remove(name);
+        }
+      }
+      return uid;
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
     }
