@@ -13,9 +13,13 @@
 package net.opentsdb.tsd;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -23,6 +27,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSONException;
 
 /**
  * Handles create, update, replace and delete calls for individual annotation
@@ -32,7 +37,8 @@ import net.opentsdb.utils.DateTime;
  * @since 2.0
  */
 final class AnnotationRpc implements HttpRpc {
-
+  private static final Logger LOG = LoggerFactory.getLogger(AnnotationRpc.class);
+  
   /**
    * Performs CRUD methods on individual annotation objects.
    * @param tsdb The TSD to which we belong
@@ -40,6 +46,13 @@ final class AnnotationRpc implements HttpRpc {
    */
   public void execute(final TSDB tsdb, HttpQuery query) throws IOException {
     final HttpMethod method = query.getAPIMethod();
+    
+    final String[] uri = query.explodeAPIPath();
+    final String endpoint = uri.length > 1 ? uri[1] : "";
+    if (endpoint != null && endpoint.toLowerCase().endsWith("bulk")) {
+      executeBulk(tsdb, method, query);
+      return;
+    }
     
     final Annotation note;
     if (query.hasContent()) {
@@ -119,6 +132,100 @@ final class AnnotationRpc implements HttpRpc {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
           "Method not allowed", "The HTTP method [" + method.getName() +
           "] is not permitted for this endpoint");
+    }
+  }
+  
+  /**
+   * Performs RU methods on a list of annotation objects to reduce calls to
+   * the API. Only supports body content and adding or updating annotation
+   * objects. Deletions are separate.
+   * @param tsdb The TSD to which we belong
+   * @param method The request method
+   * @param query The query to parse and respond to
+   */
+  void executeBulk(final TSDB tsdb, final HttpMethod method, HttpQuery query) {
+    // only accept POST And PUT
+    if (query.method() != HttpMethod.POST && query.method() != HttpMethod.PUT) {
+      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+          "Method not allowed", "The HTTP method [" + query.method().getName() +
+          "] is not permitted for this endpoint");
+    }
+    
+    final List<Annotation> notes;
+    try {
+      notes = query.serializer().parseAnnotationsV1();
+    } catch (IllegalArgumentException e){
+      throw new BadRequestException(e);
+    } catch (JSONException e){
+      throw new BadRequestException(e);
+    }
+    final List<Deferred<Annotation>> callbacks = 
+        new ArrayList<Deferred<Annotation>>(notes.size());
+    
+    /**
+     * Storage callback used to determine if the storage call was successful
+     * or not. Also returns the updated object from storage.
+     */
+    class SyncCB implements Callback<Deferred<Annotation>, Boolean> {
+      final private Annotation note;
+      
+      public SyncCB(final Annotation note) {
+        this.note = note;
+      }
+      
+      @Override
+      public Deferred<Annotation> call(Boolean success) throws Exception {
+        if (!success) {
+          throw new BadRequestException(
+              HttpResponseStatus.INTERNAL_SERVER_ERROR,
+              "Failed to save an Annotation to storage", 
+              "This may be caused by another process modifying storage data: "
+              + note);
+        }
+        
+        return Annotation.getAnnotation(tsdb, note.getTSUID(), 
+            note.getStartTime());
+      }
+    }
+    
+    /**
+     * Simple callback that will index the updated annotation
+     */
+    class IndexCB implements Callback<Deferred<Annotation>, Annotation> {
+      @Override
+      public Deferred<Annotation> call(final Annotation note) throws Exception {
+        tsdb.indexAnnotation(note);
+        return Deferred.fromResult(note);
+      }
+    }
+    
+    for (Annotation note : notes) {
+      try {
+        Deferred<Annotation> deferred = 
+            note.syncToStorage(tsdb, method == HttpMethod.PUT)
+            .addCallbackDeferring(new SyncCB(note));
+        callbacks.add(deferred.addCallbackDeferring(new IndexCB()));
+      } catch (IllegalStateException e) {
+        LOG.info("No changes for annotation: " + note);
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
+            e.getMessage(), "Annotation error: " + note, e);
+      }
+    }
+    
+    try {
+      // wait untill all of the syncs have completed, then rebuild the list
+      // of annotations using the data synced from storage.
+      Deferred.group(callbacks).joinUninterruptibly();
+      notes.clear();
+      for (Deferred<Annotation> note : callbacks) {
+        notes.add(note.joinUninterruptibly());
+      }
+      query.sendReply(query.serializer().formatAnnotationsV1(notes));
+    } catch (IllegalArgumentException e) {
+      throw new BadRequestException(e);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
   

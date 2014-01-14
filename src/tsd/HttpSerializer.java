@@ -319,6 +319,18 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Parses a list of annotation objects
+   * @return A list of annotation object
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public List<Annotation> parseAnnotationsV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseAnnotationsV1");
+  }
+  
+  /**
    * Formats the results of an HTTP data point storage request
    * @param results A map of results. The map will consist of:
    * <ul><li>success - (long) the number of successfully parsed datapoints</li>
@@ -585,6 +597,19 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented formatAnnotationV1");
+  }
+  
+  /**
+   * Format a list of annotation objects
+   * @param notes The annotation objects to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatAnnotationsV1(final List<Annotation> notes) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatAnnotationsV1");
   }
   
   /**
