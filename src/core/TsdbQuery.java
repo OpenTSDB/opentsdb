@@ -551,7 +551,7 @@ final class TsdbQuery implements Query {
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     if (tsuids != null && !tsuids.isEmpty()) {
-      createAndSetTSUIDFilter(scanner);
+      Internal.createAndSetTSUIDFilter(scanner, tsuids);
     } else if (tags.size() > 0 || group_bys != null) {
       createAndSetFilter(scanner);
     }
@@ -666,57 +666,6 @@ final class TsdbQuery implements Query {
     scanner.setKeyRegexp(buf.toString(), CHARSET);
    }
 
-  /**
-   * Sets the server-side regexp filter on the scanner.
-   * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
-   * storage from returning irrelevant rows.
-   * @param scanner The scanner on which to add the filter.
-   * @since 2.0
-   */
-  private void createAndSetTSUIDFilter(final Scanner scanner) {
-    Collections.sort(tsuids);
-    
-    // first, convert the tags to byte arrays and count up the total length
-    // so we can allocate the string builder
-    final short metric_width = tsdb.metrics.width();
-    int tags_length = 0;
-    final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
-    for (final String tsuid : tsuids) {
-      final String tags = tsuid.substring(metric_width * 2);
-      final byte[] tag_bytes = UniqueId.stringToUid(tags);
-      tags_length += tag_bytes.length;
-      uids.add(tag_bytes);
-    }
-    
-    // Generate a regexp for our tags based on any metric and timestamp (since
-    // those are handled by the row start/stop) and the list of TSUID tagk/v
-    // pairs. The generated regex will look like: ^.{7}(tags|tags|tags)$
-    // where each "tags" is similar to \\Q\000\000\001\000\000\002\\E
-    final StringBuilder buf = new StringBuilder(
-        13  // "(?s)^.{N}(" + ")$"
-        + (tsuids.size() * 11) // "\\Q" + "\\E|"
-        + tags_length); // total # of bytes in tsuids tagk/v pairs
-    
-    // Alright, let's build this regexp.  From the beginning...
-    buf.append("(?s)"  // Ensure we use the DOTALL flag.
-               + "^.{")
-       // ... start by skipping the metric ID and timestamp.
-       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
-       .append("}(");
-    
-    for (final byte[] tags : uids) {
-       // quote the bytes
-      buf.append("\\Q");
-      UniqueId.addIdToRegexp(buf, tags);
-      buf.append('|');
-    }
-    
-    // Replace the pipe of the last iteration, close and set
-    buf.setCharAt(buf.length() - 1, ')');
-    buf.append("$");
-    scanner.setKeyRegexp(buf.toString(), CHARSET);
-  }
-  
   /**
    * Helper comparison function to compare tag name IDs.
    * @param name_width Number of bytes used by a tag name ID.
