@@ -38,6 +38,7 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.utils.Config;
 
@@ -331,6 +332,18 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Parses a bulk annotation deletion query object
+   * @return Settings used to bulk delete annotations
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public AnnotationBulkDelete parseAnnotationBulkDeleteV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseAnnotationBulkDeleteV1");
+  }
+  
+  /**
    * Formats the results of an HTTP data point storage request
    * @param results A map of results. The map will consist of:
    * <ul><li>success - (long) the number of successfully parsed datapoints</li>
@@ -612,6 +625,20 @@ public abstract class HttpSerializer {
         " has not implemented formatAnnotationsV1");
   }
   
+  /**
+   * Format the results of a bulk annotation deletion
+   * @param notes The annotation deletion request to return
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatAnnotationBulkDeleteV1(
+      final AnnotationBulkDelete request) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatAnnotationBulkDeleteV1");
+  }
+
   /**
    * Format a list of statistics
    * @param note The statistics list to format
