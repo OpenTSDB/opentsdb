@@ -217,7 +217,9 @@ final class AnnotationRpc implements HttpRpc {
         Deferred<Annotation> deferred = 
             note.syncToStorage(tsdb, method == HttpMethod.PUT)
             .addCallbackDeferring(new SyncCB(note));
-        callbacks.add(deferred.addCallbackDeferring(new IndexCB()));
+        Deferred<Annotation> indexer = 
+            deferred.addCallbackDeferring(new IndexCB());
+        callbacks.add(indexer);
       } catch (IllegalStateException e) {
         LOG.info("No changes for annotation: " + note);
       } catch (IllegalArgumentException e) {

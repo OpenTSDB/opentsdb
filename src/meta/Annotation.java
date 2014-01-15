@@ -16,7 +16,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -490,9 +489,9 @@ public final class Annotation implements Comparable<Annotation> {
       }
     }
     
-    return new ScannerCB().scan()
-        .addCallbackDeferring(new ScannerDoneCB())
-        .addCallbackDeferring(new GroupCB());
+    Deferred<ArrayList<Object>> scanner_done = new ScannerCB().scan()
+        .addCallbackDeferring(new ScannerDoneCB());
+    return scanner_done.addCallbackDeferring(new GroupCB());
   }
   
   /** @return The prefix byte for annotation objects */
