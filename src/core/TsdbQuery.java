@@ -29,6 +29,7 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -111,12 +112,12 @@ final class TsdbQuery implements Query {
 
   /**
    * Downsampling function to use, if any (can be {@code null}).
-   * If this is non-null, {@code sample_interval} must be strictly positive.
+   * If this is non-null, {@code sample_interval_ms} must be strictly positive.
    */
   private Aggregator downsampler;
 
-  /** Minimum time interval (in seconds) wanted between each data point. */
-  private long sample_interval;
+  /** Minimum time interval (in milliseconds) wanted between each data point. */
+  private long sample_interval_ms;
 
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
@@ -253,7 +254,7 @@ final class TsdbQuery implements Query {
       throw new IllegalArgumentException("interval not > 0: " + interval);
     }
     this.downsampler = downsampler;
-    this.sample_interval = interval;
+    this.sample_interval_ms = interval;
   }
 
   /**
@@ -448,12 +449,12 @@ final class TsdbQuery implements Query {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
         final SpanGroup group = new SpanGroup(tsdb,
-                                              getScanStartTime(),
-                                              getScanEndTime(),
+                                              getScanStartTimeSeconds(),
+                                              getScanEndTimeSeconds(),
                                               spans.values(),
                                               rate, rate_options,
                                               aggregator,
-                                              sample_interval, downsampler);
+                                              sample_interval_ms, downsampler);
         return new SpanGroup[] { group };
       }
   
@@ -494,9 +495,10 @@ final class TsdbQuery implements Query {
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
         SpanGroup thegroup = groups.get(group);
         if (thegroup == null) {
-          thegroup = new SpanGroup(tsdb, getScanStartTime(), getScanEndTime(),
+          thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
+                                   getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
-                                   sample_interval, downsampler);
+                                   sample_interval_ms, downsampler);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -530,10 +532,10 @@ final class TsdbQuery implements Query {
     // rely on having a few extra data points before & after the exact start
     // & end dates in order to do proper rate calculation or downsampling near
     // the "edges" of the graph.
-    Bytes.setInt(start_row, (int) getScanStartTime(), metric_width);
+    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(), metric_width);
     Bytes.setInt(end_row, (end_time == UNSET
                            ? -1  // Will scan until the end (0xFFF...).
-                           : (int) getScanEndTime()),
+                           : (int) getScanEndTimeSeconds()),
                  metric_width);
     
     // set the metric UID based on the TSUIDs if given, or the metric UID
@@ -561,7 +563,7 @@ final class TsdbQuery implements Query {
   }
 
   /** Returns the UNIX timestamp from which we must start scanning.  */
-  private long getScanStartTime() {
+  private long getScanStartTimeSeconds() {
     // The reason we look before by `MAX_TIMESPAN * 2' seconds is because of
     // the following.  Let's assume MAX_TIMESPAN = 600 (10 minutes) and the
     // start_time = ... 12:31:00.  If we initialize the scanner to look
@@ -572,32 +574,32 @@ final class TsdbQuery implements Query {
     // look back by twice MAX_TIMESPAN.  Only when start_time is aligned on a
     // MAX_TIMESPAN boundary then we'll mistakenly scan back by an extra row,
     // but this doesn't really matter.
-    // Additionally, in case our sample_interval is large, we need to look
+    // Additionally, in case our sample_interval_ms is large, we need to look
     // even further before/after, so use that too.
     long start = getStartTime();
     // down cast to seconds if we have a query in ms
     if ((start & Const.SECOND_MASK) != 0) {
       start /= 1000;
     }
-    final long ts = start - Const.MAX_TIMESPAN * 2 - sample_interval;
+    final long ts = start - Const.MAX_TIMESPAN * 2 - sample_interval_ms / 1000;
     return ts > 0 ? ts : 0;
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.  */
-  private long getScanEndTime() {
+  private long getScanEndTimeSeconds() {
     // For the end_time, we have a different problem.  For instance if our
     // end_time = ... 12:30:00, we'll stop scanning when we get to 12:40, but
     // once again we wanna try to look ahead one more row, so to avoid this
     // problem we always add 1 second to the end_time.  Only when the end_time
     // is of the form HH:59:59 then we will scan ahead an extra row, but once
     // again that doesn't really matter.
-    // Additionally, in case our sample_interval is large, we need to look
+    // Additionally, in case our sample_interval_ms is large, we need to look
     // even further before/after, so use that too.
     long end = getEndTime();
     if ((end & Const.SECOND_MASK) != 0) {
       end /= 1000;
     }
-    return end + Const.MAX_TIMESPAN + 1 + sample_interval;
+    return end + Const.MAX_TIMESPAN + 1 + sample_interval_ms / 1000;
   }
 
   /**
@@ -856,4 +858,23 @@ final class TsdbQuery implements Query {
 
   }
 
+  /** Helps unit tests inspect private methods. */
+  @VisibleForTesting
+  static class ForTesting {
+
+    /** @return the start time of the HBase scan for unit tests. */
+    static long getScanStartTimeSeconds(TsdbQuery query) {
+      return query.getScanStartTimeSeconds();
+    }
+
+    /** @return the end time of the HBase scan for unit tests. */
+    static long getScanEndTimeSeconds(TsdbQuery query) {
+      return query.getScanEndTimeSeconds();
+    }
+
+    /** @return the downsampling interval for unit tests. */
+    static long getDownsampleIntervalMs(TsdbQuery query) {
+      return query.sample_interval_ms;
+    }
+  }
 }
