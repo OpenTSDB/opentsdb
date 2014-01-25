@@ -22,9 +22,33 @@ import java.util.List;
 import net.opentsdb.plugin.DummyPlugin;
 import net.opentsdb.utils.PluginLoader;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public final class TestPluginLoader {
+
+  /**
+   * Creates the plugin jar
+   */
+  @BeforeClass
+  public static void initPluginJar() {
+	  PluginJARFactory.newBuilder("plugin_test.jar")
+	  	.service("net.opentsdb.plugin.DummyPlugin", "net.opentsdb.plugin.DummyPluginA", "net.opentsdb.plugin.DummyPluginB")
+	  	.service("net.opentsdb.search.SearchPlugin", "net.opentsdb.search.DummySearchPlugin")
+	  	.service("net.opentsdb.tsd.HttpSerializer", "net.opentsdb.tsd.DummyHttpSerializer")
+	  	.service("net.opentsdb.tsd.RpcPlugin", "net.opentsdb.tsd.DummyRpcPlugin")
+	  	.service("net.opentsdb.tsd.RTPublisher", "net.opentsdb.tsd.DummyRTPublisher")
+	  	.build();
+  }
+  
+  /**
+   * Clears the created plugin jar
+   */
+  @AfterClass
+  public static void clearPluginJar() {
+	  PluginJARFactory.purge();
+  }
 
   @Test
   public void loadJar() throws Exception {

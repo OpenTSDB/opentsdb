@@ -18,9 +18,12 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.PluginJARFactory;
 import net.opentsdb.utils.PluginLoader;
 
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -36,6 +39,29 @@ public final class TestRpcPlugin {
   private TSDB tsdb= mock(TSDB.class);
   private Config config = mock(Config.class);
   private RpcPlugin rpc_plugin;
+  
+  /**
+   * Creates the plugin jar
+   */
+  @BeforeClass
+  public static void initPluginJar() {
+	  PluginJARFactory.newBuilder("plugin_test.jar")
+	  	.service("net.opentsdb.plugin.DummyPlugin", "net.opentsdb.plugin.DummyPluginA", "net.opentsdb.plugin.DummyPluginB")
+	  	.service("net.opentsdb.search.SearchPlugin", "net.opentsdb.search.DummySearchPlugin")
+	  	.service("net.opentsdb.tsd.HttpSerializer", "net.opentsdb.tsd.DummyHttpSerializer")
+	  	.service("net.opentsdb.tsd.RpcPlugin", "net.opentsdb.tsd.DummyRpcPlugin")
+	  	.service("net.opentsdb.tsd.RTPublisher", "net.opentsdb.tsd.DummyRTPublisher")
+	  	.build();
+  }
+  
+  /**
+   * Clears the created plugin jar
+   */
+  @AfterClass
+  public static void clearPluginJar() {
+	  PluginJARFactory.purge();
+  }
+  
   
   @Before
   public void before() throws Exception {
