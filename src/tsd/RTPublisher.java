@@ -14,12 +14,13 @@ package net.opentsdb.tsd;
 
 import java.util.Map;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
+import net.opentsdb.stats.StatsCollector;
+
 import org.hbase.async.Bytes;
 
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
 
 /**
  * Real Time publisher plugin interface that is used to emit data from a TSD
@@ -137,4 +138,13 @@ public abstract class RTPublisher {
   public abstract Deferred<Object> publishDataPoint(final String metric, 
       final long timestamp, final double value, final Map<String, String> tags, 
       final byte[] tsuid);
+  
+  /**
+   * Called any time a new annotation is published
+   * @param annotation The published annotation
+   * @return A deferred without special meaning to wait on if necessary. The 
+   * value may be null but a Deferred must be returned.
+   */
+  public abstract Deferred<Object> publishAnnotation(Annotation annotation);
+  
 }

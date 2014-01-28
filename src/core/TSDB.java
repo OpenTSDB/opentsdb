@@ -965,6 +965,9 @@ public final class TSDB {
     if (search != null) {
       search.indexAnnotation(note).addErrback(new PluginError());
     }
+    if( rt_publisher != null ) {
+    	rt_publisher.publishAnnotation(note);
+    }
   }
   
   /**

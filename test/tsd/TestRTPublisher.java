@@ -16,7 +16,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
+
+import java.util.Collections;
+import java.util.HashMap;
+
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
 
@@ -99,4 +104,17 @@ public final class TestRTPublisher {
         System.currentTimeMillis(), new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 }, 
         null, null, (short)0x7));
   }
+  
+  @Test
+  public void publishAnnotation() throws Exception {
+	  Annotation ann = new Annotation();
+	  HashMap<String, String> customMap = new HashMap<String, String>(1);
+	  customMap.put("test-custom-key", "test-custom-value");
+	  ann.setCustom(customMap);
+	  ann.setDescription("A test annotation");
+	  ann.setNotes("Test annotation notes");
+	  ann.setStartTime(System.currentTimeMillis());	  
+	  assertNotNull(rt_publisher.publishAnnotation(ann));
+  }
+  
 }
