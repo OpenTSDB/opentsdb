@@ -122,6 +122,10 @@ if [ ! -e "$TSDB_MVN/src/main/resources/opentsdb.conf" ]; then
 	ln -s $TSDB_SRC/opentsdb.conf $TSDB_MVN/src/main/resources/opentsdb.conf
 fi
 
+if [ ! -e "$TSDB_MVN/src/main/resources/opentsdb.conf.json" ]; then
+	echo "	Linking $TSDB_MVN/src/main/resources/opentsdb.conf.json  --->  $TSDB_SRC/opentsdb.conf.json"
+	ln -s $TSDB_SRC/opentsdb.conf.json $TSDB_MVN/src/main/resources/opentsdb.conf.json
+fi
 
 echo "Linking shell scripts main resources"
 

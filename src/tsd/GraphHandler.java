@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -30,12 +32,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
@@ -49,9 +45,16 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.tools.GnuplotInstaller;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -923,27 +926,34 @@ final class GraphHandler implements HttpRpc {
    * @return The path to the wrapper script.
    */
   private static String findGnuplotHelperScript() {
-    final URL url = GraphHandler.class.getClassLoader().getResource(WRAPPER);
-    if (url == null) {
-      throw new RuntimeException("Couldn't find " + WRAPPER + " on the"
-        + " CLASSPATH: " + System.getProperty("java.class.path"));
-    }
-    final String path = url.getFile();
-    LOG.debug("Using Gnuplot wrapper at {}", path);
-    final File file = new File(path);
-    final String error;
-    if (!file.exists()) {
-      error = "non-existent";
-    } else if (!file.canExecute()) {
-      error = "non-executable";
-    } else if (!file.canRead()) {
-      error = "unreadable";
-    } else {
-      return path;
-    }
-    throw new RuntimeException("The " + WRAPPER + " found on the"
-      + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
-      + "  CLASSPATH=" + System.getProperty("java.class.path"));
+	  if(!GnuplotInstaller.GP_FILE.exists()) {
+		  GnuplotInstaller.installMyGnuPlot();
+	  }
+	  if(GnuplotInstaller.GP_FILE.exists() && GnuplotInstaller.GP_FILE.canExecute()) {
+		  return GnuplotInstaller.GP_FILE.getAbsolutePath();
+	  }
+
+	  final URL url = GraphHandler.class.getClassLoader().getResource(WRAPPER);
+	  if (url == null) {
+		  throw new RuntimeException("Couldn't find " + WRAPPER + " on the"
+				  + " CLASSPATH: " + System.getProperty("java.class.path"));
+	  }
+	  final String path = url.getFile();
+	  LOG.debug("Using Gnuplot wrapper at {}", path);
+	  final File file = new File(path);
+	  final String error;
+	  if (!file.exists()) {
+		  error = "non-existent";
+	  } else if (!file.canExecute()) {
+		  error = "non-executable";
+	  } else if (!file.canRead()) {
+		  error = "unreadable";
+	  } else {
+		  return path;
+	  }
+	  throw new RuntimeException("The " + WRAPPER + " found on the"
+			  + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
+			  + "  CLASSPATH=" + System.getProperty("java.class.path"));
   }
 
 
