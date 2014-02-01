@@ -1,0 +1,305 @@
+{ 
+	"config-items":
+[
+ {
+  "key": "tsd.network.backlog",
+  "cl-option": "--backlog",
+  "defaultValue": "3072",
+  "description": "Size of connection attempt queue (default: 3072 or kernel somaxconn.)",
+  "help": "default",
+  "meta": "POSINT"
+ },
+ {
+  "key": "tsd.storage.flush_interval",
+  "cl-option": "--flush-interval",
+  "defaultValue": "1000",
+  "description": "Maximum time for which a new data point can be buffered in ms. (default: 1000)",
+  "help": "default",
+  "meta": "POSINT"
+ },
+ {
+  "key": "tsd.network.tcp_no_delay",
+  "cl-option": "--tcp-no-delay",
+  "defaultValue": "true",
+  "description": "Enables Nagel's algorithm to reduce the number of packets sent over the network, default is true",
+  "help": "extended",
+  "meta": "BOOL"
+ },
+ {
+  "key": "tsd.core.meta.enable_realtime_ts",
+  "cl-option": "--realtime-ts",
+  "defaultValue": "false",
+  "description": "Enables realtime meta data timestamps",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.http.staticroot",
+  "cl-option": "--staticroot",
+  "defaultValue": "${java.io.tmpdir}/.tsdb/static-content",
+  "description": "The directory where the static HTTP content is served from",
+  "help": "default",
+  "meta": "DIR"
+ },
+ {
+  "key": "tsd.process.pid.file",
+  "cl-option": "--pid-file",
+  "defaultValue": "${user.home}/.tsdb/opentsdb.pid",
+  "description": "The file to write the process PID to. Defaults to [${user.home}.tsdb/opentsdb.pid]",
+  "help": "default",
+  "meta": "FILE"
+ },
+ {
+  "key": "tsd.storage.hbase.zk_quorum",
+  "cl-option": "--zkquorum",
+  "defaultValue": "localhost",
+  "description": "Specification of the ZooKeeper quorum to use (default: localhost)",
+  "help": "default",
+  "meta": "SPEC"
+ },
+ {
+  "key": "tsd.network.bind",
+  "cl-option": "--bind",
+  "defaultValue": "0.0.0.0",
+  "description": "The IPv4 network address to bind to, defaults to all addresses",
+  "help": "default",
+  "meta": "ADDR"
+ },
+ {
+  "key": "tsd.network.port",
+  "cl-option": "--port",
+  "defaultValue": "4242",
+  "description": "The TCP port the server will listen on",
+  "help": "default",
+  "meta": "POSINT"
+ },
+ {
+  "key": "tsd.network.worker_threads",
+  "cl-option": "--worker-threads",
+  "defaultValue": "$[(Integer)(cores * 2)]",
+  "description": "Number of worker threads dedicated to Netty, defaults to # of CPUs * 2",
+  "help": "default",
+  "meta": "POSINT"
+ },
+ {
+  "key": "tsd.http.request.cors_domains",
+  "cl-option": "--cors-domains",
+  "description": "A coma separated list of CORS domains",
+  "help": "extended",
+  "meta": "LIST"
+ },
+ {
+  "key": "tsd.core.meta.enable_tsuid_tracking",
+  "cl-option": "--tsuid-tracking",
+  "defaultValue": "false",
+  "description": "Enables TSUID tracking",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.core.meta.enable_tsuid_incrementing",
+  "cl-option": "--tsuid-incr",
+  "defaultValue": "false",
+  "description": "Enables TSUID incrementing",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.storage.hbase.meta_table",
+  "cl-option": "--metatable",
+  "defaultValue": "tsdb-meta",
+  "description": "The name of the meta-data data table",
+  "help": "extended",
+  "meta": "TABLE"
+ },
+ {
+  "key": "tsd.network.async_io",
+  "cl-option": "--async-io",
+  "defaultValue": "true",
+  "description": "Whether or not to use NIO or tradditional blocking IO, defaults to True",
+  "help": "default",
+  "meta": "BOOL"
+ },
+ {
+  "key": "help",
+  "cl-option": "--help",
+  "defaultValue": "",
+  "description": "Prints the default command line usage options, or the extended if 'extended' is passed as an arg",
+  "help": "default"
+ },
+ {
+  "key": "tsd.rtpublisher.plugin",
+  "cl-option": "--rtplublisher-plugin",
+  "description": "The class name of the RTPublisher plugin to enable",
+  "help": "extended",
+  "meta": "CLASS"
+ },
+ {
+  "key": "tsd.core.config",
+  "cl-option": "--config",
+  "description": "The core config file overlayed on this default",
+  "help": "default",
+  "meta": "EFILE"
+ },
+ {
+  "key": "tsd.search.plugin",
+  "cl-option": "--search-plugin",
+  "description": "The class name of the Search plugin to enable",
+  "help": "extended",
+  "meta": "CLASS"
+ },
+ {
+  "key": "tsd.search.enable",
+  "cl-option": "--search-plugin-enable",
+  "defaultValue": "false",
+  "description": "Enables the Search plugin",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.ui.noexport",
+  "cl-option": "--no-uiexport",
+  "defaultValue": "false",
+  "description": "Skips the boot time export of static UI content to tsd.http.staticroot",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.core.tree.enable_processing",
+  "cl-option": "--enable-tree",
+  "defaultValue": "false",
+  "description": "Enables TSDB Tree processing",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.stats.canonical",
+  "cl-option": "--stats-canonical",
+  "defaultValue": "false",
+  "description": "If true, the fully qualified host-name is used when prepending the 'host' tag-pair to a metric, otherwise, just the simple host name",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.http.cachedir",
+  "cl-option": "--cachedir",
+  "defaultValue": "${java.io.tmpdir}/.tsdb/http-cache/",
+  "description": "Directory under which to cache result of requests",
+  "help": "default",
+  "meta": "DIR"
+ },
+ {
+  "key": "tsd.http.request.max_chunk",
+  "cl-option": "--max-chunks",
+  "defaultValue": "4096",
+  "description": "The maximum number of chunks that will be aggregated",
+  "help": "extended",
+  "meta": "POSINT"
+ },
+ {
+  "key": "tsd.http.show_stack_trace",
+  "cl-option": "--show-stack",
+  "defaultValue": "false",
+  "description": "If true, stack traces will be sent to the http client caller when an error occurs",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.core.auto_create_metrics",
+  "cl-option": "--auto-metric",
+  "defaultValue": "false",
+  "description": "Automatically add metrics to tsdb as they are inserted.  Warning: this may cause unexpected metrics to be tracked",
+  "help": "default"
+ },
+ {
+  "key": "tsd.storage.enable_compaction",
+  "cl-option": "--enable-compaction",
+  "defaultValue": "true",
+  "description": "Enables periodic storage compaction",
+  "help": "extended",
+  "meta": "BOOL"
+ },
+ {
+  "key": "tsd.core.meta.enable_realtime_uid",
+  "cl-option": "--realtime-uid",
+  "defaultValue": "false",
+  "description": "Enables real time UID meta publication",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.storage.hbase.data_table",
+  "cl-option": "--table",
+  "defaultValue": "tsdb",
+  "description": "The name of the time-series data table",
+  "help": "default",
+  "meta": "TABLE"
+ },
+ {
+  "key": "tsd.storage.hbase.uid_table",
+  "cl-option": "--uidtable",
+  "defaultValue": "tsdb-uid",
+  "description": "The name of the uid  data table",
+  "help": "extended",
+  "meta": "TABLE"
+ },
+ {
+  "key": "tsd.http.request.enable_chunked",
+  "cl-option": "--enable-chunked",
+  "defaultValue": "false",
+  "description": "Enables the aggregation of HTTP chunks into a single chunk",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.core.plugin_path",
+  "cl-option": "--plugin-path",
+  "description": "The path where core plugins are found",
+  "help": "extended",
+  "meta": "EDIR"
+ },
+ {
+  "key": "tsd.process.pid.ignore.existing",
+  "cl-option": "--ignore-existing-pid",
+  "defaultValue": "false",
+  "description": "If true, ignores and overwrites an existing pid file on startup",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.storage.hbase.zk_basedir",
+  "cl-option": "--zkbasedir",
+  "defaultValue": "/hbase",
+  "description": "Path under which is the znode for the -ROOT- region (default: /hbase)",
+  "help": "default",
+  "meta": "ZPATH"
+ },
+ {
+  "key": "tsd.rtpublisher.enable",
+  "cl-option": "--rtplublisher-plugin-enable",
+  "defaultValue": "false",
+  "description": "Enables the RTPublisher plugin",
+  "help": "extended"
+ },
+ {
+  "key": "tsd.core.config.include",
+  "cl-option": "--include-config",
+  "description": "An additional config overlay useful when the --config file is fairly static",
+  "help": "extended",
+  "meta": "EFILE"
+ },
+ {
+  "key": "tsd.storage.hbase.tree_table",
+  "cl-option": "--treetable",
+  "defaultValue": "tsdb-tree",
+  "description": "The name of the tree data table",
+  "help": "extended",
+  "meta": "TABLE"
+ },
+ {
+  "key": "tsd.network.keep_alive",
+  "cl-option": "--keep-alive",
+  "defaultValue": "true",
+  "description": "Determines whether or not to send keepalive packets to peers, default is true",
+  "help": "extended",
+  "meta": "BOOL"
+ },
+ {
+  "key": "tsd.network.reuse_address",
+  "cl-option": "--reuse-address",
+  "defaultValue": "true",
+  "description": "Determines if the same socket should be used for new connections, default is true",
+  "help": "extended",
+  "meta": "BOOL"
+ }
+]
+}
