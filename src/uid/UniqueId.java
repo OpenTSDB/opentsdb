@@ -646,7 +646,6 @@ public final class UniqueId implements UniqueIdInterface {
           // start the assignment dance after stashing the deferred
           return new UniqueIdAllocator(name, assignment).tryAllocate();
         }
-        System.out.println("Caught an exception here");
         return e;  // Other unexpected exception, let it bubble up.
       }
     }
