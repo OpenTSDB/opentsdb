@@ -13,11 +13,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-ASYNCHBASE_VERSION := 1.5.0
-ASYNCHBASE := third_party/hbase/asynchbase-$(ASYNCHBASE_VERSION).jar
-ASYNCHBASE_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+PROTOBUF_VERSION := 2.5.0
+PROTOBUF := third_party/protobuf/protobuf-java-$(PROTOBUF_VERSION).jar
+PROTOBUF_BASE_URL := http://search.maven.org/remotecontent?filepath=com/google/protobuf/protobuf-java/$(PROTOBUF_VERSION)
 
-$(ASYNCHBASE): $(ASYNCHBASE).md5
-	set dummy "$(ASYNCHBASE_BASE_URL)" "$(ASYNCHBASE)"; shift; $(FETCH_DEPENDENCY)
+$(PROTOBUF): $(PROTOBUF).md5
+	set dummy "$(PROTOBUF_BASE_URL)" "$(PROTOBUF)"; shift; $(FETCH_DEPENDENCY)
 
-THIRD_PARTY += $(ASYNCHBASE)
+THIRD_PARTY += $(PROTOBUF)

@@ -122,6 +122,7 @@ tsdb_DEPS = \
 	$(JACKSON_CORE)	\
 	$(JACKSON_DATABIND)	\
 	$(NETTY)	\
+	$(PROTOBUF)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
 	$(ZOOKEEPER)
