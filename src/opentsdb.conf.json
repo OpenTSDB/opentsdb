@@ -199,7 +199,7 @@
  {
   "key": "tsd.core.auto_create_metrics",
   "cl-option": "--auto-metric",
-  "defaultValue": "false",
+  "defaultValue": "true",
   "description": "Automatically add metrics to tsdb as they are inserted.  Warning: this may cause unexpected metrics to be tracked",
   "help": "default"
  },
@@ -275,7 +275,7 @@
   "cl-option": "--include-config",
   "description": "An additional config overlay useful when the --config file is fairly static",
   "help": "extended",
-  "meta": "EFILE"
+  "meta": "FILELIST"
  },
  {
   "key": "tsd.storage.hbase.tree_table",
@@ -301,5 +301,10 @@
   "help": "extended",
   "meta": "BOOL"
  }
+],
+"bindings" : [ 
+	"importPackage(Packages.java.lang);",
+	"var cores = Runtime.getRuntime().availableProcessors();",
+	"var maxheap = Runtime.getRuntime().maxMemory();"
 ]
 }

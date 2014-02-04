@@ -14,6 +14,7 @@ package net.opentsdb.tools;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -26,10 +27,12 @@ import javax.script.ScriptEngineManager;
 
 import net.opentsdb.utils.Config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 
 /**
  * <p>Title: ConfigArgP</p>
@@ -39,11 +42,14 @@ import com.fasterxml.jackson.databind.ObjectReader;
  */
 
 public class ConfigArgP {
+	/** Static class logger */
+	protected static final Logger LOG = LoggerFactory.getLogger(ConfigArgP.class);
 	/** The command line argument holder for all (default and extended) options */
 	protected final ArgP argp = new ArgP();
 	/** The command line argument holder for default options */
 	protected final ArgP dargp = new ArgP();
-	
+	/** The non config option arguments */
+	protected String[] nonOptionArgs = {};
 	/** The base configuration */
 	protected final Config config;
 	/** The raw configuration items loaded from the json file keyed by the item key */
@@ -64,10 +70,8 @@ public class ConfigArgP {
 	
 
 	static {
-		// Initialize some basic js bindings
+		// Initialize js bindings
 		Bindings bindings = scriptEngine.getBindings(ScriptContext.ENGINE_SCOPE);
-		bindings.put("cores", Runtime.getRuntime().availableProcessors());
-		bindings.put("maxheap", Runtime.getRuntime().maxMemory());
 		bindings.put("bindings", bindings);
 	}
 	
@@ -77,19 +81,16 @@ public class ConfigArgP {
 	 */
 	public ConfigArgP(String...args) {
 		InputStream is = null;
+		
 		try {
 			config = new Config(false);
 			is = ConfigArgP.class.getClassLoader().getResourceAsStream("opentsdb.conf.json");
 			ObjectMapper jsonMapper = new ObjectMapper();
-//			jsonMapper.configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true);
-//			AnnotationIntrospector introspector = new JacksonAnnotationIntrospector();
-//			jsonMapper.getDeserializationConfig().with(introspector);
-			
-			ObjectReader reader = jsonMapper.reader(ConfigurationItem[].class).withRootName("config-items");
 			JsonNode root = jsonMapper.reader().readTree(is);
-			// Puts the entire config tree into the script engine context as a json node
-			scriptEngine.eval("var config = " + root.toString() + ";");
-			ConfigurationItem[] items = reader.readValue(root);
+			JsonNode configRoot = root.get("config-items");
+			scriptEngine.eval("var config = " + configRoot.toString() + ";");
+			processBindings(jsonMapper, root);
+			ConfigurationItem[] items = jsonMapper.reader(ConfigurationItem[].class).readValue(configRoot);
 			for(ConfigurationItem ci: items) {
 				if(ci.meta!=null) {
 					argp.addOption(ci.clOption, ci.meta, ci.description);
@@ -112,7 +113,7 @@ public class ConfigArgP {
 			// find --config and --include-config in argp and load into config 
 			//		validate
 			//argp.parse(args);
-			applyArgs(args);
+			nonOptionArgs = applyArgs(args);
 		} catch (Exception ex) {
 			if(ex instanceof IllegalArgumentException) {
 				throw (IllegalArgumentException)ex;
@@ -122,6 +123,7 @@ public class ConfigArgP {
 			if(is!=null) try { is.close(); } catch (Exception x) { /* No Op */ }
 		}
 	}
+
 	
 	/**
 	 * Parses the command line arguments, and where the options are recognized config items, the value is validated, then applied to the config
@@ -133,14 +135,14 @@ public class ConfigArgP {
 		for(Map.Entry<String, String> entry: argp.getParsed().entrySet()) {
 			String key = entry.getKey(), value = entry.getValue();
 			ConfigurationItem citem = configItemsByCl.get(key);
-			if(citem.getMeta()==null) {
-				citem.setValue("true");
+			if(citem.getMeta()==null) {				
+				citem.setValue(value!=null ? value : "true");
 			} else {
-				if(value==null) {
+				if(value!=null) {
 					citem.setValue(processConfigValue(value));							
 				}
 			}
-			//log("CL Override [%s] --> [%s]", citem.getKey(), citem.getValue());
+//			log("CL Override [%s] --> [%s]", citem.getKey(), citem.getValue());
 			config.overrideConfig(citem.getKey(), citem.getValue());										
 		}
 		return nonArgs;
@@ -489,6 +491,50 @@ public class ConfigArgP {
 	 */
 	public Config getConfig() {
 		return config;
+	}
+
+	/**
+	 * Returns the non config option arguments
+	 * @return the non config option arguments
+	 */
+	public String[] getNonOptionArgs() {
+		return nonOptionArgs;
 	}	
+	
+	/**
+	 * Determines if the passed key is contained in the non option args
+	 * @param nonOptionKey The non option key to check for
+	 * @return true if the passed key is present, false otherwise
+	 */
+	public boolean hasNonOption(String nonOptionKey) {
+		if(nonOptionArgs==null || nonOptionArgs.length==0 || nonOptionKey==null || nonOptionKey.trim().isEmpty()) return false;
+		return Arrays.binarySearch(nonOptionArgs, nonOptionKey) >= 0;
+	}
+
+	/**
+	 * Checks the <b><source>opentsdb.conf.json</source></b> document to see if it has a <b><source>bindings</source></b> segment
+	 * which contains JS statements to evaluate which will prime variables used by the configuration. 
+	 * @param jsonMapper The JSON mapper
+	 * @param root The root <b><source>opentsdb.conf.json</source></b> document 
+	 */
+	protected void processBindings(ObjectMapper jsonMapper, JsonNode root) {
+		try {
+			if(root.has("bindings")) {
+				JsonNode bindingsNode = root.get("bindings");
+				if(bindingsNode.isArray()) {
+					String[] jsLines = jsonMapper.reader(String[].class).readValue(bindingsNode);
+					StringBuilder b = new StringBuilder();
+					for(String s: jsLines) {
+						b.append(s).append("\n");
+					}
+					scriptEngine.eval(b.toString());
+					LOG.info("Successfully evaluated [{}] lines of JS in bindings", jsLines.length);
+				}
+			}
+		} catch (Exception ex) {
+			throw new IllegalArgumentException("Failed to evaluate opentsdb.conf.json bindings", ex);
+		}
+	}
+	
 	
 }

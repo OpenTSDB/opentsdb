@@ -14,25 +14,35 @@ package net.opentsdb.tools;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
+import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.Executors;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.tools.ConfigArgP.ConfigurationItem;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.utils.Config;
+
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -75,16 +85,35 @@ public class Main {
 		tmp.put("import", TextImporter.class);
 		tmp.put("mkmetric", UidManager.class); // -> shift --> set uid assign metrics "$@"
 		tmp.put("query", CliQuery.class);
-		tmp.put("tsd", TSDMain.class);
+		tmp.put("tsd", Main.class);
 		tmp.put("scan", DumpSeries.class);
 		tmp.put("uid", UidManager.class);
 		tmp.put("exportui", UIContentExporter.class);
+		tmp.put("help", HelpProcessor.class);
 		COMMANDS = Collections.unmodifiableMap(tmp);
 	}
 	
 	/**
+	 * Prints the main usage banner
+	 */
+	public static void mainUsage(PrintStream ps) {
+		StringBuilder b = new StringBuilder("\nUsage: java -jar [opentsdb.jar] [command] [args]\nValid commands:")
+			.append("\n\ttsd: Starts a new TSDB instance")
+			.append("\n\tfsck: Searches for and optionally fixes corrupted data in a TSDB")
+			.append("\n\timport: Imports data from a file into HBase through a TSDB")
+			.append("\n\tmkmetric: Creates a new metric")
+			.append("\n\tquery: Queries time series data from a TSDB ")
+			.append("\n\tscan: Dumps data straight from HBase")
+			.append("\n\tuid: Provides various functions to search or modify information in the tsdb-uid table. ")
+			.append("\n\texportui: Exports the OpenTSDB UI static content")
+			.append("\n\n\tUse help <command> for details on a command\n");
+		ps.println(b);
+	}
+	
+	
+	/**
 	 * The OpenTSDB fat-jar main entry point
-	 * @param args See usage banner {@link Main#mainUsage()}
+	 * @param args See usage banner {@link Main#mainUsage(PrintStream)}
 	 */
 	public static void main(String[] args) {
 	    log.info("Starting.");
@@ -105,13 +134,15 @@ public class Main {
 	    	log.error("Command not recognized: [" + targetTool + "]");
 	    	mainUsage(System.err);
 	    	System.exit(-1);	    	
-	    }
-	    process(targetTool, shift(args));
-	    
+	    }	    
+	    process(targetTool, shift(args));	    
 	}
 	
-	
-	
+	/**
+	 * Executes the target tool
+	 * @param targetTool the name of the target tool to execute
+	 * @param args The command line arguments minus the tool name
+	 */
 	private static void process(String targetTool, String[] args) {
 		if("mkmetric".equals(targetTool)) {
 			shift(args);
@@ -128,10 +159,143 @@ public class Main {
 		}
 	}
 	
+	
+	/**
+	 * Applies and processes the pre-tsd command line
+	 * @param cap The main configuration wrapper
+	 * @param argp The preped command line argument handler 
+	 */
+	protected static void applyCommandLine(ConfigArgP cap, ArgP argp) {
+		// --config, --include-config, --help
+		if(argp.has("--help")) {
+			if(cap.hasNonOption("extended")) {
+				System.out.println(cap.getExtendedUsage("tsd extended usage:"));
+			} else {
+				System.out.println(cap.getDefaultUsage("tsd usage:"));
+			}			
+			System.exit(0);
+		}
+		if(argp.has("--config")) {
+			loadConfigSource(cap, argp.get("--config").trim());
+		}
+		if(argp.has("--include-config")) {
+			String[] sources = argp.get("--include-config").split(",");
+			for(String s: sources) {
+				loadConfigSource(cap, s.trim());
+			}
+		}
+	}
+	
+	/**
+	 * Applies the properties from the named source to the main configuration
+	 * @param config the main configuration to apply to 
+	 * @param source the name of the source to apply properties from
+	 */
+	protected static void loadConfigSource(ConfigArgP config, String source) {
+		Properties p = loadConfig(source);
+		Config c = config.getConfig();
+		for(String key: p.stringPropertyNames()) {
+			String value = p.getProperty(key);
+			ConfigurationItem ci = config.configItemsByKey.get(key);			
+			if(ci!=null) { // if we recognize the key, validate it
+				ci.setValue(value);
+			}
+			c.overrideConfig(key, value);			
+		}
+	}
+	
+	/**
+	 * Loads properties from a file or url with the passed name
+	 * @param name The name of the file or URL
+	 * @return the loaded properties
+	 */
+	protected static Properties loadConfig(String name) {
+		try {
+			URL url = new URL(name);
+			return loadConfig(url);
+		} catch (Exception ex) {
+			return loadConfig(new File(name));
+		}
+	}
+	
+	/**
+	 * Loads properties from the passed input stream
+	 * @param source The name of the source the properties are being loaded from
+	 * @param is The input stream to load from
+	 * @return the loaded properties
+	 */
+	protected static Properties loadConfig(String source, InputStream is) {
+		try {
+			Properties p = new Properties();
+			p.load(is);
+			// trim the value as it may have trailing white-space
+			Set<String> keys = p.stringPropertyNames();
+			for(String key: keys) {
+				p.setProperty(key, p.getProperty(key).trim());
+			}
+			return p;
+		} catch (IllegalArgumentException iae) {
+			throw iae;
+		} catch (Exception ex) {
+			throw new IllegalArgumentException("Failed to load configuration from [" + source + "]");
+		}
+	}
+	
+	/**
+	 * Loads properties from the passed file
+	 * @param file The file to load from
+	 * @return the loaded properties
+	 */
+	protected static Properties loadConfig(File file) {
+		InputStream is = null;
+		try {
+			is = new FileInputStream(file);
+			return loadConfig(file.getAbsolutePath(), is);		 
+		} catch (Exception ex) {
+			throw new IllegalArgumentException("Failed to load configuration from [" + file.getAbsolutePath() + "]");
+		}finally {
+			if(is!=null) try { is.close(); } catch (Exception ex) { /* No Op */ }
+		}
+	}
+	
+	/**
+	 * Loads properties from the passed URL
+	 * @param url The url to load from
+	 * @return the loaded properties
+	 */
+	protected static Properties loadConfig(URL url) {
+		InputStream is = null;
+		try {
+			URLConnection connection = url.openConnection();
+			if(connection instanceof HttpURLConnection) {
+				((HttpURLConnection)connection).setConnectTimeout(2000);
+			}
+			is = connection.getInputStream();
+			return loadConfig(url.toString(), is);		 
+		} catch (Exception ex) {
+			throw new IllegalArgumentException("Failed to load configuration from [" + url + "]");
+		}finally {
+			if(is!=null) try { is.close(); } catch (Exception ex) { /* No Op */ }
+		}
+	}
+	
+	  /** Prints usage and exits with the given retval. */
+	  static void usage(final ArgP argp, final String errmsg, final int retval) {
+	    System.err.println(errmsg);
+	    System.err.println(new ConfigArgP().getDefaultUsage());
+	    if (argp != null) {
+	      System.err.print(argp.usage());
+	    }
+	    System.exit(retval);
+	  }
+	
+	
+	
 	private static void launchTSD(String[] args) {
 		ConfigArgP cap = new ConfigArgP(args);
 		Config config = cap.getConfig();
 		ArgP argp = cap.getArgp();
+		applyCommandLine(cap, argp);
 		
 		    	// ==== New cl options and their config keys
 		       // --pid-file: tsd.process.pid.file,
@@ -173,27 +337,24 @@ public class Main {
 		
 		// =====================================================================
 		//  Command line processing complete
-		//  so the following is the TSDB startup from TSDMain
+		//  so the following is the TSDB startup roughly copied from TSDMain
 		//  after all the cl processing
 		// =====================================================================
-		
+		log.info("Configuration complete. Starting TSDB");
 	    final ServerSocketChannelFactory factory;
-	    if (config.getBoolean("tsd.network.async_io")) {
-	      int workers = Runtime.getRuntime().availableProcessors() * 2;
-	      if (config.hasProperty("tsd.network.worker_threads")) {
-	        try {
-	        workers = config.getInt("tsd.network.worker_threads");
-	        } catch (NumberFormatException nfe) {
-	          usage(argp, "Invalid worker thread count", 1);
-	        }
-	      }
-	      factory = new NioServerSocketChannelFactory(
-	          Executors.newCachedThreadPool(), Executors.newCachedThreadPool(),
-	          workers);
+	    final boolean asyncio = config.getBoolean("tsd.network.async_io");
+	    final int workers = config.getInt("tsd.network.worker_threads");
+	    if(asyncio) {
+	    	log.info("Configuring Async NIO SocketChannelFactory");
+		      factory = new NioServerSocketChannelFactory(
+		    		  Executors.newCachedThreadPool(), Executors.newCachedThreadPool(),
+			          workers);	    	
 	    } else {
-	      factory = new OioServerSocketChannelFactory(
-	          Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
+	    	log.info("Configuring Sync OIO SocketChannelFactory");
+		      factory = new OioServerSocketChannelFactory(
+		    		  Executors.newCachedThreadPool(), Executors.newCachedThreadPool());	    	
 	    }
+	    
 	    
 	    TSDB tsdb = null;
 	    try {
@@ -207,36 +368,25 @@ public class Main {
 	      final ServerBootstrap server = new ServerBootstrap(factory);
 
 	      server.setPipelineFactory(new PipelineFactory(tsdb));
-	      if (config.hasProperty("tsd.network.backlog")) {
-	        server.setOption("backlog", config.getInt("tsd.network.backlog")); 
-	      }
-	      server.setOption("child.tcpNoDelay", 
-	          config.getBoolean("tsd.network.tcp_no_delay"));
-	      server.setOption("child.keepAlive", 
-	          config.getBoolean("tsd.network.keep_alive"));
-	      server.setOption("reuseAddress", 
-	          config.getBoolean("tsd.network.reuse_address"));
+	      server.setOption("backlog", config.getInt("tsd.network.backlog"));
+	      server.setOption("child.tcpNoDelay", config.getBoolean("tsd.network.tcp_no_delay"));
+	      server.setOption("child.keepAlive", config.getBoolean("tsd.network.keep_alive"));
+	      server.setOption("reuseAddress", config.getBoolean("tsd.network.reuse_address"));
 
-	      // null is interpreted as the wildcard address.
-	      InetAddress bindAddress = null;
-	      if (config.hasProperty("tsd.network.bind")) {
-	        bindAddress = InetAddress.getByName(config.getString("tsd.network.bind"));
-	      }
-
+	      InetAddress bindAddress = InetAddress.getByName(config.getString("tsd.network.bind"));
 	      // we validated the network port config earlier
-	      final InetSocketAddress addr = new InetSocketAddress(bindAddress,
-	          config.getInt("tsd.network.port"));
+	      final InetSocketAddress addr = new InetSocketAddress(bindAddress, config.getInt("tsd.network.port"));
 	      server.bind(addr);
 	      log.info("Ready to serve on " + addr);
-//	      if(log.isDebugEnabled()) {
+	      if(log.isDebugEnabled()) {
 		      StringBuilder allConfig = new StringBuilder("\n\t=================================================\n\tAll Config\n\t=================================================");
-		      for(Map.Entry<String, String> entry: config.getMap().entrySet()) {
+		      Map<String, String> sortedMap = new TreeMap<String, String>(config.getMap());
+		      for(Map.Entry<String, String> entry: sortedMap.entrySet()) {
 		    	  allConfig.append("\n\t").append(entry.getKey()).append("  :  [").append(entry.getValue()).append("]");
 		      }
 		      allConfig.append("\n\t=================================================\n");
 		      log.info(allConfig.toString());
-//	      }
-	      
+	      }	      
 	    } catch (Throwable e) {
 	      factory.releaseExternalResources();
 	      try {
@@ -264,46 +414,6 @@ public class Main {
 		return newArgs;
 	}
 	
-//	/**
-//	 * Removes all entries equaling the passed arg value from the passed arg array and returns the reduced array.
-//	 * @param arg The value to remove from the array
-//	 * @param args The array to remove the value from
-//	 * @return the possibly reduced array
-//	 */
-//	private static String[] remove(String arg, String[] args) {
-//		List<String> keep = new ArrayList<String>();
-//		for(String a: args) {
-//			if(!a.equals(arg)) {
-//				keep.add(a);
-//			}
-//		}
-//		return keep.toArray(new String[keep.size()]);
-//	}
-
-	/**
-	 * Prints the main usage banner
-	 */
-	public static void mainUsage(PrintStream ps) {
-		StringBuilder b = new StringBuilder("\nUsage: java -jar [opentsdb.jar] [command] [args]\nValid commands:")
-			.append("\n\tfsck: ")
-			.append("\n\timport: ")
-			.append("\n\tmkmetric: ")
-			.append("\n\tquery: ")
-			.append("\n\tscan: ")
-			.append("\n\tuid: ")
-			.append("\n\texportui: ");
-		ps.println(b);
-	}
-	
-	  /** Prints usage and exits with the given retval. */
-	  static void usage(final ArgP argp, final String errmsg, final int retval) {
-	    System.err.println(errmsg);
-	    mainUsage(System.err);
-	    if (argp != null) {
-	      System.err.print(argp.usage());
-	    }
-	    System.exit(retval);
-	  }
 	  
 	  private static void registerShutdownHook(final TSDB tsdb) {
 		    final class TSDBShutdown extends Thread {
@@ -323,6 +433,73 @@ public class Main {
 		  }
 	  
 	
+	  /**
+	 * <p>Title: HelpProcessor</p>
+	 * <p>Description: Command line help processor</p> 
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>net.opentsdb.tools.Main.HelpProcessor</code></p>
+	 */
+	public static class HelpProcessor {
+			/**
+			 * Entry point for invoking the ui content exporter
+			 * @param args see the ArgP
+			 */
+			public static void main(String[] args) {
+				if(args==null || args.length==0) {
+					mainUsage(System.out);
+				} else {
+					Class<?> command = COMMANDS.get(args[0].trim());
+					if(command==null) {
+						System.err.println("\nUnrecognized command [" + args[0] + "]\n");
+						mainUsage(System.err);
+					} else {
+						try {
+							if(args[0].equals("tsd")) {
+								ConfigArgP cap = new ConfigArgP(); 
+								if(args.length>1 && args[1].trim().equals("extended")) {
+									System.out.println(cap.getExtendedUsage("tsd extended usage:"));
+								} else {
+									System.out.println(cap.getExtendedUsage("tsd usage:"));
+								}
+							} else {
+								Method m = null;
+								ArgP fake = new ArgP();
+								try {								
+									m = command.getDeclaredMethod("usage", ArgP.class, String.class);
+									m.setAccessible(true);
+									m.invoke(null, new Object[] {fake, "\nHelp for [" + args[0] + "] command\n"});
+								} catch (NoSuchMethodException ne) {
+									try {
+										m = command.getDeclaredMethod("usage", ArgP.class, String.class, int.class);
+										m.setAccessible(true);
+										m.invoke(null, new Object[] {fake, "\nHelp for [" + args[0] + "] command\n", 1});
+									} catch (NoSuchMethodException ne2) {
+										m = command.getDeclaredMethod("usage", ArgP.class, int.class);
+										m.setAccessible(true);
+										m.invoke(null, new Object[] {fake, 1});									
+									}
+								}
+							}
+						} catch(Exception x) {
+				    		log.error("Failed to invoke help for [" + args[0] + "].", x);
+				    		System.exit(-1);
+						}			
+					}
+				}
+				System.exit(0);
+			}
+			
+			/**
+			 * Prints help usage
+			 * @param argp Ignored
+			 * @param errmsg Ignored
+			 */
+			static void usage(final ArgP argp, final String errmsg) {
+			    System.out.println("help: Prints the main command line help");
+			    System.out.println("help: <command> Prints help for the specified command");
+			}
+		  
+	  }
 
 	/**
 	 * <p>Title: UIContentExporter</p>
@@ -331,14 +508,31 @@ public class Main {
 	 * <p><code>net.opentsdb.tools.Main.UIContentExporter</code></p>
 	 */
 	public static class UIContentExporter {
+		private static final ArgP uiexOptions = new ArgP();
+		
+		static {
+			uiexOptions.addOption("--d", "DIR", "The directory to export the UI content to");
+			uiexOptions.addOption("--p", "Create the directory if it does not exist");			
+		}
+		
+		
+		/**
+		 * Usage banner, args are not used, just approximating a consistent signature
+		 * @param ignored ignored
+		 * @param alsoIgnored ignored
+		 */
+		public static void usage(ArgP ignored, int alsoIgnored) {
+			System.out.println("Usage:  java -jar <opentsdb.jar> exportui --d <destination> [--p]\n" + 
+					uiexOptions.usage() );
+			
+		}
+		
+		
 		/**
 		 * Entry point for invoking the ui content exporter
 		 * @param args see the ArgP
 		 */
 		public static void main(String[] args) {
-			ArgP uiexOptions = new ArgP();
-			uiexOptions.addOption("--d", "DIR", "The directory to export the UI content to");
-			uiexOptions.addOption("--p", "Create the directory if it does not exist");			
 			uiexOptions.parse(args);
 			String dirName = uiexOptions.get("--d");
 			boolean createIfNotExists = uiexOptions.has("--p");

@@ -14,6 +14,10 @@ package net.opentsdb.tools;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import net.opentsdb.tools.ConfigArgP.ConfigurationItem;
 
@@ -37,6 +41,8 @@ public enum ConfigMetaType implements ArgValueValidator {
 	LIST("A comma separated list of values", new StringValidator("List of comma sep values")), 
 	/** An existing file */
 	EFILE("An existing file", new FileSystemValidator(false, true)),
+	/** A list of existing files or URLs */
+	FILELIST("A list of existing files or accessible URLs", new FileListValidator()),
 	/** A file, optionally existing */
 	FILE("A file, optionally existing", new FileSystemValidator(false, false)), 
 	/** An existing directory */
@@ -70,6 +76,12 @@ public enum ConfigMetaType implements ArgValueValidator {
 		}
 	}
 		
+	public static void main(String[] args) {
+		System.out.println(ConfigMetaType.values().length);
+		for(ConfigMetaType ct: ConfigMetaType.values()) {
+			System.out.println(ct.description);
+		}
+	}
 	
 	
 	private ConfigMetaType(String description, ArgValueValidator validator) {
@@ -178,7 +190,6 @@ public enum ConfigMetaType implements ArgValueValidator {
 	 * <p><code>net.opentsdb.tools.ConfigMetaType.BootLoadableClass</code></p>
 	 */
 	public static class BootLoadableClass extends StringValidator {
-		
 		/**
 		 * Creates a new BootLoadableClass
 		 * @param name The name of the type
@@ -263,6 +274,51 @@ public enum ConfigMetaType implements ArgValueValidator {
 		}
 	}
 
+	/**
+	 * <p>Title: FileListValidator</p>
+	 * <p>Description: A validator for a list of existing files or accessible URLs</p> 
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>net.opentsdb.tools.ConfigMetaType.BootLoadableClass</code></p>
+	 */
+	public static class FileListValidator implements ArgValueValidator {
+		/**
+		 * {@inheritDoc}
+		 * @see net.opentsdb.tools.ConfigMetaType.StringValidator#validate(net.opentsdb.tools.ConfigArgP.ConfigurationItem)
+		 */
+		@Override
+		public void validate(ConfigurationItem citem) {
+			String[] files = citem.getValue().split(",");
+			Set<String> failed = new LinkedHashSet<String>();
+			for(String file: files) {
+				String name = file.trim();
+				if(name.isEmpty()) continue;
+				boolean isURL = false;
+				URL url = null;
+				try {
+					url = new URL(name);
+					isURL = true;
+				} catch (Exception ex) { /* No Op */ }
+				if(isURL) continue;
+				File f = new File(name);
+				if(f.exists() && f.canRead()) {
+					if(f.isDirectory()) {
+						failed.add(name + ":Not a file");
+					}
+				} else {
+					failed.add(name + ":Not found");
+					continue;
+				}
+			}
+			if(!failed.isEmpty()) {
+				StringBuilder b = new StringBuilder("FileList Validation Failures:");
+				for(String s: failed) {
+					b.append("\n\t").append(s);
+				}
+				throw new IllegalArgumentException("Invalid Files or URLs in File List for " + citem.getName() + "\n" + b.toString());				
+			}
+		}
+		
+	}
 
 	
 	

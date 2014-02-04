@@ -930,6 +930,7 @@ final class GraphHandler implements HttpRpc {
 		  GnuplotInstaller.installMyGnuPlot();
 	  }
 	  if(GnuplotInstaller.GP_FILE.exists() && GnuplotInstaller.GP_FILE.canExecute()) {
+		  LOG.info("Auto Installed Gnuplot Invoker at [{}]", GnuplotInstaller.GP_FILE.getAbsolutePath());
 		  return GnuplotInstaller.GP_FILE.getAbsolutePath();
 	  }
 
