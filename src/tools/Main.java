@@ -297,11 +297,6 @@ public class Main {
 		ArgP argp = cap.getArgp();
 		applyCommandLine(cap, argp);
 		
-		    	// ==== New cl options and their config keys
-		       // --pid-file: tsd.process.pid.file,
-		      // --ignore-existing-pid: tsd.process.pid.ignore.existing
-		      // --no-uiexport:tsd.ui.noexport
-		      // --include-config: tsd.config.include
 
 		    // All options are now correctly set in config
 		try {

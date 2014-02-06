@@ -91,7 +91,9 @@ public class ConfigArgP {
 			scriptEngine.eval("var config = " + configRoot.toString() + ";");
 			processBindings(jsonMapper, root);
 			ConfigurationItem[] items = jsonMapper.reader(ConfigurationItem[].class).readValue(configRoot);
+			LOG.info("Loaded [{}] Configuration Items from opentsdb.conf.json", items.length);
 			for(ConfigurationItem ci: items) {
+				LOG.debug("Processing CI [{}]", ci.getKey());
 				if(ci.meta!=null) {
 					argp.addOption(ci.clOption, ci.meta, ci.description);
 					if("default".equals(ci.help)) dargp.addOption(ci.clOption, ci.meta, ci.description);
@@ -99,15 +101,15 @@ public class ConfigArgP {
 					argp.addOption(ci.clOption, ci.description);
 					if("default".equals(ci.help)) dargp.addOption(ci.clOption, ci.description);
 				}
+				if(configItemsByKey.put(ci.key, ci)!=null) {
+					throw new RuntimeException("Duplicate configuration key [" + ci.key + "] in opentsdb.conf.json. Programmer Error.");
+				}
+				if(configItemsByCl.put(ci.clOption, ci)!=null) {
+					throw new RuntimeException("Duplicate configuration command line option [" + ci.clOption + "] in opentsdb.conf.json. Programmer Error.");
+				}				
 				if(ci.getDefaultValue()!=null) {
 					ci.setValue(processConfigValue(ci.getDefaultValue()));								
 					config.overrideConfig(ci.key, processConfigValue(ci.getValue()));
-					if(configItemsByKey.put(ci.key, ci)!=null) {
-						throw new RuntimeException("Duplicate configuration key [" + ci.key + "] in opentsdb.conf.json. Programmer Error.");
-					}
-					if(configItemsByCl.put(ci.clOption, ci)!=null) {
-						throw new RuntimeException("Duplicate configuration command line option [" + ci.clOption + "] in opentsdb.conf.json. Programmer Error.");
-					}
 				}
 			}
 			// find --config and --include-config in argp and load into config 
@@ -131,10 +133,14 @@ public class ConfigArgP {
 	 * @return The un-applied command line arguments
 	 */
 	public String[] applyArgs(String[] args) {
+		LOG.debug("Applying Command Line Args {}", Arrays.toString(args));
 		String[] nonArgs = argp.parse(args);
+		LOG.debug("Applying Command Line ArgP {}", argp);
+		LOG.debug("configItemsByCl Keys: [{}]", configItemsByCl.keySet());
 		for(Map.Entry<String, String> entry: argp.getParsed().entrySet()) {
 			String key = entry.getKey(), value = entry.getValue();
 			ConfigurationItem citem = configItemsByCl.get(key);
+			LOG.debug("Loaded CI for command line option [{}]: Found:{}", key, citem!=null);
 			if(citem.getMeta()==null) {				
 				citem.setValue(value!=null ? value : "true");
 			} else {
