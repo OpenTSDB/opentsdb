@@ -296,9 +296,14 @@ public class Main {
 		Config config = cap.getConfig();
 		ArgP argp = cap.getArgp();
 		applyCommandLine(cap, argp);
-		
+		config.setStatics();
 
 		    // All options are now correctly set in config
+		if(config.auto_metric()) {
+			log.info("\n\t==========================================\n\tAuto-Metric Enabled\n\t==========================================\n");
+		} else {
+			log.warn("\n\t==========================================\n\tAuto-Metric Disabled\n\t==========================================\n");
+		}
 		try {
 		    // Write the PID file
 		    writePid(config.getString("tsd.process.pid.file"), config.getBoolean("tsd.process.pid.ignore.existing"));		    

@@ -305,6 +305,6 @@
 "bindings" : [ 
 	"importPackage(Packages.java.lang);",
 	"var cores = Runtime.getRuntime().availableProcessors();",
-	"var maxheap = Runtime.getRuntime().maxMemory();",
+	"var maxheap = Runtime.getRuntime().maxMemory();"
 ]	
 }

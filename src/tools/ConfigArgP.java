@@ -83,7 +83,7 @@ public class ConfigArgP {
 		InputStream is = null;
 		
 		try {
-			config = new Config(false);
+			config = new Config();
 			is = ConfigArgP.class.getClassLoader().getResourceAsStream("opentsdb.conf.json");
 			ObjectMapper jsonMapper = new ObjectMapper();
 			JsonNode root = jsonMapper.reader().readTree(is);
