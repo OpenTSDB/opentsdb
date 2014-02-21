@@ -510,7 +510,7 @@ public final class TreeBuilder {
           local_trees = new ArrayList<Tree>(trees.size());
           local_trees.addAll(trees);
         }
-        
+        trees_lock.unlock();
         return local_trees;
       }
       
@@ -547,6 +547,7 @@ public final class TreeBuilder {
     final List<Tree> local_trees;
     if (trees.isEmpty()) {
       LOG.debug("No trees were found to process the meta through");
+      trees_lock.unlock();
       return Deferred.fromResult(true);
     }
     
