@@ -116,7 +116,7 @@ final class UidManager {
         + "            from storage. Provide an integer Tree ID and optionally\n"
         + "            add \"true\" to delete the tree definition\n\n"
         + "Example values for [kind]:"
-        + " metric, tagk (tag name), tagv (tag value).");
+        + " metrics, tagk (tag name), tagv (tag value).");
     if (argp != null) {
       System.err.print(argp.usage());
     }
