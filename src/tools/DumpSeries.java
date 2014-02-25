@@ -22,6 +22,7 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
@@ -250,7 +251,11 @@ final class DumpSeries {
   
   /** Transforms a UNIX timestamp into a human readable date.  */
   static String date(final long timestamp) {
-    return new Date(timestamp * 1000).toString();
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      return new Date(timestamp).toString();
+    } else {
+      return new Date(timestamp * 1000).toString();
+    }
   }
 
 }
