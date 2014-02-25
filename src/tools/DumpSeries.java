@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -28,6 +29,7 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.Config;
 
 /**
@@ -128,8 +130,10 @@ final class DumpSeries {
             // Discard everything or keep initial spaces.
             buf.setLength(importformat ? 0 : 2);
             formatKeyValue(buf, tsdb, importformat, kv, base_time, metric);
-            buf.append('\n');
-            System.out.print(buf);
+            if (buf.length() > 0) {
+              buf.append('\n');
+              System.out.print(buf);
+            }
           }
 
           if (delete) {
@@ -180,8 +184,12 @@ final class DumpSeries {
     if (q_len % 2 != 0) {
       if (!importformat) {
         // custom data object, not a data point
-        buf.append(Arrays.toString(value))
-          .append("\t[Not a data point]");
+        if (kv.qualifier()[0] == Annotation.PREFIX()) {
+          appendAnnotation(buf, kv, base_time);
+        } else {
+          buf.append(Arrays.toString(value))
+            .append("\t[Not a data point]");
+        }
       }
     } else if (q_len == 2 || q_len == 4 && Internal.inMilliseconds(qualifier)) {
       // regular data point
@@ -224,20 +232,25 @@ final class DumpSeries {
   
   static void appendRawCell(final StringBuilder buf, final Cell cell, 
       final long base_time) {
+    final long timestamp = cell.absoluteTimestamp(base_time);
     buf.append(Arrays.toString(cell.qualifier()))
     .append("\t")
     .append(Arrays.toString(cell.value()))
-    .append("\t")
-    .append(Internal.getOffsetFromQualifier(cell.qualifier()) / 1000)
-    .append("\t")
+    .append("\t");
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      buf.append(Internal.getOffsetFromQualifier(cell.qualifier()));
+    } else {
+      buf.append(Internal.getOffsetFromQualifier(cell.qualifier()) / 1000);
+    }
+    buf.append("\t")
     .append(cell.isInteger() ? "l" : "f")
     .append("\t")
     .append(Arrays.toString(cell.value()))
     .append("\t")
-    .append(cell.absoluteTimestamp(base_time))
+    .append(timestamp)
     .append("\t")
     .append("(")
-    .append(date(cell.absoluteTimestamp(base_time)))
+    .append(date(timestamp))
     .append(")");
   }
   
@@ -247,6 +260,25 @@ final class DumpSeries {
     .append(" ")
     .append(cell.parseValue())
     .append(tags);
+  }
+  
+  static void appendAnnotation(final StringBuilder buf, final KeyValue kv, 
+      final long base_time) {
+    final long timestamp = 
+        Internal.getTimestampFromQualifier(kv.qualifier(), base_time);
+    buf.append(Arrays.toString(kv.qualifier()))
+    .append("\t")
+    .append(Arrays.toString(kv.value()))
+    .append("\t")
+    .append(Internal.getOffsetFromQualifier(kv.qualifier(), 1) / 1000)
+    .append("\t")
+    .append(new String(kv.value(), Charset.forName("ISO-8859-1")))
+    .append("\t")
+    .append(timestamp)
+    .append("\t")
+    .append("(")
+    .append(date(timestamp))
+    .append(")");
   }
   
   /** Transforms a UNIX timestamp into a human readable date.  */
