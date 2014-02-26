@@ -245,8 +245,6 @@ final class DumpSeries {
     buf.append("\t")
     .append(cell.isInteger() ? "l" : "f")
     .append("\t")
-    .append(Arrays.toString(cell.value()))
-    .append("\t")
     .append(timestamp)
     .append("\t")
     .append("(")
