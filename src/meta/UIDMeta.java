@@ -301,7 +301,7 @@ public final class UIDMeta {
     final PutRequest put = new PutRequest(tsdb.uidTable(), 
         UniqueId.stringToUid(uid), FAMILY, 
         (type.toString().toLowerCase() + "_meta").getBytes(CHARSET), 
-        JSON.serializeToBytes(this));
+        UIDMeta.this.getStorageJSON());
     return tsdb.getClient().put(put);
   }
   

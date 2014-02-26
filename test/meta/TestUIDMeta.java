@@ -251,12 +251,12 @@ public final class TestUIDMeta {
   @Test
   public void storeNew() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
+    meta.setDisplayName("System CPU");
     meta.storeNew(tsdb).joinUninterruptibly();
     meta = JSON.parseToObject(storage.getColumn(new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
         "metric_meta".getBytes(MockBase.ASCII())), UIDMeta.class);
-    assertEquals("", meta.getDisplayName());
-    assertEquals("sys.cpu.1", meta.getName());
+    assertEquals("System CPU", meta.getDisplayName());
   }
   
   @Test (expected = IllegalArgumentException.class)
