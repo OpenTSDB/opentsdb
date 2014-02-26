@@ -588,13 +588,13 @@ public final class UIDMeta {
   }
 
   /** @param custom the custom to set */
-  public void setCustom(final HashMap<String, String> custom) {
+  public void setCustom(final Map<String, String> custom) {
     // equivalency of maps is a pain, users have to submit the whole map
     // anyway so we'll just mark it as changed every time we have a non-null
     // value
     if (this.custom != null || custom != null) {
       changed.put("custom", true);
-      this.custom = custom;
+      this.custom = new HashMap<String, String>(custom);
     }
   }
 
