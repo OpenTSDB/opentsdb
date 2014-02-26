@@ -151,25 +151,25 @@ public class TestDumpSeries {
     assertEquals("[0, 0, 1, 80, -30, 39, 0, 0, 0, 1, 0, 0, 1] sys.cpu.user 1356998400", 
         log_lines[0].substring(0, 67));
     assertEquals(
-        "  [0, 0]\t[0, 0]\t[42]\t0\tl\t1356998400",
-        log_lines[1].substring(0, 35));
+        "  [0, 0]\t[42]\t0\tl\t1356998400",
+        log_lines[1].substring(0, 28));
     assertEquals(
-        "  [0, 17]\t[0, 17]\t[1, 1]\t1\tl\t1356998401",
-        log_lines[2].substring(0, 39));
+        "  [0, 17]\t[1, 1]\t1\tl\t1356998401",
+        log_lines[2].substring(0, 31));
     assertEquals(
-        "  [0, 35]\t[0, 35]\t[0, 1, 0, 1]\t2\tl\t1356998402",
-        log_lines[3].substring(0, 45));
+        "  [0, 35]\t[0, 1, 0, 1]\t2\tl\t1356998402",
+        log_lines[3].substring(0, 37));
     assertEquals(
-        "  [0, 55]\t[0, 55]\t[0, 0, 0, 1, 0, 0, 0, 0]\t3\tl\t1356998403",
-        log_lines[4].substring(0, 57));
+        "  [0, 55]\t[0, 0, 0, 1, 0, 0, 0, 0]\t3\tl\t1356998403",
+        log_lines[4].substring(0, 49));
     assertEquals(
-        "  [0, 75]\t[0, 75]\t[66, 42, 0, 0]\t4\tf\t1356998404",
-        log_lines[5].substring(0, 47));
+        "  [0, 75]\t[66, 42, 0, 0]\t4\tf\t1356998404",
+        log_lines[5].substring(0, 39));
     assertEquals(
-        "  [0, 91]\t[0, 91]\t[66, 42, 12, -92]\t5\tf\t1356998405",
-        log_lines[6].substring(0, 50));
+        "  [0, 91]\t[66, 42, 12, -92]\t5\tf\t1356998405",
+        log_lines[6].substring(0, 42));
     assertEquals(
-        "  [1, 0, 0]\t[1, 0, 0]\t[123, 34, 116, 115, 117, 105, 100, 34, 58, 34, "
+        "  [1, 0, 0]\t[123, 34, 116, 115, 117, 105, 100, 34, 58, 34, "
         + "48, 48, 48, 48, 48, 49, 48, 48, 48, 48, 48, 49, 48, 48, 48, 48, 48, "
         + "49, 34, 44, 34, 115, 116, 97, 114, 116, 84, 105, 109, 101, 34, 58, "
         + "49, 51, 53, 54, 57, 57, 56, 52, 48, 48, 44, 34, 101, 110, 100, 84, "
@@ -181,12 +181,12 @@ public class TestDumpSeries {
         + "{\"tsuid\":\"000001000001000001\",\"startTime\":1356998400,"
         + "\"endTime\":0,\"description\":\"Annotation on seconds\","
         + "\"notes\":\"\",\"custom\":null}\t1356998416000",
-        log_lines[7].substring(0, 739));
+        log_lines[7].substring(0, 729));
     assertEquals(
         "[0, 0, 1, 80, -30, 53, 16, 0, 0, 1, 0, 0, 1] sys.cpu.user 1357002000",
         log_lines[8].substring(0, 68));
     assertEquals(
-        "  [1, 0, 0, 0, 0]\t[1, 0, 0, 0, 0]\t[123, 34, 116, 115, 117, 105, 100, "
+        "  [1, 0, 0, 0, 0]\t[123, 34, 116, 115, 117, 105, 100, "
         + "34, 58, 34, 48, 48, 48, 48, 48, 49, 48, 48, 48, 48, 48, 49, 48, 48, "
         + "48, 48, 48, 49, 34, 44, 34, 115, 116, 97, 114, 116, 84, 105, 109, "
         + "101, 34, 58, 49, 51, 53, 55, 48, 48, 50, 48, 48, 48, 48, 48, 48, "
@@ -199,29 +199,29 @@ public class TestDumpSeries {
         + "\"000001000001000001\",\"startTime\":1357002000000,\"endTime\":0,"
         + "\"description\":\"Annotation on milliseconds\",\"notes\":\"\","
         + "\"custom\":null}\t1357002016000",
-        log_lines[9].substring(0, 796));
+        log_lines[9].substring(0, 780));
     assertEquals(
-        "  [-16, 0, 0, 0]\t[-16, 0, 0, 0]\t[42]\t0\tl\t1357002000000",
-        log_lines[10].substring(0, 54));
+        "  [-16, 0, 0, 0]\t[42]\t0\tl\t1357002000000",
+        log_lines[10].substring(0, 39));
     assertEquals(
-        "  [-16, 0, -6, 1]\t[-16, 0, -6, 1]\t[1, 1]\t1000\tl\t1357002001000",
-        log_lines[11].substring(0, 61));
+        "  [-16, 0, -6, 1]\t[1, 1]\t1000\tl\t1357002001000",
+        log_lines[11].substring(0, 45));
     assertEquals(
-        "  [-16, 1, -12, 3]\t[-16, 1, -12, 3]\t[0, 1, 0, 1]\t2000\tl"
+        "  [-16, 1, -12, 3]\t[0, 1, 0, 1]\t2000\tl"
         + "\t1357002002000",
-        log_lines[12].substring(0, 69));
+        log_lines[12].substring(0, 52));
     assertEquals(
-        "  [-16, 2, -18, 7]\t[-16, 2, -18, 7]\t[0, 0, 0, 1, 0, 0, 0, 0]\t3000"
+        "  [-16, 2, -18, 7]\t[0, 0, 0, 1, 0, 0, 0, 0]\t3000"
         + "\tl\t1357002003000",
-        log_lines[13].substring(0, 81));
+        log_lines[13].substring(0, 64));
     assertEquals(
-        "  [-16, 3, -24, 11]\t[-16, 3, -24, 11]\t[66, 42, 0, 0]\t4000\tf\t"
+        "  [-16, 3, -24, 11]\t[66, 42, 0, 0]\t4000\tf\t"
         + "1357002004000",
-        log_lines[14].substring(0, 73));
+        log_lines[14].substring(0, 55));
     assertEquals(
-        "  [-16, 4, -30, 11]\t[-16, 4, -30, 11]\t[66, 42, 12, -92]\t5000\tf\t"
+        "  [-16, 4, -30, 11]\t[66, 42, 12, -92]\t5000\tf\t"
         + "1357002005000",
-        log_lines[15].substring(0, 76));
+        log_lines[15].substring(0, 58));
   }
   
   @Test
@@ -310,7 +310,6 @@ public class TestDumpSeries {
         true, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
-    System.err.print(buffer.toString("ISO-8859-1"));
     // only worry about the immutable. The human readable date format
     // differs per location.
     assertEquals("sys.cpu.user 1356998400000 4 host=web01", log_lines[0]);

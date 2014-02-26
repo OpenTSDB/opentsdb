@@ -176,11 +176,7 @@ final class DumpSeries {
     final byte[] qualifier = kv.qualifier();
     final byte[] value = kv.value();
     final int q_len = qualifier.length;
-    
-    if (!importformat) {
-      buf.append(Arrays.toString(qualifier)).append('\t');
-    }
-    
+
     if (q_len % 2 != 0) {
       if (!importformat) {
         // custom data object, not a data point
@@ -207,7 +203,9 @@ final class DumpSeries {
       // compacted column
       final ArrayList<Cell> cells = Internal.extractDataPoints(kv);
       if (!importformat) {
-        buf.append(Arrays.toString(kv.value()))
+        buf.append(Arrays.toString(kv.qualifier()))
+           .append('\t')
+           .append(Arrays.toString(kv.value()))
            .append(" = ")
            .append(cells.size())
            .append(" values:");
