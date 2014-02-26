@@ -758,7 +758,7 @@ public final class TreeBuilder {
    * @throws IllegalStateException if the tag UIDMetas have not be set
    */
   private void parseTagkRule() {
-    final ArrayList<UIDMeta> tags = meta.getTags();
+    final List<UIDMeta> tags = meta.getTags();
     if (tags == null || tags.isEmpty()) {
       throw new IllegalStateException(
         "Tags for the timeseries meta were null");
