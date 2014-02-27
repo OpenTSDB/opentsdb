@@ -867,7 +867,7 @@ final class HttpQuery {
       plot.setParams(params);
       params = null;
       final String basepath =
-        tsdb.getConfig().getString("tsd.http.cachedir") 
+        tsdb.getConfig().getDirectoryName("tsd.http.cachedir") 
         + Integer.toHexString(msg.hashCode());
       GraphHandler.runGnuplot(this, basepath, plot);
       plot = null;

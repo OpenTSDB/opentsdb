@@ -357,7 +357,8 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    return tsdb.getConfig().getString("tsd.http.cachedir") + Integer.toHexString(qs.hashCode());
+    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") + 
+        Integer.toHexString(qs.hashCode());
   }
 
   /**
