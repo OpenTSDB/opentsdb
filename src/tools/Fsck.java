@@ -22,7 +22,6 @@ import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
@@ -31,10 +30,12 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.Config;
 
 /**
@@ -189,8 +190,20 @@ final class Fsck {
                         + kv);
               continue;
             } else if (qual.length % 2 != 0) {
-              // likely an annotation or other object
-              // TODO - validate annotations
+              if (qual.length != 3 && qual.length != 5) {
+                errors++;
+                LOG.error("Found unknown column in row.\n\t" + kv);
+                continue;
+              }
+              
+              // check for known types using the prefix. If the type is unknown
+              // it could just be from a future version so don't flag it as an
+              // error. Log it via debugging.
+              if (qual[0] == Annotation.PREFIX()) {
+                continue;
+              }
+              LOG.debug("Found an object from a future version of OpenTSDB\n\t" 
+                  + kv);
               continue;
             } else if (qual.length >= 4 && !Internal.inMilliseconds(qual[0])) {
               // compacted row
@@ -204,15 +217,20 @@ final class Fsck {
               
               // add every cell in the compacted column to the previously seen
               // data point tree so that we can scan for duplicate timestamps
-              final ArrayList<Cell> cells = Internal.extractDataPoints(kv); 
-              for (Cell cell : cells) {
-                final long ts = cell.timestamp(base_time);
-                ArrayList<DP> dps = previous.get(ts);
-                if (dps == null) {
-                  dps = new ArrayList<DP>(1);
-                  previous.put(ts, dps);
+              try {
+                final ArrayList<Cell> cells = Internal.extractDataPoints(kv); 
+                for (Cell cell : cells) {
+                  final long ts = cell.timestamp(base_time);
+                  ArrayList<DP> dps = previous.get(ts);
+                  if (dps == null) {
+                    dps = new ArrayList<DP>(1);
+                    previous.put(ts, dps);
+                  }
+                  dps.add(new DP(kv.timestamp(), kv.qualifier(), true));
                 }
-                dps.add(new DP(kv.timestamp(), kv.qualifier(), true));
+              } catch (IllegalDataException e) {
+                errors++;
+                LOG.error(e.getMessage());
               }
               
               // TODO - validate the compaction
@@ -230,8 +248,8 @@ final class Fsck {
             
             if (value.length > 8) {
               errors++;
-              LOG.error("Value more than 8 byte long with a 2-byte"
-                        + " qualifier.\n\t" + kv);
+              LOG.error("Value more than 8 byte long with a " 
+                        + kv.qualifier().length + "-byte qualifier.\n\t" + kv);
             }
             // TODO(tsuna): Don't hardcode 0x8 / 0x3 here.
             if (qual.length == 2 && 
