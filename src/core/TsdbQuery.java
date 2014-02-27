@@ -367,6 +367,7 @@ final class TsdbQuery implements Query {
       boolean seenAnnotation = false;
       int hbase_time = 0; // milliseconds.
       long starttime = System.nanoTime();
+      long timeout = tsdb.getConfig().getLong("tsd.query.timeout");
       
       /**
       * Starts the scanner and is called recursively to fetch the next set of
@@ -401,6 +402,10 @@ final class TsdbQuery implements Query {
              }
              scanner.close();
              return null;
+           }
+           
+           if (timeout > 0 && hbase_time > timeout) {
+             throw new InterruptedException("Query timeout exceeded!");
            }
            
            for (final ArrayList<KeyValue> row : rows) {
