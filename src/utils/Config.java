@@ -52,6 +52,10 @@ import com.google.common.collect.ImmutableMap;
 public class Config {
   private static final Logger LOG = LoggerFactory.getLogger(Config.class);
 
+  /** Flag to determine if we're running under Windows or not */
+  public static final boolean IS_WINDOWS = 
+      System.getProperty("os.name", "").contains("Windows");
+  
   // These are accessed often so need a set address for fast access (faster
   // than accessing the map. Their value will be changed when the config is 
   // loaded
@@ -288,6 +292,36 @@ public class Config {
     return false;
   }
 
+  /**
+   * Returns the directory name, making sure the end is an OS dependent slash
+   * @param property The property to load
+   * @return The property value with a forward or back slash appended
+   * @throws NullPointerException if the property was not found
+   */
+  public final String getDirectoryName(final String property) {
+    String directory = properties.get(property);
+    if (IS_WINDOWS) {
+      // Windows swings both ways. If a forward slash was already used, we'll
+      // add one at the end if missing. Otherwise use the windows default of \
+      if (directory.charAt(directory.length() - 1) == '\\' || 
+          directory.charAt(directory.length() - 1) == '/') {
+        return directory;
+      }
+      if (directory.contains("/")) {
+        return directory + "/";
+      }
+      return directory + "\\";
+    }
+    if (directory.contains("\\")) {
+      throw new IllegalArgumentException(
+          "Unix path names cannot contain a back slash");
+    }
+    if (directory.charAt(directory.length() - 1) == '/') {
+      return directory;
+    }
+    return directory + "/";
+  }
+  
   /**
    * Determines if the given propery is in the map
    * @param property The property to search for

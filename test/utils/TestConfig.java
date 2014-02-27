@@ -204,4 +204,53 @@ public final class TestConfig {
     config.overrideConfig("tsd.unitest", "blarg");
     assertFalse(config.getBoolean("tsd.unitest"));
   }
+
+  @Test
+  public void getDirectoryNameAddSlash() throws Exception {
+    // same for Windows && Unix
+    config.overrideConfig("tsd.unitest", "/my/dir");
+    assertEquals("/my/dir/", config.getDirectoryName("tsd.unitest"));
+  }
+  
+  @Test
+  public void getDirectoryNameHasSlash() throws Exception {
+    // same for Windows && Unix
+    config.overrideConfig("tsd.unitest", "/my/dir/");
+    assertEquals("/my/dir/", config.getDirectoryName("tsd.unitest"));
+  }
+  
+  @Test
+  public void getDirectoryNameWindowsAddSlash() throws Exception {
+    if (Config.IS_WINDOWS) {
+      config.overrideConfig("tsd.unitest", "C:\\my\\dir");
+      assertEquals("C:\\my\\dir\\", config.getDirectoryName("tsd.unitest"));
+    } else {
+      assertTrue(true);
+    }
+  }
+  
+  @Test
+  public void getDirectoryNameWindowsHasSlash() throws Exception {
+    if (Config.IS_WINDOWS) {
+      config.overrideConfig("tsd.unitest", "C:\\my\\dir\\");
+      assertEquals("C:\\my\\dir\\", config.getDirectoryName("tsd.unitest"));
+    } else {
+      assertTrue(true);
+    }
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDirectoryNameWindowsOnLinuxException() throws Exception {
+    if (Config.IS_WINDOWS) {
+      throw new IllegalArgumentException("Can't run this on Windows");
+    } else {
+      config.overrideConfig("tsd.unitest", "C:\\my\\dir");
+      config.getDirectoryName("tsd.unitest");
+    }
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void getDirectoryNameNull() throws Exception {
+    config.getDirectoryName("tsd.unitest");
+  }
 }
