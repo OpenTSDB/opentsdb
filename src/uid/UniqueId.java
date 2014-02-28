@@ -23,15 +23,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+
 import javax.xml.bind.DatatypeConverter;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -855,6 +854,56 @@ public final class UniqueId implements UniqueIdInterface {
       LOG.error("WTF?  " + msg, e);
       throw new RuntimeException(msg, e);
     }
+    // Success!
+  }
+  
+  /**
+   * Removes the UID specified by its name. (non-atomic).
+   * <p>
+   * Whatever was the UID of {@code name} will be deleted.
+   * {@code name} will no longer be assigned a UID.
+   * <p>
+   * 
+   * This is intended primarily for cleaning up unused metrics and as such 
+   * should probably not be accessed normally outside of administrative 
+   * activities.
+   * 
+   * @param name The name to delete.
+   * @throws HBaseException if there was a problem with HBase while trying to
+   * update the mapping.
+   */
+  public void delete(String name) {
+    final byte[] row = getId(name);
+
+    try {
+      /*
+       * Attempt to delete the forward mapping first. A forward mapping with no
+       * reverse mapping is more harmful so we try to delete this first.
+       */
+      final DeleteRequest forward_mapping = new DeleteRequest(table,
+          toBytes(name), ID_FAMILY, kind);
+      client.delete(forward_mapping).joinUninterruptibly();
+
+      final DeleteRequest reverse_mapping = new DeleteRequest(table,
+          toBytes(name), NAME_FAMILY, kind);
+      client.delete(reverse_mapping).joinUninterruptibly();
+    } catch (HBaseException e) {
+      LOG.error("When trying to delete(\"" + name + "\") on " + this
+          + ": Failed to remove the" + " forward/reverse mapping for ID="
+          + Arrays.toString(row), e);
+      throw e;
+    } catch (Exception e) {
+      final String msg = "When trying to delete(\"" + name + "\") on " + this
+          + ": Failed to remove the" + " forward/reverse mapping for ID="
+          + Arrays.toString(row);
+      LOG.error("WTF?  " + msg, e);
+      throw new RuntimeException(msg, e);
+    }
+
+    // remove the id and name from the cache
+    id_cache.remove(fromBytes(row));
+    name_cache.remove(name);
+
     // Success!
   }
 
