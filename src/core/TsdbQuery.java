@@ -389,12 +389,14 @@ final class TsdbQuery implements Query {
              } else {
                results.callback(spans);
              }
+             scanner.close();
              return null;
            }
            
            for (final ArrayList<KeyValue> row : rows) {
              final byte[] key = row.get(0).key();
              if (Bytes.memcmp(metric, key, 0, metric_width) != 0) {
+               scanner.close();
                throw new IllegalDataException(
                    "HBase returned a row that doesn't match"
                    + " our scanner (" + scanner + ")! " + row + " does not start"
@@ -415,6 +417,7 @@ final class TsdbQuery implements Query {
            
            return scan();
          } catch (Exception e) {
+           scanner.close();
            results.callback(e);
            return null;
          }
