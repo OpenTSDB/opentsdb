@@ -17,6 +17,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyShort;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -83,15 +84,13 @@ public final class TestTsdbQuery {
 
   @Before
   public void before() throws Exception {
+    PowerMockito.whenNew(HBaseClient.class)
+    .withArguments(anyString(), anyString()).thenReturn(client); 
     config = new Config(false);
     tsdb = new TSDB(config);
     query = new TsdbQuery(tsdb);
 
     // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("client");
-    cl.setAccessible(true);
-    cl.set(tsdb, client);
-    
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);
     met.set(tsdb, metrics);

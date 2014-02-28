@@ -94,6 +94,8 @@ public class TestTextImporter {
   
   @Before
   public void before() throws Exception {
+    PowerMockito.whenNew(HBaseClient.class)
+      .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
     tsdb = new TSDB(config);
 
@@ -101,10 +103,6 @@ public class TestTextImporter {
     storage.setFamily("t".getBytes(MockBase.ASCII()));
     
     // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("client");
-    cl.setAccessible(true);
-    cl.set(tsdb, client);
-    
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);
     met.set(tsdb, metrics);

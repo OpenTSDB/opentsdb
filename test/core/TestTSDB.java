@@ -18,6 +18,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyShort;
 import static org.mockito.Matchers.anyString;
 
 import java.lang.reflect.Field;
@@ -59,7 +60,7 @@ import com.stumbleupon.async.Deferred;
   Scanner.class, AtomicIncrementRequest.class, IncomingDataPoints.class})
 public final class TestTSDB {
   private Config config;
-  private TSDB tsdb = null;
+  private TSDB tsdb;
   private HBaseClient client = mock(HBaseClient.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
@@ -69,14 +70,11 @@ public final class TestTSDB {
   
   @Before
   public void before() throws Exception {
+    PowerMockito.whenNew(HBaseClient.class)
+      .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
     tsdb = new TSDB(config);
-    
-    // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("client");
-    cl.setAccessible(true);
-    cl.set(tsdb, client);
-    
+
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);
     met.set(tsdb, metrics);
