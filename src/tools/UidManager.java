@@ -206,7 +206,18 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return delete(tsdb.getClient(), table, idwidth, args);
+
+      try {
+        tsdb.getClient()
+            .ensureTableExists(
+                tsdb.getConfig().getString("tsd.storage.hbase.data_table"))
+            .joinUninterruptibly();
+
+        return delete(tsdb, table, idwidth, args);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        return 4;
+      }
     } else if (args[0].equals("fsck")) {
       return fsck(tsdb.getClient(), table);
     } else if (args[0].equals("metasync")) {
@@ -430,13 +441,13 @@ final class UidManager {
    * @param args Command line arguments ({@code assign name [names]}).
    * @return The exit status of the command (0 means success).
    */
-  private static int delete(final HBaseClient client,
-                            final byte[] table,
-                            final short idwidth,
-                            final String[] args) {
+  private static int delete(final TSDB tsdb, final byte[] table,
+      final short idwidth, final String[] args) throws Exception {
     final String kind = args[1];
     final String name = args[2];
-    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(tsdb.getClient(), table, kind,
+        (int) idwidth);
+    uid.setTSDB(tsdb);
     try {
       uid.delete(name);
     } catch (HBaseException e) {

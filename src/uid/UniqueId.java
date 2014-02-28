@@ -26,6 +26,10 @@ import com.stumbleupon.async.Deferred;
 
 import javax.xml.bind.DatatypeConverter;
 
+import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.Internal;
+import net.opentsdb.core.Query;
+import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 
@@ -874,8 +878,48 @@ public final class UniqueId implements UniqueIdInterface {
    */
   public void delete(String name) {
     final byte[] row = getId(name);
+    final byte[] dataTable = toBytes(tsdb.getConfig().getString(
+        "tsd.storage.hbase.data_table"));
 
     try {
+      // check to make sure we're not trying to delete tag keys or values
+      if (kind.equals("tagk") || kind.equals("tagv")) {
+        final String msg = "Deleting TAGK/TAGV UIDs is not supported at this time!";
+        LOG.error(msg);
+        throw new UnsupportedOperationException(msg);
+      }
+      final HashMap<String, String> tags = new HashMap<String, String>(2, 0.75f);
+      final RateOptions rate_options = new RateOptions(false, Long.MAX_VALUE,
+          RateOptions.DEFAULT_RESET_VALUE);
+
+      final Query query = tsdb.newQuery();
+      query.setStartTime(0);
+      query.setTimeSeries(name, tags, Aggregators.SUM, false, rate_options);
+
+      /*
+       * First, attempt to delete the related data. If this fails, we can
+       * re-attempt it again before wiping out the metrics for good.
+       */
+      final Scanner scanner = Internal.getScanner(query);
+      ArrayList<ArrayList<KeyValue>> rows;
+
+      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+        for (final ArrayList<KeyValue> dataRow : rows) {
+          final byte[] key = dataRow.get(0).key();
+          final String metric = Internal.metricName(tsdb, key);
+
+          if (!metric.equals(name)) {
+            final String msg = "Query attempted to delete metric " + metric
+                + " when trying to delete " + name;
+            LOG.error(msg);
+            throw new RuntimeException(msg);
+          }
+
+          final DeleteRequest del = new DeleteRequest(dataTable, key);
+          client.delete(del);
+        }
+      }      
+      
       /*
        * Attempt to delete the forward mapping first. A forward mapping with no
        * reverse mapping is more harmful so we try to delete this first.
