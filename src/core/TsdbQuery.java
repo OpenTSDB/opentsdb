@@ -24,7 +24,6 @@ import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
@@ -34,7 +33,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import static org.hbase.async.Bytes.ByteMap;
-
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -135,8 +133,8 @@ final class TsdbQuery implements Query {
    * than the end time (if set)
    */
   public void setStartTime(final long timestamp) {
-    if ((timestamp & Const.SECOND_MASK) != 0 && 
-        (timestamp < 1000000000000L || timestamp > 9999999999999L)) {
+    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
+        timestamp > 9999999999999L)) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
     } else if (end_time != UNSET && timestamp >= getEndTime()) {
       throw new IllegalArgumentException("new start time (" + timestamp
@@ -164,8 +162,8 @@ final class TsdbQuery implements Query {
    * than the start time (if set)
    */
   public void setEndTime(final long timestamp) {
-    if ((timestamp & Const.SECOND_MASK) != 0 && 
-        (timestamp < 1000000000000L || timestamp > 9999999999999L)) {
+    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
+        timestamp > 9999999999999L)) {
       throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
     } else if (start_time != UNSET && timestamp <= getStartTime()) {
       throw new IllegalArgumentException("new end time (" + timestamp

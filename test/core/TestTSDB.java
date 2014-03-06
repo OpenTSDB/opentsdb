@@ -18,7 +18,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyShort;
 import static org.mockito.Matchers.anyString;
 
 import java.lang.reflect.Field;
@@ -533,31 +532,124 @@ public final class TestTSDB {
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
   }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void addPointInvalidTimestampNegative() throws Exception {
+
+  @Test
+  public void addPointSecondZero() throws Exception {
+    // Thu, 01 Jan 1970 00:00:00 GMT
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", -1, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 0, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
+  }
+  
+  @Test
+  public void addPointSecondOne() throws Exception {
+    // hey, it's valid *shrug* Thu, 01 Jan 1970 00:00:01 GMT
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 16 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
+  }
+  
+  @Test
+  public void addPointSecond2106() throws Exception {
+    // Sun, 07 Feb 2106 06:28:15 GMT
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 4294967295L, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
+        0x60, 0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void addPointInvalidTimestamp() throws Exception {
+  public void addPointSecondNegative() throws Exception {
+    // Fri, 13 Dec 1901 20:45:52 GMT
+    // may support in the future, but 1.0 didn't
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", -2147483648, 42, tags).joinUninterruptibly();
+  }
+  
+  @Test
+  public void addPointMS1970() throws Exception {
+    // Since it's just over Integer.MAX_VALUE, OpenTSDB will treat this as
+    // a millisecond timestamp since it doesn't fit in 4 bytes.
+    // Base time is 4294800 which is Thu, 19 Feb 1970 17:00:00 GMT
+    // offset = F0A36000 or 167296 ms
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 4294967296L, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, 
+        (byte) 0x90, 0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 
+        (byte) 0xA3, 0x60, 0});
+    assertNotNull(value);
+    assertEquals(42, value[0]);
   }
   
-  @Test (expected = IllegalArgumentException.class)
-  public void addPointInvalidTimestampBigMs() throws Exception {
+  @Test
+  public void addPointMS2106() throws Exception {
+    // Sun, 07 Feb 2106 06:28:15.000 GMT
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 17592186044416L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 4294967295000L, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
+        0x60, 0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF6, 
+        (byte) 0x77, 0x46, 0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
   }
   
+  @Test
+  public void addPointMS2286() throws Exception {
+    // It's an artificial limit and more thought needs to be put into it
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 9999999999999L, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9, 
+        0x10, 0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xFA, 
+        (byte) 0xAE, 0x5F, (byte) 0xC0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
+  }
+  
+  @Test  (expected = IllegalArgumentException.class)
+  public void addPointMSTooLarge() throws Exception {
+    // It's an artificial limit and more thought needs to be put into it
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 10000000000000L, 42, tags).joinUninterruptibly();
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void addPointMSNegative() throws Exception {
+    // Fri, 13 Dec 1901 20:45:52 GMT
+    // may support in the future, but 1.0 didn't
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", -2147483648000L, 42, tags).joinUninterruptibly();
+  }
+
   @Test
   public void addPointFloat() throws Exception {
     setupAddPointStorage();

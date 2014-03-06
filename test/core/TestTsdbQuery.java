@@ -17,7 +17,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyShort;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -149,9 +148,9 @@ public final class TestTsdbQuery {
     assertEquals(1356998400L, query.getStartTime());
   }
   
-  @Test (expected = IllegalArgumentException.class)
-  public void setStartTimeInvalid() throws Exception {
-    query.setStartTime(13717504770L);
+  @Test
+  public void setStartTimeZero() throws Exception {
+    query.setStartTime(0L);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -2399,7 +2398,6 @@ public final class TestTsdbQuery {
     
     double v = 0;
     long ts = 1356998430000L;
-    int counter = 0;
     boolean decrement = true;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
@@ -2418,10 +2416,8 @@ public final class TestTsdbQuery {
         if (v < 0.0625) {
           v = 0.0625;
           decrement = false;
-          counter++;
         }
       }
-      counter++;
     }
     assertEquals(600, dps[0].size());
   }

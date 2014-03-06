@@ -319,6 +319,68 @@ public class TestTextImporter {
     assertEquals(-9223372036854775808L, Bytes.getLong(value));
   }
   
+  @Test (expected = RuntimeException.class)
+  public void importFileTimestampZero() throws Exception {
+    String data = 
+      "sys.cpu.user 0 0 host=web01\n" +
+      "sys.cpu.user 0 127 host=web02";
+    setData(data);
+    importFile.invoke(null, client, tsdb, "file");
+  }
+  
+  @Test (expected = RuntimeException.class)
+  public void importFileTimestampNegative() throws Exception {
+    String data = 
+      "sys.cpu.user -11356998400 0 host=web01\n" +
+      "sys.cpu.user -11356998400 127 host=web02";
+    setData(data);
+    importFile.invoke(null, client, tsdb, "file");
+  }
+  
+  @Test
+  public void importFileMaxSecondTimestamp() throws Exception {
+    String data = 
+      "sys.cpu.user 4294967295 24 host=web01\n" +
+      "sys.cpu.user 4294967295 42 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    
+    byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
+        0x60, 0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
+    assertNotNull(value);
+    assertEquals(24, value[0]);
+    row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
+        0x60, 0, 0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
+  }
+  
+  @Test
+  public void importFileMinMSTimestamp() throws Exception {
+    String data = 
+      "sys.cpu.user 4294967296 24 host=web01\n" +
+      "sys.cpu.user 4294967296 42 host=web02";
+    setData(data);
+    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    assertEquals(2, (int)points);
+    
+    byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, (byte) 0x90, 
+        0, 0, 1, 0, 0, 1};
+    byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, (byte) 0xA3, 
+        0x60, 0 });
+    assertNotNull(value);
+    assertEquals(24, value[0]);
+    row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, (byte) 0x90, 0, 
+        0, 1, 0, 0, 2};
+    value = storage.getColumn(row, new byte[] { (byte) 0xF0, (byte) 0xA3, 
+        0x60, 0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
+  }
+  
   @Test
   public void importFileMSTimestamp() throws Exception {
     String data = 
@@ -345,6 +407,15 @@ public class TestTextImporter {
     String data = 
       "sys.cpu.user 13569984005001 24 host=web01\n" +
       "sys.cpu.user 13569984005001 42 host=web02";
+    setData(data);
+    importFile.invoke(null, client, tsdb, "file");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void importFileMSTimestampNegative() throws Exception {
+    String data = 
+      "sys.cpu.user -2147483648000L 24 host=web01\n" +
+      "sys.cpu.user -2147483648000L 42 host=web02";
     setData(data);
     importFile.invoke(null, client, tsdb, "file");
   }

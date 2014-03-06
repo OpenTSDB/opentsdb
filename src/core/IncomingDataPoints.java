@@ -252,8 +252,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     final boolean ms_timestamp = (timestamp & Const.SECOND_MASK) != 0;
     
     // we only accept unix epoch timestamps in seconds or milliseconds
-    if (ms_timestamp && 
-        (timestamp < 1000000000000L || timestamp > 9999999999999L)) {
+    if (timestamp < 0 || (ms_timestamp && timestamp > 9999999999999L)) {
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
           + " timestamp=" + timestamp
           + " when trying to add value=" + Arrays.toString(value) + " to " + this);
