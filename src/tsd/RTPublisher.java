@@ -14,11 +14,11 @@ package net.opentsdb.tsd;
 
 import java.util.Map;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
-
-import org.hbase.async.Bytes;
 
 import com.stumbleupon.async.Deferred;
 
@@ -97,15 +97,13 @@ public abstract class RTPublisher {
   public final Deferred<Object> sinkDataPoint(final String metric, 
       final long timestamp, final byte[] value, final Map<String, String> tags, 
       final byte[] tsuid, final short flags) {
-    
-    // One of two possible values from TSDB.addPoint(). Either it's an 8 byte
-    // integer or a 4 byte float. Compare on the integer flag to avoid an or
-    // calculation
-    if (flags == 0x7) {
-      return publishDataPoint(metric, timestamp, Bytes.getLong(value), tags, tsuid);
+    if ((flags & Const.FLAG_FLOAT) == 0x0) {
+      return publishDataPoint(metric, timestamp, 
+          Internal.extractFloatingPointValue(value, 0, (byte) flags), 
+          tags, tsuid);
     } else {
       return publishDataPoint(metric, timestamp, 
-          Float.intBitsToFloat(Bytes.getInt(value)), tags, tsuid);
+          Internal.extractIntegerValue(value, 0, (byte) flags), tags, tsuid);
     }
   }
   
