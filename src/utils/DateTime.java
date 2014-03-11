@@ -163,13 +163,15 @@ public class DateTime {
    * @throws IllegalArgumentException if the interval was malformed.
    */
   public static final long parseDuration(final String duration) {
-    int interval;
+    long interval;
+    long multiplier;
+    double temp;
     int unit = 0;
     while (Character.isDigit(duration.charAt(unit))) {
       unit++;
     }
     try {
-      interval = Integer.parseInt(duration.substring(0, unit));
+      interval = Long.parseLong(duration.substring(0, unit));
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid duration (number): " + duration);
     }
@@ -181,15 +183,21 @@ public class DateTime {
         if (duration.charAt(duration.length() - 2) == 'm') {
           return interval;
         }
-        return interval * 1000;                    // seconds
-      case 'm': return (interval * 60) * 1000;               // minutes
-      case 'h': return (interval * 3600L) * 1000;             // hours
-      case 'd': return (interval * 3600L * 24) * 1000;        // days
-      case 'w': return (interval * 3600L * 24 * 7) * 1000;    // weeks
-      case 'n': return (interval * 3600L * 24 * 30) * 1000;   // month (average)
-      case 'y': return (interval * 3600L * 24 * 365) * 1000;  // years (screw leap years)
+        multiplier = 1; break;                        // seconds
+      case 'm': multiplier = 60; break;               // minutes
+      case 'h': multiplier = 3600; break;             // hours
+      case 'd': multiplier = 3600 * 24; break;        // days
+      case 'w': multiplier = 3600 * 24 * 7; break;    // weeks
+      case 'n': multiplier = 3600 * 24 * 30; break;   // month (average)
+      case 'y': multiplier = 3600 * 24 * 365; break;  // years (screw leap years)
+      default: throw new IllegalArgumentException("Invalid duration (suffix): " + duration);
     }
-    throw new IllegalArgumentException("Invalid duration (suffix): " + duration);
+    multiplier *= 1000;
+    temp = (double)interval * multiplier;
+    if (temp > Long.MAX_VALUE) {
+      throw new IllegalArgumentException("Duration must be < Long.MAX_VALUE ms: " + duration);
+    }
+    return interval * multiplier;
   }
 
   /**
