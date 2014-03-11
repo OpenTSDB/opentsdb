@@ -222,7 +222,7 @@ final class CliQuery {
       if (downsample) {
         i++;
       }
-      final int interval = downsample ? Integer.parseInt(args[i++]) : 0;
+      final long interval = downsample ? Long.parseLong(args[i++]) : 0;
       final Aggregator sampler = downsample ? Aggregators.get(args[i++]) : null;
       final String metric = args[i++];
       final HashMap<String, String> tags = new HashMap<String, String>();

@@ -876,7 +876,7 @@ final class GraphHandler implements HttpRpc {
           throw new BadRequestException("No such downsampling function: "
                                         + parts[1].substring(dash + 1));
         }
-        final int interval = (int) DateTime.parseDuration(parts[1].substring(0, dash));
+        final long interval = DateTime.parseDuration(parts[1].substring(0, dash));
         tsdbquery.downsample(interval, downsampler);
       } else {
         tsdbquery.downsample(1000, agg);

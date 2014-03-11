@@ -153,7 +153,7 @@ public interface Query {
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
    */
-  void downsample(int interval, Aggregator downsampler);
+  void downsample(long interval, Aggregator downsampler);
 
   /**
    * Runs this query.
