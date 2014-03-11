@@ -116,7 +116,7 @@ final class TsdbQuery implements Query {
   private Aggregator downsampler;
 
   /** Minimum time interval (in seconds) wanted between each data point. */
-  private int sample_interval;
+  private long sample_interval;
 
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
@@ -246,7 +246,7 @@ final class TsdbQuery implements Query {
    * @throws NullPointerException if the aggregation function is null
    * @throws IllegalArgumentException if the interval is not greater than 0
    */
-  public void downsample(final int interval, final Aggregator downsampler) {
+  public void downsample(final long interval, final Aggregator downsampler) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
     } else if (interval <= 0) {
