@@ -169,7 +169,7 @@ public class DateTime {
       unit++;
     }
     try {
-      interval = Integer.parseInt(duration.substring(0, unit));
+      interval = Long.parseLong(duration.substring(0, unit));
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid duration (number): " + duration);
     }
