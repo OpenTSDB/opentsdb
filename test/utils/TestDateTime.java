@@ -282,6 +282,11 @@ public final class TestDateTime {
     long t = DateTime.parseDuration("4294967296ms");
     assertEquals(1L << 32, t);
   }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDurationTooLong() {
+    DateTime.parseDuration("4611686018427387904y");
+  }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseDurationNegative() {
