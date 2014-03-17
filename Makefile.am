@@ -541,6 +541,7 @@ debian: dist staticroot
 	cp $(top_srcdir)/build-aux/deb/logback.xml $(distdir)/debian/etc/opentsdb
 	cp $(top_srcdir)/build-aux/deb/opentsdb.conf $(distdir)/debian/etc/opentsdb
 	cp $(srcdir)/src/create_table.sh $(distdir)/debian/usr/share/opentsdb/tools
+	cp $(srcdir)/src/upgrade_1to2.sh $(distdir)/debian/usr/share/opentsdb/tools
 	cp $(srcdir)/src/mygnuplot.sh $(distdir)/debian/usr/share/opentsdb/bin
 	script=tsdb; pkgdatadir='/usr/share/opentsdb'; configdir='/etc/opentsdb'; \
        abs_srcdir=''; abs_builddir=''; $(edit_tsdb_script)
