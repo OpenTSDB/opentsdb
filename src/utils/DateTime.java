@@ -163,13 +163,13 @@ public class DateTime {
    * @throws IllegalArgumentException if the interval was malformed.
    */
   public static final long parseDuration(final String duration) {
-    int interval;
+    long interval;
     int unit = 0;
     while (Character.isDigit(duration.charAt(unit))) {
       unit++;
     }
     try {
-      interval = Integer.parseInt(duration.substring(0, unit));
+      interval = Long.parseLong(duration.substring(0, unit));
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid duration (number): " + duration);
     }
