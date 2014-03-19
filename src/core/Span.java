@@ -335,7 +335,7 @@ final class Span implements DataPoints {
    */
   private short seekRow(final long timestamp) {
     checkRowOrder();
-    short row_index = 0;
+    int row_index = 0;
     RowSeq row = null;
     final int nrows = rows.size();
     for (int i = 0; i < nrows; i++) {
@@ -378,7 +378,7 @@ final class Span implements DataPoints {
   final class Iterator implements SeekableView {
 
     /** Index of the {@link RowSeq} we're currently at, in {@code rows}. */
-    private short row_index;
+    private int row_index;
 
     /** Iterator on the current row. */
     private RowSeq.Iterator current_row;
@@ -408,7 +408,7 @@ final class Span implements DataPoints {
     }
 
     public void seek(final long timestamp) {
-      short row_index = seekRow(timestamp);
+      int row_index = seekRow(timestamp);
       if (row_index != this.row_index) {
         this.row_index = row_index;
         current_row = rows.get(row_index).internalIterator();
