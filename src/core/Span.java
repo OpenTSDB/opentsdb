@@ -333,7 +333,7 @@ final class Span implements DataPoints {
    * @param timestamp A strictly positive 32-bit integer.
    * @return A strictly positive index in the {@code rows} array.
    */
-  private short seekRow(final long timestamp) {
+  private int seekRow(final long timestamp) {
     checkRowOrder();
     int row_index = 0;
     RowSeq row = null;
@@ -453,7 +453,7 @@ final class Span implements DataPoints {
     private final Aggregator downsampler;
 
     /** Index of the {@link RowSeq} we're currently at, in {@code rows}. */
-    private short row_index;
+    private int row_index;
 
     /** The row we're currently at. */
     private RowSeq.Iterator current_row;
@@ -561,7 +561,7 @@ final class Span implements DataPoints {
     // ---------------------- //
 
     public void seek(final long timestamp) {
-      short row_index = seekRow(timestamp);
+      int row_index = seekRow(timestamp);
       if (row_index != this.row_index) {
         //LOG.debug("seek from row #" + this.row_index + " to " + row_index);
         this.row_index = row_index;
