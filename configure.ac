@@ -31,7 +31,9 @@ fi
 TSDB_FIND_PROG([java])
 TSDB_FIND_PROG([javac])
 TSDB_FIND_PROG([jar])
-TSDB_FIND_PROG([gnuplot])
+# Mac OS does not have gnuplot. Falls back to /usr/bin/true to make gnuplot
+# optional.
+TSDB_FIND_PROG([gnuplot], [true])
 AC_PATH_PROG([JAVADOC], [javadoc], [])
 AM_MISSING_PROG([JAVADOC], [javadoc])
 
