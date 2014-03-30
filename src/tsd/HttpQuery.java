@@ -116,7 +116,7 @@ final class HttpQuery {
 
   /** The response object we'll fill with data */
   private final DefaultHttpResponse response =
-    new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.ACCEPTED);
+    new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
   
   /** The {@code TSDB} instance we belong to */
   private final TSDB tsdb; 
