@@ -424,7 +424,7 @@ final class Span implements DataPoints {
   }
 
   /** Package private iterator method to access it as a DownsamplingIterator. */
-  Span.DownsamplingIterator downsampler(final int interval,
+  Span.DownsamplingIterator downsampler(final long interval,
                                         final Aggregator downsampler) {
     return new Span.DownsamplingIterator(interval, downsampler);
   }
@@ -447,7 +447,7 @@ final class Span implements DataPoints {
     private static final long TIME_MASK  = 0x7FFFFFFFFFFFFFFFL;
 
     /** The "sampling" interval, in milliseconds. */
-    private final int interval;
+    private final long interval;
 
     /** Function to use to for downsampling. */
     private final Aggregator downsampler;
@@ -473,7 +473,7 @@ final class Span implements DataPoints {
      * @param downsampler The downsampling function to use.
      * @param iterator The iterator to access the underlying data.
      */
-    DownsamplingIterator(final int interval,
+    DownsamplingIterator(final long interval,
                          final Aggregator downsampler) {
       this.interval = interval;
       this.downsampler = downsampler;
