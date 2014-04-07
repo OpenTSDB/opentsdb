@@ -112,39 +112,27 @@ public final class TestDateTime {
     assertEquals(1355961600000L, t);
   }
   
-  @Test (expected = IllegalArgumentException.class)
-  public void parseDateTimeStringUnixSecondsInvalidShort() {
-    long t = DateTime.parseDateTimeString("135596160", null);
-    assertEquals(1355961600000L, t);
+  @Test
+  public void parseDateTimeStringUnixSecondsZero() {
+    long t = DateTime.parseDateTimeString("0", null);
+    assertEquals(0, t);
   }
   
-  @Test (expected = IllegalArgumentException.class)
+  @Test(expected = IllegalArgumentException.class)
+  public void parseDateTimeStringUnixSecondsNegative() {
+    DateTime.parseDateTimeString("-135596160", null);
+  }
+  
+  @Test
   public void parseDateTimeStringUnixSecondsInvalidLong() {
+    // this can happen if someone leaves off a zero.
     long t = DateTime.parseDateTimeString("13559616000", null);
-    assertEquals(1355961600000L, t);
+    assertEquals(13559616000L, t);
   }
   
   @Test
   public void parseDateTimeStringUnixMS() {
     long t = DateTime.parseDateTimeString("1355961603418", null);
-    assertEquals(1355961603418L, t);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void parseDateTimeStringUnixMSInvalidShort2() {
-    long t = DateTime.parseDateTimeString("13559616034", null);
-    assertEquals(1355961603418L, t);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void parseDateTimeStringUnixMSShort1() {
-    long t = DateTime.parseDateTimeString("135596160341", null);
-    assertEquals(1355961603418L, t);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void parseDateTimeStringUnixMSLong() {
-    long t = DateTime.parseDateTimeString("13559616034180", null);
     assertEquals(1355961603418L, t);
   }
   

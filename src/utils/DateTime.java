@@ -121,18 +121,19 @@ public class DateTime {
     } else {
       try {
         long time;
-        if (datetime.length() == 14) {
-          if (datetime.charAt(10) != '.') {
+        if (datetime.contains(".")) {
+          if (datetime.charAt(10) != '.' || datetime.length() != 14) {
             throw new IllegalArgumentException("Invalid time: " + datetime  
-                + ".");
+                + ". Millisecond timestamps must be in the format "
+                + "<seconds>.<ms> where the milliseconds are limited to 3 digits");
           }
           time = Tags.parseLong(datetime.replace(".", ""));   
         } else {
-          if (datetime.length() != 10 && datetime.length() != 13) {
-            throw new IllegalArgumentException("Invalid time: " + datetime  
-                + ".");
-          }
           time = Tags.parseLong(datetime);
+        }
+        if (time < 0) {
+          throw new IllegalArgumentException("Invalid time: " + datetime  
+              + ". Negative timestamps are not supported.");
         }
         // this is a nasty hack to determine if the incoming request is
         // in seconds or milliseconds. This will work until November 2286
