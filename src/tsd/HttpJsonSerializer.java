@@ -562,8 +562,11 @@ class HttpJsonSerializer extends HttpSerializer {
                   dp.timestamp() : dp.timestamp() / 1000;
               json.writeStartArray();
               json.writeNumber(timestamp);
-              json.writeNumber(
-                  dp.isInteger() ? dp.longValue() : dp.doubleValue());
+              if (dp.isInteger()) {
+                json.writeNumber(dp.longValue());
+              } else { 
+                json.writeNumber(dp.doubleValue());
+              }
               json.writeEndArray();
             }
             json.writeEndArray();
@@ -576,8 +579,11 @@ class HttpJsonSerializer extends HttpSerializer {
               }
               final long timestamp = data_query.getMsResolution() ? 
                   dp.timestamp() : dp.timestamp() / 1000;
-              json.writeNumberField(Long.toString(timestamp), 
-                  dp.isInteger() ? dp.longValue() : dp.doubleValue());
+              if (dp.isInteger()) {
+                json.writeNumberField(Long.toString(timestamp), dp.longValue());
+              } else {
+                json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
+              }
             }
             json.writeEndObject();
           }
