@@ -824,9 +824,7 @@ final class HttpQuery {
       return;
     }
     
-    if (response.getStatus() == HttpResponseStatus.ACCEPTED) {
-      response.setStatus(status);
-    }
+    response.setStatus(status);
     final boolean keepalive = HttpHeaders.isKeepAlive(request);
     if (keepalive) {
       HttpHeaders.setContentLength(response, 0);
@@ -988,9 +986,7 @@ final class HttpQuery {
     // TODO(tsuna): Server, X-Backend, etc. headers.
     // only reset the status if we have the default status, otherwise the user 
     // already set it
-    if (response.getStatus() == HttpResponseStatus.ACCEPTED) {
-      response.setStatus(status);
-    }
+    response.setStatus(status);
     response.setContent(buf);
     final boolean keepalive = HttpHeaders.isKeepAlive(request);
     if (keepalive) {
