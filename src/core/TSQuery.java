@@ -148,6 +148,9 @@ public final class TSQuery {
         } else {
           query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate());
         }
+      } else if (sub.getRateOptions() != null) {
+        query.setTimeSeries(sub.getMetric(), sub.getTags(), sub.aggregator(), 
+            sub.getRate(), sub.getRateOptions());
       } else {
         query.setTimeSeries(sub.getMetric(), sub.getTags(), sub.aggregator(), 
             sub.getRate());
