@@ -30,6 +30,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.PluginJARFactory;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -38,7 +39,9 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
@@ -66,6 +69,29 @@ public final class TestTSDB {
   private UniqueId tag_values = mock(UniqueId.class);
   private CompactionQueue compactionq = mock(CompactionQueue.class);
   private MockBase storage;
+  
+  /**
+   * Creates the plugin jar
+   */
+  @BeforeClass
+  public static void initPluginJar() {
+	  PluginJARFactory.newBuilder("plugin_test.jar")
+	  	.service("net.opentsdb.plugin.DummyPlugin", "net.opentsdb.plugin.DummyPluginA", "net.opentsdb.plugin.DummyPluginB")
+	  	.service("net.opentsdb.search.SearchPlugin", "net.opentsdb.search.DummySearchPlugin")
+	  	.service("net.opentsdb.tsd.HttpSerializer", "net.opentsdb.tsd.DummyHttpSerializer")
+	  	.service("net.opentsdb.tsd.RpcPlugin", "net.opentsdb.tsd.DummyRpcPlugin")
+	  	.service("net.opentsdb.tsd.RTPublisher", "net.opentsdb.tsd.DummyRTPublisher")
+	  	.build();
+  }
+  
+  /**
+   * Clears the created plugin jar
+   */
+  @AfterClass
+  public static void clearPluginJar() {
+	  PluginJARFactory.purge();
+  }
+  
   
   @Before
   public void before() throws Exception {
