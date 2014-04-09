@@ -968,6 +968,9 @@ final class SpanGroup implements DataPoints {
               r = (rate_options.getCounterMax() - y1 + y0) / 
                                         ((double)(x0 - x1) / (double)1000);
             }
+            if (rate_options.getResetValue() < 0) {
+              return 0.0;
+            }
             if (rate_options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
                 && r > rate_options.getResetValue()) {
               return 0.0;
