@@ -23,10 +23,11 @@ import net.opentsdb.utils.DateTime;
  * Parameters and state to query the underlying storage system for 
  * timeseries data points. When setting up a query, use the setter methods to
  * store user information such as the start time and list of queries. After 
- * setting the proper values, call the {@link #validateAndSetQuery} method to
+ * setting the proper values, call the {@link #validateAndSetQuery()} method to
  * validate the request. If required information is missing or cannot be parsed
- * it will throw an exception. If validation passes, use {@link #buildQueries} 
- * to compile the query into {@link Query} objects for processing. 
+ * it will throw an exception. If validation passes, use 
+ * {@link #buildQueries(TSDB)} to compile the query into {@link Query} objects 
+ * for processing. 
  * <b>Note:</b> If using POJO deserialization, make sure to avoid setting the 
  * {@code start_time} and {@code end_time} fields.
  * @since 2.0
@@ -124,7 +125,7 @@ public final class TSQuery {
    * If the user has not set a down sampler explicitly, and they don't want 
    * millisecond resolution, then we set the down sampler to 1 second to handle
    * situations where storage may have multiple data points per second.
-   * @param tsdb The tsdb to use for {@link newQuery}
+   * @param tsdb The tsdb to use for {@link TSDB#newQuery}
    * @return An array of queries
    */
   public Query[] buildQueries(final TSDB tsdb) {
@@ -273,7 +274,7 @@ public final class TSQuery {
   /**
    * Sets the start time for further parsing. This can be an absolute or 
    * relative value. See {@link DateTime#parseDateTimeString} for details.
-   * @param a start time from the user 
+   * @param start A start time from the user 
    */
   public void setStart(String start) {
     this.start = start;
@@ -283,7 +284,7 @@ public final class TSQuery {
    * Optionally sets the end time for all queries. If not set, the current 
    * system time will be used. This can be an absolute or relative value. See
    * {@link DateTime#parseDateTimeString} for details.
-   * @param an end time from the user
+   * @param end An end time from the user
    */
   public void setEnd(String end) {
     this.end = end;

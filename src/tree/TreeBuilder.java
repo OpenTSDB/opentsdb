@@ -1176,7 +1176,7 @@ public final class TreeBuilder {
     return test_messages;
   }
   
-  /** @param The tree to store locally */
+  /** @param tree The tree to store locally */
   public void setTree(final Tree tree) {
     this.tree = tree;
     calculateMaxLevel();

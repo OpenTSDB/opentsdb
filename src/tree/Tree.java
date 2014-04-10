@@ -55,8 +55,9 @@ import com.stumbleupon.async.Deferred;
  * separately in the same row as the tree definition object, but can be loaded
  * into the tree for processing and return from an RPC request. Building a tree
  * consists of defining a tree, assigning one or more rules, and passing 
- * {@link TSMeta} objects through the rule set using a {@link TreeBuilder}.
- * Results are then stored in separate rows as branch and leaf objects.
+ * {@link net.opentsdb.meta.TSMeta} objects through the rule set using a 
+ * {@link TreeBuilder}. Results are then stored in separate rows as branch 
+ * and leaf objects.
  * <p>
  * If TSMeta collides with something that has already been processed by a
  * rule set, a collision will be recorded, via this object, in a separate column
@@ -302,7 +303,7 @@ public final class Tree {
   /**
    * Attempts to store the tree definition via a CompareAndSet call.
    * @param tsdb The TSDB to use for access
-   * @param lock An optional lock to use on the row
+   * @param overwrite Whether or not tree data should be overwritten
    * @return True if the write was successful, false if an error occurred
    * @throws IllegalArgumentException if the tree ID is missing or invalid
    * @throws HBaseException if a storage exception occurred
@@ -1178,6 +1179,7 @@ public final class Tree {
 
   // GETTERS AND SETTERS ----------------------------
   
+  /** @return The width of the tree ID in bytes */
   public static int TREE_ID_WIDTH() {
     return TREE_ID_WIDTH;
   }

@@ -29,7 +29,7 @@ import com.stumbleupon.async.Deferred;
  * meta data or other types of information as changes are made.
  * <p>
  * <b>Note:</b> Implementations must have a parameterless constructor. The 
- * {@link #initialize()} method will be called immediately after the plugin is
+ * {@link #initialize(TSDB)} method will be called immediately after the plugin is
  * instantiated and before any other methods are called.
  * <p>
  * <b>Warning:</b> All processing should be performed asynchronously and return
