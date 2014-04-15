@@ -63,17 +63,41 @@ PROG_OPTS="tsd --config=${CONFIG}"
 
 start() {
   echo -n "Starting ${NAME}: "
+  curid="`id -u -n`"
+  if [ "$curid" != root ] && [ "$curid" != "$USER" ] ; then
+    echo "Must be run as root or $USER, but was run as $curid"
+    return 1
+  fi
+  # Sets the maximum number of open file descriptors allowed.
   ulimit -n $MAX_OPEN_FILES
-
-  # TODO: Support non-root user and group. Currently running as root
-  # is required because /usr/share/opentsdb/opentsdb_restart.py
-  # must be called as root.  This could be fixed with a sudo.
+  curulimit="`ulimit -n`"
+  if [ "$curulimit" -lt $MAX_OPEN_FILES ] ; then
+    echo "'ulimit -n' must be greater than or equal to $MAX_OPEN_FILES, is $curulimit"
+    return 1
+  fi
 
   # Set a default value for JVMARGS
   : ${JVMXMX:=-Xmx6000m}
-  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/opentsdb_restart.py}
+  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/bin/opentsdb_restart.py}
   export JVMARGS
-  daemon --user $USER --pidfile $PID_FILE "$PROG $PROG_OPTS 1> ${LOG_FILE}opentsdb.out 2> ${LOG_FILE}opentsdb.err &"
+
+  if [ "`id -u -n`" == root ] ; then
+    # Changes the owner of the log directory to allow non-root OpenTSDB
+    # daemons to create and rename log files.
+    chown $USER: $LOG_DIR > /dev/null 2>&1
+    chown $USER: ${LOG_FILE}*opentsdb.log > /dev/null 2>&1
+    chown $USER: ${LOG_FILE}opentsdb.out > /dev/null 2>&1
+    chown $USER: ${LOG_FILE}opentsdb.err > /dev/null 2>&1
+
+    # Changes the owner of the lock, and the pid files to allow
+    # non-root OpenTSDB daemons to run /usr/share/opentsdb/bin/opentsdb_restart.py.
+    touch $LOCK_FILE && chown $USER: $LOCK_FILE
+    touch $PID_FILE && chown $USER: $PID_FILE
+    daemon --user $USER --pidfile $PID_FILE "$PROG $PROG_OPTS 1>> ${LOG_FILE}opentsdb.out 2>> ${LOG_FILE}opentsdb.err &"
+  else
+    # Don't have to change user.
+    daemon --pidfile $PID_FILE "$PROG $PROG_OPTS 1>> ${LOG_FILE}opentsdb.out 2>> ${LOG_FILE}opentsdb.err &"
+  fi
   retval=$?
   sleep 2
   echo
@@ -86,6 +110,11 @@ stop() {
   killproc -p $PID_FILE $NAME
   retval=$?
   echo
+  # Non-root users don't have enough permission to remove pid and lock files.
+  # So, the opentsdb_restart.py cannot get rid of the files, and the command
+  # "service opentsdb status" will complain about the existing pid file.
+  # Makes the pid file empty.
+  echo > $PID_FILE
   [ $retval -eq 0 ] && (rm -f $PID_FILE && rm -f $LOCK_FILE)
   return $retval
 }

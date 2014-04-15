@@ -25,10 +25,9 @@ plugin_test_jar := plugin_test.jar
 builddata_SRC := src/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
-dist_noinst_SCRIPTS = src/create_table.sh
-# TODO: Move opentsdb-init-d.sh to /etc/init.d/opentsdb.
-dist_pkgdata_SCRIPTS := src/mygnuplot.sh src/mygnuplot.bat src/opentsdb.conf src/opentsdb-init-d.sh src/opentsdb_restart.py
-dist_noinst_DATA = pom.xml.in
+dist_noinst_SCRIPTS = src/create_table.sh src/mygnuplot.sh src/mygnuplot.bat \
+  src/opentsdb.conf src/opentsdb_restart.py
+dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf build-aux/rpm/init.d/opentsdb
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
@@ -127,9 +126,6 @@ tsdb_DEPS = \
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
 	$(ZOOKEEPER)
-
-# Install all the .jar files in pkgdatadir.
-pkgdata_DATA = $(tsdb_DEPS) $(jar)
 
 test_SRC := \
 	test/core/TestAggregators.java \
@@ -360,7 +356,8 @@ gwttsd: staticroot
 # Ideally I'd like Automake to take care of this, but right now I don't see
 # how to tell it to install a bunch of files recursively for which I don't
 # know ahead of time what the file names are.
-install-data-local: staticroot
+install-data-local: staticroot install-data-lib install-data-tools \
+    install-data-bin install-data-etc
 	@$(NORMAL_INSTALL)
 	test -z "$(staticdir)" || $(mkdir_p) "$(DESTDIR)$(staticdir)"
 	@set -e; pwd; ls -lFh; cd "$(DEV_TSD_STATICROOT)"; \
@@ -374,7 +371,90 @@ install-data-local: staticroot
 	  $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(staticdir)/$$p"; \
 	done
 
-uninstall-local:
+install-data-lib: $(tsdb_DEPS) $(jar)
+	@$(NORMAL_INSTALL)
+	@list='$(tsdb_DEPS) $(jar)'; test -n "$(pkgdatadir)" || list=; \
+	destdatalibdir="$(DESTDIR)$(pkgdatadir)/lib" ; \
+	if test -n "$$list"; then \
+	  echo " $(mkdir_p) $$destdatalibdir"; \
+	  $(mkdir_p) "$$destdatalibdir" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$$destdatalibdir'"; \
+	  $(INSTALL_DATA) $$files "$$destdatalibdir" || exit $$?; \
+	done
+
+uninstall-data-lib:
+	@$(NORMAL_UNINSTALL)
+	destdatalibdir="$(DESTDIR)$(pkgdatadir)/lib" ; \
+	echo " rm -rf $$destdatalibdir" ; \
+	rm -rf "$$destdatalibdir"
+
+install-data-tools: $(tsdb_DEPS) $(jar)
+	@$(NORMAL_INSTALL)
+	destdatatoolsdir="$(DESTDIR)$(pkgdatadir)/tools" ; \
+	echo " $(mkdir_p) $$destdatatoolsdir"; \
+	$(mkdir_p) "$$destdatatoolsdir" || exit 1; \
+	echo " $(INSTALL_SCRIPT)" $(top_srcdir)/tools/* "$$destdatatoolsdir" ; \
+	$(INSTALL_SCRIPT) $(top_srcdir)/tools/* "$$destdatatoolsdir" || exit 1;
+
+uninstall-data-tools:
+	@$(NORMAL_UNINSTALL)
+	destdatatoolsdir="$(DESTDIR)$(pkgdatadir)/tools" ; \
+	echo " rm -rf $$destdatatoolsdir" ; \
+	rm -rf "$$destdatatoolsdir"
+
+install-data-bin: tsdb
+	@$(NORMAL_INSTALL)
+	destdatabindir="$(DESTDIR)$(pkgdatadir)/bin" ; \
+	echo " $(mkdir_p) $$destdatabindir"; \
+	$(mkdir_p) "$$destdatabindir" || exit 1; \
+	bins="$(top_srcdir)/src/create_table.sh" ; \
+	bins="$$bins $(top_srcdir)/src/mygnuplot.sh" ; \
+	bins="$$bins $(top_srcdir)/src/mygnuplot.bat" ; \
+	bins="$$bins $(top_srcdir)/src/opentsdb_restart.py" ; \
+	bins="$$bins $(DESTDIR)$(bindir)/tsdb" ; \
+	echo " $(INSTALL_SCRIPT)" $$bins "$$destdatabindir" ; \
+	$(INSTALL_SCRIPT) $$bins "$$destdatabindir" || exit 1;
+
+uninstall-data-bin:
+	@$(NORMAL_UNINSTALL)
+	destdatabindir="$(DESTDIR)$(pkgdatadir)/bin" ; \
+	echo " rm -rf $$destdatabindir" ; \
+	rm -rf "$$destdatabindir"
+
+# NOTE: We keep a copy of /etc files at the package data directory.
+# Users should create symlinks to etc/init.d/opentsdb and
+# etc/opentsdb/opentsdb.conf if they want to use the stock script and
+# configuration.
+install-data-etc:
+	@$(NORMAL_INSTALL)
+	destdataetcdir="$(DESTDIR)$(pkgdatadir)/etc" ; \
+	destdataconfdir="$$destdataetcdir/opentsdb" ; \
+	destdatainitdir="$$destdataetcdir/init.d" ; \
+	echo " $(mkdir_p) $$destdataconfdir"; \
+	$(mkdir_p) "$$destdataconfdir" || exit 1; \
+	echo " $(mkdir_p) $$destdatainitdir"; \
+	$(mkdir_p) "$$destdatainitdir" || exit 1; \
+	conf_files="$(top_srcdir)/build-aux/rpm/opentsdb.conf" ; \
+	echo " $(INSTALL_SCRIPT)" $$conf_files "$$destdataconfdir" ; \
+	$(INSTALL_DATA) $$conf_files "$$destdataconfdir" || exit 1; \
+	init_file="$(top_srcdir)/build-aux/rpm/init.d/opentsdb" ; \
+	echo " $(INSTALL_SCRIPT)" $$init_file "$$destdatainitdir" ; \
+	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1;
+
+uninstall-data-etc:
+	@$(NORMAL_UNINSTALL)
+	destdataetcdir="$(DESTDIR)$(pkgdatadir)/etc" ; \
+	echo " rm -rf $$destdataetcdir" ; \
+	rm -rf "$$destdataetcdir"
+
+uninstall-local: uninstall-data-lib uninstall-data-tools uninstall-data-bin \
+	uninstall-data-etc
 	@$(NORMAL_UNINSTALL)
 	rm -rf "$(DESTDIR)$(staticdir)"
 
@@ -517,20 +597,21 @@ pom.xml: pom.xml.in Makefile
 
 TIMESTAMP := $(shell date +"%Y%m%d%H%M%S")
 RPM_REVISION := 1
-RPM := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION).noarch.rpm
-RPM_SNAPSHOT := opentsdb-$(PACKAGE_VERSION)-$(TIMESTAMP).noarch.rpm
+RPM_TARGET := noarch
+RPM := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION).$(RPM_TARGET).rpm
+RPM_SNAPSHOT := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION)-$(TIMESTAMP)-"`whoami`".$(RPM_TARGET).rpm
 SOURCE_TARBALL := opentsdb-$(PACKAGE_VERSION).tar.gz
 rpm: $(RPM)
 
 $(SOURCE_TARBALL): dist
 $(RPM): $(SOURCE_TARBALL)
 $(RPM): opentsdb.spec
-	rpmbuild --target=noarch --buildroot=`pwd`/rpmbuildroot -bb $<
+	rpmbuild --target=$(RPM_TARGET) --buildroot=`pwd`/rpmbuildroot -bb $<
 	test -f $@ || for rpm in noarch/$@ \
 		`awk '$$1=="Name:"{print $$2}' $<`.`awk '$$1=="BuildArch:"{print $$2}' $<`.rpm; do \
 	  test -f "$$rpm" && mv "$$rpm" $(RPM_SNAPSHOT) && break; \
 	done
-	if test -d noarch; then rmdir noarch; fi
+	if test -d $(RPM_TARGET); then rmdir $(RPM_TARGET); fi
 
 debian: dist staticroot
 	$(mkdir_p) $(distdir)/debian
