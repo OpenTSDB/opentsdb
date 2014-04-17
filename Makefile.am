@@ -25,9 +25,10 @@ plugin_test_jar := plugin_test.jar
 builddata_SRC := src/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
-dist_noinst_SCRIPTS = src/create_table.sh src/mygnuplot.sh src/mygnuplot.bat \
-  src/opentsdb.conf src/opentsdb_restart.py
-dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf build-aux/rpm/init.d/opentsdb
+dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
+  src/mygnuplot.bat src/opentsdb.conf tools/opentsdb_restart.py src/logback.xml
+dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
+  build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
@@ -216,7 +217,7 @@ httpui_SRC := \
 
 httpui_DEPS = src/tsd/QueryUi.gwt.xml
 
-dist_pkgdata_DATA = src/logback.xml
+#dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = src/tsd/static/favicon.ico
 
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
@@ -226,6 +227,7 @@ EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
 	tools/check_tsd	\
 	tools/clean_cache.sh	\
 	tools/tsddrain.py	\
+	tools/opentsdb_restart.py	\
 	opentsdb.spec	\
         bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
 
@@ -265,8 +267,8 @@ printdeps:
 # This is kind of a hack, but I couldn't find a better way to adjust the paths
 # in the script before it gets installed...
 install-exec-hook:
-	script=tsdb; pkgdatadir='$(pkgdatadir)'; abs_srcdir=''; abs_builddir=''; \
-          $(edit_tsdb_script)
+	script=tsdb; pkgdatadir='$(pkgdatadir)'; configdir='$(pkgdatadir)/etc/opentsdb'; \
+          abs_srcdir=''; abs_builddir=''; $(edit_tsdb_script)
 	cat tsdb.tmp >"$(DESTDIR)$(bindir)/tsdb"
 	rm -f tsdb.tmp
 
@@ -399,8 +401,11 @@ install-data-tools: $(tsdb_DEPS) $(jar)
 	destdatatoolsdir="$(DESTDIR)$(pkgdatadir)/tools" ; \
 	echo " $(mkdir_p) $$destdatatoolsdir"; \
 	$(mkdir_p) "$$destdatatoolsdir" || exit 1; \
-	echo " $(INSTALL_SCRIPT)" $(top_srcdir)/tools/* "$$destdatatoolsdir" ; \
-	$(INSTALL_SCRIPT) $(top_srcdir)/tools/* "$$destdatatoolsdir" || exit 1;
+	tools="$$tools $(top_srcdir)/tools/*" ; \
+	tools="$$tools $(top_srcdir)/src/create_table.sh" ; \
+	tools="$$tools $(top_srcdir)/src/upgrade_1to2.sh" ; \
+	echo " $(INSTALL_SCRIPT)" $$tools "$$destdatatoolsdir" ; \
+	$(INSTALL_SCRIPT) $$tools "$$destdatatoolsdir" || exit 1;
 
 uninstall-data-tools:
 	@$(NORMAL_UNINSTALL)
@@ -413,10 +418,8 @@ install-data-bin: tsdb
 	destdatabindir="$(DESTDIR)$(pkgdatadir)/bin" ; \
 	echo " $(mkdir_p) $$destdatabindir"; \
 	$(mkdir_p) "$$destdatabindir" || exit 1; \
-	bins="$(top_srcdir)/src/create_table.sh" ; \
 	bins="$$bins $(top_srcdir)/src/mygnuplot.sh" ; \
 	bins="$$bins $(top_srcdir)/src/mygnuplot.bat" ; \
-	bins="$$bins $(top_srcdir)/src/opentsdb_restart.py" ; \
 	bins="$$bins $(DESTDIR)$(bindir)/tsdb" ; \
 	echo " $(INSTALL_SCRIPT)" $$bins "$$destdatabindir" ; \
 	$(INSTALL_SCRIPT) $$bins "$$destdatabindir" || exit 1;
@@ -440,7 +443,8 @@ install-data-etc:
 	$(mkdir_p) "$$destdataconfdir" || exit 1; \
 	echo " $(mkdir_p) $$destdatainitdir"; \
 	$(mkdir_p) "$$destdatainitdir" || exit 1; \
-	conf_files="$(top_srcdir)/build-aux/rpm/opentsdb.conf" ; \
+	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/opentsdb.conf" ; \
+	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/logback.xml" ; \
 	echo " $(INSTALL_SCRIPT)" $$conf_files "$$destdataconfdir" ; \
 	$(INSTALL_DATA) $$conf_files "$$destdataconfdir" || exit 1; \
 	init_file="$(top_srcdir)/build-aux/rpm/init.d/opentsdb" ; \

@@ -11,24 +11,12 @@
   <appender name="CYCLIC" class="ch.qos.logback.core.read.CyclicBufferAppender">
     <MaxSize>1024</MaxSize>
   </appender>
-  <!--Daily rolling file appender -->
-  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <File>${LOG_FILE_PREFIX}opentsdb.log</File>
-    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-      <FileNamePattern>${LOG_FILE_PREFIX}opentsdb.%d{yyyy-MM-dd-HH}.log</FileNamePattern>
-    </rollingPolicy>
-    <layout class="ch.qos.logback.classic.PatternLayout">
-      <pattern>
-        %d{ISO8601} %-5level [%thread] %logger{0}: %msg%n
-      </pattern>
-    </layout>
-  </appender>
 
   <logger name="org.apache.zookeeper" level="info"/>
   <logger name="org.hbase.async" level="info"/>
   <logger name="com.stumbleupon.async" level="info"/>
   <root level="info">
+    <appender-ref ref="STDOUT"/>
     <appender-ref ref="CYCLIC"/>
-    <appender-ref ref="FILE"/>
   </root>
 </configuration>

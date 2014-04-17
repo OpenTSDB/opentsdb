@@ -78,7 +78,7 @@ start() {
 
   # Set a default value for JVMARGS
   : ${JVMXMX:=-Xmx6000m}
-  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/bin/opentsdb_restart.py}
+  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/tools/opentsdb_restart.py}
   export JVMARGS
 
   if [ "`id -u -n`" == root ] ; then
