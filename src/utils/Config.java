@@ -66,7 +66,7 @@ public class Config {
 
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
-  
+
   /** tsd.core.meta.enable_realtime_ts */
   private boolean enable_realtime_ts = false;
   
@@ -81,7 +81,10 @@ public class Config {
   
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
-  
+
+  /** tsd.storage.fix_duplicates */
+  private boolean fix_duplicates = false;
+
   /** tsd.http.request.max_chunk */
   private int max_chunked_requests = 4096; 
   
@@ -185,7 +188,17 @@ public class Config {
   public int max_chunked_requests() {
     return this.max_chunked_requests;
   }
-  
+
+  /** @return true if duplicate values should be fixed */
+  public boolean fix_duplicates() {
+    return fix_duplicates;
+  }
+
+  /** @param fix_duplicates true if duplicate values should be fixed */
+  public void setFixDuplicates(final boolean fix_duplicates) {
+    this.fix_duplicates = fix_duplicates;
+  }
+
   /** @return whether or not to process new or updated TSMetas through trees */
   public boolean enable_tree_processing() {
     return enable_tree_processing;
@@ -395,6 +408,7 @@ public class Config {
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.stats.canonical", "false");
+    default_map.put("tsd.storage.fix_duplicates", "false");
     default_map.put("tsd.storage.flush_interval", "1000");
     default_map.put("tsd.storage.hbase.data_table", "tsdb");
     default_map.put("tsd.storage.hbase.uid_table", "tsdb-uid");
@@ -430,6 +444,7 @@ public class Config {
       max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
     }
     enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
+    fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
   }
 
   /**

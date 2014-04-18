@@ -86,6 +86,7 @@ public final class TestTsdbQuery {
     PowerMockito.whenNew(HBaseClient.class)
     .withArguments(anyString(), anyString()).thenReturn(client); 
     config = new Config(false);
+    config.setFixDuplicates(true);  // TODO(jat): test both ways
     tsdb = new TSDB(config);
     query = new TsdbQuery(tsdb);
 
@@ -916,19 +917,21 @@ public final class TestTsdbQuery {
     query.run();
   }
 
-  @Test (expected = IllegalDataException.class)
+  @Test
   public void runFloatAndIntSameTS() throws Exception {
     // if a row has an integer and a float for the same timestamp, there will be
-    // two different qualifiers that will resolve to the same offset. This tosses
-    // an exception
-    storeLongTimeSeriesSeconds(true, false);;
+    // two different qualifiers that will resolve to the same offset. This no
+    // longer tosses an exception, and keeps the last value
+    storeLongTimeSeriesSeconds(true, false);
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1356998430, 42.5F, tags).joinUninterruptibly();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    query.run();
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    // TODO: further validate the result
   }
   
   @Test
@@ -2479,6 +2482,7 @@ public final class TestTsdbQuery {
     PowerMockito.mockStatic(IncomingDataPoints.class);   
     PowerMockito.doAnswer(
         new Answer<byte[]>() {
+          @Override
           public byte[] answer(final InvocationOnMock args) 
             throws Exception {
             final String metric = (String)args.getArguments()[1];
@@ -2500,8 +2504,8 @@ public final class TestTsdbQuery {
             }
           }
         }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", (TSDB)any(), anyString(), 
-        (Map<String, String>)any());
+    ).when(IncomingDataPoints.class, "rowKeyTemplate", any(), anyString(), 
+        any());
   }
   
   private void storeLongTimeSeriesSeconds(final boolean two_metrics, 

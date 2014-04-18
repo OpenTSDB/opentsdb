@@ -120,13 +120,6 @@ public final class Internal {
     return tsdb.metrics.width();
   }
 
-  /** @see CompactionQueue#complexCompact  */
-  public static KeyValue complexCompact(final KeyValue kv) {
-    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(kv);
-    return CompactionQueue.complexCompact(kvs, kv.qualifier().length / 2, false);
-  }
-  
   /**
    * Extracts a Cell from a single data point, fixing potential errors with
    * the qualifier flags
@@ -554,7 +547,7 @@ public final class Internal {
    * point qualifier
    * @param qualifier The qualifier to parse
    * @return The offset in milliseconds from the base time
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static int getOffsetFromQualifier(final byte[] qualifier) {
@@ -588,7 +581,7 @@ public final class Internal {
    * Returns the length of the value, in bytes, parsed from the qualifier
    * @param qualifier The qualifier to parse
    * @return The length of the value in bytes, from 1 to 8.
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static byte getValueLengthFromQualifier(final byte[] qualifier) {
@@ -600,7 +593,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
    * @return The length of the value in bytes, from 1 to 8.
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -620,7 +613,7 @@ public final class Internal {
    * Returns the length, in bytes, of the qualifier: 2 or 4 bytes
    * @param qualifier The qualifier to parse
    * @return The length of the qualifier in bytes
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static short getQualifierLength(final byte[] qualifier) {
@@ -632,7 +625,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
    * @return The length of the qualifier in bytes
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -658,7 +651,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param base_time The base time, in seconds, from the row key
    * @return The absolute timestamp in milliseconds
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static long getTimestampFromQualifier(final byte[] qualifier, 
@@ -672,7 +665,7 @@ public final class Internal {
    * @param base_time The base time, in seconds, from the row key
    * @param offset An offset within the byte array
    * @return The absolute timestamp in milliseconds
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -685,7 +678,7 @@ public final class Internal {
    * Parses the flag bits from the qualifier
    * @param qualifier The qualifier to parse
    * @return A short representing the last 4 bits of the qualifier
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static short getFlagsFromQualifier(final byte[] qualifier) {
@@ -697,7 +690,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
    * @return A short representing the last 4 bits of the qualifier
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -716,7 +709,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
    * @return A byte array with only the requested qualifier
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
