@@ -31,6 +31,8 @@ dist_noinst_DATA = pom.xml.in
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/ByteBufferList.java	\
+	src/core/Column.java	\
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\

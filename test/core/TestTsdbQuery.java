@@ -1157,19 +1157,21 @@ public final class TestTsdbQuery {
     query.run();
   }
 
-  @Test (expected = IllegalDataException.class)
+  @Test
   public void runFloatAndIntSameTS() throws Exception {
     // if a row has an integer and a float for the same timestamp, there will be
-    // two different qualifiers that will resolve to the same offset. This tosses
-    // an exception
-    storeLongTimeSeriesSeconds(true, false);;
+    // two different qualifiers that will resolve to the same offset. This no
+    // longer tosses an exception, and keeps the last value
+    storeLongTimeSeriesSeconds(true, false);
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1356998430, 42.5F, tags).joinUninterruptibly();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    query.run();
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    // TODO: further validate the result
   }
   
   @Test

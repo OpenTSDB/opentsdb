@@ -13,9 +13,11 @@
 package net.opentsdb.core;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -31,7 +33,6 @@ import org.hbase.async.HBaseRpc;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PleaseThrottleException;
 
-import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
@@ -57,17 +58,14 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionQueue.class);
 
-  /** Used to sort individual columns from a data row */
-  private static final Internal.KeyValueComparator COMPARATOR = 
-    new Internal.KeyValueComparator();
-  
   /**
    * How many items are currently in the queue.
    * Because {@link ConcurrentSkipListMap#size} has O(N) complexity.
    */
   private final AtomicInteger size = new AtomicInteger();
 
-  private final AtomicLong trivial_compactions = new AtomicLong();
+  private final AtomicLong duplicates_different = new AtomicLong();
+  private final AtomicLong duplicates_same = new AtomicLong();
   private final AtomicLong complex_compactions = new AtomicLong();
   private final AtomicLong written_cells = new AtomicLong();
   private final AtomicLong deleted_cells = new AtomicLong();
@@ -123,8 +121,9 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * @param collector The collector to use.
    */
   void collectStats(final StatsCollector collector) {
-    collector.record("compaction.count", trivial_compactions, "type=trivial");
-    collector.record("compaction.count", complex_compactions, "type=complex");
+    collector.record("compaction.count", complex_compactions);
+    collector.record("compaction.duplicates", duplicates_same, "values=same");
+    collector.record("compaction.duplicates", duplicates_different, "values=different");
     if (!tsdb.config.enable_compactions()) {
       return;
     }
@@ -225,11 +224,270 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * Must contain at least one element.
    * @return A compacted version of this row.
    */
-  KeyValue compact(final ArrayList<KeyValue> row, 
+  KeyValue compact(final ArrayList<KeyValue> row,
       List<Annotation> annotations) {
     final KeyValue[] compacted = { null };
     compact(row, compacted, annotations);
     return compacted[0];
+  }
+
+  /**
+   * Maintains state for a single compaction; exists to break the steps down into manageable
+   * pieces without having to worry about returning muliple values and passing many parameters
+   * around.
+   */
+  private class Compaction {
+
+    // parameters for the compaction
+    private final ArrayList<KeyValue> row;
+    private final KeyValue[] compacted;
+    private final List<Annotation> annotations;
+
+    private final int nkvs;
+
+    // keeps a list of KeyValues to be deleted
+    private final List<KeyValue> toDelete;
+
+    // heap of columns, ordered by increasing timestamp
+    private PriorityQueue<Column> heap;
+
+    // true if any ms-resolution datapoints have been seen in the column
+    private boolean ms_in_row;
+
+    // true if any s-resolution datapoints have been seen in the column
+    private boolean s_in_row;
+
+    // KeyValue containing the longest qualifier for the datapoint, used to optimize
+    // checking if the compacted qualifier already exists.
+    private KeyValue longest;
+
+    public Compaction(ArrayList<KeyValue> row, KeyValue[] compacted, List<Annotation> annotations) {
+      nkvs = row.size();
+      this.row = row;
+      this.compacted = compacted;
+      this.annotations = annotations;
+      toDelete = new ArrayList<KeyValue>(nkvs);
+    }
+
+    /**
+     * Check if there are no fixups or merges required.  This will be the case when:
+     * <ul>
+     *  <li>there are no columns in the heap</li>
+     *  <li>there is only one single-valued column needing no fixups</li>
+     * </ul>
+     *
+     * @return true if we know no additional work is required
+     */
+    private boolean noMergesOrFixups() {
+      switch (heap.size()) {
+        case 0:
+          // no data points, nothing to do
+          return true;
+        default:
+          // more than one column, need to merge
+          return false;
+        case 1:
+          // only one column, check to see if it needs fixups
+          Column col = heap.peek();
+          // either a 2-byte qualifier or one 4-byte ms qualifier, and no fixups required
+          return (col.qualifier.length == 2 || (col.qualifier.length == 4
+              && Internal.inMilliseconds(col.qualifier))) && !col.needsFixup();
+      }
+    }
+
+    /**
+     * Perform the compaction.
+     *
+     * @return A {@link Deferred} if the compaction processed required a write
+     * to HBase, otherwise {@code null}.
+     */
+    public Deferred<Object> compact() {
+      // no columns in row, nothing to do
+      if (nkvs == 0) {
+        return null;
+      }
+
+      // go through all the columns, process annotations, and
+      heap = new PriorityQueue<Column>(nkvs);
+      int tot_values = buildHeapProcessAnnotations();
+
+      // if there are no datapoints or only one that needs no fixup, we are done
+      if (noMergesOrFixups()) {
+        return null;
+      }
+
+      // merge the datapoints, ordered by timestamp and removing duplicates
+      final ByteBufferList compacted_qual = new ByteBufferList(tot_values);
+      final ByteBufferList compacted_val = new ByteBufferList(tot_values);
+      complex_compactions.incrementAndGet();
+      mergeDatapoints(compacted_qual, compacted_val);
+
+      // if we wound up with no data in the compacted column, we are done
+      if (compacted_qual.count() == 0) {
+        return null;
+      }
+
+      // build the compacted columns
+      final KeyValue compact = buildCompactedColumn(compacted_qual, compacted_val);
+
+      boolean write = updateDeletesCheckForWrite(compact);
+
+      if (compacted != null) {  // Caller is interested in the compacted form.
+        compacted[0] = compact;
+        final long base_time = Bytes.getUnsignedInt(compact.key(), metric_width);
+        final long cut_off = System.currentTimeMillis() / 1000
+            - Const.MAX_TIMESPAN - 1;
+        if (base_time > cut_off) {  // If row is too recent...
+          return null;              // ... Don't write back compacted.
+        }
+      }
+      // if compactions aren't enabled or there is nothing to write, we're done
+      if (!tsdb.config.enable_compactions() || (!write && toDelete.isEmpty())) {
+        return null;
+      }
+
+      final byte[] key = compact.key();
+      //LOG.debug("Compacting row " + Arrays.toString(key));
+      deleted_cells.addAndGet(toDelete.size());  // We're going to delete this.
+      if (write) {
+        written_cells.incrementAndGet();
+        Deferred<Object> deferred = tsdb.put(key, compact.qualifier(), compact.value());
+        if (!toDelete.isEmpty()) {
+          deferred = deferred.addCallbacks(new DeleteCompactedCB(toDelete), handle_write_error);
+        }
+        return deferred;
+      } else {
+        // We had nothing to write, because one of the cells is already the
+        // correctly compacted version, so we can go ahead and delete the
+        // individual cells directly.
+        new DeleteCompactedCB(toDelete).call(null);
+        return null;
+      }
+    }
+
+    /**
+     * Build a heap of columns containing datapoints.  Assumes that non-datapoint columns are
+     * never merged.  Adds datapoint columns to the list of rows to be deleted.
+     *
+     * @return an estimate of the number of total values present, which may be high
+     */
+    private int buildHeapProcessAnnotations() {
+      int tot_values = 0;
+      for (KeyValue kv : row) {
+        final byte[] qual = kv.qualifier();
+        final int len = qual.length;
+        tot_values += len / 2;  // at least 2 bytes per entry, overestimates are better
+        if ((len & 1) != 0) {
+          // process annotations and other extended formats
+          if (qual[0] == Annotation.PREFIX()) {
+            annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
+          } else {
+            LOG.warn("Ignoring unexpected extended format type " + qual[0]);
+          }
+          continue;
+        }
+        if (longest == null || longest.qualifier().length < kv.qualifier().length) {
+          longest = kv;
+        }
+        Column col = new Column(kv);
+        if (col.hasMoreData()) {
+          heap.add(col);
+        }
+        toDelete.add(kv);
+      }
+      return tot_values;
+    }
+
+    /**
+     * Process datapoints from the heap in order, merging into a sorted list.  Handles duplicates
+     * by keeping the most recent (based on HBase column timestamps; if duplicates in the )
+     *
+     * @param compacted_qual qualifiers for sorted datapoints
+     * @param compacted_val values for sorted datapoints
+     */
+    private void mergeDatapoints(ByteBufferList compacted_qual, ByteBufferList compacted_val) {
+      int prevTs = -1;
+      while (!heap.isEmpty()) {
+        Column col = heap.remove();
+        int ts = col.getTimestampOffset();
+        if (ts == prevTs) {
+          // check to see if it is a complete duplicate, or if a value was overwritten
+          byte[] existingVal = compacted_val.getLastAdd();
+          byte[] discardedVal = col.getCopyOfCurrentValue();
+          if (!Arrays.equals(existingVal, discardedVal)) {
+            LOG.warn("Duplicate timestamp for key=" + Arrays.toString(row.get(0).key())
+                + ", offset=" + ts + ", kept=" + Arrays.toString(existingVal) + ", discarded="
+                + Arrays.toString(discardedVal));
+            duplicates_different.incrementAndGet();
+          } else {
+            duplicates_same.incrementAndGet();
+          }
+        } else {
+          prevTs = ts;
+          col.writeToBuffers(compacted_qual, compacted_val);
+          ms_in_row |= col.isMilliseconds();
+          s_in_row |= !col.isMilliseconds();
+        }
+        if (col.advance()) {
+          // there is still more data in this column, so add it back to the heap
+          heap.add(col);
+        }
+      }
+    }
+
+    /**
+     * Build the compacted column from the list of byte buffers that were
+     * merged together.
+     *
+     * @param compacted_qual list of merged qualifiers
+     * @param compacted_val list of merged values
+     *
+     * @return {@link KeyValue} instance for the compacted column
+     */
+    private KeyValue buildCompactedColumn(ByteBufferList compacted_qual,
+        ByteBufferList compacted_val) {
+      // metadata is a single byte for a multi-value column, otherwise nothing
+      int metadata_length = compacted_val.count() > 1 ? 1 : 0;
+      byte[] cq = compacted_qual.toBytes(0);
+      byte[] cv = compacted_val.toBytes(metadata_length);
+
+      // add the metadata flag, which right now only includes whether we mix s/ms datapoints
+      if (metadata_length > 0) {
+        byte metadata_flag = 0;
+        if (ms_in_row && s_in_row) {
+          metadata_flag |= Const.MS_MIXED_COMPACT;
+        }
+        cv[cv.length - 1] = metadata_flag;
+      }
+
+      final KeyValue first = row.get(0);
+      return new KeyValue(first.key(), first.family(), cq, cv);
+    }
+
+    /**
+     * Make sure we don't delete the row that is the result of the compaction, so we
+     * remove the compacted value from the list of values to delete if it is there.
+     *
+     * @param compact the compacted column
+     * @return true if we need to write the compacted value
+     */
+    private boolean updateDeletesCheckForWrite(KeyValue compact) {
+      // if the longest entry isn't as long as the compacted one, obviously the compacted
+      // one can't have already existed
+      if (longest != null && longest.qualifier().length >= compact.qualifier().length) {
+        Iterator<KeyValue> deleteIterator = toDelete.iterator();
+        while (deleteIterator.hasNext()) {
+          KeyValue cur = deleteIterator.next();
+          if (Arrays.equals(cur.qualifier(), compact.qualifier())) {
+            // the compacted row already existed, so remove from the list to delete
+            deleteIterator.remove();
+            // if the key and value are the same, we don't need to write it
+            return !Arrays.equals(cur.value(), compact.value());
+          }
+        }
+      }
+      return true;
+    }
   }
 
   /**
@@ -245,405 +503,15 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * a {@link KeyValue} containing the compacted form of this row.
    * If non-null, we will also not write the compacted form back to HBase
    * unless the timestamp in the row key is old enough.
+   * @param annotations supplied list which will have all encountered
+   * annotations added to it.
    * @return A {@link Deferred} if the compaction processed required a write
    * to HBase, otherwise {@code null}.
    */
-  private Deferred<Object> compact(final ArrayList<KeyValue> row,
-                                   final KeyValue[] compacted, 
-                                   List<Annotation> annotations) {
-    if (row.size() <= 1) {
-      if (row.isEmpty()) {  // Maybe the row got deleted in the mean time?
-        LOG.debug("Attempted to compact a row that doesn't exist.");
-      } else if (compacted != null) {
-        // no need to re-compact rows containing a single value.
-        KeyValue kv = row.get(0);
-        final byte[] qual = kv.qualifier();
-        if (qual.length % 2 != 0 || qual.length == 0) {
-          // This could be a row with only an annotation in it
-          if ((qual[0] | Annotation.PREFIX()) == Annotation.PREFIX()) {
-            final Annotation note = JSON.parseToObject(kv.value(), 
-                Annotation.class);
-            annotations.add(note);
-          }
-          return null;
-        }
-        final byte[] val = kv.value();
-        if (qual.length == 2 && Internal.floatingPointValueToFix(qual[1], val)) {
-          // Fix up old, incorrectly encoded floating point value.
-          final byte[] newval = Internal.fixFloatingPointValue(qual[1], val);
-          final byte[] newqual = new byte[] { qual[0],
-            Internal.fixQualifierFlags(qual[1], newval.length) };
-          kv = new KeyValue(kv.key(), kv.family(), newqual, newval);
-        }
-        compacted[0] = kv;
-      }
-      return null;
-    }
-
-    // We know we have at least 2 cells.  We need to go through all the cells
-    // to determine what kind of compaction we're going to do.  If each cell
-    // contains a single individual data point, then we can do a trivial
-    // compaction.  Otherwise, we have a partially compacted row, and the
-    // logic required to compact it is more complex.
-    boolean write = true;  // Do we need to write a compacted cell?
-    final KeyValue compact;
-    {
-      boolean trivial = true;  // Are we doing a trivial compaction?
-      boolean ms_in_row = false;
-      boolean s_in_row = false;
-      int qual_len = 0;  // Pre-compute the size of the qualifier we'll need.
-      int val_len = 1;   // Reserve an extra byte for meta-data.
-      KeyValue longest = row.get(0);  // KV with the longest qualifier.
-      int longest_idx = 0;            // Index of `longest'.
-      int nkvs = row.size();
-      for (int i = 0; i < nkvs; i++) {
-        final KeyValue kv = row.get(i);
-        final byte[] qual = kv.qualifier();
-        // If the qualifier length isn't 2, this row might have already
-        // been compacted, potentially partially, so we need to merge the
-        // partially compacted set of cells, with the rest.
-        final int len = qual.length;
-        if (len != 2 && len != 4) {
-          // Datapoints and compacted columns should have qualifiers with an
-          // even number of bytes. If we find one with an odd number, or an
-          // empty qualifier (which is possible), we need to remove it from the
-          // compaction queue. 
-          if (len % 2 != 0 || len == 0) {
-            // if the qualifier is 3 bytes and starts with the Annotation prefix,
-            // parse it out.
-            if ((qual[0] | Annotation.PREFIX()) == Annotation.PREFIX()) {
-              final Annotation note = JSON.parseToObject(kv.value(), 
-                  Annotation.class);
-              annotations.add(note);
-            }
-            
-            row.remove(i);  // This is O(n) but should happen *very* rarely.
-            nkvs--;
-            i--;
-            continue;
-          }
-          trivial = false;
-          // We only do this here because no qualifier can be < 2 bytes.
-          if (len > longest.qualifier().length) {
-            longest = kv;
-            longest_idx = i;
-          }
-          
-          // we need to check the value meta flag to see if the already compacted
-          // column has a mixture of second and millisecond timestamps
-          if ((kv.value()[kv.value().length - 1] & Const.MS_MIXED_COMPACT) == 
-            Const.MS_MIXED_COMPACT) {
-            ms_in_row = s_in_row = true;
-          }
-        } else {
-          if (Internal.inMilliseconds(qual[0])) {
-            ms_in_row = true;
-          } else {
-            s_in_row = true;
-          }
-          
-          if (len > longest.qualifier().length) {
-            longest = kv;
-            longest_idx = i;
-          }
-          
-          // there may be a situation where two second columns are concatenated
-          // into 4 bytes. If so, we need to perform a complex compaction
-          if (len == 4) {
-            if (!Internal.inMilliseconds(qual[0])) {
-              trivial = false;
-            }
-            val_len += kv.value().length;
-          } else {
-            // We don't need it below for complex compactions, so we update it
-            // only here in the `else' branch.
-            final byte[] v = kv.value();
-            val_len += Internal.floatingPointValueToFix(qual[1], v) ? 4 : v.length;
-          }
-        }
-        qual_len += len;
-      }
-
-      if (row.size() < 2) {
-        // We got here because we started off with at least 2 KV, but we
-        // chose to ignore some in the mean time, so now we're left with
-        // either none, or just one.
-        if (row.isEmpty()) {
-          return null;  // No KV left, just ignore this whole row.
-        } // else: row.size() == 1
-        // We have only one KV left, we call ourselves recursively to handle
-        // the case where this KV is an old, incorrectly encoded floating
-        // point value that needs to be fixed.  This is guaranteed to not
-        // recurse again.
-        return compact(row, compacted, annotations);
-      } else if (trivial) {
-        trivial_compactions.incrementAndGet();
-        compact = trivialCompact(row, qual_len, val_len, (ms_in_row && s_in_row));
-      } else {
-        complex_compactions.incrementAndGet();
-        compact = complexCompact(row, qual_len / 2, (ms_in_row && s_in_row));
-        // Now it's vital that we check whether the compact KV has the same
-        // qualifier as one of the qualifiers that were already in the row.
-        // Otherwise we might do a `put' in this cell, followed by a delete.
-        // We don't want to delete what we just wrote.
-        // This can happen if this row was already compacted but someone
-        // wrote another individual data point at the same timestamp.
-        // Optimization: since we kept track of which KV had the longest
-        // qualifier, we can opportunistically check here if it happens to
-        // have the same qualifier as the one we just created.
-        final byte[] qual = compact.qualifier();
-        final byte[] longest_qual = longest.qualifier();
-        if (qual.length <= longest_qual.length) {
-          KeyValue dup = null;
-          int dup_idx = -1;
-          if (Bytes.equals(longest_qual, qual)) {
-            dup = longest;
-            dup_idx = longest_idx;
-          } else {
-            // Worst case: to be safe we have to loop again and check all
-            // the qualifiers and make sure we're not going to overwrite
-            // anything.
-            // TODO(tsuna): Try to write a unit test that triggers this code
-            // path.  I'm not even sure it's possible.  Should we replace
-            // this code with an `assert false: "should never be here"'?
-            for (int i = 0; i < nkvs; i++) {
-              final KeyValue kv = row.get(i);
-              if (Bytes.equals(kv.qualifier(), qual)) {
-                dup = kv;
-                dup_idx = i;
-                break;
-              }
-            }
-          }
-          if (dup != null) {
-            // So we did find an existing KV with the same qualifier.
-            // Let's check if, by chance, the value is the same too.
-            if (Bytes.equals(dup.value(), compact.value())) {
-              // Since the values are the same, we don't need to write
-              // anything.  There's already a properly compacted version of
-              // this row in TSDB.
-              write = false;
-            }
-            // Now let's make sure we don't delete this qualifier.  This
-            // re-allocates the entire array, but should be a rare case.
-            row.remove(dup_idx);
-          } // else: no dup, we're good.
-        } // else: most common case: the compact qualifier is longer than
-          // the previously longest qualifier, so we cannot possibly
-          // overwrite an existing cell we would then delete.
-      }
-    }
-    if (compacted != null) {  // Caller is interested in the compacted form.
-      compacted[0] = compact;
-      final long base_time = Bytes.getUnsignedInt(compact.key(), metric_width);
-      final long cut_off = System.currentTimeMillis() / 1000
-        - Const.MAX_TIMESPAN - 1;
-      if (base_time > cut_off) {  // If row is too recent...
-        return null;              // ... Don't write back compacted.
-      }
-    }
-    if (!tsdb.config.enable_compactions()) {
-      return null;
-    }
-
-    final byte[] key = compact.key();
-    //LOG.debug("Compacting row " + Arrays.toString(key));
-    deleted_cells.addAndGet(row.size());  // We're going to delete this.
-    if (write) {
-      final byte[] qual = compact.qualifier();
-      final byte[] value = compact.value();
-      written_cells.incrementAndGet();
-      return tsdb.put(key, qual, value)
-        .addCallbacks(new DeleteCompactedCB(row), handle_write_error);
-    } else {
-      // We had nothing to write, because one of the cells is already the
-      // correctly compacted version, so we can go ahead and delete the
-      // individual cells directly.
-      new DeleteCompactedCB(row).call(null);
-      return null;
-    }
-  }
-
-  /**
-   * Performs a trivial compaction of a row.
-   * <p>
-   * This method is to be used only when all the cells in the given row
-   * are individual data points (nothing has been compacted yet).  If any of
-   * the cells have already been compacted, the caller is expected to call
-   * {@link #complexCompact} instead.
-   * @param row The row to compact.  Assumed to have 2 elements or more.
-   * @param qual_len Exact number of bytes to hold the compacted qualifiers.
-   * @param val_len Exact number of bytes to hold the compacted values.
-   * @param sort Whether or not we have a mix of ms and s qualifiers and need
-   * to manually sort
-   * @return a {@link KeyValue} containing the result of the merge of all the
-   * {@code KeyValue}s given in argument.
-   */
-  private static KeyValue trivialCompact(final ArrayList<KeyValue> row,
-                                         final int qual_len,
-                                         final int val_len,
-                                         final boolean sort) {
-    // Now let's simply concatenate all the qualifiers and values together.
-    final byte[] qualifier = new byte[qual_len];
-    final byte[] value = new byte[val_len];
-    // Now populate the arrays by copying qualifiers/values over.
-    int qual_idx = 0;
-    int val_idx = 0;
-    int last_delta = -1;  // Time delta, extracted from the qualifier.
-    
-    if (sort) {
-      // we have a mix of millisecond and second columns so we need to sort them
-      // by timestamp before compaction
-      Collections.sort(row, COMPARATOR);
-    }
-    
-    for (final KeyValue kv : row) {
-      final byte[] q = kv.qualifier();
-      // We shouldn't get into this function if this isn't true.
-      assert q.length == 2 || q.length == 4: 
-        "Qualifier length must be 2 or 4: " + kv;
-      
-      // check to make sure that the row was already sorted, or if there was a 
-      // mixture of second and ms timestamps, that we sorted successfully
-      final int delta = Internal.getOffsetFromQualifier(q);
-      if (delta <= last_delta) {
-        throw new IllegalDataException("Found out of order or duplicate"
-          + " data: last_delta=" + last_delta + ", delta=" + delta
-          + ", offending KV=" + kv + ", row=" + row + " -- run an fsck.");
-      }
-      last_delta = delta;
-      
-      final byte[] v;
-      if (q.length == 2) {
-        v = Internal.fixFloatingPointValue(q[1], kv.value());
-        qualifier[qual_idx++] = q[0];
-        qualifier[qual_idx++] = Internal.fixQualifierFlags(q[1], v.length);
-      } else {
-        v = kv.value();
-        System.arraycopy(q, 0, qualifier, qual_idx, q.length);
-        qual_idx += q.length;
-      }
-      System.arraycopy(v, 0, value, val_idx, v.length);
-      val_idx += v.length;
-    }
- 
-    // Set the meta flag in the values if we have a mix of seconds and ms,
-    // otherwise we just leave them alone.
-    if (sort) {
-      value[value.length - 1] |= Const.MS_MIXED_COMPACT;
-    }
-    final KeyValue first = row.get(0);
-    return new KeyValue(first.key(), first.family(), qualifier, value);
-  }
-
-  /**
-   * Compacts a partially compacted row.
-   * <p>
-   * This method is called in the non-trivial re-compaction cases, where a row
-   * already contains one or more partially compacted cells.  This can happen
-   * for various reasons, such as TSDs dying in the middle of a compaction or
-   * races involved with TSDs trying to compact the same row at the same
-   * time, or old data being slowly written to a TSD.
-   * @param row The row to compact.  Assumed to have 2 elements or more.
-   * @param estimated_nvalues Estimate of the number of values to compact.
-   * Used to pre-allocate a collection of the right size, so it's better to
-   * overshoot a bit to avoid re-allocations.
-   * @param sort Whether or not we have a mix of ms and s qualifiers and need
-   * to manually sort
-   * @return a {@link KeyValue} containing the result of the merge of all the
-   * {@code KeyValue}s given in argument.
-   * @throws IllegalDataException if one of the cells cannot be read because
-   * it's corrupted or in a format we don't understand.
-   */
-  static KeyValue complexCompact(final ArrayList<KeyValue> row,
-                                 final int estimated_nvalues, 
-                                 final boolean sort) {
-    // We know at least one of the cells contains multiple values, and we need
-    // to merge all the cells together in a sorted fashion.  We use a simple
-    // strategy: split all the cells into individual objects, sort them,
-    // merge the result while ignoring duplicates (same qualifier & value).
-    final ArrayList<Cell> cells = 
-      Internal.extractDataPoints(row, estimated_nvalues);
-
-    if (sort) {
-      // we have a mix of millisecond and second columns so we need to sort them
-      // by timestamp before compaction
-      Collections.sort(row, new Internal.KeyValueComparator());
-    }
-    
-    // Now let's do one pass first to compute the length of the compacted
-    // value and to find if we have any bad duplicates (same qualifier,
-    // different value).
-    int qual_len = 0;
-    int val_len = 1;  // Reserve an extra byte for meta-data.
-    int last_delta = -1;  // Time delta, extracted from the qualifier.
-    int ncells = cells.size();
-    for (int i = 0; i < ncells; i++) {
-      final Cell cell = cells.get(i);
-      final int delta = Internal.getOffsetFromQualifier(cell.qualifier);
-      
-      // Because we sorted `cells' by qualifier, and because the time delta
-      // occupies the most significant bits, this should never trigger.
-      assert delta >= last_delta: ("WTF? It's supposed to be sorted: " + cells
-                                   + " at " + i + " delta=" + delta
-                                   + ", last_delta=" + last_delta);
-      // The only troublesome case is where we have two (or more) consecutive
-      // cells with the same time delta, but different flags or values.
-      if (delta == last_delta) {
-        // Find the previous cell.  Because we potentially replace the one
-        // right before `i' with a tombstone, we might need to look further
-        // back a bit more.
-        Cell prev = Cell.SKIP;
-        // i > 0 because we can't get here during the first iteration.
-        // Also the first Cell cannot be Cell.SKIP, so `j' will never
-        // underflow.  And even if it does, we'll get an exception.
-        for (int j = i - 1; prev == Cell.SKIP; j--) {
-          prev = cells.get(j);
-        }
-        if (cell.qualifier[1] != prev.qualifier[1]
-            || !Bytes.equals(cell.value, prev.value)) {
-          throw new IllegalDataException("Found out of order or duplicate"
-            + " data: cell=" + cell + ", delta=" + delta + ", prev cell="
-            + prev + ", last_delta=" + last_delta + ", in row=" + row
-            + " -- run an fsck.");
-        }
-        // else: we're good, this is a true duplicate (same qualifier & value).
-        // Just replace it with a tombstone so we'll skip it.  We don't delete
-        // it from the array because that would cause a re-allocation.
-        cells.set(i, Cell.SKIP);
-        continue;
-      }
-      last_delta = delta;
-      qual_len += cell.qualifier.length;
-      val_len += cell.value.length;
-    }
-
-    final byte[] qualifier = new byte[qual_len];
-    final byte[] value = new byte[val_len];
-    // Now populate the arrays by copying qualifiers/values over.
-    int qual_idx = 0;
-    int val_idx = 0;
-    for (final Cell cell : cells) {
-      if (cell == Cell.SKIP) {
-        continue;
-      }
-      byte[] b = cell.qualifier;
-      System.arraycopy(b, 0, qualifier, qual_idx, b.length);
-      qual_idx += b.length;
-      b = cell.value;
-      System.arraycopy(b, 0, value, val_idx, b.length);
-      val_idx += b.length;
-    }
-    
-    // Set the meta flag in the values if we have a mix of seconds and ms,
-    // otherwise we just leave them alone.
-    if (sort) {
-      value[value.length - 1] |= Const.MS_MIXED_COMPACT;
-    }
-    final KeyValue first = row.get(0);
-    final KeyValue kv = new KeyValue(first.key(), first.family(),
-                                     qualifier, value);
-    return kv;
+  Deferred<Object> compact(final ArrayList<KeyValue> row,
+      final KeyValue[] compacted,
+      List<Annotation> annotations) {
+    return new Compaction(row, compacted, annotations).compact();
   }
 
   /**
@@ -655,7 +523,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private final byte[] key;
     private final byte[][] qualifiers;
 
-    public DeleteCompactedCB(final ArrayList<KeyValue> cells) {
+    public DeleteCompactedCB(final List<KeyValue> cells) {
       final KeyValue first = cells.get(0);
       key = first.key();
       qualifiers = new byte[cells.size()][];
@@ -850,5 +718,4 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       return c != 0 ? c : Bytes.memcmp(a, b);
     }
   }
-
 }
