@@ -432,7 +432,7 @@ final class HttpQuery {
    */
   public Charset getCharset() {
     // RFC2616 3.7
-    for (String type : this.request.getHeaders("Content-Type")) {
+    for (String type : this.request.headers().getAll("Content-Type")) {
       int idx = type.toUpperCase().indexOf("CHARSET=");
       if (idx > 1) {
         String charset = type.substring(idx+8);
@@ -538,7 +538,7 @@ final class HttpQuery {
     // attempt to parse the Content-Type string. We only want the first part,
     // not the character set. And if the CT is missing, we'll use the default
     // serializer
-    String content_type = this.request.getHeader("Content-Type");
+    String content_type = this.request.headers().get("Content-Type");
     if (content_type == null || content_type.isEmpty()) {
       return;
     }
@@ -675,7 +675,7 @@ final class HttpQuery {
   /** Redirects the client's browser to the given location.  */
   public void redirect(final String location) {
     // set the header AND a meta refresh just in case
-    response.setHeader("Location", location);
+    response.headers().set("Location", location);
     sendReply(HttpResponseStatus.OK,
       new StringBuilder(
           "<html></head><meta http-equiv=\"refresh\" content=\"0; url="
@@ -930,16 +930,16 @@ final class HttpQuery {
     final long length = file.length();
     {
       final String mimetype = guessMimeTypeFromUri(path);
-      response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
+      response.headers().set(HttpHeaders.Names.CONTENT_TYPE,
                          mimetype == null ? "text/plain" : mimetype);
       final long mtime = new File(path).lastModified();
       if (mtime > 0) {
-        response.setHeader(HttpHeaders.Names.AGE,
+        response.headers().set(HttpHeaders.Names.AGE,
                            (System.currentTimeMillis() - mtime) / 1000);
       } else {
         logWarn("Found a file with mtime=" + mtime + ": " + path);
       }
-      response.setHeader(HttpHeaders.Names.CACHE_CONTROL,
+      response.headers().set(HttpHeaders.Names.CACHE_CONTROL,
                          "max-age=" + max_age);
       HttpHeaders.setContentLength(response, length);
       chan.write(response);
@@ -979,7 +979,7 @@ final class HttpQuery {
       done();
       return;
     }
-    response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
+    response.headers().set(HttpHeaders.Names.CONTENT_TYPE,
         (api_version < 1 ? guessMimeType(buf) :
           serializer.responseContentType()));
 

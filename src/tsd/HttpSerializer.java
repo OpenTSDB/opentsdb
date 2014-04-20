@@ -78,7 +78,7 @@ import net.opentsdb.utils.Config;
  * providing an {@link HttpResponseStatus} object.
  * <p>
  * <b>Note:</b> You can also set response headers via 
- * "this.query.response().setHeader()". The "Content-Type" header will be set
+ * "this.query.response().headers().set()". The "Content-Type" header will be set
  * automatically with the "response_content_type" field value that can be
  * overridden by the plugin. HttpQuery will also set some other headers before
  * returning

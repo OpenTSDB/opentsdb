@@ -539,7 +539,7 @@ JAVADOC_DIR = api
 doc: $(JAVADOC_DIR)/index.html
 
 JDK_JAVADOC = http://download.oracle.com/javase/6/docs/api
-NETTY_JAVADOC = http://docs.jboss.org/netty/$(NETTY_MAJOR_VERSION)/api
+NETTY_JAVADOC = http://netty.io/$(NETTY_MAJOR_VERSION)/api
 SUASYNC_JAVADOC = http://tsunanet.net/~tsuna/async/$(SUASYNC_VERSION)
 $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
 	$(JAVADOC) -d $(JAVADOC_DIR) -classpath $(get_dep_classpath) \

@@ -189,7 +189,7 @@ public final class NettyMocks {
       req.setContent(ChannelBuffers.copiedBuffer(content, 
           Charset.forName("UTF-8")));
     }
-    req.setHeader("Content-Type", type);
+    req.headers().set("Content-Type", type);
     return new HttpQuery(tsdb, req, channelMock);
   }
   
