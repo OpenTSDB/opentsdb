@@ -232,7 +232,7 @@ EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
         bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
 
 GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
-GWTC_ARGS = -ea  # Additional arguments like -style PRETTY or -logLevel DEBUG
+GWTC_ARGS = -ea -strict  # Additional arguments like -style PRETTY or -logLevel DEBUG
 
 package_dir := $(subst .,/,$(package))
 UNITTESTS := $(test_SRC:test/%.java=$(package_dir)/%.class)
@@ -312,14 +312,15 @@ get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'
                 $(JAVA_COMPILE) -cp $$cp $$src
 	@touch "$@"
 
-GWT_CLASSPATH = `jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(srcdir)/src
+VALIDATION_API_CLASSPATH = `jar=$(VALIDATION_API); $(find_jar)`:`jar=$(VALIDATION_API_SOURCES); $(find_jar)`
+GWT_CLASSPATH = $(VALIDATION_API_CLASSPATH):`jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(srcdir)/src
 # The GWT compiler is way too slow, that's not very Googley.  So we save the
 # MD5 of the files we compile in the stamp file and everytime `make' things it
 # needs to recompile the GWT code, we verify whether the code really changed
 # or whether it's just a file that was touched (which happens frequently when
 # using Git while rebasing and whatnot).
 gwtc: .gwtc-stamp
-.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(GWT_DEV) $(GWT_USER)
+.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(VALIDATION_API) $(VALIDATION_API_SOURCES) $(GWT_DEV) $(GWT_USER)
 	@$(mkdir_p) gwt
 	{ cd $(srcdir) && cat $(httpui_SRC); } | $(MD5) >"$@-t"
 	cmp -s "$@" "$@-t" && exit 0; \
