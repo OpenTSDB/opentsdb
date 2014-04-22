@@ -33,4 +33,5 @@ include third_party/powermock/include.mk
 include third_party/protobuf/include.mk
 include third_party/slf4j/include.mk
 include third_party/suasync/include.mk
+include third_party/validation-api/include.mk
 include third_party/zookeeper/include.mk

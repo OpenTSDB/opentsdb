@@ -72,7 +72,7 @@ final class HttpQuery {
 
   /** The maximum implemented API version, set when the user doesn't */
   private static final int MAX_API_VERSION = 1;
-  
+
   /**
    * Keep track of the latency of HTTP requests.
    */
@@ -80,16 +80,16 @@ final class HttpQuery {
     new Histogram(16000, (short) 2, 100);
 
   /** Maps Content-Type to a serializer */
-  private static HashMap<String, Constructor<? extends HttpSerializer>> 
+  private static HashMap<String, Constructor<? extends HttpSerializer>>
     serializer_map_content_type = null;
-  
+
   /** Maps query string names to a serializer */
-  private static HashMap<String, Constructor<? extends HttpSerializer>> 
+  private static HashMap<String, Constructor<? extends HttpSerializer>>
     serializer_map_query_string = null;
-  
+
   /** Caches serializer implementation information for user access */
   private static ArrayList<HashMap<String, Object>> serializer_status = null;
-  
+
   /** When the query was started (useful for timing). */
   private final long start_time = System.nanoTime();
 
@@ -100,30 +100,30 @@ final class HttpQuery {
   private final Channel chan;
 
   /** Shortcut to the request method */
-  private final HttpMethod method; 
-  
+  private final HttpMethod method;
+
   /** Parsed query string (lazily built on first access). */
   private Map<String, List<String>> querystring;
 
   /** API version parsed from the incoming request */
   private int api_version = 0;
-  
+
   /** The serializer to use for parsing input and responding */
   private HttpSerializer serializer = null;
-  
+
   /** Deferred result of this query, to allow asynchronous processing.  */
   private final Deferred<Object> deferred = new Deferred<Object>();
 
   /** The response object we'll fill with data */
   private final DefaultHttpResponse response =
-    new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.ACCEPTED);
-  
+    new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+
   /** The {@code TSDB} instance we belong to */
-  private final TSDB tsdb; 
-  
+  private final TSDB tsdb;
+
   /** Whether or not to show stack traces in the output */
   private final boolean show_stack_trace;
-  
+
   /**
    * Constructor.
    * @param request The request in this HTTP query.
@@ -133,7 +133,7 @@ final class HttpQuery {
     this.tsdb = tsdb;
     this.request = request;
     this.chan = chan;
-    this.show_stack_trace = 
+    this.show_stack_trace =
       tsdb.getConfig().getBoolean("tsd.http.show_stack_trace");
     this.method = request.getMethod();
     this.serializer = new HttpJsonSerializer(this);
@@ -158,12 +158,12 @@ final class HttpQuery {
   public HttpMethod method() {
     return this.method;
   }
-  
+
   /** Returns the response object, allowing serializers to set headers */
   public DefaultHttpResponse response() {
     return this.response;
   }
-  
+
   /**
    * Returns the underlying Netty {@link Channel} of this query.
    */
@@ -181,12 +181,12 @@ final class HttpQuery {
   public int apiVersion() {
     return this.api_version;
   }
-  
+
   /** @return Whether or not to show stack traces in errors @since 2.0 */
   public boolean showStackTrace() {
     return this.show_stack_trace;
   }
-  
+
   /**
    * Return the {@link Deferred} associated with this query.
    */
@@ -204,7 +204,7 @@ final class HttpQuery {
   public HttpSerializer serializer() {
     return this.serializer;
   }
-  
+
   /**
    * Returns the query string parameters passed in the URI.
    */
@@ -276,7 +276,7 @@ final class HttpQuery {
 
   /**
    * Returns only the path component of the URI as a string
-   * This call strips the protocol, host, port and query string parameters 
+   * This call strips the protocol, host, port and query string parameters
    * leaving only the path e.g. "/path/starts/here"
    * <p>
    * Note that for slightly quicker performance you can call request().getUri()
@@ -289,12 +289,12 @@ final class HttpQuery {
   public String getQueryPath() {
     return new QueryStringDecoder(request.getUri()).getPath();
   }
-  
+
   /**
    * Returns the path component of the URI as an array of strings, split on the
    * forward slash
-   * Similar to the {@link #getQueryPath} call, this returns only the path 
-   * without the protocol, host, port or query string params. E.g. 
+   * Similar to the {@link #getQueryPath} call, this returns only the path
+   * without the protocol, host, port or query string params. E.g.
    * "/path/starts/here" will return an array of {"path", "starts", "here"}
    * <p>
    * Note that for maximum speed you may want to parse the query path manually.
@@ -310,19 +310,19 @@ final class HttpQuery {
     if (path.isEmpty()) {
       throw new BadRequestException("Query path is empty");
     }
-    if (path.charAt(0) != '/') { 
+    if (path.charAt(0) != '/') {
       throw new BadRequestException("Query path doesn't start with a slash");
     }
     // split may be a tad slower than other methods, but since the URIs are
-    // usually pretty short and not every request will make this call, we 
+    // usually pretty short and not every request will make this call, we
     // probably don't need any premature optimization
     return path.substring(1).split("/");
   }
-  
+
   /**
    * Helper that strips the api and optional version from the URI array since
    * api calls only care about what comes after.
-   * E.g. if the URI is "/api/v1/uid/assign" this method will return the 
+   * E.g. if the URI is "/api/v1/uid/assign" this method will return the
    * {"uid", "assign"}
    * @return An array with 1 or more components, note the first item may be
    * an empty string if given just "/api" or "/api/v1"
@@ -343,7 +343,7 @@ final class HttpQuery {
       final String[] root = { "" };
       return root;
     }
-    if (split[1].toLowerCase().startsWith("v") && split[1].length() > 1 && 
+    if (split[1].toLowerCase().startsWith("v") && split[1].length() > 1 &&
         Character.isDigit(split[1].charAt(1))) {
       index = 2;
     }
@@ -353,7 +353,7 @@ final class HttpQuery {
       final String[] root = { "" };
       return root;
     }
-    
+
     final String[] path = new String[split.length - index];
     int path_idx = 0;
     for (int i = index; i < split.length; i++) {
@@ -362,14 +362,14 @@ final class HttpQuery {
     }
     return path;
   }
-  
+
   /**
-   * Parses the query string to determine the base route for handing a query 
+   * Parses the query string to determine the base route for handing a query
    * off to an RPC handler.
    * This method splits the query path component and returns a string suitable
    * for routing by {@link RpcHandler}. The resulting route is always lower case
    * and will consist of either an empty string, a deprecated API call or an
-   * API route. API routes will set the {@link #apiVersion} to either a user 
+   * API route. API routes will set the {@link #apiVersion} to either a user
    * provided value or the MAX_API_VERSION.
    * <p>
    * Some URIs and their routes include:<ul>
@@ -397,21 +397,21 @@ final class HttpQuery {
     if (split.length < 2) {
       return "api";
     }
-    if (split[1].toLowerCase().startsWith("v") && split[1].length() > 1 && 
+    if (split[1].toLowerCase().startsWith("v") && split[1].length() > 1 &&
         Character.isDigit(split[1].charAt(1))) {
       try {
         final int version = Integer.parseInt(split[1].substring(1));
         if (version > MAX_API_VERSION) {
-          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
-              "Requested API version is greater than the max implemented", 
-              "API version [" + version + "] is greater than the max [" + 
+          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED,
+              "Requested API version is greater than the max implemented",
+              "API version [" + version + "] is greater than the max [" +
               MAX_API_VERSION + "]");
         }
         this.api_version = version;
       } catch (NumberFormatException nfe) {
-        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
-            "Invalid API version format supplied", 
-            "API version [" + split[1].substring(1) + 
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+            "Invalid API version format supplied",
+            "API version [" + split[1].substring(1) +
             "] cannot be parsed to an integer");
       }
     } else {
@@ -422,7 +422,7 @@ final class HttpQuery {
     }
     return "api/" + split[2].toLowerCase();
   }
-  
+
   /**
    * Attempts to parse the character set from the request header. If not set
    * defaults to UTF-8
@@ -432,7 +432,7 @@ final class HttpQuery {
    */
   public Charset getCharset() {
     // RFC2616 3.7
-    for (String type : this.request.getHeaders("Content-Type")) {
+    for (String type : this.request.headers().getAll("Content-Type")) {
       int idx = type.toUpperCase().indexOf("CHARSET=");
       if (idx > 1) {
         String charset = type.substring(idx+8);
@@ -441,13 +441,13 @@ final class HttpQuery {
     }
     return Charset.forName("UTF-8");
   }
-  
+
   /** @return True if the request has content, false if not @since 2.0 */
   public boolean hasContent() {
-    return this.request.getContent() != null && 
+    return this.request.getContent() != null &&
       this.request.getContent().readable();
   }
-  
+
   /**
    * Decodes the request content to a string using the appropriate character set
    * @return Decoded content or an empty string if the request did not include
@@ -458,7 +458,7 @@ final class HttpQuery {
   public String getContent() {
     return this.request.getContent().toString(this.getCharset());
   }
-  
+
   /**
    * Determines the requested HttpMethod via VERB and QS override.
    * If the request is a {@code GET} and the user provides a valid override
@@ -495,65 +495,65 @@ final class HttpQuery {
             "Unknown or unsupported method override value");
         }
       }
-      
+
       // no override, so just return the method
       return this.method();
     }
   }
-  
+
   /**
    * Sets the local serializer based on a query string parameter or content type.
    * <p>
    * If the caller supplies a "serializer=" parameter, the proper serializer is
-   * loaded if found. If the serializer doesn't exist, an exception will be 
+   * loaded if found. If the serializer doesn't exist, an exception will be
    * thrown and the user gets an error
    * <p>
    * If no query string parameter is supplied, the Content-Type header for the
-   * request is parsed and if a matching serializer is found, it's used. 
+   * request is parsed and if a matching serializer is found, it's used.
    * Otherwise we default to the HttpJsonSerializer.
    * @throws InvocationTargetException if the serializer cannot be instantiated
    * @throws IllegalArgumentException if the serializer cannot be instantiated
    * @throws InstantiationException if the serializer cannot be instantiated
    * @throws IllegalAccessException if a security manager is blocking access
-   * @throws BadRequestException if a serializer requested via query string does 
+   * @throws BadRequestException if a serializer requested via query string does
    * not exist
    */
-  public void setSerializer() throws InvocationTargetException, 
+  public void setSerializer() throws InvocationTargetException,
     IllegalArgumentException, InstantiationException, IllegalAccessException {
     if (this.hasQueryStringParam("serializer")) {
       final String qs = this.getQueryStringParam("serializer");
-      Constructor<? extends HttpSerializer> ctor = 
+      Constructor<? extends HttpSerializer> ctor =
         serializer_map_query_string.get(qs);
       if (ctor == null) {
         this.serializer = new HttpJsonSerializer(this);
-        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
-            "Requested serializer was not found", 
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+            "Requested serializer was not found",
             "Could not find a serializer with the name: " + qs);
       }
-      
+
       this.serializer = ctor.newInstance(this);
       return;
     }
-    
+
     // attempt to parse the Content-Type string. We only want the first part,
     // not the character set. And if the CT is missing, we'll use the default
     // serializer
-    String content_type = this.request.getHeader("Content-Type");
+    String content_type = this.request.headers().get("Content-Type");
     if (content_type == null || content_type.isEmpty()) {
       return;
     }
     if (content_type.indexOf(";") > -1) {
       content_type = content_type.substring(0, content_type.indexOf(";"));
     }
-    Constructor<? extends HttpSerializer> ctor = 
+    Constructor<? extends HttpSerializer> ctor =
       serializer_map_content_type.get(content_type);
     if (ctor == null) {
       return;
     }
-    
+
     this.serializer = ctor.newInstance(this);
   }
-  
+
   /**
    * Sends a 500 error page to the client.
    * Handles responses from deprecated API calls as well as newer, versioned
@@ -562,19 +562,19 @@ final class HttpQuery {
    */
   public void internalError(final Exception cause) {
     logError("Internal Server Error on " + request.getUri(), cause);
-    
+
     if (this.api_version > 0) {
       // always default to the latest version of the error formatter since we
       // need to return something
       switch (this.api_version) {
         case 1:
         default:
-          sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+          sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
               serializer.formatErrorV1(cause));
       }
       return;
     }
-    
+
     ThrowableProxy tp = new ThrowableProxy(cause);
     tp.calculatePackagingData();
     final String pretty_exc = ThrowableProxyUtil.asString(tp);
@@ -609,7 +609,7 @@ final class HttpQuery {
   public void badRequest(final String explain) {
     badRequest(new BadRequestException(explain));
   }
-  
+
   /**
    * Sends an error message to the client with the proeper status code and
    * optional details stored in the exception
@@ -628,7 +628,7 @@ final class HttpQuery {
       return;
     }
     if (hasQueryStringParam("json")) {
-      final StringBuilder buf = new StringBuilder(10 + 
+      final StringBuilder buf = new StringBuilder(10 +
           exception.getDetails().length());
       buf.append("{\"err\":\"");
       HttpQuery.escapeJson(exception.getMessage(), buf);
@@ -652,7 +652,7 @@ final class HttpQuery {
   /** Sends a 404 error page to the client. */
   public void notFound() {
     logWarn("Not Found: " + request.getUri());
-    if (this.api_version > 0) { 
+    if (this.api_version > 0) {
       // always default to the latest version of the error formatter since we
       // need to return something
       switch (this.api_version) {
@@ -675,7 +675,7 @@ final class HttpQuery {
   /** Redirects the client's browser to the given location.  */
   public void redirect(final String location) {
     // set the header AND a meta refresh just in case
-    response.setHeader("Location", location);
+    response.headers().set("Location", location);
     sendReply(HttpResponseStatus.OK,
       new StringBuilder(
           "<html></head><meta http-equiv=\"refresh\" content=\"0; url="
@@ -744,7 +744,7 @@ final class HttpQuery {
   public void sendReply(final byte[] data) {
     sendBuffer(HttpResponseStatus.OK, ChannelBuffers.wrappedBuffer(data));
   }
-  
+
   /**
    * Sends data to the client with the given HTTP status code.
    * @param status HTTP status code to return
@@ -801,7 +801,7 @@ final class HttpQuery {
   public void sendReply(final ChannelBuffer buf) {
     sendBuffer(HttpResponseStatus.OK, buf);
   }
-  
+
   /**
    * Sends the ChannelBuffer with the given status
    * @param status HttpResponseStatus to reply with
@@ -812,7 +812,7 @@ final class HttpQuery {
       final ChannelBuffer buf) {
     sendBuffer(status, buf);
   }
-  
+
   /**
    * Send just the status code without a body, used for 204 or 304
    * @param status The response code to reply with
@@ -823,10 +823,8 @@ final class HttpQuery {
       done();
       return;
     }
-    
-    if (response.getStatus() == HttpResponseStatus.ACCEPTED) {
-      response.setStatus(status);
-    }
+
+    response.setStatus(status);
     final boolean keepalive = HttpHeaders.isKeepAlive(request);
     if (keepalive) {
       HttpHeaders.setContentLength(response, 0);
@@ -867,14 +865,14 @@ final class HttpQuery {
       plot.setParams(params);
       params = null;
       final String basepath =
-        tsdb.getConfig().getDirectoryName("tsd.http.cachedir") 
+        tsdb.getConfig().getDirectoryName("tsd.http.cachedir")
         + Integer.toHexString(msg.hashCode());
       GraphHandler.runGnuplot(this, basepath, plot);
       plot = null;
       sendFile(status, basepath + ".png", max_age);
     } catch (Exception e) {
       getQueryString().remove("png");  // Avoid recursion.
-      this.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR, 
+      this.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
           serializer.formatErrorV1(new RuntimeException(
               "Failed to generate a PNG with the"
               + " following message: " + msg, e)));
@@ -932,16 +930,16 @@ final class HttpQuery {
     final long length = file.length();
     {
       final String mimetype = guessMimeTypeFromUri(path);
-      response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
+      response.headers().set(HttpHeaders.Names.CONTENT_TYPE,
                          mimetype == null ? "text/plain" : mimetype);
       final long mtime = new File(path).lastModified();
       if (mtime > 0) {
-        response.setHeader(HttpHeaders.Names.AGE,
+        response.headers().set(HttpHeaders.Names.AGE,
                            (System.currentTimeMillis() - mtime) / 1000);
       } else {
         logWarn("Found a file with mtime=" + mtime + ": " + path);
       }
-      response.setHeader(HttpHeaders.Names.CACHE_CONTROL,
+      response.headers().set(HttpHeaders.Names.CACHE_CONTROL,
                          "max-age=" + max_age);
       HttpHeaders.setContentLength(response, length);
       chan.write(response);
@@ -981,16 +979,14 @@ final class HttpQuery {
       done();
       return;
     }
-    response.setHeader(HttpHeaders.Names.CONTENT_TYPE, 
-        (api_version < 1 ? guessMimeType(buf) : 
+    response.headers().set(HttpHeaders.Names.CONTENT_TYPE,
+        (api_version < 1 ? guessMimeType(buf) :
           serializer.responseContentType()));
-    
+
     // TODO(tsuna): Server, X-Backend, etc. headers.
-    // only reset the status if we have the default status, otherwise the user 
+    // only reset the status if we have the default status, otherwise the user
     // already set it
-    if (response.getStatus() == HttpResponseStatus.ACCEPTED) {
-      response.setStatus(status);
-    }
+    response.setStatus(status);
     response.setContent(buf);
     final boolean keepalive = HttpHeaders.isKeepAlive(request);
     if (keepalive) {
@@ -1088,53 +1084,53 @@ final class HttpQuery {
    * @throws IllegalStateException if a mapping collision occurs
    * @since 2.0
    */
-  public static void initializeSerializerMaps(final TSDB tsdb) 
+  public static void initializeSerializerMaps(final TSDB tsdb)
     throws SecurityException, NoSuchMethodException, ClassNotFoundException {
-    List<HttpSerializer> serializers = 
+    List<HttpSerializer> serializers =
       PluginLoader.loadPlugins(HttpSerializer.class);
-     
+
     // add the default serializers compiled with OpenTSDB
-    if (serializers == null) { 
+    if (serializers == null) {
       serializers = new ArrayList<HttpSerializer>(1);
     }
     final HttpSerializer default_serializer = new HttpJsonSerializer();
     serializers.add(default_serializer);
-     
-    serializer_map_content_type = 
+
+    serializer_map_content_type =
       new HashMap<String, Constructor<? extends HttpSerializer>>();
-    serializer_map_query_string = 
+    serializer_map_query_string =
       new HashMap<String, Constructor<? extends HttpSerializer>>();
     serializer_status = new ArrayList<HashMap<String, Object>>();
-     
+
     for (HttpSerializer serializer : serializers) {
-      final Constructor<? extends HttpSerializer> ctor = 
+      final Constructor<? extends HttpSerializer> ctor =
         serializer.getClass().getDeclaredConstructor(HttpQuery.class);
-       
+
       // check for collisions before adding serializers to the maps
-      Constructor<? extends HttpSerializer> map_ctor = 
+      Constructor<? extends HttpSerializer> map_ctor =
         serializer_map_content_type.get(serializer.requestContentType());
       if (map_ctor != null) {
-        final String err = "Serializer content type collision between \"" + 
-        serializer.getClass().getCanonicalName() + "\" and \"" + 
+        final String err = "Serializer content type collision between \"" +
+        serializer.getClass().getCanonicalName() + "\" and \"" +
         map_ctor.getClass().getCanonicalName() + "\"";
         LOG.error(err);
         throw new IllegalStateException(err);
-      } 
+      }
       serializer_map_content_type.put(serializer.requestContentType(), ctor);
-      
+
       map_ctor = serializer_map_query_string.get(serializer.shortName());
       if (map_ctor != null) {
-        final String err = "Serializer name collision between \"" + 
-        serializer.getClass().getCanonicalName() + "\" and \"" + 
+        final String err = "Serializer name collision between \"" +
+        serializer.getClass().getCanonicalName() + "\" and \"" +
         map_ctor.getClass().getCanonicalName() + "\"";
         LOG.error(err);
         throw new IllegalStateException(err);
       }
       serializer_map_query_string.put(serializer.shortName(), ctor);
-      
+
       // initialize the plugins
       serializer.initialize(tsdb);
-      
+
       // write the status for any serializers OTHER than the default
       if (serializer.shortName().equals("json")) {
         continue;
@@ -1145,7 +1141,7 @@ final class HttpQuery {
       status.put("serializer", serializer.shortName());
       status.put("request_content_type", serializer.requestContentType());
       status.put("response_content_type", serializer.responseContentType());
-      
+
       HashSet<String> parsers = new HashSet<String>();
       HashSet<String> formats = new HashSet<String>();
       Method[] methods = serializer.getClass().getDeclaredMethods();
@@ -1162,19 +1158,19 @@ final class HttpQuery {
       status.put("formatters", formats);
       serializer_status.add(status);
     }
-    
+
     // add the base class to the status map so users can see everything that
     // is implemented
     HashMap<String, Object> status = new HashMap<String, Object>();
     // todo - set the OpenTSDB version
     //status.put("version", BuildData.version);
-    final Class<?> base_serializer = 
+    final Class<?> base_serializer =
       Class.forName("net.opentsdb.tsd.HttpSerializer");
     status.put("class", default_serializer.getClass().getCanonicalName());
     status.put("serializer", default_serializer.shortName());
     status.put("request_content_type", default_serializer.requestContentType());
     status.put("response_content_type", default_serializer.responseContentType());
-    
+
     ArrayList<String> parsers = new ArrayList<String>();
     ArrayList<String> formats = new ArrayList<String>();
     Method[] methods = base_serializer.getDeclaredMethods();
@@ -1192,12 +1188,12 @@ final class HttpQuery {
     status.put("formatters", formats);
     serializer_status.add(status);
   }
-  
-  /** 
+
+  /**
    * Returns the serializer status map.
    * <b>Note:</b> Do not modify this map, it is for read only purposes only
-   * @return the serializer status list and maps 
-   * @since 2.0 
+   * @return the serializer status list and maps
+   * @since 2.0
    */
   public static ArrayList<HashMap<String, Object>> getSerializerStatus() {
     return serializer_status;

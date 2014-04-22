@@ -25,9 +25,6 @@ import net.opentsdb.search.SearchQuery.SearchType;
  */
 final class SearchRpc implements HttpRpc {
 
-  /** The query we're working with */
-  private HttpQuery query;
-  
   /**
    * Handles the /api/search/&lt;type&gt; endpoint
    * @param tsdb The TSDB to which we belong
@@ -36,7 +33,6 @@ final class SearchRpc implements HttpRpc {
   @Override
   public void execute(TSDB tsdb, HttpQuery query) {
   
-    this.query = query;
     final HttpMethod method = query.getAPIMethod();
     if (method != HttpMethod.GET && method != HttpMethod.POST) {
       throw new BadRequestException("Unsupported method: " + method.getName());
@@ -57,7 +53,7 @@ final class SearchRpc implements HttpRpc {
     if (query.hasContent()) {
       search_query = query.serializer().parseSearchQueryV1();
     } else {
-      search_query = parseQueryString();
+      search_query = parseQueryString(query);
     }
     
     search_query.setType(type);
@@ -75,9 +71,10 @@ final class SearchRpc implements HttpRpc {
 
   /**
    * Parses required search values from the query string
+   * @param query The HTTP query to work with
    * @return A parsed SearchQuery object
    */
-  private final SearchQuery parseQueryString() {
+  private final SearchQuery parseQueryString(HttpQuery query) {
     final SearchQuery search_query = new SearchQuery();
     
     search_query.setQuery(query.getRequiredQueryStringParam("query"));

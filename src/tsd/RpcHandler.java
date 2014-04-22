@@ -212,7 +212,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         final String route = query.getQueryBaseRoute();
         query.setSerializer();
         
-        final String domain = req.getHeader("Origin");
+        final String domain = req.headers().get("Origin");
         
         // catch CORS requests and add the header or refuse them if the domain
         // list has been configured
@@ -226,13 +226,13 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
           
           if (cors_domains.contains("*") || 
               cors_domains.contains(domain.toUpperCase())) {
-            
+
             // when a domain has matched successfully, we need to add the header
-            query.response().addHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, 
+            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
                 domain);
-            query.response().addHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS, 
+            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
                 "GET, POST, PUT, DELETE");
-            
+
             // if the method requested was for OPTIONS then we'll return an OK
             // here and no further processing is needed.
             if (query.method() == HttpMethod.OPTIONS) {

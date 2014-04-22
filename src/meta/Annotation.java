@@ -61,7 +61,7 @@ import com.stumbleupon.async.Deferred;
  * The description field should store a very brief line of information
  * about the event. GUIs can display the description in their "main" view
  * where multiple annotations may appear. Users of the GUI could then click
- * or hover over the description for more detail including the {@link notes}
+ * or hover over the description for more detail including the {@link #notes}
  * field.
  * <p>
  * Custom data can be stored in the custom hash map for user

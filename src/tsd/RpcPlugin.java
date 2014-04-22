@@ -29,7 +29,7 @@ import net.opentsdb.stats.StatsCollector;
  * parse the data and call {@link TSDB#addPoint}.
  * <p>
  * <b>Note:</b> Implementations must have a parameterless constructor. The 
- * {@link #initialize()} method will be called immediately after the plugin is
+ * {@link #initialize(TSDB)} method will be called immediately after the plugin is
  * instantiated and before any other methods are called.
  * @since 2.0
  */

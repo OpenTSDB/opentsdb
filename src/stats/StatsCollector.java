@@ -194,8 +194,6 @@ public abstract class StatsCollector {
    * is used instead.
    * @param canonical Whether or not we should try to get the FQDN of the host.
    * If set to true, the tag changes to "fqdn" instead of "host"
-   * @param canonical Whether or not we should try to get the FQDN of the host.
-   * If set to true, the tag changes to "fqdn" instead of "host" 
    */
   public final void addHostTag(final boolean canonical) {
     try {

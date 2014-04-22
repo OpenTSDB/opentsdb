@@ -25,9 +25,10 @@ plugin_test_jar := plugin_test.jar
 builddata_SRC := src/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
-dist_noinst_SCRIPTS = src/create_table.sh
-dist_pkgdata_SCRIPTS := src/mygnuplot.sh src/mygnuplot.bat src/opentsdb.conf
-dist_noinst_DATA = pom.xml.in
+dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
+  src/mygnuplot.bat src/opentsdb.conf tools/opentsdb_restart.py src/logback.xml
+dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
+  build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
@@ -127,9 +128,6 @@ tsdb_DEPS = \
 	$(SUASYNC)	\
 	$(ZOOKEEPER)
 
-# Install all the .jar files in pkgdatadir.
-pkgdata_DATA = $(tsdb_DEPS) $(jar)
-
 test_SRC := \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
@@ -219,21 +217,22 @@ httpui_SRC := \
 
 httpui_DEPS = src/tsd/QueryUi.gwt.xml
 
-dist_pkgdata_DATA = src/logback.xml
+#dist_pkgdata_DATA = src/logback.xml
 dist_static_DATA = src/tsd/static/favicon.ico
 
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
-        $(test_plugin_SRC) $(test_plugin_MF) $(test_plugin_SVCS:%=$(srcdir)/test/%) \
+        $(test_plugin_SRC) $(test_plugin_MF) $(test_plugin_SVCS:%=test/%) \
         $(THIRD_PARTY) $(THIRD_PARTY:=.md5) \
         $(httpui_SRC) $(httpui_DEPS) \
 	tools/check_tsd	\
 	tools/clean_cache.sh	\
 	tools/tsddrain.py	\
+	tools/opentsdb_restart.py	\
 	opentsdb.spec	\
         bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
 
 GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
-GWTC_ARGS = -ea  # Additional arguments like -style PRETTY or -logLevel DEBUG
+GWTC_ARGS = -ea -strict  # Additional arguments like -style PRETTY or -logLevel DEBUG
 
 package_dir := $(subst .,/,$(package))
 UNITTESTS := $(test_SRC:test/%.java=$(package_dir)/%.class)
@@ -268,8 +267,8 @@ printdeps:
 # This is kind of a hack, but I couldn't find a better way to adjust the paths
 # in the script before it gets installed...
 install-exec-hook:
-	script=tsdb; pkgdatadir='$(pkgdatadir)'; abs_srcdir=''; abs_builddir=''; \
-          $(edit_tsdb_script)
+	script=tsdb; pkgdatadir='$(pkgdatadir)'; configdir='$(pkgdatadir)/etc/opentsdb'; \
+          abs_srcdir=''; abs_builddir=''; $(edit_tsdb_script)
 	cat tsdb.tmp >"$(DESTDIR)$(bindir)/tsdb"
 	rm -f tsdb.tmp
 
@@ -313,14 +312,15 @@ get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'
                 $(JAVA_COMPILE) -cp $$cp $$src
 	@touch "$@"
 
-GWT_CLASSPATH = `jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(srcdir)/src
+VALIDATION_API_CLASSPATH = `jar=$(VALIDATION_API); $(find_jar)`:`jar=$(VALIDATION_API_SOURCES); $(find_jar)`
+GWT_CLASSPATH = $(VALIDATION_API_CLASSPATH):`jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:$(srcdir)/src
 # The GWT compiler is way too slow, that's not very Googley.  So we save the
 # MD5 of the files we compile in the stamp file and everytime `make' things it
 # needs to recompile the GWT code, we verify whether the code really changed
 # or whether it's just a file that was touched (which happens frequently when
 # using Git while rebasing and whatnot).
 gwtc: .gwtc-stamp
-.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(GWT_DEV) $(GWT_USER)
+.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(VALIDATION_API) $(VALIDATION_API_SOURCES) $(GWT_DEV) $(GWT_USER)
 	@$(mkdir_p) gwt
 	{ cd $(srcdir) && cat $(httpui_SRC); } | $(MD5) >"$@-t"
 	cmp -s "$@" "$@-t" && exit 0; \
@@ -359,7 +359,8 @@ gwttsd: staticroot
 # Ideally I'd like Automake to take care of this, but right now I don't see
 # how to tell it to install a bunch of files recursively for which I don't
 # know ahead of time what the file names are.
-install-data-local: staticroot
+install-data-local: staticroot install-data-lib install-data-tools \
+    install-data-bin install-data-etc
 	@$(NORMAL_INSTALL)
 	test -z "$(staticdir)" || $(mkdir_p) "$(DESTDIR)$(staticdir)"
 	@set -e; pwd; ls -lFh; cd "$(DEV_TSD_STATICROOT)"; \
@@ -373,7 +374,92 @@ install-data-local: staticroot
 	  $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(staticdir)/$$p"; \
 	done
 
-uninstall-local:
+install-data-lib: $(tsdb_DEPS) $(jar)
+	@$(NORMAL_INSTALL)
+	@list='$(tsdb_DEPS) $(jar)'; test -n "$(pkgdatadir)" || list=; \
+	destdatalibdir="$(DESTDIR)$(pkgdatadir)/lib" ; \
+	if test -n "$$list"; then \
+	  echo " $(mkdir_p) $$destdatalibdir"; \
+	  $(mkdir_p) "$$destdatalibdir" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$$destdatalibdir'"; \
+	  $(INSTALL_DATA) $$files "$$destdatalibdir" || exit $$?; \
+	done
+
+uninstall-data-lib:
+	@$(NORMAL_UNINSTALL)
+	destdatalibdir="$(DESTDIR)$(pkgdatadir)/lib" ; \
+	echo " rm -rf $$destdatalibdir" ; \
+	rm -rf "$$destdatalibdir"
+
+install-data-tools: $(tsdb_DEPS) $(jar)
+	@$(NORMAL_INSTALL)
+	destdatatoolsdir="$(DESTDIR)$(pkgdatadir)/tools" ; \
+	echo " $(mkdir_p) $$destdatatoolsdir"; \
+	$(mkdir_p) "$$destdatatoolsdir" || exit 1; \
+	tools="$$tools $(top_srcdir)/tools/*" ; \
+	tools="$$tools $(top_srcdir)/src/create_table.sh" ; \
+	tools="$$tools $(top_srcdir)/src/upgrade_1to2.sh" ; \
+	echo " $(INSTALL_SCRIPT)" $$tools "$$destdatatoolsdir" ; \
+	$(INSTALL_SCRIPT) $$tools "$$destdatatoolsdir" || exit 1;
+
+uninstall-data-tools:
+	@$(NORMAL_UNINSTALL)
+	destdatatoolsdir="$(DESTDIR)$(pkgdatadir)/tools" ; \
+	echo " rm -rf $$destdatatoolsdir" ; \
+	rm -rf "$$destdatatoolsdir"
+
+install-data-bin: tsdb
+	@$(NORMAL_INSTALL)
+	destdatabindir="$(DESTDIR)$(pkgdatadir)/bin" ; \
+	echo " $(mkdir_p) $$destdatabindir"; \
+	$(mkdir_p) "$$destdatabindir" || exit 1; \
+	bins="$$bins $(top_srcdir)/src/mygnuplot.sh" ; \
+	bins="$$bins $(top_srcdir)/src/mygnuplot.bat" ; \
+	bins="$$bins $(DESTDIR)$(bindir)/tsdb" ; \
+	echo " $(INSTALL_SCRIPT)" $$bins "$$destdatabindir" ; \
+	$(INSTALL_SCRIPT) $$bins "$$destdatabindir" || exit 1;
+
+uninstall-data-bin:
+	@$(NORMAL_UNINSTALL)
+	destdatabindir="$(DESTDIR)$(pkgdatadir)/bin" ; \
+	echo " rm -rf $$destdatabindir" ; \
+	rm -rf "$$destdatabindir"
+
+# NOTE: We keep a copy of /etc files at the package data directory.
+# Users should create symlinks to etc/init.d/opentsdb and
+# etc/opentsdb/opentsdb.conf if they want to use the stock script and
+# configuration.
+install-data-etc:
+	@$(NORMAL_INSTALL)
+	destdataetcdir="$(DESTDIR)$(pkgdatadir)/etc" ; \
+	destdataconfdir="$$destdataetcdir/opentsdb" ; \
+	destdatainitdir="$$destdataetcdir/init.d" ; \
+	echo " $(mkdir_p) $$destdataconfdir"; \
+	$(mkdir_p) "$$destdataconfdir" || exit 1; \
+	echo " $(mkdir_p) $$destdatainitdir"; \
+	$(mkdir_p) "$$destdatainitdir" || exit 1; \
+	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/opentsdb.conf" ; \
+	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/logback.xml" ; \
+	echo " $(INSTALL_SCRIPT)" $$conf_files "$$destdataconfdir" ; \
+	$(INSTALL_DATA) $$conf_files "$$destdataconfdir" || exit 1; \
+	init_file="$(top_srcdir)/build-aux/rpm/init.d/opentsdb" ; \
+	echo " $(INSTALL_SCRIPT)" $$init_file "$$destdatainitdir" ; \
+	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1;
+
+uninstall-data-etc:
+	@$(NORMAL_UNINSTALL)
+	destdataetcdir="$(DESTDIR)$(pkgdatadir)/etc" ; \
+	echo " rm -rf $$destdataetcdir" ; \
+	rm -rf "$$destdataetcdir"
+
+uninstall-local: uninstall-data-lib uninstall-data-tools uninstall-data-bin \
+	uninstall-data-etc
 	@$(NORMAL_UNINSTALL)
 	rm -rf "$(DESTDIR)$(staticdir)"
 
@@ -454,7 +540,7 @@ JAVADOC_DIR = api
 doc: $(JAVADOC_DIR)/index.html
 
 JDK_JAVADOC = http://download.oracle.com/javase/6/docs/api
-NETTY_JAVADOC = http://docs.jboss.org/netty/$(NETTY_MAJOR_VERSION)/api
+NETTY_JAVADOC = http://netty.io/$(NETTY_MAJOR_VERSION)/api
 SUASYNC_JAVADOC = http://tsunanet.net/~tsuna/async/$(SUASYNC_VERSION)
 $(JAVADOC_DIR)/index.html: $(tsdb_SRC)
 	$(JAVADOC) -d $(JAVADOC_DIR) -classpath $(get_dep_classpath) \
@@ -486,6 +572,7 @@ distclean-local:
 	rm -rf $(srcdir)/target
 
 pom.xml: pom.xml.in Makefile
+	(cd $(top_srcdir) ; ./build-aux/create-src-dir-overlay.sh)
 	{ \
 	  echo '<!-- Generated by Makefile on '`date`' -->'; \
 	  sed <$< \
@@ -513,20 +600,23 @@ pom.xml: pom.xml.in Makefile
 	} >$@-t
 	mv $@-t ../$@
 
+TIMESTAMP := $(shell date +"%Y%m%d%H%M%S")
 RPM_REVISION := 1
-RPM := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION).noarch.rpm
+RPM_TARGET := noarch
+RPM := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION).$(RPM_TARGET).rpm
+RPM_SNAPSHOT := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION)-$(TIMESTAMP)-"`whoami`".$(RPM_TARGET).rpm
 SOURCE_TARBALL := opentsdb-$(PACKAGE_VERSION).tar.gz
 rpm: $(RPM)
 
 $(SOURCE_TARBALL): dist
 $(RPM): $(SOURCE_TARBALL)
 $(RPM): opentsdb.spec
-	rpmbuild --target=noarch --buildroot=`pwd`/rpmbuildroot -bb $<
-	test -f $@ || for rpm in $(RPM_TARGET)/$@ \
+	rpmbuild --target=$(RPM_TARGET) --buildroot=`pwd`/rpmbuildroot -bb $<
+	test -f $@ || for rpm in noarch/$@ \
 		`awk '$$1=="Name:"{print $$2}' $<`.`awk '$$1=="BuildArch:"{print $$2}' $<`.rpm; do \
-	  test -f "$$rpm" && mv "$$rpm" $@ && break; \
+	  test -f "$$rpm" && mv "$$rpm" $(RPM_SNAPSHOT) && break; \
 	done
-	if test -d noarch; then rmdir noarch; fi
+	if test -d $(RPM_TARGET); then rmdir $(RPM_TARGET); fi
 
 debian: dist staticroot
 	$(mkdir_p) $(distdir)/debian

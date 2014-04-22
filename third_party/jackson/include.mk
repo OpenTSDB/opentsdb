@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-JACKSON_VERSION := 2.1.4
+JACKSON_VERSION := 2.1.5
 
 JACKSON_ANNOTATIONS_VERSION = $(JACKSON_VERSION)
 JACKSON_ANNOTATIONS := third_party/jackson/jackson-annotations-$(JACKSON_ANNOTATIONS_VERSION).jar

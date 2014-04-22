@@ -328,7 +328,7 @@ public final class UIDMeta {
   }
   
   /**
-   * Convenience overload of {@link #getUIDMeta(TSDB, UniqueIdType, byte[])}
+   * Convenience overload of {@code getUIDMeta(TSDB, UniqueIdType, byte[])}
    * @param tsdb The TSDB to use for storage access
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch

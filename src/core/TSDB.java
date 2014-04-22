@@ -858,7 +858,7 @@ public final class TSDB {
    * @return A byte array with the UID if the assignment was successful
    * @throws IllegalArgumentException if the name is invalid or it already 
    * exists
-   * @2.0
+   * @since 2.0
    */
   public byte[] assignUid(final String type, final String name) {
     Tags.validateString(type, name);

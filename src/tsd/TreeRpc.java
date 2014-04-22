@@ -45,15 +45,6 @@ final class TreeRpc implements HttpRpc {
   private static TypeReference<HashMap<String, String>> TR_HASH_MAP = 
     new TypeReference<HashMap<String, String>>() {};
     
-  /** The TSDB to use for storage access */
-  private TSDB tsdb;
-  
-  /** The query to work with */
-  private HttpQuery query;
-  
-  /** Query method via the API */
-  private HttpMethod method;
-  
   /**
    * Routes the request to the proper handler
    * @param tsdb The TSDB to which we belong
@@ -61,29 +52,25 @@ final class TreeRpc implements HttpRpc {
    */
   @Override
   public void execute(TSDB tsdb, HttpQuery query) throws IOException {
-    this.tsdb = tsdb;
-    this.query = query;
-    method = query.getAPIMethod();
-    
     // the uri will be /api/vX/tree/? or /api/tree/?
     final String[] uri = query.explodeAPIPath();
     final String endpoint = uri.length > 1 ? uri[1] : ""; 
     
     try {
       if (endpoint.isEmpty()) {
-        handleTree();
+        handleTree(tsdb, query);
       } else if (endpoint.toLowerCase().equals("branch")) {
-        handleBranch();
+        handleBranch(tsdb, query);
       } else if (endpoint.toLowerCase().equals("rule")) {
-        handleRule();
+        handleRule(tsdb, query);
       } else if (endpoint.toLowerCase().equals("rules")) {
-        handleRules();
+        handleRules(tsdb, query);
       } else if (endpoint.toLowerCase().equals("test")) {
-        handleTest();
+        handleTest(tsdb, query);
       } else if (endpoint.toLowerCase().equals("collisions")) {
-        handleCollisionNotMatched(true);
+        handleCollisionNotMatched(tsdb, query, true);
       } else if (endpoint.toLowerCase().equals("notmatched")) {
-        handleCollisionNotMatched(false);
+        handleCollisionNotMatched(tsdb, query, false);
       } else {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "This endpoint is not supported");
@@ -98,19 +85,21 @@ final class TreeRpc implements HttpRpc {
   /**
    * Handles the plain /tree endpoint CRUD. If a POST or PUT is requested and
    * no tree ID is provided, we'll assume the user wanted to create a new tree.
+   * @param tsdb The TSDB to which we belong
+   * @param query The HTTP query to work with
    * @throws BadRequestException if the request was invalid.
    */
-  private void handleTree() {
+  private void handleTree(TSDB tsdb, HttpQuery query) {
     final Tree tree;
     if (query.hasContent()) {
       tree = query.serializer().parseTreeV1();
     } else {
-      tree = parseTree();
+      tree = parseTree(query);
     }
     
     try {
       // if get, then we're just returning one or more trees
-      if (method == HttpMethod.GET) {
+      if (query.getAPIMethod() == HttpMethod.GET) {
   
         if (tree.getTreeId() == 0) {
           query.sendReply(query.serializer().formatTreesV1(
@@ -125,7 +114,7 @@ final class TreeRpc implements HttpRpc {
           query.sendReply(query.serializer().formatTreeV1(single_tree));
         }
   
-      } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+      } else if (query.getAPIMethod() == HttpMethod.POST || query.getAPIMethod() == HttpMethod.PUT) {
         // For post or put, we're either editing a tree or creating a new one. 
         // If the tree ID is missing, we need to create a new one, otherwise we 
         // edit an existing tree.
@@ -137,7 +126,7 @@ final class TreeRpc implements HttpRpc {
             throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
                 "Unable to locate tree: " + tree.getTreeId());
           } else {
-            if (tree.storeTree(tsdb, (method == HttpMethod.PUT))
+            if (tree.storeTree(tsdb, (query.getAPIMethod() == HttpMethod.PUT))
                 .joinUninterruptibly() != null) {
               final Tree stored_tree = Tree.fetchTree(tsdb, tree.getTreeId())
                 .joinUninterruptibly();
@@ -165,7 +154,7 @@ final class TreeRpc implements HttpRpc {
         }
         
       // handle DELETE requests
-      } else if (method == HttpMethod.DELETE) {
+      } else if (query.getAPIMethod() == HttpMethod.DELETE) {
         boolean delete_definition = false;
         
         if (query.hasContent()) {
@@ -214,16 +203,18 @@ final class TreeRpc implements HttpRpc {
   /**
    * Attempts to retrieve a single branch and return it to the user. If the 
    * requested branch doesn't exist, it returns a 404.
+   * @param tsdb The TSDB to which we belong
+   * @param query The HTTP query to work with
    * @throws BadRequestException if the request was invalid.
    */
-  private void handleBranch() {
-    if (method != HttpMethod.GET) {
+  private void handleBranch(TSDB tsdb, HttpQuery query) {
+    if (query.getAPIMethod() != HttpMethod.GET) {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
         "Unsupported HTTP request method");
     }
     
     try {
-      final int tree_id = parseTreeId(false);
+      final int tree_id = parseTreeId(query, false);
       final String branch_hex =
           query.getQueryStringParam("branch");
       
@@ -263,14 +254,16 @@ final class TreeRpc implements HttpRpc {
   /**
    * Handles the CRUD calls for a single rule, enabling adding, editing or 
    * deleting the rule
+   * @param tsdb The TSDB to which we belong
+   * @param query The HTTP query to work with
    * @throws BadRequestException if the request was invalid.
    */
-  private void handleRule() {
+  private void handleRule(TSDB tsdb, HttpQuery query) {
     final TreeRule rule;
     if (query.hasContent()) {
       rule = query.serializer().parseTreeRuleV1();
     } else {
-      rule = parseRule();
+      rule = parseRule(query);
     }
     
     try {
@@ -286,7 +279,7 @@ final class TreeRpc implements HttpRpc {
       }
       
       // if get, then we're just returning a rule from a tree
-      if (method == HttpMethod.GET) {
+      if (query.getAPIMethod() == HttpMethod.GET) {
         
         final TreeRule tree_rule = tree.getRule(rule.getLevel(), 
             rule.getOrder());
@@ -296,9 +289,9 @@ final class TreeRpc implements HttpRpc {
         }
         query.sendReply(query.serializer().formatTreeRuleV1(tree_rule));
         
-      } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+      } else if (query.getAPIMethod() == HttpMethod.POST || query.getAPIMethod() == HttpMethod.PUT) {
   
-        if (rule.syncToStorage(tsdb, (method == HttpMethod.PUT))
+        if (rule.syncToStorage(tsdb, (query.getAPIMethod() == HttpMethod.PUT))
             .joinUninterruptibly()) {
           final TreeRule stored_rule = TreeRule.fetchRule(tsdb, 
               rule.getTreeId(), rule.getLevel(), rule.getOrder())
@@ -309,7 +302,7 @@ final class TreeRpc implements HttpRpc {
               " to storage");
         }
   
-      } else if (method == HttpMethod.DELETE) {
+      } else if (query.getAPIMethod() == HttpMethod.DELETE) {
   
         if (tree.getRule(rule.getLevel(), rule.getOrder()) == null) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
@@ -339,9 +332,11 @@ final class TreeRpc implements HttpRpc {
    * Handles requests to replace or delete all of the rules in the given tree.
    * It's an efficiency helper for cases where folks don't want to make a single
    * call per rule when updating many rules at once.
+   * @param tsdb The TSDB to which we belong
+   * @param query The HTTP query to work with
    * @throws BadRequestException if the request was invalid.
    */
-  private void handleRules() {
+  private void handleRules(TSDB tsdb, HttpQuery query) {
     int tree_id = 0;
     List<TreeRule> rules = null;
     if (query.hasContent()) {
@@ -359,7 +354,7 @@ final class TreeRpc implements HttpRpc {
         }
       }
     } else {
-      tree_id = parseTreeId(false);
+      tree_id = parseTreeId(query, false);
     }
     
     // make sure the tree exists
@@ -369,7 +364,7 @@ final class TreeRpc implements HttpRpc {
             "Unable to locate tree: " + tree_id);
       }
     
-      if (method == HttpMethod.POST || method == HttpMethod.PUT) {
+      if (query.getAPIMethod() == HttpMethod.POST || query.getAPIMethod() == HttpMethod.PUT) {
         if (rules == null || rules.isEmpty()) {
           if (rules == null || rules.isEmpty()) {
             throw new BadRequestException("Missing tree rules");
@@ -377,16 +372,16 @@ final class TreeRpc implements HttpRpc {
         }
         
         // purge the existing tree rules if we're told to PUT
-        if (method == HttpMethod.PUT) {
+        if (query.getAPIMethod() == HttpMethod.PUT) {
           TreeRule.deleteAllRules(tsdb, tree_id).joinUninterruptibly();
         }
         for (TreeRule rule : rules) {
-          rule.syncToStorage(tsdb, method == HttpMethod.PUT)
+          rule.syncToStorage(tsdb, query.getAPIMethod() == HttpMethod.PUT)
             .joinUninterruptibly();
         }
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
   
-      } else if (method == HttpMethod.DELETE) {
+      } else if (query.getAPIMethod() == HttpMethod.DELETE) {
   
         TreeRule.deleteAllRules(tsdb, tree_id).joinUninterruptibly();
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
@@ -409,14 +404,16 @@ final class TreeRpc implements HttpRpc {
    * Runs the specified TSMeta object through a tree's rule set to determine
    * what the results would be or debug a meta that wasn't added to a tree
    * successfully
+   * @param tsdb The TSDB to which we belong
+   * @param query The HTTP query to work with
    * @throws BadRequestException if the request was invalid.
    */
-  private void handleTest() {
+  private void handleTest(TSDB tsdb, HttpQuery query) {
     final Map<String, Object> map;
     if (query.hasContent()) {
       map = query.serializer().parseTreeTSUIDsListV1();
     } else {
-      map = parseTSUIDsList();
+      map = parseTSUIDsList(query);
     }
     
     final Integer tree_id = (Integer) map.get("treeId");
@@ -442,8 +439,8 @@ final class TreeRpc implements HttpRpc {
         throw new BadRequestException("Missing or empty TSUID list");
       }
       
-      if (method == HttpMethod.GET || method == HttpMethod.POST || 
-          method == HttpMethod.PUT) {
+      if (query.getAPIMethod() == HttpMethod.GET || query.getAPIMethod() == HttpMethod.POST ||
+          query.getAPIMethod() == HttpMethod.PUT) {
         
         final HashMap<String, HashMap<String, Object>> results = 
           new HashMap<String, HashMap<String, Object>>(tsuids.size());
@@ -512,14 +509,16 @@ final class TreeRpc implements HttpRpc {
    * Handles requests to fetch collisions or not-matched entries for the given
    * tree. To cut down on code, this method uses a flag to determine if we want
    * collisions or not-matched entries, since they both have the same data types.
+   * @param tsdb The TSDB to which we belong
+   * @param query The HTTP query to work with
    * @param for_collisions
    */
-  private void handleCollisionNotMatched(final boolean for_collisions) {
+  private void handleCollisionNotMatched(TSDB tsdb, HttpQuery query, final boolean for_collisions) {
     final Map<String, Object> map;
     if (query.hasContent()) {
       map = query.serializer().parseTreeTSUIDsListV1();
     } else {
-      map = parseTSUIDsList();
+      map = parseTSUIDsList(query);
     }
     
     final Integer tree_id = (Integer) map.get("treeId");
@@ -535,8 +534,8 @@ final class TreeRpc implements HttpRpc {
             "Unable to locate tree: " + tree_id);
       }
   
-      if (method == HttpMethod.GET || method == HttpMethod.POST || 
-          method == HttpMethod.PUT) {
+      if (query.getAPIMethod() == HttpMethod.GET || query.getAPIMethod() == HttpMethod.POST ||
+          query.getAPIMethod() == HttpMethod.PUT) {
   
         // ugly, but keeps from having to create a dedicated class just to 
         // convert one field.
@@ -568,11 +567,12 @@ final class TreeRpc implements HttpRpc {
   /**
    * Parses query string parameters into a blank tree object. Used for updating
    * tree meta data.
+   * @param query The HTTP query to work with
    * @return A tree object filled in with changes
    * @throws BadRequestException if some of the data was invalid
    */
-  private Tree parseTree() {
-    final Tree tree = new Tree(parseTreeId(false));
+  private Tree parseTree(HttpQuery query) {
+    final Tree tree = new Tree(parseTreeId(query, false));
     if (query.hasQueryStringParam("name")) {
       tree.setName(query.getQueryStringParam("name"));
     }
@@ -612,11 +612,12 @@ final class TreeRpc implements HttpRpc {
   /**
    * Parses query string parameters into a blank tree rule object. Used for 
    * updating individual rules
+   * @param query The HTTP query to work with
    * @return A rule object filled in with changes
    * @throws BadRequestException if some of the data was invalid
    */
-  private TreeRule parseRule() {
-    final TreeRule rule = new TreeRule(parseTreeId(true));
+  private TreeRule parseRule(HttpQuery query) {
+    final TreeRule rule = new TreeRule(parseTreeId(query, true));
     
     if (query.hasQueryStringParam("type")) {
       try {
@@ -684,10 +685,11 @@ final class TreeRpc implements HttpRpc {
   /**
    * Parses the tree ID from a query
    * Used often so it's been broken into it's own method
+   * @param query The HTTP query to work with
    * @param required Whether or not the ID is required for the given call
    * @return The tree ID or 0 if not provided
    */
-  private int parseTreeId(final boolean required) {
+  private int parseTreeId(HttpQuery query, final boolean required) {
     try{
       if (required) {
         return Integer.parseInt(query.getRequiredQueryStringParam("treeid"));
@@ -706,13 +708,14 @@ final class TreeRpc implements HttpRpc {
   /**
    * Used to parse a list of TSUIDs from the query string for collision or not
    * matched requests. TSUIDs must be comma separated.
+   * @param query The HTTP query to work with
    * @return A map with a list of tsuids. If found, the tsuids array will be 
    * under the "tsuid" key. The map is necessary for compatability with POJO 
    * parsing. 
    */
-  private Map<String, Object> parseTSUIDsList() {
+  private Map<String, Object> parseTSUIDsList(HttpQuery query) {
     final HashMap<String, Object> map = new HashMap<String, Object>();
-    map.put("treeId", parseTreeId(true));
+    map.put("treeId", parseTreeId(query, true));
     
     final String tsquery = query.getQueryStringParam("tsuids");
     if (tsquery != null) {

@@ -27,8 +27,8 @@ import com.stumbleupon.async.Deferred;
  * storage system for searching isn't efficient. 
  * <p>
  * <b>Note:</b> Implementations must have a parameterless constructor. The 
- * {@link #initialize()} method will be called immediately after the plugin is
- * instantiated and before any other methods are called.
+ * {@link #initialize(TSDB)} method will be called immediately after the plugin 
+ * is instantiated and before any other methods are called.
  * <p>
  * <b>Note:</b> Since canonical information is stored in the underlying OpenTSDB 
  * database, the same document may be re-indexed more than once. This may happen

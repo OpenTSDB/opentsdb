@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-GUAVA_VERSION := 13.0.1
+GUAVA_VERSION := 16.0.1
 GUAVA := third_party/guava/guava-$(GUAVA_VERSION).jar
 GUAVA_BASE_URL := http://search.maven.org/remotecontent?filepath=com/google/guava/guava/$(GUAVA_VERSION)
 
