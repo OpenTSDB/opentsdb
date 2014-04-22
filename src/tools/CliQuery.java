@@ -42,7 +42,7 @@ final class CliQuery {
     System.err.println("Usage: query"
         + " [Gnuplot opts] START-DATE [END-DATE] <query> [queries...]\n"
         + "A query has the form:\n"
-        + "  FUNC [rate] [counter,max,reset] [downsample FUNC N] SERIES [TAGS]\n"
+        + "  FUNC [rate] [counter,max,reset] [downsample N FUNC] SERIES [TAGS]\n"
         + "For example:\n"
         + " 2010/03/11-20:57 sum my.awsum.metric host=blah"
         + " sum some.other.metric host=blah state=foo\n"
