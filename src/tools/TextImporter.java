@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -62,7 +62,7 @@ final class TextImporter {
 
     // get a config object
     Config config = CliOptions.getConfig(argp);
-    
+
     final TSDB tsdb = new TSDB(config);
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
@@ -126,19 +126,29 @@ final class TextImporter {
         }
       };
       final Errback errback = new Errback();
+      LOG.info("reading from file:" + path);
       while ((line = in.readLine()) != null) {
         final String[] words = Tags.splitString(line, ' ');
         final String metric = words[0];
         if (metric.length() <= 0) {
-          throw new RuntimeException("invalid metric: " + metric);
+          LOG.error("invalid metric: " + metric);
+          LOG.error("error while processing file "
+                    + path + " line=" + line + "... Continuing");
+          continue;
         }
         final long timestamp = Tags.parseLong(words[1]);
         if (timestamp <= 0) {
-          throw new RuntimeException("invalid timestamp: " + timestamp);
+          LOG.error("invalid timestamp: " + timestamp);
+          LOG.error("error while processing file "
+                    + path + " line=" + line + "... Continuing");
+          continue;
         }
         final String value = words[2];
         if (value.length() <= 0) {
-          throw new RuntimeException("invalid value: " + value);
+          LOG.error("invalid value: " + value);
+          LOG.error("error while processing file "
+                    + path + " line=" + line + "... Continuing");
+          continue;
         }
         final HashMap<String, String> tags = new HashMap<String, String>();
         for (int i = 3; i < words.length; i++) {
