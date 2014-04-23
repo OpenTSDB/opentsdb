@@ -136,7 +136,7 @@ public final class TSQuery {
       query.setStartTime(start_time);
       query.setEndTime(end_time);
       if (sub.downsampler() != null) {
-        query.downsample(sub.downsampleInterval(), sub.downsampler());
+        query.downsample((long)sub.downsampleInterval(), sub.downsampler());
       } else if (!ms_resolution) {
         // we *may* have multiple millisecond data points in the set so we have
         // to downsample. use the sub query's aggregator
