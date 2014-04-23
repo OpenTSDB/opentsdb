@@ -203,7 +203,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    */
   public static void collectStats(final StatsCollector collector) {
     collector.record("rpc.received", requests, "type=put");
-    collector.record("datapoints.received", datapoints_recieved, "type=all")
+    collector.record("datapoints.received", datapoints_recieved, "type=all");
     collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
     collector.record("rpc.errors", invalid_values, "type=invalid_values");
     collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
