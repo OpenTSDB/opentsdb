@@ -126,6 +126,7 @@ final class TextImporter {
         }
       };
       final Errback errback = new Errback();
+      LOG.info("reading from file:" + path)
       while ((line = in.readLine()) != null) {
         final String[] words = Tags.splitString(line, ' ');
         final String metric = words[0];
