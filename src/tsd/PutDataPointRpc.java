@@ -251,11 +251,12 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
     }
     if (Tags.looksLikeInteger(value)) {
+      datapoints_recieved.incrementAndGet();
       return tsdb.addPoint(metric, timestamp, Tags.parseLong(value), tags);
     } else {  // floating point value
+      datapoints_recieved.incrementAndGet();
       return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);
     }
-    datapoints_recieved.incrementAndGet();
   }
 
   /**
