@@ -37,7 +37,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 final class PutDataPointRpc implements TelnetRpc, HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
   private static final AtomicLong requests = new AtomicLong();
-  private static final AtomicLong datapoints_recieved = new AtomicLong();
+  private static final AtomicLong datapoints_received = new AtomicLong();
   private static final AtomicLong hbase_errors = new AtomicLong();
   private static final AtomicLong invalid_values = new AtomicLong();
   private static final AtomicLong illegal_arguments = new AtomicLong();
@@ -148,7 +148,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
               Float.parseFloat(dp.getValue()), dp.getTags());
         }
         success++;
-        datapoints_recieved.incrementAndGet();
+        datapoints_received.incrementAndGet();
       } catch (NumberFormatException x) {
         if (show_details) {
           details.add(this.getHttpDetails("Unable to parse value to a number",
@@ -203,7 +203,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    */
   public static void collectStats(final StatsCollector collector) {
     collector.record("rpc.received", requests, "type=put");
-    collector.record("datapoints.received", datapoints_recieved, "type=all");
+    collector.record("datapoints.received", datapoints_received, "type=all");
     collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
     collector.record("rpc.errors", invalid_values, "type=invalid_values");
     collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
@@ -251,10 +251,10 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
     }
     if (Tags.looksLikeInteger(value)) {
-      datapoints_recieved.incrementAndGet();
+      datapoints_received.incrementAndGet();
       return tsdb.addPoint(metric, timestamp, Tags.parseLong(value), tags);
     } else {  // floating point value
-      datapoints_recieved.incrementAndGet();
+      datapoints_received.incrementAndGet();
       return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);
     }
   }
