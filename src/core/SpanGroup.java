@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -51,6 +54,8 @@ import net.opentsdb.meta.Annotation;
  */
 final class SpanGroup implements DataPoints {
   
+  private static final Logger LOG = LoggerFactory.getLogger(SpanGroup.class);
+
   /** Start time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
   private final long start_time;
 
@@ -601,19 +606,27 @@ final class SpanGroup implements DataPoints {
       values = new long[size * (rate ? 3 : 2)];
       // Initialize every Iterator, fetch their first values that fall
       // within our time range.
+      int num_empty_spans = 0;
       for (int i = 0; i < size; i++) {
-        final SeekableView it =
-          (downsampler == null
-           ? spans.get(i).spanIterator()
-           : spans.get(i).downsampler(sample_interval, downsampler));
+        final SeekableView it;
+        if (downsampler == null) {
+          it = spans.get(i).spanIterator();
+        } else {
+          it = spans.get(i).downsampler(sample_interval, downsampler);
+        }
         iterators[i] = it;
         it.seek(start_time);
         final DataPoint dp;
         try {
           dp = it.next();
         } catch (NoSuchElementException e) {
-          throw new AssertionError("Span #" + i + " is empty! span="
-                                   + spans.get(i));
+          // It should be rare but could happen after downsampling when
+          // we throw away some data points at the beginning after aligning
+          // start time by downsmpling interval and there are no data points
+          // left for the current span.
+          ++num_empty_spans;
+          endReached(i);
+          continue;
         }
         //LOG.debug("Creating iterator #" + i);
         if (dp.timestamp() >= start_time) {
@@ -621,8 +634,10 @@ final class SpanGroup implements DataPoints {
           //          + dp.timestamp() + " >= " + start_time);
           putDataPoint(size + i, dp);
         } else {
-          //LOG.debug("No DP in range for #" + i + ": "
-          //          + dp.timestamp() + " < " + start_time);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("No DP in range for #%d: %d < %d", i,
+                                    dp.timestamp(), start_time));
+          }
           endReached(i);
           continue;
         }
@@ -633,6 +648,10 @@ final class SpanGroup implements DataPoints {
             endReached(i);
           }
         }
+      }
+      if (num_empty_spans > 0) {
+        LOG.debug(String.format("%d out of %d spans are empty!",
+                                num_empty_spans, size));
       }
     }
 
