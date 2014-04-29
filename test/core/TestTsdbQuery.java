@@ -1517,12 +1517,35 @@ public final class TestTsdbQuery {
     
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
+    // ts = 1356998400500, v = 1
+    // ts = 1356998401000, v = 2
+    // ts = 1356998401500, v = 3
+    // ts = 1356998402000, v = 4
+    // ts = 1356998402500, v = 5
+    // ...
+    // ts = 1356998449000, v = 98
+    // ts = 1356998449500, v = 99
+    // ts = 1356998450000, v = 100
+    // ts = 1356998455000, v = 101
+    // ts = 1356998460000, v = 102
+    // ...
+    // ts = 1356998550000, v = 120
     long timestamp = 1356998400000L;
-    for (int i = 1; i <= 300; i++) {
-      tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags)
+    for (int i = 1; i <= 120; i++) {
+      timestamp += i <= 100 ? 500 : 5000;
+      tsdb.addPoint("sys.cpu.user", timestamp, i, tags)
         .joinUninterruptibly();
     }
     
+    // ts = 1356998400750, v = 300
+    // ts = 1356998401250, v = 299
+    // ts = 1356998401750, v = 298
+    // ts = 1356998402250, v = 297
+    // ts = 1356998402750, v = 296
+    // ...
+    // ts = 1356998549250, v = 3
+    // ts = 1356998549750, v = 2
+    // ts = 1356998550250, v = 1
     tags.clear();
     tags.put("host", "web02");
     timestamp = 1356998400250L;
@@ -1542,25 +1565,38 @@ public final class TestTsdbQuery {
     assertEquals("host", dps[0].getAggregatedTags().get(0));
     assertNull(dps[0].getAnnotations());
     assertTrue(dps[0].getTags().isEmpty());
-    
-    long v = 3;
-    long ts = 1356998400750L;
+
+    // TS1 in intervals = (1), (2,3), (4,5) ... (98,99), 100, (), (), (), (),
+    //                    (101), ... (120)
+    // TS2 in intervals = (300), (299,298), (297,296), ... (203, 202) ...
+    //                    (3,2), (1)
+    // TS1 downsample = 1, 5, 9, ... 197, 100, _, _, _, _, 101, ... 120
+    // TS1 interpolation = 1, 5, ... 197, 100, 100.2, 100.4, 100.6, 100.8, 101,
+    //                     ... 119.6, 119.8, 120
+    // TS2 downsample = 300, 597, 593, ... 405, 401, ... 5, 1
+    // TS1 + TS2 = 301, 602, 602, ... 501, 497.2, ... 124.8, 121
+    int i = 0;
+    long ts = 1356998400000L;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
-      if ((ts % 1000) != 0) {
-        ts += 250;
+      ts += 1000;
+      if (i == 0) {
+        assertEquals(301, dp.doubleValue(), 0.0000001);
+      } else if (i < 50) {
+        // TS1 = i * 2 + i * 2 + 1
+        // TS2 = (300 - i * 2 + 1) + (300 - i * 2)
+        // TS1 + TS2 = 602
+        assertEquals(602, dp.doubleValue(), 0.0000001);
       } else {
-        ts += 750;
+        // TS1 = 100 + (i - 50) * 0.2
+        // TS2 = (300 - i * 2 + 1) + (300 - i * 2)
+        // TS1 + TS2 = 701 + (i - 50) * 0.2 - i * 4
+        double value = 701 + (i - 50) * 0.2 - i * 4;
+        assertEquals(value, dp.doubleValue(), 0.0000001);
       }
-      assertEquals(v, dp.longValue());
-      
-      if (dp.timestamp() == 1356998549750L) {
-        v = 3;
-      } else {
-        v = 603;
-      }
+      ++i;
     }
-    assertEquals(300, dps[0].size());
+    assertEquals(151, dps[0].size());
   }
   
   //---------------------- //

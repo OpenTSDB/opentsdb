@@ -30,6 +30,7 @@ dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
   build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
 tsdb_SRC := \
+	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
 	src/core/ByteBufferList.java	\
@@ -39,12 +40,16 @@ tsdb_SRC := \
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
+	src/core/Downsampler.java \
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
+	src/core/MutableDataPoint.java \
+	src/core/MutableDoubleDataPoint.java \
 	src/core/Query.java	\
 	src/core/RateOptions.java  \
+	src/core/RateSpan.java  \
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
 	src/core/SeekableView.java	\
@@ -136,9 +141,15 @@ tsdb_DEPS = \
 	$(ZOOKEEPER)
 
 test_SRC := \
+	test/core/SeekableViewsForTest.java \
+	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
+	test/core/TestDownsampler.java \
 	test/core/TestInternal.java	\
+	test/core/TestMutableDataPoint.java	\
+	test/core/TestMutableDoubleDataPoint.java	\
+	test/core/TestRateSpan.java	\
 	test/core/TestRowSeq.java	\
 	test/core/TestSpan.java	\
 	test/core/TestTags.java	\
