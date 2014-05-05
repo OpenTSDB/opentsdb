@@ -14,7 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 NETTY_MAJOR_VERSION = 3.9
-NETTY_VERSION := 3.9.0.Final
+NETTY_VERSION := 3.9.1.Final
 NETTY := third_party/netty/netty-$(NETTY_VERSION).jar
 NETTY_BASE_URL := http://central.maven.org/maven2/io/netty/netty/$(NETTY_VERSION)
 
