@@ -15,7 +15,7 @@
 
 PROTOBUF_VERSION := 2.5.0
 PROTOBUF := third_party/protobuf/protobuf-java-$(PROTOBUF_VERSION).jar
-PROTOBUF_BASE_URL := http://search.maven.org/remotecontent?filepath=com/google/protobuf/protobuf-java/$(PROTOBUF_VERSION)
+PROTOBUF_BASE_URL := http://central.maven.org/maven2/com/google/protobuf/protobuf-java/$(PROTOBUF_VERSION)
 
 $(PROTOBUF): $(PROTOBUF).md5
 	set dummy "$(PROTOBUF_BASE_URL)" "$(PROTOBUF)"; shift; $(FETCH_DEPENDENCY)

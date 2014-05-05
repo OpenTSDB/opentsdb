@@ -17,21 +17,21 @@ JACKSON_VERSION := 2.1.5
 
 JACKSON_ANNOTATIONS_VERSION = $(JACKSON_VERSION)
 JACKSON_ANNOTATIONS := third_party/jackson/jackson-annotations-$(JACKSON_ANNOTATIONS_VERSION).jar
-JACKSON_ANNOTATIONS_BASE_URL := http://search.maven.org/remotecontent?filepath=com/fasterxml/jackson/core/jackson-annotations/$(JACKSON_VERSION)
+JACKSON_ANNOTATIONS_BASE_URL := http://central.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/$(JACKSON_VERSION)
 
 $(JACKSON_ANNOTATIONS): $(JACKSON_ANNOTATIONS).md5
 	set dummy "$(JACKSON_ANNOTATIONS_BASE_URL)" "$(JACKSON_ANNOTATIONS)"; shift; $(FETCH_DEPENDENCY)
 
 JACKSON_CORE_VERSION = $(JACKSON_VERSION)
 JACKSON_CORE := third_party/jackson/jackson-core-$(JACKSON_CORE_VERSION).jar
-JACKSON_CORE_BASE_URL := http://search.maven.org/remotecontent?filepath=com/fasterxml/jackson/core/jackson-core/$(JACKSON_VERSION)
+JACKSON_CORE_BASE_URL := http://central.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/$(JACKSON_VERSION)
 
 $(JACKSON_CORE): $(JACKSON_CORE).md5
 	set dummy "$(JACKSON_CORE_BASE_URL)" "$(JACKSON_CORE)"; shift; $(FETCH_DEPENDENCY)
 
 JACKSON_DATABIND_VERSION = $(JACKSON_VERSION)
 JACKSON_DATABIND := third_party/jackson/jackson-databind-$(JACKSON_DATABIND_VERSION).jar
-JACKSON_DATABIND_BASE_URL := http://search.maven.org/remotecontent?filepath=com/fasterxml/jackson/core/jackson-databind/$(JACKSON_VERSION)
+JACKSON_DATABIND_BASE_URL := http://central.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/$(JACKSON_VERSION)
 
 $(JACKSON_DATABIND): $(JACKSON_DATABIND).md5
 	set dummy "$(JACKSON_DATABIND_BASE_URL)" "$(JACKSON_DATABIND)"; shift; $(FETCH_DEPENDENCY)

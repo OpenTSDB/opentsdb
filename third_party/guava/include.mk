@@ -13,9 +13,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-GUAVA_VERSION := 16.0.1
+GUAVA_VERSION := 17.0
 GUAVA := third_party/guava/guava-$(GUAVA_VERSION).jar
-GUAVA_BASE_URL := http://search.maven.org/remotecontent?filepath=com/google/guava/guava/$(GUAVA_VERSION)
+GUAVA_BASE_URL := http://central.maven.org/maven2/com/google/guava/guava/$(GUAVA_VERSION)
 
 $(GUAVA): $(GUAVA).md5
 	set dummy "$(GUAVA_BASE_URL)" "$(GUAVA)"; shift; $(FETCH_DEPENDENCY)
