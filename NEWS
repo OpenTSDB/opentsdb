@@ -1,6 +1,12 @@
 OpenTSDB - User visible changes.
 
-* Version 2.0.0 (2014-05-5)
+* Version 2.0.0 (2014-05-5) [???????]
+
+API incompatible changes:
+  - The `TSDB' class now takes a `Config' object in argument instead of an
+    HBaseClient and two strings.
+  - The downsampling interval for the method `Query.downsample' went from
+    being an `int' to a `long'.
 
 Noteworthy changes:
   - Configuration can be provided in a properties file
@@ -44,13 +50,13 @@ Noteworthy changes:
   - New Debian package compilable from the source
   - New RPM package compilable from the source
 
+
 * Version 1.1.1 (2013-??-??) [???????]
 
 Noteworthy changes:
   - UIDs are now assigned in a lock-less fashion.
 
-
-
+
 * Version 1.1.0 (2013-03-08) [12879d7]
 
 Noteworthy changes:

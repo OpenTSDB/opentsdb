@@ -192,6 +192,17 @@ public abstract class StatsCollector {
    * This uses {@link InetAddress#getLocalHost} to find the hostname of the
    * current host.  If the hostname cannot be looked up, {@code (unknown)}
    * is used instead.
+   */
+  public final void addHostTag() {
+    addHostTag(false);
+  }
+
+  /**
+   * Adds a {@code host=hostname} or {@code fqdn=full.host.name} tag.
+   * <p>
+   * This uses {@link InetAddress#getLocalHost} to find the hostname of the
+   * current host.  If the hostname cannot be looked up, {@code (unknown)}
+   * is used instead.
    * @param canonical Whether or not we should try to get the FQDN of the host.
    * If set to true, the tag changes to "fqdn" instead of "host"
    */
