@@ -1,6 +1,6 @@
 OpenTSDB - User visible changes.
 
-* Version 2.0.0 RC3 (2014-05-23)
+* Version 2.0.0 (2014-05-5)
 
 Noteworthy changes:
   - Configuration can be provided in a properties file
@@ -42,13 +42,15 @@ Noteworthy changes:
   - New options for working with rate calculations on counters to rollover
     or reset on anomallys
   - New Debian package compilable from the source
+  - New RPM package compilable from the source
 
 * Version 1.1.1 (2013-??-??) [???????]
 
 Noteworthy changes:
   - UIDs are now assigned in a lock-less fashion.
 
-
+
+
 * Version 1.1.0 (2013-03-08) [12879d7]
 
 Noteworthy changes:
