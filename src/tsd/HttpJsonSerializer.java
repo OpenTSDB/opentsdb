@@ -285,11 +285,17 @@ class HttpJsonSerializer extends HttpSerializer {
           } else {
             tree.setEnabled(false);
           }
-        } else if (entry.getKey().toLowerCase().equals("strictMatch")) {
+        } else if (entry.getKey().toLowerCase().equals("strictmatch")) {
           if (entry.getValue().toLowerCase().equals("true")) {
             tree.setStrictMatch(true);
           } else {
             tree.setStrictMatch(false);
+          }
+        } else if (entry.getKey().toLowerCase().equals("storefailures")) {
+          if (entry.getValue().toLowerCase().equals("true")) {
+            tree.setStoreFailures(true);
+          } else {
+            tree.setStoreFailures(false);
           }
         }
       }
