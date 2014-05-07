@@ -18,22 +18,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.BuildData;
+import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.StatsCollector;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import net.opentsdb.BuildData;
-import net.opentsdb.core.Aggregators;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
@@ -94,6 +93,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     telnet_commands.put("exit", new Exit());
     telnet_commands.put("help", new Help());
     telnet_commands.put("put", new PutDataPointRpc());
+    telnet_commands.put("add", new IncDataPointRpc());
 
     http_commands.put("", new HomePage());
     http_commands.put("aggregators", new ListAggregators());
