@@ -37,10 +37,12 @@ tsdb_SRC := \
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
+	src/core/Downsampler.java \
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
+	src/core/MutableDoubleDataPoint.java \
 	src/core/Query.java	\
 	src/core/RateOptions.java  \
 	src/core/RowKey.java	\
@@ -131,6 +133,7 @@ tsdb_DEPS = \
 test_SRC := \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
+	test/core/TestDownsampler.java \
 	test/core/TestInternal.java	\
 	test/core/TestRowSeq.java	\
 	test/core/TestSpan.java	\
