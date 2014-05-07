@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
@@ -105,6 +104,7 @@ final class UidManager {
         + "  assign <kind> <name> [names]:"
         + " Assign an ID for the given name(s).\n"
         + "  rename <kind> <name> <newname>: Renames this UID.\n"
+        + "  delete <kind> <name>: Deletes this UID.\n"
         + "  fsck: Checks the consistency of UIDs.\n"
         + "  [kind] <name>: Lookup the ID of this name.\n"
         + "  [kind] <ID>: Lookup the name of this ID.\n"
@@ -201,6 +201,23 @@ final class UidManager {
         return 2;
       }
       return rename(tsdb.getClient(), table, idwidth, args);
+    } else if (args[0].equals("delete")) {
+      if (nargs != 3) {
+        usage("Wrong number of arguments");
+        return 2;
+      }
+
+      try {
+        tsdb.getClient()
+            .ensureTableExists(
+                tsdb.getConfig().getString("tsd.storage.hbase.data_table"))
+            .joinUninterruptibly();
+
+        return delete(tsdb, table, idwidth, args);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        return 4;
+      }
     } else if (args[0].equals("fsck")) {
       return fsck(tsdb.getClient(), table);
     } else if (args[0].equals("metasync")) {
@@ -413,6 +430,34 @@ final class UidManager {
       return 1;
     }
     System.out.println(kind + ' ' + oldname + " -> " + newname);
+    return 0;
+  }
+  
+  /**
+   * Implements the {@code rename} subcommand.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
+   * @param idwidth Number of bytes on which the UIDs should be.
+   * @param args Command line arguments ({@code assign name [names]}).
+   * @return The exit status of the command (0 means success).
+   */
+  private static int delete(final TSDB tsdb, final byte[] table,
+      final short idwidth, final String[] args) throws Exception {
+    final String kind = args[1];
+    final String name = args[2];
+    final UniqueId uid = new UniqueId(tsdb.getClient(), table, kind,
+        (int) idwidth);
+    uid.setTSDB(tsdb);
+    try {
+      uid.delete(name);
+    } catch (HBaseException e) {
+      LOG.error("error while processing delete " + name, e);
+      return 3;
+    } catch (NoSuchUniqueName e) {
+      LOG.error(e.getMessage());
+      return 1;
+    }
+    System.out.println(kind + ' ' + name + " deleted.");
     return 0;
   }
 

@@ -23,15 +23,18 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+
 import javax.xml.bind.DatatypeConverter;
 
+import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.Internal;
+import net.opentsdb.core.Query;
+import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -854,6 +857,96 @@ public final class UniqueId implements UniqueIdInterface {
       LOG.error("WTF?  " + msg, e);
       throw new RuntimeException(msg, e);
     }
+    // Success!
+  }
+  
+  /**
+   * Removes the UID specified by its name. (non-atomic).
+   * <p>
+   * Whatever was the UID of {@code name} will be deleted.
+   * {@code name} will no longer be assigned a UID.
+   * <p>
+   * 
+   * This is intended primarily for cleaning up unused metrics and as such 
+   * should probably not be accessed normally outside of administrative 
+   * activities.
+   * 
+   * @param name The name to delete.
+   * @throws HBaseException if there was a problem with HBase while trying to
+   * update the mapping.
+   */
+  public void delete(String name) {
+    final byte[] row = getId(name);
+    final byte[] dataTable = toBytes(tsdb.getConfig().getString(
+        "tsd.storage.hbase.data_table"));
+
+    try {
+      // check to make sure we're not trying to delete tag keys or values
+      if (kind.equals("tagk") || kind.equals("tagv")) {
+        final String msg = "Deleting TAGK/TAGV UIDs is not supported at this time!";
+        LOG.error(msg);
+        throw new UnsupportedOperationException(msg);
+      }
+      final HashMap<String, String> tags = new HashMap<String, String>(2, 0.75f);
+      final RateOptions rate_options = new RateOptions(false, Long.MAX_VALUE,
+          RateOptions.DEFAULT_RESET_VALUE);
+
+      final Query query = tsdb.newQuery();
+      query.setStartTime(0);
+      query.setTimeSeries(name, tags, Aggregators.SUM, false, rate_options);
+
+      /*
+       * First, attempt to delete the related data. If this fails, we can
+       * re-attempt it again before wiping out the metrics for good.
+       */
+      final Scanner scanner = Internal.getScanner(query);
+      ArrayList<ArrayList<KeyValue>> rows;
+
+      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+        for (final ArrayList<KeyValue> dataRow : rows) {
+          final byte[] key = dataRow.get(0).key();
+          final String metric = Internal.metricName(tsdb, key);
+
+          if (!metric.equals(name)) {
+            final String msg = "Query attempted to delete metric " + metric
+                + " when trying to delete " + name;
+            LOG.error(msg);
+            throw new RuntimeException(msg);
+          }
+
+          final DeleteRequest del = new DeleteRequest(dataTable, key);
+          client.delete(del);
+        }
+      }      
+      
+      /*
+       * Attempt to delete the forward mapping first. A forward mapping with no
+       * reverse mapping is more harmful so we try to delete this first.
+       */
+      final DeleteRequest forward_mapping = new DeleteRequest(table,
+          toBytes(name), ID_FAMILY, kind);
+      client.delete(forward_mapping).joinUninterruptibly();
+
+      final DeleteRequest reverse_mapping = new DeleteRequest(table,
+          toBytes(name), NAME_FAMILY, kind);
+      client.delete(reverse_mapping).joinUninterruptibly();
+    } catch (HBaseException e) {
+      LOG.error("When trying to delete(\"" + name + "\") on " + this
+          + ": Failed to remove the" + " forward/reverse mapping for ID="
+          + Arrays.toString(row), e);
+      throw e;
+    } catch (Exception e) {
+      final String msg = "When trying to delete(\"" + name + "\") on " + this
+          + ": Failed to remove the" + " forward/reverse mapping for ID="
+          + Arrays.toString(row);
+      LOG.error("WTF?  " + msg, e);
+      throw new RuntimeException(msg, e);
+    }
+
+    // remove the id and name from the cache
+    id_cache.remove(fromBytes(row));
+    name_cache.remove(name);
+
     // Success!
   }
 
