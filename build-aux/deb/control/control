@@ -1,0 +1,10 @@
+Package: opentsdb
+Version: @version@
+Architecture: all
+Maintainer: Chris Larsen <clarsen@euphoriaaudio.com>
+Depends: libc6, adduser
+Suggest: gnuplot, java7-runtime-headless | java6-runtime-headless | java7-runtime | java6-runtime
+Section: database
+Priority: optional
+Homepage: http://www.opentsdb.net/
+Description: Time Series Daemon from OpenTSDB for storing and accessing time series data

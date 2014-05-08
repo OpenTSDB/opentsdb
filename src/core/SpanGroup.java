@@ -21,6 +21,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.Aggregators.Interpolation;
+import net.opentsdb.meta.Annotation;
+
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
  * <p>
@@ -44,11 +50,11 @@ import java.util.NoSuchElementException;
  * iterator when using the {@link Span.DownsamplingIterator}.
  */
 final class SpanGroup implements DataPoints {
-
-  /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
+  
+  /** Start time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
   private final long start_time;
 
-  /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
+  /** End time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
   private final long end_time;
 
   /**
@@ -71,7 +77,10 @@ final class SpanGroup implements DataPoints {
   private final ArrayList<Span> spans = new ArrayList<Span>();
 
   /** If true, use rate of change instead of actual values. */
-  private boolean rate;
+  private final boolean rate;
+  
+  /** Specifies the various options for rate calculations */
+  private RateOptions rate_options; 
 
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
@@ -83,7 +92,7 @@ final class SpanGroup implements DataPoints {
   private final Aggregator downsampler;
 
   /** Minimum time interval (in seconds) wanted between each data point. */
-  private final int sample_interval;
+  private final long sample_interval;
 
   /**
    * Ctor.
@@ -97,7 +106,7 @@ final class SpanGroup implements DataPoints {
    * @param rate If {@code true}, the rate of the series will be used instead
    * of the actual values.
    * @param aggregator The aggregation function to use.
-   * @param interval Number of seconds wanted between each data point.
+   * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
    */
@@ -106,18 +115,50 @@ final class SpanGroup implements DataPoints {
             final Iterable<Span> spans,
             final boolean rate,
             final Aggregator aggregator,
-            final int interval, final Aggregator downsampler) {
-    this.start_time = start_time;
-    this.end_time = end_time;
-    if (spans != null) {
-      for (final Span span : spans) {
-        add(span);
-      }
-    }
-    this.rate = rate;
-    this.aggregator = aggregator;
-    this.downsampler = downsampler;
-    this.sample_interval = interval;
+            final long interval, final Aggregator downsampler) {
+    this(tsdb, start_time, end_time, spans, rate, new RateOptions(false,
+        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
+        downsampler);
+  }
+
+  /**
+   * Ctor.
+   * @param tsdb The TSDB we belong to.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}. Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation options.
+   * @param aggregator The aggregation function to use.
+   * @param interval Number of milliseconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   * @since 2.0
+   */
+  SpanGroup(final TSDB tsdb,
+            final long start_time, final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate, final RateOptions rate_options,
+            final Aggregator aggregator,
+            final long interval, final Aggregator downsampler) {
+     this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
+         start_time * 1000 : start_time;
+     this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
+         end_time * 1000 : end_time;
+     if (spans != null) {
+       for (final Span span : spans) {
+         add(span);
+       }
+     }
+     this.rate = rate;
+     this.rate_options = rate_options;
+     this.aggregator = aggregator;
+     this.downsampler = downsampler;
+     this.sample_interval = interval;
   }
 
   /**
@@ -132,11 +173,24 @@ final class SpanGroup implements DataPoints {
       throw new AssertionError("The set of tags has already been computed"
                                + ", you can't add more Spans to " + this);
     }
-    if (span.timestamp(0) <= end_time
-        // The following call to timestamp() will throw an
-        // IndexOutOfBoundsException if size == 0, which is OK since it would
-        // be a programming error.
-        && span.timestamp(span.size() - 1) >= start_time) {
+    
+    // normalize timestamps to milliseconds for proper comparison
+    final long start = (start_time & Const.SECOND_MASK) == 0 ? 
+        start_time * 1000 : start_time;
+    final long end = (end_time & Const.SECOND_MASK) == 0 ? 
+        end_time * 1000 : end_time;
+    long first_dp = span.timestamp(0);
+    if ((first_dp & Const.SECOND_MASK) == 0) {
+      first_dp *= 1000;
+    }
+    // The following call to timestamp() will throw an
+    // IndexOutOfBoundsException if size == 0, which is OK since it would
+    // be a programming error.
+    long last_dp = span.timestamp(span.size() - 1);
+    if ((last_dp & Const.SECOND_MASK) == 0) {
+      last_dp *= 1000;
+    }
+    if (first_dp <= end && last_dp >= start) {
       this.spans.add(span);
     }
   }
@@ -146,55 +200,159 @@ final class SpanGroup implements DataPoints {
    * @param spans A collection of spans for which to find the common tags.
    * @return A (possibly empty) map of the tags common to all the spans given.
    */
-  private void computeTags() {
+  private Deferred<Object> computeTags() {
     if (spans.isEmpty()) {
       tags = new HashMap<String, String>(0);
       aggregated_tags = new ArrayList<String>(0);
-      return;
+      return Deferred.fromResult(null);
     }
+
     final Iterator<Span> it = spans.iterator();
-    tags = new HashMap<String, String>(it.next().getTags());
-    final HashSet<String> discarded_tags = new HashSet<String>(tags.size());
-    while (it.hasNext()) {
-      final Map<String, String> nexttags = it.next().getTags();
-      // OMG JAVA
-      final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
-      while (i.hasNext()) {
-        final Map.Entry<String, String> entry = i.next();
-        final String name = entry.getKey();
-        final String value = nexttags.get(name);
-        if (value == null || !value.equals(entry.getValue())) {
-          i.remove();
-          discarded_tags.add(name);
+    
+    /**
+     * This is the last callback that will determine what tags are aggregated in
+     * the results.
+     */
+    class SpanTagsCB implements Callback<Object, ArrayList<Map<String, String>>> {
+      public Object call(final ArrayList<Map<String, String>> lookups) 
+        throws Exception {
+        final HashSet<String> discarded_tags = new HashSet<String>(tags.size());
+        for (Map<String, String> lookup : lookups) {
+          final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
+          while (i.hasNext()) {
+            final Map.Entry<String, String> entry = i.next();
+            final String name = entry.getKey();
+            final String value = lookup.get(name);
+            if (value == null || !value.equals(entry.getValue())) {
+              i.remove();
+              discarded_tags.add(name);
+            }
+          }
         }
+        SpanGroup.this.aggregated_tags = new ArrayList<String>(discarded_tags);
+        return null;
       }
     }
-    aggregated_tags = new ArrayList<String>(discarded_tags);
+    
+    /**
+     * We have to wait for the first set of tags to be resolved so we can 
+     * create a map with the proper size. Then we iterate through the rest of
+     * the tags for the different spans and work on each set.
+     */
+    class FirstTagSetCB implements Callback<Object, Map<String, String>> {      
+      public Object call(final Map<String, String> first_tags) throws Exception {
+        tags = new HashMap<String, String>(first_tags);
+        final ArrayList<Deferred<Map<String, String>>> deferreds = 
+          new ArrayList<Deferred<Map<String, String>>>(tags.size());
+        
+        while (it.hasNext()) {
+          deferreds.add(it.next().getTagsAsync());
+        }
+        
+        return Deferred.groupInOrder(deferreds).addCallback(new SpanTagsCB());
+      }
+    }
+
+    return it.next().getTagsAsync().addCallback(new FirstTagSetCB());
   }
 
   public String metricName() {
-    return spans.isEmpty() ? "" : spans.get(0).metricName();
+    try {
+      return metricNameAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+  }
+  
+  public Deferred<String> metricNameAsync() {
+    return spans.isEmpty() ? Deferred.fromResult("") : 
+      spans.get(0).metricNameAsync();
   }
 
   public Map<String, String> getTags() {
-    if (tags == null) {
-      computeTags();
+    try {
+      return getTagsAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
     }
-    return tags;
+  }
+  
+  public Deferred<Map<String, String>> getTagsAsync() {
+    if (tags != null) {
+      final Map<String, String> local_tags = tags;
+      return Deferred.fromResult(local_tags);
+    }
+    
+    class ComputeCB implements Callback<Map<String, String>, Object> {
+      public Map<String, String> call(final Object obj) {
+        return tags;
+      }
+    }
+    
+    return computeTags().addCallback(new ComputeCB());
   }
 
   public List<String> getAggregatedTags() {
-    if (tags == null) {
-      computeTags();
+    try {
+      return getAggregatedTagsAsync().joinUninterruptibly();
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
     }
-    return aggregated_tags;
+  }
+  
+  public Deferred<List<String>> getAggregatedTagsAsync() {
+    if (aggregated_tags != null) {
+      final List<String> agg_tags = aggregated_tags;
+      return Deferred.fromResult(agg_tags);
+    }
+    
+    class ComputeCB implements Callback<List<String>, Object> {
+      public List<String> call(final Object obj) {
+        return aggregated_tags;
+      }
+    }
+    
+    return computeTags().addCallback(new ComputeCB());
   }
 
+  public List<String> getTSUIDs() {
+    List<String> tsuids = new ArrayList<String>(spans.size());
+    for (Span sp : spans) {
+      tsuids.addAll(sp.getTSUIDs());
+    }
+    return tsuids;
+  }
+  
+  /**
+   * Compiles the annotations for each span into a new array list
+   * @return Null if none of the spans had any annotations, a list if one or
+   * more were found
+   */
+  public List<Annotation> getAnnotations() {
+    ArrayList<Annotation> annotations = new ArrayList<Annotation>();
+    for (Span sp : spans) {
+      if (sp.getAnnotations().size() > 0) {
+        annotations.addAll(sp.getAnnotations());
+      }
+    }
+    
+    if (annotations.size() > 0) {
+      return annotations;
+    }
+    return null;
+  }
+  
   public int size() {
     // TODO(tsuna): There is a way of doing this way more efficiently by
     // inspecting the Spans and counting only data points that fall in
     // our time range.
-    final SGIterator it = new SGIterator();
+    final SGIterator it = new SGIterator(aggregator.interpolationMethod());
     int size = 0;
     while (it.hasNext()) {
       it.next();
@@ -212,7 +370,7 @@ final class SpanGroup implements DataPoints {
   }
 
   public SeekableView iterator() {
-    return new SGIterator();
+    return new SGIterator(aggregator.interpolationMethod());
   }
 
   /**
@@ -224,7 +382,7 @@ final class SpanGroup implements DataPoints {
       throw new IndexOutOfBoundsException("negative index: " + i);
     }
     final int saved_i = i;
-    final SGIterator it = new SGIterator();
+    final SGIterator it = new SGIterator(aggregator.interpolationMethod());
     DataPoint dp = null;
     while (it.hasNext() && i >= 0) {
       dp = it.next();
@@ -381,6 +539,9 @@ final class SpanGroup implements DataPoints {
      */
     private static final long TIME_MASK  = 0x7FFFFFFFFFFFFFFFL;
 
+    /** Interpolation method to use when aggregating time series */
+    private final Interpolation method;
+    
     /**
      * Where we are in each {@link Span} in the group.
      * The iterators in this array always points to 2 values ahead of the
@@ -432,7 +593,8 @@ final class SpanGroup implements DataPoints {
     private int pos;
 
     /** Creates a new iterator for this {@link SpanGroup}. */
-    SGIterator() {
+    public SGIterator(final Interpolation method) {
+      this.method = method;
       final int size = spans.size();
       iterators = new SeekableView[size];
       timestamps = new long[size * (rate ? 3 : 2)];
@@ -667,7 +829,7 @@ final class SpanGroup implements DataPoints {
     }
 
     public double toDouble() {
-      return isInteger() ? doubleValue() : longValue();
+      return isInteger() ? longValue() : doubleValue();
     }
 
     // -------------------------- //
@@ -718,11 +880,27 @@ final class SpanGroup implements DataPoints {
         if (x == x1) {
           return y1;
         }
-        final long r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
-        //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
-        //          + " -> " + y1 + " @ " + x1 + " => " + r);
-        if ((x1 & 0xFFFFFFFF00000000L) != 0) {
+        if ((x1 & Const.MILLISECOND_MASK) != 0) {
           throw new AssertionError("x1=" + x1 + " in " + this);
+        }
+        final long r;
+        switch (method) {
+          case LERP: 
+            r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+            //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
+            //          + " -> " + y1 + " @ " + x1 + " => " + r);
+            break;
+          case ZIM:
+            r = 0;
+            break;
+          case MAX:
+            r = Long.MAX_VALUE;
+            break;
+          case MIN:
+            r = Long.MIN_VALUE;
+            break;
+          default:
+            throw new IllegalDataException("Invalid interploation somehow??");
         }
         return r;
       }
@@ -748,7 +926,61 @@ final class SpanGroup implements DataPoints {
           assert x0 > x1: ("Next timestamp (" + x0 + ") is supposed to be "
             + " strictly greater than the previous one (" + x1 + "), but it's"
             + " not.  this=" + this);
-          final double r = (y0 - y1) / (x0 - x1);
+          
+          // we need to account for LONGs that are being converted to a double
+          // to do so, we can see if it's greater than the most precise integer
+          // a double can store. Then we calc the diff on the Longs before
+          // casting to a double. 
+          // TODO(cl) If the diff between data points is > 2^53 we're still in 
+          // trouble though that's less likely than giant integer counters.
+          final boolean double_overflow = 
+              (timestamps[pos] & FLAG_FLOAT) != FLAG_FLOAT && 
+              (timestamps[prev] & FLAG_FLOAT) != FLAG_FLOAT &&
+              ((values[prev] & Const.MAX_INT_IN_DOUBLE) != 0 || 
+                  (values[pos] & Const.MAX_INT_IN_DOUBLE) != 0);
+          //LOG.debug("Double overflow detected");
+          
+          final double difference;
+          if (double_overflow) {
+            final long diff = values[pos] - values[prev];
+            difference = (double)(diff);
+          } else {
+            difference = y0 - y1;
+          }
+          //LOG.debug("Difference is: " + difference);
+          
+          // If we have a counter rate of change calculation, y0 and y1
+          // have values such that the rate would be < 0 then calculate the
+          // new rate value assuming a roll over
+          if (rate_options.isCounter() && difference < 0) {
+            final double r;
+            if (double_overflow) {
+              long diff = rate_options.getCounterMax() - values[prev];
+              diff += values[pos];
+              // TODO - for backwards compatibility we'll convert the ms to seconds
+              // but in the future we should add a ratems flag that will calculate
+              // the rate as is.
+              r = (double)diff / ((double)(x0 - x1) / (double)1000);
+            } else {
+              // TODO - for backwards compatibility we'll convert the ms to seconds
+              // but in the future we should add a ratems flag that will calculate
+              // the rate as is.
+              r = (rate_options.getCounterMax() - y1 + y0) / 
+                                        ((double)(x0 - x1) / (double)1000);
+            }
+            if (rate_options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+                && r > rate_options.getResetValue()) {
+              return 0.0;
+            }
+            //LOG.debug("Rolled Rate for " + y1 + " @ " + x1
+            // + " -> " + y0 + " @ " + x0 + " => " + r);
+            return r;
+          }
+          
+          // TODO - for backwards compatibility we'll convert the ms to seconds
+          // but in the future we should add a ratems flag that will calculate
+          // the rate as is.
+          final double r = difference / ((double)(x0 - x1) / (double)1000);
           //LOG.debug("Rate for " + y1 + " @ " + x1
           //          + " -> " + y0 + " @ " + x0 + " => " + r);
           return r;
@@ -772,12 +1004,28 @@ final class SpanGroup implements DataPoints {
           //LOG.debug("No lerp needed x == x1 (" + x + " == "+x1+") => " + y1);
           return y1;
         }
-        final double r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
-        //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
-        //          + " -> " + y1 + " @ " + x1 + " => " + r);
-        if ((x1 & 0xFFFFFFFF00000000L) != 0) {
+        if ((x1 & Const.MILLISECOND_MASK) != 0) {
           throw new AssertionError("x1=" + x1 + " in " + this);
         }
+        final double r;
+        switch (method) {
+        case LERP: 
+          r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
+          //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
+          //          + " -> " + y1 + " @ " + x1 + " => " + r);
+          break;
+        case ZIM:
+          r = 0;
+          break;
+        case MAX:
+          r = Double.MAX_VALUE;
+          break;
+        case MIN:
+          r = Double.MIN_VALUE;
+          break;
+        default:
+          throw new IllegalDataException("Invalid interploation somehow??");
+      }
         return r;
       }
       throw new NoSuchElementException("no more doubles in " + this);

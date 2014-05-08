@@ -18,7 +18,7 @@ import java.util.NoSuchElementException;
 /**
  * Exception used when a Unique ID can't be found.
  *
- * @see UniqueIdInterface
+ * @see UniqueId
  */
 public final class NoSuchUniqueId extends NoSuchElementException {
 

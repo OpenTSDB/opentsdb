@@ -28,6 +28,7 @@ import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.SuggestBox;
+import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 
@@ -50,6 +51,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final ListBox downsampler = new ListBox();
   private final ValidatedTextBox interval = new ValidatedTextBox();
   private final CheckBox rate = new CheckBox("Rate");
+  private final CheckBox rate_counter = new CheckBox("Rate Ctr");
+  private final TextBox counter_max = new TextBox();
+  private final TextBox counter_reset_value = new TextBox();
   private final CheckBox x1y2 = new CheckBox("Right Axis");
   private final ListBox aggregators = new ListBox();
   private final ValidatedTextBox metric = new ValidatedTextBox();
@@ -63,6 +67,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     interval.addBlurHandler(handler);
     interval.addKeyPressHandler(handler);
     rate.addClickHandler(handler);
+    rate_counter.addClickHandler(handler);
+    counter_max.addBlurHandler(handler);
+    counter_max.addKeyPressHandler(handler);
+    counter_reset_value.addBlurHandler(handler);
+    counter_reset_value.addKeyPressHandler(handler);
     x1y2.addClickHandler(handler);
     aggregators.addChangeHandler(handler);
     metric.addBlurHandler(handler);
@@ -140,10 +149,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   public void updateFromQueryString(final String m, final String o) {
     // TODO: Try to reduce code duplication with GraphHandler.parseQuery().
     // m is of the following forms:
-    //   agg:[interval-agg:][rate:]metric[{tag=value,...}]
+    //  agg:[interval-agg:][rate[{counter[,max[,reset]]}:]metric[{tag=value,...}]
     // Where the parts in square brackets `[' .. `]' are optional.
     final String[] parts = m.split(":");
-    final int nparts = parts.length;
     int i = parts.length;
     if (i < 2 || i > 4) {
       return;  // Malformed.
@@ -155,8 +163,16 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     metric.setText(parseWithMetric(parts[i]));
     metric_change_handler.onMetricChange(this);
 
-    final boolean rate = "rate".equals(parts[--i]);
+    final boolean rate = parts[--i].startsWith("rate");
     this.rate.setValue(rate, false);
+    LocalRateOptions rate_options = parseRateOptions(rate, parts[i]);
+    this.rate_counter.setValue(rate_options.is_counter, false);
+    final long rate_counter_max = rate_options.counter_max;
+    this.counter_max.setValue(
+        rate_counter_max == Long.MAX_VALUE ? "" : Long.toString(rate_counter_max), 
+        false);
+    this.counter_reset_value
+        .setValue(Long.toString(rate_options.reset_value), false);
     if (rate) {
       i--;
     }
@@ -217,7 +233,22 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       {
         final HorizontalPanel hbox = new HorizontalPanel();
         hbox.add(rate);
+        hbox.add(rate_counter);
         hbox.add(x1y2);
+        vbox.add(hbox);
+      }
+      {
+        final HorizontalPanel hbox = new HorizontalPanel();
+        final InlineLabel l = new InlineLabel("Rate Ctr Max:");
+        hbox.add(l);
+        hbox.add(counter_max);
+        vbox.add(hbox);
+      }
+      {
+        final HorizontalPanel hbox = new HorizontalPanel();
+        final InlineLabel l = new InlineLabel("Rate Ctr Reset:");
+        hbox.add(l);
+        hbox.add(counter_reset_value);
         vbox.add(hbox);
       }
       {
@@ -265,6 +296,19 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     if (rate.getValue()) {
       url.append(":rate");
+      if (rate_counter.getValue()) {
+        url.append('{').append("counter");
+        final String max = counter_max.getValue().trim();
+        final String reset = counter_reset_value.getValue().trim();
+        if (max.length() > 0 && reset.length() > 0) {
+          url.append(',').append(max).append(',').append(reset);
+        } else if (max.length() > 0 && reset.length() == 0) {
+          url.append(',').append(max);
+        } else if (max.length() == 0 && reset.length() > 0){
+          url.append(",,").append(reset);
+        }
+        url.append('}');
+      }
     }
     url.append(':').append(metric);
     {
@@ -486,6 +530,52 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
   }
 
+  /**
+   * Class used for parsing and rate options
+   */
+  private static class LocalRateOptions {
+    public boolean is_counter;
+    public long counter_max = Long.MAX_VALUE;
+    public long reset_value = 0;
+  }
+  
+  /**
+   * Parses the "rate" section of the query string and returns an instance
+   * of the LocalRateOptions class that contains the values found.
+   * <p/>
+   * The format of the rate specification is rate[{counter[,#[,#]]}].
+   * If the spec is invalid or we were unable to parse properly, it returns a
+   * default options object.
+   * @param rate If true, then the query is set as a rate query and the rate
+   * specification will be parsed. If false, a default RateOptions instance
+   * will be returned and largely ignored by the rest of the processing
+   * @param spec The part of the query string that pertains to the rate
+   * @return An initialized LocalRateOptions instance based on the specification
+   * @since 2.0
+   */
+  static final public LocalRateOptions parseRateOptions(boolean rate, String spec) {
+    if (!rate || spec.length() < 6) {
+      return new LocalRateOptions();
+    }
+
+    String[] parts = spec.split(spec.substring(5, spec.length() - 1), ',');
+    if (parts.length < 1 || parts.length > 3) {
+      return new LocalRateOptions();
+    }
+
+    try {
+      LocalRateOptions options = new LocalRateOptions();
+      options.is_counter = "counter".equals(parts[0]);
+      options.counter_max = (parts.length >= 2 && parts[1].length() > 0 ? Long
+          .parseLong(parts[1]) : Long.MAX_VALUE);
+      options.reset_value = (parts.length >= 3 && parts[2].length() > 0 ? Long
+          .parseLong(parts[2]) : 0);
+      return options;
+    } catch (NumberFormatException e) {
+      return new LocalRateOptions();
+    }
+  }
+  
   // ------------------- //
   // Focusable interface //
   // ------------------- //

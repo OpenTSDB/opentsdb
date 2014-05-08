@@ -15,7 +15,7 @@
 
 HAMCREST_VERSION := 1.3
 HAMCREST := third_party/hamcrest/hamcrest-core-$(HAMCREST_VERSION).jar
-HAMCREST_BASE_URL := http://search.maven.org/remotecontent?filepath=org/hamcrest/hamcrest-core/$(HAMCREST_VERSION)
+HAMCREST_BASE_URL := http://central.maven.org/maven2/org/hamcrest/hamcrest-core/$(HAMCREST_VERSION)
 
 $(HAMCREST): $(HAMCREST).md5
 	set dummy "$(HAMCREST_BASE_URL)" "$(HAMCREST)"; shift; $(FETCH_DEPENDENCY)

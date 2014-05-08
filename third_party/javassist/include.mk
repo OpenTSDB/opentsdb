@@ -15,7 +15,7 @@
 
 JAVASSIST_VERSION := 3.17.1-GA
 JAVASSIST := third_party/javassist/javassist-$(JAVASSIST_VERSION).jar
-JAVASSIST_BASE_URL := http://search.maven.org/remotecontent?filepath=org/javassist/javassist/$(JAVASSIST_VERSION)
+JAVASSIST_BASE_URL := http://central.maven.org/maven2/org/javassist/javassist/$(JAVASSIST_VERSION)
 
 $(JAVASSIST): $(JAVASSIST).md5
 	set dummy "$(JAVASSIST_BASE_URL)" "$(JAVASSIST)"; shift; $(FETCH_DEPENDENCY)

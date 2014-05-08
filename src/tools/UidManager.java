@@ -17,8 +17,12 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +34,12 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
+import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.TSMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.Config;
 
 /**
  * Command line tool to manipulate UIDs.
@@ -100,15 +107,22 @@ final class UidManager {
         + "  rename <kind> <name> <newname>: Renames this UID.\n"
         + "  fsck: Checks the consistency of UIDs.\n"
         + "  [kind] <name>: Lookup the ID of this name.\n"
-        + "  [kind] <ID>: Lookup the name of this ID.\n\n"
+        + "  [kind] <ID>: Lookup the name of this ID.\n"
+        + "  metasync: Generates missing TSUID and UID meta entries, updates\n"
+        + "            created timestamps\n"
+        + "  metapurge: Removes meta data entries from the UID table\n"
+        + "  treesync: Process all timeseries meta objects through tree rules\n"
+        + "  treepurge <id> [definition]: Purge a tree and/or the branches\n"
+        + "            from storage. Provide an integer Tree ID and optionally\n"
+        + "            add \"true\" to delete the tree definition\n\n"
         + "Example values for [kind]:"
-        + " metric, tagk (tag name), tagv (tag value).");
+        + " metrics, tagk (tag name), tagv (tag value).");
     if (argp != null) {
       System.err.print(argp.usage());
     }
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     CliOptions.addVerbose(argp);
@@ -124,8 +138,7 @@ final class UidManager {
     } else if (args.length < 1) {
       usage(argp, "Not enough arguments");
       System.exit(2);
-    }
-    final byte[] table = argp.get("--uidtable", "tsdb-uid").getBytes();
+    }   
     final short idwidth = (argp.has("--idwidth")
                            ? Short.parseShort(argp.get("--idwidth"))
                            : 3);
@@ -134,14 +147,23 @@ final class UidManager {
       System.exit(3);
     }
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
-    final HBaseClient client = CliOptions.clientFromOptions(argp);
+    
+    // get a config object
+    Config config = CliOptions.getConfig(argp);
+    final byte[] table = config.getString("tsd.storage.hbase.uid_table")
+      .getBytes();
+    
+    final TSDB tsdb = new TSDB(config);
+    tsdb.getClient().ensureTableExists(
+        config.getString("tsd.storage.hbase.uid_table")).joinUninterruptibly();
     argp = null;
     int rc;
     try {
-      rc = runCommand(client, table, idwidth, ignorecase, args);
+      rc = runCommand(tsdb, table, idwidth, ignorecase, args);
     } finally {
       try {
-        client.shutdown().joinUninterruptibly();
+        tsdb.getClient().shutdown().joinUninterruptibly();
+        LOG.info("Gracefully shutdown the TSD");
       } catch (Exception e) {
         LOG.error("Unexpected exception while shutting down", e);
         rc = 42;
@@ -150,7 +172,7 @@ final class UidManager {
     System.exit(rc);
   }
 
-  private static int runCommand(final HBaseClient client,
+  private static int runCommand(final TSDB tsdb,
                                 final byte[] table,
                                 final short idwidth,
                                 final boolean ignorecase,
@@ -159,7 +181,7 @@ final class UidManager {
     if (args[0].equals("grep")) {
       if (2 <= nargs && nargs <= 3) {
         try {
-          return grep(client, table, ignorecase, args);
+          return grep(tsdb.getClient(), table, ignorecase, args);
         } catch (HBaseException e) {
           return 3;
         }
@@ -172,23 +194,90 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return assign(client, table, idwidth, args);
+      return assign(tsdb.getClient(), table, idwidth, args);
     } else if (args[0].equals("rename")) {
       if (nargs != 4) {
         usage("Wrong number of arguments");
         return 2;
       }
-      return rename(client, table, idwidth, args);
+      return rename(tsdb.getClient(), table, idwidth, args);
     } else if (args[0].equals("fsck")) {
-      return fsck(client, table);
+      return fsck(tsdb.getClient(), table);
+    } else if (args[0].equals("metasync")) {
+      // check for the data table existence and initialize our plugins 
+      // so that update meta data can be pushed to search engines
+      try {
+        tsdb.getClient().ensureTableExists(
+            tsdb.getConfig().getString(
+                "tsd.storage.hbase.data_table")).joinUninterruptibly();
+        tsdb.initializePlugins(false);
+        return metaSync(tsdb);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        return 3;
+      }      
+    } else if (args[0].equals("metapurge")) {
+      // check for the data table existence and initialize our plugins 
+      // so that update meta data can be pushed to search engines
+      try {
+        tsdb.getClient().ensureTableExists(
+            tsdb.getConfig().getString(
+                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+        return metaPurge(tsdb);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        return 3;
+      }      
+    } else if (args[0].equals("treesync")) {
+      // check for the UID table existence
+      try {
+        tsdb.getClient().ensureTableExists(
+            tsdb.getConfig().getString(
+                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+        if (!tsdb.getConfig().enable_tree_processing()) {
+          LOG.warn("Tree processing is disabled");
+          return 0;
+        }
+        return treeSync(tsdb);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        return 3;
+      }      
+    } else if (args[0].equals("treepurge")) {
+      if (nargs < 2) {
+        usage("Wrong number of arguments");
+        return 2;
+      }
+      try {
+        tsdb.getClient().ensureTableExists(
+            tsdb.getConfig().getString(
+                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+        final int tree_id = Integer.parseInt(args[1]);
+        final boolean delete_definitions;
+        if (nargs < 3) {
+          delete_definitions = false;
+        } else {
+          final String delete_all = args[2];
+          if (delete_all.toLowerCase().equals("true")) {
+            delete_definitions = true;
+          } else {
+            delete_definitions = false;
+          }
+        }
+        return purgeTree(tsdb, tree_id, delete_definitions);
+      } catch (Exception e) {
+        LOG.error("Unexpected exception", e);
+        return 3;
+      }      
     } else {
       if (1 <= nargs && nargs <= 2) {
         final String kind = nargs == 2 ? args[0] : null;
         try {
           final long id = Long.parseLong(args[nargs - 1]);
-          return lookupId(client, table, idwidth, id, kind);
+          return lookupId(tsdb.getClient(), table, idwidth, id, kind);
         } catch (NumberFormatException e) {
-          return lookupName(client, table, idwidth, args[nargs - 1], kind);
+          return lookupName(tsdb.getClient(), table, idwidth, 
+              args[nargs - 1], kind);
         }
       } else {
         usage("Wrong number of arguments");
@@ -352,6 +441,9 @@ final class UidManager {
       }
     }
 
+    final byte[] METRICS_META = "metric_meta".getBytes(CHARSET);
+    final byte[] TAGK_META = "tagk_meta".getBytes(CHARSET);
+    final byte[] TAGV_META = "tagv_meta".getBytes(CHARSET);
     final long start_time = System.nanoTime();
     final HashMap<String, Uids> name2uids = new HashMap<String, Uids>();
     final Scanner scanner = client.newScanner(table);
@@ -363,6 +455,16 @@ final class UidManager {
         for (final ArrayList<KeyValue> row : rows) {
           for (final KeyValue kv : row) {
             kvcount++;
+            
+            // TODO - validate meta data in the future, for now skip it
+            if (Bytes.equals(kv.qualifier(), TSMeta.META_QUALIFIER()) ||
+                Bytes.equals(kv.qualifier(), TSMeta.COUNTER_QUALIFIER()) ||
+                Bytes.equals(kv.qualifier(), METRICS_META) ||
+                Bytes.equals(kv.qualifier(), TAGK_META) ||
+                Bytes.equals(kv.qualifier(), TAGV_META)) {
+              continue;
+            }
+            
             final String kind = fromBytes(kv.qualifier());
             Uids uids = name2uids.get(kind);
             if (uids == null) {
@@ -648,6 +750,221 @@ final class UidManager {
     }
   }
 
+  /**
+   * Runs through the entire data table and creates TSMeta objects for unique
+   * timeseries and/or updates {@code created} timestamps
+   * The process is as follows:
+   * <ul><li>Fetch the max number of Metric UIDs as we'll use those to match
+   * on the data rows</li>
+   * <li>Split the # of UIDs amongst worker threads</li>
+   * <li>Setup a scanner in each thread for the range it will be working on and
+   * start iterating</li>
+   * <li>Fetch the TSUID from the row key</li>
+   * <li>For each unprocessed TSUID:
+   * <ul><li>Check if the metric UID mapping is present, if not, log an error
+   * and continue</li>
+   * <li>See if the meta for the metric UID exists, if not, create it</li>
+   * <li>See if the row timestamp is less than the metric UID meta's created
+   * time. This means we have a record of the UID being used earlier than the
+   * meta data indicates. Update it.</li>
+   * <li>Repeat the previous three steps for each of the TAGK and TAGV tags</li>
+   * <li>Check to see if meta data exists for the timeseries</li>
+   * <li>If not, create the counter column if it's missing, and create the meta
+   * column</li>
+   * <li>If it did exist, check the {@code created} timestamp and if the row's 
+   * time is less, update the meta data</li></ul></li>
+   * <li>Continue on to the next unprocessed timeseries data row</li></ul>
+   * <b>Note:</b> Updates or new entries will also be sent to the search plugin
+   * if configured.
+   * @param tsdb The tsdb to use for processing, including a search plugin
+   * @return 0 if completed successfully, something else if it dies
+   */
+  private static int metaSync(final TSDB tsdb) throws Exception {
+    final long start_time = System.currentTimeMillis() / 1000;
+    final long max_id = getMaxMetricID(tsdb);
+    
+    // now figure out how many IDs to divy up between the workers
+    final int workers = Runtime.getRuntime().availableProcessors() * 2;
+    final double quotient = (double)max_id / (double)workers;
+    final Set<Integer> processed_tsuids = 
+      Collections.synchronizedSet(new HashSet<Integer>());
+    final ConcurrentHashMap<String, Long> metric_uids = 
+      new ConcurrentHashMap<String, Long>();
+    final ConcurrentHashMap<String, Long> tagk_uids = 
+      new ConcurrentHashMap<String, Long>();
+    final ConcurrentHashMap<String, Long> tagv_uids = 
+      new ConcurrentHashMap<String, Long>();
+    
+    long index = 1;
+    
+    LOG.info("Max metric ID is [" + max_id + "]");
+    LOG.info("Spooling up [" + workers + "] worker threads");
+    final Thread[] threads = new Thread[workers];
+    for (int i = 0; i < workers; i++) {
+      threads[i] = new MetaSync(tsdb, index, quotient, processed_tsuids, 
+          metric_uids, tagk_uids, tagv_uids, i);
+      threads[i].setName("MetaSync # " + i);
+      threads[i].start();
+      index += quotient;
+      if (index < max_id) {
+        index++;
+      }
+    }
+    
+    // wait till we're all done
+    for (int i = 0; i < workers; i++) {
+      threads[i].join();
+      LOG.info("[" + i + "] Finished");
+    }
+    
+    // make sure buffered data is flushed to storage before exiting
+    tsdb.flush().joinUninterruptibly();
+    
+    final long duration = (System.currentTimeMillis() / 1000) - start_time;
+    LOG.info("Completed meta data synchronization in [" + 
+        duration + "] seconds");
+    return 0;
+  }
+  
+  /**
+   * Runs through the tsdb-uid table and removes TSMeta, UIDMeta and TSUID 
+   * counter entries from the table
+   * The process is as follows:
+   * <ul><li>Fetch the max number of Metric UIDs</li>
+   * <li>Split the # of UIDs amongst worker threads</li>
+   * <li>Create a delete request with the qualifiers of any matching meta data
+   * columns</li></ul>
+   * <li>Continue on to the next unprocessed timeseries data row</li></ul>
+   * @param tsdb The tsdb to use for processing, including a search plugin
+   * @return 0 if completed successfully, something else if it dies
+   */
+  private static int metaPurge(final TSDB tsdb) throws Exception {
+    final long start_time = System.currentTimeMillis() / 1000;
+    final long max_id = getMaxMetricID(tsdb);
+    
+    // now figure out how many IDs to divy up between the workers
+    final int workers = Runtime.getRuntime().availableProcessors() * 2;
+    final double quotient = (double)max_id / (double)workers;
+    
+    long index = 1;
+    
+    LOG.info("Max metric ID is [" + max_id + "]");
+    LOG.info("Spooling up [" + workers + "] worker threads");
+    final Thread[] threads = new Thread[workers];
+    for (int i = 0; i < workers; i++) {
+      threads[i] = new MetaPurge(tsdb, index, quotient, i);
+      threads[i].setName("MetaSync # " + i);
+      threads[i].start();
+      index += quotient;
+      if (index < max_id) {
+        index++;
+      }
+    }
+    
+    // wait till we're all done
+    for (int i = 0; i < workers; i++) {
+      threads[i].join();
+      LOG.info("[" + i + "] Finished");
+    }
+    
+    // make sure buffered data is flushed to storage before exiting
+    tsdb.flush().joinUninterruptibly();
+    
+    final long duration = (System.currentTimeMillis() / 1000) - start_time;
+    LOG.info("Completed meta data synchronization in [" + 
+        duration + "] seconds");
+    return 0;
+  }
+  
+  /**
+   * Runs through all TSMeta objects in the UID table and passes them through
+   * each of the Trees configured in the system.
+   * First, the method loads all trees in the system, compiles them into 
+   * TreeBuilders, then scans the UID table, passing each TSMeta through each
+   * of the TreeBuilder objects.
+   * @param tsdb The TSDB to use for access
+   * @return 0 if completed successfully, something else if an error occurred
+   */
+  private static int treeSync(final TSDB tsdb) throws Exception {
+    final long start_time = System.currentTimeMillis() / 1000;
+    final long max_id = getMaxMetricID(tsdb);
+    
+ // now figure out how many IDs to divy up between the workers
+    final int workers = Runtime.getRuntime().availableProcessors() * 2;
+    final double quotient = (double)max_id / (double)workers;
+    
+    long index = 1;
+    
+    LOG.info("Max metric ID is [" + max_id + "]");
+    LOG.info("Spooling up [" + workers + "] worker threads");
+    final Thread[] threads = new Thread[workers];
+    for (int i = 0; i < workers; i++) {
+      threads[i] = new TreeSync(tsdb, index, quotient, i);
+      threads[i].setName("TreeSync # " + i);
+      threads[i].start();
+      index += quotient;
+      if (index < max_id) {
+        index++;
+      }
+    }
+    
+    // wait till we're all done
+    for (int i = 0; i < workers; i++) {
+      threads[i].join();
+      LOG.info("[" + i + "] Finished");
+    }
+    
+    // make sure buffered data is flushed to storage before exiting
+    tsdb.flush().joinUninterruptibly();
+    
+    final long duration = (System.currentTimeMillis() / 1000) - start_time;
+    LOG.info("Completed meta data synchronization in [" + 
+        duration + "] seconds");
+    return 0;
+  }
+  
+  /**
+   * Attempts to delete the branches, leaves, collisions and not-matched entries
+   * for a given tree. Optionally removes the tree definition itself
+   * @param tsdb The TSDB to use for access
+   * @param tree_id ID of the tree to delete
+   * @param delete_definition Whether or not to delete the tree definition as
+   * well 
+   * @return 0 if completed successfully, something else if an error occurred
+   */
+  private static int purgeTree(final TSDB tsdb, final int tree_id, 
+      final boolean delete_definition) throws Exception {
+    final TreeSync sync = new TreeSync(tsdb, 0, 1, 0);
+    return sync.purgeTree(tree_id, delete_definition);
+  }
+  
+  /**
+   * Returns the max metric ID from the UID table
+   * @param tsdb The TSDB to use for data access
+   * @return The max metric ID as an integer value
+   */
+  private static long getMaxMetricID(final TSDB tsdb) {
+    // first up, we need the max metric ID so we can split up the data table
+    // amongst threads.
+    final GetRequest get = new GetRequest(tsdb.uidTable(), new byte[] { 0 });
+    get.family("id".getBytes(CHARSET));
+    get.qualifier("metrics".getBytes(CHARSET));
+    ArrayList<KeyValue> row;
+    try {
+      row = tsdb.getClient().get(get).joinUninterruptibly();
+      if (row == null || row.isEmpty()) {
+        throw new IllegalStateException("No data in the metric max UID cell");
+      }
+      final byte[] id_bytes = row.get(0).value();
+      if (id_bytes.length != 8) {
+        throw new IllegalStateException("Invalid metric max UID, wrong # of bytes");
+      }
+      return Bytes.getLong(id_bytes);
+    } catch (Exception e) {
+      throw new RuntimeException("Shouldn't be here", e);
+    }
+  }
+  
   private static byte[] toBytes(final String s) {
     try {
       return (byte[]) toBytes.invoke(null, s);
@@ -663,5 +980,4 @@ final class UidManager {
       throw new RuntimeException("fromBytes=" + fromBytes, e);
     }
   }
-
 }

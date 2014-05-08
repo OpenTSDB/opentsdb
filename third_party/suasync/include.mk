@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-SUASYNC_VERSION := 1.3.2
+SUASYNC_VERSION := 1.4.0
 SUASYNC := third_party/suasync/suasync-$(SUASYNC_VERSION).jar
 SUASYNC_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
 

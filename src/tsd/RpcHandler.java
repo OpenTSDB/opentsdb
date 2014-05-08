@@ -12,12 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.google.common.net.HttpHeaders;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -28,12 +29,15 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.JSON;
 
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
@@ -52,17 +56,41 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   private final TelnetRpc unknown_cmd = new Unknown();
   /** Commands we serve on the HTTP interface. */
   private final HashMap<String, HttpRpc> http_commands;
+  /** List of domains to allow access to HTTP. By default this will be empty and
+   * all CORS headers will be ignored. */
+  private final HashSet<String> cors_domains;
 
   /** The TSDB to use. */
   private final TSDB tsdb;
 
   /**
-   * Constructor.
+   * Constructor that loads the CORS domain list and configures the route maps 
+   * for telnet and HTTP requests
    * @param tsdb The TSDB to use.
+   * @throws IllegalArgumentException if there was an error with the CORS domain
+   * list
    */
   public RpcHandler(final TSDB tsdb) {
     this.tsdb = tsdb;
 
+    final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
+    if (cors == null || cors.isEmpty()) {
+      cors_domains = null;
+      LOG.info("CORS domain list was empty, CORS will not be enabled");
+    } else {
+      final String[] domains = cors.split(",");
+      cors_domains = new HashSet<String>(domains.length);
+      for (final String domain : domains) {
+        if (domain.equals("*") && domains.length > 1) {
+          throw new IllegalArgumentException(
+              "tsd.http.request.cors_domains must be a public resource (*) or " 
+              + "a list of specific domains, you cannot mix both.");
+        }
+        cors_domains.add(domain.trim().toUpperCase());
+        LOG.info("Loaded CORS domain (" + domain + ")");
+      }
+    }
+    
     telnet_commands = new HashMap<String, TelnetRpc>(7);
     http_commands = new HashMap<String, HttpRpc>(11);
     {
@@ -76,30 +104,52 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("s", staticfile);
     }
     {
-      final Stats stats = new Stats();
+      final StatsRpc stats = new StatsRpc();
       telnet_commands.put("stats", stats);
       http_commands.put("stats", stats);
+      http_commands.put("api/stats", stats);
     }
     {
       final Version version = new Version();
       telnet_commands.put("version", version);
       http_commands.put("version", version);
+      http_commands.put("api/version", version);
     }
     {
       final DropCaches dropcaches = new DropCaches();
       telnet_commands.put("dropcaches", dropcaches);
       http_commands.put("dropcaches", dropcaches);
+      http_commands.put("api/dropcaches", dropcaches);
     }
 
     telnet_commands.put("exit", new Exit());
     telnet_commands.put("help", new Help());
-    telnet_commands.put("put", new PutDataPointRpc());
+    {
+      final PutDataPointRpc put = new PutDataPointRpc();
+      telnet_commands.put("put", put);
+      http_commands.put("api/put", put);
+    }
 
     http_commands.put("", new HomePage());
-    http_commands.put("aggregators", new ListAggregators());
+    {
+      final ListAggregators aggregators = new ListAggregators();
+      http_commands.put("aggregators", aggregators);
+      http_commands.put("api/aggregators", aggregators);
+    }
     http_commands.put("logs", new LogsRpc());
     http_commands.put("q", new GraphHandler());
-    http_commands.put("suggest", new Suggest());
+    {
+      final SuggestRpc suggest_rpc = new SuggestRpc();
+      http_commands.put("suggest", suggest_rpc);
+      http_commands.put("api/suggest", suggest_rpc);
+    }
+    http_commands.put("api/serializers", new Serializers());
+    http_commands.put("api/uid", new UniqueIdRpc());
+    http_commands.put("api/query", new QueryRpc());
+    http_commands.put("api/tree", new TreeRpc());
+    http_commands.put("api/annotation", new AnnotationRpc());
+    http_commands.put("api/search", new SearchRpc());
+    http_commands.put("api/config", new ShowConfig());
   }
 
   @Override
@@ -110,7 +160,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       if (message instanceof String[]) {
         handleTelnetRpc(msgevent.getChannel(), (String[]) message);
       } else if (message instanceof HttpRequest) {
-        handleHttpQuery(msgevent.getChannel(), (HttpRequest) message);
+        handleHttpQuery(tsdb, msgevent.getChannel(), (HttpRequest) message);
       } else {
         logError(msgevent.getChannel(), "Unexpected message type "
                  + message.getClass() + ": " + message);
@@ -143,74 +193,76 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /**
    * Finds the right handler for an HTTP query and executes it.
+   * Also handles simple and pre-flight CORS requests if configured, rejecting
+   * requests that do not match a domain in the list.
    * @param chan The channel on which the query was received.
    * @param req The parsed HTTP request.
    */
-  private void handleHttpQuery(final Channel chan, final HttpRequest req) {
+  private void handleHttpQuery(final TSDB tsdb, final Channel chan, final HttpRequest req) {
     http_rpcs_received.incrementAndGet();
-    final HttpQuery query = new HttpQuery(req, chan);
-    if (req.isChunked()) {
+    final HttpQuery query = new HttpQuery(tsdb, req, chan);
+    if (!tsdb.getConfig().enable_chunked_requests() && req.isChunked()) {
       logError(query, "Received an unsupported chunked request: "
                + query.request());
       query.badRequest("Chunked request not supported.");
       return;
     }
     try {
-      final HttpRpc rpc = http_commands.get(getEndPoint(query));
-      if (rpc != null) {
-        rpc.execute(tsdb, query);
-      } else {
-        query.notFound();
+      try {        
+        final String route = query.getQueryBaseRoute();
+        query.setSerializer();
+        
+        final String domain = req.headers().get("Origin");
+        
+        // catch CORS requests and add the header or refuse them if the domain
+        // list has been configured
+        if (query.method() == HttpMethod.OPTIONS || 
+            (cors_domains != null && domain != null && !domain.isEmpty())) {          
+          if (cors_domains == null || domain == null || domain.isEmpty()) {
+            throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+                "Method not allowed", "The HTTP method [" + 
+                query.method().getName() + "] is not permitted");
+          }
+          
+          if (cors_domains.contains("*") || 
+              cors_domains.contains(domain.toUpperCase())) {
+
+            // when a domain has matched successfully, we need to add the header
+            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+                domain);
+            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
+                "GET, POST, PUT, DELETE");
+
+            // if the method requested was for OPTIONS then we'll return an OK
+            // here and no further processing is needed.
+            if (query.method() == HttpMethod.OPTIONS) {
+              query.sendStatusOnly(HttpResponseStatus.OK);
+              return;
+            }
+          } else {
+            // You'd think that they would want the server to return a 403 if
+            // the Origin wasn't in the CORS domain list, but they want a 200
+            // without the allow origin header. We'll return an error in the
+            // body though.
+            throw new BadRequestException(HttpResponseStatus.OK, 
+                "CORS domain not allowed", "The domain [" + domain + 
+                "] is not permitted access");
+          }
+        }
+        
+        final HttpRpc rpc = http_commands.get(route);
+        if (rpc != null) {
+          rpc.execute(tsdb, query);
+        } else {
+          query.notFound();
+        }
+      } catch (BadRequestException ex) {
+        query.badRequest(ex);
       }
-    } catch (BadRequestException ex) {
-      query.badRequest(ex.getMessage());
     } catch (Exception ex) {
       query.internalError(ex);
       exceptions_caught.incrementAndGet();
     }
-  }
-
-  /**
-   * Returns the "first path segment" in the URI.
-   *
-   * Examples:
-   * <pre>
-   *   URI request | Value returned
-   *   ------------+---------------
-   *   /           | ""
-   *   /foo        | "foo"
-   *   /foo/bar    | "foo"
-   *   /foo?quux   | "foo"
-   * </pre>
-   * @param query The HTTP query.
-   */
-  private String getEndPoint(final HttpQuery query) {
-    final String uri = query.request().getUri();
-    if (uri.length() < 1) {
-      throw new BadRequestException("Empty query");
-    }
-    if (uri.charAt(0) != '/') {
-      throw new BadRequestException("Query doesn't start with a slash: <code>"
-                                    // TODO(tsuna): HTML escape to avoid XSS.
-                                    + uri + "</code>");
-    }
-    final int questionmark = uri.indexOf('?', 1);
-    final int slash = uri.indexOf('/', 1);
-    int pos;  // Will be set to where the first path segment ends.
-    if (questionmark > 0) {
-      if (slash > 0) {
-        pos = (questionmark < slash
-               ? questionmark       // Request: /foo?bar/quux
-               : slash);            // Request: /foo/bar?quux
-      } else {
-        pos = questionmark;         // Request: /foo?bar
-      }
-    } else {
-      pos = (slash > 0
-             ? slash                // Request: /foo/bar
-             : uri.length());       // Request: /foo
-    }
-    return uri.substring(1, pos);
   }
 
   /**
@@ -302,7 +354,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The home page ("GET /"). */
   private static final class HomePage implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) {
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws IOException {
       final StringBuilder buf = new StringBuilder(2048);
       buf.append("<div id=queryuimain></div>"
                  + "<noscript>You must have JavaScript enabled.</noscript>"
@@ -318,77 +371,22 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "/aggregators" endpoint. */
   private static final class ListAggregators implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) {
-      query.sendJsonArray(Aggregators.set());
-    }
-  }
-
-  /** The "stats" command and the "/stats" endpoint. */
-  private static final class Stats implements TelnetRpc, HttpRpc {
-    public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
-                                    final String[] cmd) {
-      final StringBuilder buf = new StringBuilder(1024);
-      final StatsCollector collector = new StatsCollector("tsd") {
-        @Override
-        public final void emit(final String line) {
-          buf.append(line);
-        }
-      };
-      doCollectStats(tsdb, collector);
-      chan.write(buf.toString());
-      return Deferred.fromResult(null);
-    }
-
-    public void execute(final TSDB tsdb, final HttpQuery query) {
-      final boolean json = query.hasQueryStringParam("json");
-      final StringBuilder buf = json ? null : new StringBuilder(2048);
-      final ArrayList<String> stats = json ? new ArrayList<String>(64) : null;
-      final StatsCollector collector = new StatsCollector("tsd") {
-        @Override
-        public final void emit(final String line) {
-          if (json) {
-            stats.add(line.substring(0, line.length() - 1));  // strip the '\n'
-          } else {
-            buf.append(line);
-          }
-        }
-      };
-      doCollectStats(tsdb, collector);
-      if (json) {
-        query.sendJsonArray(stats);
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws IOException {
+      
+      // only accept GET/POST
+      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+            "Method not allowed", "The HTTP method [" + query.method().getName() +
+            "] is not permitted for this endpoint");
+      }
+      
+      if (query.apiVersion() > 0) {
+        query.sendReply(
+            query.serializer().formatAggregatorsV1(Aggregators.set()));
       } else {
-        query.sendReply(buf);
+        query.sendReply(JSON.serializeToBytes(Aggregators.set()));
       }
-    }
-
-    private void doCollectStats(final TSDB tsdb,
-                                final StatsCollector collector) {
-      collector.addHostTag();
-      ConnectionManager.collectStats(collector);
-      RpcHandler.collectStats(collector);
-      tsdb.collectStats(collector);
-    }
-  }
-
-  /** The "/suggest" endpoint. */
-  private static final class Suggest implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) {
-      final String type = query.getRequiredQueryStringParam("type");
-      final String q = query.getQueryStringParam("q");
-      if (q == null) {
-        throw BadRequestException.missingParameter("q");
-      }
-      List<String> suggestions;
-      if ("metrics".equals(type)) {
-        suggestions = tsdb.suggestMetrics(q);
-      } else if ("tagk".equals(type)) {
-        suggestions = tsdb.suggestTagNames(q);
-      } else if ("tagv".equals(type)) {
-        suggestions = tsdb.suggestTagValues(q);
-      } else {
-        throw new BadRequestException("Invalid 'type' parameter:" + type);
-      }
-      query.sendJsonArray(suggestions);
     }
   }
 
@@ -413,29 +411,42 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       return Deferred.fromResult(null);
     }
 
-    public void execute(final TSDB tsdb, final HttpQuery query) {
-      final boolean json = query.request().getUri().endsWith("json");
-      StringBuilder buf;
-      if (json) {
-        buf = new StringBuilder(157 + BuildData.repo_status.toString().length()
-                                + BuildData.user.length() + BuildData.host.length()
-                                + BuildData.repo.length());
-        buf.append("{\"short_revision\":\"").append(BuildData.short_revision)
-          .append("\",\"full_revision\":\"").append(BuildData.full_revision)
-          .append("\",\"timestamp\":").append(BuildData.timestamp)
-          .append(",\"repo_status\":\"").append(BuildData.repo_status)
-          .append("\",\"user\":\"").append(BuildData.user)
-          .append("\",\"host\":\"").append(BuildData.host)
-          .append("\",\"repo\":\"").append(BuildData.repo)
-          .append("\"}");
-      } else {
-        final String revision = BuildData.revisionString();
-        final String build = BuildData.buildString();
-        buf = new StringBuilder(2 // For the \n's
-                                + revision.length() + build.length());
-        buf.append(revision).append('\n').append(build).append('\n');
+    public void execute(final TSDB tsdb, final HttpQuery query) throws 
+      IOException {
+      
+      // only accept GET/POST
+      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+            "Method not allowed", "The HTTP method [" + query.method().getName() +
+            "] is not permitted for this endpoint");
       }
-      query.sendReply(buf);
+      
+      final HashMap<String, String> version = new HashMap<String, String>();
+      version.put("version", BuildData.version);
+      version.put("short_revision", BuildData.short_revision);
+      version.put("full_revision", BuildData.full_revision);
+      version.put("timestamp", Long.toString(BuildData.timestamp));
+      version.put("repo_status", BuildData.repo_status.toString());
+      version.put("user", BuildData.user);
+      version.put("host", BuildData.host);
+      version.put("repo", BuildData.repo);
+      
+      if (query.apiVersion() > 0) {
+        query.sendReply(query.serializer().formatVersionV1(version));
+      } else {
+        final boolean json = query.request().getUri().endsWith("json");      
+        if (json) {
+          query.sendReply(JSON.serializeToBytes(version));
+        } else {
+          final String revision = BuildData.revisionString();
+          final String build = BuildData.buildString();
+          StringBuilder buf;
+          buf = new StringBuilder(2 // For the \n's
+                                  + revision.length() + build.length());
+          buf.append(revision).append('\n').append(build).append('\n');
+          query.sendReply(buf);
+        }
+      }
     }
   }
 
@@ -471,9 +482,25 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       return Deferred.fromResult(null);
     }
 
-    public void execute(final TSDB tsdb, final HttpQuery query) {
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws IOException {
       dropCaches(tsdb, query.channel());
-      query.sendReply("Caches dropped.\n");
+      
+      // only accept GET/POST
+      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+            "Method not allowed", "The HTTP method [" + query.method().getName() +
+            "] is not permitted for this endpoint");
+      }
+      
+      if (query.apiVersion() > 0) {
+        final HashMap<String, String> response = new HashMap<String, String>();
+        response.put("status", "200");
+        response.put("message", "Caches dropped");
+        query.sendReply(query.serializer().formatDropCachesV1(response));
+      } else { // deprecated API
+        query.sendReply("Caches dropped.\n");
+      }
     }
 
     /** Drops in memory caches.  */
@@ -483,7 +510,56 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     }
   }
 
+  /** The /api/formatters endpoint 
+   * @since 2.0 */
+  private static final class Serializers implements HttpRpc {
+    public void execute(final TSDB tsdb, final HttpQuery query) 
+      throws IOException {
+      // only accept GET/POST
+      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+            "Method not allowed", "The HTTP method [" + query.method().getName() +
+            "] is not permitted for this endpoint");
+      }
+      
+      switch (query.apiVersion()) {
+        case 0:
+        case 1:
+          query.sendReply(query.serializer().formatSerializersV1());
+          break;
+        default: 
+          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+              "Requested API version not implemented", "Version " + 
+              query.apiVersion() + " is not implemented");
+      }
+    }
+  }
+  
+  private static final class ShowConfig implements HttpRpc {
 
+    @Override
+    public void execute(TSDB tsdb, HttpQuery query) throws IOException {
+   // only accept GET/POST
+      if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+        throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+            "Method not allowed", "The HTTP method [" + query.method().getName() +
+            "] is not permitted for this endpoint");
+      }
+      
+      switch (query.apiVersion()) {
+        case 0:
+        case 1:
+          query.sendReply(query.serializer().formatConfigV1(tsdb.getConfig()));
+          break;
+        default: 
+          throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+              "Requested API version not implemented", "Version " + 
+              query.apiVersion() + " is not implemented");
+      }
+    }
+    
+  }
+  
   // ---------------- //
   // Logging helpers. //
   // ---------------- //

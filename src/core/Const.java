@@ -23,20 +23,38 @@ public final class Const {
   // 8 is an aggressive limit on purpose.  Can always be increased later.
 
   /** Number of LSBs in time_deltas reserved for flags.  */
-  static final short FLAG_BITS = 4;
+  public static final short FLAG_BITS = 4;
+  
+  /** Number of LSBs in time_deltas reserved for flags.  */
+  public static final short MS_FLAG_BITS = 6;
 
   /**
    * When this bit is set, the value is a floating point value.
    * Otherwise it's an integer value.
    */
-  static final short FLAG_FLOAT = 0x8;
+  public static final short FLAG_FLOAT = 0x8;
 
   /** Mask to select the size of a value from the qualifier.  */
-  static final short LENGTH_MASK = 0x7;
+  public static final short LENGTH_MASK = 0x7;
 
+  /** Mask for the millisecond qualifier flag */
+  public static final byte MS_BYTE_FLAG = (byte)0xF0;
+  
+  /** Flag to set on millisecond qualifier timestamps */
+  public static final int MS_FLAG = 0xF0000000;
+  
+  /** Flag to determine if a compacted column is a mix of seconds and ms */
+  public static final byte MS_MIXED_COMPACT = 1;
+  
   /** Mask to select all the FLAG_BITS.  */
-  static final short FLAGS_MASK = FLAG_FLOAT | LENGTH_MASK;
-
+  public static final short FLAGS_MASK = FLAG_FLOAT | LENGTH_MASK;
+  
+  /** Mask to verify a timestamp on 4 bytes in seconds */
+  public static final long SECOND_MASK = 0xFFFFFFFF00000000L;
+  
+  /** Mask to verify a timestamp on 6 bytes in milliseconds */
+  public static final long MILLISECOND_MASK = 0xFFFFF00000000000L;
+  
   /** Max time delta (in seconds) we can store in a column qualifier.  */
   public static final short MAX_TIMESPAN = 3600;
 
@@ -50,4 +68,10 @@ public final class Const {
     'A', 'B', 'C', 'D', 'E', 'F'
   };
 
+  /** 
+   * Necessary for rate calculations where we may be trying to convert a 
+   * large Long value to a double. Doubles can only take integers up to 2^53
+   * before losing precision.
+   */
+  public static final long MAX_INT_IN_DOUBLE = 0xFFE0000000000000L;
 }

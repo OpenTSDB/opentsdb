@@ -12,15 +12,18 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.IOException;
+import java.util.Map;
+
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.Level;
+
+import net.opentsdb.utils.Config;
 
 import org.slf4j.LoggerFactory;
 
 import org.jboss.netty.logging.InternalLoggerFactory;
 import org.jboss.netty.logging.Slf4JLoggerFactory;
-
-import org.hbase.async.HBaseClient;
 
 /** Helper functions to parse arguments passed to {@code main}.  */
 final class CliOptions {
@@ -43,6 +46,9 @@ final class CliOptions {
     argp.addOption("--zkbasedir", "PATH",
                    "Path under which is the znode for the -ROOT- region"
                    + " (default: /hbase).");
+    argp.addOption("--config", "PATH",
+                   "Path to a configuration file"
+                   + " (default: Searches for file see docs).");
   }
 
   /** Adds a --verbose flag.  */
@@ -77,6 +83,73 @@ final class CliOptions {
     return args;
   }
 
+  /**
+   * Attempts to load a configuration given a file or default files
+   * and overrides with command line arguments
+   * @return A config object with user settings or defaults
+   * @throws IOException If there was an error opening any of the config files
+   * @throws FileNotFoundException If the user provided config file was not found
+   * @since 2.0
+   */
+  static final Config getConfig(final ArgP argp) throws IOException {
+    // load configuration
+    final Config config;
+    final String config_file = argp.get("--config", "");
+    if (!config_file.isEmpty())
+      config = new Config(config_file);
+    else
+      config = new Config(true);
+
+    // load CLI overloads
+    overloadConfig(argp, config);
+    // the auto metric is recorded to a class boolean flag since it's used so
+    // often. We have to set it manually after overriding.
+    config.setAutoMetric(config.getBoolean("tsd.core.auto_create_metrics"));
+    return config;
+  }
+  
+  /**
+   * Copies the parsed command line options to the {@link Config} class
+   * @param config Configuration instance to override
+   * @since 2.0
+   */
+  static void overloadConfig(final ArgP argp, final Config config) {
+
+    // loop and switch so we can map cli options to tsdb options
+    for (Map.Entry<String, String> entry : argp.getParsed().entrySet()) {
+      // map the overrides
+      if (entry.getKey().toLowerCase().equals("--auto-metric")) {
+        config.overrideConfig("tsd.core.auto_create_metrics", "true");
+      } else if (entry.getKey().toLowerCase().equals("--table")) {
+        config.overrideConfig("tsd.storage.hbase.data_table", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--uidtable")) {
+        config.overrideConfig("tsd.storage.hbase.uid_table", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--zkquorum")) {
+        config.overrideConfig("tsd.storage.hbase.zk_quorum",
+            entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--zkbasedir")) {
+        config.overrideConfig("tsd.storage.hbase.zk_basedir",
+            entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--port")) {
+        config.overrideConfig("tsd.network.port", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--staticroot")) {
+        config.overrideConfig("tsd.http.staticroot", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--cachedir")) {
+        config.overrideConfig("tsd.http.cachedir", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--flush-interval")) {
+        config.overrideConfig("tsd.core.flushinterval", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--backlog")) {
+        config.overrideConfig("tsd.network.backlog", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--bind")) {
+        config.overrideConfig("tsd.network.bind", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--async-io")) {
+        config.overrideConfig("tsd.network.async_io", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--worker-threads")) {
+        config.overrideConfig("tsd.network.worker_threads", entry.getValue());
+      }
+    }
+  }
+  
   /** Changes the log level to 'WARN' unless --verbose is passed.  */
   private static void honorVerboseFlag(final ArgP argp) {
     if (argp.optionExists("--verbose") && !argp.has("--verbose")
@@ -91,17 +164,4 @@ final class CliOptions {
       }
     }
   }
-
-  static HBaseClient clientFromOptions(final ArgP argp) {
-    if (argp.optionExists("--auto-metric") && argp.has("--auto-metric")) {
-      System.setProperty("tsd.core.auto_create_metrics", "true");
-    }
-    final String zkq = argp.get("--zkquorum", "localhost");
-    if (argp.has("--zkbasedir")) {
-      return new HBaseClient(zkq, argp.get("--zkbasedir"));
-    } else {
-      return new HBaseClient(zkq);
-    }
-  }
-
 }

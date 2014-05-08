@@ -9,6 +9,7 @@ mydir=`dirname "$0"`
 abs_srcdir='@abs_srcdir@'
 abs_builddir='@abs_builddir@'
 pkgdatadir='@pkgdatadir@'
+configdir='@configdir@'
 # Either we've been installed and pkgdatadir exists, or we haven't been
 # installed and abs_srcdir / abs_builddir aren't empty.
 test -d "$pkgdatadir" || test -n "$abs_srcdir$abs_builddir" || {
@@ -23,6 +24,20 @@ if test -n "$pkgdatadir"; then
   done
   # Add pkgdatadir itself so we can find logback.xml
   CLASSPATH="$CLASSPATH:$pkgdatadir"
+  
+  if test -d "$pkgdatadir/bin"; then
+    CLASSPATH="$CLASSPATH:$pkgdatadir/bin"
+  fi
+  
+  if test -d "$pkgdatadir/lib"; then
+    for jar in "$pkgdatadir"/lib/*.jar; do
+      CLASSPATH="$CLASSPATH:$jar"
+    done
+  fi
+  
+  if test -n "$configdir" && test -d "$configdir"; then
+    CLASSPATH="$CLASSPATH:$configdir"
+  fi
 else
   localdir="$abs_builddir"
   # If we're running out of the build tree, it's especially important that we

@@ -1,11 +1,64 @@
 OpenTSDB - User visible changes.
 
+* Version 2.0.0 (2014-05-5) [???????]
+
+API incompatible changes:
+  - The `TSDB' class now takes a `Config' object in argument instead of an
+    HBaseClient and two strings.
+  - The downsampling interval for the method `Query.downsample' went from
+    being an `int' to a `long'.
+
+Noteworthy changes:
+  - Configuration can be provided in a properties file
+  - New Jackson JSON helper class
+  - GnuPlot batch file for Windows compatability
+  - Add relative time option "n" for 30 days
+  - Relative, unix epoch style timestamps work in CliQuery
+  - New "max" parameter for /suggest that can fetch more than the default 25 
+    results. If not supplied, default is used
+  - New formalized HTTP API, deprecates many of the old HTTP API calls but it
+    is still backwards compatible
+  - New store data points over HTTP via JSON
+  - New annotations for recording meta data along with data points in a time
+    series
+  - New global annotations to record meta data at a specific time but not
+    associated with a specific series
+  - New meta data for metrics, tag names, tag values and time series
+  - New optional chunked encoding support for HTTP requests, configurable
+  - Millisecond resolution support for writing data points and annotations
+  - Variable length encoding for integer data points, any where from 1 to 8
+    bytes instead of using 8 bytes for every point
+  - CORs support for the HTTP API
+  - New data injest plugin framework allowing support for different data
+    formats
+  - Search plugin framework to push meta data to a search engine for access
+  - Real-Time publisher framework to publish data points to a secondary system
+    as soon as they are received at the TSD
+  - New aggregation functions with alternatives to interpolation including:
+    - zero if missing sum: returns a 0 if a data point doesn't exist
+    - max if missing min: returns the maximum value if a data point is missing
+    - min if missing max: returns the minimum value if a data point is missing
+  - New TSUID tracking that writes a counter to a new table to track the 
+    different time series stored and how many data points were written
+  - New meta data trees that allow for flattening time series into a 
+    heirarchical representation similar to a file system
+  - New meta and tree synchronization CLI tools
+  - New statistics showing the number of UIDs used and available for each type
+  - New statistics for the number of current connections to the TSD
+  - New options for working with rate calculations on counters to rollover
+    or reset on anomallys
+  - New Debian package compilable from the source
+  - New RPM package compilable from the source
+
+
+
 * Version 1.1.1 (2013-??-??) [???????]
 
 Noteworthy changes:
   - UIDs are now assigned in a lock-less fashion.
 
-
+
+
 * Version 1.1.0 (2013-03-08) [12879d7]
 
 Noteworthy changes:

@@ -13,10 +13,10 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-NETTY_MAJOR_VERSION = 3.6
-NETTY_VERSION := 3.6.2.Final
+NETTY_MAJOR_VERSION = 3.9
+NETTY_VERSION := 3.9.1.Final
 NETTY := third_party/netty/netty-$(NETTY_VERSION).jar
-NETTY_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+NETTY_BASE_URL := http://central.maven.org/maven2/io/netty/netty/$(NETTY_VERSION)
 
 $(NETTY): $(NETTY).md5
 	set dummy "$(NETTY_BASE_URL)" "$(NETTY)"; shift; $(FETCH_DEPENDENCY)

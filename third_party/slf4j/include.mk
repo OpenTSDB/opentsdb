@@ -13,12 +13,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-SLF4J_VERSION = 1.7.2
+SLF4J_VERSION = 1.7.7
 
 
 LOG4J_OVER_SLF4J_VERSION := $(SLF4J_VERSION)
 LOG4J_OVER_SLF4J := third_party/slf4j/log4j-over-slf4j-$(LOG4J_OVER_SLF4J_VERSION).jar
-LOG4J_OVER_SLF4J_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+LOG4J_OVER_SLF4J_BASE_URL := http://central.maven.org/maven2/org/slf4j/log4j-over-slf4j/$(LOG4J_OVER_SLF4J_VERSION)
 
 $(LOG4J_OVER_SLF4J): $(LOG4J_OVER_SLF4J).md5
 	set dummy "$(LOG4J_OVER_SLF4J_BASE_URL)" "$(LOG4J_OVER_SLF4J)"; shift; $(FETCH_DEPENDENCY)
@@ -26,7 +26,7 @@ $(LOG4J_OVER_SLF4J): $(LOG4J_OVER_SLF4J).md5
 
 SLF4J_API_VERSION := $(SLF4J_VERSION)
 SLF4J_API := third_party/slf4j/slf4j-api-$(SLF4J_API_VERSION).jar
-SLF4J_API_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+SLF4J_API_BASE_URL := http://central.maven.org/maven2/org/slf4j/slf4j-api/$(SLF4J_API_VERSION)
 
 $(SLF4J_API): $(SLF4J_API).md5
 	set dummy "$(SLF4J_API_BASE_URL)" "$(SLF4J_API)"; shift; $(FETCH_DEPENDENCY)

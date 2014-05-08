@@ -14,7 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 # Semantic Versioning (see http://semver.org/).
-AC_INIT([opentsdb], [1.1.0], [opentsdb@googlegroups.com])
+AC_INIT([opentsdb], [2.0.0], [opentsdb@googlegroups.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign])
 
@@ -31,7 +31,9 @@ fi
 TSDB_FIND_PROG([java])
 TSDB_FIND_PROG([javac])
 TSDB_FIND_PROG([jar])
-TSDB_FIND_PROG([gnuplot])
+# Mac OS does not have gnuplot. Falls back to /usr/bin/true to make gnuplot
+# optional.
+TSDB_FIND_PROG([gnuplot], [true])
 AC_PATH_PROG([JAVADOC], [javadoc], [])
 AM_MISSING_PROG([JAVADOC], [javadoc])
 

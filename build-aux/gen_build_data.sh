@@ -8,6 +8,7 @@ set -e
 
 DST=$1
 PACKAGE=$2
+VERSION=$3
 CLASS=`basename "$1" .java`
 
 fatal() {
@@ -62,6 +63,8 @@ package $PACKAGE;
 
 /** Build data for {@code $PACKAGE} */
 public final class $CLASS {
+  /** Version string MAJOR.MINOR.MAINT */
+  public static final String version = "$VERSION";
   /** Short revision at which this package was built. */
   public static final String short_revision = "$short_rev";
   /** Full revision at which this package was built. */
@@ -92,7 +95,7 @@ public final class $CLASS {
 
   /** Human readable string describing the revision of this package. */
   public static final String revisionString() {
-    return "$PACKAGE built at revision $short_rev ($repo_status)";
+    return "$PACKAGE $VERSION built at revision $short_rev ($repo_status)";
   }
   /** Human readable string describing the build information of this package. */
   public static final String buildString() {
@@ -101,6 +104,10 @@ public final class $CLASS {
 
   // These functions are useful to avoid cross-jar inlining.
 
+  /** Version string MAJOR.MINOR.MAINT */
+  public static String version() {
+    return version;
+  }
   /** Short revision at which this package was built. */
   public static String shortRevision() {
     return short_revision;

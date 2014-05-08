@@ -24,6 +24,7 @@ import java.util.HashMap;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.dom.client.Style;
+import com.google.gwt.dom.client.Style.Cursor;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.DomEvent;
@@ -36,6 +37,10 @@ import com.google.gwt.event.dom.client.MouseDownHandler;
 import com.google.gwt.event.dom.client.MouseEvent;
 import com.google.gwt.event.dom.client.MouseMoveEvent;
 import com.google.gwt.event.dom.client.MouseMoveHandler;
+import com.google.gwt.event.dom.client.MouseOutEvent;
+import com.google.gwt.event.dom.client.MouseOutHandler;
+import com.google.gwt.event.dom.client.MouseOverEvent;
+import com.google.gwt.event.dom.client.MouseOverHandler;
 import com.google.gwt.event.dom.client.MouseUpEvent;
 import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.event.logical.shared.BeforeSelectionEvent;
@@ -383,6 +388,18 @@ public class QueryUi implements EntryPoint, HistoryListener {
       graphbox.add(graph, 0, 0);
       zoom_box.setVisible(false);
       graphbox.add(zoom_box, 0, 0);
+      graph.addMouseOverHandler(new MouseOverHandler() {
+        public void onMouseOver(final MouseOverEvent event) {
+          final Style style = graphbox.getElement().getStyle();
+          style.setCursor(Cursor.CROSSHAIR);
+        }
+      });
+      graph.addMouseOutHandler(new MouseOutHandler() {
+        public void onMouseOut(final MouseOutEvent event) {
+          final Style style = graphbox.getElement().getStyle();
+          style.setCursor(Cursor.AUTO);
+        }
+      });
 
       graphvbox.add(graphbox);
       graph.addErrorHandler(new ErrorHandler() {
@@ -573,14 +590,16 @@ public class QueryUi implements EntryPoint, HistoryListener {
         final JSONObject bd = json.isObject();
         final JSONString shortrev = bd.get("short_revision").isString();
         final JSONString status = bd.get("repo_status").isString();
-        final JSONNumber stamp = bd.get("timestamp").isNumber();
+        final JSONString stamp = bd.get("timestamp").isString();
         final JSONString user = bd.get("user").isString();
         final JSONString host = bd.get("host").isString();
         final JSONString repo = bd.get("repo").isString();
+        final JSONString version = bd.get("version").isString();
         build_data.setHTML(
-          "OpenTSDB built from revision " + shortrev.stringValue()
+          "OpenTSDB version [" + version.stringValue() + "] built from revision " 
+          + shortrev.stringValue()
           + " in a " + status.stringValue() + " state<br/>"
-          + "Built on " + new Date((long) (stamp.doubleValue() * 1000))
+          + "Built on " + new Date((Long.parseLong(stamp.stringValue()) * 1000))
           + " by " + user.stringValue() + '@' + host.stringValue()
           + ':' + repo.stringValue());
       }
@@ -810,9 +829,21 @@ public class QueryUi implements EntryPoint, HistoryListener {
       }
     }
     final StringBuilder url = new StringBuilder();
-    url.append("/q?start=").append(FULLDATE.format(start));
+    url.append("/q?start=");
+    final String start_text = start_datebox.getTextBox().getText();
+    if (start_text.endsWith(" ago") || start_text.endsWith("-ago")) {
+      url.append(start_text);
+    } else {
+      url.append(FULLDATE.format(start));
+    }
     if (end != null && !autoreload.getValue()) {
-      url.append("&end=").append(FULLDATE.format(end));
+      url.append("&end=");
+      final String end_text = end_datebox.getTextBox().getText();
+      if (end_text.endsWith(" ago") || end_text.endsWith("-ago")) {
+        url.append(end_text);
+      } else {
+        url.append(FULLDATE.format(end));
+      }
     } else {
       // If there's no end-time, the graph may change while the URL remains
       // the same.  No browser seems to re-fetch an image once it's been

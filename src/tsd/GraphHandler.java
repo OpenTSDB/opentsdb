@@ -19,15 +19,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URL;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.TimeZone;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -35,6 +32,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,12 +43,15 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
+import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
 
 /**
  * Stateless handler of HTTP graph requests (the {@code /q} endpoint).
@@ -58,6 +60,9 @@ final class GraphHandler implements HttpRpc {
 
   private static final Logger LOG =
     LoggerFactory.getLogger(GraphHandler.class);
+
+  private static final boolean IS_WINDOWS =
+    System.getProperty("os.name", "").contains("Windows");
 
   /** Number of times we had to do all the work up to running Gnuplot. */
   private static final AtomicInteger graphs_generated
@@ -76,9 +81,6 @@ final class GraphHandler implements HttpRpc {
 
   /** Executor to run Gnuplot in separate bounded thread pool. */
   private final ThreadPoolExecutor gnuplot;
-
-  /** Directory where to cache query results. */
-  private final String cachedir;
 
   /**
    * Constructor.
@@ -100,7 +102,6 @@ final class GraphHandler implements HttpRpc {
     // ArrayBlockingQueue does not scale as much as LinkedBlockingQueue in terms
     // of throughput but we don't need high throughput here.  We use ABQ instead
     // of LBQ because it creates far fewer references.
-    cachedir = RpcHandler.getDirectoryFromSystemProp("tsd.http.cachedir");
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query) {
@@ -127,16 +128,30 @@ final class GraphHandler implements HttpRpc {
 
   private void doGraph(final TSDB tsdb, final HttpQuery query)
     throws IOException {
-    final String basepath = getGnuplotBasePath(query);
-    final long start_time = getQueryStringDate(query, "start");
+    final String basepath = getGnuplotBasePath(tsdb, query);
+    long start_time = DateTime.parseDateTimeString(
+      query.getRequiredQueryStringParam("start"),
+      query.getQueryStringParam("tz"));
     final boolean nocache = query.hasQueryStringParam("nocache");
     if (start_time == -1) {
       throw BadRequestException.missingParameter("start");
+    } else {
+      // temp fixup to seconds from ms until the rest of TSDB supports ms
+      // Note you can't append this to the DateTime.parseDateTimeString() call as
+      // it clobbers -1 results
+      start_time /= 1000;
     }
-    long end_time = getQueryStringDate(query, "end");
+    long end_time = DateTime.parseDateTimeString(
+        query.getQueryStringParam("end"),
+        query.getQueryStringParam("tz"));
     final long now = System.currentTimeMillis() / 1000;
     if (end_time == -1) {
       end_time = now;
+    } else {
+      // temp fixup to seconds from ms until the rest of TSDB supports ms
+      // Note you can't append this to the DateTime.parseDateTimeString() call as
+      // it clobbers -1 results
+      end_time /= 1000;
     }
     final int max_age = computeMaxAge(query, start_time, end_time, now);
     if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
@@ -168,7 +183,7 @@ final class GraphHandler implements HttpRpc {
       }
     }
     final Plot plot = new Plot(start_time, end_time,
-                               timezones.get(query.getQueryStringParam("tz")));
+          DateTime.timezones.get(query.getQueryStringParam("tz")));
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
     final int nqueries = tsdbqueries.length;
@@ -235,8 +250,10 @@ final class GraphHandler implements HttpRpc {
     if (end_time > now) {                            // (1)
       return 0;
     } else if (end_time < now - Const.MAX_TIMESPAN   // (2)
-               && !isRelativeDate(query, "start")    // (3)
-               && !isRelativeDate(query, "end")) {
+               && !DateTime.isRelativeDate(
+                   query.getQueryStringParam("start"))    // (3)
+               && !DateTime.isRelativeDate(
+                   query.getQueryStringParam("end"))) {
       return 86400;
     } else {                                         // (4)
       return (int) (end_time - start_time) >> 10;
@@ -262,7 +279,10 @@ final class GraphHandler implements HttpRpc {
       this.query = query;
       this.max_age = max_age;
       this.plot = plot;
-      this.basepath = basepath;
+      if (IS_WINDOWS)
+        this.basepath = basepath.replace("\\", "\\\\").replace("/", "\\\\");
+      else
+        this.basepath = basepath;
       this.aggregated_tags = aggregated_tags;
       this.npoints = npoints;
     }
@@ -284,24 +304,19 @@ final class GraphHandler implements HttpRpc {
     private void execute() throws IOException {
       final int nplotted = runGnuplot(query, basepath, plot);
       if (query.hasQueryStringParam("json")) {
-        final StringBuilder buf = new StringBuilder(64);
-        buf.append("{\"plotted\":").append(nplotted)
-          .append(",\"points\":").append(npoints)
-          .append(",\"etags\":[");
-        for (final HashSet<String> tags : aggregated_tags) {
-          if (tags == null || tags.isEmpty()) {
-            buf.append("[]");
-          } else {
-            HttpQuery.toJsonArray(tags, buf);
-          }
-          buf.append(',');
+        final HashMap<String, Object> results = new HashMap<String, Object>();
+        results.put("plotted", nplotted);
+        results.put("points", npoints);
+        // 1.0 returned an empty inner array if the 1st hashset was null, to do
+        // the same we need to fudge it with an empty set
+        if (aggregated_tags != null && aggregated_tags.length > 0 &&
+            aggregated_tags[0] == null) {
+          aggregated_tags[0] = new HashSet<String>();
         }
-        buf.setCharAt(buf.length() - 1, ']');
-        // The "timing" field must remain last, loadCachedJson relies this.
-        buf.append(",\"timing\":").append(query.processingTimeMillis())
-          .append('}');
-        query.sendReply(buf);
-        writeFile(query, basepath + ".json", buf.toString().getBytes());
+        results.put("etags", aggregated_tags);
+        results.put("timing", query.processingTimeMillis());
+        query.sendReply(JSON.serializeToBytes(results));
+        writeFile(query, basepath + ".json", JSON.serializeToBytes(results));
       } else if (query.hasQueryStringParam("png")) {
         query.sendFile(basepath + ".png", max_age);
       } else {
@@ -332,7 +347,7 @@ final class GraphHandler implements HttpRpc {
   }
 
   /** Returns the base path to use for the Gnuplot files. */
-  private String getGnuplotBasePath(final HttpQuery query) {
+  private String getGnuplotBasePath(final TSDB tsdb, final HttpQuery query) {
     final Map<String, List<String>> q = query.getQueryString();
     q.remove("ignore");
     // Super cheap caching mechanism: hash the query string.
@@ -342,7 +357,8 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    return cachedir + Integer.toHexString(qs.hashCode());
+    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") + 
+        Integer.toHexString(qs.hashCode());
   }
 
   /**
@@ -375,14 +391,14 @@ final class GraphHandler implements HttpRpc {
         return false;
       }
       if (query.hasQueryStringParam("json")) {
-        StringBuilder json = loadCachedJson(query, end_time, max_age, basepath);
-        if (json == null) {
-          json = new StringBuilder(32);
-          json.append("{\"timing\":");
+        HashMap<String, Object> map = loadCachedJson(query, end_time,
+            max_age, basepath);
+        if (map == null) {
+          map = new HashMap<String, Object>();
         }
-        json.append(query.processingTimeMillis())
-          .append(",\"cachehit\":\"disk\"}");
-        query.sendReply(json);
+        map.put("timing", query.processingTimeMillis());
+        map.put("cachehit", "disk");
+        query.sendReply(JSON.serializeToBytes(map));
       } else if (query.hasQueryStringParam("png")
                  || query.hasQueryStringParam("ascii")) {
         query.sendFile(cachepath, max_age);
@@ -396,16 +412,18 @@ final class GraphHandler implements HttpRpc {
     }
     // We didn't find an image.  Do a negative cache check.  If we've seen
     // this query before but there was no result, we at least wrote the JSON.
-    final StringBuilder json = loadCachedJson(query, end_time, max_age, basepath);
+    final HashMap<String, Object> map = loadCachedJson(query, end_time,
+        max_age, basepath);
     // If we don't have a JSON file it's a complete cache miss.  If we have
     // one, and it says 0 data points were plotted, it's a negative cache hit.
-    if (json == null || !json.toString().contains("\"plotted\":0")) {
+    if (map == null || !map.containsKey("plotted") ||
+        ((Integer)map.get("plotted")) == 0) {
       return false;
     }
     if (query.hasQueryStringParam("json")) {
-      json.append(query.processingTimeMillis())
-        .append(",\"cachehit\":\"disk\"}");
-      query.sendReply(json);
+      map.put("timing", query.processingTimeMillis());
+      map.put("cachehit", "disk");
+      query.sendReply(JSON.serializeToBytes(map));
     } else if (query.hasQueryStringParam("png")) {
       query.sendReply(" ");  // Send back an empty response...
     } else {
@@ -541,14 +559,18 @@ final class GraphHandler implements HttpRpc {
    * cache the result in case of a cache hit.
    * @param basepath The base path used for the Gnuplot files.
    * @return {@code null} in case no file was found, or the contents of the
-   * file if it was found.  In case some contents was found, it is truncated
-   * after the position of the last `:' in order to allow the caller to add
-   * the time taken to serve by the request and other JSON elements if wanted.
+   * file if it was found.
+   * @throws IOException If the file cannot be loaded
+   * @throws JsonMappingException If the JSON cannot be parsed to a HashMap
+   * @throws JsonParseException If the JSON is improperly formatted
    */
-  private StringBuilder loadCachedJson(final HttpQuery query,
+  @SuppressWarnings("unchecked")
+  private HashMap<String, Object> loadCachedJson(final HttpQuery query,
                                        final long end_time,
                                        final long max_age,
-                                       final String basepath) {
+                                       final String basepath)
+                                       throws JsonParseException,
+                                       JsonMappingException, IOException {
     final String json_path = basepath + ".json";
     File json_cache = new File(json_path);
     if (staleCacheFile(query, end_time, max_age, json_cache)) {
@@ -559,26 +581,8 @@ final class GraphHandler implements HttpRpc {
       return null;
     }
     json_cache = null;
-    final StringBuilder buf = new StringBuilder(20 + json.length);
-    // The json file is always expected to end in: {...,"timing":N}
-    // We remove everything past the last `:' so we can send the new
-    // timing for this request.  This doesn't work if there's a tag name
-    // with a `:' in it, which is not allowed right now.
-    int colon = 0;  // 0 isn't a valid value.
-    for (int i = 0; i < json.length; i++) {
-      buf.append((char) json[i]);
-      if (json[i] == ':') {
-        colon = i;
-      }
-    }
-    if (colon != 0) {
-      buf.setLength(colon + 1);
-      return buf;
-    } else {
-      logError(query, "No `:' found in " + json_path + " (" + json.length
-               + " bytes) = " + new String(json));
-    }
-    return null;
+
+    return (HashMap<String, Object>) JSON.parseToObject(json, HashMap.class);
   }
 
   /** Parses the {@code wxh} query parameter to set the graph dimension. */
@@ -791,7 +795,7 @@ final class GraphHandler implements HttpRpc {
         for (final DataPoint d : dp) {
           asciifile.print(metric);
           asciifile.print(' ');
-          asciifile.print(d.timestamp());
+          asciifile.print((d.timestamp() / 1000));
           asciifile.print(' ');
           if (d.isInteger()) {
             asciifile.print(d.longValue());
@@ -834,7 +838,8 @@ final class GraphHandler implements HttpRpc {
     int nqueries = 0;
     for (final String m : ms) {
       // m is of the following forms:
-      //   agg:[interval-agg:][rate:]metric[{tag=value,...}]
+      //   agg:[interval-agg:][rate[{counter[,[countermax][,resetvalue]]}]:]
+      //     metric[{tag=value,...}]
       // Where the parts in square brackets `[' .. `]' are optional.
       final String[] parts = Tags.splitString(m, ':');
       int i = parts.length;
@@ -846,13 +851,14 @@ final class GraphHandler implements HttpRpc {
       i--;  // Move to the last part (the metric name).
       final HashMap<String, String> parsedtags = new HashMap<String, String>();
       final String metric = Tags.parseWithMetric(parts[i], parsedtags);
-      final boolean rate = "rate".equals(parts[--i]);
+      final boolean rate = parts[--i].startsWith("rate");
+      final RateOptions rate_options = QueryRpc.parseRateOptions(rate, parts[i]);
       if (rate) {
         i--;  // Move to the next part.
       }
       final Query tsdbquery = tsdb.newQuery();
       try {
-        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate);
+        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, rate_options);
       } catch (NoSuchUniqueName e) {
         throw new BadRequestException(e.getMessage());
       }
@@ -870,8 +876,10 @@ final class GraphHandler implements HttpRpc {
           throw new BadRequestException("No such downsampling function: "
                                         + parts[1].substring(dash + 1));
         }
-        final int interval = parseDuration(parts[1].substring(0, dash));
+        final long interval = DateTime.parseDuration(parts[1].substring(0, dash));
         tsdbquery.downsample(interval, downsampler);
+      } else {
+        tsdbquery.downsample(1000, agg);
       }
       tsdbqueries[nqueries++] = tsdbquery;
     }
@@ -891,139 +899,6 @@ final class GraphHandler implements HttpRpc {
     }
   }
 
-  /**
-   * Parses a human-readable duration (e.g, "10m", "3h", "14d") into seconds.
-   * <p>
-   * Formats supported: {@code s}: seconds, {@code m}: minutes,
-   * {@code h}: hours, {@code d}: days, {@code w}: weeks, {@code y}: years.
-   * @param duration The human-readable duration to parse.
-   * @return A strictly positive number of seconds.
-   * @throws BadRequestException if the interval was malformed.
-   */
-  private static final int parseDuration(final String duration) {
-    int interval;
-    final int lastchar = duration.length() - 1;
-    try {
-      interval = Integer.parseInt(duration.substring(0, lastchar));
-    } catch (NumberFormatException e) {
-      throw new BadRequestException("Invalid duration (number): " + duration);
-    }
-    if (interval <= 0) {
-      throw new BadRequestException("Zero or negative duration: " + duration);
-    }
-    switch (duration.charAt(lastchar)) {
-      case 's': return interval;                    // seconds
-      case 'm': return interval * 60;               // minutes
-      case 'h': return interval * 3600;             // hours
-      case 'd': return interval * 3600 * 24;        // days
-      case 'w': return interval * 3600 * 24 * 7;    // weeks
-      case 'y': return interval * 3600 * 24 * 365;  // years (screw leap years)
-    }
-    throw new BadRequestException("Invalid duration (suffix): " + duration);
-  }
-
-  /**
-   * Returns whether or not a date is specified in a relative fashion.
-   * <p>
-   * A date is specified in a relative fashion if it ends in "-ago",
-   * e.g. "1d-ago" is the same as "24h-ago".
-   * @param query The HTTP query from which to get the query string parameter.
-   * @param paramname The name of the query string parameter.
-   * @return {@code true} if the parameter is passed and is a relative date.
-   * Note the method doesn't attempt to validate the relative date.  So this
-   * function can return true on something that looks like a relative date,
-   * but is actually invalid once we really try to parse it.
-   */
-  private static boolean isRelativeDate(final HttpQuery query,
-                                        final String paramname) {
-    final String date = query.getQueryStringParam(paramname);
-    return date == null || date.endsWith("-ago");
-  }
-
-  /**
-   * Returns a timestamp from a date specified in a query string parameter.
-   * Formats accepted are:
-   *   - Relative: "5m-ago", "1h-ago", etc.  See {@link #parseDuration}.
-   *   - Absolute human readable date: "yyyy/MM/dd-HH:mm:ss".
-   *   - UNIX timestamp (seconds since Epoch): "1234567890".
-   * @param query The HTTP query from which to get the query string parameter.
-   * @param paramname The name of the query string parameter.
-   * @return A UNIX timestamp in seconds (strictly positive 32-bit "unsigned")
-   * or -1 if there was no query string parameter named {@code paramname}.
-   * @throws BadRequestException if the date is invalid.
-   */
-  private static long getQueryStringDate(final HttpQuery query,
-                                         final String paramname) {
-    final String date = query.getQueryStringParam(paramname);
-    if (date == null) {
-      return -1;
-    } else if (date.endsWith("-ago")) {
-      return (System.currentTimeMillis() / 1000
-              - parseDuration(date.substring(0, date.length() - 4)));
-    }
-    long timestamp;
-    if (date.length() < 5 || date.charAt(4) != '/') {  // Already a timestamp?
-      try {
-        timestamp = Tags.parseLong(date);              // => Looks like it.
-      } catch (NumberFormatException e) {
-        throw new BadRequestException("Invalid " + paramname + " time: " + date
-                                      + ". " + e.getMessage());
-      }
-    } else {  // => Nope, there is a slash, so parse a date then.
-      try {
-        final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
-        setTimeZone(fmt, query.getQueryStringParam("tz"));
-        timestamp = fmt.parse(date).getTime() / 1000;
-      } catch (ParseException e) {
-        throw new BadRequestException("Invalid " + paramname + " date: " + date
-                                      + ". " + e.getMessage());
-      }
-    }
-    if (timestamp < 0) {
-      throw new BadRequestException("Bad " + paramname + " date: " + date);
-    }
-    return timestamp;
-  }
-
-  /**
-   * Immutable cache mapping a timezone name to its object.
-   * We do this because the JDK's TimeZone class was implemented by retards,
-   * and it's synchronized, going through a huge pile of code, and allocating
-   * new objects all the time.  And to make things even better, if you ask for
-   * a TimeZone that doesn't exist, it returns GMT!  It is thus impractical to
-   * tell if the timezone name was valid or not.  JDK_brain_damage++;
-   * Note: caching everything wastes a few KB on RAM (34KB on my system with
-   * 611 timezones -- each instance is 56 bytes with the Sun JDK).
-   */
-  private static final HashMap<String, TimeZone> timezones;
-  static {
-    final String[] tzs = TimeZone.getAvailableIDs();
-    timezones = new HashMap<String, TimeZone>(tzs.length);
-    for (final String tz : tzs) {
-      timezones.put(tz, TimeZone.getTimeZone(tz));
-    }
-  }
-
-  /**
-   * Applies the given timezone to the given date format.
-   * @param fmt Date format to apply the timezone to.
-   * @param tzname Name of the timezone, or {@code null} in which case this
-   * function is a no-op.
-   * @throws BadRequestException if tzname isn't a valid timezone name.
-   */
-  private static void setTimeZone(final SimpleDateFormat fmt,
-                                  final String tzname) {
-    if (tzname == null) {
-      return;  // Use the default timezone.
-    }
-    final TimeZone tz = timezones.get(tzname);
-    if (tz != null) {
-      fmt.setTimeZone(tz);
-    } else {
-      throw new BadRequestException("Invalid timezone name: " + tzname);
-    }
-  }
-
   private static final PlotThdFactory thread_factory = new PlotThdFactory();
 
   private static final class PlotThdFactory implements ThreadFactory {
@@ -1035,7 +910,9 @@ final class GraphHandler implements HttpRpc {
   }
 
   /** Name of the wrapper script we use to execute Gnuplot.  */
-  private static final String WRAPPER = "mygnuplot.sh";
+  private static final String WRAPPER =
+    IS_WINDOWS ? "mygnuplot.bat" : "mygnuplot.sh";
+
   /** Path to the wrapper script.  */
   private static final String GNUPLOT;
   static {
@@ -1069,6 +946,7 @@ final class GraphHandler implements HttpRpc {
       + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
       + "  CLASSPATH=" + System.getProperty("java.class.path"));
   }
+
 
   // ---------------- //
   // Logging helpers. //

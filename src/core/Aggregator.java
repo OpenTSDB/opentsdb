@@ -14,6 +14,8 @@ package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.Aggregators.Interpolation;
+
 /**
  * A function capable of aggregating multiple {@link DataPoints} together.
  * <p>
@@ -83,4 +85,10 @@ public interface Aggregator {
    */
   double runDouble(Doubles values);
 
+  /** 
+   * Returns the interpolation method to use when working with data points
+   * across time series.
+   * @return The interpolation method to use
+   */
+  Interpolation interpolationMethod();
 }

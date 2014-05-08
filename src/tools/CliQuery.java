@@ -13,24 +13,23 @@
 package net.opentsdb.tools;
 
 import java.io.IOException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.hbase.async.HBaseClient;
-
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
+import net.opentsdb.utils.Config;
+import net.opentsdb.utils.DateTime;
 
 final class CliQuery {
 
@@ -43,11 +42,12 @@ final class CliQuery {
     System.err.println("Usage: query"
         + " [Gnuplot opts] START-DATE [END-DATE] <query> [queries...]\n"
         + "A query has the form:\n"
-        + "  FUNC [rate] [downsample FUNC N] SERIES [TAGS]\n"
+        + "  FUNC [rate] [counter,max,reset] [downsample N FUNC] SERIES [TAGS]\n"
         + "For example:\n"
         + " 2010/03/11-20:57 sum my.awsum.metric host=blah"
         + " sum some.other.metric host=blah state=foo\n"
-        + "Dates must follow this format: [YYYY/MM/DD-]HH:MM[:SS]\n"
+        + "Dates must follow this format: YYYY/MM/DD-HH:MM[:SS] or Unix Epoch\n"
+        + " or relative time such as 1y-ago, 2d-ago, etc.\n"
         + "Supported values for FUNC: " + Aggregators.set()
         + "\nGnuplot options are of the form: +option=value");
     if (argp != null) {
@@ -56,38 +56,7 @@ final class CliQuery {
     System.exit(retval);
   }
 
-  /** Parses the date in argument and returns a UNIX timestamp in seconds. */
-  private static long parseDate(final String s) {
-    SimpleDateFormat format;
-    switch (s.length()) {
-      case 5:
-        format = new SimpleDateFormat("HH:mm");
-        break;
-      case 8:
-        format = new SimpleDateFormat("HH:mm:ss");
-        break;
-      case 10:
-        format = new SimpleDateFormat("yyyy/MM/dd");
-        break;
-      case 16:
-        format = new SimpleDateFormat("yyyy/MM/dd-HH:mm");
-        break;
-      case 19:
-        format = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
-        break;
-      default:
-        usage(null, "Invalid date: " + s, 3);
-        return -1; // Never executed as usage() exits.
-    }
-    try {
-      return format.parse(s).getTime() / 1000;
-    } catch (ParseException e) {
-      usage(null, "Invalid date: " + s, 3);
-      return -1; // Never executed as usage() exits.
-    }
-  }
-
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws Exception {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     CliOptions.addVerbose(argp);
@@ -102,9 +71,11 @@ final class CliQuery {
       usage(argp, "Not enough arguments.", 2);
     }
 
-    final HBaseClient client = CliOptions.clientFromOptions(argp);
-    final TSDB tsdb = new TSDB(client, argp.get("--table", "tsdb"),
-                               argp.get("--uidtable", "tsdb-uid"));
+    // get a config object
+    Config config = CliOptions.getConfig(argp);
+    
+    final TSDB tsdb = new TSDB(config);
+    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     final String basepath = argp.get("--graph");
     argp = null;
 
@@ -193,12 +164,29 @@ final class CliQuery {
                                     final ArrayList<Query> queries,
                                     final ArrayList<String> plotparams,
                                     final ArrayList<String> plotoptions) {
-    final long start_ts = parseDate(args[0]);
-    final long end_ts = (args.length > 3
-                         && (args[1].charAt(0) != '+'
-                             && (args[1].indexOf(':') >= 0
-                                 || args[1].indexOf('/') >= 0))
-                         ? parseDate(args[1]) : -1);
+    long start_ts = DateTime.parseDateTimeString(args[0], null);
+    if (start_ts >= 0)
+      start_ts /= 1000;
+    long end_ts = -1;
+    if (args.length > 3){
+      // see if we can detect an end time
+      try{
+      if (args[1].charAt(0) != '+'
+           && (args[1].indexOf(':') >= 0
+               || args[1].indexOf('/') >= 0
+               || args[1].indexOf('-') >= 0
+               || Long.parseLong(args[1]) > 0)){
+          end_ts = DateTime.parseDateTimeString(args[1], null);
+        }
+      }catch (NumberFormatException nfe) {
+        // ignore it as it means the third parameter is likely the aggregator
+      }
+    }
+    // temp fixup to seconds from ms until the rest of TSDB supports ms
+    // Note you can't append this to the DateTime.parseDateTimeString() call as
+    // it clobbers -1 results
+    if (end_ts >= 0)
+      end_ts /= 1000;
 
     int i = end_ts < 0 ? 1 : 2;
     while (i < args.length && args[i].charAt(0) == '+') {
@@ -211,14 +199,30 @@ final class CliQuery {
     while (i < args.length) {
       final Aggregator agg = Aggregators.get(args[i++]);
       final boolean rate = args[i].equals("rate");
+      RateOptions rate_options = new RateOptions(false, Long.MAX_VALUE,
+          RateOptions.DEFAULT_RESET_VALUE);
       if (rate) {
         i++;
+        
+        long counterMax = Long.MAX_VALUE;
+        long resetValue = RateOptions.DEFAULT_RESET_VALUE;
+        if (args[i].startsWith("counter")) {
+          String[] parts = Tags.splitString(args[i], ',');
+          if (parts.length >= 2 && parts[1].length() > 0) {
+            counterMax = Long.parseLong(parts[1]);
+          }
+          if (parts.length >= 3 && parts[2].length() > 0) {
+            resetValue = Long.parseLong(parts[2]);
+          }
+          rate_options = new RateOptions(true, counterMax, resetValue);
+          i++;
+        }
       }
       final boolean downsample = args[i].equals("downsample");
       if (downsample) {
         i++;
       }
-      final int interval = downsample ? Integer.parseInt(args[i++]) : 0;
+      final long interval = downsample ? Long.parseLong(args[i++]) : 0;
       final Aggregator sampler = downsample ? Aggregators.get(args[i++]) : null;
       final String metric = args[i++];
       final HashMap<String, String> tags = new HashMap<String, String>();
@@ -234,7 +238,7 @@ final class CliQuery {
       if (end_ts > 0) {
         query.setEndTime(end_ts);
       }
-      query.setTimeSeries(metric, tags, agg, rate);
+      query.setTimeSeries(metric, tags, agg, rate, rate_options);
       if (downsample) {
         query.downsample(interval, sampler);
       }

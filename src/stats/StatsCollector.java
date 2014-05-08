@@ -35,10 +35,10 @@ public abstract class StatsCollector {
     LoggerFactory.getLogger(StatsCollector.class);
 
   /** Prefix to add to every metric name, for example `tsd'. */
-  private final String prefix;
+  protected final String prefix;
 
   /** Extra tags to add to every data point emitted. */
-  private HashMap<String, String> extratags;
+  protected HashMap<String, String> extratags;
 
   /** Buffer used to build lines emitted. */
   private final StringBuilder buf = new StringBuilder();
@@ -56,8 +56,11 @@ public abstract class StatsCollector {
    * Method to override to actually emit a data point.
    * @param datapoint A data point in a format suitable for a text
    * import.
+   * @throws IllegalStateException if the emitter has not been implemented
    */
-  public abstract void emit(String datapoint);
+  public void emit(String datapoint) {
+    throw new IllegalStateException("Emitter has not been implemented");
+  }
 
   /**
    * Records a data point.
@@ -119,7 +122,7 @@ public abstract class StatsCollector {
    * @throws IllegalArgumentException if {@code xtratag != null} and it
    * doesn't follow the {@code name=value} format.
    */
-  public final void record(final String name,
+  public void record(final String name,
                            final long value,
                            final String xtratag) {
     buf.setLength(0);
@@ -191,8 +194,25 @@ public abstract class StatsCollector {
    * is used instead.
    */
   public final void addHostTag() {
+    addHostTag(false);
+  }
+
+  /**
+   * Adds a {@code host=hostname} or {@code fqdn=full.host.name} tag.
+   * <p>
+   * This uses {@link InetAddress#getLocalHost} to find the hostname of the
+   * current host.  If the hostname cannot be looked up, {@code (unknown)}
+   * is used instead.
+   * @param canonical Whether or not we should try to get the FQDN of the host.
+   * If set to true, the tag changes to "fqdn" instead of "host"
+   */
+  public final void addHostTag(final boolean canonical) {
     try {
-      addExtraTag("host", InetAddress.getLocalHost().getHostName());
+      if (canonical) {
+        addExtraTag("fqdn", InetAddress.getLocalHost().getCanonicalHostName());
+      } else {
+        addExtraTag("host", InetAddress.getLocalHost().getHostName());
+      }
     } catch (UnknownHostException x) {
       LOG.error("WTF?  Can't find hostname for localhost!", x);
       addExtraTag("host", "(unknown)");
