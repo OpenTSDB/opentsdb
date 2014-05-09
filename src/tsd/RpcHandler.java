@@ -232,6 +232,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
                 domain);
             query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
                 "GET, POST, PUT, DELETE");
+            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+                tsdb.getConfig().getString("tsd.http.request.cors_headers"));
 
             // if the method requested was for OPTIONS then we'll return an OK
             // here and no further processing is needed.
