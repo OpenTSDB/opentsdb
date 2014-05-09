@@ -12,15 +12,21 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+
+import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+
+import com.stumbleupon.async.Callback;
 
 /**
  * <strong>This class is not part of the public API.</strong>
@@ -375,6 +381,47 @@ public final class Internal {
   }
 
   /**
+   * Callback used to fetch only the last data point from a row returned as the
+   * result of a GetRequest. Non data points will be parsed out and the
+   * resulting time and value stored in an IncomingDataPoint if found. If no 
+   * valid data was found, a null is returned.
+   * @since 2.0
+   */
+  public static class GetLastDataPointCB implements Callback<IncomingDataPoint, 
+    ArrayList<KeyValue>> {
+    final TSDB tsdb;
+    
+    public GetLastDataPointCB(final TSDB tsdb) {
+      this.tsdb = tsdb;
+    }
+    
+    /**
+     * Returns the last data point from a data row in the TSDB table.
+     * @param row The row from HBase
+     * @return null if no data was found, a data point if one was
+     */
+    public IncomingDataPoint call(final ArrayList<KeyValue> row) 
+      throws Exception {
+      if (row == null || row.size() < 1) {
+        return null;
+      }
+      
+      // check to see if the cells array is empty as it will flush out all
+      // non-data points.
+      final ArrayList<Cell> cells = extractDataPoints(row, row.size());
+      if (cells.isEmpty()) {
+        return null;
+      }
+      final Cell cell = cells.get(cells.size() - 1);
+      final IncomingDataPoint dp = new IncomingDataPoint();
+      final long base_time = baseTime(tsdb, row.get(0).key());
+      dp.setTimestamp(getTimestampFromQualifier(cell.qualifier(), base_time));
+      dp.setValue(cell.parseValue().toString());
+      return dp;
+    }
+  }
+  
+  /**
    * Compares two data point byte arrays with offsets.
    * Can be used on:
    * <ul><li>Single data point columns</li>
@@ -726,5 +773,58 @@ public final class Internal {
           "] is out of bounds for the qualifier length of [" + 
           qualifier.length + "]");
     }
+  }
+
+  /**
+   * Sets the server-side regexp filter on the scanner.
+   * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
+   * storage from returning irrelevant rows.
+   * @param scanner The scanner on which to add the filter.
+   * @param tsuids The list of TSUIDs to filter on 
+   * @since 2.1
+   */
+  public static void createAndSetTSUIDFilter(final Scanner scanner, 
+      final List<String> tsuids) {
+    Collections.sort(tsuids);
+    
+    // first, convert the tags to byte arrays and count up the total length
+    // so we can allocate the string builder
+    final short metric_width = TSDB.metrics_width();
+    int tags_length = 0;
+    final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
+    for (final String tsuid : tsuids) {
+      final String tags = tsuid.substring(metric_width * 2);
+      final byte[] tag_bytes = UniqueId.stringToUid(tags);
+      tags_length += tag_bytes.length;
+      uids.add(tag_bytes);
+    }
+    
+    // Generate a regexp for our tags based on any metric and timestamp (since
+    // those are handled by the row start/stop) and the list of TSUID tagk/v
+    // pairs. The generated regex will look like: ^.{7}(tags|tags|tags)$
+    // where each "tags" is similar to \\Q\000\000\001\000\000\002\\E
+    final StringBuilder buf = new StringBuilder(
+        13  // "(?s)^.{N}(" + ")$"
+        + (tsuids.size() * 11) // "\\Q" + "\\E|"
+        + tags_length); // total # of bytes in tsuids tagk/v pairs
+    
+    // Alright, let's build this regexp.  From the beginning...
+    buf.append("(?s)"  // Ensure we use the DOTALL flag.
+               + "^.{")
+       // ... start by skipping the metric ID and timestamp.
+       .append(TSDB.metrics_width() + Const.TIMESTAMP_BYTES)
+       .append("}(");
+    
+    for (final byte[] tags : uids) {
+       // quote the bytes
+      buf.append("\\Q");
+      UniqueId.addIdToRegexp(buf, tags);
+      buf.append('|');
+    }
+    
+    // Replace the pipe of the last iteration, close and set
+    buf.setCharAt(buf.length() - 1, ')');
+    buf.append("$");
+    scanner.setKeyRegexp(buf.toString(), Charset.forName("ISO-8859-1"));
   }
 }

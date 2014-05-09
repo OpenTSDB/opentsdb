@@ -57,6 +57,7 @@ tsdb_SRC := \
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
 	src/meta/TSMeta.java	\
+	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
@@ -143,6 +144,7 @@ test_SRC := \
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
+	test/meta/TestTSUIDQuery.java	\
 	test/meta/TestUIDMeta.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
@@ -151,6 +153,7 @@ test_SRC := \
 	test/tools/TestDumpSeries.java	\
 	test/tools/TestFsck.java	\
 	test/tools/TestTextImporter.java	\
+	test/tools/TestUID.java	\
 	test/tree/TestBranch.java	\
 	test/tree/TestLeaf.java	\
 	test/tree/TestTree.java	\

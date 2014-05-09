@@ -45,6 +45,8 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
+import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
@@ -74,6 +76,8 @@ class HttpJsonSerializer extends HttpSerializer {
     new TypeReference<ArrayList<TreeRule>>() {};
   private static TypeReference<HashMap<String, Object>> TR_HASH_MAP_OBJ = 
     new TypeReference<HashMap<String, Object>>() {};
+  private static TypeReference<List<Annotation>> TR_ANNOTATIONS = 
+      new TypeReference<List<Annotation>>() {};
     
   /**
    * Default constructor necessary for plugin implementation
@@ -201,6 +205,26 @@ class HttpJsonSerializer extends HttpSerializer {
     }
     try {
       return JSON.parseToObject(json, TSQuery.class);
+    } catch (IllegalArgumentException iae) {
+      throw new BadRequestException("Unable to parse the given JSON", iae);
+    }
+  }
+  
+  /**
+   * Parses a last data point query
+   * @return A LastPointQuery to work with
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public LastPointQuery parseLastPointQueryV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    try {
+      return JSON.parseToObject(json, LastPointQuery.class);
     } catch (IllegalArgumentException iae) {
       throw new BadRequestException("Unable to parse the given JSON", iae);
     }
@@ -369,6 +393,40 @@ class HttpJsonSerializer extends HttpSerializer {
     }
     
     return JSON.parseToObject(json, Annotation.class);
+  }
+  
+  /**
+   * Parses a list of annotation objects
+   * @return A list of annotation object
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public List<Annotation> parseAnnotationsV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    
+    return JSON.parseToObject(json, TR_ANNOTATIONS);
+  }
+  
+  /**
+   * Parses a bulk annotation deletion query object
+   * @return Settings used to bulk delete annotations
+   * @throws JSONException if parsing failed
+   * @throws BadRequestException if the content was missing or parsing failed
+   */
+  public AnnotationBulkDelete parseAnnotationBulkDeleteV1() {
+    final String json = query.getContent();
+    if (json == null || json.isEmpty()) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          "Missing message content",
+          "Supply valid JSON formatted data in the body of your request");
+    }
+    
+    return JSON.parseToObject(json, AnnotationBulkDelete.class);
   }
   
   /**
@@ -608,6 +666,17 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Format a list of last data points
+   * @param data_points The results of the query
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatLastPointQueryV1(
+      final List<IncomingDataPoint> data_points) {
+    return this.serializeJSON(data_points);
+  }
+  
+  /**
    * Format a single UIDMeta object
    * @param meta The UIDMeta object to serialize
    * @return A JSON structure
@@ -625,6 +694,16 @@ class HttpJsonSerializer extends HttpSerializer {
    */
   public ChannelBuffer formatTSMetaV1(final TSMeta meta) {
     return this.serializeJSON(meta);
+  }
+  
+  /**
+   * Format a a list of TSMeta objects
+   * @param meta The list of TSMeta objects to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTSMetaListV1(final List<TSMeta> metas) {
+    return this.serializeJSON(metas);
   }
   
   /**
@@ -705,6 +784,27 @@ class HttpJsonSerializer extends HttpSerializer {
    */
   public ChannelBuffer formatAnnotationV1(final Annotation note) {
     return serializeJSON(note);
+  }
+  
+  /**
+   * Format a list of annotation objects
+   * @param notes The annotation objects to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatAnnotationsV1(final List<Annotation> notes) {
+    return serializeJSON(notes);
+  }
+  
+  /**
+   * Format the results of a bulk annotation deletion
+   * @param notes The annotation deletion request to return
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatAnnotationBulkDeleteV1(
+      final AnnotationBulkDelete request) {
+    return serializeJSON(request);
   }
   
   /**
