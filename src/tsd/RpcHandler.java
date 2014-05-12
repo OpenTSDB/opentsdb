@@ -59,6 +59,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   /** List of domains to allow access to HTTP. By default this will be empty and
    * all CORS headers will be ignored. */
   private final HashSet<String> cors_domains;
+  /** List of headers allowed for access to HTTP. By default this will contain a
+   * set of known-to-work headers */
+  private final String cors_headers;
 
   /** The TSDB to use. */
   private final TSDB tsdb;
@@ -90,7 +93,25 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         LOG.info("Loaded CORS domain (" + domain + ")");
       }
     }
-    
+
+    final String cors_headers_tmp = tsdb.getConfig().getString("tsd.http.request.cors_headers").trim ();
+    if (cors_headers_tmp == null) {
+      cors_headers = "";
+    } else {
+      HashSet<String> headers_tmp = new HashSet<String>();
+      final String[] headers = cors_headers_tmp.split(",\\s*");
+      for (final String cors_header : headers) {
+        if (! cors_header.matches("^[a-zA-Z0-9._-]+$")) {
+          throw new IllegalArgumentException(
+              "tsd.http.request.cors_headers must be a list of validly-formed "
+              + "HTTP header names. No wildcards are allowed.");
+        }
+        headers_tmp.add(cors_header);
+        LOG.info("Loaded CORS header (" + cors_header + ")");
+      }
+      cors_headers = cors_headers_tmp.toString().replaceAll("^\\[\\s*|\\s*\\]$", "");
+    }
+
     telnet_commands = new HashMap<String, TelnetRpc>(7);
     http_commands = new HashMap<String, HttpRpc>(11);
     {
@@ -233,7 +254,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
             query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
                 "GET, POST, PUT, DELETE");
             query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
-                tsdb.getConfig().getString("tsd.http.request.cors_headers"));
+                cors_headers);
+                //tsdb.getConfig().getString("tsd.http.request.cors_headers"));
 
             // if the method requested was for OPTIONS then we'll return an OK
             // here and no further processing is needed.
