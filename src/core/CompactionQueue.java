@@ -122,8 +122,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    */
   void collectStats(final StatsCollector collector) {
     collector.record("compaction.count", complex_compactions);
-    collector.record("compaction.duplicates", duplicates_same, "values=same");
-    collector.record("compaction.duplicates", duplicates_different, "values=different");
+    collector.record("compaction.duplicates", duplicates_same, "type=identical");
+    collector.record("compaction.duplicates", duplicates_different, "type=variant");
     if (!tsdb.config.enable_compactions()) {
       return;
     }
@@ -188,9 +188,11 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       final int maxflushez = maxflushes;  // Make it final for closure.
       final class FlushMoreCB implements Callback<Deferred<ArrayList<Object>>,
                                                   ArrayList<Object>> {
+        @Override
         public Deferred<ArrayList<Object>> call(final ArrayList<Object> arg) {
           return flush(cut_off, maxflushez);
         }
+        @Override
         public String toString() {
           return "Continue flushing with cut_off=" + cut_off
             + ", maxflushes=" + maxflushez;
@@ -210,9 +212,11 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * write back the compacted version.
    */
   private final class CompactCB implements Callback<Object, ArrayList<KeyValue>> {
+    @Override
     public Object call(final ArrayList<KeyValue> row) {
       return compact(row, null);
     }
+    @Override
     public String toString() {
       return "compact";
     }
@@ -233,8 +237,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   /**
    * Maintains state for a single compaction; exists to break the steps down into manageable
-   * pieces without having to worry about returning muliple values and passing many parameters
+   * pieces without having to worry about returning multiple values and passing many parameters
    * around.
+   * 
+   * @since 2.1
    */
   private class Compaction {
 
@@ -246,10 +252,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private final int nkvs;
 
     // keeps a list of KeyValues to be deleted
-    private final List<KeyValue> toDelete;
+    private final List<KeyValue> to_delete;
 
     // heap of columns, ordered by increasing timestamp
-    private PriorityQueue<Column> heap;
+    private PriorityQueue<ColumnDatapointIterator> heap;
 
     // true if any ms-resolution datapoints have been seen in the column
     private boolean ms_in_row;
@@ -266,7 +272,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       this.row = row;
       this.compacted = compacted;
       this.annotations = annotations;
-      toDelete = new ArrayList<KeyValue>(nkvs);
+      to_delete = new ArrayList<KeyValue>(nkvs);
     }
 
     /**
@@ -283,15 +289,15 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         case 0:
           // no data points, nothing to do
           return true;
-        default:
-          // more than one column, need to merge
-          return false;
         case 1:
           // only one column, check to see if it needs fixups
-          Column col = heap.peek();
+          ColumnDatapointIterator col = heap.peek();
           // either a 2-byte qualifier or one 4-byte ms qualifier, and no fixups required
           return (col.qualifier.length == 2 || (col.qualifier.length == 4
               && Internal.inMilliseconds(col.qualifier))) && !col.needsFixup();
+        default:
+          // more than one column, need to merge
+          return false;
       }
     }
 
@@ -308,7 +314,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
 
       // go through all the columns, process annotations, and
-      heap = new PriorityQueue<Column>(nkvs);
+      heap = new PriorityQueue<ColumnDatapointIterator>(nkvs);
       int tot_values = buildHeapProcessAnnotations();
 
       // if there are no datapoints or only one that needs no fixup, we are done
@@ -323,7 +329,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       mergeDatapoints(compacted_qual, compacted_val);
 
       // if we wound up with no data in the compacted column, we are done
-      if (compacted_qual.count() == 0) {
+      if (compacted_qual.segmentCount() == 0) {
         return null;
       }
 
@@ -342,25 +348,25 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         }
       }
       // if compactions aren't enabled or there is nothing to write, we're done
-      if (!tsdb.config.enable_compactions() || (!write && toDelete.isEmpty())) {
+      if (!tsdb.config.enable_compactions() || (!write && to_delete.isEmpty())) {
         return null;
       }
 
       final byte[] key = compact.key();
       //LOG.debug("Compacting row " + Arrays.toString(key));
-      deleted_cells.addAndGet(toDelete.size());  // We're going to delete this.
+      deleted_cells.addAndGet(to_delete.size());  // We're going to delete this.
       if (write) {
         written_cells.incrementAndGet();
         Deferred<Object> deferred = tsdb.put(key, compact.qualifier(), compact.value());
-        if (!toDelete.isEmpty()) {
-          deferred = deferred.addCallbacks(new DeleteCompactedCB(toDelete), handle_write_error);
+        if (!to_delete.isEmpty()) {
+          deferred = deferred.addCallbacks(new DeleteCompactedCB(to_delete), handle_write_error);
         }
         return deferred;
       } else {
         // We had nothing to write, because one of the cells is already the
         // correctly compacted version, so we can go ahead and delete the
         // individual cells directly.
-        new DeleteCompactedCB(toDelete).call(null);
+        new DeleteCompactedCB(to_delete).call(null);
         return null;
       }
     }
@@ -376,7 +382,6 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       for (KeyValue kv : row) {
         final byte[] qual = kv.qualifier();
         final int len = qual.length;
-        tot_values += len / 2;  // at least 2 bytes per entry, overestimates are better
         if ((len & 1) != 0) {
           // process annotations and other extended formats
           if (qual[0] == Annotation.PREFIX()) {
@@ -386,14 +391,15 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           }
           continue;
         }
+        tot_values += len / 2;  // at least 2 bytes per entry, overestimates are better
         if (longest == null || longest.qualifier().length < kv.qualifier().length) {
           longest = kv;
         }
-        Column col = new Column(kv);
+        ColumnDatapointIterator col = new ColumnDatapointIterator(kv);
         if (col.hasMoreData()) {
           heap.add(col);
         }
-        toDelete.add(kv);
+        to_delete.add(kv);
       }
       return tot_values;
     }
@@ -408,17 +414,23 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private void mergeDatapoints(ByteBufferList compacted_qual, ByteBufferList compacted_val) {
       int prevTs = -1;
       while (!heap.isEmpty()) {
-        Column col = heap.remove();
-        int ts = col.getTimestampOffset();
+        ColumnDatapointIterator col = heap.remove();
+        int ts = col.getTimestampOffsetMs();
         if (ts == prevTs) {
-          // check to see if it is a complete duplicate, or if a value was overwritten
-          byte[] existingVal = compacted_val.getLastAdd();
+          // check to see if it is a complete duplicate, or if the value changed
+          byte[] existingVal = compacted_val.getLastSegment();
           byte[] discardedVal = col.getCopyOfCurrentValue();
           if (!Arrays.equals(existingVal, discardedVal)) {
-            LOG.warn("Duplicate timestamp for key=" + Arrays.toString(row.get(0).key())
-                + ", offset=" + ts + ", kept=" + Arrays.toString(existingVal) + ", discarded="
-                + Arrays.toString(discardedVal));
             duplicates_different.incrementAndGet();
+            if (!tsdb.config.fix_duplicates()) {
+              throw new IllegalDataException("Duplicate timestamp for key="
+                  + Arrays.toString(row.get(0).key()) + ", ms_offset=" + ts + ", older="
+                  + Arrays.toString(existingVal) + ", newer=" + Arrays.toString(discardedVal)
+                  + "; set tsd.storage.fix_duplicates=true to fix automatically or run Fsck");
+            }
+            LOG.warn("Duplicate timestamp for key=" + Arrays.toString(row.get(0).key())
+                + ", ms_offset=" + ts + ", kept=" + Arrays.toString(existingVal) + ", discarded="
+                + Arrays.toString(discardedVal));
           } else {
             duplicates_same.incrementAndGet();
           }
@@ -447,7 +459,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     private KeyValue buildCompactedColumn(ByteBufferList compacted_qual,
         ByteBufferList compacted_val) {
       // metadata is a single byte for a multi-value column, otherwise nothing
-      int metadata_length = compacted_val.count() > 1 ? 1 : 0;
+      int metadata_length = compacted_val.segmentCount() > 1 ? 1 : 0;
       byte[] cq = compacted_qual.toBytes(0);
       byte[] cv = compacted_val.toBytes(metadata_length);
 
@@ -475,7 +487,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       // if the longest entry isn't as long as the compacted one, obviously the compacted
       // one can't have already existed
       if (longest != null && longest.qualifier().length >= compact.qualifier().length) {
-        Iterator<KeyValue> deleteIterator = toDelete.iterator();
+        Iterator<KeyValue> deleteIterator = to_delete.iterator();
         while (deleteIterator.hasNext()) {
           KeyValue cur = deleteIterator.next();
           if (Arrays.equals(cur.qualifier(), compact.qualifier())) {
@@ -532,14 +544,15 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
     }
 
+    @Override
     public Object call(final Object arg) {
       return tsdb.delete(key, qualifiers).addErrback(handle_delete_error);
     }
 
+    @Override
     public String toString() {
       return "delete compacted cells";
     }
-
   }
 
   private final HandleErrorCB handle_read_error = new HandleErrorCB("read");
@@ -563,6 +576,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       this.what = what;
     }
 
+    @Override
     public Object call(final Exception e) {
       if (e instanceof PleaseThrottleException) {  // HBase isn't keeping up.
         final HBaseRpc rpc = ((PleaseThrottleException) e).getFailedRpc();
@@ -584,6 +598,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       return e;
     }
 
+    @Override
     public String toString() {
       return "handle " + what + " error";
     }
@@ -622,6 +637,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       super("CompactionThread");
     }
 
+    @Override
     public void run() {
       while (true) {
         try {
@@ -712,6 +728,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       metric_width = tsdb.metrics.width();
     }
 
+    @Override
     public int compare(final byte[] a, final byte[] b) {
       final int c = Bytes.memcmp(a, b, metric_width, Const.TIMESTAMP_BYTES);
       // If the timestamps are equal, sort according to the entire row key.

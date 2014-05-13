@@ -86,6 +86,7 @@ public final class TestTsdbQuery {
     PowerMockito.whenNew(HBaseClient.class)
     .withArguments(anyString(), anyString()).thenReturn(client); 
     config = new Config(false);
+    config.setFixDuplicates(true);  // TODO(jat): test both ways
     tsdb = new TSDB(config);
     query = new TsdbQuery(tsdb);
 
@@ -2722,6 +2723,7 @@ public final class TestTsdbQuery {
     PowerMockito.mockStatic(IncomingDataPoints.class);   
     PowerMockito.doAnswer(
         new Answer<byte[]>() {
+          @Override
           public byte[] answer(final InvocationOnMock args) 
             throws Exception {
             final String metric = (String)args.getArguments()[1];
@@ -2743,8 +2745,8 @@ public final class TestTsdbQuery {
             }
           }
         }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", (TSDB)any(), anyString(), 
-        (Map<String, String>)any());
+    ).when(IncomingDataPoints.class, "rowKeyTemplate", any(), anyString(), 
+        any());
   }
   
   private void storeLongTimeSeriesSeconds(final boolean two_metrics, 

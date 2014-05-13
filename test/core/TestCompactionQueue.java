@@ -37,7 +37,8 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import static org.mockito.Matchers.*;
+import static org.mockito.Matchers.argThat;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -76,11 +77,13 @@ public final class TestCompactionQueue {
     Whitebox.setInternalState(tsdb, "metrics", mock(UniqueId.class));
     Whitebox.setInternalState(tsdb, "table", TABLE);
     Whitebox.setInternalState(config, "enable_compactions", true);
+    Whitebox.setInternalState(config, "fix_duplicates", true); // TODO(jat): test both ways
     Whitebox.setInternalState(tsdb, "config", config);
     // Stub out the compaction thread, so it doesn't even start.
     PowerMockito.whenNew(CompactionQueue.Thrd.class).withNoArguments()
       .thenReturn(mock(CompactionQueue.Thrd.class));
     PowerMockito.when(config.enable_compactions()).thenReturn(true);
+    PowerMockito.when(config.fix_duplicates()).thenReturn(true);
     compactionq = new CompactionQueue(tsdb);
 
     when(tsdb.put(anyBytes(), anyBytes(), anyBytes()))
@@ -856,6 +859,7 @@ public final class TestCompactionQueue {
   /** Creates a new Deferred that's already called back.  */
   private static <T> Answer<Deferred<T>> newDeferred() {
     return new Answer<Deferred<T>>() {
+      @Override
       public Deferred<T> answer(final InvocationOnMock invocation) {
         return Deferred.fromResult(null);
       }
