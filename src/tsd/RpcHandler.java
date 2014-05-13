@@ -94,22 +94,12 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
     }
 
-    final String cors_headers_tmp = tsdb.getConfig().getString("tsd.http.request.cors_headers").trim ();
-    if (cors_headers_tmp == null) {
-      cors_headers = "";
-    } else {
-      HashSet<String> headers_tmp = new HashSet<String>();
-      final String[] headers = cors_headers_tmp.split(",\\s*");
-      for (final String cors_header : headers) {
-        if (! cors_header.matches("^[a-zA-Z0-9._-]+$")) {
-          throw new IllegalArgumentException(
-              "tsd.http.request.cors_headers must be a list of validly-formed "
-              + "HTTP header names. No wildcards are allowed.");
-        }
-        headers_tmp.add(cors_header);
-        LOG.info("Loaded CORS header (" + cors_header + ")");
-      }
-      cors_headers = cors_headers_tmp.toString().replaceAll("^\\[\\s*|\\s*\\]$", "");
+    cors_headers = tsdb.getConfig().getString("tsd.http.request.cors_headers")
+        .trim();
+    if ((cors_headers == null) || !cors_headers.matches("^([a-zA-Z0-9_.-]+,\\s*)*[a-zA-Z0-9_.-]+$")) {
+      throw new IllegalArgumentException(
+          "tsd.http.request.cors_headers must be a list of validly-formed "
+          + "HTTP header names. No wildcards are allowed.");
     }
 
     telnet_commands = new HashMap<String, TelnetRpc>(7);
