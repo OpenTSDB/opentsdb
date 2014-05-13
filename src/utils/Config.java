@@ -407,6 +407,9 @@ public class Config {
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
     default_map.put("tsd.http.request.cors_domains", "");
+    default_map.put("tsd.http.request.cors_headers", "Authorization, "
+      + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
+      + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
