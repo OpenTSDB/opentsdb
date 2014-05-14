@@ -1257,7 +1257,7 @@ public final class TestTsdbQuery {
   public void runWithOnlyAnnotation() throws Exception {
     storeLongTimeSeriesSeconds(true, false);;
     
-    // verifies that we can pickup an annotation stored all bye it's lonesome
+    // verifies that we can pickup an annotation stored all by it's lonesome
     // in a row without any data
     storage.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
     final Annotation note = new Annotation();
@@ -1288,7 +1288,61 @@ public final class TestTsdbQuery {
     }
     assertEquals(180, dps[0].size());
   }
-  
+
+  @Test
+  public void runSingleDataPoint() throws Exception {
+    setQueryStorage();
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998410;
+    tsdb.addPoint("sys.cpu.user", timestamp, 42, tags).joinUninterruptibly();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    final List<String> tsuids = new ArrayList<String>(1);
+    tsuids.add("000001000001000001");
+    query.setTimeSeries(tsuids, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals(1, dps.length);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    assertEquals(42, dps[0].longValue(0));
+  }
+
+  @Test
+  public void runSingleDataPointWithAnnotation() throws Exception {
+    setQueryStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    long timestamp = 1356998410;
+    tsdb.addPoint("sys.cpu.user", timestamp, 42, tags).joinUninterruptibly();
+    storage.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
+    final Annotation note = new Annotation();
+    note.setTSUID("000001000001000001");
+    note.setStartTime(1357002090);
+    note.setDescription("Hello World!");
+    note.syncToStorage(tsdb, false).joinUninterruptibly();
+
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    final List<String> tsuids = new ArrayList<String>(1);
+    tsuids.add("000001000001000001");
+    query.setTimeSeries(tsuids, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals(1, dps.length);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertEquals("web01", dps[0].getTags().get("host"));
+    assertEquals(42, dps[0].longValue(0));
+    assertEquals(1, dps[0].getAnnotations().size());
+    assertEquals("Hello World!", dps[0].getAnnotations().get(0).getDescription());
+  }
+
   @Test
   public void runTSUIDQuery() throws Exception {
     storeLongTimeSeriesSeconds(true, false);;
