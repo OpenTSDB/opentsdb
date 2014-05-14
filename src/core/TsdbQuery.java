@@ -133,6 +133,7 @@ final class TsdbQuery implements Query {
    * @throws IllegalArgumentException if the timestamp is invalid or greater
    * than the end time (if set)
    */
+  @Override
   public void setStartTime(final long timestamp) {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
@@ -148,6 +149,7 @@ final class TsdbQuery implements Query {
    * @returns the start time for the query
    * @throws IllegalStateException if the start time hasn't been set yet
    */
+  @Override
   public long getStartTime() {
     if (start_time == UNSET) {
       throw new IllegalStateException("setStartTime was never called!");
@@ -162,6 +164,7 @@ final class TsdbQuery implements Query {
    * @throws IllegalArgumentException if the timestamp is invalid or less
    * than the start time (if set)
    */
+  @Override
   public void setEndTime(final long timestamp) {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
@@ -176,6 +179,7 @@ final class TsdbQuery implements Query {
   /** @return the configured end time. If the end time hasn't been set, the
    * current system time will be stored and returned.
    */
+  @Override
   public long getEndTime() {
     if (end_time == UNSET) {
       setEndTime(System.currentTimeMillis());
@@ -183,6 +187,7 @@ final class TsdbQuery implements Query {
     return end_time;
   }
 
+  @Override
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
       final Aggregator function,
@@ -190,6 +195,7 @@ final class TsdbQuery implements Query {
     setTimeSeries(metric, tags, function, rate, new RateOptions());
   }
   
+  @Override
   public void setTimeSeries(final String metric,
         final Map<String, String> tags,
         final Aggregator function,
@@ -204,11 +210,13 @@ final class TsdbQuery implements Query {
     this.rate_options = rate_options;
   }
 
+  @Override
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate) {
     setTimeSeries(tsuids, function, rate, new RateOptions());
   }
   
+  @Override
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate, 
       final RateOptions rate_options) {
@@ -247,6 +255,7 @@ final class TsdbQuery implements Query {
    * @throws NullPointerException if the aggregation function is null
    * @throws IllegalArgumentException if the interval is not greater than 0
    */
+  @Override
   public void downsample(final long interval, final Aggregator downsampler) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
@@ -310,6 +319,7 @@ final class TsdbQuery implements Query {
    * Executes the query
    * @return An array of data points with one time series per array value
    */
+  @Override
   public DataPoints[] run() throws HBaseException {
     try {
       return runAsync().joinUninterruptibly();
@@ -320,6 +330,7 @@ final class TsdbQuery implements Query {
     }
   }
   
+  @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
     return findSpans().addCallback(new GroupByAndAggregateCB());
   }
@@ -354,6 +365,7 @@ final class TsdbQuery implements Query {
       ArrayList<ArrayList<KeyValue>>> {
       
       int nrows = 0;
+      boolean seenAnnotation = false;
       int hbase_time = 0; // milliseconds.
       long starttime = System.nanoTime();
       
@@ -383,7 +395,7 @@ final class TsdbQuery implements Query {
              scanlatency.add(hbase_time);
              LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
                  spans.size() + " spans in " + hbase_time + "ms");
-             if (nrows < 1) {
+             if (nrows < 1 && !seenAnnotation) {
                results.callback(null);
              } else {
                results.callback(spans);
@@ -408,12 +420,13 @@ final class TsdbQuery implements Query {
              }
              final KeyValue compacted = 
                tsdb.compact(row, datapoints.getAnnotations());
+             seenAnnotation |= !datapoints.getAnnotations().isEmpty();
              if (compacted != null) { // Can be null if we ignored all KVs.
                datapoints.addRow(compacted);
                nrows++;
              }
            }
-           
+
            return scan();
          } catch (Exception e) {
            scanner.close();
@@ -441,6 +454,7 @@ final class TsdbQuery implements Query {
     * @return A possibly empty array of {@link SpanGroup}s built according to
     * any 'GROUP BY' formulated in this query.
     */
+    @Override
     public DataPoints[] call(final TreeMap<byte[], Span> spans) throws Exception {
       if (spans == null || spans.size() <= 0) {
         return NO_RESULT;
@@ -554,7 +568,7 @@ final class TsdbQuery implements Query {
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     if (tsuids != null && !tsuids.isEmpty()) {
-      Internal.createAndSetTSUIDFilter(scanner, tsuids);
+      createAndSetTSUIDFilter(scanner);
     } else if (tags.size() > 0 || group_bys != null) {
       createAndSetFilter(scanner);
     }
@@ -642,10 +656,10 @@ final class TsdbQuery implements Query {
       // Skip any number of tags.
       buf.append("(?:.{").append(tagsize).append("})*\\Q");
       if (isTagNext(name_width, tag, group_by)) {
-        UniqueId.addIdToRegexp(buf, tag);
+        addId(buf, tag);
         tag = tags.hasNext() ? tags.next() : null;
       } else {  // Add a group_by.
-        UniqueId.addIdToRegexp(buf, group_by);
+        addId(buf, group_by);
         final byte[][] value_ids = (group_by_values == null
                                     ? null
                                     : group_by_values.get(group_by));
@@ -655,7 +669,7 @@ final class TsdbQuery implements Query {
           buf.append("(?:");
           for (final byte[] value_id : value_ids) {
             buf.append("\\Q");
-            UniqueId.addIdToRegexp(buf, value_id);
+            addId(buf, value_id);
             buf.append('|');
           }
           // Replace the pipe of the last iteration.
@@ -669,6 +683,57 @@ final class TsdbQuery implements Query {
     scanner.setKeyRegexp(buf.toString(), CHARSET);
    }
 
+  /**
+   * Sets the server-side regexp filter on the scanner.
+   * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
+   * storage from returning irrelevant rows.
+   * @param scanner The scanner on which to add the filter.
+   * @since 2.0
+   */
+  private void createAndSetTSUIDFilter(final Scanner scanner) {
+    Collections.sort(tsuids);
+    
+    // first, convert the tags to byte arrays and count up the total length
+    // so we can allocate the string builder
+    final short metric_width = tsdb.metrics.width();
+    int tags_length = 0;
+    final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
+    for (final String tsuid : tsuids) {
+      final String tags = tsuid.substring(metric_width * 2);
+      final byte[] tag_bytes = UniqueId.stringToUid(tags);
+      tags_length += tag_bytes.length;
+      uids.add(tag_bytes);
+    }
+    
+    // Generate a regexp for our tags based on any metric and timestamp (since
+    // those are handled by the row start/stop) and the list of TSUID tagk/v
+    // pairs. The generated regex will look like: ^.{7}(tags|tags|tags)$
+    // where each "tags" is similar to \\Q\000\000\001\000\000\002\\E
+    final StringBuilder buf = new StringBuilder(
+        13  // "(?s)^.{N}(" + ")$"
+        + (tsuids.size() * 11) // "\\Q" + "\\E|"
+        + tags_length); // total # of bytes in tsuids tagk/v pairs
+    
+    // Alright, let's build this regexp.  From the beginning...
+    buf.append("(?s)"  // Ensure we use the DOTALL flag.
+               + "^.{")
+       // ... start by skipping the metric ID and timestamp.
+       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append("}(");
+    
+    for (final byte[] tags : uids) {
+       // quote the bytes
+      buf.append("\\Q");
+      addId(buf, tags);
+      buf.append('|');
+    }
+    
+    // Replace the pipe of the last iteration, close and set
+    buf.setCharAt(buf.length() - 1, ')');
+    buf.append("$");
+    scanner.setKeyRegexp(buf.toString(), CHARSET);
+  }
+  
   /**
    * Helper comparison function to compare tag name IDs.
    * @param name_width Number of bytes used by a tag name ID.
@@ -694,6 +759,25 @@ final class TsdbQuery implements Query {
     return cmp < 0;
   }
 
+  /**
+   * Appends the given ID to the given buffer, followed by "\\E".
+   */
+  private static void addId(final StringBuilder buf, final byte[] id) {
+    boolean backslash = false;
+    for (final byte b : id) {
+      buf.append((char) (b & 0xFF));
+      if (b == 'E' && backslash) {  // If we saw a `\' and now we have a `E'.
+        // So we just terminated the quoted section because we just added \E
+        // to `buf'.  So let's put a litteral \E now and start quoting again.
+        buf.append("\\\\E\\Q");
+      } else {
+        backslash = b == '\\';
+      }
+    }
+    buf.append("\\E");
+  }
+
+  @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("TsdbQuery(start_time=")
@@ -766,6 +850,7 @@ final class TsdbQuery implements Query {
       this.metric_width = metric_width;
     }
 
+    @Override
     public int compare(final byte[] a, final byte[] b) {
       final int length = Math.min(a.length, b.length);
       if (a == b) {  // Do this after accessing a.length and b.length
