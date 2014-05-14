@@ -319,6 +319,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
       // if there are no datapoints or only one that needs no fixup, we are done
       if (noMergesOrFixups()) {
+        // return the single non-annotation entry if requested
+        if (compacted != null && heap.size() == 1) {
+          compacted[0] = findFirstDatapointColumn();
+        }
         return null;
       }
 
@@ -369,6 +373,20 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         new DeleteCompactedCB(to_delete).call(null);
         return null;
       }
+    }
+
+    /**
+     * Find the first datapoint column in a row.
+     *
+     * @return the first found datapoint column in the row, or null if none
+     */
+    private KeyValue findFirstDatapointColumn() {
+      for (KeyValue kv : row) {
+        if (isDatapoint(kv)) {
+          return kv;
+        }
+      }
+      return null;
     }
 
     /**
@@ -500,6 +518,17 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
       return true;
     }
+  }
+
+  /**
+   * Check if a particular column is a datapoint column (as opposed to annotation or other
+   * extended formats).
+   *
+   * @param kv column to check
+   * @return true if the column represents one or more datapoint
+   */
+  protected static boolean isDatapoint(KeyValue kv) {
+    return (kv.qualifier().length & 1) == 0;
   }
 
   /**
