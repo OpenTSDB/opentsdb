@@ -1207,24 +1207,24 @@ public final class TestTsdbQuery {
   @Test
   public void runWithAnnotationPostCompact() throws Exception {
     storeLongTimeSeriesSeconds(true, false);;
-    
+
     final Annotation note = new Annotation();
     note.setTSUID("000001000001000001");
     note.setStartTime(1356998490);
     note.setDescription("Hello World!");
     note.syncToStorage(tsdb, false).joinUninterruptibly();
-    
+
     final Field compact = Config.class.getDeclaredField("enable_compactions");
     compact.setAccessible(true);
     compact.set(config, true);
-    
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     assertNotNull(query.run());
-    
+
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
     assertEquals(2, storage.numColumns(
@@ -1251,10 +1251,46 @@ public final class TestTsdbQuery {
       value++;
     }
     assertEquals(300, dps[0].size());
-  } 
-  
+  }
+
   @Test
   public void runWithOnlyAnnotation() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);;
+
+    // verifies that we can pickup an annotation stored all by it's lonesome
+    // in a row without any data
+    storage.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
+    final Annotation note = new Annotation();
+    note.setTSUID("000001000001000001");
+    note.setStartTime(1357002090);
+    note.setDescription("Hello World!");
+    note.syncToStorage(tsdb, false).joinUninterruptibly();
+
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals(1, dps[0].getAnnotations().size());
+    assertEquals("Hello World!", dps[0].getAnnotations().get(0).getDescription());
+
+    int value = 1;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(value, dp.longValue());
+      value++;
+      // account for the jump
+      if (value == 120) {
+        value = 240;
+      }
+    }
+    assertEquals(180, dps[0].size());
+  }
+
+  @Test
+  public void runWithSingleAnnotation() throws Exception {
     setQueryStorage();
 
     // verifies that we can pickup an annotation stored all by it's lonesome
