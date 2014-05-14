@@ -353,6 +353,7 @@ final class TsdbQuery implements Query {
       ArrayList<ArrayList<KeyValue>>> {
       
       int nrows = 0;
+      boolean seenAnnotation = false;
       int hbase_time = 0; // milliseconds.
       long starttime = System.nanoTime();
       
@@ -382,7 +383,7 @@ final class TsdbQuery implements Query {
              scanlatency.add(hbase_time);
              LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
                  spans.size() + " spans in " + hbase_time + "ms");
-             if (nrows < 1) {
+             if (nrows < 1 && !seenAnnotation) {
                results.callback(null);
              } else {
                results.callback(spans);
@@ -407,12 +408,13 @@ final class TsdbQuery implements Query {
              }
              final KeyValue compacted = 
                tsdb.compact(row, datapoints.getAnnotations());
+             seenAnnotation |= !datapoints.getAnnotations().isEmpty();
              if (compacted != null) { // Can be null if we ignored all KVs.
                datapoints.addRow(compacted);
                nrows++;
              }
            }
-           
+
            return scan();
          } catch (Exception e) {
            scanner.close();

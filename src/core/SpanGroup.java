@@ -50,7 +50,10 @@ import net.opentsdb.meta.Annotation;
  * iterator when using the {@link Span.DownsamplingIterator}.
  */
 final class SpanGroup implements DataPoints {
-  
+
+  /** Annotations */
+  private final ArrayList<Annotation> annotations;
+
   /** Start time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
   private final long start_time;
 
@@ -145,20 +148,19 @@ final class SpanGroup implements DataPoints {
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
-     this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
-         start_time * 1000 : start_time;
-     this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
-         end_time * 1000 : end_time;
-     if (spans != null) {
-       for (final Span span : spans) {
-         add(span);
-       }
-     }
-     this.rate = rate;
-     this.rate_options = rate_options;
-     this.aggregator = aggregator;
-     this.downsampler = downsampler;
-     this.sample_interval = interval;
+    annotations = new ArrayList<Annotation>();
+    this.start_time = (start_time & Const.SECOND_MASK) == 0 ? start_time * 1000 : start_time;
+    this.end_time = (end_time & Const.SECOND_MASK) == 0 ? end_time * 1000 : end_time;
+    if (spans != null) {
+      for (final Span span : spans) {
+        add(span);
+      }
+    }
+    this.rate = rate;
+    this.rate_options = rate_options;
+    this.aggregator = aggregator;
+    this.downsampler = downsampler;
+    this.sample_interval = interval;
   }
 
   /**
@@ -173,25 +175,44 @@ final class SpanGroup implements DataPoints {
       throw new AssertionError("The set of tags has already been computed"
                                + ", you can't add more Spans to " + this);
     }
-    
+
     // normalize timestamps to milliseconds for proper comparison
     final long start = (start_time & Const.SECOND_MASK) == 0 ? 
         start_time * 1000 : start_time;
     final long end = (end_time & Const.SECOND_MASK) == 0 ? 
         end_time * 1000 : end_time;
-    long first_dp = span.timestamp(0);
-    if ((first_dp & Const.SECOND_MASK) == 0) {
-      first_dp *= 1000;
-    }
-    // The following call to timestamp() will throw an
-    // IndexOutOfBoundsException if size == 0, which is OK since it would
-    // be a programming error.
-    long last_dp = span.timestamp(span.size() - 1);
-    if ((last_dp & Const.SECOND_MASK) == 0) {
-      last_dp *= 1000;
-    }
-    if (first_dp <= end && last_dp >= start) {
-      this.spans.add(span);
+
+    if (span.size() == 0) {
+      // copy annotations that are in the time range
+      for (Annotation annot : span.getAnnotations()) {
+        long annot_start = annot.getStartTime();
+        if ((annot_start & Const.SECOND_MASK) == 0) {
+          annot_start *= 1000;
+        }
+        long annot_end = annot.getStartTime();
+        if ((annot_end & Const.SECOND_MASK) == 0) {
+          annot_end *= 1000;
+        }
+        if (annot_end >= start && annot_start <= end) {
+          annotations.add(annot);
+        }
+      }
+    } else {
+      long first_dp = span.timestamp(0);
+      if ((first_dp & Const.SECOND_MASK) == 0) {
+        first_dp *= 1000;
+      }
+      // The following call to timestamp() will throw an
+      // IndexOutOfBoundsException if size == 0, which is OK since it would
+      // be a programming error.
+      long last_dp = span.timestamp(span.size() - 1);
+      if ((last_dp & Const.SECOND_MASK) == 0) {
+        last_dp *= 1000;
+      }
+      if (first_dp <= end && last_dp >= start) {
+        this.spans.add(span);
+        annotations.addAll(span.getAnnotations());
+      }
     }
   }
 
@@ -214,6 +235,7 @@ final class SpanGroup implements DataPoints {
      * the results.
      */
     class SpanTagsCB implements Callback<Object, ArrayList<Map<String, String>>> {
+      @Override
       public Object call(final ArrayList<Map<String, String>> lookups) 
         throws Exception {
         final HashSet<String> discarded_tags = new HashSet<String>(tags.size());
@@ -240,6 +262,7 @@ final class SpanGroup implements DataPoints {
      * the tags for the different spans and work on each set.
      */
     class FirstTagSetCB implements Callback<Object, Map<String, String>> {      
+      @Override
       public Object call(final Map<String, String> first_tags) throws Exception {
         tags = new HashMap<String, String>(first_tags);
         final ArrayList<Deferred<Map<String, String>>> deferreds = 
@@ -256,6 +279,7 @@ final class SpanGroup implements DataPoints {
     return it.next().getTagsAsync().addCallback(new FirstTagSetCB());
   }
 
+  @Override
   public String metricName() {
     try {
       return metricNameAsync().joinUninterruptibly();
@@ -266,11 +290,13 @@ final class SpanGroup implements DataPoints {
     }
   }
   
+  @Override
   public Deferred<String> metricNameAsync() {
     return spans.isEmpty() ? Deferred.fromResult("") : 
       spans.get(0).metricNameAsync();
   }
 
+  @Override
   public Map<String, String> getTags() {
     try {
       return getTagsAsync().joinUninterruptibly();
@@ -281,6 +307,7 @@ final class SpanGroup implements DataPoints {
     }
   }
   
+  @Override
   public Deferred<Map<String, String>> getTagsAsync() {
     if (tags != null) {
       final Map<String, String> local_tags = tags;
@@ -288,6 +315,7 @@ final class SpanGroup implements DataPoints {
     }
     
     class ComputeCB implements Callback<Map<String, String>, Object> {
+      @Override
       public Map<String, String> call(final Object obj) {
         return tags;
       }
@@ -296,6 +324,7 @@ final class SpanGroup implements DataPoints {
     return computeTags().addCallback(new ComputeCB());
   }
 
+  @Override
   public List<String> getAggregatedTags() {
     try {
       return getAggregatedTagsAsync().joinUninterruptibly();
@@ -306,6 +335,7 @@ final class SpanGroup implements DataPoints {
     }
   }
   
+  @Override
   public Deferred<List<String>> getAggregatedTagsAsync() {
     if (aggregated_tags != null) {
       final List<String> agg_tags = aggregated_tags;
@@ -313,6 +343,7 @@ final class SpanGroup implements DataPoints {
     }
     
     class ComputeCB implements Callback<List<String>, Object> {
+      @Override
       public List<String> call(final Object obj) {
         return aggregated_tags;
       }
@@ -321,6 +352,7 @@ final class SpanGroup implements DataPoints {
     return computeTags().addCallback(new ComputeCB());
   }
 
+  @Override
   public List<String> getTSUIDs() {
     List<String> tsuids = new ArrayList<String>(spans.size());
     for (Span sp : spans) {
@@ -334,20 +366,12 @@ final class SpanGroup implements DataPoints {
    * @return Null if none of the spans had any annotations, a list if one or
    * more were found
    */
+  @Override
   public List<Annotation> getAnnotations() {
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>();
-    for (Span sp : spans) {
-      if (sp.getAnnotations().size() > 0) {
-        annotations.addAll(sp.getAnnotations());
-      }
-    }
-    
-    if (annotations.size() > 0) {
-      return annotations;
-    }
-    return null;
+    return annotations.isEmpty() ? null : annotations;
   }
-  
+
+  @Override
   public int size() {
     // TODO(tsuna): There is a way of doing this way more efficiently by
     // inspecting the Spans and counting only data points that fall in
@@ -361,6 +385,7 @@ final class SpanGroup implements DataPoints {
     return size;
   }
 
+  @Override
   public int aggregatedSize() {
     int size = 0;
     for (final Span span : spans) {
@@ -369,6 +394,7 @@ final class SpanGroup implements DataPoints {
     return size;
   }
 
+  @Override
   public SeekableView iterator() {
     return new SGIterator(aggregator.interpolationMethod());
   }
@@ -395,18 +421,22 @@ final class SpanGroup implements DataPoints {
     return dp;
   }
 
+  @Override
   public long timestamp(final int i) {
     return getDataPoint(i).timestamp();
   }
 
+  @Override
   public boolean isInteger(final int i) {
     return getDataPoint(i).isInteger();
   }
 
+  @Override
   public double doubleValue(final int i) {
     return getDataPoint(i).doubleValue();
   }
 
+  @Override
   public long longValue(final int i) {
     return getDataPoint(i).longValue();
   }
@@ -669,6 +699,7 @@ final class SpanGroup implements DataPoints {
     // Iterator interface //
     // ------------------ //
 
+    @Override
     public boolean hasNext() {
       final int size = iterators.length;
       for (int i = 0; i < size; i++) {
@@ -683,6 +714,7 @@ final class SpanGroup implements DataPoints {
       return false;
     }
 
+    @Override
     public DataPoint next() {
       final int size = iterators.length;
       long min_ts = Long.MAX_VALUE;
@@ -769,6 +801,7 @@ final class SpanGroup implements DataPoints {
       }
     }
 
+    @Override
     public void remove() {
       throw new UnsupportedOperationException();
     }
@@ -777,6 +810,7 @@ final class SpanGroup implements DataPoints {
     // SeekableView interface //
     // ---------------------- //
 
+    @Override
     public void seek(final long timestamp) {
       for (final SeekableView it : iterators) {
         it.seek(timestamp);
@@ -787,10 +821,12 @@ final class SpanGroup implements DataPoints {
     // DataPoint interface //
     // ------------------- //
 
+    @Override
     public long timestamp() {
       return timestamps[current] & TIME_MASK;
     }
 
+    @Override
     public boolean isInteger() {
       if (rate) {
         // An rate can never be precisely represented without floating point.
@@ -806,6 +842,7 @@ final class SpanGroup implements DataPoints {
       return true;
     }
 
+    @Override
     public long longValue() {
       if (isInteger()) {
         pos = -1;
@@ -814,6 +851,7 @@ final class SpanGroup implements DataPoints {
       throw new ClassCastException("current value is a double: " + this);
     }
 
+    @Override
     public double doubleValue() {
       if (!isInteger()) {
         pos = -1;
@@ -828,6 +866,7 @@ final class SpanGroup implements DataPoints {
       throw new ClassCastException("current value is a long: " + this);
     }
 
+    @Override
     public double toDouble() {
       return isInteger() ? longValue() : doubleValue();
     }
@@ -836,6 +875,7 @@ final class SpanGroup implements DataPoints {
     // Aggregator.Longs interface //
     // -------------------------- //
 
+    @Override
     public boolean hasNextValue() {
       return hasNextValue(false);
     }
@@ -861,6 +901,7 @@ final class SpanGroup implements DataPoints {
       return false;
     }
 
+    @Override
     public long nextLongValue() {
       if (hasNextValue(true)) {
         final long y0 = values[pos];
@@ -911,6 +952,7 @@ final class SpanGroup implements DataPoints {
     // Aggregator.Doubles interface //
     // ---------------------------- //
 
+    @Override
     public double nextDoubleValue() {
       if (hasNextValue(true)) {
         final double y0 = ((timestamps[pos] & FLAG_FLOAT) == FLAG_FLOAT
@@ -943,7 +985,7 @@ final class SpanGroup implements DataPoints {
           final double difference;
           if (double_overflow) {
             final long diff = values[pos] - values[prev];
-            difference = (double)(diff);
+            difference = diff;
           } else {
             difference = y0 - y1;
           }
@@ -960,7 +1002,7 @@ final class SpanGroup implements DataPoints {
               // TODO - for backwards compatibility we'll convert the ms to seconds
               // but in the future we should add a ratems flag that will calculate
               // the rate as is.
-              r = (double)diff / ((double)(x0 - x1) / (double)1000);
+              r = diff / ((double)(x0 - x1) / (double)1000);
             } else {
               // TODO - for backwards compatibility we'll convert the ms to seconds
               // but in the future we should add a ratems flag that will calculate
@@ -976,7 +1018,7 @@ final class SpanGroup implements DataPoints {
             // + " -> " + y0 + " @ " + x0 + " => " + r);
             return r;
           }
-          
+
           // TODO - for backwards compatibility we'll convert the ms to seconds
           // but in the future we should add a ratems flag that will calculate
           // the rate as is.
@@ -1031,6 +1073,7 @@ final class SpanGroup implements DataPoints {
       throw new NoSuchElementException("no more doubles in " + this);
     }
 
+    @Override
     public String toString() {
       return "SpanGroup.Iterator(timestamps=" + Arrays.toString(timestamps)
         + ", values=" + Arrays.toString(values)
@@ -1043,6 +1086,7 @@ final class SpanGroup implements DataPoints {
 
   }
 
+  @Override
   public String toString() {
     return "SpanGroup(" + toStringSharedAttributes()
       + ", spans=" + spans
