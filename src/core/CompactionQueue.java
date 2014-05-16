@@ -409,7 +409,11 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           }
           continue;
         }
-        tot_values += len / 2;  // at least 2 bytes per entry, overestimates are better
+        // estimate number of points based on the size of the first entry
+        // in the column; if ms/sec datapoints are mixed, this will be
+        // incorrect, which will cost a reallocation/copy
+        final int entry_size = Internal.inMilliseconds(qual) ? 4 : 2;
+        tot_values += (len + entry_size - 1) / entry_size;
         if (longest == null || longest.qualifier().length < kv.qualifier().length) {
           longest = kv;
         }
