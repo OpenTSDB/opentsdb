@@ -15,6 +15,7 @@ package net.opentsdb.tsd;
 import java.util.Map;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
 
 import com.stumbleupon.async.Deferred;
@@ -63,6 +64,11 @@ public final class DummyRTPublisher extends RTPublisher {
   public Deferred<Object> publishDataPoint(String metric, long timestamp,
       double value, Map<String, String> tags, byte[] tsuid) {
     return Deferred.fromResult(new Object());
+  }
+
+  @Override
+  public Deferred<Object> publishAnnotation(Annotation annotation) {
+	  return Deferred.fromResult(new Object());
   }
 
 }

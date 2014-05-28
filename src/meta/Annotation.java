@@ -61,7 +61,7 @@ import com.stumbleupon.async.Deferred;
  * The description field should store a very brief line of information
  * about the event. GUIs can display the description in their "main" view
  * where multiple annotations may appear. Users of the GUI could then click
- * or hover over the description for more detail including the {@link notes}
+ * or hover over the description for more detail including the {@link #notes}
  * field.
  * <p>
  * Custom data can be stored in the custom hash map for user
@@ -558,7 +558,7 @@ public final class Annotation implements Comparable<Annotation> {
   }
 
   /** @return the custom key/value map, may be null */
-  public final HashMap<String, String> getCustom() {
+  public final Map<String, String> getCustom() {
     return custom;
   }
 
@@ -597,13 +597,13 @@ public final class Annotation implements Comparable<Annotation> {
   }
 
   /** @param custom the custom key/value map */
-  public void setCustom(final HashMap<String, String> custom) {
+  public void setCustom(final Map<String, String> custom) {
     // equivalency of maps is a pain, users have to submit the whole map
     // anyway so we'll just mark it as changed every time we have a non-null
     // value
     if (this.custom != null || custom != null) {
       changed.put("custom", true);
-      this.custom = custom;
+      this.custom = new HashMap<String, String>(custom);
     }
   }
 }

@@ -54,7 +54,7 @@ import net.opentsdb.utils.JSONException;
  * <p>
  * Branch IDs are hex encoded byte arrays composed of the tree ID + hash of 
  * the display name for each previous branch. The tree ID is encoded on 
- * {@link Tree.TREE_ID_WIDTH()} bytes, each hash is then {@code INT_WIDTH} 
+ * {@link Tree#TREE_ID_WIDTH()} bytes, each hash is then {@code INT_WIDTH} 
  * bytes. So the if the tree ID width is 2 bytes and Java Integers are 4 bytes, 
  * the root for tree # 1 is just {@code 0001}. A child of the root could be 
  * {@code 00001A3B190C2} and so on. These IDs are used as the row key in storage.
@@ -69,13 +69,12 @@ import net.opentsdb.utils.JSONException;
  * When fetching a branch with children and leaves, a scanner is
  * configured with a row key regex to scan any rows that match the branch ID 
  * plus an additional {@code INT_WIDTH} so that when we scan, we can pick up all
- * of the rows with child branch definitions. See {@link #setupScanner} for
- * details on the scanner. Also, when loading a full branch, any leaves for the 
- * request branch can load the associated UID names from storage, so this can 
- * get expensive. Leaves for a child branch will not be loaded, only leaves that
- * belong directly to the local will. Also, children branches of children will
- * not be loaded. We only return one branch at a time since the tree could be
- * HUGE!
+ * of the rows with child branch definitions. Also, when loading a full branch, 
+ * any leaves for the request branch can load the associated UID names from 
+ * storage, so this can get expensive. Leaves for a child branch will not be 
+ * loaded, only leaves that belong directly to the local will. Also, children 
+ * branches of children will not be loaded. We only return one branch at a 
+ * time since the tree could be HUGE!
  * <p>
  * Storing a branch will only write the definition column for the local branch
  * object. Child branches will not be written to storage. If you've loaded

@@ -157,9 +157,13 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       new ArrayList<Deferred<Object>>(Math.min(maxflushes,
                                                MAX_CONCURRENT_FLUSHES));
     int nflushes = 0;
+    int seed = (int) (System.nanoTime() % 3);
     for (final byte[] row : this.keySet()) {
       if (maxflushes == 0) {
         break;
+      }
+      if (seed == row.hashCode() % 3) {
+        continue;
       }
       final long base_time = Bytes.getUnsignedInt(row, metric_width);
       if (base_time > cut_off) {

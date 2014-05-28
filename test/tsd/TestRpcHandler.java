@@ -99,7 +99,7 @@ public final class TestRpcHandler {
   public void httpCORSIgnored() {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/api/v1/version");
-    req.addHeader(HttpHeaders.ORIGIN, "42.com");
+    req.headers().add(HttpHeaders.ORIGIN, "42.com");
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
@@ -108,7 +108,7 @@ public final class TestRpcHandler {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.OK, response.getStatus());
-          assertNull(response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+          assertNull(response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }
@@ -122,7 +122,7 @@ public final class TestRpcHandler {
   public void httpCORSPublicSimple() {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/api/v1/version");
-    req.addHeader(HttpHeaders.ORIGIN, "42.com");
+    req.headers().add(HttpHeaders.ORIGIN, "42.com");
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
@@ -132,7 +132,7 @@ public final class TestRpcHandler {
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.OK, response.getStatus());
           assertEquals("42.com", 
-              response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+              response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }
@@ -147,7 +147,7 @@ public final class TestRpcHandler {
   public void httpCORSSpecificSimple() {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/api/v1/version");
-    req.addHeader(HttpHeaders.ORIGIN, "42.com");
+    req.headers().add(HttpHeaders.ORIGIN, "42.com");
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
@@ -157,7 +157,7 @@ public final class TestRpcHandler {
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.OK, response.getStatus());
           assertEquals("42.com", 
-              response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+              response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }
@@ -173,7 +173,7 @@ public final class TestRpcHandler {
   public void httpCORSNotAllowedSimple() {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/api/v1/version");
-    req.addHeader(HttpHeaders.ORIGIN, "42.com");
+    req.headers().add(HttpHeaders.ORIGIN, "42.com");
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
@@ -182,7 +182,7 @@ public final class TestRpcHandler {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.OK, response.getStatus());
-          assertNull(response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+          assertNull(response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }
@@ -206,7 +206,7 @@ public final class TestRpcHandler {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.METHOD_NOT_ALLOWED, response.getStatus());
-          assertNull(response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+          assertNull(response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }
@@ -220,7 +220,7 @@ public final class TestRpcHandler {
   public void httpOptionsCORSNotConfigured() {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.OPTIONS, "/api/v1/version");
-    req.addHeader(HttpHeaders.ORIGIN, "42.com");
+    req.headers().add(HttpHeaders.ORIGIN, "42.com");
     
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
@@ -229,7 +229,7 @@ public final class TestRpcHandler {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.METHOD_NOT_ALLOWED, response.getStatus());
-          assertNull(response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+          assertNull(response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }
@@ -243,7 +243,7 @@ public final class TestRpcHandler {
   public void httpOptionsCORSPublic() {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.OPTIONS, "/api/v1/version");
-    req.addHeader(HttpHeaders.ORIGIN, "42.com");
+    req.headers().add(HttpHeaders.ORIGIN, "42.com");
     
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
@@ -253,7 +253,7 @@ public final class TestRpcHandler {
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.OK, response.getStatus());
           assertEquals("42.com", 
-              response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+              response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }
@@ -268,7 +268,7 @@ public final class TestRpcHandler {
   public void httpOptionsCORSSpecific() {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.OPTIONS, "/api/v1/version");
-    req.addHeader(HttpHeaders.ORIGIN, "42.com");
+    req.headers().add(HttpHeaders.ORIGIN, "42.com");
     
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
@@ -278,7 +278,7 @@ public final class TestRpcHandler {
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.OK, response.getStatus());
           assertEquals("42.com", 
-              response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+              response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }
@@ -294,7 +294,7 @@ public final class TestRpcHandler {
   public void httpOptionsCORSNotAllowed() {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.OPTIONS, "/api/v1/version");
-    req.addHeader(HttpHeaders.ORIGIN, "42.com");
+    req.headers().add(HttpHeaders.ORIGIN, "42.com");
     
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
@@ -303,7 +303,7 @@ public final class TestRpcHandler {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
           assertEquals(HttpResponseStatus.OK, response.getStatus());
-          assertNull(response.getHeader(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+          assertNull(response.headers().get(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
           return null;
         }        
       }

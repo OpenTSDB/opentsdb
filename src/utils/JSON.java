@@ -1,9 +1,9 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or (at your
+// the Free Software Foundation, either version 2.1 of the License, or (at your
 // option) any later version.  This program is distributed in the hope that it
 // will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 // of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
@@ -45,7 +45,7 @@ import com.fasterxml.jackson.databind.util.JSONPObject;
  * annotations to control the de/serialization for your POJO class.
  * <p>
  * For streaming of large objects, access the mapper directly via {@link
- * getMapper()} or {@link getFactory()}
+ * #getMapper()} or {@link #getFactory()}
  * <p>
  * Unfortunately since Jackson provides typed exceptions, most of these
  * methods will pass them along so you'll have to handle them where
@@ -56,21 +56,21 @@ import com.fasterxml.jackson.databind.util.JSONPObject;
  * If you get mapping errors, check some of these 
  * <ul><li>The class must provide a constructor without parameters</li> 
  * <li>Make sure fields are accessible via getters/setters or by the 
- * {@link @JsonAutoDetect} annotation</li>
+ * {@code @JsonAutoDetect} annotation</li>
  * <li>Make sure any child objects are accessible, have the empty constructor 
  * and applicable annotations</li></ul>
  * <p>
  * Useful Class Annotations:
- * @JsonAutoDetect(fieldVisibility = Visibility.ANY) - will serialize any,
- *   public or private values
+ * {@code @JsonAutoDetect(fieldVisibility = Visibility.ANY)} - will serialize 
+ *   any, public or private values
  * <p>
- * @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL) - will 
+ * {@code @JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)} - will 
  *   automatically ignore any fields set to NULL, otherwise they are serialized
  *   with a literal null value
  * <p>
  * Useful Method Annotations:
- * @JsonIgnore - Ignores the method for de/serialization purposes. CRITICAL for
- *   any methods that could cause a de/serialization infinite loop
+ * {@code @JsonIgnore} - Ignores the method for de/serialization purposes. 
+ *   CRITICAL for any methods that could cause a de/serialization infinite loop
  * @since 2.0
  */
 public final class JSON {
@@ -92,7 +92,7 @@ public final class JSON {
    * TypeReference
    * @param json The string to deserialize
    * @param pojo The class type of the object used for deserialization
-   * @return An object of the {@link pojo} type
+   * @return An object of the {@code pojo} type
    * @throws IllegalArgumentException if the data or class was null or parsing 
    * failed
    * @throws JSONException if the data could not be parsed
@@ -121,7 +121,7 @@ public final class JSON {
    * TypeReference
    * @param json The byte array to deserialize
    * @param pojo The class type of the object used for deserialization
-   * @return An object of the {@link pojo} type
+   * @return An object of the {@code pojo} type
    * @throws IllegalArgumentException if the data or class was null or parsing 
    * failed
    * @throws JSONException if the data could not be parsed
@@ -147,7 +147,7 @@ public final class JSON {
    * Deserializes a JSON formatted string to a specific class type
    * @param json The string to deserialize
    * @param type A type definition for a complex object
-   * @return An object of the {@link pojo} type
+   * @return An object of the {@code pojo} type
    * @throws IllegalArgumentException if the data or type was null or parsing
    * failed
    * @throws JSONException if the data could not be parsed
@@ -174,7 +174,7 @@ public final class JSON {
    * Deserializes a JSON formatted byte array to a specific class type
    * @param json The byte array to deserialize
    * @param type A type definition for a complex object
-   * @return An object of the {@link pojo} type
+   * @return An object of the {@code pojo} type
    * @throws IllegalArgumentException if the data or type was null or parsing
    * failed
    * @throws JSONException if the data could not be parsed

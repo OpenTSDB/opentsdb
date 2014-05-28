@@ -626,8 +626,10 @@ public final class MockBase {
       }
       
       // if no qualifiers or family, then delete the row
-      if ((delete.qualifiers() == null || delete.qualifiers().length < 1) && 
-          (delete.family() == null || delete.family().length < 1)) {
+      if ((delete.qualifiers() == null || delete.qualifiers().length < 1 || 
+          delete.qualifiers()[0].length < 1) && (delete.family() == null || 
+          delete.family().length < 1)) {
+        storage.remove(delete.key());
         return Deferred.fromResult(new Object());
       }
       

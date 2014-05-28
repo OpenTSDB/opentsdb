@@ -92,7 +92,7 @@ final class SpanGroup implements DataPoints {
   private final Aggregator downsampler;
 
   /** Minimum time interval (in seconds) wanted between each data point. */
-  private final int sample_interval;
+  private final long sample_interval;
 
   /**
    * Ctor.
@@ -115,7 +115,7 @@ final class SpanGroup implements DataPoints {
             final Iterable<Span> spans,
             final boolean rate,
             final Aggregator aggregator,
-            final int interval, final Aggregator downsampler) {
+            final long interval, final Aggregator downsampler) {
     this(tsdb, start_time, end_time, spans, rate, new RateOptions(false,
         Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
         downsampler);
@@ -144,7 +144,7 @@ final class SpanGroup implements DataPoints {
             final Iterable<Span> spans,
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,
-            final int interval, final Aggregator downsampler) {
+            final long interval, final Aggregator downsampler) {
      this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
          start_time * 1000 : start_time;
      this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 

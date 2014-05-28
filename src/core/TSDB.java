@@ -627,9 +627,9 @@ public final class TSDB {
                                             final byte[] value,
                                             final Map<String, String> tags,
                                             final short flags) {
-    // we only accept unix epoch timestamps in seconds or milliseconds
-    if ((timestamp & Const.SECOND_MASK) != 0 && 
-        (timestamp < 1000000000000L || timestamp > 9999999999999L)) {
+    // we only accept positive unix epoch timestamps in seconds or milliseconds
+    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
+        timestamp > 9999999999999L)) {
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
           + " timestamp=" + timestamp
           + " when trying to add value=" + Arrays.toString(value) + '/' + flags
@@ -858,7 +858,7 @@ public final class TSDB {
    * @return A byte array with the UID if the assignment was successful
    * @throws IllegalArgumentException if the name is invalid or it already 
    * exists
-   * @2.0
+   * @since 2.0
    */
   public byte[] assignUid(final String type, final String name) {
     Tags.validateString(type, name);
@@ -964,6 +964,9 @@ public final class TSDB {
   public void indexAnnotation(final Annotation note) {
     if (search != null) {
       search.indexAnnotation(note).addErrback(new PluginError());
+    }
+    if( rt_publisher != null ) {
+    	rt_publisher.publishAnnotation(note);
     }
   }
   

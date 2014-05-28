@@ -1,9 +1,9 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2013-2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or (at your
+// the Free Software Foundation, either version 2.1 of the License, or (at your
 // option) any later version.  This program is distributed in the hope that it
 // will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
 // of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
@@ -203,5 +203,54 @@ public final class TestConfig {
   public void getBoolFalseOther() throws Exception {
     config.overrideConfig("tsd.unitest", "blarg");
     assertFalse(config.getBoolean("tsd.unitest"));
+  }
+
+  @Test
+  public void getDirectoryNameAddSlash() throws Exception {
+    // same for Windows && Unix
+    config.overrideConfig("tsd.unitest", "/my/dir");
+    assertEquals("/my/dir/", config.getDirectoryName("tsd.unitest"));
+  }
+  
+  @Test
+  public void getDirectoryNameHasSlash() throws Exception {
+    // same for Windows && Unix
+    config.overrideConfig("tsd.unitest", "/my/dir/");
+    assertEquals("/my/dir/", config.getDirectoryName("tsd.unitest"));
+  }
+  
+  @Test
+  public void getDirectoryNameWindowsAddSlash() throws Exception {
+    if (Config.IS_WINDOWS) {
+      config.overrideConfig("tsd.unitest", "C:\\my\\dir");
+      assertEquals("C:\\my\\dir\\", config.getDirectoryName("tsd.unitest"));
+    } else {
+      assertTrue(true);
+    }
+  }
+  
+  @Test
+  public void getDirectoryNameWindowsHasSlash() throws Exception {
+    if (Config.IS_WINDOWS) {
+      config.overrideConfig("tsd.unitest", "C:\\my\\dir\\");
+      assertEquals("C:\\my\\dir\\", config.getDirectoryName("tsd.unitest"));
+    } else {
+      assertTrue(true);
+    }
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getDirectoryNameWindowsOnLinuxException() throws Exception {
+    if (Config.IS_WINDOWS) {
+      throw new IllegalArgumentException("Can't run this on Windows");
+    } else {
+      config.overrideConfig("tsd.unitest", "C:\\my\\dir");
+      config.getDirectoryName("tsd.unitest");
+    }
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void getDirectoryNameNull() throws Exception {
+    config.getDirectoryName("tsd.unitest");
   }
 }

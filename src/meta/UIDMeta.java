@@ -301,7 +301,7 @@ public final class UIDMeta {
     final PutRequest put = new PutRequest(tsdb.uidTable(), 
         UniqueId.stringToUid(uid), FAMILY, 
         (type.toString().toLowerCase() + "_meta").getBytes(CHARSET), 
-        JSON.serializeToBytes(this));
+        UIDMeta.this.getStorageJSON());
     return tsdb.getClient().put(put);
   }
   
@@ -328,7 +328,7 @@ public final class UIDMeta {
   }
   
   /**
-   * Convenience overload of {@link #getUIDMeta(TSDB, UniqueIdType, byte[])}
+   * Convenience overload of {@code getUIDMeta(TSDB, UniqueIdType, byte[])}
    * @param tsdb The TSDB to use for storage access
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
@@ -588,13 +588,13 @@ public final class UIDMeta {
   }
 
   /** @param custom the custom to set */
-  public void setCustom(final HashMap<String, String> custom) {
+  public void setCustom(final Map<String, String> custom) {
     // equivalency of maps is a pain, users have to submit the whole map
     // anyway so we'll just mark it as changed every time we have a non-null
     // value
     if (this.custom != null || custom != null) {
       changed.put("custom", true);
-      this.custom = custom;
+      this.custom = new HashMap<String, String>(custom);
     }
   }
 

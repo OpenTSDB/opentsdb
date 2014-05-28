@@ -14,12 +14,13 @@ package net.opentsdb.tsd;
 
 import java.util.Map;
 
-import org.hbase.async.Bytes;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.Internal;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.Annotation;
+import net.opentsdb.stats.StatsCollector;
 
 import com.stumbleupon.async.Deferred;
-
-import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
 
 /**
  * Real Time publisher plugin interface that is used to emit data from a TSD
@@ -28,7 +29,7 @@ import net.opentsdb.stats.StatsCollector;
  * meta data or other types of information as changes are made.
  * <p>
  * <b>Note:</b> Implementations must have a parameterless constructor. The 
- * {@link #initialize()} method will be called immediately after the plugin is
+ * {@link #initialize(TSDB)} method will be called immediately after the plugin is
  * instantiated and before any other methods are called.
  * <p>
  * <b>Warning:</b> All processing should be performed asynchronously and return
@@ -96,15 +97,13 @@ public abstract class RTPublisher {
   public final Deferred<Object> sinkDataPoint(final String metric, 
       final long timestamp, final byte[] value, final Map<String, String> tags, 
       final byte[] tsuid, final short flags) {
-    
-    // One of two possible values from TSDB.addPoint(). Either it's an 8 byte
-    // integer or a 4 byte float. Compare on the integer flag to avoid an or
-    // calculation
-    if (flags == 0x7) {
-      return publishDataPoint(metric, timestamp, Bytes.getLong(value), tags, tsuid);
+    if ((flags & Const.FLAG_FLOAT) == 0x0) {
+      return publishDataPoint(metric, timestamp, 
+          Internal.extractFloatingPointValue(value, 0, (byte) flags), 
+          tags, tsuid);
     } else {
       return publishDataPoint(metric, timestamp, 
-          Float.intBitsToFloat(Bytes.getInt(value)), tags, tsuid);
+          Internal.extractIntegerValue(value, 0, (byte) flags), tags, tsuid);
     }
   }
   
@@ -137,4 +136,13 @@ public abstract class RTPublisher {
   public abstract Deferred<Object> publishDataPoint(final String metric, 
       final long timestamp, final double value, final Map<String, String> tags, 
       final byte[] tsuid);
+  
+  /**
+   * Called any time a new annotation is published
+   * @param annotation The published annotation
+   * @return A deferred without special meaning to wait on if necessary. The 
+   * value may be null but a Deferred must be returned.
+   */
+  public abstract Deferred<Object> publishAnnotation(Annotation annotation);
+  
 }

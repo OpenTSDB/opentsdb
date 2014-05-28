@@ -155,7 +155,7 @@ public final class UniqueId implements UniqueIdInterface {
     return id_width;
   }
 
-  /** @param Whether or not to track new UIDMeta objects */
+  /** @param tsdb Whether or not to track new UIDMeta objects */
   public void setTSDB(final TSDB tsdb) {
     this.tsdb = tsdb;
   }
@@ -646,7 +646,6 @@ public final class UniqueId implements UniqueIdInterface {
           // start the assignment dance after stashing the deferred
           return new UniqueIdAllocator(name, assignment).tryAllocate();
         }
-        System.out.println("Caught an exception here");
         return e;  // Other unexpected exception, let it bubble up.
       }
     }
@@ -662,7 +661,6 @@ public final class UniqueId implements UniqueIdInterface {
    * <strong>This method is blocking.</strong>  Its use within OpenTSDB itself
    * is discouraged, please use {@link #suggestAsync} instead.
    * @param search The search term (possibly empty).
-   * @param max_results The number of results to return. Must be 1 or greater
    * @return A list of known valid names that have UIDs that sort of match
    * the search term.  If the search term is empty, returns the first few
    * terms.
@@ -978,8 +976,6 @@ public final class UniqueId implements UniqueIdInterface {
    * All {@code uid}s are padded to 1 byte. If given "1", and {@code uid_length}
    * is 0, the uid will be padded to "01" then converted.
    * @param uid The UID to convert
-   * @param uid_length An optional length, in bytes, that the UID must conform
-   * to. Set to 0 if not used.
    * @return The UID as a byte array
    * @throws NullPointerException if the ID was null
    * @throws IllegalArgumentException if the string is not valid hex

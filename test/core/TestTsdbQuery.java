@@ -83,15 +83,13 @@ public final class TestTsdbQuery {
 
   @Before
   public void before() throws Exception {
+    PowerMockito.whenNew(HBaseClient.class)
+    .withArguments(anyString(), anyString()).thenReturn(client); 
     config = new Config(false);
     tsdb = new TSDB(config);
     query = new TsdbQuery(tsdb);
 
     // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("client");
-    cl.setAccessible(true);
-    cl.set(tsdb, client);
-    
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);
     met.set(tsdb, metrics);
@@ -150,9 +148,9 @@ public final class TestTsdbQuery {
     assertEquals(1356998400L, query.getStartTime());
   }
   
-  @Test (expected = IllegalArgumentException.class)
-  public void setStartTimeInvalid() throws Exception {
-    query.setStartTime(13717504770L);
+  @Test
+  public void setStartTimeZero() throws Exception {
+    query.setStartTime(0L);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -285,22 +283,6 @@ public final class TestTsdbQuery {
     tsuids.add("000001000001000001");
     tsuids.add("000002000001000002");
     query.setTimeSeries(tsuids, Aggregators.SUM, false);
-  }
-  
-  @Test
-  public void downsample() throws Exception {
-    query.downsample(60, Aggregators.SUM);
-    assertNotNull(query);
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void downsampleNullAgg() throws Exception {
-    query.downsample(60, null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void downsampleInvalidInterval() throws Exception {
-    query.downsample(0, Aggregators.SUM);
   }
   
   @Test
@@ -482,139 +464,6 @@ public final class TestTsdbQuery {
       assertEquals(2.0F, dp.doubleValue(), 0.001);
     }
     assertEquals(299, dps[0].size());
-  }
-  
-  @Test
-  public void runLongSingleTSDownsample() throws Exception {
-    storeLongTimeSeriesSeconds(true, false);;
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(60000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    int i = 1;
-    for (DataPoint dp : dps[0]) {
-      assertEquals(i, dp.longValue());
-      i += 2;
-    }
-    assertEquals(150, dps[0].size());
-  }
-  
-  @Test
-  public void runLongSingleTSDownsampleMs() throws Exception {
-    storeLongTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    int i = 1;
-    for (DataPoint dp : dps[0]) {
-      assertEquals(i, dp.longValue());
-      i += 2;
-    }
-    assertEquals(150, dps[0].size());
-  }
-  
-  /**
-   * This test is storing > Short.MAX_VALUE data points in a single row and 
-   * making sure the state and iterators function properly. 1.x used a short as
-   * we would only have a max of 3600 data points but now we can have over 4M
-   * so we have to index with an int and store the state in a long.
-   */
-  @Test
-  public void runLongSingleTSDownsampleMsLarge() throws Exception {
-    setQueryStorage();
-    long ts = 1356998400500L;
-    // mimicks having 64K data points in a row
-    final int limit = 64000;
-    final byte[] qualifier = new byte[4 * limit];
-    for (int i = 0; i < limit; i++) {
-      System.arraycopy(Internal.buildQualifier(ts, (short) 0), 0, 
-          qualifier, i * 4, 4);
-      ts += 50;
-    }
-    final byte[] values = new byte[limit + 2];
-    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"), 
-        qualifier, values);
-    
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    for (DataPoint dp : dps[0]) {
-      assertEquals(0, dp.longValue());
-    }
-    assertEquals(3200, dps[0].size());
-  }
-  
-  @Test
-  public void runLongSingleTSDownsampleAndRate() throws Exception {
-    storeLongTimeSeriesSeconds(true, false);;
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(60000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    for (DataPoint dp : dps[0]) {
-      assertEquals(0.033F, dp.doubleValue(), 0.001);
-    }
-    assertEquals(149, dps[0].size());
-  }
-  
-  @Test
-  public void runLongSingleTSDownsampleAndRateMs() throws Exception {
-    storeLongTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    for (DataPoint dp : dps[0]) {
-      assertEquals(2.0F, dp.doubleValue(), 0.001);
-    }
-    assertEquals(149, dps[0].size());
   }
 
   @Test
@@ -827,99 +676,7 @@ public final class TestTsdbQuery {
     }
     assertEquals(299, dps[0].size());
   }
-  
-  @Test
-  public void runFloatSingleTSDownsample() throws Exception {
-    storeFloatTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(60000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    double i = 1.375D;
-    for (DataPoint dp : dps[0]) {
-      assertEquals(i, dp.doubleValue(), 0.00001);
-      i += 0.5D;
-    }
-    assertEquals(150, dps[0].size());
-  }
-  
-  @Test
-  public void runFloatSingleTSDownsampleMs() throws Exception {
-    storeFloatTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    double i = 1.375D;
-    for (DataPoint dp : dps[0]) {
-      assertEquals(i, dp.doubleValue(), 0.00001);
-      i += 0.5D;
-    }
-    assertEquals(150, dps[0].size());
-  }
-  
-  @Test
-  public void runFloatSingleTSDownsampleAndRate() throws Exception {
-    storeFloatTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(60000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    for (DataPoint dp : dps[0]) {
-      assertEquals(0.00833F, dp.doubleValue(), 0.00001);
-    }
-    assertEquals(149, dps[0].size());
-  }
-  
-  @Test
-  public void runFloatSingleTSDownsampleAndRateMs() throws Exception {
-    storeFloatTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    final DataPoints[] dps = query.run();
-    assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
-    assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
-    
-    for (DataPoint dp : dps[0]) {
-      assertEquals(0.5F, dp.doubleValue(), 0.00001);
-    }
-    assertEquals(149, dps[0].size());
-  }
-  
+
   @Test
   public void runFloatSingleTSCompacted() throws Exception {
     storeFloatCompactions();
@@ -2400,7 +2157,6 @@ public final class TestTsdbQuery {
     
     double v = 0;
     long ts = 1356998430000L;
-    int counter = 0;
     boolean decrement = true;
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
@@ -2419,10 +2175,8 @@ public final class TestTsdbQuery {
         if (v < 0.0625) {
           v = 0.0625;
           decrement = false;
-          counter++;
         }
       }
-      counter++;
     }
     assertEquals(600, dps[0].size());
   }

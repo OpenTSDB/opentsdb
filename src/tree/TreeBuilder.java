@@ -510,7 +510,7 @@ public final class TreeBuilder {
           local_trees = new ArrayList<Tree>(trees.size());
           local_trees.addAll(trees);
         }
-        
+        trees_lock.unlock();
         return local_trees;
       }
       
@@ -547,6 +547,7 @@ public final class TreeBuilder {
     final List<Tree> local_trees;
     if (trees.isEmpty()) {
       LOG.debug("No trees were found to process the meta through");
+      trees_lock.unlock();
       return Deferred.fromResult(true);
     }
     
@@ -757,7 +758,7 @@ public final class TreeBuilder {
    * @throws IllegalStateException if the tag UIDMetas have not be set
    */
   private void parseTagkRule() {
-    final ArrayList<UIDMeta> tags = meta.getTags();
+    final List<UIDMeta> tags = meta.getTags();
     if (tags == null || tags.isEmpty()) {
       throw new IllegalStateException(
         "Tags for the timeseries meta were null");
@@ -1175,7 +1176,7 @@ public final class TreeBuilder {
     return test_messages;
   }
   
-  /** @param The tree to store locally */
+  /** @param tree The tree to store locally */
   public void setTree(final Tree tree) {
     this.tree = tree;
     calculateMaxLevel();

@@ -42,7 +42,7 @@ final class CliQuery {
     System.err.println("Usage: query"
         + " [Gnuplot opts] START-DATE [END-DATE] <query> [queries...]\n"
         + "A query has the form:\n"
-        + "  FUNC [rate] [counter,max,reset] [downsample FUNC N] SERIES [TAGS]\n"
+        + "  FUNC [rate] [counter,max,reset] [downsample N FUNC] SERIES [TAGS]\n"
         + "For example:\n"
         + " 2010/03/11-20:57 sum my.awsum.metric host=blah"
         + " sum some.other.metric host=blah state=foo\n"
@@ -222,7 +222,7 @@ final class CliQuery {
       if (downsample) {
         i++;
       }
-      final int interval = downsample ? Integer.parseInt(args[i++]) : 0;
+      final long interval = downsample ? Long.parseLong(args[i++]) : 0;
       final Aggregator sampler = downsample ? Aggregators.get(args[i++]) : null;
       final String metric = args[i++];
       final HashMap<String, String> tags = new HashMap<String, String>();

@@ -78,7 +78,7 @@ import net.opentsdb.utils.Config;
  * providing an {@link HttpResponseStatus} object.
  * <p>
  * <b>Note:</b> You can also set response headers via 
- * "this.query.response().setHeader()". The "Content-Type" header will be set
+ * "this.query.response().headers().set()". The "Content-Type" header will be set
  * automatically with the "response_content_type" field value that can be
  * overridden by the plugin. HttpQuery will also set some other headers before
  * returning
@@ -504,7 +504,7 @@ public abstract class HttpSerializer {
    * @param results The list of results. Collisions: key = tsuid, value = 
    * collided TSUID. Not Matched: key = tsuid, value = message about non matched
    * rules.
-   * @param is_collision Whether or the map is a collision result set (true) or
+   * @param is_collisions Whether or the map is a collision result set (true) or
    * a not matched set (false).
    * @return A ChannelBuffer object to pass on to the caller
    * @throws BadRequestException if the plugin has not implemented this method
@@ -549,7 +549,7 @@ public abstract class HttpSerializer {
   
   /**
    * Format a list of statistics
-   * @param note The statistics list to format
+   * @param stats The statistics list to format
    * @return A ChannelBuffer object to pass on to the caller
    * @throws BadRequestException if the plugin has not implemented this method
    */
