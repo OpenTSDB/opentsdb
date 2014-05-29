@@ -1,1 +1,0 @@
-/home/nwhitehead/hprojects/opentsdb/src/mygnuplot.bat
