@@ -14,7 +14,7 @@ package net.opentsdb.core;
 
 
 /** A mutable {@link DataPoint} that stores a double value and timestamp. */
-public class MutableDoubleDataPoint implements DataPoint {
+public final class MutableDoubleDataPoint implements DataPoint {
 
   // NOTE: Fields are not final to make an instance available to hold a new
   // pair of a timestamp and a value to reduce memory overhead.

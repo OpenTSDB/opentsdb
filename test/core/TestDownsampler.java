@@ -21,7 +21,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import java.util.List;
-import java.util.NoSuchElementException;
 
 import com.google.common.collect.Lists;
 
@@ -36,12 +35,12 @@ public class TestDownsampler {
 
   private static final long BASE_TIME = 1356998400000L;
   private static final DataPoint[] DATA_POINTS = new DataPoint[] {
-    SeekableViewsForTest.newLongDataPoint(BASE_TIME, 40),
-    SeekableViewsForTest.newLongDataPoint(BASE_TIME + 2000000, 50),
-    SeekableViewsForTest.newLongDataPoint(BASE_TIME + 3600000, 40),
-    SeekableViewsForTest.newLongDataPoint(BASE_TIME + 3605000, 50),
-    SeekableViewsForTest.newLongDataPoint(BASE_TIME + 7200000, 40),
-    SeekableViewsForTest.newLongDataPoint(BASE_TIME + 9200000, 50)
+    MutableDataPoint.ofLongValue(BASE_TIME, 40),
+    MutableDataPoint.ofLongValue(BASE_TIME + 2000000, 50),
+    MutableDataPoint.ofLongValue(BASE_TIME + 3600000, 40),
+    MutableDataPoint.ofLongValue(BASE_TIME + 3605000, 50),
+    MutableDataPoint.ofLongValue(BASE_TIME + 7200000, 40),
+    MutableDataPoint.ofLongValue(BASE_TIME + 9200000, 50)
   };
   private static final int THOUSAND_SEC_INTERVAL =
       (int)DateTime.parseDuration("1000s");
@@ -87,17 +86,17 @@ public class TestDownsampler {
   @Test
   public void testDownsampler_10seconds() {
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 0, 1),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 1, 2),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 2, 4),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 3, 8),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 4, 16),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 5, 32),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 6, 64),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 7, 128),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 8, 256),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 9, 512),
-        SeekableViewsForTest.newDoubleDataPoint(BASE_TIME + 5000L * 10, 1024)
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 0, 1),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 1, 2),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 2, 4),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 3, 8),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 4, 16),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 5, 32),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 6, 64),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 7, 128),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 8, 256),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 9, 512),
+        MutableDataPoint.ofDoubleValue(BASE_TIME + 5000L * 10, 1024)
     }));
     downsampler = new Downsampler(source, 10000, SUM);
     verify(source, never()).next();
@@ -128,12 +127,12 @@ public class TestDownsampler {
   @Test
   public void testDownsampler_15seconds() {
     source = spy(SeekableViewsForTest.fromArray(new DataPoint[] {
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 5000L, 1),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 15000L, 2),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 25000L, 4),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 35000L, 8),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 45000L, 16),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 55000L, 32)
+        MutableDataPoint.ofLongValue(BASE_TIME + 5000L, 1),
+        MutableDataPoint.ofLongValue(BASE_TIME + 15000L, 2),
+        MutableDataPoint.ofLongValue(BASE_TIME + 25000L, 4),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000L, 8),
+        MutableDataPoint.ofLongValue(BASE_TIME + 45000L, 16),
+        MutableDataPoint.ofLongValue(BASE_TIME + 55000L, 32)
     }));
     downsampler = new Downsampler(source, 15000, SUM);
     verify(source, never()).next();
@@ -213,17 +212,17 @@ public class TestDownsampler {
   @Test
   public void testSeek_abandoningIncompleteInterval() {
     source = SeekableViewsForTest.fromArray(new DataPoint[] {
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 1100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 2100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 3100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 4100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 5100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 6100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 7100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 8100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 9100L, 40),
-        SeekableViewsForTest.newLongDataPoint(BASE_TIME + 10100L, 40)
+        MutableDataPoint.ofLongValue(BASE_TIME + 100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 1100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 2100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 3100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 4100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 5100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 6100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 7100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 8100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 9100L, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 10100L, 40)
       });
     downsampler = new Downsampler(source, TEN_SEC_INTERVAL, SUM);
     // The seek is aligned by the downsampling window.
@@ -255,114 +254,4 @@ public class TestDownsampler {
     System.out.println(downsampler.toString());
     assertTrue(downsampler.toString().contains(dp.toString()));
   }
-
-  // TODO: Factor out to a standalone class.
-  /** Helper class to mock SeekableView. */
-  public static class SeekableViewsForTest {
-
-    public static DataPoint newLongDataPoint(final long timestamp,
-        final long value) {
-      return new DataPoint() {
-
-        @Override
-        public long timestamp() {
-          return timestamp;
-        }
-
-        @Override
-        public boolean isInteger() {
-          return true;
-        }
-
-        @Override
-        public long longValue() {
-          return value;
-        }
-
-        @Override
-        public double doubleValue() {
-          throw new ClassCastException("this value is not a double");
-        }
-
-        @Override
-        public double toDouble() {
-          return value;
-        }
-      };
-    }
-
-    public static DataPoint newDoubleDataPoint(final long timestamp,
-        final double value) {
-      return new DataPoint() {
-
-        @Override
-        public long timestamp() {
-          return timestamp;
-        }
-
-        @Override
-        public boolean isInteger() {
-          return false;
-        }
-
-        @Override
-        public long longValue() {
-          throw new ClassCastException("this value is not a long");
-        }
-
-        @Override
-        public double doubleValue() {
-          return value;
-        }
-
-        @Override
-        public double toDouble() {
-          return value;
-        }
-      };
-    }
-
-    public static SeekableView fromArray(final DataPoint[] data_points) {
-      return new MockSeekableView(data_points);
-    }
-  }
-
-  /** Iterates an array of data points. */
-  private static class MockSeekableView implements SeekableView {
-
-    private final DataPoint[] data_points;
-    private int index = 0;
-
-    MockSeekableView(final DataPoint[] data_points) {
-      this.data_points = data_points;
-    }
-
-    @Override
-    public boolean hasNext() {
-      return data_points.length > index;
-    }
-
-    @Override
-    public DataPoint next() {
-      if (hasNext()) {
-        return data_points[index++];
-      }
-      throw new NoSuchElementException("no more values");
-    }
-
-    @Override
-    public void remove() {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void seek(long timestamp) {
-      for (index = 0; index < data_points.length; ++index) {
-        if (data_points[index].timestamp() >= timestamp) {
-          break;
-        }
-      }
-    }
-  }
-
 }

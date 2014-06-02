@@ -507,28 +507,6 @@ final class SpanGroup implements DataPoints {
    * is no "next" value (2nd half of the arrays), the timestamp will be set
    * to a special, really large value (too large to be a valid timestamp).
    * <p>
-   * Now when computing a rate, things are a little bit different.  This is
-   * because a rate, by definition, involves 2 values.  In addition to the
-   * 2 values, we need a 3rd one to "look ahead" and find when this time
-   * series reaches its last value.   So for a rate, we'd have this:
-   * <pre>              current    |      next     |     prev
-   *               +-------+-------+-------+-------+-------+-------+
-   *   timestamps: |  T3   |  T4   |  T5   |  T6   |  T1   |  T2   |
-   *               +-------+-------+-------+-------+-------+-------+
-   *                    current    |      next     |     prev
-   *               +-------+-------+-------+-------+-------+-------+
-   *       values: |  V3   |  V4   |  V5   |  V6   |  V1   |  V2   |
-   *               +-------+-------+-------+-------+-------+-------+
-   *                               |               |
-   *   current: 0
-   *   pos: 0
-   *   iterators: [ it0, it1 ]
-   * </pre>
-   * Notice we just extend the table a little bit to be able to save one extra
-   * value per time series.  When returning a value, we use "prev" and
-   * "current" to compute the rate.  Once a value has been used, instead of
-   * throwing it away like we do when rates aren't involved, we "migrate" it
-   * to the 3rd part of the array ("prev") so we can use it for the next rate.
    */
   private final class SGIterator
     implements SeekableView, DataPoint,
@@ -565,8 +543,6 @@ final class SpanGroup implements DataPoints {
      * <li>No: for {@code iterators[i]} the timestamp of the current data
      *     point is {@code timestamps[i]} and the timestamp of the next data
      *     point is {@code timestamps[iterators.length + i]}.</li>
-     * <li>Yes: In addition to the above, the previous data point is saved
-     *     in {@code timestamps[iterators.length * 2 + i]}.
      * </li></ul>
      * <p>
      * Each timestamp can have the {@code FLAG_FLOAT} applied so it's important
@@ -602,17 +578,20 @@ final class SpanGroup implements DataPoints {
       this.method = method;
       final int size = spans.size();
       iterators = new SeekableView[size];
-      timestamps = new long[size * (rate ? 3 : 2)];
-      values = new long[size * (rate ? 3 : 2)];
+      timestamps = new long[size * 2];
+      values = new long[size * 2];
       // Initialize every Iterator, fetch their first values that fall
       // within our time range.
       int num_empty_spans = 0;
       for (int i = 0; i < size; i++) {
-        final SeekableView it;
+        SeekableView it;
         if (downsampler == null) {
           it = spans.get(i).spanIterator();
         } else {
           it = spans.get(i).downsampler(sample_interval, downsampler);
+        }
+        if (rate) {
+          it = new RateSpan(it, rate_options);
         }
         iterators[i] = it;
         it.seek(start_time);
@@ -641,7 +620,12 @@ final class SpanGroup implements DataPoints {
           endReached(i);
           continue;
         }
-        if (rate) {  // Need two values to compute a rate.  Load one more.
+        if (rate) {
+          // The first rate against the time zero should be populated
+          // for the backward compatibility that uses the previous rate
+          // instead of interpolating for aggregation when a data point is
+          // missing for the current timestamp.
+          // TODO: Use the next rate that contains the current timestamp.
           if (it.hasNext()) {
             moveToNext(i);
           } else {
@@ -762,17 +746,7 @@ final class SpanGroup implements DataPoints {
      * @param i The index in {@link #iterators} of the iterator.
      */
     private void moveToNext(final int i) {
-      final int size = iterators.length;
       final int next = iterators.length + i;
-      if (rate) {  // move "current" in "prev".
-        timestamps[next + size] = timestamps[i];
-        values[next + size] = values[i];
-        //LOG.debug("Saving #" + i + " -> #" + (next + size)
-        //          + ((timestamps[i] & FLAG_FLOAT) == FLAG_FLOAT
-        //             ? " float " + Double.longBitsToDouble(values[i])
-        //             : " long " + values[i])
-        //          + " @ time " + (timestamps[i] & TIME_MASK));
-      }
       timestamps[i] = timestamps[next];
       values[i] = values[next];
       //LOG.debug("Moving #" + next + " -> #" + i
@@ -935,75 +909,6 @@ final class SpanGroup implements DataPoints {
         final double y0 = ((timestamps[pos] & FLAG_FLOAT) == FLAG_FLOAT
                            ? Double.longBitsToDouble(values[pos])
                            : values[pos]);
-        if (rate) {
-          final long x0 = timestamps[pos] & TIME_MASK;
-          final int prev = pos + iterators.length * 2;
-          final double y1 = ((timestamps[prev] & FLAG_FLOAT) == FLAG_FLOAT
-                             ? Double.longBitsToDouble(values[prev])
-                             : values[prev]);
-          final long x1 = timestamps[prev] & TIME_MASK;
-          assert x0 > x1: ("Next timestamp (" + x0 + ") is supposed to be "
-            + " strictly greater than the previous one (" + x1 + "), but it's"
-            + " not.  this=" + this);
-          
-          // we need to account for LONGs that are being converted to a double
-          // to do so, we can see if it's greater than the most precise integer
-          // a double can store. Then we calc the diff on the Longs before
-          // casting to a double. 
-          // TODO(cl) If the diff between data points is > 2^53 we're still in 
-          // trouble though that's less likely than giant integer counters.
-          final boolean double_overflow = 
-              (timestamps[pos] & FLAG_FLOAT) != FLAG_FLOAT && 
-              (timestamps[prev] & FLAG_FLOAT) != FLAG_FLOAT &&
-              ((values[prev] & Const.MAX_INT_IN_DOUBLE) != 0 || 
-                  (values[pos] & Const.MAX_INT_IN_DOUBLE) != 0);
-          //LOG.debug("Double overflow detected");
-          
-          final double difference;
-          if (double_overflow) {
-            final long diff = values[pos] - values[prev];
-            difference = (double)(diff);
-          } else {
-            difference = y0 - y1;
-          }
-          //LOG.debug("Difference is: " + difference);
-          
-          // If we have a counter rate of change calculation, y0 and y1
-          // have values such that the rate would be < 0 then calculate the
-          // new rate value assuming a roll over
-          if (rate_options.isCounter() && difference < 0) {
-            final double r;
-            if (double_overflow) {
-              long diff = rate_options.getCounterMax() - values[prev];
-              diff += values[pos];
-              // TODO - for backwards compatibility we'll convert the ms to seconds
-              // but in the future we should add a ratems flag that will calculate
-              // the rate as is.
-              r = (double)diff / ((double)(x0 - x1) / (double)1000);
-            } else {
-              // TODO - for backwards compatibility we'll convert the ms to seconds
-              // but in the future we should add a ratems flag that will calculate
-              // the rate as is.
-              r = (rate_options.getCounterMax() - y1 + y0) / 
-                                        ((double)(x0 - x1) / (double)1000);
-            }
-            if (rate_options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-                && r > rate_options.getResetValue()) {
-              return 0.0;
-            }
-            //LOG.debug("Rolled Rate for " + y1 + " @ " + x1
-            // + " -> " + y0 + " @ " + x0 + " => " + r);
-            return r;
-          }
-          
-          // TODO - for backwards compatibility we'll convert the ms to seconds
-          // but in the future we should add a ratems flag that will calculate
-          // the rate as is.
-          final double r = difference / ((double)(x0 - x1) / (double)1000);
-          //LOG.debug("Rate for " + y1 + " @ " + x1
-          //          + " -> " + y0 + " @ " + x0 + " => " + r);
-          return r;
-        }
         if (current == pos) {
           //LOG.debug("Exact match, no lerp needed");
           return y0;
@@ -1026,9 +931,19 @@ final class SpanGroup implements DataPoints {
         if ((x1 & Const.MILLISECOND_MASK) != 0) {
           throw new AssertionError("x1=" + x1 + " in " + this);
         }
+        if (rate) {
+          // No LERP for the rate. Just uses the rate of any previous timestamp.
+          // If x0 is smaller than the current time stamp 'x', we just use
+          // y0 as a current rate of the 'pos' span. If x0 is bigger than the
+          // current timestamp 'x', we don't go back further and just use y0
+          // instead. It happens only at the beginning of iteration.
+          // TODO: Use the next rate the time range of which includes the current
+          // timestamp 'x'.
+          return y0;
+        }
         final double r;
         switch (method) {
-        case LERP: 
+        case LERP:
           r = y0 + (x - x0) * (y1 - y0) / (x1 - x0);
           //LOG.debug("Lerping to time " + x + ": " + y0 + " @ " + x0
           //          + " -> " + y1 + " @ " + x1 + " => " + r);
