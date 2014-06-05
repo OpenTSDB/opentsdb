@@ -205,7 +205,8 @@ final class Fsck {
               LOG.debug("Found an object from a future version of OpenTSDB\n\t" 
                   + kv);
               continue;
-            } else if (qual.length >= 4 && !Internal.inMilliseconds(qual[0])) {
+            } else if (qual.length == 4 && !Internal.inMilliseconds(qual[0])
+                || qual.length > 4) {
               // compacted row
               if (value[value.length - 1] > Const.MS_MIXED_COMPACT) {
                 errors++;
