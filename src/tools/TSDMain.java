@@ -112,10 +112,10 @@ final class TSDMain {
 
     // validate the cache and staticroot directories
     try {
-      checkDirectory(config.getString("tsd.http.staticroot"), DONT_CREATE,
-          !MUST_BE_WRITEABLE);
+      checkDirectory(config.getString("tsd.http.staticroot"), 
+          !MUST_BE_WRITEABLE, DONT_CREATE);
       checkDirectory(config.getString("tsd.http.cachedir"),
-          CREATE_IF_NEEDED, MUST_BE_WRITEABLE);
+          MUST_BE_WRITEABLE, CREATE_IF_NEEDED);
     } catch (IllegalArgumentException e) {
       usage(argp, e.getMessage(), 3);
     }
