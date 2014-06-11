@@ -124,6 +124,14 @@
   "description": "Prints the default command line usage options, or the extended if 'extended' is passed as an arg",
   "help": "default"
  },
+  {
+  "key": "tsd.rpc.plugins",
+  "cl-option": "--rpc-plugins",
+  "description": "The comma separated class names of the RPC plugins to enable",
+  "help": "extended",
+  "meta": "LIST"
+ },
+
  {
   "key": "tsd.rtpublisher.plugin",
   "cl-option": "--rtplublisher-plugin",

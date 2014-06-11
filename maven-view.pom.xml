@@ -67,7 +67,7 @@
 		<slf4j.version>1.7.7</slf4j.version>
 		<asynchbase.version>1.5.0</asynchbase.version>
 		<!-- runtime dependencies -->
-		<logback.version>1.0.9</logback.version>
+		<logback.version>1.1.2</logback.version>
 		<!-- test dependencies -->
 		<hamcrest.version>1.3</hamcrest.version>
 		<javassist.version>3.17.1-GA</javassist.version>
@@ -243,10 +243,11 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<minimizeJar>true</minimizeJar>
+							<minimizeJar>false</minimizeJar>
 							<artifactSet>
-								<excludes>
-          </excludes>
+								<includes>
+								    <include>*:*</include>
+								</includes>								
 							</artifactSet>
 							<transformers>
 								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
