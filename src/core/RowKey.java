@@ -48,7 +48,8 @@ final public class RowKey {
    * @return The name of the metric.
    * @since 1.2
    */
-  static Deferred<String> metricNameAsync(final TSDB tsdb, final byte[] row) {
+  public static Deferred<String> metricNameAsync(final TSDB tsdb, 
+      final byte[] row) {
     final byte[] id = Arrays.copyOfRange(row, 0, tsdb.metrics.width());
     return tsdb.metrics.getNameAsync(id);
   }
