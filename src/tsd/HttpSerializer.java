@@ -38,6 +38,8 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
+import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.utils.Config;
 
 /**
@@ -220,6 +222,18 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Parses a last data point query
+   * @return A LastPointQuery to work with
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public LastPointQuery parseLastPointQueryV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseLastPointQueryV1");
+  }
+  
+  /**
    * Parses a single UIDMeta object
    * @return the parsed meta data object
    * @throws BadRequestException if the plugin has not implemented this method
@@ -303,6 +317,30 @@ public abstract class HttpSerializer {
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
         " has not implemented parseAnnotationV1");
+  }
+  
+  /**
+   * Parses a list of annotation objects
+   * @return A list of annotation object
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public List<Annotation> parseAnnotationsV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseAnnotationsV1");
+  }
+  
+  /**
+   * Parses a bulk annotation deletion query object
+   * @return Settings used to bulk delete annotations
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public AnnotationBulkDelete parseAnnotationBulkDeleteV1() {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented parseAnnotationBulkDeleteV1");
   }
   
   /**
@@ -421,6 +459,20 @@ public abstract class HttpSerializer {
   }
   
   /**
+   * Format a list of last data points
+   * @param data_points The results of the query
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatLastPointQueryV1(
+      final List<IncomingDataPoint> data_points) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatLastPointQueryV1");
+  }
+  
+  /**
    * Format a single UIDMeta object
    * @param meta The UIDMeta object to serialize
    * @return A ChannelBuffer object to pass on to the caller
@@ -440,6 +492,19 @@ public abstract class HttpSerializer {
    * @throws BadRequestException if the plugin has not implemented this method
    */
   public ChannelBuffer formatTSMetaV1(final TSMeta meta) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatTSMetaV1");
+  }
+  
+  /**
+   * Format a a list of TSMeta objects
+   * @param meta The list of TSMeta objects to serialize
+   * @return A JSON structure
+   * @throws JSONException if serialization failed
+   */
+  public ChannelBuffer formatTSMetaListV1(final List<TSMeta> metas) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -547,6 +612,33 @@ public abstract class HttpSerializer {
         " has not implemented formatAnnotationV1");
   }
   
+  /**
+   * Format a list of annotation objects
+   * @param notes The annotation objects to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatAnnotationsV1(final List<Annotation> notes) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatAnnotationsV1");
+  }
+  
+  /**
+   * Format the results of a bulk annotation deletion
+   * @param notes The annotation deletion request to return
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws BadRequestException if the plugin has not implemented this method
+   */
+  public ChannelBuffer formatAnnotationBulkDeleteV1(
+      final AnnotationBulkDelete request) {
+    throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+        "The requested API endpoint has not been implemented", 
+        this.getClass().getCanonicalName() + 
+        " has not implemented formatAnnotationBulkDeleteV1");
+  }
+
   /**
    * Format a list of statistics
    * @param stats The statistics list to format

@@ -144,6 +144,11 @@ public final class TSDB {
     LOG.debug(config.dumpConfiguration());
   }
   
+  /** @return The data point column family name */
+  public static byte[] FAMILY() {
+    return FAMILY;
+  }
+  
   /**
    * Should be called immediately after construction to initialize plugins and
    * objects that rely on such. It also moves most of the potential exception

@@ -32,6 +32,8 @@ dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/ByteBufferList.java	\
+	src/core/ColumnDatapointIterator.java	\
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\
@@ -57,6 +59,7 @@ tsdb_SRC := \
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
 	src/meta/TSMeta.java	\
+	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
@@ -143,6 +146,7 @@ test_SRC := \
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
+	test/meta/TestTSUIDQuery.java	\
 	test/meta/TestUIDMeta.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
@@ -151,6 +155,7 @@ test_SRC := \
 	test/tools/TestDumpSeries.java	\
 	test/tools/TestFsck.java	\
 	test/tools/TestTextImporter.java	\
+	test/tools/TestUID.java	\
 	test/tree/TestBranch.java	\
 	test/tree/TestLeaf.java	\
 	test/tree/TestTree.java	\
