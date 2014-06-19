@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -35,11 +35,17 @@ public class TestDownsampler {
 
   private static final long BASE_TIME = 1356998400000L;
   private static final DataPoint[] DATA_POINTS = new DataPoint[] {
+    // timestamp = 1,356,998,400,000 ms
     MutableDataPoint.ofLongValue(BASE_TIME, 40),
+    // timestamp = 1,357,000,400,000 ms
     MutableDataPoint.ofLongValue(BASE_TIME + 2000000, 50),
+    // timestamp = 1,357,002,000,000 ms
     MutableDataPoint.ofLongValue(BASE_TIME + 3600000, 40),
+    // timestamp = 1,357,002,005,000 ms
     MutableDataPoint.ofLongValue(BASE_TIME + 3605000, 50),
+    // timestamp = 1,357,005,600,000 ms
     MutableDataPoint.ofLongValue(BASE_TIME + 7200000, 40),
+    // timestamp = 1,357,007,600,000 ms
     MutableDataPoint.ofLongValue(BASE_TIME + 9200000, 50)
   };
   private static final int THOUSAND_SEC_INTERVAL =
@@ -53,7 +59,7 @@ public class TestDownsampler {
   private Downsampler downsampler;
 
   @Before
-  public void setup() {
+  public void before() {
     source = spy(SeekableViewsForTest.fromArray(DATA_POINTS));
   }
 
@@ -71,15 +77,15 @@ public class TestDownsampler {
     }
 
     assertEquals(5, values.size());
-    assertEquals(40, values.get(0).longValue());
+    assertEquals(40, values.get(0), 0.0000001);
     assertEquals(BASE_TIME - 400000L, timestamps_in_millis.get(0).longValue());
-    assertEquals(50, values.get(1).longValue());
+    assertEquals(50, values.get(1), 0.0000001);
     assertEquals(BASE_TIME + 1600000, timestamps_in_millis.get(1).longValue());
-    assertEquals(45, values.get(2).longValue());
+    assertEquals(45, values.get(2), 0.0000001);
     assertEquals(BASE_TIME + 3600000L, timestamps_in_millis.get(2).longValue());
-    assertEquals(40, values.get(3).longValue());
+    assertEquals(40, values.get(3), 0.0000001);
     assertEquals(BASE_TIME + 6600000L, timestamps_in_millis.get(3).longValue());
-    assertEquals(50, values.get(4).longValue());
+    assertEquals(50, values.get(4), 0.0000001);
     assertEquals(BASE_TIME + 8600000L, timestamps_in_millis.get(4).longValue());
   }
 
@@ -110,17 +116,17 @@ public class TestDownsampler {
     }
 
     assertEquals(6, values.size());
-    assertEquals(3, values.get(0).longValue());
+    assertEquals(3, values.get(0), 0.0000001);
     assertEquals(BASE_TIME + 00000L, timestamps_in_millis.get(0).longValue());
-    assertEquals(12, values.get(1).longValue());
+    assertEquals(12, values.get(1), 0.0000001);
     assertEquals(BASE_TIME + 10000L, timestamps_in_millis.get(1).longValue());
-    assertEquals(48, values.get(2).longValue());
+    assertEquals(48, values.get(2), 0.0000001);
     assertEquals(BASE_TIME + 20000L, timestamps_in_millis.get(2).longValue());
-    assertEquals(192, values.get(3).longValue());
+    assertEquals(192, values.get(3), 0.0000001);
     assertEquals(BASE_TIME + 30000L, timestamps_in_millis.get(3).longValue());
-    assertEquals(768, values.get(4).longValue());
+    assertEquals(768, values.get(4), 0.0000001);
     assertEquals(BASE_TIME + 40000L, timestamps_in_millis.get(4).longValue());
-    assertEquals(1024, values.get(5).longValue());
+    assertEquals(1024, values.get(5), 0.0000001);
     assertEquals(BASE_TIME + 50000L, timestamps_in_millis.get(5).longValue());
   }
 
@@ -146,13 +152,13 @@ public class TestDownsampler {
     }
 
     assertEquals(4, values.size());
-    assertEquals(1, values.get(0).longValue());
+    assertEquals(1, values.get(0), 0.0000001);
     assertEquals(BASE_TIME + 00000L, timestamps_in_millis.get(0).longValue());
-    assertEquals(6, values.get(1).longValue());
+    assertEquals(6, values.get(1), 0.0000001);
     assertEquals(BASE_TIME + 15000L, timestamps_in_millis.get(1).longValue());
-    assertEquals(8, values.get(2).longValue());
+    assertEquals(8, values.get(2), 0.0000001);
     assertEquals(BASE_TIME + 30000L, timestamps_in_millis.get(2).longValue());
-    assertEquals(48, values.get(3).longValue());
+    assertEquals(48, values.get(3), 0.0000001);
     assertEquals(BASE_TIME + 45000L, timestamps_in_millis.get(3).longValue());
   }
 
@@ -176,12 +182,39 @@ public class TestDownsampler {
     }
 
     assertEquals(3, values.size());
-    assertEquals(45, values.get(0).longValue());
+    assertEquals(45, values.get(0), 0.0000001);
     assertEquals(BASE_TIME + 3600000L, timestamps_in_millis.get(0).longValue());
-    assertEquals(40, values.get(1).longValue());
+    assertEquals(40, values.get(1), 0.0000001);
     assertEquals(BASE_TIME + 6600000L, timestamps_in_millis.get(1).longValue());
-    assertEquals(50, values.get(2).longValue());
+    assertEquals(50, values.get(2), 0.0000001);
     assertEquals(BASE_TIME + 8600000L, timestamps_in_millis.get(2).longValue());
+  }
+
+  @Test
+  public void testSeek_skipPartialInterval() {
+    downsampler = new Downsampler(source, THOUSAND_SEC_INTERVAL, AVG);
+    downsampler.seek(BASE_TIME + 3800000L);
+    verify(source, never()).next();
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (downsampler.hasNext()) {
+      DataPoint dp = downsampler.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+
+    // seek timestamp was BASE_TIME + 3800000L or 1,357,002,200,000 ms.
+    // The interval that has the timestamp began at 1,357,002,000,000 ms. It
+    // had two data points but was abandoned because the requested timestamp
+    // was not aligned. The next two intervals at 1,357,003,000,000 and
+    // at 1,357,004,000,000 did not have data points. The first interval that
+    // had a data point began at 1,357,002,005,000 ms or BASE_TIME + 6600000L.
+    assertEquals(2, values.size());
+    assertEquals(40, values.get(0), 0.0000001);
+    assertEquals(BASE_TIME + 6600000L, timestamps_in_millis.get(0).longValue());
+    assertEquals(50, values.get(1), 0.0000001);
+    assertEquals(BASE_TIME + 8600000L, timestamps_in_millis.get(1).longValue());
   }
 
   @Test
@@ -201,11 +234,11 @@ public class TestDownsampler {
     }
 
     assertEquals(3, values.size());
-    assertEquals(45, values.get(0).longValue());
+    assertEquals(45, values.get(0), 0.0000001);
     assertEquals(BASE_TIME + 3600000L, timestamps_in_millis.get(0).longValue());
-    assertEquals(40, values.get(1).longValue());
+    assertEquals(40, values.get(1), 0.0000001);
     assertEquals(BASE_TIME + 6600000L, timestamps_in_millis.get(1).longValue());
-    assertEquals(50, values.get(2).longValue());
+    assertEquals(50, values.get(2), 0.0000001);
     assertEquals(BASE_TIME + 8600000L, timestamps_in_millis.get(2).longValue());
   }
 
@@ -230,7 +263,7 @@ public class TestDownsampler {
     assertTrue("seek(BASE_TIME)", downsampler.hasNext());
     DataPoint first_dp = downsampler.next();
     assertEquals("seek(1356998400000)", BASE_TIME, first_dp.timestamp());
-    assertEquals("seek(1356998400000)", 400, first_dp.doubleValue(), 0);
+    assertEquals("seek(1356998400000)", 400, first_dp.doubleValue(), 0.0000001);
     // No seeks but the last one is aligned by the downsampling window.
     for (long seek_timestamp = BASE_TIME + 1000L;
          seek_timestamp < BASE_TIME + 10100L; seek_timestamp += 1000) {
@@ -243,7 +276,7 @@ public class TestDownsampler {
       assertEquals(String.format("seek(%d)", seek_timestamp),
                    BASE_TIME + 10000L, dp.timestamp());
       assertEquals(String.format("seek(%d)", seek_timestamp),
-                   40, dp.doubleValue(), 0);
+                   40, dp.doubleValue(), 0.0000001);
     }
   }
 

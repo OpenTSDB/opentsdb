@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -115,11 +115,11 @@ import org.slf4j.LoggerFactory;
  * to a special, really large value (too large to be a valid timestamp).
  * <p>
  */
-final class AggregationIter implements SeekableView, DataPoint,
-                                       Aggregator.Longs, Aggregator.Doubles {
+final class AggregationIterator implements SeekableView, DataPoint,
+                                           Aggregator.Longs, Aggregator.Doubles {
 
   private static final Logger LOG =
-      LoggerFactory.getLogger(AggregationIter.class);
+      LoggerFactory.getLogger(AggregationIterator.class);
 
   /** Extra bit we set on the timestamp of floating point values. */
   private static final long FLAG_FLOAT = 0x8000000000000000L;
@@ -211,17 +211,17 @@ final class AggregationIter implements SeekableView, DataPoint,
    * of the actual values.
    * @param rate_options Specifies the optional additional rate calculation
    * options.
-   * @return An {@link AggregationIter} object.
+   * @return An {@link AggregationIterator} object.
    */
-  public static AggregationIter create(final List<Span> spans,
-                                       final long start_time,
-                                       final long end_time,
-                                       final Aggregator aggregator,
-                                       final Interpolation method,
-                                       final Aggregator downsampler,
-                                       final long sample_interval_ms,
-                                       final boolean rate,
-                                       final RateOptions rate_options) {
+  public static AggregationIterator create(final List<Span> spans,
+                                           final long start_time,
+                                           final long end_time,
+                                           final Aggregator aggregator,
+                                           final Interpolation method,
+                                           final Aggregator downsampler,
+                                           final long sample_interval_ms,
+                                           final boolean rate,
+                                           final RateOptions rate_options) {
     final int size = spans.size();
     final SeekableView[] iterators = new SeekableView[size];
     for (int i = 0; i < size; i++) {
@@ -236,8 +236,8 @@ final class AggregationIter implements SeekableView, DataPoint,
       }
       iterators[i] = it;
     }
-    return new AggregationIter(iterators, start_time, end_time, aggregator,
-                               method, rate);
+    return new AggregationIterator(iterators, start_time, end_time, aggregator,
+                                   method, rate);
   }
 
   /**
@@ -253,13 +253,13 @@ final class AggregationIter implements SeekableView, DataPoint,
    * @param rate If {@code true}, the rate of the series will be used instead
    * of the actual values.
    */
-  private AggregationIter(final SeekableView[] iterators,
-                         final long start_time,
-                         final long end_time,
-                         final Aggregator aggregator,
-                         final Interpolation method,
-                         final boolean rate) {
-    LOG.debug(String.format("Aggregating %d iterators", iterators.length));
+  private AggregationIterator(final SeekableView[] iterators,
+                              final long start_time,
+                              final long end_time,
+                              final Aggregator aggregator,
+                              final Interpolation method,
+                              final boolean rate) {
+    LOG.debug("Aggregating {} iterators", iterators.length);
     this.iterators = iterators;
     this.start_time = start_time;
     this.end_time = end_time;
@@ -593,6 +593,16 @@ final class AggregationIter implements SeekableView, DataPoint,
         //LOG.debug("Exact match, no lerp needed");
         return y0;
       }
+      if (rate) {
+        // No LERP for the rate. Just uses the rate of any previous timestamp.
+        // If x0 is smaller than the current time stamp 'x', we just use
+        // y0 as a current rate of the 'pos' span. If x0 is bigger than the
+        // current timestamp 'x', we don't go back further and just use y0
+        // instead. It happens only at the beginning of iteration.
+        // TODO: Use the next rate the time range of which includes the current
+        // timestamp 'x'.
+        return y0;
+      }
       final long x = timestamps[current] & TIME_MASK;
       final long x0 = timestamps[pos] & TIME_MASK;
       if (x == x0) {
@@ -610,16 +620,6 @@ final class AggregationIter implements SeekableView, DataPoint,
       }
       if ((x1 & Const.MILLISECOND_MASK) != 0) {
         throw new AssertionError("x1=" + x1 + " in " + this);
-      }
-      if (rate) {
-        // No LERP for the rate. Just uses the rate of any previous timestamp.
-        // If x0 is smaller than the current time stamp 'x', we just use
-        // y0 as a current rate of the 'pos' span. If x0 is bigger than the
-        // current timestamp 'x', we don't go back further and just use y0
-        // instead. It happens only at the beginning of iteration.
-        // TODO: Use the next rate the time range of which includes the current
-        // timestamp 'x'.
-        return y0;
       }
       final double r;
       switch (method) {
@@ -677,13 +677,13 @@ final class AggregationIter implements SeekableView, DataPoint,
    * of the actual values.
    */
   @VisibleForTesting
-  static AggregationIter createForTesting(final SeekableView[] iterators,
-                                          final long start_time,
-                                          final long end_time,
-                                          final Aggregator aggregator,
-                                          final Interpolation method,
-                                          final boolean rate) {
-    return new AggregationIter(iterators, start_time, end_time,
-                               aggregator, method, rate);
+  static AggregationIterator createForTesting(final SeekableView[] iterators,
+                                              final long start_time,
+                                              final long end_time,
+                                              final Aggregator aggregator,
+                                              final Interpolation method,
+                                              final boolean rate) {
+    return new AggregationIterator(iterators, start_time, end_time,
+                                   aggregator, method, rate);
   }
 }

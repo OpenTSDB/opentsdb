@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -25,6 +25,8 @@ public class Downsampler implements SeekableView {
   /** Iterator to iterate the values of the current interval. */
   private final ValuesInInterval values_in_interval;
   // NOTE: Uses MutableDoubleDataPoint to reduce memory allocation overhead.
+  // TODO: use primitives for data_point instead in order to reduce memory and
+  // CPU overhead even more.
   /** The current downsample result. */
   private MutableDoubleDataPoint data_point = new MutableDoubleDataPoint();
 
@@ -149,7 +151,8 @@ public class Downsampler implements SeekableView {
     private void resetEndOfInterval() {
       if (has_next_value_from_source) {
         long timestamp = next_dp.timestamp();
-        timestamp_end_interval = calculateIntervalEndTimestamp(timestamp);
+        // Sets the end of the interval of the timestamp.
+        timestamp_end_interval = alignTimestamp(timestamp) + interval_ms;
       }
     }
 
@@ -162,38 +165,19 @@ public class Downsampler implements SeekableView {
     /** Advances the interval iterator to the given timestamp. */
     void seekInterval(long timestamp) {
       // To make sure that the interval of the given timestamp is fully filled,
-      // rounds up the seeking timestamp by the interval.
-      source.seek(roundUpTimestamp(timestamp));
+      // rounds up the seeking timestamp to the smallest timestamp that is
+      // a multiple of the interval and is greater than or equal to the given
+      // timestamp..
+      source.seek(alignTimestamp(timestamp + interval_ms - 1));
       initialized = false;
     }
 
     /** Returns the representative timestamp of the current interval. */
     private long getIntervalTimestamp() {
-      return calculateRepresentativeTimestamp(
-          timestamp_end_interval - interval_ms);
-    }
-
-    /** Returns the end of the interval of the given timestamp. */
-    private long calculateIntervalEndTimestamp(long timestamp) {
-      return alignTimestamp(timestamp) + interval_ms;
-    }
-
-    /** Returns the timestamp of the interval of the given timestamp. */
-    private long calculateRepresentativeTimestamp(long timestamp) {
       // NOTE: It is well-known practice taking the start time of
       // a downsample interval as a representative timestamp of it. It also
       // provides the correct context for seek.
-      return alignTimestamp(timestamp);
-    }
-
-    /**
-     * Rounds up the given timestamp.
-     * @param timestamp Timestamp to round up
-     * @return The smallest timestamp that is a multiple of the interval
-     * and is greater than or equal to the given timestamp.
-     */
-    private long roundUpTimestamp(long timestamp) {
-      return alignTimestamp(timestamp + interval_ms - 1);
+      return alignTimestamp(timestamp_end_interval - interval_ms);
     }
 
     /** Returns timestamp aligned by interval. */

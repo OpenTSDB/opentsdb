@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -130,8 +130,8 @@ public final class MutableDataPoint implements DataPoint {
 
   @Override
   public String toString() {
-    return String.format("timestamp = %d, is_integer=%s, long:%d, " +
-                         "double:value = %g", timestamp, is_integer, long_value,
-                         double_value);
+    return String.format("MutableDataPoint(timestamp = %d, is_integer=%s, " +
+                         "long:%d, double:value = %g)", timestamp, is_integer,
+                         long_value, double_value);
   }
 }

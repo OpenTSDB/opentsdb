@@ -30,7 +30,7 @@ dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
   build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
 tsdb_SRC := \
-	src/core/AggregationIter.java	\
+	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
 	src/core/CompactionQueue.java	\
@@ -135,7 +135,7 @@ tsdb_DEPS = \
 
 test_SRC := \
 	test/core/SeekableViewsForTest.java \
-	test/core/TestAggregationIter.java \
+	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestDownsampler.java \

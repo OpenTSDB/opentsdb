@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -24,8 +24,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 
-/** Tests {@link AggregationIter}. */
-public class TestAggregationIter {
+/** Tests {@link AggregationIterator}. */
+public class TestAggregationIterator {
 
   private static final long BASE_TIME = 1356998400000L;
   private static final DataPoint[] DATA_POINTS_1 = new DataPoint[] {
@@ -75,7 +75,7 @@ public class TestAggregationIter {
     iterators = new SeekableView[] {
         SeekableViewsForTest.fromArray(DATA_POINTS_1)
     };
-    AggregationIter sgai = AggregationIter.createForTesting(iterators,
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         start_time_ms, end_time_ms, aggregator, interpolation,rate);
     // Aggregating a single span should repeat the single span.
     for (DataPoint expected: DATA_POINTS_1) {
@@ -93,7 +93,7 @@ public class TestAggregationIter {
         SeekableViewsForTest.fromArray(DATA_POINTS_1),
         SeekableViewsForTest.fromArray(DATA_POINTS_2),
     };
-    AggregationIter sgai = AggregationIter.createForTesting(iterators,
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         start_time_ms, end_time_ms, aggregator, interpolation, rate);
     // Checks if all the distinct timestamps of both spans appear and missing
     // data point of one span for a timestamp of one span was interpolated.
@@ -128,7 +128,7 @@ public class TestAggregationIter {
     // by the first round of ten-second downsampling.
     start_time_ms = BASE_TIME + 1000L;
     end_time_ms = BASE_TIME + 100000;
-    AggregationIter sgai = AggregationIter.createForTesting(iterators,
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         start_time_ms, end_time_ms, aggregator, interpolation,
         rate);
     DataPoint[] expected_data_points = new DataPoint[] {
@@ -160,7 +160,7 @@ public class TestAggregationIter {
     };
     start_time_ms = BASE_TIME + 01000L;
     end_time_ms = BASE_TIME + 100000;
-    AggregationIter sgai = AggregationIter.createForTesting(iterators,
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         start_time_ms, end_time_ms, aggregator, interpolation,
         rate);
     Downsampler downsampler = new Downsampler(sgai, 15000, SUM);
@@ -180,7 +180,7 @@ public class TestAggregationIter {
       assertTrue(downsampler.hasNext());
       DataPoint dp = downsampler.next();
       assertEquals(expected.timestamp(), dp.timestamp());
-      assertEquals(String.format("timestamp = %d", dp.timestamp()),
+      assertEquals("timestamp = %d" + dp.timestamp(),
                    expected.doubleValue(), dp.doubleValue(), 0);
     }
     assertFalse(downsampler.hasNext());
@@ -192,7 +192,7 @@ public class TestAggregationIter {
     iterators = new SeekableView[] {
         iterator
     };
-    AggregationIter sgai = AggregationIter.createForTesting(iterators,
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         start_time_ms, end_time_ms, aggregator, interpolation,rate);
     // The seek method should be called just once at the beginning.
     verify(iterator).seek(start_time_ms);
@@ -216,7 +216,7 @@ public class TestAggregationIter {
         SeekableViewsForTest.fromArray(empty_data_points),
         SeekableViewsForTest.fromArray(DATA_POINTS_1),
     };
-    AggregationIter sgai = AggregationIter.createForTesting(iterators,
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         BASE_TIME + 00000L, end_time_ms, aggregator, interpolation,
         rate);
     for (DataPoint expected: DATA_POINTS_1) {
@@ -252,7 +252,7 @@ public class TestAggregationIter {
     // Microbenchmark to measure the performance of AggregationIter.
     iterators = createSeekableViews(num_views, 1356990000000L, 1356993600000L,
                                     100);
-    AggregationIter sgai = AggregationIter.createForTesting(iterators,
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         1356990000000L, 1356993600000L, aggregator, interpolation,
         rate);
     final long start_time_nano = System.nanoTime();

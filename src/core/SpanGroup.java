@@ -95,6 +95,36 @@ final class SpanGroup implements DataPoints {
 
   /**
    * Ctor.
+   * @param tsdb The TSDB we belong to.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}.  Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param aggregator The aggregation function to use.
+   * @param interval Number of milliseconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   */
+  @Deprecated
+  SpanGroup(final TSDB tsdb,
+            final long start_time, final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate,
+            final Aggregator aggregator,
+            final long interval, final Aggregator downsampler) {
+    // NOTE: Keeps this constructor for the backward compatibility for any
+    // third party code that uses the deprecated API.
+    this(start_time, end_time, spans, rate, new RateOptions(false,
+        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
+        downsampler, interval);
+  }
+
+  /**
+   * Ctor.
    * @param start_time Any data point strictly before this timestamp will be
    * ignored.
    * @param end_time Any data point strictly after this timestamp will be
@@ -120,6 +150,37 @@ final class SpanGroup implements DataPoints {
     this(start_time, end_time, spans, rate, new RateOptions(false,
         Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
         downsampler, regular_interval_ms);
+  }
+
+  /**
+   * Ctor.
+   * @param tsdb The TSDB we belong to.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}. Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation options.
+   * @param aggregator The aggregation function to use.
+   * @param interval Number of milliseconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   * @since 2.0
+   */
+  @Deprecated
+  SpanGroup(final TSDB tsdb,
+            final long start_time, final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate, final RateOptions rate_options,
+            final Aggregator aggregator,
+            final long interval, final Aggregator downsampler) {
+    // NOTE: Keeps this constructor for the backward compatibility for any
+    // third party code that uses the deprecated API.
+    this(start_time, end_time, spans, rate, rate_options, aggregator, interval,
+        downsampler, interval);
   }
 
   /**
@@ -374,17 +435,18 @@ final class SpanGroup implements DataPoints {
   }
 
   private SeekableView newAggregationIter(long downsample_interval_ms) {
-    return AggregationIter.create(spans, start_time, end_time, aggregator,
-                                  aggregator.interpolationMethod(),
-                                  downsampler, downsample_interval_ms,
-                                  rate, rate_options);
+    return AggregationIterator.create(spans, start_time, end_time, aggregator,
+                                      aggregator.interpolationMethod(),
+                                      downsampler, downsample_interval_ms,
+                                      rate, rate_options);
   }
 
   public SeekableView iterator() {
     if (downsampler == null) {
       // NOTE: downsample interval will be ignored unless there is a downsampler.
       return newAggregationIter(0);
-    } if (sample_interval <= regular_interval_ms) {
+    }
+    if (sample_interval <= regular_interval_ms) {
       // Honors the given sample interval if it is too small.
       return newAggregationIter(sample_interval);
     } else {

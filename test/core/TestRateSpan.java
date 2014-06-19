@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -68,7 +68,7 @@ public class TestRateSpan {
   private RateOptions options;
 
   @Before
-  public void setup() {
+  public void before() {
     source = SeekableViewsForTest.fromArray(DATA_POINTS);
     options = new RateOptions();
   }
@@ -143,8 +143,18 @@ public class TestRateSpan {
     assertFalse(rate_span.hasNext());
   }
 
-  @Test
-  public void testMoveToNextRate_duplicatedTimestamp() {
+  @Test(expected = IllegalStateException.class)
+  public void testNext_decreasingTimestamps() {
+    source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(1357002000000L + 5000, 50),
+        MutableDataPoint.ofLongValue(1357002000000L + 4000, 50)
+      });
+    RateSpan rate_span = new RateSpan(source, options);
+    rate_span.next();
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void testMoveToNextRate_duplicatedTimestamps() {
     source = SeekableViewsForTest.fromArray(new DataPoint[] {
         MutableDataPoint.ofLongValue(1356998400000L, 40),
         MutableDataPoint.ofLongValue(1356998400000L + 2000000, 50),
@@ -153,18 +163,7 @@ public class TestRateSpan {
     RateSpan rate_span = new RateSpan(source, options);
     rate_span.next();  // Abandons the first rate to test next ones.
     assertTrue(rate_span.hasNext());
-    DataPoint dp = rate_span.next();
-    assertFalse(dp.isInteger());
-    assertEquals(1356998400000L + 2000000, dp.timestamp());
-    assertEquals(10.0 / 2000.0, dp.doubleValue(), 0);
-    assertTrue(rate_span.hasNext());
-    // Repeats the previous rate if the next data point is actually older
-    // than the previous one.
-    dp = rate_span.next();
-    assertFalse(dp.isInteger());
-    assertEquals(1356998400000L + 2000000, dp.timestamp());
-    assertEquals(10.0 / 2000.0, dp.doubleValue(), 0);
-    assertFalse(rate_span.hasNext());
+    rate_span.next();
   }
 
   @Test

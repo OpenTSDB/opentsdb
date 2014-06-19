@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2013  The OpenTSDB Authors.
+// Copyright (C) 2014  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -20,10 +20,17 @@ import java.util.NoSuchElementException;
  */
 public class RateSpan implements SeekableView {
 
+  // The Long.MAX_VALUE works fine as the invalid timestamp with open-ended
+  // time ranges.
+  /** Timestamp to indicate that the data point is invalid. */
+  private static long INVALID_TIMESTAMP = Long.MAX_VALUE;
+
   /** A sequence of data points to compute rates. */
   private final SeekableView source;
   /** Options for calculating rates. */
   private final RateOptions options;
+  // TODO: use primitives for next_data, next_rate, and prev_rate instead
+  // in order to reduce memory and CPU overhead.
   /** The latter of two raw data points used to calculate the next rate. */
   private final MutableDataPoint next_data = new MutableDataPoint();
   /** The rate that will be returned at the {@link #next} call. */
@@ -51,7 +58,7 @@ public class RateSpan implements SeekableView {
   @Override
   public boolean hasNext() {
     initializeIfNotDone();
-    return isValid(next_rate);
+    return next_rate.timestamp() != INVALID_TIMESTAMP;
   }
 
   /**
@@ -99,49 +106,28 @@ public class RateSpan implements SeekableView {
     // performance penalty by accessing the first data of a span.
     if (!initialized) {
       initialized = true;
-      setFirstRate();
+      // NOTE: Calculates the first rate between the time zero and the first
+      // data point for the backward compatibility.
+      // TODO: Don't compute the first rate with the time zero.
+      next_data.resetWithDoubleValue(0, 0);
+      // Sets the first rate to be retrieved.
+      populateNextRate();
     }
   }
 
   /**
-   * Sets the first rate to be retrieved.
-   */
-  private void setFirstRate() {
-    // NOTE: Calculates the first rate between the time zero and the first
-    // data point for the backward compatibility.
-    // TODO: Don't compute the first rate with the time zero.
-    next_data.resetWithDoubleValue(0, 0);
-    populateNextRate();
-  }
-
-  /**
-   * Populate to the next rate.
+   * Populate the next rate.
    */
   private void populateNextRate() {
     final MutableDataPoint prev_data = new MutableDataPoint();
     while (source.hasNext()) {
       prev_data.reset(next_data);
       next_data.reset(source.next());
-      if (next_data.timestamp() > prev_data.timestamp()) {
-        next_rate.reset(next_data.timestamp(), calculateRate(prev_data));
-      } else {
-        // Just use the existing one.
-      }
+      next_rate.reset(next_data.timestamp(), calculateRate(prev_data));
       return;
     }
-    invalidateNextRate();
-  }
-
-  /** Invalidates the next rate with invalid timestamp and value. */
-  private void invalidateNextRate() {
-    // The Long.MAX_VALUE timestamp means invalid value and works fine with
-    // open-ended time ranges.
-    next_rate.reset(Long.MAX_VALUE, 0);
-  }
-
-  /** @return True if the data point is valid. */
-  private boolean isValid(DataPoint dp) {
-    return dp.timestamp() < Long.MAX_VALUE;
+    // Invalidates the next rate with invalid timestamp.
+    next_rate.reset(INVALID_TIMESTAMP, 0);
   }
 
   /**
@@ -196,10 +182,17 @@ public class RateSpan implements SeekableView {
 
   /**
    * Calculates the rate between previous and current data points.
+   * @throws IllegalStateException if timestamps are not increasing.
    */
   private double calculateRate(final MutableDataPoint prev_data) {
     final long t0 = prev_data.timestamp();
     final long t1 = next_data.timestamp();
+    if (t1 <= t0) {
+      throw new IllegalStateException(
+          "Next timestamp (" + t1 + ") is supposed to be "
+          + " strictly greater than the previous one (" + t0 + "), but it's"
+          + " not.  this=" + this);
+    }
     // TODO: for backwards compatibility we'll convert the ms to seconds
     // but in the future we should add a ratems flag that will calculate
     // the rate as is.
