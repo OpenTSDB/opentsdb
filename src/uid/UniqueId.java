@@ -524,7 +524,9 @@ public final class UniqueId implements UniqueIdInterface {
         tsdb.indexUIDMeta(meta);
       }
       
-      pending_assignments.remove(name);
+      synchronized (pending_assignments) {
+        pending_assignments.remove(name);
+      }
       assignment.callback(row);
       return assignment;
     }
