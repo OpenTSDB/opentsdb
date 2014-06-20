@@ -15,6 +15,8 @@ package net.opentsdb.search;
 import java.util.Collections;
 import java.util.List;
 
+import net.opentsdb.utils.Pair;
+
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -25,6 +27,9 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
  * Class used for passing and executing simple queries against with the search
  * plugin. This may not be able to take advantage of all of the search engine's
  * features but is intended to satisfy most common search requests.
+ * With 2.1 it now allows for time series lookup queries, using the meta or full
+ * data tables to determine what time series exist for a given metric, tag name,
+ * tag value or combination thereof.
  * @since 2.0
  */
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
@@ -41,7 +46,8 @@ public class SearchQuery {
     TSMETA_SUMMARY,
     TSUIDS,
     UIDMETA,
-    ANNOTATION
+    ANNOTATION,
+    LOOKUP
   }
   
   /** The type of search to execute */
@@ -49,9 +55,18 @@ public class SearchQuery {
   
   /** The actual query to execute */
   private String query;
+
+  /** The metric to iterate over, may be null */
+  private String metric;
+  
+  /** Optional tags to match on, may be null */
+  private List<Pair<String, String>> tags;
+  
+  /** Whether or not to use the tsdb-meta table for lookups. Defaults to true */
+  private boolean use_meta;
   
   /** Limit the number of responses so we don't overload the TSD or client */
-  private int limit = 25;
+  private int limit;
   
   /** Used for paging through a result set */
   private int start_index;
@@ -67,6 +82,68 @@ public class SearchQuery {
   /** Results from the search engine. Object depends on the query type */
   private List<Object> results;
 
+  /**
+   * Default ctor. Only sets use_meta to true. Other fields are left null.
+   */
+  public SearchQuery() {
+    use_meta = true;
+    limit = 25;
+  }
+    
+  /**
+   * Overload to set the metric on creation
+   * @param metric The metric to filter on
+   */
+  public SearchQuery(final String metric) {
+    this.metric = metric;
+    use_meta = true;
+    limit = 25;
+  }
+
+  /**
+   * Overload to set just the tags
+   * @param tags List of tagk/tagv pairs, either of which may be null
+   */
+  public SearchQuery(final List<Pair<String, String>> tags) {
+    this.tags = tags;
+    use_meta = true;
+    limit = 25;
+  }
+  
+  /**
+   * Overload to set both metric and tags
+   * @param metric The metric to filter on
+   * @param tags List of tagk/tagv pairs, either of which may be null
+   */
+  public SearchQuery(final String metric, 
+      final List<Pair<String, String>> tags) {
+    this.metric = metric;
+    this.tags = tags;
+    use_meta = true;
+    limit = 25;
+  }
+  
+  @Override
+  public String toString() {
+    final StringBuilder buf = new StringBuilder();
+    buf.append("type=").append(type).append(", query=")
+       .append(query).append(", metric=").append(metric)
+       .append(", tags=[");
+    if (tags != null) {
+      for(int i = 0; i < tags.size(); i++) {
+        if (i > 0) {
+          buf.append(", ");
+        }
+        buf.append("{").append(tags.get(i).getKey()).append("=")
+           .append(tags.get(i).getValue()).append("}");
+      }
+    }
+    buf.append("], use_meta=").append(use_meta)
+       .append(", limit=").append(limit).append(", start_index=")
+       .append(start_index);
+    return buf.toString();
+  }
+  
   /**
    * Converts the human readable string to the proper enum
    * @param type The string to parse
@@ -89,11 +166,13 @@ public class SearchQuery {
       return SearchType.UIDMETA;
     } else if (type.toLowerCase().equals("annotation")) {
       return SearchType.ANNOTATION;
+    } else if (type.toLowerCase().equals("lookup")) {
+      return SearchType.LOOKUP;
     } else {
       throw new IllegalArgumentException("Unknown type: " + type);
     }
   }
-  
+ 
   // GETTERS AND SETTERS --------------------------
   
   /** @return The type of query executed */
@@ -104,6 +183,21 @@ public class SearchQuery {
   /** @return The query itself */
   public String getQuery() {
     return query;
+  }
+
+  /** @return Name of a metric to use for filtering */
+  public String getMetric() {
+    return metric;
+  }
+
+  /** @return List of tagk/tagv pairs, either of which may be null */
+  public List<Pair<String, String>> getTags() {
+    return tags;
+  }
+
+  /** @return Whether or not the lookup should be done on the main data table */
+  public boolean useMeta() {
+    return use_meta;
   }
 
   /** @return A limit on the number of results returned per query */
@@ -144,6 +238,21 @@ public class SearchQuery {
     this.query = query;
   }
 
+  /** @param metric A metric to use for lookup filtering */
+  public void setMetric(String metric) {
+    this.metric = metric;
+  }
+  
+  /** @param tags A list of tagk, tagv pairs, either of which may be null */
+  public void setTags(List<Pair<String, String>> tags) {
+    this.tags = tags;
+  }
+  
+  /** @param use_meta Whether or not to use the data or meta table for lookups */
+  public void setUseMeta(boolean use_meta) {
+    this.use_meta = use_meta;
+  }
+  
   /** @param limit A limit to the number of results to return */
   public void setLimit(int limit) {
     this.limit = limit;
