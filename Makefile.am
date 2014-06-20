@@ -114,6 +114,7 @@ tsdb_SRC := \
 	src/utils/DateTime.java \
 	src/utils/JSON.java \
 	src/utils/JSONException.java	\
+	src/utils/Pair.java	\
 	src/utils/PluginLoader.java
 
 tsdb_DEPS = \
@@ -180,6 +181,7 @@ test_SRC := \
 	test/utils/TestConfig.java \
 	test/utils/TestDateTime.java \
 	test/utils/TestJSON.java \
+	test/utils/TestPair.java \
 	test/utils/TestPluginLoader.java
 	
 test_plugin_SRC := \
