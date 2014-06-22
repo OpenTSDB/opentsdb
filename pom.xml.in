@@ -296,6 +296,18 @@
   <dependencies>
 
     <dependency>
+      <groupId>info.ganglia.gmetric4j</groupId>
+      <artifactId>gmetric4j</artifactId>
+      <version>@GMETRIC4J_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
+      <version>@JSR305_VERSION@</version>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>@GUAVA_VERSION@</version>
@@ -422,6 +434,12 @@
       <artifactId>objenesis</artifactId>
       <version>@OBJENESIS_VERSION@</version>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.acplt</groupId>
+      <artifactId>oncrpc</artifactId>
+      <version>@ONCRPC_VERSION@</version>
     </dependency>
 
     <dependency>
