@@ -127,6 +127,17 @@ public class TestTimeSeriesLookup {
     assertArrayEquals(test_tsuids.get(1), tsuids.get(1));
   }
   
+  // returns everything
+  @Test
+  public void metricOnlyMetaStar() throws Exception {
+    generateMeta();
+    final SearchQuery query = new SearchQuery("*");
+    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
+    final List<byte[]> tsuids = lookup.lookup();
+    assertNotNull(tsuids);
+    assertEquals(7, tsuids.size());
+  }
+  
   @Test
   public void metricOnlyData() throws Exception {
     generateData();
@@ -197,6 +208,22 @@ public class TestTimeSeriesLookup {
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>("host", null));
+    final SearchQuery query = new SearchQuery(tags);
+    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
+    final List<byte[]> tsuids = lookup.lookup();
+    assertNotNull(tsuids);
+    assertEquals(5, tsuids.size());
+    for (int i = 0; i < 5; i++) {
+      assertArrayEquals(test_tsuids.get(i), tsuids.get(i));
+    }
+  }
+  
+  @Test
+  public void tagkOnlyMetaStar() throws Exception {
+    generateMeta();
+    final List<Pair<String, String>> tags = 
+        new ArrayList<Pair<String, String>>(1);
+    tags.add(new Pair<String, String>("host", "*"));
     final SearchQuery query = new SearchQuery(tags);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     final List<byte[]> tsuids = lookup.lookup();
@@ -283,6 +310,23 @@ public class TestTimeSeriesLookup {
   }
   
   @Test
+  public void tagvOnlyMetaStar() throws Exception {
+    generateMeta();
+    final List<Pair<String, String>> tags = 
+        new ArrayList<Pair<String, String>>(1);
+    tags.add(new Pair<String, String>("*", "web01"));
+    final SearchQuery query = new SearchQuery(tags);
+    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
+    final List<byte[]> tsuids = lookup.lookup();
+    assertNotNull(tsuids);
+    assertEquals(4, tsuids.size());
+    assertArrayEquals(test_tsuids.get(0), tsuids.get(0));
+    assertArrayEquals(test_tsuids.get(2), tsuids.get(1));
+    assertArrayEquals(test_tsuids.get(3), tsuids.get(2));
+    assertArrayEquals(test_tsuids.get(5), tsuids.get(3));
+  }
+  
+  @Test
   public void tagvOnlyData() throws Exception {
     generateData();
     final List<Pair<String, String>> tags = 
@@ -357,6 +401,21 @@ public class TestTimeSeriesLookup {
   }
   
   @Test
+  public void metricAndTagkMetaStar() throws Exception {
+    generateMeta();
+    final List<Pair<String, String>> tags = 
+        new ArrayList<Pair<String, String>>(1);
+    tags.add(new Pair<String, String>("host", "*"));
+    final SearchQuery query = new SearchQuery("sys.cpu.nice", 
+        tags);
+    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
+    final List<byte[]> tsuids = lookup.lookup();
+    assertNotNull(tsuids);
+    assertEquals(1, tsuids.size());
+    assertArrayEquals(test_tsuids.get(2), tsuids.get(0));
+  }
+  
+  @Test
   public void metricAndTagkData() throws Exception {
     generateData();
     final List<Pair<String, String>> tags = 
@@ -378,6 +437,21 @@ public class TestTimeSeriesLookup {
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, "web02"));
+    final SearchQuery query = new SearchQuery("sys.cpu.idle",
+        tags);
+    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
+    final List<byte[]> tsuids = lookup.lookup();
+    assertNotNull(tsuids);
+    assertEquals(1, tsuids.size());
+    assertArrayEquals(test_tsuids.get(4), tsuids.get(0));
+  }
+  
+  @Test
+  public void metricAndTagvMetaStar() throws Exception {
+    generateMeta();
+    final List<Pair<String, String>> tags = 
+        new ArrayList<Pair<String, String>>(1);
+    tags.add(new Pair<String, String>("*", "web02"));
     final SearchQuery query = new SearchQuery("sys.cpu.idle",
         tags);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
