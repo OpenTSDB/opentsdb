@@ -86,6 +86,7 @@ public class SearchQuery {
    * Default ctor. Only sets use_meta to true. Other fields are left null.
    */
   public SearchQuery() {
+    metric = "*";
     use_meta = true;
     limit = 25;
   }
@@ -106,6 +107,7 @@ public class SearchQuery {
    */
   public SearchQuery(final List<Pair<String, String>> tags) {
     this.tags = tags;
+    metric = "*";
     use_meta = true;
     limit = 25;
   }

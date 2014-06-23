@@ -194,7 +194,8 @@ public class TimeSeriesLookup {
     
     // if a metric is given, we need to resolve it's UID and set the start key
     // to the UID and the stop key to the next row by incrementing the UID. 
-    if (query.getMetric() != null && !query.getMetric().isEmpty()) {
+    if (query.getMetric() != null && !query.getMetric().isEmpty() && 
+        !query.getMetric().equals("*")) {
       final byte[] metric_uid = tsdb.getUID(UniqueIdType.METRIC, 
           query.getMetric());
       LOG.debug("Found UID (" + UniqueId.uidToString(metric_uid) + 
@@ -211,9 +212,9 @@ public class TimeSeriesLookup {
       final List<ByteArrayPair> pairs = 
           new ArrayList<ByteArrayPair>(query.getTags().size());
       for (Pair<String, String> tag : query.getTags()) {
-        final byte[] tagk = tag.getKey() != null ? 
+        final byte[] tagk = tag.getKey() != null && !tag.getKey().equals("*")? 
             tsdb.getUID(UniqueIdType.TAGK, tag.getKey()) : null;
-        final byte[] tagv = tag.getValue() != null ?
+        final byte[] tagv = tag.getValue() != null && !tag.getValue().equals("*")?
             tsdb.getUID(UniqueIdType.TAGV, tag.getValue()) : null;
         pairs.add(new ByteArrayPair(tagk, tagv));
       }
