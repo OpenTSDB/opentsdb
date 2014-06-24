@@ -18,18 +18,17 @@ import java.util.NoSuchElementException;
 /**
  * Iterator that downsamples data points using an {@link Aggregator}.
  */
-public class Downsampler implements SeekableView {
+public class Downsampler implements SeekableView, DataPoint {
 
   /** Function to use for downsampling. */
   private final Aggregator downsampler;
   /** Iterator to iterate the values of the current interval. */
   private final ValuesInInterval values_in_interval;
-  // NOTE: Uses MutableDoubleDataPoint to reduce memory allocation overhead.
-  // TODO: use primitives for data_point instead in order to reduce memory and
-  // CPU overhead even more.
-  /** The current downsample result. */
-  private MutableDoubleDataPoint data_point = new MutableDoubleDataPoint();
-
+  /** Last normalized timestamp */ 
+  private long timestamp;
+  /** Last value as a double */
+  private double value;
+  
   /**
    * Ctor.
    * @param source The iterator to access the underlying data.
@@ -44,18 +43,6 @@ public class Downsampler implements SeekableView {
     this.downsampler = downsampler;
   }
 
-  /**
-   * Downsamples for the current interval.
-   * @return A {@link DataPoint} as a downsample result.
-   */
-  private DataPoint downsample() {
-    double downsample_value = downsampler.runDouble(values_in_interval);
-    data_point.reset(values_in_interval.getIntervalTimestamp(),
-                     downsample_value);
-    values_in_interval.moveToNextInterval();
-    return data_point;
-  }
-
   // ------------------ //
   // Iterator interface //
   // ------------------ //
@@ -66,7 +53,10 @@ public class Downsampler implements SeekableView {
 
   public DataPoint next() {
     if (hasNext()) {
-      return downsample();
+      value = downsampler.runDouble(values_in_interval);
+      timestamp = values_in_interval.getIntervalTimestamp();
+      values_in_interval.moveToNextInterval();
+      return this;
     }
     throw new NoSuchElementException("no more data points in " + this);
   }
@@ -89,11 +79,32 @@ public class Downsampler implements SeekableView {
     buf.append("Downsampler: ")
        .append("interval_ms=").append(values_in_interval.interval_ms)
        .append(", downsampler=").append(downsampler)
-       .append(", current data=(").append(data_point)
+       .append(", current data=(timestamp=").append(timestamp)
+       .append(", value=").append(value)
        .append("), values_in_interval=").append(values_in_interval);
    return buf.toString();
   }
 
+  public long timestamp() {
+    return timestamp;
+  }
+
+  public boolean isInteger() {
+    return false;
+  }
+
+  public long longValue() {
+    throw new ClassCastException("Downsampled values are doubles");
+  }
+
+  public double doubleValue() {
+    return value;
+  }
+
+  public double toDouble() {
+    return value;
+  }
+  
   /** Iterates source values for an interval. */
   private static class ValuesInInterval implements Aggregator.Doubles {
 
@@ -106,7 +117,7 @@ public class Downsampler implements SeekableView {
     /** True if the last value was successfully extracted from the source. */
     private boolean has_next_value_from_source = false;
     /** The last data point extracted from the source. */
-    private MutableDoubleDataPoint next_dp = new MutableDoubleDataPoint();
+    private DataPoint next_dp = null;
 
     /** True if it is initialized for iterating intervals. */
     private boolean initialized = false;
@@ -138,7 +149,7 @@ public class Downsampler implements SeekableView {
     private void moveToNextValue() {
       if (source.hasNext()) {
         has_next_value_from_source = true;
-        next_dp.reset(source.next());
+        next_dp = source.next();
       } else {
         has_next_value_from_source = false;
       }
@@ -150,9 +161,9 @@ public class Downsampler implements SeekableView {
      * interval. */
     private void resetEndOfInterval() {
       if (has_next_value_from_source) {
-        long timestamp = next_dp.timestamp();
         // Sets the end of the interval of the timestamp.
-        timestamp_end_interval = alignTimestamp(timestamp) + interval_ms;
+        timestamp_end_interval = alignTimestamp(next_dp.timestamp()) + 
+            interval_ms;
       }
     }
 
