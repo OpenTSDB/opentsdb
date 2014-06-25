@@ -120,89 +120,57 @@ public class RateSpan implements SeekableView {
    */
   private void populateNextRate() {
     final MutableDataPoint prev_data = new MutableDataPoint();
-    while (source.hasNext()) {
+    if (source.hasNext()) {
       prev_data.reset(next_data);
       next_data.reset(source.next());
-      next_rate.reset(next_data.timestamp(), calculateRate(prev_data));
-      return;
-    }
-    // Invalidates the next rate with invalid timestamp.
-    next_rate.reset(INVALID_TIMESTAMP, 0);
-  }
-
-  /**
-   * Adjusts a counter rate considering a roll over.
-   * @param time_delta_secs time delta in seconds
-   * @param delta delta of values
-   * @return Adjusted rate
-   */
-  private double adjustCounterRateForRollOver(final double time_delta_secs,
-                                              final double delta) {
-    // Assumes the count was reset if the calculated rate is larger than
-    // the reset value, then returns 0 for the rate.
-    final double r = delta / time_delta_secs;
-    if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-        && r > options.getResetValue()) {
-      return 0.0;
-    }
-    return r;
-  }
-
-  /**
-   * Calculates the difference of the previous and current values.
-   * @return a delta
-   */
-  private double calculateDelta(final MutableDataPoint prev_data) {
-    if (prev_data.isInteger() && next_data.isInteger()) {
-      // NOTE: Calculates in the long type to avoid precision loss
-      // while converting long values to double values if both values are long.
-      // NOTE: Ignores the integer overflow.
-      return next_data.longValue() - prev_data.longValue();
-    }
-    return next_data.toDouble() - prev_data.toDouble();
-  }
-
-  /**
-   * Adjusts a negative delta of a counter assuming there was a roll over
-   * in the current data value.
-   * @return a delta
-   */
-  private double adjustNegativeCounterDelta(final MutableDataPoint prev_data) {
-    // NOTE: Assumes a roll over of a counter if we found that a counter value
-    // was decreased while calculating a rate of changes for a counter.
-    if (prev_data.isInteger() && next_data.isInteger()) {
-      // NOTE: Calculates in the long type to avoid precision loss
-      // while converting long values to double values if both values are long.
-      return options.getCounterMax() - prev_data.longValue() +
-          next_data.longValue();
-    }
-    return options.getCounterMax() - prev_data.toDouble() +
-        next_data.toDouble();
-  }
-
-  /**
-   * Calculates the rate between previous and current data points.
-   * @throws IllegalStateException if timestamps are not increasing.
-   */
-  private double calculateRate(final MutableDataPoint prev_data) {
-    final long t0 = prev_data.timestamp();
-    final long t1 = next_data.timestamp();
-    if (t1 <= t0) {
-      throw new IllegalStateException(
-          "Next timestamp (" + t1 + ") is supposed to be "
-          + " strictly greater than the previous one (" + t0 + "), but it's"
-          + " not.  this=" + this);
-    }
-    // TODO: for backwards compatibility we'll convert the ms to seconds
-    // but in the future we should add a ratems flag that will calculate
-    // the rate as is.
-    final double time_delta_secs = ((double)(t1 - t0) / 1000.0);
-    double difference = calculateDelta(prev_data);
-    if (options.isCounter() && difference < 0) {
-      difference = adjustNegativeCounterDelta(prev_data);
-      return adjustCounterRateForRollOver(time_delta_secs, difference);
+      
+      final long t0 = prev_data.timestamp();
+      final long t1 = next_data.timestamp();
+      if (t1 <= t0) {
+        throw new IllegalStateException(
+            "Next timestamp (" + t1 + ") is supposed to be "
+            + " strictly greater than the previous one (" + t0 + "), but it's"
+            + " not.  this=" + this);
+      }
+      // TODO: for backwards compatibility we'll convert the ms to seconds
+      // but in the future we should add a ratems flag that will calculate
+      // the rate as is.
+      final double time_delta_secs = ((double)(t1 - t0) / 1000.0);
+      double difference;
+      if (prev_data.isInteger() && next_data.isInteger()) {
+        // NOTE: Calculates in the long type to avoid precision loss
+        // while converting long values to double values if both values are long.
+        // NOTE: Ignores the integer overflow.
+        difference = next_data.longValue() - prev_data.longValue();
+      } else {
+        difference = next_data.toDouble() - prev_data.toDouble();
+      }
+      
+      if (options.isCounter() && difference < 0) {
+        if (prev_data.isInteger() && next_data.isInteger()) {
+          // NOTE: Calculates in the long type to avoid precision loss
+          // while converting long values to double values if both values are long.
+          difference = options.getCounterMax() - prev_data.longValue() +
+              next_data.longValue();
+        } else {
+          difference = options.getCounterMax() - prev_data.toDouble() +
+              next_data.toDouble();
+        }
+        
+        // If the rate is greater than the reset value, return a 0
+        final double rate = difference / time_delta_secs;
+        if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
+            && rate > options.getResetValue()) {
+          next_rate.reset(next_data.timestamp(), 0.0D);
+        } else {
+          next_rate.reset(next_data.timestamp(), rate);
+        }
+      } else {
+        next_rate.reset(next_data.timestamp(), (difference / time_delta_secs));
+      }
     } else {
-      return difference / time_delta_secs;
+      // Invalidates the next rate with invalid timestamp.
+      next_rate.reset(INVALID_TIMESTAMP, 0);
     }
   }
 
