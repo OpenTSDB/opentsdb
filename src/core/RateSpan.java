@@ -34,9 +34,9 @@ public class RateSpan implements SeekableView {
   /** The latter of two raw data points used to calculate the next rate. */
   private final MutableDataPoint next_data = new MutableDataPoint();
   /** The rate that will be returned at the {@link #next} call. */
-  private final MutableDoubleDataPoint next_rate = new MutableDoubleDataPoint();
+  private final MutableDataPoint next_rate = new MutableDataPoint();
   /** Users see this rate after they called next. */
-  private final MutableDoubleDataPoint prev_rate = new MutableDoubleDataPoint();
+  private final MutableDataPoint prev_rate = new MutableDataPoint();
   /** True if it is initialized for iterating rates of changes. */
   private boolean initialized = false;
 
@@ -109,7 +109,7 @@ public class RateSpan implements SeekableView {
       // NOTE: Calculates the first rate between the time zero and the first
       // data point for the backward compatibility.
       // TODO: Don't compute the first rate with the time zero.
-      next_data.resetWithDoubleValue(0, 0);
+      next_data.reset(0, 0);
       // Sets the first rate to be retrieved.
       populateNextRate();
     }

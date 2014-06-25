@@ -24,10 +24,8 @@ public final class MutableDataPoint implements DataPoint {
   private long timestamp = Long.MAX_VALUE;
   /** True if the value is stored as a long. */
   private boolean is_integer = true;
-  /** A double value. */
-  private double double_value = 0;
-  /** A long value. */
-  private long long_value = 0;
+  /** A long value or a double encoded on a long if {@code is_integer} is false. */
+  private long value = 0;
 
   /**
    * Resets with a new pair of a timestamp and a double value.
@@ -35,10 +33,10 @@ public final class MutableDataPoint implements DataPoint {
    * @param timestamp A timestamp.
    * @param value A double value.
    */
-  public void resetWithDoubleValue(final long timestamp, final double value) {
+  public void reset(final long timestamp, final double value) {
     this.timestamp = timestamp;
     this.is_integer = false;
-    this.double_value = value;
+    this.value = Double.doubleToRawLongBits(value);
   }
 
   /**
@@ -47,10 +45,10 @@ public final class MutableDataPoint implements DataPoint {
    * @param timestamp A timestamp.
    * @param value A double value.
    */
-  public void resetWithLongValue(final long timestamp, final long value) {
+  public void reset(final long timestamp, final long value) {
     this.timestamp = timestamp;
     this.is_integer = true;
-    this.long_value = value;
+    this.value = value;
   }
 
   /**
@@ -62,9 +60,9 @@ public final class MutableDataPoint implements DataPoint {
     this.timestamp = dp.timestamp();
     this.is_integer = dp.isInteger();
     if (is_integer) {
-      this.long_value = dp.longValue();
+      this.value = dp.longValue();
     } else {
-      this.double_value = dp.doubleValue();
+      this.value = Double.doubleToRawLongBits(dp.doubleValue());
     }
   }
 
@@ -77,7 +75,7 @@ public final class MutableDataPoint implements DataPoint {
   public static MutableDataPoint ofDoubleValue(final long timestamp,
                                                final double value) {
     final MutableDataPoint dp = new MutableDataPoint();
-    dp.resetWithDoubleValue(timestamp, value);
+    dp.reset(timestamp, value);
     return dp;
   }
 
@@ -90,7 +88,7 @@ public final class MutableDataPoint implements DataPoint {
   public static MutableDataPoint ofLongValue(final long timestamp,
                                              final long value) {
     final MutableDataPoint dp = new MutableDataPoint();
-    dp.resetWithLongValue(timestamp, value);
+    dp.reset(timestamp, value);
     return dp;
   }
 
@@ -107,7 +105,7 @@ public final class MutableDataPoint implements DataPoint {
   @Override
   public long longValue() {
     if (is_integer) {
-      return long_value;
+      return value;
     }
     throw new ClassCastException("Not a long in " + toString());
   }
@@ -115,7 +113,7 @@ public final class MutableDataPoint implements DataPoint {
   @Override
   public double doubleValue() {
     if (!is_integer) {
-      return double_value;
+      return Double.longBitsToDouble(value);
     }
     throw new ClassCastException("Not a double in " + toString());
   }
@@ -123,15 +121,15 @@ public final class MutableDataPoint implements DataPoint {
   @Override
   public double toDouble() {
     if (is_integer) {
-      return long_value;
+      return value;
     }
-    return double_value;
+    return Double.longBitsToDouble(value);
   }
 
   @Override
   public String toString() {
-    return String.format("MutableDataPoint(timestamp = %d, is_integer=%s, " +
-                         "long:%d, double:value = %g)", timestamp, is_integer,
-                         long_value, double_value);
+    return "MutableDataPoint(timestamp=" + timestamp + ", is_integer=" +
+        is_integer + ", value=" + 
+        (is_integer ? value : Double.longBitsToDouble(value)) + ")";
   }
 }

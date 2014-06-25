@@ -143,9 +143,9 @@ public class SeekableViewsForTest {
 
     private void generateData() {
       if (is_integer) {
-        current_data.resetWithLongValue(generateTimestamp(), current);
+        current_data.reset(generateTimestamp(), current);
       } else {
-        current_data.resetWithDoubleValue(generateTimestamp(), current);
+        current_data.reset(generateTimestamp(), current);
       }
     }
 

@@ -46,7 +46,6 @@ tsdb_SRC := \
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
 	src/core/MutableDataPoint.java \
-	src/core/MutableDoubleDataPoint.java \
 	src/core/Query.java	\
 	src/core/RateOptions.java  \
 	src/core/RateSpan.java  \
@@ -148,7 +147,6 @@ test_SRC := \
 	test/core/TestDownsampler.java \
 	test/core/TestInternal.java	\
 	test/core/TestMutableDataPoint.java	\
-	test/core/TestMutableDoubleDataPoint.java	\
 	test/core/TestRateSpan.java	\
 	test/core/TestRowSeq.java	\
 	test/core/TestSpan.java	\

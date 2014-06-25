@@ -36,7 +36,7 @@ public class TestMutableDataPoint {
   @Test
   public void testResetWithDoubleValue() {
     MutableDataPoint dp = new MutableDataPoint();
-    dp.resetWithDoubleValue(17L, 0.1717);
+    dp.reset(17L, 0.1717);
     assertFalse(dp.isInteger());
     assertEquals(0.1717, dp.doubleValue(), 0);
     assertEquals(17L, dp.timestamp());
@@ -46,7 +46,7 @@ public class TestMutableDataPoint {
   @Test
   public void testResetWithLongValue() {
     MutableDataPoint dp = new MutableDataPoint();
-    dp.resetWithLongValue(19L, 1717171L);
+    dp.reset(19L, 1717171L);
     assertTrue(dp.isInteger());
     assertEquals(1717171L, dp.longValue());
     assertEquals(19L, dp.timestamp());
@@ -56,14 +56,14 @@ public class TestMutableDataPoint {
   @Test
   public void testReset() {
     MutableDataPoint dp_foo = new MutableDataPoint();
-    dp_foo.resetWithLongValue(19L, 1717171L);
+    dp_foo.reset(19L, 1717171L);
     MutableDataPoint dp = new MutableDataPoint();
     dp.reset(dp_foo);
     assertTrue(dp.isInteger());
     assertEquals(1717171L, dp.longValue());
     assertEquals(19L, dp.timestamp());
     assertEquals(1717171L, dp.toDouble(), 0);
-    dp_foo.resetWithDoubleValue(17L, 0.1717);
+    dp_foo.reset(17L, 0.1717);
     dp.reset(dp_foo);
     assertFalse(dp.isInteger());
     assertEquals(0.1717, dp.doubleValue(), 0);
@@ -92,14 +92,14 @@ public class TestMutableDataPoint {
   @Test(expected = ClassCastException.class)
   public void testDoubleValue_castException() {
     MutableDataPoint dp = new MutableDataPoint();
-    dp.resetWithLongValue(19L, 1717171L);
+    dp.reset(19L, 1717171L);
     dp.doubleValue();
   }
 
   @Test(expected = ClassCastException.class)
   public void testLongValue_castException() {
     MutableDataPoint dp = new MutableDataPoint();
-    dp.resetWithDoubleValue(17L, 0.1717);
+    dp.reset(17L, 0.1717);
     dp.longValue();
   }
 }
