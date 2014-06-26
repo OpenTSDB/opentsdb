@@ -455,10 +455,10 @@ public final class Tags {
     throws NoSuchUniqueName {
     final ArrayList<byte[]> tag_ids = new ArrayList<byte[]>(tags.size());
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      final byte[] tag_id = (create
+      final byte[] tag_id = (create && tsdb.getConfig().auto_tagk()
                              ? tsdb.tag_names.getOrCreateId(entry.getKey())
                              : tsdb.tag_names.getId(entry.getKey()));
-      final byte[] value_id = (create
+      final byte[] value_id = (create && tsdb.getConfig().auto_tagv()
                                ? tsdb.tag_values.getOrCreateId(entry.getValue())
                                : tsdb.tag_values.getId(entry.getValue()));
       final byte[] thistag = new byte[tag_id.length + value_id.length];
