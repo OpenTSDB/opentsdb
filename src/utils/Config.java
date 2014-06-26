@@ -64,6 +64,12 @@ public class Config {
   /** tsd.core.auto_create_metrics */
   private boolean auto_metric = false;
 
+  /** tsd.core.auto_create_tagk */
+  private boolean auto_tagk = true;
+  
+  /** tsd.core.auto_create_tagv */
+  private boolean auto_tagv = true;
+  
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
 
@@ -149,9 +155,21 @@ public class Config {
     return this.auto_metric;
   }
   
+  /** @return the auto_tagk value */
+  public boolean auto_tagk() {
+    return auto_tagk;
+  }
+  
+  /** @return the auto_tagv value */
+  public boolean auto_tagv() {
+    return auto_tagv;
+  }
+  
   /** @param auto_metric whether or not to auto create metrics */
   public void setAutoMetric(boolean auto_metric) {
     this.auto_metric = auto_metric;
+    properties.put("tsd.core.auto_create_metrics", 
+        Boolean.toString(auto_metric));
   }
   
   /** @return the enable_compaction value */
@@ -205,16 +223,18 @@ public class Config {
   }
   
   /**
-   * Allows for modifying properties after loading
+   * Allows for modifying properties after creation or loading.
    * 
    * WARNING: This should only be used on initialization and is meant for 
-   * command line overrides
+   * command line overrides. Also note that it will reset all static config 
+   * variables when called.
    * 
    * @param property The name of the property to override
    * @param value The value to store
    */
   public void overrideConfig(final String property, final String value) {
     this.properties.put(property, value);
+    loadStaticVariables();
   }
 
   /**
@@ -397,6 +417,8 @@ public class Config {
     default_map.put("tsd.network.keep_alive", "true");
     default_map.put("tsd.network.reuse_address", "true");
     default_map.put("tsd.core.auto_create_metrics", "false");
+    default_map.put("tsd.core.auto_create_tagks", "true");
+    default_map.put("tsd.core.auto_create_tagvs", "true");
     default_map.put("tsd.core.meta.enable_realtime_ts", "false");
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");
@@ -430,21 +452,7 @@ public class Config {
         properties.put(entry.getKey(), entry.getValue());
     }
 
-    // set statics
-    auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
-    enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
-    enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
-    enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
-    enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
-    enable_tsuid_incrementing = 
-      this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
-    enable_tsuid_tracking = 
-      this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
-    if (this.hasProperty("tsd.http.request.max_chunk")) {
-      max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
-    }
-    enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
-    fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
+    loadStaticVariables();
   }
 
   /**
@@ -525,7 +533,30 @@ public class Config {
   }
 
   /**
-   * Calld from {@link #loadConfig} to copy the properties into the hash map
+   * Loads the static class variables for values that are called often. This
+   * should be called any time the configuration changes.
+   */
+  protected void loadStaticVariables() {
+    auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
+    auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
+    auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
+    enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
+    enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
+    enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
+    enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
+    enable_tsuid_incrementing = 
+      this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
+    enable_tsuid_tracking = 
+      this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
+    if (this.hasProperty("tsd.http.request.max_chunk")) {
+      max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
+    }
+    enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
+    fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
+  }
+  
+  /**
+   * Called from {@link #loadConfig} to copy the properties into the hash map
    * Tsuna points out that the Properties class is much slower than a hash
    * map so if we'll be looking up config values more than once, a hash map
    * is the way to go 
