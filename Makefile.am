@@ -73,6 +73,7 @@ tsdb_SRC := \
 	src/tools/ArgP.java	\
 	src/tools/CliOptions.java	\
 	src/tools/CliQuery.java	\
+	src/tools/CliUtils.java	\
 	src/tools/DumpSeries.java	\
 	src/tools/Fsck.java	\
 	src/tools/MetaPurge.java	\
