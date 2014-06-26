@@ -16,9 +16,11 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
@@ -36,6 +38,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -543,6 +546,92 @@ public final class TestTags {
     ids.add(new byte[] { 0, 0, 1, 0, 0, 0, 2 });
     Tags.resolveIdsAsync(tsdb, ids).joinUninterruptibly();
   }
+
+  @Test
+  public void resolveOrCreateAllCreate() throws Exception {
+    setupStorage();
+    setupResolveAll();
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 1}, uids.get(0));
+  }
+  
+  @Test
+  public void resolveOrCreateTagkAllowed() throws Exception {
+    setupStorage();
+    setupResolveAll();
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("doesnotexist", "web01");
+    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 1}, uids.get(0));
+  }
+  
+  @Test
+  public void resolveOrCreateTagkNotAllowedGood() throws Exception {
+    setupStorage();
+    config.overrideConfig("tsd.core.auto_create_tagks", "false");
+    setupResolveAll();
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("pop", "web01");
+    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 2, 0, 0, 1}, uids.get(0));
+  }
+  
+  @Test (expected = NoSuchUniqueName.class)
+  public void resolveOrCreateTagkNotAllowedBlocked() throws Exception {
+    setupStorage();
+    config.overrideConfig("tsd.core.auto_create_tagks", "false");
+    setupResolveAll();
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("nonesuch", "web01");
+    Tags.resolveOrCreateAll(tsdb, tags);
+  }
+  
+  @Test
+  public void resolveOrCreateTagvAllowed() throws Exception {
+    setupStorage();
+    setupResolveAll();
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "nohost");
+    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 3}, uids.get(0));
+  }
+  
+  @Test
+  public void resolveOrCreateTagvNotAllowedGood() throws Exception {
+    setupStorage();
+    config.overrideConfig("tsd.core.auto_create_tagvs", "false");
+    setupResolveAll();
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web02");
+    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2}, uids.get(0));
+  }
+  
+  @Test (expected = NoSuchUniqueName.class)
+  public void resolveOrCreateTagvNotAllowedBlocked() throws Exception {
+    setupStorage();
+    config.overrideConfig("tsd.core.auto_create_tagvs", "false");
+    setupResolveAll();
+    
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "invalidhost");
+    Tags.resolveOrCreateAll(tsdb, tags);
+  }
+  
+  // PRIVATE helpers to setup unit tests
   
   private void setupStorage() throws Exception {
     config = new Config(false);
@@ -582,5 +671,21 @@ public final class TestTags {
       .thenReturn(Deferred.fromResult("web01"));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
         .thenThrow(new NoSuchUniqueId("tagv", new byte[] { 0, 0, 2 }));
+  }
+  
+  private void setupResolveAll() throws Exception {
+    when(tag_names.getOrCreateId("host")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getOrCreateId("doesnotexist"))
+      .thenReturn(new byte[] { 0, 0, 3 });
+    when(tag_names.getId("pop")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_names.getId("nonesuch"))
+      .thenThrow(new NoSuchUniqueName("tagv", "nonesuch"));
+    
+    when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getOrCreateId("nohost"))
+      .thenReturn(new byte[] { 0, 0, 3 });
+    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_values.getId("invalidhost"))
+      .thenThrow(new NoSuchUniqueName("tagk", "invalidhost"));
   }
 }
