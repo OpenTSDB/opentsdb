@@ -12,9 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -52,60 +49,6 @@ import net.opentsdb.utils.Config;
 final class UidManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(UidManager.class);
-
-  /** Function used to convert a String to a byte[]. */
-  private static final Method toBytes;
-  /** Function used to convert a byte[] to a String. */
-  private static final Method fromBytes;
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET;
-  /** The single column family used by this class. */
-  private static final byte[] ID_FAMILY;
-  /** The single column family used by this class. */
-  private static final byte[] NAME_FAMILY;
-  /** Row key of the special row used to track the max ID already assigned. */
-  private static final byte[] MAXID_ROW;  
-  static {
-    final Class<UniqueId> uidclass = UniqueId.class;
-    try {
-      // Those are all implementation details so they're not part of the
-      // interface.  We access them anyway using reflection.  I think this
-      // is better than marking those public and adding a javadoc comment
-      // "THIS IS INTERNAL DO NOT USE".  If only Java had C++'s "friend" or
-      // a less stupid notion of a package.
-      Field f;
-      f = uidclass.getDeclaredField("CHARSET");
-      f.setAccessible(true);
-      CHARSET = (Charset) f.get(null);
-      f = uidclass.getDeclaredField("ID_FAMILY");
-      f.setAccessible(true);
-      ID_FAMILY = (byte[]) f.get(null);
-      f = uidclass.getDeclaredField("NAME_FAMILY");
-      f.setAccessible(true);
-      NAME_FAMILY = (byte[]) f.get(null);
-      f = uidclass.getDeclaredField("MAXID_ROW");
-      f.setAccessible(true);
-      MAXID_ROW = (byte[]) f.get(null);
-      toBytes = uidclass.getDeclaredMethod("toBytes", String.class);
-      toBytes.setAccessible(true);
-      fromBytes = uidclass.getDeclaredMethod("fromBytes", byte[].class);
-      fromBytes.setAccessible(true);
-    } catch (Exception e) {
-      throw new RuntimeException("static initializer failed", e);
-    }
-  }
-  /** Qualifier for metrics meta data */
-  private static final byte[] METRICS_META = "metric_meta".getBytes(CHARSET);
-  /** Qualifier for tagk meta data */
-  private static final byte[] TAGK_META = "tagk_meta".getBytes(CHARSET);
-  /** Qualifier for tagv meta data */
-  private static final byte[] TAGV_META = "tagv_meta".getBytes(CHARSET);
-  /** Qualifier for metrics UIDs */
-  private static final byte[] METRICS = "metrics".getBytes(CHARSET);
-  /** Qualifier for tagk UIDs */
-  private static final byte[] TAGK = "tagk".getBytes(CHARSET);
-  /** Qualifier for tagv UIDs */
-  private static final byte[] TAGV = "tagv".getBytes(CHARSET);
 
   /** Prints usage. */
   static void usage(final String errmsg) {
@@ -332,9 +275,9 @@ final class UidManager {
     final Scanner scanner = client.newScanner(table);
     scanner.setMaxNumRows(1024);
     String regexp;
-    scanner.setFamily(ID_FAMILY);
+    scanner.setFamily(CliUtils.ID_FAMILY);
     if (args.length == 3) {
-      scanner.setQualifier(toBytes(args[1]));
+      scanner.setQualifier(CliUtils.toBytes(args[1]));
       regexp = args[2];
     } else {
       regexp = args[1];
@@ -342,13 +285,13 @@ final class UidManager {
     if (ignorecase) {
       regexp = "(?i)" + regexp;
     }
-    scanner.setKeyRegexp(regexp, CHARSET);
+    scanner.setKeyRegexp(regexp, CliUtils.CHARSET);
     boolean found = false;
     try {
       ArrayList<ArrayList<KeyValue>> rows;
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
-          found |= printResult(row, ID_FAMILY, true);
+          found |= printResult(row, CliUtils.ID_FAMILY, true);
         }
       }
     } catch (HBaseException e) {
@@ -373,7 +316,7 @@ final class UidManager {
                                      final byte[] family,
                                      final boolean formard) {
     final byte[] key = row.get(0).key();
-    String name = formard ? fromBytes(key) : null;
+    String name = formard ? CliUtils.fromBytes(key) : null;
     String id = formard ? null : Arrays.toString(key);
     boolean printed = false;
     for (final KeyValue kv : row) {
@@ -384,9 +327,9 @@ final class UidManager {
       if (formard) {
         id = Arrays.toString(kv.value());
       } else {
-        name = fromBytes(kv.value());
+        name = CliUtils.fromBytes(kv.value());
       }
-      System.out.println(fromBytes(kv.qualifier()) + ' ' + name + ": " + id);
+      System.out.println(CliUtils.fromBytes(kv.qualifier()) + ' ' + name + ": " + id);
     }
     return printed;
   }
@@ -488,8 +431,8 @@ final class UidManager {
       void restoreReverseMap(final String kind, final String name, 
           final String uid) {
         final PutRequest put = new PutRequest(table, 
-            UniqueId.stringToUid(uid), NAME_FAMILY, toBytes(kind), 
-            toBytes(name));
+            UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, CliUtils.toBytes(kind), 
+            CliUtils.toBytes(name));
         client.put(put);
         id2name.put(uid, name);
         LOG.info("FIX: Restoring " + kind + " reverse mapping: " 
@@ -503,17 +446,17 @@ final class UidManager {
           final String uid) {
         // clean up meta data too
         final byte[][] qualifiers = new byte[2][];
-        qualifiers[0] = toBytes(kind); 
-        if (Bytes.equals(METRICS, qualifiers[0])) {
-          qualifiers[1] = METRICS_META;
-        } else if (Bytes.equals(TAGK, qualifiers[0])) {
-          qualifiers[1] = TAGK_META;
-        } else if (Bytes.equals(TAGV, qualifiers[0])) {
-          qualifiers[1] = TAGV_META;
+        qualifiers[0] = CliUtils.toBytes(kind); 
+        if (Bytes.equals(CliUtils.METRICS, qualifiers[0])) {
+          qualifiers[1] = CliUtils.METRICS_META;
+        } else if (Bytes.equals(CliUtils.TAGK, qualifiers[0])) {
+          qualifiers[1] = CliUtils.TAGK_META;
+        } else if (Bytes.equals(CliUtils.TAGV, qualifiers[0])) {
+          qualifiers[1] = CliUtils.TAGV_META;
         }
         
         final DeleteRequest delete = new DeleteRequest(table, 
-            UniqueId.stringToUid(uid), NAME_FAMILY, qualifiers);
+            UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, qualifiers);
         client.delete(delete);
         // can't remove from the id2name map as this will be called while looping
         LOG.info("FIX: Removed " + kind + " reverse mapping: " + uid + " -> "
@@ -536,15 +479,15 @@ final class UidManager {
             // TODO - validate meta data in the future, for now skip it
             if (Bytes.equals(qualifier, TSMeta.META_QUALIFIER()) ||
                 Bytes.equals(qualifier, TSMeta.COUNTER_QUALIFIER()) ||
-                Bytes.equals(qualifier, METRICS_META) ||
-                Bytes.equals(qualifier, TAGK_META) ||
-                Bytes.equals(qualifier, TAGV_META)) {
+                Bytes.equals(qualifier, CliUtils.METRICS_META) ||
+                Bytes.equals(qualifier, CliUtils.TAGK_META) ||
+                Bytes.equals(qualifier, CliUtils.TAGV_META)) {
               continue;
             }
             
-            if (!Bytes.equals(qualifier, METRICS) &&
-                !Bytes.equals(qualifier, TAGK) &&
-                !Bytes.equals(qualifier, TAGV)) {
+            if (!Bytes.equals(qualifier, CliUtils.METRICS) &&
+                !Bytes.equals(qualifier, CliUtils.TAGK) &&
+                !Bytes.equals(qualifier, CliUtils.TAGV)) {
               LOG.warn("Unknown qualifier " + UniqueId.uidToString(qualifier) 
                   + " in row " + UniqueId.uidToString(kv.key()));
               if (fix && fix_unknowns) {
@@ -558,7 +501,7 @@ final class UidManager {
               continue;
             }
 
-            final String kind = fromBytes(kv.qualifier());
+            final String kind = CliUtils.fromBytes(kv.qualifier());
             Uids uids = name2uids.get(kind);
             if (uids == null) {
               uids = new Uids();
@@ -567,7 +510,7 @@ final class UidManager {
             final byte[] key = kv.key();
             final byte[] family = kv.family();
             final byte[] value = kv.value();
-            if (Bytes.equals(key, MAXID_ROW)) {
+            if (Bytes.equals(key, CliUtils.MAXID_ROW)) {
               if (value.length != 8) {
                 uids.error(kv, "Invalid maximum ID for " + kind
                            + ": should be on 8 bytes: ");
@@ -579,14 +522,14 @@ final class UidManager {
               }
             } else {
               short idwidth = 0;
-              if (Bytes.equals(family, ID_FAMILY)) {
+              if (Bytes.equals(family, CliUtils.ID_FAMILY)) {
                 idwidth = (short) value.length;
-                final String skey = fromBytes(key);
+                final String skey = CliUtils.fromBytes(key);
                 final String svalue = UniqueId.uidToString(value);
                 final long max_found_id;
-                if (Bytes.equals(qualifier, METRICS)) {
+                if (Bytes.equals(qualifier, CliUtils.METRICS)) {
                   max_found_id = UniqueId.uidToLong(value, TSDB.metrics_width());
-                } else if (Bytes.equals(qualifier, TAGK)) {
+                } else if (Bytes.equals(qualifier, CliUtils.TAGK)) {
                   max_found_id = UniqueId.uidToLong(value, TSDB.tagk_width());
                 } else {
                   max_found_id = UniqueId.uidToLong(value, TSDB.tagv_width());
@@ -600,9 +543,9 @@ final class UidManager {
                              + skey + " -> " + id
                              + " and " + skey + " -> " + svalue);
                 }
-              } else if (Bytes.equals(family, NAME_FAMILY)) {
+              } else if (Bytes.equals(family, CliUtils.NAME_FAMILY)) {
                 final String skey = UniqueId.uidToString(key);
-                final String svalue = fromBytes(value);
+                final String svalue = CliUtils.fromBytes(value);
                 idwidth = (short) key.length;
                 final String name = uids.id2name.put(skey, svalue);
                 if (name != null) {
@@ -731,8 +674,8 @@ final class UidManager {
             fsck_builder.append(".")
                      .append(name);
             
-            final DeleteRequest delete = new DeleteRequest(table, toBytes(name), 
-                ID_FAMILY, toBytes(kind));
+            final DeleteRequest delete = new DeleteRequest(table, 
+                CliUtils.toBytes(name), CliUtils.ID_FAMILY, CliUtils.toBytes(kind));
             client.delete(delete);
             uids.name2id.remove(name);
             LOG.info("FIX: Removed forward " + kind + " mapping for " + name + " -> " 
@@ -741,8 +684,8 @@ final class UidManager {
           
           // write the new forward map
           final String fsck_name = fsck_builder.toString();
-          final PutRequest put = new PutRequest(table, toBytes(fsck_name), 
-              ID_FAMILY, toBytes(kind), UniqueId.stringToUid(id));
+          final PutRequest put = new PutRequest(table, CliUtils.toBytes(fsck_name), 
+              CliUtils.ID_FAMILY, CliUtils.toBytes(kind), UniqueId.stringToUid(id));
           client.put(put);
           LOG.info("FIX: Created forward " + kind + " mapping for fsck'd UID " + 
               fsck_name + " -> " + collision.getKey());
@@ -815,7 +758,7 @@ final class UidManager {
           } else {
             final long diff = uids.max_found_id - uids.maxid;
             final AtomicIncrementRequest air = new AtomicIncrementRequest(table, 
-                MAXID_ROW, ID_FAMILY, toBytes(kind), diff);
+                CliUtils.MAXID_ROW, CliUtils.ID_FAMILY, CliUtils.toBytes(kind), diff);
             client.atomicIncrement(air);
             LOG.info("FIX: Updated max ID for " + kind + " to " + uids.max_found_id);
           }          
@@ -858,7 +801,7 @@ final class UidManager {
     } else if (kind != null) {
       return extactLookupId(client, table, idwidth, kind, id);
     }
-    return findAndPrintRow(client, table, id, NAME_FAMILY, false);
+    return findAndPrintRow(client, table, id, CliUtils.NAME_FAMILY, false);
   }
 
   /**
@@ -953,7 +896,8 @@ final class UidManager {
     if (kind != null) {
       return extactLookupName(client, table, idwidth, kind, name);
     }
-    return findAndPrintRow(client, table, toBytes(name), ID_FAMILY, true);
+    return findAndPrintRow(client, table, CliUtils.toBytes(name), 
+        CliUtils.ID_FAMILY, true);
   }
 
   /**
@@ -1011,7 +955,7 @@ final class UidManager {
    */
   private static int metaSync(final TSDB tsdb) throws Exception {
     final long start_time = System.currentTimeMillis() / 1000;
-    final long max_id = getMaxMetricID(tsdb);
+    final long max_id = CliUtils.getMaxMetricID(tsdb);
     
     // now figure out how many IDs to divy up between the workers
     final int workers = Runtime.getRuntime().availableProcessors() * 2;
@@ -1070,7 +1014,7 @@ final class UidManager {
    */
   private static int metaPurge(final TSDB tsdb) throws Exception {
     final long start_time = System.currentTimeMillis() / 1000;
-    final long max_id = getMaxMetricID(tsdb);
+    final long max_id = CliUtils.getMaxMetricID(tsdb);
     
     // now figure out how many IDs to divy up between the workers
     final int workers = Runtime.getRuntime().availableProcessors() * 2;
@@ -1117,7 +1061,7 @@ final class UidManager {
    */
   private static int treeSync(final TSDB tsdb) throws Exception {
     final long start_time = System.currentTimeMillis() / 1000;
-    final long max_id = getMaxMetricID(tsdb);
+    final long max_id = CliUtils.getMaxMetricID(tsdb);
     
  // now figure out how many IDs to divy up between the workers
     final int workers = Runtime.getRuntime().availableProcessors() * 2;
@@ -1167,47 +1111,5 @@ final class UidManager {
     final TreeSync sync = new TreeSync(tsdb, 0, 1, 0);
     return sync.purgeTree(tree_id, delete_definition);
   }
-  
-  /**
-   * Returns the max metric ID from the UID table
-   * @param tsdb The TSDB to use for data access
-   * @return The max metric ID as an integer value
-   */
-  private static long getMaxMetricID(final TSDB tsdb) {
-    // first up, we need the max metric ID so we can split up the data table
-    // amongst threads.
-    final GetRequest get = new GetRequest(tsdb.uidTable(), new byte[] { 0 });
-    get.family("id".getBytes(CHARSET));
-    get.qualifier("metrics".getBytes(CHARSET));
-    ArrayList<KeyValue> row;
-    try {
-      row = tsdb.getClient().get(get).joinUninterruptibly();
-      if (row == null || row.isEmpty()) {
-        throw new IllegalStateException("No data in the metric max UID cell");
-      }
-      final byte[] id_bytes = row.get(0).value();
-      if (id_bytes.length != 8) {
-        throw new IllegalStateException("Invalid metric max UID, wrong # of bytes");
-      }
-      return Bytes.getLong(id_bytes);
-    } catch (Exception e) {
-      throw new RuntimeException("Shouldn't be here", e);
-    }
-  }
-  
-  private static byte[] toBytes(final String s) {
-    try {
-      return (byte[]) toBytes.invoke(null, s);
-    } catch (Exception e) {
-      throw new RuntimeException("toBytes=" + toBytes, e);
-    }
-  }
 
-  private static String fromBytes(final byte[] b) {
-    try {
-      return (String) fromBytes.invoke(null, b);
-    } catch (Exception e) {
-      throw new RuntimeException("fromBytes=" + fromBytes, e);
-    }
-  }
 }
