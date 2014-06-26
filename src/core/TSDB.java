@@ -682,7 +682,8 @@ public final class TSDB {
   }
 
   /**
-   * Forces a flush of any un-committed in memory data.
+   * Forces a flush of any un-committed in memory data including left over 
+   * compactions.
    * <p>
    * For instance, any data point not persisted will be sent to HBase.
    * @return A {@link Deferred} that will be called once all the un-committed
@@ -694,7 +695,18 @@ public final class TSDB {
    * recoverable by retrying, some are not.
    */
   public Deferred<Object> flush() throws HBaseException {
-    return client.flush();
+    final class HClientFlush implements Callback<Object, ArrayList<Object>> {
+      public Object call(final ArrayList<Object> args) {
+        return client.flush();
+      }
+      public String toString() {
+        return "flush HBase client";
+      }
+    }
+
+    return config.enable_compactions() && compactionq != null
+      ? compactionq.flush().addCallback(new HClientFlush())
+      : client.flush();
   }
 
   /**
