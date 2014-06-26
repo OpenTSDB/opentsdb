@@ -76,6 +76,7 @@ tsdb_SRC := \
 	src/tools/CliUtils.java	\
 	src/tools/DumpSeries.java	\
 	src/tools/Fsck.java	\
+	src/tools/FsckOptions.java	\
 	src/tools/MetaPurge.java	\
 	src/tools/MetaSync.java	\
 	src/tools/Search.java	\
