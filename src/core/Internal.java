@@ -217,18 +217,25 @@ public final class Internal {
       
       // Now break it down into Cells.
       int val_idx = 0;
-      for (int i = 0; i < len; i += 2) {
-        final byte[] q = extractQualifier(qual, i);
-        final int vlen = getValueLengthFromQualifier(qual, i);
-        if (inMilliseconds(qual[i])) {
-          i += 2;
+      try {
+        for (int i = 0; i < len; i += 2) {
+          final byte[] q = extractQualifier(qual, i);
+          final int vlen = getValueLengthFromQualifier(qual, i);
+          if (inMilliseconds(qual[i])) {
+            i += 2;
+          }
+          
+          final byte[] v = new byte[vlen];
+          System.arraycopy(val, val_idx, v, 0, vlen);
+          val_idx += vlen;
+          final Cell cell = new Cell(q, v);
+          cells.add(cell);
         }
-        
-        final byte[] v = new byte[vlen];
-        System.arraycopy(val, val_idx, v, 0, vlen);
-        val_idx += vlen;
-        final Cell cell = new Cell(q, v);
-        cells.add(cell);
+      } catch (ArrayIndexOutOfBoundsException e) {
+        throw new IllegalDataException("Corrupted value: couldn't break down"
+            + " into individual values (consumed " + val_idx + " bytes, but was"
+            + " expecting to consume " + (val.length - 1) + "): " + kv
+            + ", cells so far: " + cells);
       }
       
       // Check we consumed all the bytes of the value.  Remember the last byte
