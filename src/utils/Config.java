@@ -282,13 +282,18 @@ public class Config {
    * @throws NullPointerException if the property was not found
    */
   public final boolean getBoolean(final String property) {
-    final String val = this.properties.get(property).toUpperCase();
-    if (val.equals("1"))
-      return true;
-    if (val.equals("TRUE"))
-      return true;
-    if (val.equals("YES"))
-      return true;
+    
+    if (this.properties.containsKey(property)) {
+      final String val = this.properties.get(property).toUpperCase();
+        
+      if (val.equals("1"))
+        return true;
+      if (val.equals("TRUE"))
+        return true;
+      if (val.equals("YES"))
+        return true;
+    }
+    
     return false;
   }
 

@@ -19,7 +19,10 @@ import net.opentsdb.core.TSDB;
 
 /*
  * Generate Random UIDs to be used as unique id.
- * Random metric ids help to distribute hotspots evenly to region servers
+ * Random metric ids help to distribute hotspots evenly to region servers.
+ * It is better to decide whether to use random or serial uid for one type when 
+ * the hbase uid table is empty. If the logic to switch between random or serial
+ * uid is changed in between writes it will cause frequent id collisions.
  */
 public class RandomUID {
   private static SecureRandom random = new SecureRandom();

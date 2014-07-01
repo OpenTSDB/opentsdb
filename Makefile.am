@@ -105,6 +105,7 @@ tsdb_SRC := \
 	src/tsd/WordSplitter.java	\
 	src/uid/NoSuchUniqueId.java	\
 	src/uid/NoSuchUniqueName.java	\
+    src/uid/RandomUID.java	\
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java \
 	src/utils/Config.java \
@@ -171,6 +172,7 @@ test_SRC := \
 	test/tsd/TestTreeRpc.java	\
 	test/tsd/TestUniqueIdRpc.java	\
 	test/uid/TestNoSuchUniqueId.java	\
+	test/uid/TestRandomUniqueId.java \
 	test/uid/TestUniqueId.java \
 	test/utils/TestConfig.java \
 	test/utils/TestDateTime.java \
