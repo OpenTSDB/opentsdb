@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Aggregator;
 import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.DownsampleOptions;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
@@ -240,7 +241,9 @@ final class CliQuery {
       }
       query.setTimeSeries(metric, tags, agg, rate, rate_options);
       if (downsample) {
-        query.downsample(interval, sampler);
+        query.setPredownsample(new DownsampleOptions(
+            tsdb.getConfig().getPredownsampleInterval(), sampler));
+        query.setPostdownsample(new DownsampleOptions(interval, sampler));
       }
       queries.add(query);
     }

@@ -39,10 +39,8 @@ import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.TSUIDQuery;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.JSON;
 
 /**
  * Handles queries for timeseries datapoints. Each request is parsed into a
@@ -104,7 +102,7 @@ final class QueryRpc implements HttpRpc {
             query.apiVersion() + " is not implemented");
       }
     } else {
-      data_query = this.parseQuery(tsdb, query);
+      data_query = parseQuery(query);
     }
     
     // validate and then compile the queries
@@ -331,17 +329,17 @@ final class QueryRpc implements HttpRpc {
   
   /**
    * Parses a query string legacy style query from the URI
-   * @param tsdb The TSDB we belong to
    * @param query The HTTP Query for parsing
    * @return A TSQuery if parsing was successful
    * @throws BadRequestException if parsing was unsuccessful
    */
-  private TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
+  static TSQuery parseQuery(final HttpQuery query) {
     final TSQuery data_query = new TSQuery();
-    
+
     data_query.setStart(query.getRequiredQueryStringParam("start"));
     data_query.setEnd(query.getQueryStringParam("end"));
-    
+    data_query.setTimezone(query.getQueryStringParam("tz"));
+
     if (query.hasQueryStringParam("padding")) {
       data_query.setPadding(true);
     }
@@ -366,14 +364,14 @@ final class QueryRpc implements HttpRpc {
     if (query.hasQueryStringParam("tsuid")) {
       final List<String> tsuids = query.getQueryStringParams("tsuid");     
       for (String q : tsuids) {
-        this.parseTsuidTypeSubQuery(q, data_query);
+        parseTsuidTypeSubQuery(q, data_query);
       }
     }
     
     if (query.hasQueryStringParam("m")) {
       final List<String> legacy_queries = query.getQueryStringParams("m");      
       for (String q : legacy_queries) {
-        this.parseMTypeSubQuery(q, data_query);
+        parseMTypeSubQuery(q, data_query);
       }
     }
     
@@ -382,7 +380,47 @@ final class QueryRpc implements HttpRpc {
     }
     return data_query;
   }
-  
+
+  /**
+   * Parses aggregator query parameters and constructs a {@link TSSubQuery}.
+   * @param tokens An array of tokens.
+   * @return A TSSubQuery instance
+   * @throws BadRequestException if there is no tokens or any unknown token.
+   */
+  private static TSSubQuery parseAggregatorParam(final String[] tokens) {
+    // Syntax = agg:[interval-agg-pre:][interval-agg:]
+    //          [rate[{counter[,[countermax][,resetvalue]]}]:]
+    // where the parts in square brackets `[' .. `]' are optional.
+    // agg is the name of an aggregation function. See {@link Aggregators}.
+    // interval-agg-pre is a pre-downsample interval and a pre-downsample
+    // function. interval-agg is a post-downsample interval and a
+    // post-downsample function. rate is a flag to enable change rate
+    // calculation of time series data.
+    if (tokens.length == 0) {
+      throw new BadRequestException("Not enough parameters for aggregator");
+    }
+    final TSSubQuery sub_query = new TSSubQuery();
+    sub_query.setAggregator(tokens[0]);
+    // Parse out the rate and downsampler.
+    for (String token: Arrays.copyOfRange(tokens, 1, tokens.length)) {
+      if (token.toLowerCase().startsWith("rate")) {
+        sub_query.setRate(true);
+        if (token.indexOf("{") >= 0) {
+          sub_query.setRateOptions(parseRateOptions(true, token));
+        }
+      } else if (token.toLowerCase().endsWith(
+          TSSubQuery.SUFFIX_PREDOWNSAMPLE)) {
+        sub_query.setPredownsample(token);
+      } else if (Character.isDigit(token.charAt(0))) {
+        sub_query.setDownsample(token);
+      } else {
+        throw new BadRequestException(
+            String.format("Unknown parameter '%s' for aggregator", token));
+      }
+    }
+    return sub_query;
+  }
+
   /**
    * Parses a query string "m=..." type query and adds it to the TSQuery.
    * This will generate a TSSubQuery and add it to the TSQuery if successful
@@ -392,50 +430,30 @@ final class QueryRpc implements HttpRpc {
    * @throws BadRequestException if we are unable to parse the query or it is
    * missing components
    */
-  private void parseMTypeSubQuery(final String query_string, 
+  private static void parseMTypeSubQuery(final String query_string,
       TSQuery data_query) {
     if (query_string == null || query_string.isEmpty()) {
       throw new BadRequestException("The query string was empty");
     }
     
     // m is of the following forms:
-    // agg:[interval-agg:][rate:]metric[{tag=value,...}]
-    // where the parts in square brackets `[' .. `]' are optional.
+    // Aggreagator_parameters:metric[{tag=value,...}]
+    // See parseAggregatorParam for Aggreagator_parameters.
     final String[] parts = Tags.splitString(query_string, ':');
     int i = parts.length;
     if (i < 2 || i > 5) {
       throw new BadRequestException("Invalid parameter m=" + query_string + " ("
           + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
     }
-    final TSSubQuery sub_query = new TSSubQuery();
-    
-    // the aggregator is first
-    sub_query.setAggregator(parts[0]);
-    
-    i--; // Move to the last part (the metric name).
+    final TSSubQuery sub_query = parseAggregatorParam(
+        Arrays.copyOfRange(parts, 0, parts.length - 1));
+    // Copies the last part (the metric name and tags).
     HashMap<String, String> tags = new HashMap<String, String>();
-    sub_query.setMetric(Tags.parseWithMetric(parts[i], tags));
+    sub_query.setMetric(Tags.parseWithMetric(parts[parts.length - 1], tags));
     sub_query.setTags(tags);
-    
-    // parse out the rate and downsampler 
-    for (int x = 1; x < parts.length - 1; x++) {
-      if (parts[x].toLowerCase().startsWith("rate")) {
-        sub_query.setRate(true);
-        if (parts[x].indexOf("{") >= 0) {
-          sub_query.setRateOptions(QueryRpc.parseRateOptions(true, parts[x]));
-        }
-      } else if (Character.isDigit(parts[x].charAt(0))) {
-        sub_query.setDownsample(parts[x]);
-      }
-    }
-    
-    if (data_query.getQueries() == null) {
-      final ArrayList<TSSubQuery> subs = new ArrayList<TSSubQuery>(1);
-      data_query.setQueries(subs);
-    }
-    data_query.getQueries().add(sub_query);
+    data_query.addSubQuery(sub_query);
   }
-  
+
   /**
    * Parses a "tsuid=..." type query and adds it to the TSQuery.
    * This will generate a TSSubQuery and add it to the TSQuery if successful
@@ -445,48 +463,27 @@ final class QueryRpc implements HttpRpc {
    * @throws BadRequestException if we are unable to parse the query or it is
    * missing components
    */
-  private void parseTsuidTypeSubQuery(final String query_string, 
+  private static void parseTsuidTypeSubQuery(final String query_string,
       TSQuery data_query) {
     if (query_string == null || query_string.isEmpty()) {
       throw new BadRequestException("The tsuid query string was empty");
     }
-    
+
     // tsuid queries are of the following forms:
-    // agg:[interval-agg:][rate:]tsuid[,s]
-    // where the parts in square brackets `[' .. `]' are optional.
+    // Aggreagator_parameters:tsuid[,s]
+    // See parseAggregatorParam for Aggreagator_parameters.
     final String[] parts = Tags.splitString(query_string, ':');
     int i = parts.length;
     if (i < 2 || i > 5) {
-      throw new BadRequestException("Invalid parameter m=" + query_string + " ("
-          + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
+      throw new BadRequestException("Invalid parameter tsuid=" +
+          query_string + " (" + (i < 2 ? "not enough" : "too many") +
+          " :-separated parts)");
     }
-    
-    final TSSubQuery sub_query = new TSSubQuery();
-    
-    // the aggregator is first
-    sub_query.setAggregator(parts[0]);
-    
-    i--; // Move to the last part (the metric name).
-    final List<String> tsuid_array = Arrays.asList(parts[i].split(","));
-    sub_query.setTsuids(tsuid_array);
-    
-    // parse out the rate and downsampler 
-    for (int x = 1; x < parts.length - 1; x++) {
-      if (parts[x].toLowerCase().startsWith("rate")) {
-        sub_query.setRate(true);
-        if (parts[x].indexOf("{") >= 0) {
-          sub_query.setRateOptions(QueryRpc.parseRateOptions(true, parts[x]));
-        }
-      } else if (Character.isDigit(parts[x].charAt(0))) {
-        sub_query.setDownsample(parts[x]);
-      }
-    }
-    
-    if (data_query.getQueries() == null) {
-      final ArrayList<TSSubQuery> subs = new ArrayList<TSSubQuery>(1);
-      data_query.setQueries(subs);
-    }
-    data_query.getQueries().add(sub_query);
+    final TSSubQuery sub_query = parseAggregatorParam(
+        Arrays.copyOfRange(parts, 0, parts.length - 1));
+    // Copies the last part (tsuids).
+    sub_query.setTsuids(Arrays.asList(parts[parts.length - 1].split(",")));
+    data_query.addSubQuery(sub_query);
   }
   
   /**
@@ -502,7 +499,7 @@ final class QueryRpc implements HttpRpc {
    * @throws BadRequestException if the parameter is malformed
    * @since 2.0
    */
-   static final public RateOptions parseRateOptions(final boolean rate,
+  private static final RateOptions parseRateOptions(final boolean rate,
        final String spec) {
      if (!rate || spec.length() == 4) {
        return new RateOptions(false, Long.MAX_VALUE,

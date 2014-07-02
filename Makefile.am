@@ -40,6 +40,7 @@ tsdb_SRC := \
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
+	src/core/DownsampleOptions.java \
 	src/core/Downsampler.java \
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\

@@ -280,7 +280,12 @@ public final class TestDateTime {
   public void parseDurationNegative() {
     DateTime.parseDuration("-60s");
   }
-  
+
+  @Test (expected = IllegalArgumentException.class)
+  public void parseDurationZero() {
+    DateTime.parseDuration("0s");
+  }
+
   @Test (expected = IllegalArgumentException.class)
   public void parseDurationBad() {
     DateTime.parseDuration("foo60s");
@@ -295,7 +300,20 @@ public final class TestDateTime {
   public void parseDurationTooBig() {
     DateTime.parseDuration("6393590450230209347573980s");
   }
-  
+
+  @Test (expected = IllegalArgumentException.class)
+  public void parseNonNegativeDurationNegative() {
+    DateTime.parseDuration("-60s");
+  }
+
+  public void parseNonNegativeDurationZero() {
+    assertEquals(0, DateTime.parseNonNegativeDuration("0s"));
+  }
+
+  public void parseNonNegativeDurationPositive() {
+    assertEquals(3000, DateTime.parseNonNegativeDuration("3s"));
+  }
+
   @Test
   public void setTimeZone() {
     SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd");

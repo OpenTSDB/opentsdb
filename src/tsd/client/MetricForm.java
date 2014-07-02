@@ -47,6 +47,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final EventsHandler events_handler;
   private MetricChangeHandler metric_change_handler;
 
+  private final CheckBox predownsample = new CheckBox("Pre-downsample");
+  private final ListBox predownsampler = new ListBox();
+  private final ValidatedTextBox predownsample_interval = new ValidatedTextBox();
   private final CheckBox downsample = new CheckBox("Downsample");
   private final ListBox downsampler = new ListBox();
   private final ValidatedTextBox interval = new ValidatedTextBox();
@@ -61,11 +64,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
   public MetricForm(final EventsHandler handler) {
     events_handler = handler;
-    setupDownsampleWidgets();
-    downsample.addClickHandler(handler);
-    downsampler.addChangeHandler(handler);
-    interval.addBlurHandler(handler);
-    interval.addKeyPressHandler(handler);
+    setupDownsampleWidgets(predownsample, predownsampler,
+                           predownsample_interval, "10s", handler);
+    setupDownsampleWidgets(downsample, downsampler, interval, "10m", handler);
     rate.addClickHandler(handler);
     rate_counter.addClickHandler(handler);
     counter_max.addBlurHandler(handler);
@@ -87,7 +88,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       metric.addBlurHandler(metric_handler);
       metric.addKeyPressHandler(metric_handler);
     }
-
     metric.setValidationRegexp(TSDB_ID_RE);
     assembleUi();
   }
@@ -149,11 +149,12 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   public void updateFromQueryString(final String m, final String o) {
     // TODO: Try to reduce code duplication with GraphHandler.parseQuery().
     // m is of the following forms:
-    //  agg:[interval-agg:][rate[{counter[,max[,reset]]}:]metric[{tag=value,...}]
+    //  agg:[interval-agg-pre:][interval-agg:][rate[{counter[,max[,reset]]}:]
+    //      metric[{tag=value,...}]
     // Where the parts in square brackets `[' .. `]' are optional.
     final String[] parts = m.split(":");
     int i = parts.length;
-    if (i < 2 || i > 4) {
+    if (i < 2 || i > 5) {
       return;  // Malformed.
     }
 
@@ -178,27 +179,61 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
 
     // downsampling function & interval.
-    if (i > 0) {
-      final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
+    String predownsample_param = null;
+    String downsample_param = null;
+    if (i > 0 && Character.isDigit(parts[i].charAt(0))) {
+      if (parts[i].endsWith("-pre")) {
+        predownsample_param = parts[i].substring(0, parts[i].length() - 4);
+      } else {
+        downsample_param = parts[i];
+      }
+      i--;
+    }
+    if (i > 0 && Character.isDigit(parts[i].charAt(0))) {
+      if (parts[i].endsWith("-pre")) {
+        predownsample_param = parts[i].substring(0, parts[i].length() - 4);
+      } else {
+        downsample_param = parts[i];
+      }
+      i--;
+    }
+    updateDownsamplingForm(predownsample_param,
+                           predownsample,
+                           predownsampler,
+                           predownsample_interval);
+    updateDownsamplingForm(downsample_param,
+                           downsample,
+                           downsampler,
+                           interval);
+
+    x1y2.setValue(o.contains("axis x1y2"), false);
+  }
+
+  private static void updateDownsamplingForm(final String query_param,
+                                             final CheckBox downsample,
+                                             final ListBox downsampler,
+                                             final ValidatedTextBox interval) {
+    if (query_param != null) {
+      final int dash = query_param.indexOf('-', 1);  // 1st char can't be `-'.
       if (dash < 0) {
-        disableDownsample();
+        disableDownsample(downsample, downsampler, interval);
         return;  // Invalid downsampling specifier.
       }
       downsample.setValue(true, false);
 
       downsampler.setEnabled(true);
-      setSelectedItem(downsampler, parts[1].substring(dash + 1));
+      setSelectedItem(downsampler, query_param.substring(dash + 1));
 
       interval.setEnabled(true);
-      interval.setText(parts[1].substring(0, dash));
+      interval.setText(query_param.substring(0, dash));
     } else {
-      disableDownsample();
+      disableDownsample(downsample, downsampler, interval);
     }
-
-    x1y2.setValue(o.contains("axis x1y2"), false);
   }
 
-  private void disableDownsample() {
+  private static void disableDownsample(final CheckBox downsample,
+                                        final ListBox downsampler,
+                                        final ValidatedTextBox interval) {
     downsample.setValue(false, false);
     interval.setEnabled(false);
     downsampler.setEnabled(false);
@@ -230,6 +265,13 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     {  // Right hand-side panel.
       final VerticalPanel vbox = new VerticalPanel();
+      vbox.add(predownsample);
+      {
+        final HorizontalPanel hbox = new HorizontalPanel();
+        hbox.add(predownsampler);
+        hbox.add(predownsample_interval);
+        vbox.add(hbox);
+      }
       {
         final HorizontalPanel hbox = new HorizontalPanel();
         hbox.add(rate);
@@ -277,9 +319,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   public void setAggregators(final ArrayList<String> aggs) {
     for (final String agg : aggs) {
       aggregators.addItem(agg);
+      predownsampler.addItem(agg);
       downsampler.addItem(agg);
     }
     setSelectedItem(aggregators, "sum");
+    setSelectedItem(predownsampler, "avg");
     setSelectedItem(downsampler, "avg");
   }
 
@@ -290,6 +334,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
     url.append("&m=");
     url.append(selectedValue(aggregators));
+    if (predownsample.getValue()) {
+      url.append(':').append(predownsample_interval.getValue())
+        .append('-').append(selectedValue(predownsampler))
+        .append("-pre");
+    }
     if (downsample.getValue()) {
       url.append(':').append(interval.getValue())
         .append('-').append(selectedValue(downsampler));
@@ -492,12 +541,16 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     }
   };
 
-  private void setupDownsampleWidgets() {
+  private static void setupDownsampleWidgets(final CheckBox downsample,
+                                             final ListBox downsampler,
+                                             final ValidatedTextBox interval,
+                                             final String default_interval,
+                                             final EventsHandler handler) {
     downsampler.setEnabled(false);
     interval.setEnabled(false);
     interval.setMaxLength(5);
     interval.setVisibleLength(5);
-    interval.setValue("10m");
+    interval.setValue(default_interval);
     interval.setValidationRegexp("^[1-9][0-9]*[smhdwy]$");
     downsample.addClickHandler(new ClickHandler() {
       public void onClick(final ClickEvent event) {
@@ -509,6 +562,10 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         }
       }
     });
+    downsample.addClickHandler(handler);
+    downsampler.addChangeHandler(handler);
+    interval.addBlurHandler(handler);
+    interval.addKeyPressHandler(handler);
   }
 
   private static String selectedValue(final ListBox list) {  // They should add
@@ -520,7 +577,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
    * @param list The list to manipulate.
    * @param item The item to select if present.
    */
-  private void setSelectedItem(final ListBox list, final String item) {
+  private static void setSelectedItem(final ListBox list, final String item) {
     final int nitems = list.getItemCount();
     for (int i = 0; i < nitems; i++) {
       if (item.equals(list.getValue(i))) {

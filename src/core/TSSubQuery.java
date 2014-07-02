@@ -38,6 +38,10 @@ import net.opentsdb.utils.DateTime;
  * @since 2.0
  */
 public final class TSSubQuery {
+
+  /** Sub query option to specify the pre-downsample options. */
+  public static final String SUFFIX_PREDOWNSAMPLE = "-pre";
+
   /** User given name of an aggregation function to use */
   private String aggregator;
   
@@ -50,9 +54,18 @@ public final class TSSubQuery {
   /** User supplied list of tags for specificity or grouping. May be null or 
    * empty */
   private HashMap<String, String> tags;
-  
+
+  /** User given pre-downsample options in string. */
+  private String predownsample;
+
+  /** Parsed pre-downsample options. */
+  private DownsampleOptions predownsample_options;
+
   /** User given downsampler */
   private String downsample;
+
+  /** Parsed downsample option. */
+  private DownsampleOptions downsample_options;
   
   /** Whether or not the user wants to perform a rate conversion */
   private boolean rate;
@@ -62,12 +75,6 @@ public final class TSSubQuery {
   
   /** Parsed aggregation function */
   private Aggregator agg;
-  
-  /** Parsed downsampler function */
-  private Aggregator downsampler;
-  
-  /** Parsed downsample interval */
-  private long downsample_interval;
   
   /**
    * Default constructor necessary for POJO de/serialization
@@ -106,10 +113,14 @@ public final class TSSubQuery {
     }
     buf.append("], agg=")
       .append(aggregator)
+      .append(", predownsample='")
+      .append(predownsample)
+      .append("', predownsample_options=")
+      .append(predownsample_options)
       .append(", downsample=")
       .append(downsample)
-      .append(", ds_interval=")
-      .append(downsample_interval)
+      .append(", downsample_options=")
+      .append(downsample_options)
       .append(", rate=")
       .append(rate)
       .append(", rate_options=")
@@ -145,22 +156,46 @@ public final class TSSubQuery {
           "Missing the metric or tsuids, provide at least one");
     }
     
-    // parse the downsampler if we have one
-    if (downsample != null && !downsample.isEmpty()) {
-      final int dash = downsample.indexOf('-', 1); // 1st char can't be
-                                                        // `-'.
-      if (dash < 0) {
-        throw new IllegalArgumentException("Invalid downsampling specifier '" 
-            + downsample + "' in [" + downsample + "]");
-      }
-      try {
-        downsampler = Aggregators.get(downsample.substring(dash + 1));
-      } catch (NoSuchElementException e) {
-        throw new IllegalArgumentException("No such downsampling function: "
-            + downsample.substring(dash + 1));
-      }
-      downsample_interval = DateTime.parseDuration(
-          downsample.substring(0, dash));
+    predownsample_options = parseDownsampleOptions(predownsample, true);
+    downsample_options = parseDownsampleOptions(downsample, false);
+  }
+
+  /**
+   * Parses the downsampling option string for pre and post downsampling.
+   * @param option Option string to parse. Null or empty if no downsampling
+   * is specified.
+   * @param predownsampling True for pre-downsampling.
+   * @return DownsampleOptions for pre/post downsamplings if specified.
+   * Otherwise, null.
+   * @throws IllegalArgumentException
+   */
+  private static DownsampleOptions parseDownsampleOptions(
+      String option, boolean predownsampling) {
+    if (option == null || option.isEmpty()) {
+      return null;
+    }
+    if (predownsampling && !option.endsWith(SUFFIX_PREDOWNSAMPLE)) {
+      throw new IllegalArgumentException(
+          String.format("Invalid pre-downsample interval specifier '%s'",
+              option));
+    }
+    final int dash = option.indexOf('-', 1); // 1st char can't be `-'.
+    if (dash < 0) {
+      throw new IllegalArgumentException("Invalid downsampling specifier '" 
+          + option + "' [no dash]");
+    }
+    int length = option.length();
+    if (predownsampling) {
+      length -= SUFFIX_PREDOWNSAMPLE.length();
+    }
+    String downsampler_func = option.substring(dash + 1, length);
+    try {
+      return new DownsampleOptions(
+          DateTime.parseNonNegativeDuration(option.substring(0, dash)),
+          Aggregators.get(downsampler_func));
+    } catch (NoSuchElementException e) {
+      throw new IllegalArgumentException("No such downsampling function: "
+          + downsampler_func);
     }
   }
 
@@ -168,15 +203,15 @@ public final class TSSubQuery {
   public Aggregator aggregator() {
     return this.agg;
   }
-  
-  /** @return the parsed downsampler aggregation function */
-  public Aggregator downsampler() {
-    return this.downsampler;
+
+  /** @return the parsed pre-downsample options. */
+  public DownsampleOptions getPredownsampleOptions() {
+    return this.predownsample_options;
   }
-  
-  /** @return the parsed downsample interval in seconds */
-  public long downsampleInterval() {
-    return this.downsample_interval;
+
+  /** @return the parsed downsample options. */
+  public DownsampleOptions getDownsampleOptions() {
+    return this.downsample_options;
   }
   
   /** @return the user supplied aggregator */
@@ -200,6 +235,12 @@ public final class TSSubQuery {
       return Collections.emptyMap();
     }
     return tags;
+  }
+
+  /** @return the raw pre-downsampling function request from the user,
+   * e.g. "1h-avg-pre" */
+  public String getPredownsample() {
+    return predownsample;
   }
 
   /** @return the raw downsampling function request from the user, 
@@ -236,6 +277,11 @@ public final class TSSubQuery {
   /** @param tags an optional list of tags for specificity or grouping */
   public void setTags(HashMap<String, String> tags) {
     this.tags = tags;
+  }
+
+  /** @param predownsample pre-downsample options in string. */
+  public void setPredownsample(String predownsample) {
+    this.predownsample = predownsample;
   }
 
   /** @param downsample the downsampling function to use, e.g. "2h-avg" */

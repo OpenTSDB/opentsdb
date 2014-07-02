@@ -110,14 +110,11 @@ final class TsdbQuery implements Query {
   /** Aggregator function to use. */
   private Aggregator aggregator;
 
-  /**
-   * Downsampling function to use, if any (can be {@code null}).
-   * If this is non-null, {@code sample_interval_ms} must be strictly positive.
-   */
-  private Aggregator downsampler;
+  /** Options for downsampling before aggregation. */
+  private DownsampleOptions predownsample_options = DownsampleOptions.NONE;
 
-  /** Minimum time interval (in milliseconds) wanted between each data point. */
-  private long sample_interval_ms;
+  /** Options for downsampling after aggregation. */
+  private DownsampleOptions postdownsample_options = DownsampleOptions.NONE;
 
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
@@ -249,21 +246,21 @@ final class TsdbQuery implements Query {
   }
   
   /**
-   * Sets an optional downsampling function on this query
-   * @param interval The interval, in milliseconds to rollup data points
-   * @param downsampler An aggregation function to use when rolling up data points
-   * @throws NullPointerException if the aggregation function is null
-   * @throws IllegalArgumentException if the interval is not greater than 0
+   * Sets an optional pre-downsampling function on this query
+   * @param downsample_options options for pre-downsampling.
    */
   @Override
-  public void downsample(final long interval, final Aggregator downsampler) {
-    if (downsampler == null) {
-      throw new NullPointerException("downsampler");
-    } else if (interval <= 0) {
-      throw new IllegalArgumentException("interval not > 0: " + interval);
-    }
-    this.downsampler = downsampler;
-    this.sample_interval_ms = interval;
+  public void setPredownsample(DownsampleOptions downsample_options) {
+    predownsample_options = downsample_options;
+  }
+
+  /**
+   * Sets an optional post-downsampling function on this query
+   * @param downsample_options options for post-downsampling.
+   */
+  @Override
+  public void setPostdownsample(DownsampleOptions downsample_options) {
+    postdownsample_options = downsample_options;
   }
 
   /**
@@ -462,13 +459,13 @@ final class TsdbQuery implements Query {
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
-        final SpanGroup group = new SpanGroup(tsdb,
-                                              getScanStartTimeSeconds(),
+        final SpanGroup group = new SpanGroup(getScanStartTimeSeconds(),
                                               getScanEndTimeSeconds(),
                                               spans.values(),
                                               rate, rate_options,
                                               aggregator,
-                                              sample_interval_ms, downsampler);
+                                              predownsample_options,
+                                              postdownsample_options);
         return new SpanGroup[] { group };
       }
   
@@ -509,10 +506,11 @@ final class TsdbQuery implements Query {
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
         SpanGroup thegroup = groups.get(group);
         if (thegroup == null) {
-          thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
+          thegroup = new SpanGroup(getScanStartTimeSeconds(),
                                    getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
-                                   sample_interval_ms, downsampler);
+                                   predownsample_options,
+                                   postdownsample_options);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -595,6 +593,8 @@ final class TsdbQuery implements Query {
     if ((start & Const.SECOND_MASK) != 0) {
       start /= 1000;
     }
+    long sample_interval_ms = Math.max(predownsample_options.getIntervalMs(),
+                                       postdownsample_options.getIntervalMs());
     final long ts = start - Const.MAX_TIMESPAN * 2 - sample_interval_ms / 1000;
     return ts > 0 ? ts : 0;
   }
@@ -613,6 +613,8 @@ final class TsdbQuery implements Query {
     if ((end & Const.SECOND_MASK) != 0) {
       end /= 1000;
     }
+    long sample_interval_ms = Math.max(predownsample_options.getIntervalMs(),
+                                       postdownsample_options.getIntervalMs());
     return end + Const.MAX_TIMESPAN + 1 + sample_interval_ms / 1000;
   }
 
@@ -890,7 +892,7 @@ final class TsdbQuery implements Query {
 
     /** @return the downsampling interval for unit tests. */
     static long getDownsampleIntervalMs(TsdbQuery query) {
-      return query.sample_interval_ms;
+      return query.postdownsample_options.getIntervalMs();
     }
   }
 }

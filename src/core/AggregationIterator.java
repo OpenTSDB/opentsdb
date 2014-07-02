@@ -218,18 +218,18 @@ final class AggregationIterator implements SeekableView, DataPoint,
                                            final long end_time,
                                            final Aggregator aggregator,
                                            final Interpolation method,
-                                           final Aggregator downsampler,
-                                           final long sample_interval_ms,
+                                           final DownsampleOptions downsampler,
                                            final boolean rate,
                                            final RateOptions rate_options) {
     final int size = spans.size();
     final SeekableView[] iterators = new SeekableView[size];
     for (int i = 0; i < size; i++) {
       SeekableView it;
-      if (downsampler == null) {
-        it = spans.get(i).spanIterator();
+      if (downsampler.enabled()) {
+        it = spans.get(i).downsampler(downsampler.getIntervalMs(),
+                                      downsampler.getDownsampler());
       } else {
-        it = spans.get(i).downsampler(sample_interval_ms, downsampler);
+        it = spans.get(i).spanIterator();
       }
       if (rate) {
         it = new RateSpan(it, rate_options);

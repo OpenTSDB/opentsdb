@@ -139,9 +139,17 @@ public interface Query {
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate, 
       final RateOptions rate_options);
-  
+
   /**
-   * Downsamples the results by specifying a fixed interval between points.
+   * Downsamples the results before aggregation by specifying a fixed interval
+   * between points.
+   * @param downsample_options options for pre-downsampling.
+   */
+  void setPredownsample(DownsampleOptions downsample_options);
+
+  /**
+   * Downsamples the results after aggregation by specifying a fixed interval
+   * between points.
    * <p>
    * Technically, downsampling means reducing the sampling interval.  Here
    * the idea is similar.  Instead of returning every single data point that
@@ -149,11 +157,9 @@ public interface Query {
    * way we get this one data point is by aggregating all the data points of
    * that interval together using an {@link Aggregator}.  This enables you
    * to compute things like the 5-minute average or 10 minute 99th percentile.
-   * @param interval Number of seconds wanted between each data point.
-   * @param downsampler Aggregation function to use to group data points
-   * within an interval.
+   * @param downsample_options options for post downsampling.
    */
-  void downsample(long interval, Aggregator downsampler);
+  void setPostdownsample(DownsampleOptions downsample_options);
 
   /**
    * Runs this query.

@@ -29,11 +29,15 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +50,7 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.core.TSQuery;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
@@ -126,40 +131,51 @@ final class GraphHandler implements HttpRpc {
     }
   }
 
+  /** Builds TSDB queries from TSQuery. */
+  private Query[] buildQueries(final TSDB tsdb, final HttpQuery query) {
+    TSQuery ts_query = QueryRpc.parseQuery(query);
+    if (ts_query.getEnd() == null || ts_query.getEnd().isEmpty()) {
+      // NOTE: Set the end of the query time range with now when no end time
+      // is specified. BTW, "0s-ago" is not supported by the DataTime class.
+      ts_query.setEnd("1s-ago");
+    }
+    try {
+      // validate and then compile the queries
+      LOG.debug(ts_query.toString());
+      ts_query.validateAndSetQuery();
+    } catch (Exception e) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          e.getMessage(), ts_query.toString(), e);
+    }
+    try {
+      return ts_query.buildQueries(tsdb);
+    } catch (NoSuchUniqueName e) {
+      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+          e.getMessage(), ts_query.toString(), e);
+    }
+  }
+
   private void doGraph(final TSDB tsdb, final HttpQuery query)
     throws IOException {
-    final String basepath = getGnuplotBasePath(tsdb, query);
-    long start_time = DateTime.parseDateTimeString(
-      query.getRequiredQueryStringParam("start"),
-      query.getQueryStringParam("tz"));
+    // TODO: Do not fully parse the query for cached queries to improve the
+    // performance for very popular queries.
+    Query[] tsdbqueries = buildQueries(tsdb, query);
+    // NOTE: Every query entry in tsdbqueries has the same time range.
+    // temp fixup to seconds from ms until the rest of TSDB supports ms
+    final long start_sec = TimeUnit.MILLISECONDS.toSeconds(
+        tsdbqueries[0].getStartTime());
+    final long end_sec = TimeUnit.MILLISECONDS.toSeconds(
+        tsdbqueries[0].getEndTime());
+    final long now = TimeUnit.MILLISECONDS.toSeconds(
+        System.currentTimeMillis());
+    final int max_age = computeMaxAge(query, start_sec, end_sec, now);
     final boolean nocache = query.hasQueryStringParam("nocache");
-    if (start_time == -1) {
-      throw BadRequestException.missingParameter("start");
-    } else {
-      // temp fixup to seconds from ms until the rest of TSDB supports ms
-      // Note you can't append this to the DateTime.parseDateTimeString() call as
-      // it clobbers -1 results
-      start_time /= 1000;
-    }
-    long end_time = DateTime.parseDateTimeString(
-        query.getQueryStringParam("end"),
-        query.getQueryStringParam("tz"));
-    final long now = System.currentTimeMillis() / 1000;
-    if (end_time == -1) {
-      end_time = now;
-    } else {
-      // temp fixup to seconds from ms until the rest of TSDB supports ms
-      // Note you can't append this to the DateTime.parseDateTimeString() call as
-      // it clobbers -1 results
-      end_time /= 1000;
-    }
-    final int max_age = computeMaxAge(query, start_time, end_time, now);
-    if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
+    final String basepath = getGnuplotBasePath(tsdb, query);
+    if (!nocache && isDiskCacheHit(query, end_sec, max_age, basepath)) {
       return;
     }
-    Query[] tsdbqueries;
     List<String> options;
-    tsdbqueries = parseQuery(tsdb, query);
+
     options = query.getQueryStringParams("o");
     if (options == null) {
       options = new ArrayList<String>(tsdbqueries.length);
@@ -172,17 +188,17 @@ final class GraphHandler implements HttpRpc {
     }
     for (final Query tsdbquery : tsdbqueries) {
       try {
-        tsdbquery.setStartTime(start_time);
+        tsdbquery.setStartTime(start_sec);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("start time: " + e.getMessage());
       }
       try {
-        tsdbquery.setEndTime(end_time);
+        tsdbquery.setEndTime(end_sec);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("end time: " + e.getMessage());
       }
     }
-    final Plot plot = new Plot(start_time, end_time,
+    final Plot plot = new Plot(start_sec, end_sec,
           DateTime.timezones.get(query.getQueryStringParam("tz")));
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
@@ -818,84 +834,6 @@ final class GraphHandler implements HttpRpc {
       query.sendFile(path, max_age);
     } catch (IOException e) {
       query.internalError(e);
-    }
-  }
-
-  /**
-   * Parses the {@code /q} query in a list of {@link Query} objects.
-   * @param tsdb The TSDB to use.
-   * @param query The HTTP query for {@code /q}.
-   * @return The corresponding {@link Query} objects.
-   * @throws BadRequestException if the query was malformed.
-   * @throws IllegalArgumentException if the metric or tags were malformed.
-   */
-  private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
-    final List<String> ms = query.getQueryStringParams("m");
-    if (ms == null) {
-      throw BadRequestException.missingParameter("m");
-    }
-    final Query[] tsdbqueries = new Query[ms.size()];
-    int nqueries = 0;
-    for (final String m : ms) {
-      // m is of the following forms:
-      //   agg:[interval-agg:][rate[{counter[,[countermax][,resetvalue]]}]:]
-      //     metric[{tag=value,...}]
-      // Where the parts in square brackets `[' .. `]' are optional.
-      final String[] parts = Tags.splitString(m, ':');
-      int i = parts.length;
-      if (i < 2 || i > 4) {
-        throw new BadRequestException("Invalid parameter m=" + m + " ("
-          + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
-      }
-      final Aggregator agg = getAggregator(parts[0]);
-      i--;  // Move to the last part (the metric name).
-      final HashMap<String, String> parsedtags = new HashMap<String, String>();
-      final String metric = Tags.parseWithMetric(parts[i], parsedtags);
-      final boolean rate = parts[--i].startsWith("rate");
-      final RateOptions rate_options = QueryRpc.parseRateOptions(rate, parts[i]);
-      if (rate) {
-        i--;  // Move to the next part.
-      }
-      final Query tsdbquery = tsdb.newQuery();
-      try {
-        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, rate_options);
-      } catch (NoSuchUniqueName e) {
-        throw new BadRequestException(e.getMessage());
-      }
-      // downsampling function & interval.
-      if (i > 0) {
-        final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
-        if (dash < 0) {
-          throw new BadRequestException("Invalid downsampling specifier '"
-                                        + parts[1] + "' in m=" + m);
-        }
-        Aggregator downsampler;
-        try {
-          downsampler = Aggregators.get(parts[1].substring(dash + 1));
-        } catch (NoSuchElementException e) {
-          throw new BadRequestException("No such downsampling function: "
-                                        + parts[1].substring(dash + 1));
-        }
-        final long interval = DateTime.parseDuration(parts[1].substring(0, dash));
-        tsdbquery.downsample(interval, downsampler);
-      } else {
-        tsdbquery.downsample(1000, agg);
-      }
-      tsdbqueries[nqueries++] = tsdbquery;
-    }
-    return tsdbqueries;
-  }
-
-  /**
-   * Returns the aggregator with the given name.
-   * @param name Name of the aggregator to get.
-   * @throws BadRequestException if there's no aggregator with this name.
-   */
-  private static final Aggregator getAggregator(final String name) {
-    try {
-      return Aggregators.get(name);
-    } catch (NoSuchElementException e) {
-      throw new BadRequestException("No such aggregation function: " + name);
     }
   }
 

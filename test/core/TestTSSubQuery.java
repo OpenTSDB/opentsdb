@@ -36,13 +36,20 @@ public final class TestTSSubQuery {
     assertEquals("*", sub.getTags().get("host"));
     assertEquals("lga", sub.getTags().get("dc"));
     assertEquals(Aggregators.SUM, sub.aggregator());
-    assertEquals(Aggregators.AVG, sub.downsampler());
-    assertEquals(300000, sub.downsampleInterval());
+    DownsampleOptions predownsample_options = sub.getPredownsampleOptions();
+    assertEquals(Aggregators.AVG, predownsample_options.getDownsampler());
+    assertEquals(60000, predownsample_options.getIntervalMs());
+    DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
+    assertEquals(Aggregators.AVG, postdownsample_options.getDownsampler());
+    assertEquals(300000, postdownsample_options.getIntervalMs());
   }
-  
+
   @Test
   public void validateTS() {
     TSSubQuery sub = getMetricForValidate();
+    // Forces the default pre downsampling.
+    sub.setPredownsample(null);
+    // TSUID query should not have any metric query param.
     sub.setMetric(null);
     ArrayList<String> tsuids = new ArrayList<String>(1);
     tsuids.add("ABCD");
@@ -52,21 +59,24 @@ public final class TestTSSubQuery {
     assertEquals("*", sub.getTags().get("host"));
     assertEquals("lga", sub.getTags().get("dc"));
     assertEquals(Aggregators.SUM, sub.aggregator());
-    assertEquals(Aggregators.AVG, sub.downsampler());
-    assertEquals(300000, sub.downsampleInterval());
+    assertNull(sub.getPredownsampleOptions());
+    DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
+    assertEquals(Aggregators.AVG, postdownsample_options.getDownsampler());
+    assertEquals(300000, postdownsample_options.getIntervalMs());
   }
-  
+
   @Test
   public void validateNoDS() {
     TSSubQuery sub = getMetricForValidate();
+    sub.setPredownsample(null);
     sub.setDownsample(null);
     sub.validateAndSetQuery();
     assertEquals("sys.cpu.0", sub.getMetric());
     assertEquals("*", sub.getTags().get("host"));
     assertEquals("lga", sub.getTags().get("dc"));
     assertEquals(Aggregators.SUM, sub.aggregator());
-    assertNull(sub.downsampler());
-    assertEquals(0, sub.downsampleInterval());
+    assertNull(sub.getPredownsampleOptions());
+    assertNull(sub.getDownsampleOptions());
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -112,7 +122,47 @@ public final class TestTSSubQuery {
     sub.setDownsample("bad");
     sub.validateAndSetQuery();
   }
-  
+
+  @Test
+  public void validateMetricSubQuery_predownsampling() {
+    TSSubQuery sub = getMetricForValidate();
+    sub.setPredownsample("4m-max-pre");
+    assertEquals("4m-max-pre", sub.getPredownsample());
+    sub.validateAndSetQuery();
+    assertEquals("sys.cpu.0", sub.getMetric());
+    assertEquals("*", sub.getTags().get("host"));
+    assertEquals("lga", sub.getTags().get("dc"));
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    DownsampleOptions predownsample_options = sub.getPredownsampleOptions();
+    assertEquals(Aggregators.MAX, predownsample_options.getDownsampler());
+    assertEquals(240000, predownsample_options.getIntervalMs());
+    DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
+    assertEquals(Aggregators.AVG, postdownsample_options.getDownsampler());
+    assertEquals(300000, postdownsample_options.getIntervalMs());
+  }
+
+  @Test
+  public void validateTsuid_predownsampling() {
+    TSSubQuery sub = getMetricForValidate();
+    sub.setMetric(null);
+    sub.setPredownsample("4m-max-pre");
+    assertEquals("4m-max-pre", sub.getPredownsample());
+    ArrayList<String> tsuids = new ArrayList<String>(1);
+    tsuids.add("ABCD");
+    sub.setTsuids(tsuids);
+    sub.validateAndSetQuery();
+    assertNotNull(sub.getTsuids());
+    assertEquals("*", sub.getTags().get("host"));
+    assertEquals("lga", sub.getTags().get("dc"));
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    DownsampleOptions predownsample_options = sub.getPredownsampleOptions();
+    assertEquals(Aggregators.MAX, predownsample_options.getDownsampler());
+    assertEquals(240000, predownsample_options.getIntervalMs());
+    DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
+    assertEquals(Aggregators.AVG, postdownsample_options.getDownsampler());
+    assertEquals(300000, postdownsample_options.getIntervalMs());
+  }
+
   /**
    * Sets up an object with good, common values for testing the validation
    * function with an "m" type query (no tsuids). Each test can "set" the 
@@ -124,6 +174,7 @@ public final class TestTSSubQuery {
   public static TSSubQuery getMetricForValidate() {
     final TSSubQuery sub = new TSSubQuery();
     sub.setAggregator("sum");
+    sub.setPredownsample("1m-avg-pre");
     sub.setDownsample("5m-avg");
     sub.setMetric("sys.cpu.0");
     sub.setRate(false);

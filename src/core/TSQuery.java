@@ -135,13 +135,40 @@ public final class TSQuery {
       final Query query = tsdb.newQuery();
       query.setStartTime(start_time);
       query.setEndTime(end_time);
-      if (sub.downsampler() != null) {
-        query.downsample(sub.downsampleInterval(), sub.downsampler());
-      } else if (!ms_resolution) {
-        // we *may* have multiple millisecond data points in the set so we have
-        // to downsample. use the sub query's aggregator
-        query.downsample(1000, sub.aggregator());
+      // Sets pre and post downsampling options.
+      DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
+      DownsampleOptions predownsample_options = sub.getPredownsampleOptions();
+      if (postdownsample_options == null) {
+        postdownsample_options = DownsampleOptions.NONE;
+        if (predownsample_options == null) {
+          if (ms_resolution) {
+            // No downsamplings at all.
+            predownsample_options = DownsampleOptions.NONE;
+          } else {
+            // we *may* have multiple millisecond data points in the set so we have
+            // to downsample. use the sub query's aggregator
+            predownsample_options = new DownsampleOptions(1000, sub.aggregator());
+          }
+        }
+      } else {
+        if (predownsample_options == null) {
+          // Forces a predownsampler if user did not specify one.
+          predownsample_options = new DownsampleOptions(
+              tsdb.getConfig().getPredownsampleInterval(),
+              postdownsample_options.getDownsampler());
+        }
+        if (predownsample_options.getIntervalMs() >
+            postdownsample_options.getIntervalMs()) {
+          // It doesn't make any sense that the post-downsample interval is
+          // smaller than the pre-downsample interval. Pre-downsampling
+          // uses the same interval as that of the post-downsamling.
+          predownsample_options = new DownsampleOptions(
+              postdownsample_options.getIntervalMs(),
+              predownsample_options.getDownsampler());
+        }
       }
+      query.setPredownsample(predownsample_options);
+      query.setPostdownsample(postdownsample_options);
       if (sub.getTsuids() != null && !sub.getTsuids().isEmpty()) {
         if (sub.getRateOptions() != null) {
           query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate(), 
@@ -319,14 +346,17 @@ public final class TSQuery {
   public void setShowTSUIDs(boolean show_tsuids) {
     this.show_tsuids = show_tsuids;
   }
-  
-  /** @param queries a list of {@link TSSubQuery} objects to store*/
-  public void setQueries(ArrayList<TSSubQuery> queries) {
-    this.queries = queries;
-  }
 
   /** @param ms_resolution whether or not the user wants millisecond resolution */
   public void setMsResolution(boolean ms_resolution) {
     this.ms_resolution = ms_resolution;
+  }
+
+  /** @param subQuery a sub query to add */
+  public void addSubQuery(TSSubQuery subQuery) {
+    if (queries == null) {
+      queries = new ArrayList<TSSubQuery>();
+    }
+    queries.add(subQuery);
   }
 }

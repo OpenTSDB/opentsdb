@@ -1558,7 +1558,8 @@ public final class TestTsdbQuery {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    query.downsample(1000, Aggregators.SUM);
+    query.setPredownsample(new DownsampleOptions(1000, Aggregators.SUM));
+    query.setPostdownsample(new DownsampleOptions(1000, Aggregators.SUM));
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
     assertEquals("sys.cpu.user", dps[0].metricName());

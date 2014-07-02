@@ -354,7 +354,12 @@ public class Config {
     }
     return directory + "/";
   }
-  
+
+  /** @return Default interval for downsampling before aggregation. */
+  public long getPredownsampleInterval() {
+    return getLong("tsd.core.predownsample_interval_ms");
+  }
+
   /**
    * Determines if the given propery is in the map
    * @param property The property to search for
@@ -446,6 +451,7 @@ public class Config {
     default_map.put("tsd.http.request.cors_headers", "Authorization, "
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
+    default_map.put("tsd.core.predownsample_interval_ms", "10000");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))

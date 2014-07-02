@@ -74,7 +74,7 @@
           <target>1.6</target>
           <compilerArgument>-Xlint</compilerArgument>
           <excludes>
-            <exclude>**/client/*.java</exclude>
+            <exclude>net/opentsdb/tsd/client/*.java</exclude>
           </excludes>
         </configuration>
       </plugin>

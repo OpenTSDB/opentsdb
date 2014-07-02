@@ -83,14 +83,11 @@ final class SpanGroup implements DataPoints {
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
 
-  /**
-   * Downsampling function to use, if any (can be {@code null}).
-   * If this is non-null, {@code sample_interval} must be strictly positive.
-   */
-  private final Aggregator downsampler;
+  /** Options for downsampling before aggregation. */
+  private final DownsampleOptions predownsample_options;
 
-  /** Minimum time interval (in seconds) wanted between each data point. */
-  private final long sample_interval;
+  /** Options for downsampling after aggregation. */
+  private final DownsampleOptions postdownsample_options;
 
   /**
    * Ctor.
@@ -108,15 +105,45 @@ final class SpanGroup implements DataPoints {
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
    */
+  @Deprecated
   SpanGroup(final TSDB tsdb,
             final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate,
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
-    this(tsdb, start_time, end_time, spans, rate, new RateOptions(false,
-        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
-        downsampler);
+    // NOTE: Keeps this constructor for the backward compatibility for any
+    // third party code that uses the deprecated API.
+    this(start_time, end_time, spans, rate, new RateOptions(false,
+        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator,
+        new DownsampleOptions(downsampler == null ? 0 : interval, downsampler),
+        DownsampleOptions.NONE);
+  }
+
+  /**
+   * Ctor.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}.  Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param aggregator The aggregation function to use.
+   * @param predownsample_options Options for downsampling before aggregation.
+   * @param postdownsample_options Options for downsampling after aggregation.
+   * @since 2.1
+   */
+  SpanGroup(final long start_time, final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate,
+            final Aggregator aggregator,
+            final DownsampleOptions predownsample_options,
+            final DownsampleOptions postdownsample_options) {
+    this(start_time, end_time, spans, rate, new RateOptions(false,
+        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator,
+        predownsample_options, postdownsample_options);
   }
 
   /**
@@ -137,25 +164,57 @@ final class SpanGroup implements DataPoints {
    * within an interval.
    * @since 2.0
    */
+  @Deprecated
   SpanGroup(final TSDB tsdb,
             final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
+    // NOTE: Keeps this constructor for the backward compatibility for any
+    // third party code that uses the deprecated API.
+    this(start_time, end_time, spans, rate, rate_options, aggregator,
+        new DownsampleOptions(downsampler == null ? 0 : interval, downsampler),
+        DownsampleOptions.NONE);
+  }
+
+  /**
+   * Ctor.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}. Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation options.
+   * @param aggregator The aggregation function to use.
+   * @param predownsample_options Options for downsampling before aggregation.
+   * @param postdownsample_options Options for downsampling after aggregation.
+   * @since 2.1
+   */
+  SpanGroup(final long start_time, final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate, final RateOptions rate_options,
+            final Aggregator aggregator,
+            final DownsampleOptions predownsample_options,
+            final DownsampleOptions postdownsample_options) {
     annotations = new ArrayList<Annotation>();
-    this.start_time = (start_time & Const.SECOND_MASK) == 0 ? start_time * 1000 : start_time;
-    this.end_time = (end_time & Const.SECOND_MASK) == 0 ? end_time * 1000 : end_time;
-    if (spans != null) {
-      for (final Span span : spans) {
-        add(span);
-      }
-    }
-    this.rate = rate;
-    this.rate_options = rate_options;
-    this.aggregator = aggregator;
-    this.downsampler = downsampler;
-    this.sample_interval = interval;
+     this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
+         start_time * 1000 : start_time;
+     this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
+         end_time * 1000 : end_time;
+     if (spans != null) {
+       for (final Span span : spans) {
+         add(span);
+       }
+     }
+     this.rate = rate;
+     this.rate_options = rate_options;
+     this.aggregator = aggregator;
+     this.predownsample_options = predownsample_options;
+     this.postdownsample_options = postdownsample_options;
   }
 
   /**
@@ -376,10 +435,18 @@ final class SpanGroup implements DataPoints {
   }
 
   public SeekableView iterator() {
-    return AggregationIterator.create(spans, start_time, end_time, aggregator,
-                                  aggregator.interpolationMethod(),
-                                  downsampler, sample_interval,
-                                  rate, rate_options);
+    // Aggregates with pre-downsamling.
+    SeekableView aggregation_iter = AggregationIterator.create(
+        spans, start_time, end_time, aggregator,
+        aggregator.interpolationMethod(),
+        predownsample_options, rate, rate_options);
+    if (postdownsample_options.enabled()) {
+      // Downsamples aggregated results.
+      return new Downsampler(aggregation_iter,
+                             postdownsample_options.getIntervalMs(),
+                             postdownsample_options.getDownsampler());
+    }
+    return aggregation_iter;
   }
 
   /**
@@ -434,8 +501,8 @@ final class SpanGroup implements DataPoints {
       + ", aggregated_tags=" + aggregated_tags
       + ", rate=" + rate
       + ", aggregator=" + aggregator
-      + ", downsampler=" + downsampler
-      + ", sample_interval=" + sample_interval
+      + ", predownsample_options=" + predownsample_options
+      + ", postdownsample_options=" + postdownsample_options
       + ')';
   }
 

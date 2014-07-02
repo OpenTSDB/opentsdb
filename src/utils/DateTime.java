@@ -164,6 +164,21 @@ public class DateTime {
    * @throws IllegalArgumentException if the interval was malformed.
    */
   public static final long parseDuration(final String duration) {
+    final long interval = parseNonNegativeDuration(duration);
+    if (interval <= 0) {
+      throw new IllegalArgumentException("Zero or negative duration: " + duration);
+    }
+    return interval;
+  }
+
+  /**
+   * Parses a human-readable non-negative duration (e.g, "0s", "10m", "3h",
+   * "14d") into milliseconds.
+   * @param duration The human-readable duration to parse.
+   * @return A strictly positive number of milliseconds.
+   * @throws IllegalArgumentException if the interval was malformed.
+   */
+  public static final long parseNonNegativeDuration(final String duration) {
     long interval;
     long multiplier;
     double temp;
@@ -176,8 +191,8 @@ public class DateTime {
     } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Invalid duration (number): " + duration);
     }
-    if (interval <= 0) {
-      throw new IllegalArgumentException("Zero or negative duration: " + duration);
+    if (interval < 0) {
+      throw new IllegalArgumentException("Negative duration: " + duration);
     }
     switch (duration.toLowerCase().charAt(duration.length() - 1)) {
       case 's': 
