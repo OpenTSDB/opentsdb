@@ -171,7 +171,7 @@ public final class Branch implements Comparable<Branch> {
     }
     
     final Branch branch = (Branch)obj;
-    return display_name == branch.display_name;
+    return display_name.equals(branch.display_name);
   }
   
   /**
