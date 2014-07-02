@@ -165,7 +165,7 @@ public final class TSDB {
       try {
         PluginLoader.loadJARs(plugin_path);
       } catch (Exception e) {
-        LOG.error("Error loading plugins from plugin path: " + plugin_path, e);
+        LOG.error("Error loading plugins from plugin path: {}", plugin_path, e);
         throw new RuntimeException("Error loading plugins from plugin path: " + 
             plugin_path, e);
       }
@@ -184,9 +184,8 @@ public final class TSDB {
       } catch (Exception e) {
         throw new RuntimeException("Failed to initialize search plugin", e);
       }
-      LOG.info("Successfully initialized search plugin [" + 
-          search.getClass().getCanonicalName() + "] version: " 
-          + search.version());
+      LOG.info("Successfully initialized search plugin [{}] version: {}",
+          search.getClass().getCanonicalName(), search.version());
     } else {
       search = null;
     }
@@ -206,9 +205,8 @@ public final class TSDB {
         throw new RuntimeException(
             "Failed to initialize real time publisher plugin", e);
       }
-      LOG.info("Successfully initialized real time publisher plugin [" + 
-          rt_publisher.getClass().getCanonicalName() + "] version: " 
-          + rt_publisher.version());
+      LOG.info("Successfully initialized real time publisher plugin [{}] version: {}",
+          rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
     } else {
       rt_publisher = null;
     }
@@ -233,9 +231,8 @@ public final class TSDB {
           rpc_plugins = new ArrayList<RpcPlugin>(1);
         }
         rpc_plugins.add(rpc);
-        LOG.info("Successfully initialized RPC plugin [" + 
-            rpc.getClass().getCanonicalName() + "] version: " 
-            + rpc.version());
+        LOG.info("Successfully initialized RPC plugin [{}] version: {}",
+            rpc.getClass().getCanonicalName(), rpc.version());
       }
     }
   }
@@ -760,19 +757,19 @@ public final class TSDB {
       deferreds.add(compactionq.flush().addCallback(new CompactCB()));
     }
     if (search != null) {
-      LOG.info("Shutting down search plugin: " + 
+      LOG.info("Shutting down search plugin: {}",
           search.getClass().getCanonicalName());
       deferreds.add(search.shutdown());
     }
     if (rt_publisher != null) {
-      LOG.info("Shutting down RT plugin: " + 
+      LOG.info("Shutting down RT plugin: {}",
           rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
     }
     
     if (rpc_plugins != null && !rpc_plugins.isEmpty()) {
       for (final RpcPlugin rpc : rpc_plugins) {
-        LOG.info("Shutting down RPC plugin: " + 
+        LOG.info("Shutting down RPC plugin: {}",
             rpc.getClass().getCanonicalName());
         deferreds.add(rpc.shutdown());
       }
@@ -892,7 +889,7 @@ public final class TSDB {
         return this.tag_values.getOrCreateId(name);
       }
     } else {
-      LOG.warn("Unknown type name: " + type);
+      LOG.warn("Unknown type name: {}", type);
       throw new IllegalArgumentException("Unknown type name");
     }
   }

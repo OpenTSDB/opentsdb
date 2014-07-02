@@ -146,7 +146,7 @@ final class Fsck {
     for (final Query query : queries) {
       final long start_time = System.nanoTime();
       long ping_start_time = start_time;
-      LOG.info("Starting to fsck data covered by " + query);
+      LOG.info("Starting to fsck data covered by {}", query);
       long kvcount = 0;
       long rowcount = 0;
       final Bytes.ByteMap<Seen> seen = new Bytes.ByteMap<Seen>();
@@ -178,21 +178,20 @@ final class Fsck {
             if (kvcount % 100000 == 0) {
               final long now = System.nanoTime();
               ping_start_time = (now - ping_start_time) / 1000000;
-              LOG.info("... " + kvcount + " KV analyzed in " + ping_start_time
-                       + "ms (" + (100000 * 1000 / ping_start_time) + " KVs/s)");
+              LOG.info("... {} KV analyzed in {}ms ({} KVs/s)",
+                  kvcount, ping_start_time, 100000 * 1000 / ping_start_time);
               ping_start_time = now;
             }
             byte[] value = kv.value();
             final byte[] qual = kv.qualifier();
             if (qual.length < 2) {
               errors++;
-              LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t"
-                        + kv);
+              LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t{}", kv);
               continue;
             } else if (qual.length % 2 != 0) {
               if (qual.length != 3 && qual.length != 5) {
                 errors++;
-                LOG.error("Found unknown column in row.\n\t" + kv);
+                LOG.error("Found unknown column in row.\n\t{}", kv);
                 continue;
               }
               
@@ -202,16 +201,15 @@ final class Fsck {
               if (qual[0] == Annotation.PREFIX()) {
                 continue;
               }
-              LOG.debug("Found an object from a future version of OpenTSDB\n\t" 
-                  + kv);
+              LOG.debug("Found an object from a future version of OpenTSDB\n\t{}", kv);
               continue;
             } else if (qual.length >= 4 && !Internal.inMilliseconds(qual[0])) {
               // compacted row
               if (value[value.length - 1] > Const.MS_MIXED_COMPACT) {
                 errors++;
-                LOG.error("The last byte of a compacted should be 0 or 1. Either"
-                          + " this value is corrupted or it was written by a"
-                          + " future version of OpenTSDB.\n\t" + kv);
+                LOG.error("The last byte of a compacted should be 0 or 1. Either " +
+                          "this value is corrupted or it was written by a future " +
+                          "version of OpenTSDB.\n\t{}", kv);
                 continue;
               }
               
@@ -248,8 +246,8 @@ final class Fsck {
             
             if (value.length > 8) {
               errors++;
-              LOG.error("Value more than 8 byte long with a " 
-                        + kv.qualifier().length + "-byte qualifier.\n\t" + kv);
+              LOG.error("Value more than 8 byte long with a {}-byte qualifier.\n\t{}",
+                  kv.qualifier().length, kv);
             }
             // TODO(tsuna): Don't hardcode 0x8 / 0x3 here.
             if (qual.length == 2 && 
@@ -270,10 +268,9 @@ final class Fsck {
                     client.put(new PutRequest(table, kv.key(), kv.family(),
                                               qual, value));
                   } else {
-                    LOG.error("Floating point value with 0xFF most significant"
-                              + " bytes, probably caused by sign extension bug"
-                              + " present in revisions [96908436..607256fc].\n"
-                              + "\t" + kv);
+                    LOG.error("Floating point value with 0xFF most significant " +
+                              "bytes, probably caused by sign extension bug " +
+                              "present in revisions [96908436..607256fc].\n\t{}", kv);
                   }
                 } else if (value[0] != 0 || value[1] != 0
                            || value[2] != 0 || value[3] != 0) {
@@ -281,9 +278,8 @@ final class Fsck {
                 }
               } else if (value.length != 4) {
                 errors++;
-                LOG.error("This floating point value must be encoded either on"
-                          + " 4 or 8 bytes, but it's on " + value.length
-                          + " bytes.\n\t" + kv);
+                LOG.error("This floating point value must be encoded either on " +
+                          "4 or 8 bytes, but it's on {} bytes.\n\t{}", value.length, kv);
               }
             }
           }

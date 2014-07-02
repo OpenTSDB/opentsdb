@@ -163,7 +163,7 @@ public final class Annotation implements Comparable<Annotation> {
       }
     }
     if (!has_changes) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
+      LOG.debug("{} does not have changes, skipping sync to storage", this);
       throw new IllegalStateException("No changes detected in Annotation data");
     }
     

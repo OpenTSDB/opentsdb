@@ -393,8 +393,8 @@ final class TsdbQuery implements Query {
            if (rows == null) {
              hbase_time += (System.nanoTime() - starttime) / 1000000;
              scanlatency.add(hbase_time);
-             LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
-                 spans.size() + " spans in " + hbase_time + "ms");
+             LOG.info("{} matched {} rows in {} spans in {}ms",
+                 TsdbQuery.this, nrows, spans.size(), hbase_time);
              if (nrows < 1 && !seenAnnotation) {
                results.callback(null);
              } else {
@@ -501,9 +501,9 @@ final class TsdbQuery implements Query {
           i += value_width;
         }
         if (value_id == null) {
-          LOG.error("WTF? Dropping span for row " + Arrays.toString(row)
-                   + " as it had no matching tag from the requested groups,"
-                   + " which is unexpected. Query=" + this);
+          LOG.error("WTF? Dropping span for row {} as it had no matching tag " +
+                    "from the requested groups, which is unexpected. Query={}",
+              Arrays.toString(row), this);
           continue;
         }
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));

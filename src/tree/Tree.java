@@ -323,7 +323,7 @@ public final class Tree {
       }
     }
     if (!has_changes) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
+      LOG.debug("{} does not have changes, skipping sync to storage", this);
       throw new IllegalStateException("No changes detected in the tree");
     }
 
@@ -848,13 +848,13 @@ public final class Tree {
           for (KeyValue column : row) {
             // tree
             if (delete_definition && Bytes.equals(TREE_QUALIFIER, column.qualifier())) {
-              LOG.trace("Deleting tree defnition in row: " + 
+              LOG.trace("Deleting tree defnition in row: {}",
                   Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
               
             // branches
             } else if (Bytes.equals(Branch.BRANCH_QUALIFIER(), column.qualifier())) {
-              LOG.trace("Deleting branch in row: " + 
+              LOG.trace("Deleting branch in row: {}",
                   Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
             
@@ -862,7 +862,7 @@ public final class Tree {
             } else if (column.qualifier().length > Leaf.LEAF_PREFIX().length &&
                 Bytes.memcmp(Leaf.LEAF_PREFIX(), column.qualifier(), 0, 
                     Leaf.LEAF_PREFIX().length) == 0) {
-              LOG.trace("Deleting leaf in row: " + 
+              LOG.trace("Deleting leaf in row: {}",
                   Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
               
@@ -870,7 +870,7 @@ public final class Tree {
             } else if (column.qualifier().length > COLLISION_PREFIX.length && 
                 Bytes.memcmp(COLLISION_PREFIX, column.qualifier(), 0, 
                     COLLISION_PREFIX.length) == 0) {
-              LOG.trace("Deleting collision in row: " + 
+              LOG.trace("Deleting collision in row: {}",
                   Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
               
@@ -878,7 +878,7 @@ public final class Tree {
             } else if (column.qualifier().length > NOT_MATCHED_PREFIX.length && 
                 Bytes.memcmp(NOT_MATCHED_PREFIX, column.qualifier(), 0, 
                     NOT_MATCHED_PREFIX.length) == 0) {
-              LOG.trace("Deleting not matched in row: " + 
+              LOG.trace("Deleting not matched in row: {}",
                   Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
               
@@ -886,7 +886,7 @@ public final class Tree {
             } else if (delete_definition && column.qualifier().length > TreeRule.RULE_PREFIX().length && 
                 Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0, 
                     TreeRule.RULE_PREFIX().length) == 0) {
-              LOG.trace("Deleting tree rule in row: " + 
+              LOG.trace("Deleting tree rule in row: {}",
                   Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
             } 
@@ -912,7 +912,7 @@ public final class Tree {
           ArrayList<Object>> {
           
           public Deferred<Boolean> call(ArrayList<Object> objects) {
-            LOG.debug("Purged [" + objects.size() + "] columns, continuing");
+            LOG.debug("Purged [{}] columns, continuing", objects.size());
             delete_deferreds.clear();
             // call ourself again to get the next set of rows from the scanner
             return deleteTree();

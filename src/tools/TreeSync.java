@@ -101,9 +101,9 @@ final class TreeSync extends Thread {
     final List<Tree> trees;
     try {
       trees = Tree.fetchAllTrees(tsdb).joinUninterruptibly();
-      LOG.info("[" + thread_id + "] Complete");
+      LOG.info("[{}] Complete", thread_id);
     } catch (Exception e) {
-      LOG.error("[" + thread_id + "] Unexpected Exception", e);
+      LOG.error("[{}] Unexpected Exception", thread_id, e);
       throw new RuntimeException("[" + thread_id + "] Unexpected exception", e);
     }
     
@@ -122,7 +122,7 @@ final class TreeSync extends Thread {
         LOG.warn("No enabled trees were found");
         return;
       }
-      LOG.info("Found [" + trees.size() + "] trees");
+      LOG.info("Found [{}] trees", trees.size());
     }
     
     // setup an array for storing the tree processing calls so we can block 
@@ -194,8 +194,8 @@ final class TreeSync extends Thread {
             @Override
             public Deferred<Boolean> call(TSMeta meta) throws Exception {
               if (meta != null) {
-                LOG.debug("Processing TSMeta: " + meta + " w value: " + 
-                    JSON.serializeToString(meta));
+                LOG.debug("Processing TSMeta: {} w value: {}",
+                    meta, JSON.serializeToString(meta));
                 
                 // copy the trees into a tree builder object and iterate through
                 // each builder. We need to do this as a builder is not thread
@@ -233,15 +233,13 @@ final class TreeSync extends Thread {
             public Deferred<Boolean> call(Exception e) throws Exception {
               
               if (e.getClass().equals(IllegalStateException.class)) {
-                LOG.error("Invalid data when processing TSUID [" + tsuid + "]", e);
+                LOG.error("Invalid data when processing TSUID [{}]", tsuid, e);
               } else if (e.getClass().equals(IllegalArgumentException.class)) {
-                LOG.error("Invalid data when processing TSUID [" + tsuid + "]", e);
+                LOG.error("Invalid data when processing TSUID [{}]", tsuid, e);
               } else if (e.getClass().equals(NoSuchUniqueId.class)) {
-                LOG.warn("Timeseries [" + tsuid + 
-                    "] includes a non-existant UID: " + e.getMessage());
+                LOG.warn("Timeseries [{}] includes a non-existant UID: {}", tsuid, e.getMessage());
               } else {
-                LOG.error("[" + thread_id + "] Exception while processing TSUID [" + 
-                    tsuid + "]", e);
+                LOG.error("[{}] Exception while processing TSUID [{}]", thread_id, tsuid, e);
               }
               
               return Deferred.fromResult(false);
@@ -270,7 +268,7 @@ final class TreeSync extends Thread {
           @Override
           public Deferred<Boolean> call(ArrayList<Boolean> tsuids)
               throws Exception {
-            LOG.debug("Processed [" + tsuids.size() + "] tree_calls, continuing");
+            LOG.debug("Processed [{}] tree_calls, continuing", tsuids.size());
             tree_calls.clear();
             return scan();
           }
@@ -305,9 +303,9 @@ final class TreeSync extends Thread {
     tree_scanner.scan().addErrback(new ErrBack());
     try {
       completed.joinUninterruptibly();
-      LOG.info("[" + thread_id + "] Complete");
+      LOG.info("[{}] Complete", thread_id);
     } catch (Exception e) {
-      LOG.error("[" + thread_id + "] Scanner Exception", e);
+      LOG.error("[{}] Scanner Exception", thread_id, e);
       throw new RuntimeException("[" + thread_id + "] Scanner exception", e);
     }
     return;
@@ -324,12 +322,12 @@ final class TreeSync extends Thread {
   public int purgeTree(final int tree_id, final boolean delete_definition) 
     throws Exception {
     if (delete_definition) {
-      LOG.info("Deleting tree branches and definition for: " + tree_id);
+      LOG.info("Deleting tree branches and definition for: {}", tree_id);
     } else {
-      LOG.info("Deleting tree branches for: " + tree_id);
+      LOG.info("Deleting tree branches for: {}", tree_id);
     }
     Tree.deleteTree(tsdb, tree_id, delete_definition).joinUninterruptibly();
-    LOG.info("Completed tree deletion for: " + tree_id);
+    LOG.info("Completed tree deletion for: {}", tree_id);
     return 0;
   }
 
@@ -345,8 +343,8 @@ final class TreeSync extends Thread {
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
 
-    LOG.debug("[" + thread_id + "] Start row: " + UniqueId.uidToString(start_row));
-    LOG.debug("[" + thread_id + "] End row: " + UniqueId.uidToString(end_row));
+    LOG.debug("[{}] Start row: {}", thread_id, UniqueId.uidToString(start_row));
+    LOG.debug("[{}] End row: {}", thread_id, UniqueId.uidToString(end_row));
     final Scanner scanner = tsdb.getClient().newScanner(tsdb.metaTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);

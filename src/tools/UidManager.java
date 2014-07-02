@@ -352,10 +352,10 @@ final class UidManager {
         }
       }
     } catch (HBaseException e) {
-      LOG.error("Error while scanning HBase, scanner=" + scanner, e);
+      LOG.error("Error while scanning HBase, scanner={}", scanner, e);
       throw e;
     } catch (Exception e) {
-      LOG.error("WTF?  Unexpected exception type, scanner=" + scanner, e);
+      LOG.error("WTF?  Unexpected exception type, scanner={}", scanner, e);
       throw new AssertionError("Should never happen");
     }
     return found ? 0 : 1;
@@ -410,7 +410,7 @@ final class UidManager {
         // Lookup again the ID we've just created and print it.
         extactLookupName(client, table, idwidth, args[1], args[i]);
       } catch (HBaseException e) {
-        LOG.error("error while processing " + args[i], e);
+        LOG.error("error while processing {}", args[i], e);
         return 3;
       }
     }
@@ -436,8 +436,7 @@ final class UidManager {
     try {
       uid.rename(oldname, newname);
     } catch (HBaseException e) {
-      LOG.error("error while processing renaming " + oldname
-                + " to " + newname, e);
+      LOG.error("error while processing renaming {} to {}", oldname, newname, e);
       return 3;
     } catch (NoSuchUniqueName e) {
       LOG.error(e.getMessage());
@@ -459,7 +458,7 @@ final class UidManager {
     if (fix) {
       LOG.info("----------------------------------");
       LOG.info("-    Running fsck in FIX mode    -");
-      LOG.info("-      Remove Unknowns: " + fix_unknowns + "     -");
+      LOG.info("-      Remove Unknowns: {}       -", fix_unknowns);
       LOG.info("----------------------------------");
     } else {
       LOG.info("Running in log only mode");
@@ -492,8 +491,7 @@ final class UidManager {
             toBytes(name));
         client.put(put);
         id2name.put(uid, name);
-        LOG.info("FIX: Restoring " + kind + " reverse mapping: " 
-            + uid + " -> " + name);
+        LOG.info("FIX: Restoring {} reverse mapping: {} -> {}", kind, uid, name);
       }
       
       /*
@@ -516,8 +514,7 @@ final class UidManager {
             UniqueId.stringToUid(uid), NAME_FAMILY, qualifiers);
         client.delete(delete);
         // can't remove from the id2name map as this will be called while looping
-        LOG.info("FIX: Removed " + kind + " reverse mapping: " + uid + " -> "
-            + name);
+        LOG.info("FIX: Removed {} reverse mapping: {} -> {}", kind, uid, name);
       }
     }
 
@@ -545,15 +542,16 @@ final class UidManager {
             if (!Bytes.equals(qualifier, METRICS) &&
                 !Bytes.equals(qualifier, TAGK) &&
                 !Bytes.equals(qualifier, TAGV)) {
-              LOG.warn("Unknown qualifier " + UniqueId.uidToString(qualifier) 
-                  + " in row " + UniqueId.uidToString(kv.key()));
+              LOG.warn("Unknown qualifier {} in row {}",
+                  UniqueId.uidToString(qualifier),
+                  UniqueId.uidToString(kv.key()));
               if (fix && fix_unknowns) {
                 final DeleteRequest delete = new DeleteRequest(table, kv.key(), 
                     kv.family(), qualifier);
                 client.delete(delete);
-                LOG.info("FIX: Removed unknown qualifier " 
-                  + UniqueId.uidToString(qualifier) 
-                  + " in row " + UniqueId.uidToString(kv.key()));
+                LOG.info("FIX: Removed unknown qualifier {} in row {}",
+                    UniqueId.uidToString(qualifier),
+                    UniqueId.uidToString(kv.key()));
               }
               continue;
             }
@@ -575,7 +573,7 @@ final class UidManager {
                 // and store that in the max row.
               } else {
                 uids.maxid = Bytes.getLong(value);
-                LOG.info("Maximum ID for " + kind + ": " + uids.maxid);
+                LOG.info("Maximum ID for {}: {}", kind, uids.maxid);
               }
             } else {
               short idwidth = 0;
@@ -622,10 +620,10 @@ final class UidManager {
         }
       }
     } catch (HBaseException e) {
-      LOG.error("Error while scanning HBase, scanner=" + scanner, e);
+      LOG.error("Error while scanning HBase, scanner={}", scanner, e);
       throw e;
     } catch (Exception e) {
-      LOG.error("WTF?  Unexpected exception type, scanner=" + scanner, e);
+      LOG.error("WTF?  Unexpected exception type, scanner={}", scanner, e);
       throw new AssertionError("Should never happen");
     }
 
@@ -735,8 +733,7 @@ final class UidManager {
                 ID_FAMILY, toBytes(kind));
             client.delete(delete);
             uids.name2id.remove(name);
-            LOG.info("FIX: Removed forward " + kind + " mapping for " + name + " -> " 
-                + id);
+            LOG.info("FIX: Removed forward {} mapping for {} -> {}", kind, name, id);
           }
           
           // write the new forward map
@@ -744,8 +741,8 @@ final class UidManager {
           final PutRequest put = new PutRequest(table, toBytes(fsck_name), 
               ID_FAMILY, toBytes(kind), UniqueId.stringToUid(id));
           client.put(put);
-          LOG.info("FIX: Created forward " + kind + " mapping for fsck'd UID " + 
-              fsck_name + " -> " + collision.getKey());
+          LOG.info("FIX: Created forward {} mapping for fsck'd UID {} -> {}",
+              kind, fsck_name, collision.getKey());
           
           // we still need to fix the uids map for the reverse run through below
           uids.name2id.put(fsck_name, collision.getKey());
@@ -753,8 +750,7 @@ final class UidManager {
           
           LOG.error("----------------------------------");
           LOG.error("-     UID COLLISION DETECTED     -");
-          LOG.error("Corrupted UID [" + collision.getKey() + "] renamed to [" 
-              + fsck_name +"]");
+          LOG.error("Corrupted UID [{}] renamed to [{}]", collision.getKey(), fsck_name);
           LOG.error("----------------------------------");
         }
       }
@@ -766,8 +762,8 @@ final class UidManager {
         final String id = idname.getKey();
         final String found = uids.name2id.get(name);
         if (found == null) {
-          LOG.warn("Reverse " + kind + " mapping is missing forward"
-                   + " mapping: " + name + " -> " + id);
+          LOG.warn("Reverse {} mapping is missing forward mapping: {} -> {}",
+              kind, name, id);
           
           if (fix) {
             uids.removeReverseMap(kind, name, id);
@@ -797,9 +793,8 @@ final class UidManager {
 
       final int maxsize = Math.max(uids.id2name.size(), uids.name2id.size());
       if (uids.maxid > maxsize) {
-        LOG.warn("Max ID for " + kind + " is " + uids.maxid + " but only "
-                 + maxsize + " entries were found.  Maybe "
-                 + (uids.maxid - maxsize) + " IDs were deleted?");
+        LOG.warn("Max ID for {} is {} but only {} entries were found. Maybe " +
+                 "{} IDs were deleted?", kind, uids.maxid, maxsize, uids.maxid - maxsize);
       } else if (uids.maxid < uids.max_found_id) {
         uids.error("We found an ID of " + uids.max_found_id + " for " + kind 
                    + " but the max ID is only " + uids.maxid 
@@ -811,30 +806,30 @@ final class UidManager {
           // put us over a little, but that's OK as it's better to waste a few
           // IDs than to under-run.
           if (uids.max_found_id == Long.MAX_VALUE) {
-            LOG.error("Ran out of UIDs for " + kind + ". Unable to fix max ID");
+            LOG.error("Ran out of UIDs for {}. Unable to fix max ID", kind);
           } else {
             final long diff = uids.max_found_id - uids.maxid;
             final AtomicIncrementRequest air = new AtomicIncrementRequest(table, 
                 MAXID_ROW, ID_FAMILY, toBytes(kind), diff);
             client.atomicIncrement(air);
-            LOG.info("FIX: Updated max ID for " + kind + " to " + uids.max_found_id);
+            LOG.info("FIX: Updated max ID for {} to {}", kind, uids.max_found_id);
           }          
         }
       }
 
       if (uids.errors > 0) {
-        LOG.error(kind + ": Found " + uids.errors + " errors.");
+        LOG.error("{}: Found {} errors.", kind, uids.errors);
         errors += uids.errors;
       }
     }
     final long timing = (System.nanoTime() - start_time) / 1000000;
-    LOG.info(kvcount + " KVs analyzed in " + timing + "ms (~"
-                       + (kvcount * 1000 / timing) + " KV/s)");
+    LOG.info("{} KVs analyzed in {}ms (~{} KV/s)",
+        kvcount, timing, kvcount * 1000 / timing);
     if (errors == 0) {
       LOG.info("No errors found.");
       return 0;
     }
-    LOG.warn(errors + " errors found.");
+    LOG.warn("{} errors found.", errors);
     return errors;
   }
 
@@ -880,10 +875,10 @@ final class UidManager {
     try {
       row = client.get(get).joinUninterruptibly();
     } catch (HBaseException e) {
-      LOG.error("Get failed: " + get, e);
+      LOG.error("Get failed: {}", get, e);
       return 1;
     } catch (Exception e) {
-      LOG.error("WTF?  Unexpected exception type, get=" + get, e);
+      LOG.error("WTF?  Unexpected exception type, get={}", get, e);
       return 42;
     }
     return printResult(row, family, formard) ? 0 : 1;
@@ -1026,9 +1021,9 @@ final class UidManager {
       new ConcurrentHashMap<String, Long>();
     
     long index = 1;
-    
-    LOG.info("Max metric ID is [" + max_id + "]");
-    LOG.info("Spooling up [" + workers + "] worker threads");
+
+    LOG.info("Max metric ID is [{}]", max_id);
+    LOG.info("Spooling up [{}] worker threads", workers);
     final Thread[] threads = new Thread[workers];
     for (int i = 0; i < workers; i++) {
       threads[i] = new MetaSync(tsdb, index, quotient, processed_tsuids, 
@@ -1044,15 +1039,14 @@ final class UidManager {
     // wait till we're all done
     for (int i = 0; i < workers; i++) {
       threads[i].join();
-      LOG.info("[" + i + "] Finished");
+      LOG.info("[{}] Finished", i);
     }
     
     // make sure buffered data is flushed to storage before exiting
     tsdb.flush().joinUninterruptibly();
     
     final long duration = (System.currentTimeMillis() / 1000) - start_time;
-    LOG.info("Completed meta data synchronization in [" + 
-        duration + "] seconds");
+    LOG.info("Completed meta data synchronization in [{}] seconds", duration);
     return 0;
   }
   
@@ -1077,9 +1071,9 @@ final class UidManager {
     final double quotient = (double)max_id / (double)workers;
     
     long index = 1;
-    
-    LOG.info("Max metric ID is [" + max_id + "]");
-    LOG.info("Spooling up [" + workers + "] worker threads");
+
+    LOG.info("Max metric ID is [{}]", max_id);
+    LOG.info("Spooling up [{}] worker threads", workers);
     final Thread[] threads = new Thread[workers];
     for (int i = 0; i < workers; i++) {
       threads[i] = new MetaPurge(tsdb, index, quotient, i);
@@ -1094,15 +1088,14 @@ final class UidManager {
     // wait till we're all done
     for (int i = 0; i < workers; i++) {
       threads[i].join();
-      LOG.info("[" + i + "] Finished");
+      LOG.info("[{}] Finished", i);
     }
     
     // make sure buffered data is flushed to storage before exiting
     tsdb.flush().joinUninterruptibly();
     
     final long duration = (System.currentTimeMillis() / 1000) - start_time;
-    LOG.info("Completed meta data synchronization in [" + 
-        duration + "] seconds");
+    LOG.info("Completed meta data synchronization in [{}] seconds", duration);
     return 0;
   }
   
@@ -1124,9 +1117,9 @@ final class UidManager {
     final double quotient = (double)max_id / (double)workers;
     
     long index = 1;
-    
-    LOG.info("Max metric ID is [" + max_id + "]");
-    LOG.info("Spooling up [" + workers + "] worker threads");
+
+    LOG.info("Max metric ID is [{}]", max_id);
+    LOG.info("Spooling up [{}] worker threads", workers);
     final Thread[] threads = new Thread[workers];
     for (int i = 0; i < workers; i++) {
       threads[i] = new TreeSync(tsdb, index, quotient, i);
@@ -1141,15 +1134,14 @@ final class UidManager {
     // wait till we're all done
     for (int i = 0; i < workers; i++) {
       threads[i].join();
-      LOG.info("[" + i + "] Finished");
+      LOG.info("[{}] Finished", i);
     }
     
     // make sure buffered data is flushed to storage before exiting
     tsdb.flush().joinUninterruptibly();
     
     final long duration = (System.currentTimeMillis() / 1000) - start_time;
-    LOG.info("Completed meta data synchronization in [" + 
-        duration + "] seconds");
+    LOG.info("Completed meta data synchronization in [{}] seconds", duration);
     return 0;
   }
   

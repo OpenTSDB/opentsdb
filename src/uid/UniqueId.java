@@ -361,8 +361,8 @@ public final class UniqueId implements UniqueIdInterface {
         if (hbe == null) {
           throw new IllegalStateException("Should never happen!");
         }
-        LOG.error("Failed to assign an ID for kind='" + kind()
-                  + "' name='" + name + "'", hbe);
+        LOG.error("Failed to assign an ID for kind='{}' name='{}'",
+            kind(), name, hbe);
         throw hbe;
       }
 
@@ -375,7 +375,7 @@ public final class UniqueId implements UniqueIdInterface {
           hbe = (HBaseException) arg;
           return tryAllocate();  // Retry from the beginning.
         } else {
-          LOG.error("WTF?  Unexpected exception!  " + msg, (Exception) arg);
+          LOG.error("WTF?  Unexpected exception!  {}", msg, (Exception) arg);
           return arg;  // Unexpected exception, let it bubble up.
         }
       }
@@ -383,7 +383,7 @@ public final class UniqueId implements UniqueIdInterface {
       class ErrBack implements Callback<Object, Exception> {
         public Object call(final Exception e) throws Exception {
           assignment.callback(e);
-          LOG.warn("Failed pending assignment for: " + name);
+          LOG.warn("Failed pending assignment for: {}", name);
           return assignment;
         }
       }
@@ -408,8 +408,7 @@ public final class UniqueId implements UniqueIdInterface {
     }
 
     private Deferred<Long> allocateUid() {
-      LOG.info("Creating an ID for kind='" + kind()
-               + "' name='" + name + '\'');
+      LOG.info("Creating an ID for kind='{}' name='{}" + '\'', kind(), name);
 
       state = CREATE_REVERSE_MAPPING;
       return client.atomicIncrement(new AtomicIncrementRequest(table, MAXID_ROW,
@@ -434,8 +433,7 @@ public final class UniqueId implements UniqueIdInterface {
       if (id <= 0) {
         throw new IllegalStateException("Got a negative ID from HBase: " + id);
       }
-      LOG.info("Got ID=" + id
-               + " for kind='" + kind() + "' name='" + name + "'");
+      LOG.info("Got ID={} for kind='{}' name='{}'", id, kind(), name);
       row = Bytes.fromLong(id);
       // row.length should actually be 8.
       if (row.length < id_width) {
@@ -449,7 +447,7 @@ public final class UniqueId implements UniqueIdInterface {
         if (row[i] != 0) {
           final String message = "All Unique IDs for " + kind()
             + " on " + id_width + " bytes are already assigned!";
-          LOG.error("OMG " + message);
+          LOG.error("OMG {}", message);
           throw new IllegalStateException(message);
         }
       }
@@ -476,8 +474,8 @@ public final class UniqueId implements UniqueIdInterface {
         throw new IllegalStateException("Expected a Boolean but got " + arg);
       }
       if (!((Boolean) arg)) {  // Previous CAS failed.  Something is really messed up.
-        LOG.error("WTF!  Failed to CAS reverse mapping: " + reverseMapping()
-                  + " -- run an fsck against the UID table!");
+        LOG.error("WTF!  Failed to CAS reverse mapping: {} -- run an fsck " +
+                  "against the UID table!", reverseMapping());
         return tryAllocate();  // Try again from the beginning.
       }
 
@@ -494,11 +492,10 @@ public final class UniqueId implements UniqueIdInterface {
         throw new IllegalStateException("Expected a Boolean but got " + arg);
       }
       if (!((Boolean) arg)) {  // Previous CAS failed.  We lost a race.
-        LOG.warn("Race condition: tried to assign ID " + id + " to "
-                 + kind() + ":" + name + ", but CAS failed on "
-                 + forwardMapping() + ", which indicates this UID must have"
-                 + " been allocated concurrently by another TSD or thread. "
-                 + "So ID " + id + " was leaked.");
+        LOG.warn("Race condition: tried to assign ID {} to {}:{}, but CAS failed " +
+                 "on {}, which indicates this UID must have been allocated " +
+                 "concurrently by another TSD or thread. So ID {} was leaked.",
+            id, kind(), name, forwardMapping(), id);
         // If two TSDs attempted to allocate a UID for the same name at the
         // same time, they would both have allocated a UID, and created a
         // reverse mapping, and upon getting here, only one of them would
@@ -520,7 +517,7 @@ public final class UniqueId implements UniqueIdInterface {
       if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
         final UIDMeta meta = new UIDMeta(type, row, name);
         meta.storeNew(tsdb);
-        LOG.info("Wrote UIDMeta for: " + name);
+        LOG.info("Wrote UIDMeta for: {}", name);
         tsdb.indexUIDMeta(meta);
       }
       
@@ -528,7 +525,7 @@ public final class UniqueId implements UniqueIdInterface {
       synchronized(pending_assignments) {
         if (pending_assignments.containsKey(name)) {
           pending_assignments.remove(name);
-          LOG.info("Completed pending assignment for: " + name);
+          LOG.info("Completed pending assignment for: {}", name);
         }
       }
       return assignment;
@@ -578,7 +575,7 @@ public final class UniqueId implements UniqueIdInterface {
       }
       
       if (pending) {
-        LOG.info("Already waiting for UID assignment: " + name);
+        LOG.info("Already waiting for UID assignment: {}", name);
         try {
           return assignment.joinUninterruptibly();
         } catch (Exception e1) {
@@ -595,7 +592,7 @@ public final class UniqueId implements UniqueIdInterface {
       } catch (Exception e1) {
         throw new RuntimeException("Should never be here", e);
       } finally {
-        LOG.info("Completed pending assignment for: " + name);
+        LOG.info("Completed pending assignment for: {}", name);
         synchronized (pending_assignments) {
           pending_assignments.remove(name);
         }
@@ -643,7 +640,7 @@ public final class UniqueId implements UniqueIdInterface {
               assignment = new Deferred<byte[]>();
               pending_assignments.put(name, assignment);
             } else {
-              LOG.info("Already waiting for UID assignment: " + name);
+              LOG.info("Already waiting for UID assignment: {}", name);
               return assignment;
             }
           }
@@ -746,8 +743,8 @@ public final class UniqueId implements UniqueIdInterface {
       
       for (final ArrayList<KeyValue> row : rows) {
         if (row.size() != 1) {
-          LOG.error("WTF shouldn't happen!  Scanner " + scanner + " returned"
-                    + " a row that doesn't have exactly 1 KeyValue: " + row);
+          LOG.error("WTF shouldn't happen!  Scanner {} returned a row that " +
+                    "doesn't have exactly 1 KeyValue: {}", scanner, row);
           if (row.isEmpty()) {
             continue;
           }
@@ -818,9 +815,9 @@ public final class UniqueId implements UniqueIdInterface {
       hbasePutWithRetry(reverse_mapping, MAX_ATTEMPTS_PUT,
                         INITIAL_EXP_BACKOFF_DELAY);
     } catch (HBaseException e) {
-      LOG.error("When trying rename(\"" + oldname
-        + "\", \"" + newname + "\") on " + this + ": Failed to update reverse"
-        + " mapping for ID=" + Arrays.toString(row), e);
+      LOG.error("When trying rename(\"{}\", \"{}\") on {}: Failed to update " +
+                "reverse mapping for ID={}",
+          oldname, newname, this, Arrays.toString(row), e);
       throw e;
     }
 
@@ -831,9 +828,9 @@ public final class UniqueId implements UniqueIdInterface {
       hbasePutWithRetry(forward_mapping, MAX_ATTEMPTS_PUT,
                         INITIAL_EXP_BACKOFF_DELAY);
     } catch (HBaseException e) {
-      LOG.error("When trying rename(\"" + oldname
-        + "\", \"" + newname + "\") on " + this + ": Failed to create the"
-        + " new forward mapping with ID=" + Arrays.toString(row), e);
+      LOG.error("When trying rename(\"{}\", \"{}\") on {}: Failed to create " +
+                "the new forward mapping with ID={}",
+          oldname, newname, this, Arrays.toString(row), e);
       throw e;
     }
 
@@ -848,15 +845,15 @@ public final class UniqueId implements UniqueIdInterface {
         table, toBytes(oldname), ID_FAMILY, kind);
       client.delete(old_forward_mapping).joinUninterruptibly();
     } catch (HBaseException e) {
-      LOG.error("When trying rename(\"" + oldname
-        + "\", \"" + newname + "\") on " + this + ": Failed to remove the"
-        + " old forward mapping for ID=" + Arrays.toString(row), e);
+      LOG.error("When trying rename(\"{}\", \"{}\") on {}: Failed to remove " +
+                "the old forward mapping for ID={}",
+          oldname, newname, this, Arrays.toString(row), e);
       throw e;
     } catch (Exception e) {
       final String msg = "Unexpected exception when trying rename(\"" + oldname
         + "\", \"" + newname + "\") on " + this + ": Failed to remove the"
         + " old forward mapping for ID=" + Arrays.toString(row);
-      LOG.error("WTF?  " + msg, e);
+      LOG.error("WTF?  {}", msg, e);
       throw new RuntimeException(msg, e);
     }
     // Success!
@@ -930,8 +927,8 @@ public final class UniqueId implements UniqueIdInterface {
         return;
       } catch (HBaseException e) {
         if (attempts > 0) {
-          LOG.error("Put failed, attempts left=" + attempts
-                    + " (retrying in " + wait + " ms), put=" + put, e);
+          LOG.error("Put failed, attempts left={} (retrying in {} ms), put={}",
+              attempts, wait, put, e);
           try {
             Thread.sleep(wait);
           } catch (InterruptedException ie) {
@@ -942,7 +939,7 @@ public final class UniqueId implements UniqueIdInterface {
           throw e;
         }
       } catch (Exception e) {
-        LOG.error("WTF?  Unexpected exception type, put=" + put, e);
+        LOG.error("WTF?  Unexpected exception type, put={}", put, e);
       }
     }
     throw new IllegalStateException("This code should never be reached!");
@@ -1041,7 +1038,7 @@ public final class UniqueId implements UniqueIdInterface {
       if (padded[i] != 0) {
         final String message = "UID " + Long.toString(uid) + 
           " was too large for " + width + " bytes";
-        LOG.error("OMG " + message);
+        LOG.error("OMG {}", message);
         throw new IllegalStateException(message);
       }
     }
