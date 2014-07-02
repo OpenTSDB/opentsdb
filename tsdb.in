@@ -6,8 +6,8 @@ mydir=`dirname "$0"`
 # Either:
 #  abs_srcdir and abs_builddir are set: we're running in a dev tree
 #  or pkgdatadir is set: we've been installed, we respect that.
-abs_srcdir='@abs_srcdir@'
-abs_builddir='@abs_builddir@'
+abs_srcdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."
+abs_builddir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 pkgdatadir='@pkgdatadir@'
 configdir='@configdir@'
 # Either we've been installed and pkgdatadir exists, or we haven't been
