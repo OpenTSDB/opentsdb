@@ -1,0 +1,8 @@
+language: java
+before_script: ./build.sh pom.xml && mvn dependency:go-offline
+script: mvn test
+jdk:
+  - oraclejdk7
+  - openjdk6
+notifications:
+    email: false
