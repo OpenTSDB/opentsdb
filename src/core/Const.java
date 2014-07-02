@@ -74,4 +74,11 @@ public final class Const {
    * before losing precision.
    */
   public static final long MAX_INT_IN_DOUBLE = 0xFFE0000000000000L;
+
+  /** Byte used for the qualifier prefix to indicate this is an append */
+  public static final byte APPEND_PREFIX = 0x05;
+  /**
+   * Qualifier shows the cell is created following append logic instead of put
+   */
+  public static final byte[] APPEND_QUALIFIER = new byte[]{APPEND_PREFIX, 0x00, 0x00};
 }

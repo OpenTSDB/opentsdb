@@ -372,6 +372,10 @@ public class Config {
   public final Map<String, String> getMap() {
     return ImmutableMap.copyOf(properties);
   }
+
+  public void setEnable_compactions(boolean enable_compactions) {
+    this.enable_compactions = enable_compactions;
+  }
   
   /**
    * Loads default entries that were not provided by a file or command line

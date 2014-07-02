@@ -849,7 +849,7 @@ public final class TestUniqueIdRpc {
       .withArguments(anyString(), anyString()).thenReturn(client);
     tsdb = new TSDB(config);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, false, true, true);
     
     storage.addColumn(new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
@@ -880,7 +880,7 @@ public final class TestUniqueIdRpc {
       .withArguments(anyString(), anyString()).thenReturn(client);
     tsdb = new TSDB(config);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, false, true, true);
     storage.setFamily(NAME_FAMILY);
     
     storage.addColumn(new byte[] { 0, 0, 1 },

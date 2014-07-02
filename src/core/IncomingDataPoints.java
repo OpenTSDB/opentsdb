@@ -27,6 +27,7 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
+import org.hbase.async.AppendRequest;
 
 /**
  * Receives new data points and stores them in HBase.
@@ -232,7 +233,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
     Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
-    tsdb.scheduleForCompaction(row, (int) base_time);
+    
+    if (!tsdb.followAppendRowLogic()) {
+      tsdb.scheduleForCompaction(row, (int) base_time);
+    }
+    
     return base_time;
   }
 
@@ -285,7 +290,16 @@ final class IncomingDataPoints implements WritableDataPoints {
     // Java is so stupid with its auto-promotion of int to float.
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
 
-    final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
+    if (tsdb.followAppendRowLogic()) {
+      AppendKeyValue kv = new AppendKeyValue(qualifier, value);
+      final AppendRequest point = new AppendRequest(tsdb.table, row, TSDB.FAMILY, 
+                Const.APPEND_QUALIFIER, kv.toByteArray());
+      point.setReturnResult(tsdb.returnAppendedResult());        
+      point.setDurable(!batch_import);
+      return tsdb.client.append(point);
+    }
+    else {
+      final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
                                             qualifier, value);
     // TODO(tsuna): The following timing is rather useless.  First of all,
     // the histogram never resets, so it tends to converge to a certain
@@ -307,8 +321,9 @@ final class IncomingDataPoints implements WritableDataPoints {
     //};
 
     // TODO(tsuna): Add an errback to handle some error cases here.
-    point.setDurable(!batch_import);
-    return tsdb.client.put(point)/*.addBoth(cb)*/;
+      point.setDurable(!batch_import);
+      return tsdb.client.put(point)/*.addBoth(cb)*/;
+    }
   }
 
   private void grow() {

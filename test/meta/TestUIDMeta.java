@@ -62,7 +62,7 @@ public final class TestUIDMeta {
       .withArguments(anyString(), anyString()).thenReturn(client);
     tsdb = new TSDB(config);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, true, true, true);
 
     storage.addColumn(new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,

@@ -56,7 +56,7 @@ public final class TestAnnotationRpc {
       .withArguments(anyString(), anyString()).thenReturn(client);
     tsdb = new TSDB(config);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, true, true, true);
     
     // add a global
     storage.addColumn(

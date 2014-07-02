@@ -48,6 +48,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
+import org.powermock.reflect.Whitebox;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -56,7 +57,7 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, KeyValue.class, DumpSeries.class,
   Scanner.class, DeleteRequest.class, Annotation.class })
-public class TestDumpSeries {
+public class TestDumpSeriesAppend {
   private Config config;
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
@@ -90,7 +91,7 @@ public class TestDumpSeries {
     config = new Config(false);
     tsdb = new TSDB(config);
     
-    storage = new MockBase(tsdb, client, true, true, false, true, true);
+    storage = new MockBase(tsdb, client, true, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
     
     buffer = new ByteArrayOutputStream();
@@ -108,6 +109,8 @@ public class TestDumpSeries {
     Field tagv = tsdb.getClass().getDeclaredField("tag_values");
     tagv.setAccessible(true);
     tagv.set(tsdb, tag_values);
+    
+//    Whitebox.setInternalState(tsdb, "followAppendRowLogic", true);
     
     // mock UniqueId
     when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
@@ -129,9 +132,9 @@ public class TestDumpSeries {
     when(tag_values.getId("web03"))
       .thenThrow(new NoSuchUniqueName("web03", "metric"));
     
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+    when(metrics.width()).thenReturn((short)TSDB.metrics_width());
+    when(tag_names.width()).thenReturn((short)TSDB.tagk_width());
+    when(tag_values.width()).thenReturn((short)TSDB.tagv_width());
   }
   
   @After
@@ -274,71 +277,6 @@ public class TestDumpSeries {
         MockBase.stringToBytes("00000150E22700000001000001")));
     assertEquals(-1, storage.numColumns(
         MockBase.stringToBytes("00000150E23510000001000001")));
-  }
-  
-  @Test
-  public void dumpRawCompacted() throws Exception {
-    writeCompactedData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), false, 
-        false, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
-    assertNotNull(log_lines);
-    // only worry about the immutable. The human readable date format
-    // differs per location.
-    assertEquals(
-        "[0, 0, 1, 80, -30, 39, 0, 0, 0, 1, 0, 0, 1] sys.cpu.user 1356998400", 
-        log_lines[0].substring(0, 67));
-    assertEquals(
-        "  [-16, 0, 0, 7, -16, 0, 2, 7, -16, 0, 1, 7]\t[0, 0, 0, 0, 0, 0, 0, "
-        + "4, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 6, 0] = 3 values:", 
-        log_lines[1]);
-    assertEquals(
-        "    [-16, 0, 0, 7]\t[0, 0, 0, 0, 0, 0, 0, 4]\t0\tl\t1356998400000", 
-        log_lines[2].substring(0, 61));
-    assertEquals(
-        "    [-16, 0, 1, 7]\t[0, 0, 0, 0, 0, 0, 0, 6]\t4\tl\t1356998400004", 
-        log_lines[3].substring(0, 61));
-    assertEquals(
-        "    [-16, 0, 2, 7]\t[0, 0, 0, 0, 0, 0, 0, 5]\t8\tl\t1356998400008", 
-        log_lines[4].substring(0, 61));
-  }
-
-  @Test
-  public void dumpImportCompacted() throws Exception {
-    writeCompactedData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), false, 
-        true, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
-    assertNotNull(log_lines);
-    // only worry about the immutable. The human readable date format
-    // differs per location.
-    assertEquals("sys.cpu.user 1356998400000 4 host=web01", log_lines[0]);
-    assertEquals("sys.cpu.user 1356998400004 6 host=web01", log_lines[1]);
-    assertEquals("sys.cpu.user 1356998400008 5 host=web01", log_lines[2]);
-  }
-  
-  @Test
-  public void dumpRawCompactedAndDelete() throws Exception {
-    writeCompactedData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), true, 
-        false, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
-    assertNotNull(log_lines);
-    assertEquals(5, log_lines.length);
-    assertEquals(-1, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
-  }
-  
-  @Test
-  public void dumpImportCompactedAndDelete() throws Exception {
-    writeCompactedData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), true, 
-        true, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
-    assertNotNull(log_lines);
-    assertEquals(3, log_lines.length);
-    assertEquals(-1, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
   }
   
   /**

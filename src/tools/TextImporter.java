@@ -36,6 +36,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.Config;
+import org.hbase.async.AppendRequest;
 
 final class TextImporter {
 
@@ -113,6 +114,9 @@ final class TextImporter {
             final HBaseRpc rpc = e.getFailedRpc();
             if (rpc instanceof PutRequest) {
               client.put((PutRequest) rpc);  // Don't lose edits.
+            }
+            else if (rpc instanceof AppendRequest) {
+              client.append((AppendRequest) rpc);  // Don't lose edits.
             }
             return null;
           }

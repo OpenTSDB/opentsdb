@@ -134,6 +134,7 @@ public class TestTsdbQueryDownsample {
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
     when(tag_values.width()).thenReturn((short)3);
+    tsdb.config.setEnable_compactions(true);
   }
 
   @Test
@@ -484,7 +485,7 @@ public class TestTsdbQueryDownsample {
 
   @SuppressWarnings("unchecked")
   private void setQueryStorage() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
 
     PowerMockito.mockStatic(IncomingDataPoints.class);

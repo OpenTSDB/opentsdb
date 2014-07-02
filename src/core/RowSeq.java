@@ -55,7 +55,9 @@ final class RowSeq implements DataPoints {
 
   /** Values in the row.  */
   private byte[] values;
-
+  //Tells that whether the KeyValue contains qualifiers with mix of seconds
+  //and miliseconds. Applies only for append
+  private boolean hasMixofSecondsAndms = false;
   /**
    * Constructor.
    * @param tsdb The TSDB we belong to.
@@ -75,8 +77,17 @@ final class RowSeq implements DataPoints {
     }
 
     this.key = row.key();
-    this.qualifiers = row.qualifier();
-    this.values = row.value();
+    if (Arrays.equals(row.qualifier(), Const.APPEND_QUALIFIER)) {
+      //Appended row
+      AppendKeyValue kv = new AppendKeyValue(row, tsdb);
+      this.qualifiers = kv.getQualifier();
+      this.values = kv.getValue();
+      hasMixofSecondsAndms = kv.hasMixofSecondsAndms();
+    }
+    else {
+      this.qualifiers = row.qualifier();
+      this.values = row.value();
+    }
   }
 
   /**
@@ -99,126 +110,148 @@ final class RowSeq implements DataPoints {
       throw new IllegalDataException("Attempt to add a different row="
           + row + ", this=" + this);
     }
+    if (Arrays.equals(row.qualifier(), Const.APPEND_QUALIFIER)) {
+      final int old_val_len = values.length;
 
-    final byte[] remote_qual = row.qualifier();
-    final byte[] remote_val = row.value();
-    final byte[] merged_qualifiers = new byte[qualifiers.length + remote_qual.length];
-    final byte[] merged_values = new byte[values.length + remote_val.length]; 
-
-    int remote_q_index = 0;
-    int local_q_index = 0;
-    int merged_q_index = 0;
+      AppendKeyValue kv = new AppendKeyValue(row, tsdb);
+      final byte[] quals = kv.getQualifier();
+      final byte[] vals = kv.getValue();
+        
+      if (!hasMixofSecondsAndms) {
+        hasMixofSecondsAndms = kv.hasMixofSecondsAndms();
+      }
     
-    int remote_v_index = 0;
-    int local_v_index = 0;
-    int merged_v_index = 0;
-    short v_length;
-    short q_length;
-    while (remote_q_index < remote_qual.length || 
-        local_q_index < qualifiers.length) {
-      // if the remote q has finished, we just need to handle left over locals
-      if (remote_q_index >= remote_qual.length) {
-        v_length = Internal.getValueLengthFromQualifier(qualifiers, 
+      final byte[] newquals = new byte[qualifiers.length + quals.length];
+      System.arraycopy(qualifiers, 0, newquals, 0, qualifiers.length);
+      System.arraycopy(quals, 0, newquals, qualifiers.length, quals.length);
+      this.qualifiers = newquals;
+        
+      final byte[] newvalues = new byte[old_val_len + vals.length];
+      System.arraycopy(values, 0, newvalues, 0, old_val_len);
+      System.arraycopy(vals, 0, newvalues, old_val_len, vals.length);
+      this.values = newvalues;
+    }
+    else {
+      final byte[] remote_qual = row.qualifier();
+      final byte[] remote_val = row.value();
+      final byte[] merged_qualifiers = new byte[qualifiers.length + remote_qual.length];
+      final byte[] merged_values = new byte[values.length + remote_val.length]; 
+
+      int remote_q_index = 0;
+      int local_q_index = 0;
+      int merged_q_index = 0;
+    
+      int remote_v_index = 0;
+      int local_v_index = 0;
+      int merged_v_index = 0;
+      short v_length;
+      short q_length;
+      while (remote_q_index < remote_qual.length || 
+          local_q_index < qualifiers.length) {
+        // if the remote q has finished, we just need to handle left over locals
+        if (remote_q_index >= remote_qual.length) {
+          v_length = Internal.getValueLengthFromQualifier(qualifiers, 
             local_q_index);
-        System.arraycopy(values, local_v_index, merged_values, 
+          System.arraycopy(values, local_v_index, merged_values, 
             merged_v_index, v_length);
-        local_v_index += v_length;
-        merged_v_index += v_length;
+          local_v_index += v_length;
+          merged_v_index += v_length;
         
-        q_length = Internal.getQualifierLength(qualifiers, 
+          q_length = Internal.getQualifierLength(qualifiers, 
             local_q_index);
-        System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
+          System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
             merged_q_index, q_length);
-        local_q_index += q_length;
-        merged_q_index += q_length;
+          local_q_index += q_length;
+          merged_q_index += q_length;
         
-        continue;
-      }
+          continue;
+        }
       
-      // if the local q has finished, we need to handle the left over remotes
-      if (local_q_index >= qualifiers.length) {
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
+        // if the local q has finished, we need to handle the left over remotes
+        if (local_q_index >= qualifiers.length) {
+          v_length = Internal.getValueLengthFromQualifier(remote_qual, 
             remote_q_index);
-        System.arraycopy(remote_val, remote_v_index, merged_values, 
+          System.arraycopy(remote_val, remote_v_index, merged_values, 
             merged_v_index, v_length);
-        remote_v_index += v_length;
-        merged_v_index += v_length;
+          remote_v_index += v_length;
+          merged_v_index += v_length;
         
-        q_length = Internal.getQualifierLength(remote_qual, 
+          q_length = Internal.getQualifierLength(remote_qual, 
             remote_q_index);
-        System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
+          System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
             merged_q_index, q_length);
-        remote_q_index += q_length;
-        merged_q_index += q_length;
+          remote_q_index += q_length;
+          merged_q_index += q_length;
         
-        continue;
-      }
+          continue;
+        }
       
-      // for dupes, we just need to skip and continue
-      final int sort = Internal.compareQualifiers(remote_qual, remote_q_index, 
+        // for dupes, we just need to skip and continue
+        final int sort = Internal.compareQualifiers(remote_qual, remote_q_index, 
           qualifiers, local_q_index);
-      if (sort == 0) {
-        //LOG.debug("Discarding duplicate timestamp: " + 
-        //    Internal.getOffsetFromQualifier(remote_qual, remote_q_index));
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
+        if (sort == 0) {
+          //LOG.debug("Discarding duplicate timestamp: " + 
+          //    Internal.getOffsetFromQualifier(remote_qual, remote_q_index));
+          v_length = Internal.getValueLengthFromQualifier(remote_qual, 
             remote_q_index);
-        remote_v_index += v_length;
-        q_length = Internal.getQualifierLength(remote_qual, 
+          remote_v_index += v_length;
+          q_length = Internal.getQualifierLength(remote_qual, 
             remote_q_index);
-        remote_q_index += q_length;
-        continue;
-      }
+          remote_q_index += q_length;
+          continue;
+        }
       
-      if (sort < 0) {
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
+        if (sort < 0) {
+          v_length = Internal.getValueLengthFromQualifier(remote_qual, 
             remote_q_index);
-        System.arraycopy(remote_val, remote_v_index, merged_values, 
+          System.arraycopy(remote_val, remote_v_index, merged_values, 
             merged_v_index, v_length);
-        remote_v_index += v_length;
-        merged_v_index += v_length;
+          remote_v_index += v_length;
+          merged_v_index += v_length;
         
-        q_length = Internal.getQualifierLength(remote_qual, 
+          q_length = Internal.getQualifierLength(remote_qual, 
             remote_q_index);
-        System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
+          System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
             merged_q_index, q_length);
-        remote_q_index += q_length;
-        merged_q_index += q_length;
-      } else {
-        v_length = Internal.getValueLengthFromQualifier(qualifiers, 
+          remote_q_index += q_length;
+          merged_q_index += q_length;
+        } else {
+          v_length = Internal.getValueLengthFromQualifier(qualifiers, 
             local_q_index);
-        System.arraycopy(values, local_v_index, merged_values, 
+          System.arraycopy(values, local_v_index, merged_values, 
             merged_v_index, v_length);
-        local_v_index += v_length;
-        merged_v_index += v_length;
+          local_v_index += v_length;
+          merged_v_index += v_length;
         
-        q_length = Internal.getQualifierLength(qualifiers, 
+          q_length = Internal.getQualifierLength(qualifiers, 
             local_q_index);
-        System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
+          System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
             merged_q_index, q_length);
-        local_q_index += q_length;
-        merged_q_index += q_length;
+          local_q_index += q_length;
+          merged_q_index += q_length;
+        }
       }
-    }
     
-    // we may have skipped some columns if we were given duplicates. Since we
-    // had allocated enough bytes to hold the incoming row, we need to shrink
-    // the final results
-    if (merged_q_index == merged_qualifiers.length) {
-      qualifiers = merged_qualifiers;
-    } else {
-      qualifiers = Arrays.copyOfRange(merged_qualifiers, 0, merged_q_index);
-    }
+      // we may have skipped some columns if we were given duplicates. Since we
+      // had allocated enough bytes to hold the incoming row, we need to shrink
+      // the final results
+      if (merged_q_index == merged_qualifiers.length) {
+        qualifiers = merged_qualifiers;
+      } else {
+        qualifiers = Arrays.copyOfRange(merged_qualifiers, 0, merged_q_index);
+      }
     
-    // set the meta bit based on the local and remote metas
-    byte meta = 0;
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
+      // set the meta bit based on the local and remote metas
+      byte meta = 0;
+      if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
                                      Const.MS_MIXED_COMPACT || 
-        (remote_val[remote_val.length - 1] & Const.MS_MIXED_COMPACT) == 
+          (remote_val[remote_val.length - 1] & Const.MS_MIXED_COMPACT) == 
                                              Const.MS_MIXED_COMPACT) {
-      meta = Const.MS_MIXED_COMPACT;
+        meta = Const.MS_MIXED_COMPACT;
+      }
+      values = Arrays.copyOfRange(merged_values, 0, merged_v_index + 1);
+      values[values.length - 1] = meta;
     }
-    values = Arrays.copyOfRange(merged_values, 0, merged_v_index + 1);
-    values[values.length - 1] = meta;
   }
 
   /**
@@ -322,7 +355,7 @@ final class RowSeq implements DataPoints {
   public int size() {
     // if we don't have a mix of second and millisecond qualifiers we can run
     // this in O(1), otherwise we have to run O(n)
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
+    if (hasMixofSecondsAndms || (values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
       Const.MS_MIXED_COMPACT) {
       int size = 0;
       for (int i = 0; i < qualifiers.length; i += 2) {
@@ -376,7 +409,7 @@ final class RowSeq implements DataPoints {
     // if we don't have a mix of second and millisecond qualifiers we can run
     // this in O(1), otherwise we have to run O(n)
     // Important: Span.addRow assumes this method to work in O(1).
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
+    if (hasMixofSecondsAndms || (values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
       Const.MS_MIXED_COMPACT) {
       int index = 0;
       for (int idx = 0; idx < qualifiers.length; idx += 2) {

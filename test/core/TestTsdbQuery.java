@@ -52,6 +52,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
+import org.powermock.reflect.Whitebox;
 
 /**
  * Massive test class that is used to test all facets of querying for data. 
@@ -102,7 +103,7 @@ public final class TestTsdbQuery {
     tagv.setAccessible(true);
     tagv.set(tsdb, tag_values);
     
- // mock UniqueId
+    // mock UniqueId
     when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
     when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenReturn(Deferred.fromResult("sys.cpu.user"));
@@ -468,6 +469,8 @@ public final class TestTsdbQuery {
 
   @Test
   public void runLongSingleTSCompacted() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     storeLongCompactions();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -679,6 +682,8 @@ public final class TestTsdbQuery {
 
   @Test
   public void runFloatSingleTSCompacted() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     storeFloatCompactions();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -768,6 +773,8 @@ public final class TestTsdbQuery {
   
   @Test
   public void runMixedSingleTSPostCompaction() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     storeMixedTimeSeriesSeconds();
     
     final Field compact = Config.class.getDeclaredField("enable_compactions");
@@ -818,6 +825,8 @@ public final class TestTsdbQuery {
   
   @Test
   public void runMixedSingleTSCompacted() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     storeMixedCompactions();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -870,6 +879,8 @@ public final class TestTsdbQuery {
   
   @Test
   public void runCompactPostQuery() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     storeLongTimeSeriesSeconds(true, false);;
     
     final Field compact = Config.class.getDeclaredField("enable_compactions");
@@ -921,6 +932,8 @@ public final class TestTsdbQuery {
     // if a row has an integer and a float for the same timestamp, there will be
     // two different qualifiers that will resolve to the same offset. This tosses
     // an exception
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     storeLongTimeSeriesSeconds(true, false);;
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -931,6 +944,24 @@ public final class TestTsdbQuery {
     query.run();
   }
   
+  @Test 
+  public void runFloatAndIntSameTSUseAppend() throws Exception {
+    // if a row has an integer and a float for the same timestamp, there will be
+    // two different qualifiers that will resolve to the same offset. 
+    // Traditional tsdb put + compact logic throw exception but append logic
+    //just skip the duplicate data
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", true);
+    Whitebox.setInternalState(config, "enable_compactions", false);
+    storeLongTimeSeriesSeconds(true, false);;
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998430, 42.5F, tags).joinUninterruptibly();
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
+    query.run();
+  }
+
   @Test
   public void runWithAnnotation() throws Exception {
     storeLongTimeSeriesSeconds(true, false);;
@@ -962,6 +993,8 @@ public final class TestTsdbQuery {
   
   @Test
   public void runWithAnnotationPostCompact() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     storeLongTimeSeriesSeconds(true, false);;
     
     final Annotation note = new Annotation();
@@ -1224,6 +1257,8 @@ public final class TestTsdbQuery {
 
   @Test
   public void runMultiCompact() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(1L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -1278,6 +1313,8 @@ public final class TestTsdbQuery {
 
   @Test
   public void runMultiCompactAndSingles() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    Whitebox.setInternalState(config, "enable_compactions", true);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(1L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -2473,7 +2510,7 @@ public final class TestTsdbQuery {
   
   @SuppressWarnings("unchecked")
   private void setQueryStorage() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
 
     PowerMockito.mockStatic(IncomingDataPoints.class);   

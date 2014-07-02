@@ -65,6 +65,12 @@ final class CliOptions {
                    + " metrics to be tracked");
   }
 
+  /** Adds the --fix flag.  */
+  static void addAutoHealFlag(final ArgP argp) {
+    argp.addOption("--fix", 
+            "Auto heal out of order data and duplicates during read");
+  }
+
   /**
    * Parse the command line arguments with the given options.
    * @param options Options to parse in the given args.
@@ -146,6 +152,8 @@ final class CliOptions {
         config.overrideConfig("tsd.network.async_io", entry.getValue());
       } else if (entry.getKey().toLowerCase().equals("--worker-threads")) {
         config.overrideConfig("tsd.network.worker_threads", entry.getValue());
+      } else if (entry.getKey().toLowerCase().equals("--fix")) {
+        System.setProperty("tsd.core.auto_heal_metrics", "true");
       }
     }
   }

@@ -85,7 +85,7 @@ public final class TestTreeBuilder {
   
   @Before
   public void before() throws Exception {
-    storage = new MockBase(true, true, true, true);
+    storage = new MockBase(true, true, true, true, true);
     treebuilder = new TreeBuilder(storage.getTSDB(), tree);
     PowerMockito.spy(Tree.class);
     PowerMockito.doReturn(Deferred.fromResult(tree)).when(Tree.class, 

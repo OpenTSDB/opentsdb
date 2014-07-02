@@ -45,6 +45,8 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.Internal;
+import org.hbase.async.AppendRequest;
 
 /**
  * Mock HBase implementation useful in testing calls to and from storage with
@@ -97,6 +99,7 @@ public final class MockBase {
       final TSDB tsdb, final HBaseClient client,
       final boolean default_get, 
       final boolean default_put,
+      final boolean default_append,
       final boolean default_delete,
       final boolean default_scan) {
     this.tsdb = tsdb;
@@ -130,6 +133,11 @@ public final class MockBase {
       when(client.put((PutRequest)any())).thenAnswer(new MockPut());
       when(client.compareAndSet((PutRequest)any(), (byte[])any()))
         .thenAnswer(new MockCAS());
+    }
+
+    // Default append answer will store the given values in the proper location.
+    if (default_append) {
+      when(client.append((AppendRequest)any())).thenAnswer(new MockAppend());
     }
 
     if (default_delete) {
@@ -172,10 +180,11 @@ public final class MockBase {
   public MockBase(
       final boolean default_get, 
       final boolean default_put,
+      final boolean default_append,
       final boolean default_delete,
       final boolean default_scan) throws IOException {
     this(new TSDB(new Config(false)), mock(HBaseClient.class), 
-        default_get, default_put, default_delete, default_scan);
+        default_get, default_put, default_append, default_delete, default_scan);
   }
   
   /** @param family Sets the family for calls that need it */
@@ -549,6 +558,45 @@ public final class MockBase {
     }
   }
   
+  /**
+   * Stores one or more columns in a row. If the row does not exist, it's
+   * created.
+   */
+  private class MockAppend implements Answer<Deferred<Boolean>> {
+    @Override
+    public Deferred<Boolean> answer(final InvocationOnMock invocation) 
+      throws Throwable {
+      final Object[] args = invocation.getArguments();
+      final AppendRequest append = (AppendRequest)args[0];
+
+      Bytes.ByteMap<Bytes.ByteMap<byte[]>> row = storage.get(append.key());
+      if (row == null) {
+        row = new Bytes.ByteMap<Bytes.ByteMap<byte[]>>();
+        storage.put(append.key(), row);
+      }
+      
+      Bytes.ByteMap<byte[]> cf = row.get(append.family());
+      if (cf == null) {
+        cf = new Bytes.ByteMap<byte[]>();
+        row.put(append.family(), cf);
+      }
+      
+      byte[] values = cf.get(append.qualifier());
+      int current_len = values != null ? values.length :0;
+
+      byte[] appendedValue = new byte[current_len + append.value().length];
+      
+      if (current_len > 0) {
+        System.arraycopy(values, 0, appendedValue, 0, values.length);
+      }
+      
+      System.arraycopy(append.value(), 0, appendedValue, current_len, append.value().length);
+      cf.put(append.qualifier(), appendedValue);
+      
+      return Deferred.fromResult(true);
+    }
+  }
+
   /**
    * Imitates the compareAndSet client call where a {@code PutRequest} is passed
    * along with a byte array to compared the stored value against. If the stored

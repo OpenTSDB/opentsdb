@@ -39,6 +39,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+import org.powermock.reflect.Whitebox;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -59,8 +60,8 @@ public final class TestAnnotation {
     PowerMockito.whenNew(HBaseClient.class)
       .withArguments(anyString(), anyString()).thenReturn(client);
     tsdb = new TSDB(config);
-    
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
+    storage = new MockBase(tsdb, client, true, true, true, true, true);
     
     // add a global
     storage.addColumn(

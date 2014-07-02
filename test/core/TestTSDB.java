@@ -49,6 +49,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
+import org.powermock.reflect.Whitebox;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -89,6 +90,8 @@ public final class TestTSDB {
     Field cq = tsdb.getClass().getDeclaredField("compactionq");
     cq.setAccessible(true);
     cq.set(tsdb, compactionq);
+
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
   }
   
   @Test
@@ -354,6 +357,24 @@ public final class TestTSDB {
   }
   
   @Test
+  public void appendPointLong1Byte() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", true);
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, Const.APPEND_QUALIFIER);
+    assertNotNull(value);
+    assertEquals(3, value.length);
+    short q_len = Internal.getQualifierLength(value);
+    short qualifier = Bytes.getShort(value);
+    assertEquals(0, qualifier);
+    assertEquals(42, value[q_len]);
+  }
+
+  @Test
   public void addPointLong1ByteNegative() throws Exception {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -429,6 +450,27 @@ public final class TestTSDB {
     final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(4294967296L, Bytes.getLong(value));
+  }
+  
+  @Test
+  public void appendPointLong8Bytes() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", true);
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 4294967296L, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, Const.APPEND_QUALIFIER);
+    assertNotNull(value);
+    assertEquals(10, value.length);
+    short q_len = Internal.getQualifierLength(value);
+    short val_len = Internal.getValueLengthFromQualifier(value);
+    short qualifier = Bytes.getShort(value);
+    assertEquals(2, q_len);
+    assertEquals(8, val_len);
+    assertEquals(7, qualifier);
+    assertEquals(4294967296L, Bytes.getLong(value, q_len));
   }
   
   @Test
@@ -722,7 +764,32 @@ public final class TestTSDB {
     // should have 7 digits of precision
     assertEquals(42.512345F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
   }
-  
+
+  @Test
+  public void appendPointFloatPrecision() throws Exception {
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", true);
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5123459999F, tags)
+      .joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, Const.APPEND_QUALIFIER);
+    
+    
+    assertNotNull(value);
+    assertEquals(6, value.length);
+    short q_len = Internal.getQualifierLength(value);
+    short val_len = Internal.getValueLengthFromQualifier(value);
+    short qualifier = Bytes.getShort(value);
+    assertEquals(2, q_len);
+    assertEquals(4, val_len);
+    assertEquals(11, qualifier);
+    // should have 7 digits of precision
+    assertEquals(42.512345F, Float.intBitsToFloat(Bytes.getInt(value, q_len)), 0.0000001);
+  }
+
   @Test
   public void addPointFloatOverwrite() throws Exception {
     setupAddPointStorage();
@@ -849,7 +916,7 @@ public final class TestTSDB {
    */
   @SuppressWarnings("unchecked")
   private void setupAddPointStorage() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, true, true, true);
     
     PowerMockito.mockStatic(IncomingDataPoints.class);   
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 

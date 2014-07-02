@@ -34,8 +34,8 @@ import org.slf4j.LoggerFactory;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
-import org.hbase.async.DeleteRequest;
 import org.hbase.async.Counter;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;

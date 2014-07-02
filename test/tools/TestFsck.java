@@ -80,13 +80,8 @@ public final class TestFsck {
     config = new Config(false);
     tsdb = new TSDB(config);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
-    
-    PowerMockito.mockStatic(System.class);
-    when(System.nanoTime())
-      .thenReturn(1357300800000000L)
-      .thenReturn(1357300900000000L);
     
     // replace the "real" field objects with mocks
     Field met = tsdb.getClass().getDeclaredField("metrics");
@@ -121,9 +116,9 @@ public final class TestFsck {
     when(tag_values.getId("web03"))
       .thenThrow(new NoSuchUniqueName("web03", "metric"));
     
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+    when(metrics.width()).thenReturn((short)TSDB.metrics_width());
+    when(tag_names.width()).thenReturn((short)TSDB.tagk_width());
+    when(tag_values.width()).thenReturn((short)TSDB.tagv_width());
   }
   
   @Test
@@ -259,57 +254,6 @@ public final class TestFsck {
         "tsdb".getBytes(MockBase.ASCII()), false, new String[] { 
         "1356998400", "1357002000", "sum", "sys.cpu.user" });
     assertEquals(0, errors);
-  }
-  
-  @Test
-  public void NoErrorsCompactedMS() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual3 = { (byte) 0xF0, 0x00, 0x04, 0x07 };
-    final byte[] val3 = Bytes.fromLong(6L);
-
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    int errors = (Integer)fsck.invoke(null, tsdb, client, 
-        "tsdb".getBytes(MockBase.ASCII()), false, new String[] { 
-        "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    assertEquals(0, errors);
-    assertEquals(1, storage.numColumns(ROW));
-  }
-  
-  @Test
-  public void NoErrorsCompactedMix() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final byte[] val12 = MockBase.concatByteArrays(val1, val2, new byte[] { 0 });
-    storage.addColumn(ROW, qual12, val12);
-    int errors = (Integer)fsck.invoke(null, tsdb, client, 
-        "tsdb".getBytes(MockBase.ASCII()), false, new String[] { 
-        "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    assertEquals(0, errors);
-    assertEquals(1, storage.numColumns(ROW));
-  }
-  
-  @Test
-  public void NoErrorsCompactedMixReverse() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final byte[] val12 = MockBase.concatByteArrays(val1, val2, new byte[] { 0 });
-    storage.addColumn(ROW, qual12, val12);
-    int errors = (Integer)fsck.invoke(null, tsdb, client, 
-        "tsdb".getBytes(MockBase.ASCII()), false, new String[] { 
-        "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    assertEquals(0, errors);
-    assertEquals(1, storage.numColumns(ROW));
   }
   
   @Test
@@ -619,26 +563,6 @@ public final class TestFsck {
   }
   
   @Test
-  public void compactedMSWSameTS() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual3 = { (byte) 0xF0, 0x00, 0x04, 0x07 };
-    final byte[] val3 = Bytes.fromLong(6L);
-
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    int errors = (Integer)fsck.invoke(null, tsdb, client, 
-        "tsdb".getBytes(MockBase.ASCII()), false, new String[] { 
-        "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    assertEquals(1, errors);
-    assertEquals(2, storage.numColumns(ROW));
-  }
-  
-  @Test
   public void compactedWSameTSFix() throws Exception {
     final byte[] qual1 = { 0x0, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -658,23 +582,4 @@ public final class TestFsck {
     assertEquals(1, storage.numColumns(ROW));
   }
   
-  @Test
-  public void compactedMSWSameTSFix() throws Exception {
-    final byte[] qual1 = { 0x0, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x0, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual3 = { 0x0, 0x37 };
-    final byte[] val3 = Bytes.fromLong(6L);
-
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    int errors = (Integer)fsck.invoke(null, tsdb, client, 
-        "tsdb".getBytes(MockBase.ASCII()), true, new String[] { 
-        "1356998400", "1357002000", "sum", "sys.cpu.user" });
-    assertEquals(1, errors);
-    assertEquals(1, storage.numColumns(ROW));
-  }
 }

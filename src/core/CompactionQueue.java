@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -263,11 +264,15 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         KeyValue kv = row.get(0);
         final byte[] qual = kv.qualifier();
         if (qual.length % 2 != 0 || qual.length == 0) {
-          // This could be a row with only an annotation in it
           if ((qual[0] | Annotation.PREFIX()) == Annotation.PREFIX()) {
+            // This could be a row with only an annotation in it
             final Annotation note = JSON.parseToObject(kv.value(), 
                 Annotation.class);
             annotations.add(note);
+          }
+          else if (Arrays.equals(qual, Const.APPEND_QUALIFIER)) {
+            //Appended row, don't compact it again
+            compacted[0] = kv;
           }
           return null;
         }
@@ -300,6 +305,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       KeyValue longest = row.get(0);  // KV with the longest qualifier.
       int longest_idx = 0;            // Index of `longest'.
       int nkvs = row.size();
+      boolean multipleAppendCells = false;
+      
       for (int i = 0; i < nkvs; i++) {
         final KeyValue kv = row.get(i);
         final byte[] qual = kv.qualifier();
@@ -313,12 +320,30 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           // empty qualifier (which is possible), we need to remove it from the
           // compaction queue. 
           if (len % 2 != 0 || len == 0) {
-            // if the qualifier is 3 bytes and starts with the Annotation prefix,
-            // parse it out.
             if ((qual[0] | Annotation.PREFIX()) == Annotation.PREFIX()) {
+              // if the qualifier is 3 bytes and starts with the Annotation prefix,
+              // parse it out.
               final Annotation note = JSON.parseToObject(kv.value(), 
                   Annotation.class);
               annotations.add(note);
+            }
+            else if (Arrays.equals(qual, Const.APPEND_QUALIFIER)) {
+              // if the qualifier is 3 bytes and starts with the append prefix,
+              // use the appended key.
+              if (compacted != null) {
+                if (multipleAppendCells) {
+                  //This is not expected, or written by highr version
+                  //of tsdb. Compaction receives rows of same key
+                  LOG.error("Multiple append rows for the same row key",
+                  new IllegalDataException("Found multiple append rows "
+                  + "for the row key " + Bytes.pretty(kv.key()) + "this is not "
+                  + "expected"));
+                }
+                else {
+                  compacted[0] = kv;
+                  multipleAppendCells = true;
+                }
+              }
             }
             
             row.remove(i);  // This is O(n) but should happen *very* rarely.
