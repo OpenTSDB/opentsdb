@@ -729,8 +729,8 @@ final class Fsck {
      * @throws Exception If something goes pear shaped
      */
     private boolean fsckFloat(final DP dp) throws Exception {
-      byte[] qual = dp.kv.qualifier();
-      byte[] value = dp.kv.value();
+      byte[] qual = dp.qualifier();
+      byte[] value = dp.value();
       final byte length = Internal.getValueLengthFromQualifier(qual);
       // The qualifier says the value is on 4 bytes, and the value is
       // on 8 bytes, then the 4 MSBs must be 0s.  Old versions of the
@@ -960,18 +960,7 @@ final class Fsck {
       value_bytes = 0;
       compact_row = false;
     }
-    
-//    private void printProgress() {
-//      long processed = rows_processed.get();
-//      synchronized(this) {
-//        processed = (processed - (processed % 10000));
-//        if (processed - last_progress >= 10000) {
-//          last_progress = processed;
-//          LOG.info("Processed " + processed + " rows");          
-//        }
-//      }
-//    }
-    
+
     /**
      * Internal class used for storing references to values during row parsing.
      * The object will hold onto the key value where the value was found as well
