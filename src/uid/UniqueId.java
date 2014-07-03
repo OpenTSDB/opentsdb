@@ -13,24 +13,18 @@
 package net.opentsdb.uid;
 
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 import javax.xml.bind.DatatypeConverter;
 
-import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.UIDMeta;
-
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -41,6 +35,12 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
+import org.hbase.async.Bytes.ByteMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.UIDMeta;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
@@ -731,7 +731,7 @@ public final class UniqueId implements UniqueIdInterface {
 
     SuggestCB(final String search, final int max_results) {
       this.max_results = max_results;
-      this.scanner = getSuggestScanner(search, max_results);
+      this.scanner = getSuggestScanner(client, table, search, kind, max_results);
     }
 
     @SuppressWarnings("unchecked")
@@ -870,11 +870,15 @@ public final class UniqueId implements UniqueIdInterface {
 
   /**
    * Creates a scanner that scans the right range of rows for suggestions.
+   * @param client The HBase client to use.
+   * @param tsd_uid_table Table where IDs are stored.
    * @param search The string to start searching at
+   * @param kind_or_null The kind of UID to search or null for any kinds.
    * @param max_results The max number of results to return
    */
-  private Scanner getSuggestScanner(final String search, 
-      final int max_results) {
+  private static Scanner getSuggestScanner(final HBaseClient client,
+      final byte[] tsd_uid_table, final String search,
+      final byte[] kind_or_null, final int max_results) {
     final byte[] start_row;
     final byte[] end_row;
     if (search.isEmpty()) {
@@ -885,11 +889,13 @@ public final class UniqueId implements UniqueIdInterface {
       end_row = Arrays.copyOf(start_row, start_row.length);
       end_row[start_row.length - 1]++;
     }
-    final Scanner scanner = client.newScanner(table);
+    final Scanner scanner = client.newScanner(tsd_uid_table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(ID_FAMILY);
-    scanner.setQualifier(kind);
+    if (kind_or_null != null) {
+      scanner.setQualifier(kind_or_null);
+    }
     scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;
   }
@@ -1292,5 +1298,76 @@ public final class UniqueId implements UniqueIdInterface {
     get.family(ID_FAMILY);
     get.qualifiers(kinds);
     return tsdb.getClient().get(get).addCallback(new GetCB());
+  }
+
+  /**
+   * Preload UID caches
+   * @param client The HBase client to use.
+   * @param tsd_uid_table Table where IDs are stored.
+   * @param uid_caches A list of {@link UniqueId} objects.
+   * @param max_results The maximum number of IDs to load.
+   * @throws HBaseException Passes any HBaseException from HBase scanner.
+   * @throws RuntimeException Wraps any non HBaseException from HBase scanner.
+   */
+  public static void preload_uid_cache(final HBaseClient client,
+                                       final byte[] tsd_uid_table,
+                                       final List<UniqueId> uid_caches,
+                                       final int max_results)
+                                           throws HBaseException {
+    LOG.info("preload uid cache start. max_results={}", max_results);
+    if (max_results <= 0) {
+      return;
+    }
+    Scanner scanner = null;
+    try {
+      final ByteMap<UniqueId> kind_to_uid_cache_map = new ByteMap<UniqueId>();
+      for (UniqueId uid_cache : uid_caches) {
+        kind_to_uid_cache_map.put(uid_cache.kind, uid_cache);
+      }
+      int num_results = 0;
+      scanner = getSuggestScanner(client, tsd_uid_table, "", null, max_results);
+      preloading_loop: {
+        for (ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
+            rows != null;
+            rows = scanner.nextRows().join()) {
+          for (final ArrayList<KeyValue> row : rows) {
+            for (KeyValue kv: row) {
+              final String name = fromBytes(kv.key());
+              final byte[] kind = kv.qualifier();
+              final byte[] id = kv.value();
+              LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
+                  name, fromBytes(kind));
+              UniqueId uid_cache = kind_to_uid_cache_map.get(kind);
+              if (uid_cache != null) {
+                uid_cache.cacheMapping(name, id);
+              }
+              ++num_results;
+              if (num_results >= max_results) {
+                break preloading_loop;  // We have enough to stop scanning.
+              }
+            }
+            row.clear();  // free()
+          }
+        }
+      }  // preloading_loop
+      for (UniqueId unique_id_table : uid_caches) {
+        LOG.info("After preloading, uid cache '{}' has {} ids and {} names.",
+                 unique_id_table.kind(),
+                 unique_id_table.id_cache.size(),
+                 unique_id_table.name_cache.size());
+      }
+    } catch (Exception e) {
+      if (e instanceof HBaseException) {
+        throw (HBaseException)e;
+      } else if (e instanceof RuntimeException) {
+        throw (RuntimeException)e;
+      } else {
+        throw new RuntimeException("Error while preloading IDs", e);
+      }
+    } finally {
+      if (scanner != null) {
+        scanner.close();
+      }
+    }
   }
 }

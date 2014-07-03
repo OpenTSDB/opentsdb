@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -140,6 +141,12 @@ public final class TSDB {
       metrics.setTSDB(this);
       tag_names.setTSDB(this);
       tag_values.setTSDB(this);
+    }
+    if (config.getBoolean("tsd.core.preload_uid_cache")) {
+      int max_results = config.getInt("tsd.core.preload_uid_cache.max_entries");
+      List<UniqueId> uid_caches = ImmutableList.of(
+          metrics, tag_names, tag_values);
+      UniqueId.preload_uid_cache(client, uidtable, uid_caches, max_results);
     }
     LOG.debug(config.dumpConfiguration());
   }
