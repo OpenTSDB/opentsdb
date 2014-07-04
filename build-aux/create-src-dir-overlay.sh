@@ -1,6 +1,6 @@
 # Creates directory structure overlay on top of original source directories so
 # that the overlay matches Java package hierarchy.
-#!/bin/bash
+#!/usr/bin/env bash
 
 if [ ! -d src-main ]; then
   mkdir src-main
