@@ -77,6 +77,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     this.tsdb = tsdb;
 
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
+    final String mode = tsdb.getConfig().getString("tsd.mode");
+
+    LOG.info("TSD is in " + mode + " mode");
+
     if (cors == null || cors.isEmpty()) {
       cors_domains = null;
       LOG.info("CORS domain list was empty, CORS will not be enabled");
@@ -104,23 +108,53 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       LOG.info("Loaded CORS headers (" + cors_headers + ")");
     }
 
-    telnet_commands = new HashMap<String, TelnetRpc>(7);
-    http_commands = new HashMap<String, HttpRpc>(11);
-    {
-      final DieDieDie diediedie = new DieDieDie();
-      telnet_commands.put("diediedie", diediedie);
-      http_commands.put("diediedie", diediedie);
+    telnet_commands = new HashMap<String, TelnetRpc>();
+    http_commands = new HashMap<String, HttpRpc>();
+    if (mode.equals("rw") || mode.equals("wo")) {
+      final PutDataPointRpc put = new PutDataPointRpc();
+      telnet_commands.put("put", put);
+      http_commands.put("api/put", put);
     }
-    {
+
+    if (mode.equals("rw") || mode.equals("ro")) {
+      http_commands.put("", new HomePage());
       final StaticFileRpc staticfile = new StaticFileRpc();
       http_commands.put("favicon.ico", staticfile);
       http_commands.put("s", staticfile);
-    }
-    {
+
       final StatsRpc stats = new StatsRpc();
       telnet_commands.put("stats", stats);
       http_commands.put("stats", stats);
       http_commands.put("api/stats", stats);
+
+      final DropCaches dropcaches = new DropCaches();
+      telnet_commands.put("dropcaches", dropcaches);
+      http_commands.put("dropcaches", dropcaches);
+      http_commands.put("api/dropcaches", dropcaches);
+
+      final ListAggregators aggregators = new ListAggregators();
+      http_commands.put("aggregators", aggregators);
+      http_commands.put("api/aggregators", aggregators);
+
+      final SuggestRpc suggest_rpc = new SuggestRpc();
+      http_commands.put("suggest", suggest_rpc);
+      http_commands.put("api/suggest", suggest_rpc);
+
+      http_commands.put("logs", new LogsRpc());
+      http_commands.put("q", new GraphHandler());
+      http_commands.put("api/serializers", new Serializers());
+      http_commands.put("api/uid", new UniqueIdRpc());
+      http_commands.put("api/query", new QueryRpc());
+      http_commands.put("api/tree", new TreeRpc());
+      http_commands.put("api/annotation", new AnnotationRpc());
+      http_commands.put("api/search", new SearchRpc());
+      http_commands.put("api/config", new ShowConfig());
+    }
+
+    if (tsdb.getConfig().getString("tsd.no_diediedie").equals("false")) {
+      final DieDieDie diediedie = new DieDieDie();
+      telnet_commands.put("diediedie", diediedie);
+      http_commands.put("diediedie", diediedie);
     }
     {
       final Version version = new Version();
@@ -128,41 +162,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("version", version);
       http_commands.put("api/version", version);
     }
-    {
-      final DropCaches dropcaches = new DropCaches();
-      telnet_commands.put("dropcaches", dropcaches);
-      http_commands.put("dropcaches", dropcaches);
-      http_commands.put("api/dropcaches", dropcaches);
-    }
 
     telnet_commands.put("exit", new Exit());
     telnet_commands.put("help", new Help());
-    {
-      final PutDataPointRpc put = new PutDataPointRpc();
-      telnet_commands.put("put", put);
-      http_commands.put("api/put", put);
-    }
-
-    http_commands.put("", new HomePage());
-    {
-      final ListAggregators aggregators = new ListAggregators();
-      http_commands.put("aggregators", aggregators);
-      http_commands.put("api/aggregators", aggregators);
-    }
-    http_commands.put("logs", new LogsRpc());
-    http_commands.put("q", new GraphHandler());
-    {
-      final SuggestRpc suggest_rpc = new SuggestRpc();
-      http_commands.put("suggest", suggest_rpc);
-      http_commands.put("api/suggest", suggest_rpc);
-    }
-    http_commands.put("api/serializers", new Serializers());
-    http_commands.put("api/uid", new UniqueIdRpc());
-    http_commands.put("api/query", new QueryRpc());
-    http_commands.put("api/tree", new TreeRpc());
-    http_commands.put("api/annotation", new AnnotationRpc());
-    http_commands.put("api/search", new SearchRpc());
-    http_commands.put("api/config", new ShowConfig());
   }
 
   @Override
