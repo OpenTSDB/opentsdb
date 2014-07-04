@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Generates BuildData.java
 # Usage: gen_build_data.sh path/to/BuildData.java my.package.name
 # Author: Benoit Sigoure (tsuna@stumbleupon.com)
