@@ -109,17 +109,17 @@ public final class TSDB {
   
   /** List of activated RPC plugins */
   private List<RpcPlugin> rpc_plugins = null;
-  
+
   /**
    * Constructor
+   * @param client An initialized HBase client object
    * @param config An initialized configuration object
-   * @since 2.0
+   * @since 2.1
    */
-  public TSDB(final Config config) {
+  public TSDB(final HBaseClient client, final Config config) {
     this.config = config;
-    this.client = new HBaseClient(
-        config.getString("tsd.storage.hbase.zk_quorum"),
-        config.getString("tsd.storage.hbase.zk_basedir"));
+    this.client = client;
+
     this.client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
@@ -142,6 +142,17 @@ public final class TSDB {
       tag_values.setTSDB(this);
     }
     LOG.debug(config.dumpConfiguration());
+  }
+
+  /**
+   * Constructor
+   * @param config An initialized configuration object
+   * @since 2.0
+   */
+  public TSDB(final Config config) {
+    this(new HBaseClient(config.getString("tsd.storage.hbase.zk_quorum"),
+                         config.getString("tsd.storage.hbase.zk_basedir")),
+         config);
   }
   
   /** @return The data point column family name */
