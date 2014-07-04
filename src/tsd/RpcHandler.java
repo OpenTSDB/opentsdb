@@ -110,39 +110,32 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
     telnet_commands = new HashMap<String, TelnetRpc>();
     http_commands = new HashMap<String, HttpRpc>();
-    if ( mode.equals("rw") || mode.equals("wo") ) {
-      {
-        final PutDataPointRpc put = new PutDataPointRpc();
-        telnet_commands.put("put", put);
-        http_commands.put("api/put", put);
-      }
+    if (mode.equals("rw") || mode.equals("wo")) {
+      final PutDataPointRpc put = new PutDataPointRpc();
+      telnet_commands.put("put", put);
+      http_commands.put("api/put", put);
     }
 
-    if ( mode.equals("rw") || mode.equals("ro") ) {
+    if (mode.equals("rw") || mode.equals("ro")) {
       http_commands.put("", new HomePage());
-      {
         final StaticFileRpc staticfile = new StaticFileRpc();
         http_commands.put("favicon.ico", staticfile);
         http_commands.put("s", staticfile);
-      }
-      {
+
         final StatsRpc stats = new StatsRpc();
         telnet_commands.put("stats", stats);
         http_commands.put("stats", stats);
         http_commands.put("api/stats", stats);
-      }
-      {
+
         final DropCaches dropcaches = new DropCaches();
         telnet_commands.put("dropcaches", dropcaches);
         http_commands.put("dropcaches", dropcaches);
         http_commands.put("api/dropcaches", dropcaches);
-      }
-      {
+
         final ListAggregators aggregators = new ListAggregators();
         http_commands.put("aggregators", aggregators);
         http_commands.put("api/aggregators", aggregators);
-      }
-      {
+
         final SuggestRpc suggest_rpc = new SuggestRpc();
         http_commands.put("suggest", suggest_rpc);
         http_commands.put("api/suggest", suggest_rpc);
