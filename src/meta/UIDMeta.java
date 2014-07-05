@@ -187,7 +187,7 @@ public final class UIDMeta {
       }
     }
     if (!has_changes) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
+      LOG.debug("{} does not have changes, skipping sync to storage", this);
       throw new IllegalStateException("No changes detected in UID meta data");
     }
     

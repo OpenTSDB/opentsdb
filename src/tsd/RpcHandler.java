@@ -94,7 +94,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
               + "a list of specific domains, you cannot mix both.");
         }
         cors_domains.add(domain.trim().toUpperCase());
-        LOG.info("Loaded CORS domain (" + domain + ")");
+        LOG.info("Loaded CORS domain ({})", domain);
       }
     }
 
@@ -105,7 +105,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
           "tsd.http.request.cors_headers must be a list of validly-formed "
           + "HTTP header names. No wildcards are allowed.");
     } else {
-      LOG.info("Loaded CORS headers (" + cors_headers + ")");
+      LOG.info("Loaded CORS headers ({})", cors_headers);
     }
 
     telnet_commands = new HashMap<String, TelnetRpc>();
@@ -522,7 +522,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
     /** Drops in memory caches.  */
     private void dropCaches(final TSDB tsdb, final Channel chan) {
-      LOG.warn(chan + " Dropping all in-memory caches.");
+      LOG.warn("{} Dropping all in-memory caches.", chan);
       tsdb.dropCaches();
     }
   }
@@ -586,7 +586,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //}
 
   private static void logWarn(final HttpQuery query, final String msg) {
-    LOG.warn(query.channel().toString() + ' ' + msg);
+    LOG.warn("{}" + ' ' + "{}", query.channel().toString(), msg);
   }
 
   //private void logWarn(final HttpQuery query, final String msg,
@@ -595,7 +595,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //}
 
   private void logError(final HttpQuery query, final String msg) {
-    LOG.error(query.channel().toString() + ' ' + msg);
+    LOG.error("{}" + ' ' + "{}", query.channel().toString(), msg);
   }
 
   //private static void logError(final HttpQuery query, final String msg,
@@ -608,7 +608,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //}
 
   private static void logWarn(final Channel chan, final String msg) {
-    LOG.warn(chan.toString() + ' ' + msg);
+    LOG.warn("{}" + ' ' + "{}", chan.toString(), msg);
   }
 
   //private void logWarn(final Channel chan, final String msg, final Exception e) {
@@ -616,11 +616,11 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //}
 
   private void logError(final Channel chan, final String msg) {
-    LOG.error(chan.toString() + ' ' + msg);
+    LOG.error("{}" + ' ' + "{}", chan.toString(), msg);
   }
 
   private void logError(final Channel chan, final String msg, final Exception e) {
-    LOG.error(chan.toString() + ' ' + msg, e);
+    LOG.error("{}" + ' ' + "{}", chan.toString(), msg, e);
   }
 
 }

@@ -500,12 +500,12 @@ public class Config {
         this.loadHashMap(props);        
       } catch (Exception e) {
         // don't do anything, the file may be missing and that's fine
-        LOG.debug("Unable to find or load " + file, e);
+        LOG.debug("Unable to find or load {}", file, e);
         continue;
       }
 
       // no exceptions thrown, so save the valid path and exit
-      LOG.info("Successfully loaded configuration file: " + file);
+      LOG.info("Successfully loaded configuration file: {}", file);
       this.config_location = file;
       return;
     }
@@ -530,7 +530,7 @@ public class Config {
     this.loadHashMap(props);
 
     // no exceptions thrown, so save the valid path and exit
-    LOG.info("Successfully loaded configuration file: " + file);
+    LOG.info("Successfully loaded configuration file: {}", file);
     this.config_location = file;
   }
 

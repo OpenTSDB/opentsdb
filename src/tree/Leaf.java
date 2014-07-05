@@ -209,23 +209,25 @@ public final class Leaf implements Comparable<Leaf> {
           public Deferred<Boolean> call(final Leaf existing_leaf) 
             throws Exception {
             if (existing_leaf == null) {
-              LOG.error(
-                  "Returned leaf was null, stored data may be corrupt for leaf: "
-                  + Branch.idToString(columnQualifier()) + " on branch: "
-                  + Branch.idToString(branch_id));
+              LOG.error("Returned leaf was null, stored data may be corrupt " +
+                        "for leaf: {} on branch: {}",
+                  Branch.idToString(columnQualifier()),
+                  Branch.idToString(branch_id));
               return Deferred.fromResult(false);
             }
             
             if (existing_leaf.tsuid.equals(tsuid)) {
-              LOG.debug("Leaf already exists: " + local_leaf);
+              LOG.debug("Leaf already exists: {}", local_leaf);
               return Deferred.fromResult(true);
             }
             
             tree.addCollision(tsuid, existing_leaf.tsuid);
-            LOG.warn("Branch ID: [" + Branch.idToString(branch_id)  
-                + "] Leaf collision with [" + tsuid + 
-                "] on existing leaf [" + existing_leaf.tsuid + 
-                "] named [" + display_name + "]");
+            LOG.warn("Branch ID: [{}] Leaf collision with [{}] on existing " +
+                     "leaf [{}] named [{}]",
+                Branch.idToString(branch_id),
+                tsuid,
+                existing_leaf.tsuid,
+                display_name);
             return Deferred.fromResult(false);
           }
           
@@ -272,7 +274,7 @@ public final class Leaf implements Comparable<Leaf> {
     
     // if there was an error with the data and the tsuid is missing, dump it
     if (leaf.tsuid == null || leaf.tsuid.isEmpty()) {
-      LOG.warn("Invalid leaf object in row: " + Branch.idToString(column.key()));
+      LOG.warn("Invalid leaf object in row: {}", Branch.idToString(column.key()));
       return Deferred.fromResult(null);
     }
     

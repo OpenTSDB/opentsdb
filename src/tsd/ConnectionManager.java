@@ -94,7 +94,7 @@ final class ConnectionManager extends SimpleChannelHandler {
     final Channel chan = ctx.getChannel();
     if (cause instanceof ClosedChannelException) {
       exceptions_closed.incrementAndGet();
-      LOG.warn("Attempt to write to closed channel " + chan);
+      LOG.warn("Attempt to write to closed channel {}", chan);
       return;
     }
     if (cause instanceof IOException) {
@@ -112,7 +112,7 @@ final class ConnectionManager extends SimpleChannelHandler {
       }
     }
     exceptions_unknown.incrementAndGet();
-    LOG.error("Unexpected exception from downstream for " + chan, cause);
+    LOG.error("Unexpected exception from downstream for {}", chan, cause);
     e.getChannel().close();
   }
 

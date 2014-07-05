@@ -170,7 +170,7 @@ final class TSDMain {
       final InetSocketAddress addr = new InetSocketAddress(bindAddress,
           config.getInt("tsd.network.port"));
       server.bind(addr);
-      log.info("Ready to serve on " + addr);
+      log.info("Ready to serve on {}", addr);
     } catch (Throwable e) {
       factory.releaseExternalResources();
       try {
