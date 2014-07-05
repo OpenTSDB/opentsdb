@@ -150,10 +150,10 @@ public final class TSDB {
    * @since 2.0
    */
   public TSDB(final Config config) {
-	this(new HBaseClient(
-        	config.getString("tsd.storage.hbase.zk_quorum"),
-        	config.getString("tsd.storage.hbase.zk_basedir")
-		),config);
+    this(new HBaseClient(
+      config.getString("tsd.storage.hbase.zk_quorum"),
+      config.getString("tsd.storage.hbase.zk_basedir")
+      ), config);
   }
   
   /** @return The data point column family name */
