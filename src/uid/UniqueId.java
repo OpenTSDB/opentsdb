@@ -13,24 +13,18 @@
 package net.opentsdb.uid;
 
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 import javax.xml.bind.DatatypeConverter;
 
-import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.UIDMeta;
-
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -41,6 +35,12 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
+import org.hbase.async.Bytes.ByteMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.UIDMeta;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
@@ -51,7 +51,6 @@ import org.hbase.async.Scanner;
  */
 @SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
 public final class UniqueId implements UniqueIdInterface {
-
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */
@@ -524,6 +523,9 @@ public final class UniqueId implements UniqueIdInterface {
         tsdb.indexUIDMeta(meta);
       }
       
+      synchronized (pending_assignments) {
+        pending_assignments.remove(name);
+      }
       assignment.callback(row);
       synchronized(pending_assignments) {
         if (pending_assignments.containsKey(name)) {
@@ -731,7 +733,7 @@ public final class UniqueId implements UniqueIdInterface {
 
     SuggestCB(final String search, final int max_results) {
       this.max_results = max_results;
-      this.scanner = getSuggestScanner(search, max_results);
+      this.scanner = getSuggestScanner(client, table, search, kind, max_results);
     }
 
     @SuppressWarnings("unchecked")
@@ -870,11 +872,15 @@ public final class UniqueId implements UniqueIdInterface {
 
   /**
    * Creates a scanner that scans the right range of rows for suggestions.
+   * @param client The HBase client to use.
+   * @param tsd_uid_table Table where IDs are stored.
    * @param search The string to start searching at
+   * @param kind_or_null The kind of UID to search or null for any kinds.
    * @param max_results The max number of results to return
    */
-  private Scanner getSuggestScanner(final String search, 
-      final int max_results) {
+  private static Scanner getSuggestScanner(final HBaseClient client,
+      final byte[] tsd_uid_table, final String search,
+      final byte[] kind_or_null, final int max_results) {
     final byte[] start_row;
     final byte[] end_row;
     if (search.isEmpty()) {
@@ -885,11 +891,13 @@ public final class UniqueId implements UniqueIdInterface {
       end_row = Arrays.copyOf(start_row, start_row.length);
       end_row[start_row.length - 1]++;
     }
-    final Scanner scanner = client.newScanner(table);
+    final Scanner scanner = client.newScanner(tsd_uid_table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(ID_FAMILY);
-    scanner.setQualifier(kind);
+    if (kind_or_null != null) {
+      scanner.setQualifier(kind_or_null);
+    }
     scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;
   }
@@ -1292,5 +1300,70 @@ public final class UniqueId implements UniqueIdInterface {
     get.family(ID_FAMILY);
     get.qualifiers(kinds);
     return tsdb.getClient().get(get).addCallback(new GetCB());
+  }
+
+  /**
+   * Pre-load UID caches, scanning up to "tsd.core.preload_uid_cache.max_entries"
+   * rows from the UID table.
+   * @param tsdb The TSDB to use 
+   * @param uid_cache_map A map of {@link UniqueId} objects keyed on the kind.
+   * @throws HBaseException Passes any HBaseException from HBase scanner.
+   * @throws RuntimeException Wraps any non HBaseException from HBase scanner.
+   * @2.1
+   */
+  public static void preloadUidCache(final TSDB tsdb,
+      final ByteMap<UniqueId> uid_cache_map) throws HBaseException {
+    int max_results = tsdb.getConfig().getInt(
+        "tsd.core.preload_uid_cache.max_entries");
+    LOG.info("Preloading uid cache with max_results=" + max_results);
+    if (max_results <= 0) {
+      return;
+    }
+    Scanner scanner = null;
+    try {
+      int num_rows = 0;
+      scanner = getSuggestScanner(tsdb.getClient(), tsdb.uidTable(), "", null, 
+          max_results);
+      for (ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
+          rows != null;
+          rows = scanner.nextRows().join()) {
+        for (final ArrayList<KeyValue> row : rows) {
+          for (KeyValue kv: row) {
+            final String name = fromBytes(kv.key());
+            final byte[] kind = kv.qualifier();
+            final byte[] id = kv.value();
+            LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
+                name, fromBytes(kind));
+            UniqueId uid_cache = uid_cache_map.get(kind);
+            if (uid_cache != null) {
+              uid_cache.cacheMapping(name, id);
+            }
+          }
+          num_rows += row.size();
+          row.clear();  // free()
+          if (num_rows >= max_results) {
+            break;
+          }
+        }
+      }
+      for (UniqueId unique_id_table : uid_cache_map.values()) {
+        LOG.info("After preloading, uid cache '{}' has {} ids and {} names.",
+                 unique_id_table.kind(),
+                 unique_id_table.id_cache.size(),
+                 unique_id_table.name_cache.size());
+      }
+    } catch (Exception e) {
+      if (e instanceof HBaseException) {
+        throw (HBaseException)e;
+      } else if (e instanceof RuntimeException) {
+        throw (RuntimeException)e;
+      } else {
+        throw new RuntimeException("Error while preloading IDs", e);
+      }
+    } finally {
+      if (scanner != null) {
+        scanner.close();
+      }
+    }
   }
 }

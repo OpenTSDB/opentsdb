@@ -410,6 +410,8 @@ public class Config {
     // map.put("tsd.network.port", ""); // does not have a default, required
     // map.put("tsd.http.cachedir", ""); // does not have a default, required
     // map.put("tsd.http.staticroot", ""); // does not have a default, required
+    default_map.put("tsd.mode", "rw");
+    default_map.put("tsd.no_diediedie", "false");
     default_map.put("tsd.network.bind", "0.0.0.0");
     default_map.put("tsd.network.worker_threads", "");
     default_map.put("tsd.network.async_io", "true");
@@ -425,6 +427,8 @@ public class Config {
     default_map.put("tsd.core.meta.enable_tsuid_tracking", "false");
     default_map.put("tsd.core.plugin_path", "");
     default_map.put("tsd.core.tree.enable_processing", "false");
+    default_map.put("tsd.core.preload_uid_cache", "false");
+    default_map.put("tsd.core.preload_uid_cache.max_entries", "300000");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");

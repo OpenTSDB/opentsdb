@@ -217,18 +217,25 @@ public final class Internal {
       
       // Now break it down into Cells.
       int val_idx = 0;
-      for (int i = 0; i < len; i += 2) {
-        final byte[] q = extractQualifier(qual, i);
-        final int vlen = getValueLengthFromQualifier(qual, i);
-        if (inMilliseconds(qual[i])) {
-          i += 2;
+      try {
+        for (int i = 0; i < len; i += 2) {
+          final byte[] q = extractQualifier(qual, i);
+          final int vlen = getValueLengthFromQualifier(qual, i);
+          if (inMilliseconds(qual[i])) {
+            i += 2;
+          }
+          
+          final byte[] v = new byte[vlen];
+          System.arraycopy(val, val_idx, v, 0, vlen);
+          val_idx += vlen;
+          final Cell cell = new Cell(q, v);
+          cells.add(cell);
         }
-        
-        final byte[] v = new byte[vlen];
-        System.arraycopy(val, val_idx, v, 0, vlen);
-        val_idx += vlen;
-        final Cell cell = new Cell(q, v);
-        cells.add(cell);
+      } catch (ArrayIndexOutOfBoundsException e) {
+        throw new IllegalDataException("Corrupted value: couldn't break down"
+            + " into individual values (consumed " + val_idx + " bytes, but was"
+            + " expecting to consume " + (val.length - 1) + "): " + kv
+            + ", cells so far: " + cells);
       }
       
       // Check we consumed all the bytes of the value.  Remember the last byte
@@ -704,6 +711,38 @@ public final class Internal {
     }
   }
 
+  /**
+   * Parses the qualifier to determine if the data is a floating point value.
+   * 4 bytes == Float, 8 bytes == Double
+   * @param qualifier The qualifier to parse
+   * @return True if the encoded data is a floating point value
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
+   * outside of the qualifier array
+   * @since 2.1
+   */
+  public static boolean isFloat(final byte[] qualifier) {
+    return isFloat(qualifier, 0);
+  }
+
+  /**
+   * Parses the qualifier to determine if the data is a floating point value.
+   * 4 bytes == Float, 8 bytes == Double
+   * @param qualifier The qualifier to parse
+   * @param offset An offset within the byte array
+   * @return True if the encoded data is a floating point value
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
+   * outside of the qualifier array
+   * @since 2.1
+   */
+  public static boolean isFloat(final byte[] qualifier, final int offset) {
+    validateQualifier(qualifier, offset);
+    if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
+      return (qualifier[offset + 3] & Const.FLAG_FLOAT) == Const.FLAG_FLOAT; 
+    } else {
+      return (qualifier[offset + 1] & Const.FLAG_FLOAT) == Const.FLAG_FLOAT;
+    }
+  }
+  
   /**
    * Extracts the 2 or 4 byte qualifier from a compacted byte array
    * @param qualifier The qualifier to parse
