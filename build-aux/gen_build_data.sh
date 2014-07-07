@@ -31,8 +31,8 @@ export TZ
 sh=`python <<EOF
 import time
 t = time.time();
-print "timestamp=%d" % t;
-print "date=%r" % time.strftime("%Y/%m/%d %T %z", time.gmtime(t))
+print ("timestamp=%d" % t);
+print ("date=%r" % time.strftime("%Y/%m/%d %T %z", time.gmtime(t)))
 EOF`
 eval "$sh"  # Sets the timestamp and date variables.
 
