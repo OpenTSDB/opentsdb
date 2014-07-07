@@ -163,7 +163,7 @@ final class MetaPurge extends Thread {
             final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
                 row.get(0).key(), NAME_FAMILY, 
                 qualifiers.toArray(new byte[qualifiers.size()][]));
-            delete_calls.add(tsdb.getClient().delete(delete));
+            delete_calls.add(tsdb.getTsdbStore().delete(delete));
           }
         }
         
@@ -261,7 +261,7 @@ final class MetaPurge extends Thread {
             final DeleteRequest delete = new DeleteRequest(tsdb.metaTable(), 
                 row.get(0).key(), NAME_FAMILY, 
                 qualifiers.toArray(new byte[qualifiers.size()][]));
-            delete_calls.add(tsdb.getClient().delete(delete));
+            delete_calls.add(tsdb.getTsdbStore().delete(delete));
           }
         }
         
@@ -308,7 +308,7 @@ final class MetaPurge extends Thread {
       Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
-    final Scanner scanner = tsdb.getClient().newScanner(table);
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(NAME_FAMILY);

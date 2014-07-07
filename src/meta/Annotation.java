@@ -185,7 +185,7 @@ public final class Annotation implements Comparable<Annotation> {
             getRowKey(start_time, tsuid_byte), FAMILY, 
             getQualifier(start_time), 
             Annotation.this.getStorageJSON());
-        return tsdb.getClient().compareAndSet(put, original_note);
+        return tsdb.getTsdbStore().compareAndSet(put, original_note);
       }
       
     }
@@ -215,7 +215,7 @@ public final class Annotation implements Comparable<Annotation> {
     final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
         getRowKey(start_time, tsuid_byte), FAMILY, 
         getQualifier(start_time));
-    return tsdb.getClient().delete(delete);
+    return tsdb.getTsdbStore().delete(delete);
   }
   
   /**
@@ -284,7 +284,7 @@ public final class Annotation implements Comparable<Annotation> {
         getRowKey(start_time, tsuid));
     get.family(FAMILY);
     get.qualifier(getQualifier(start_time));
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());    
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   /**
@@ -335,7 +335,7 @@ public final class Annotation implements Comparable<Annotation> {
         Bytes.setInt(start, (int) normalized_start, Const.METRICS_WIDTH);
         Bytes.setInt(end, (int) normalized_end, Const.METRICS_WIDTH);
 
-        scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+        scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
         scanner.setStartKey(start);
         scanner.setStopKey(end);
         scanner.setFamily(FAMILY);
@@ -428,7 +428,7 @@ public final class Annotation implements Comparable<Annotation> {
       final Scanner scanner;
 
       public ScannerCB() {
-        scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+        scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
         scanner.setStartKey(start_row);
         scanner.setStopKey(end_row);
         scanner.setFamily(FAMILY);
@@ -462,7 +462,7 @@ public final class Annotation implements Comparable<Annotation> {
               }
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                   column.key(), FAMILY, column.qualifier());
-              delete_requests.add(tsdb.getClient().delete(delete));
+              delete_requests.add(tsdb.getTsdbStore().delete(delete));
             }
           }
         }

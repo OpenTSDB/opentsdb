@@ -534,7 +534,7 @@ final class MetaSync extends Thread {
 
     LOG.debug("[" + thread_id + "] Start row: " + UniqueId.uidToString(start_row));
     LOG.debug("[" + thread_id + "] End row: " + UniqueId.uidToString(end_row));
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily("t".getBytes(Charset.forName("ISO-8859-1")));

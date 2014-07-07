@@ -228,7 +228,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     // overlapping time periods.
     final long base_time = timestamp - (timestamp % Const.MAX_TIMESPAN);
     // Clone the row key since we're going to change it.  We must clone it
-    // because the HBase client may still hold a reference to it in its
+    // because the TsdbStore may still hold a reference to it in its
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
     Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
@@ -308,7 +308,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     // TODO(tsuna): Add an errback to handle some error cases here.
     point.setDurable(!batch_import);
-    return tsdb.client.put(point)/*.addBoth(cb)*/;
+    return tsdb.tsdb_store.put(point)/*.addBoth(cb)*/;
   }
 
   private void grow() {
@@ -356,14 +356,14 @@ final class IncomingDataPoints implements WritableDataPoints {
     if (time < 0) {
       throw new IllegalArgumentException("negative time: " + time);
     }
-    tsdb.client.setFlushInterval(time);
+    tsdb.tsdb_store.setFlushInterval(time);
   }
 
   public void setBatchImport(final boolean batchornot) {
     if (batch_import == batchornot) {
       return;
     }
-    final long current_interval = tsdb.client.getFlushInterval();
+    final long current_interval = tsdb.tsdb_store.getFlushInterval();
     if (batchornot) {
       batch_import = true;
       // If we already were given a larger interval, don't override it.

@@ -75,7 +75,7 @@ final class Search {
       rc = runCommand(tsdb, use_data_table, args);
     } finally {
       try {
-        tsdb.getClient().shutdown().joinUninterruptibly();
+        tsdb.getTsdbStore().shutdown().joinUninterruptibly();
         LOG.info("Gracefully shutdown the TSD");
       } catch (Exception e) {
         LOG.error("Unexpected exception while shutting down", e);
@@ -128,7 +128,7 @@ final class Search {
                             final boolean use_data_table,
                             final String[] args) throws Exception {
     if (!use_data_table) {
-      tsdb.getClient().ensureTableExists(
+      tsdb.getTsdbStore().ensureTableExists(
           tsdb.getConfig().getString(
               "tsd.storage.hbase.meta_table")).joinUninterruptibly();
     }

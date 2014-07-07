@@ -23,10 +23,10 @@ import java.util.zip.GZIPInputStream;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseRpc;
 import org.hbase.async.PleaseThrottleException;
 import org.hbase.async.PutRequest;
@@ -70,7 +70,7 @@ final class TextImporter {
       int points = 0;
       final long start_time = System.nanoTime();
       for (final String path : args) {
-        points += importFile(tsdb.getClient(), tsdb, path);
+        points += importFile(tsdb.getTsdbStore(), tsdb, path);
       }
       final double time_delta = (System.nanoTime() - start_time) / 1000000000.0;
       LOG.info(String.format("Total: imported %d data points in %.3fs"
@@ -95,7 +95,7 @@ final class TextImporter {
 
   static volatile boolean throttle = false;
 
-  private static int importFile(final HBaseClient client,
+  private static int importFile(final TsdbStore tsdb_store,
                                 final TSDB tsdb,
                                 final String path) throws IOException {
     final long start_time = System.nanoTime();
@@ -112,7 +112,7 @@ final class TextImporter {
             throttle = true;
             final HBaseRpc rpc = e.getFailedRpc();
             if (rpc instanceof PutRequest) {
-              client.put((PutRequest) rpc);  // Don't lose edits.
+              tsdb_store.put((PutRequest) rpc);  // Don't lose edits.
             }
             return null;
           }

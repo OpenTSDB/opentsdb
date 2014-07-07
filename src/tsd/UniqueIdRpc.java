@@ -355,7 +355,7 @@ final class UniqueIdRpc implements HttpRpc {
               final PutRequest put = new PutRequest(tsdb.metaTable(), 
                   UniqueId.stringToUid(tsuid), TSMeta.FAMILY(), 
                   TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(0));    
-              tsdb.getClient().put(put);
+              tsdb.getTsdbStore().put(put);
             }
 
             return exists;

@@ -70,6 +70,8 @@ tsdb_SRC := \
 	src/search/TimeSeriesLookup.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
+	src/storage/TsdbStore.java \
+	src/storage/HBaseStore.java \
 	src/tools/ArgP.java	\
 	src/tools/CliOptions.java	\
 	src/tools/CliQuery.java	\
