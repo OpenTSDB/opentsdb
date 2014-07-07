@@ -653,7 +653,7 @@ final class Fsck {
             }
           }
           index++;
-          if (index < datapoints.size()) {
+          if (index < time_map.getValue().size()) {
             buf.append("\n");
           }
           last_dp = dp;
