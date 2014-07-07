@@ -245,7 +245,7 @@ public final class UIDMeta {
               UniqueId.stringToUid(uid), FAMILY, 
               (type.toString().toLowerCase() + "_meta").getBytes(CHARSET), 
               local_meta.getStorageJSON());
-          return tsdb.getClient().compareAndSet(put, original_meta);
+          return tsdb.getTsdbStore().compareAndSet(put, original_meta);
         }
         
       }
@@ -264,7 +264,7 @@ public final class UIDMeta {
         get.qualifier((type.toString().toLowerCase() + "_meta").getBytes(CHARSET));
         
         // #2 deferred
-        return tsdb.getClient().get(get)
+        return tsdb.getTsdbStore().get(get)
           .addCallbackDeferring(new StoreUIDMeta());
       }
       
@@ -302,7 +302,7 @@ public final class UIDMeta {
         UniqueId.stringToUid(uid), FAMILY, 
         (type.toString().toLowerCase() + "_meta").getBytes(CHARSET), 
         UIDMeta.this.getStorageJSON());
-    return tsdb.getClient().put(put);
+    return tsdb.getTsdbStore().put(put);
   }
   
   /**
@@ -324,7 +324,7 @@ public final class UIDMeta {
     final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
         UniqueId.stringToUid(uid), FAMILY, 
         (type.toString().toLowerCase() + "_meta").getBytes(CHARSET));
-    return tsdb.getClient().delete(delete);
+    return tsdb.getTsdbStore().delete(delete);
   }
   
   /**
@@ -426,7 +426,7 @@ public final class UIDMeta {
         final GetRequest get = new GetRequest(tsdb.uidTable(), uid);
         get.family(FAMILY);
         get.qualifier((type.toString().toLowerCase() + "_meta").getBytes(CHARSET));
-        return tsdb.getClient().get(get).addCallbackDeferring(new FetchMetaCB());
+        return tsdb.getTsdbStore().get(get).addCallbackDeferring(new FetchMetaCB());
       }
     }
     

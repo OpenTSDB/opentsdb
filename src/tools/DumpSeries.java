@@ -18,8 +18,8 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
+import net.opentsdb.storage.TsdbStore;
 import org.hbase.async.DeleteRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 
@@ -33,7 +33,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.Config;
 
 /**
- * Tool to dump the data straight from HBase.
+ * Tool to dump the data straight from TsdbStore.
  * Useful for debugging data induced problems.
  */
 final class DumpSeries {
@@ -49,7 +49,7 @@ final class DumpSeries {
         + "The --import flag changes the format in which the output is printed"
         + " to use a format suiteable for the 'import' command instead of the"
         + " default output format, which better represents how the data is"
-        + " stored in HBase.\n"
+        + " stored in TsdbStore.\n"
         + "The --delete flag will delete every row matched by the query."
         + "  This flag implies --import.");
     System.err.print(argp.usage());
@@ -79,14 +79,14 @@ final class DumpSeries {
     final boolean importformat = delete || argp.has("--import");
     argp = null;
     try {
-      doDump(tsdb, tsdb.getClient(), table, delete, importformat, args);
+      doDump(tsdb, tsdb.getTsdbStore(), table, delete, importformat, args);
     } finally {
       tsdb.shutdown().joinUninterruptibly();
     }
   }
 
   private static void doDump(final TSDB tsdb,
-                             final HBaseClient client,
+                             final TsdbStore tsdb_store,
                              final byte[] table,
                              final boolean delete,
                              final boolean importformat,
@@ -138,7 +138,7 @@ final class DumpSeries {
 
           if (delete) {
             final DeleteRequest del = new DeleteRequest(table, key);
-            client.delete(del);
+            tsdb_store.delete(del);
           }
         }
       }

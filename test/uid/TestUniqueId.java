@@ -21,16 +21,10 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.utils.Config;
 
-import org.hbase.async.AtomicIncrementRequest;
-import org.hbase.async.Bytes;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.HBaseException;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
-import org.hbase.async.Scanner;
+import org.hbase.async.*;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -66,10 +60,10 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HBaseClient.class, TSDB.class, Config.class })
+@PrepareForTest({ HBaseStore.class, TSDB.class, Config.class })
 public final class TestUniqueId {
 
-  private HBaseClient client = mock(HBaseClient.class);
+  private HBaseStore client = mock(HBaseStore.class);
   private static final byte[] table = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] ID = { 'i', 'd' };
   private UniqueId uid;
@@ -293,7 +287,7 @@ public final class TestUniqueId {
     verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
   }
 
-  @PrepareForTest({HBaseClient.class, UniqueId.class})
+  @PrepareForTest({HBaseStore.class, UniqueId.class})
   @Test  // Test the creation of an ID when unable to increment MAXID
   public void getOrCreateIdUnableToIncrementMaxId() throws Exception {
     PowerMockito.mockStatic(Thread.class);
@@ -318,7 +312,7 @@ public final class TestUniqueId {
   }
 
   @Test  // Test the creation of an ID with a race condition.
-  @PrepareForTest({HBaseClient.class, Deferred.class})
+  @PrepareForTest({HBaseStore.class, Deferred.class})
    public void getOrCreateIdAssignIdWithRaceCondition() {
     // Simulate a race between client A and client B.
     // A does a Get and sees that there's no ID for this name.
@@ -328,7 +322,7 @@ public final class TestUniqueId {
     // ID has already been assigned.
 
     uid = new UniqueId(client, table, kind, 3); // Used by client A.
-    HBaseClient client_b = mock(HBaseClient.class); // For client B.
+    HBaseStore client_b = mock(HBaseStore.class); // For client B.
     final UniqueId uid_b = new UniqueId(client_b, table, kind, 3);
 
     final byte[] id = { 0, 0, 5 };
@@ -483,7 +477,7 @@ public final class TestUniqueId {
     order.verify(client).compareAndSet(putForRow(row), emptyArray());
   }
 
-  @PrepareForTest({HBaseClient.class, Scanner.class})
+  @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
   public void suggestWithNoMatch() {
     uid = new UniqueId(client, table, kind, 3);
@@ -505,7 +499,7 @@ public final class TestUniqueId {
     verify(fake_scanner).setQualifier(kind_array);
   }
 
-  @PrepareForTest({HBaseClient.class, Scanner.class})
+  @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
   public void suggestWithMatches() {
     uid = new UniqueId(client, table, kind, 3);
@@ -817,7 +811,7 @@ public final class TestUniqueId {
     kvs.add(new KeyValue(MAXID, ID, tagk, Bytes.fromLong(42L)));
     kvs.add(new KeyValue(MAXID, ID, tagv, Bytes.fromLong(1024L)));
     final TSDB tsdb = mock(TSDB.class);
-    when(tsdb.getClient()).thenReturn(client);
+    when(tsdb.getTsdbStore()).thenReturn(client);
     when(tsdb.uidTable()).thenReturn(new byte[] { 'u', 'i', 'd' });
     when(client.get(anyGet()))
       .thenReturn(Deferred.fromResult(kvs));
@@ -839,7 +833,7 @@ public final class TestUniqueId {
     final byte[] tagk = { 't', 'a', 'g', 'k' };
     final byte[] tagv = { 't', 'a', 'g', 'v' };
     final TSDB tsdb = mock(TSDB.class);
-    when(tsdb.getClient()).thenReturn(client);
+    when(tsdb.getTsdbStore()).thenReturn(client);
     when(tsdb.uidTable()).thenReturn(new byte[] { 'u', 'i', 'd' });
     when(client.get(anyGet()))
       .thenReturn(Deferred.fromResult(kvs));

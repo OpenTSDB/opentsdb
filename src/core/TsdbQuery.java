@@ -564,7 +564,7 @@ final class TsdbQuery implements Query {
       System.arraycopy(metric, 0, end_row, 0, metric_width);
     }
 
-    final Scanner scanner = tsdb.client.newScanner(tsdb.table);
+    final Scanner scanner = tsdb.tsdb_store.newScanner(tsdb.table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     if (tsuids != null && !tsuids.isEmpty()) {

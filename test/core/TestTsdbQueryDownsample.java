@@ -81,7 +81,7 @@ public class TestTsdbQueryDownsample {
     query = new TsdbQuery(tsdb);
 
     // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("client");
+    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
     cl.setAccessible(true);
     cl.set(tsdb, client);
 

@@ -22,6 +22,8 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.storage.HBaseStore;
+import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
@@ -29,7 +31,6 @@ import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.ClientStats;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
@@ -71,8 +72,8 @@ public final class TSDB {
   private static final String TAG_VALUE_QUAL = "tagv";
   private static final short TAG_VALUE_WIDTH = 3;
 
-  /** Client for the HBase cluster to use.  */
-  final HBaseClient client;
+  /** TsdbStore, the database cluster to use for storage.  */
+  final TsdbStore tsdb_store;
 
   /** Name of the table in which timeseries are stored.  */
   final byte[] table;
@@ -112,15 +113,14 @@ public final class TSDB {
 
   /**
    * Constructor
-   * @param client An initialized HBase client object
+   * @param client An initialized TsdbStore object
    * @param config An initialized configuration object
    * @since 2.1
    */
-  public TSDB(final HBaseClient client, final Config config) {
+  public TSDB(final TsdbStore client, final Config config) {
     this.config = config;
-    this.client = client;
-
-    this.client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
+    this.tsdb_store = client;
+    this.tsdb_store.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
@@ -158,8 +158,7 @@ public final class TSDB {
    * @since 2.0
    */
   public TSDB(final Config config) {
-    this(new HBaseClient(config.getString("tsd.storage.hbase.zk_quorum"),
-                         config.getString("tsd.storage.hbase.zk_basedir")),
+    this(new HBaseStore(config),
          config);
   }
   
@@ -260,12 +259,12 @@ public final class TSDB {
   }
   
   /** 
-   * Returns the configured HBase client 
-   * @return The HBase client
+   * Returns the configured TsdbStore
+   * @return The TsdbStore
    * @since 2.0 
    */
-  public final HBaseClient getClient() {
-    return this.client;
+  public final TsdbStore getTsdbStore() {
+    return this.tsdb_store;
   }
   
   /** 
@@ -328,7 +327,7 @@ public final class TSDB {
   }
   
   /**
-   * Verifies that the data and UID tables exist in HBase and optionally the
+   * Verifies that the data and UID tables exist in TsdbStore and optionally the
    * tree and meta data tables if the user has enabled meta tracking or tree
    * building
    * @return An ArrayList of objects to wait for
@@ -338,17 +337,17 @@ public final class TSDB {
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
     final ArrayList<Deferred<Object>> checks = 
       new ArrayList<Deferred<Object>>(2);
-    checks.add(client.ensureTableExists(
+    checks.add(tsdb_store.ensureTableExists(
         config.getString("tsd.storage.hbase.data_table")));
-    checks.add(client.ensureTableExists(
+    checks.add(tsdb_store.ensureTableExists(
         config.getString("tsd.storage.hbase.uid_table")));
     if (config.enable_tree_processing()) {
-      checks.add(client.ensureTableExists(
+      checks.add(tsdb_store.ensureTableExists(
           config.getString("tsd.storage.hbase.tree_table")));
     }
     if (config.enable_realtime_ts() || config.enable_realtime_uid() || 
         config.enable_tsuid_incrementing()) {
-      checks.add(client.ensureTableExists(
+      checks.add(tsdb_store.ensureTableExists(
           config.getString("tsd.storage.hbase.meta_table")));
     }
     return Deferred.group(checks);
@@ -430,7 +429,7 @@ public final class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
-    final ClientStats stats = client.stats();
+    final ClientStats stats = tsdb_store.stats();
     collector.record("hbase.root_lookups", stats.rootLookups());
     collector.record("hbase.meta_lookups",
                      stats.uncontendedMetaLookups(), "type=uncontended");
@@ -679,7 +678,7 @@ public final class TSDB {
     
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
-    Deferred<Object> result = client.put(point);
+    Deferred<Object> result = tsdb_store.put(point);
     if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
         !config.enable_tsuid_tracking() && rt_publisher == null) {
       return result;
@@ -694,7 +693,7 @@ public final class TSDB {
     if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
       final PutRequest tracking = new PutRequest(meta_table, tsuid, 
           TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
-      client.put(tracking);
+      tsdb_store.put(tracking);
     } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
       TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
     }
@@ -709,7 +708,7 @@ public final class TSDB {
    * Forces a flush of any un-committed in memory data including left over 
    * compactions.
    * <p>
-   * For instance, any data point not persisted will be sent to HBase.
+   * For instance, any data point not persisted will be sent to the TsdbStore.
    * @return A {@link Deferred} that will be called once all the un-committed
    * data has been successfully and durably stored.  The value of the deferred
    * object return is meaningless and unspecified, and can be {@code null}.
@@ -721,16 +720,16 @@ public final class TSDB {
   public Deferred<Object> flush() throws HBaseException {
     final class HClientFlush implements Callback<Object, ArrayList<Object>> {
       public Object call(final ArrayList<Object> args) {
-        return client.flush();
+        return tsdb_store.flush();
       }
       public String toString() {
-        return "flush HBase client";
+        return "flush TsdbStore";
       }
     }
 
     return config.enable_compactions() && compactionq != null
       ? compactionq.flush().addCallback(new HClientFlush())
-      : client.flush();
+      : tsdb_store.flush();
   }
 
   /**
@@ -751,12 +750,12 @@ public final class TSDB {
     final ArrayList<Deferred<Object>> deferreds = 
       new ArrayList<Deferred<Object>>();
     
-    final class HClientShutdown implements Callback<Object, ArrayList<Object>> {
+    final class StoreShutdown implements Callback<Object, ArrayList<Object>> {
       public Object call(final ArrayList<Object> args) {
-        return client.shutdown();
+        return tsdb_store.shutdown();
       }
       public String toString() {
-        return "shutdown HBase client";
+        return "shutdown TsdbStore";
       }
     }
     
@@ -773,10 +772,10 @@ public final class TSDB {
         } else {
           LOG.error("Failed to shutdown the TSD", e);
         }
-        return client.shutdown();
+        return tsdb_store.shutdown();
       }
       public String toString() {
-        return "shutdown HBase client after error";
+        return "shutdown TsdbStore after error";
       }
     }
     
@@ -809,11 +808,11 @@ public final class TSDB {
       }
     }
     
-    // wait for plugins to shutdown before we close the client
+    // wait for plugins to shutdown before we close the TsdbStore
     return deferreds.size() > 0
-      ? Deferred.group(deferreds).addCallbacks(new HClientShutdown(),
+      ? Deferred.group(deferreds).addCallbacks(new StoreShutdown(),
                                                new ShutdownErrback())
-      : client.shutdown();
+      : tsdb_store.shutdown();
   }
 
   /**
@@ -928,22 +927,22 @@ public final class TSDB {
     }
   }
   
-  /** @return the name of the UID table as a byte array for client requests */
+  /** @return the name of the UID table as a byte array for TsdbStore requests */
   public byte[] uidTable() {
     return this.uidtable;
   }
   
-  /** @return the name of the data table as a byte array for client requests */
+  /** @return the name of the data table as a byte array for TsdbStore requests */
   public byte[] dataTable() {
     return this.table;
   }
   
-  /** @return the name of the tree table as a byte array for client requests */
+  /** @return the name of the tree table as a byte array for TsdbStore requests */
   public byte[] treeTable() {
     return this.treetable;
   }
   
-  /** @return the name of the meta table as a byte array for client requests */
+  /** @return the name of the meta table as a byte array for TsdbStore requests */
   public byte[] metaTable() {
     return this.meta_table;
   }
@@ -1071,7 +1070,7 @@ public final class TSDB {
   /**
    * Schedules the given row key for later re-compaction.
    * Once this row key has become "old enough", we'll read back all the data
-   * points in that row, write them back to HBase in a more compact fashion,
+   * points in that row, write them back to TsdbStore in a more compact fashion,
    * and delete the individual data points.
    * @param row The row key to re-compact later.  Will not be modified.
    * @param base_time The 32-bit unsigned UNIX timestamp.
@@ -1088,19 +1087,19 @@ public final class TSDB {
 
   /** Gets the entire given row from the data table. */
   final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
-    return client.get(new GetRequest(table, key));
+    return tsdb_store.get(new GetRequest(table, key));
   }
 
   /** Puts the given value into the data table. */
   final Deferred<Object> put(final byte[] key,
                              final byte[] qualifier,
                              final byte[] value) {
-    return client.put(new PutRequest(table, key, FAMILY, qualifier, value));
+    return tsdb_store.put(new PutRequest(table, key, FAMILY, qualifier, value));
   }
 
   /** Deletes the given cells from the data table. */
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
-    return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
+    return tsdb_store.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
   }
 
 }

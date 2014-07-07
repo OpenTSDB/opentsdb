@@ -153,7 +153,7 @@ public final class TestTSDB {
   
   @Test
   public void getClient() {
-    assertNotNull(tsdb.getClient());
+    assertNotNull(tsdb.getTsdbStore());
   }
   
   @Test

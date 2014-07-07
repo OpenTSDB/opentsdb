@@ -102,7 +102,7 @@ final class CliUtils {
     get.qualifier("metrics".getBytes(CHARSET));
     ArrayList<KeyValue> row;
     try {
-      row = tsdb.getClient().get(get).joinUninterruptibly();
+      row = tsdb.getTsdbStore().get(get).joinUninterruptibly();
       if (row == null || row.isEmpty()) {
         return 0;
       }
@@ -133,7 +133,7 @@ final class CliUtils {
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
 
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(TSDB.FAMILY());

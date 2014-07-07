@@ -242,7 +242,7 @@ public final class Leaf implements Comparable<Leaf> {
     // execute the CAS call to start the callback chain
     final PutRequest put = new PutRequest(tsdb.treeTable(), branch_id, 
         Tree.TREE_FAMILY(), columnQualifier(), toStorageJson());
-    return tsdb.getClient().compareAndSet(put, new byte[0])
+    return tsdb.getTsdbStore().compareAndSet(put, new byte[0])
       .addCallbackDeferring(new LeafStoreCB(this));
   }
   
@@ -447,7 +447,7 @@ public final class Leaf implements Comparable<Leaf> {
       
     }
     
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   // GETTERS AND SETTERS ----------------------------

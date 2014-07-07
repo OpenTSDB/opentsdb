@@ -69,7 +69,7 @@ import com.stumbleupon.async.Deferred;
  * <b>Warning:</b> To use this class, you need to prepare the classes for testing
  * with the @PrepareForTest annotation. The classes you need to prepare are:
  * <ul><li>TSDB</li>
- * <li>HBaseClient</li>
+ * <li>HBaseStore</li>
  * <li>GetRequest</li>
  * <li>PutRequest</li>
  * <li>KeyValue</li>
@@ -425,7 +425,7 @@ public final class MockBase {
   }
   
   /**
-   * Return the mocked TSDB object to use for HBaseClient access
+   * Return the mocked TSDB object to use for TsdbStore access
    * @return
    */
   public TSDB getTSDB() {
