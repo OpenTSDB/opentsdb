@@ -51,7 +51,6 @@ import net.opentsdb.meta.UIDMeta;
  */
 @SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
 public final class UniqueId implements UniqueIdInterface {
-
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */
@@ -1304,56 +1303,50 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /**
-   * Preload UID caches
-   * @param client The HBase client to use.
-   * @param tsd_uid_table Table where IDs are stored.
-   * @param uid_caches A list of {@link UniqueId} objects.
-   * @param max_results The maximum number of IDs to load.
+   * Pre-load UID caches, scanning up to "tsd.core.preload_uid_cache.max_entries"
+   * rows from the UID table.
+   * @param tsdb The TSDB to use 
+   * @param uid_cache_map A map of {@link UniqueId} objects keyed on the kind.
    * @throws HBaseException Passes any HBaseException from HBase scanner.
    * @throws RuntimeException Wraps any non HBaseException from HBase scanner.
+   * @2.1
    */
-  public static void preload_uid_cache(final HBaseClient client,
-                                       final byte[] tsd_uid_table,
-                                       final List<UniqueId> uid_caches,
-                                       final int max_results)
-                                           throws HBaseException {
-    LOG.info("preload uid cache start. max_results={}", max_results);
+  public static void preloadUidCache(final TSDB tsdb,
+      final ByteMap<UniqueId> uid_cache_map) throws HBaseException {
+    int max_results = tsdb.getConfig().getInt(
+        "tsd.core.preload_uid_cache.max_entries");
+    LOG.info("Preloading uid cache with max_results=" + max_results);
     if (max_results <= 0) {
       return;
     }
     Scanner scanner = null;
     try {
-      final ByteMap<UniqueId> kind_to_uid_cache_map = new ByteMap<UniqueId>();
-      for (UniqueId uid_cache : uid_caches) {
-        kind_to_uid_cache_map.put(uid_cache.kind, uid_cache);
-      }
-      int num_results = 0;
-      scanner = getSuggestScanner(client, tsd_uid_table, "", null, max_results);
-      preloading_loop: {
-        for (ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
-            rows != null;
-            rows = scanner.nextRows().join()) {
-          for (final ArrayList<KeyValue> row : rows) {
-            for (KeyValue kv: row) {
-              final String name = fromBytes(kv.key());
-              final byte[] kind = kv.qualifier();
-              final byte[] id = kv.value();
-              LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
-                  name, fromBytes(kind));
-              UniqueId uid_cache = kind_to_uid_cache_map.get(kind);
-              if (uid_cache != null) {
-                uid_cache.cacheMapping(name, id);
-              }
-              ++num_results;
-              if (num_results >= max_results) {
-                break preloading_loop;  // We have enough to stop scanning.
-              }
+      int num_rows = 0;
+      scanner = getSuggestScanner(tsdb.getClient(), tsdb.uidTable(), "", null, 
+          max_results);
+      for (ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
+          rows != null;
+          rows = scanner.nextRows().join()) {
+        for (final ArrayList<KeyValue> row : rows) {
+          for (KeyValue kv: row) {
+            final String name = fromBytes(kv.key());
+            final byte[] kind = kv.qualifier();
+            final byte[] id = kv.value();
+            LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
+                name, fromBytes(kind));
+            UniqueId uid_cache = uid_cache_map.get(kind);
+            if (uid_cache != null) {
+              uid_cache.cacheMapping(name, id);
             }
-            row.clear();  // free()
+          }
+          num_rows += row.size();
+          row.clear();  // free()
+          if (num_rows >= max_results) {
+            break;
           }
         }
-      }  // preloading_loop
-      for (UniqueId unique_id_table : uid_caches) {
+      }
+      for (UniqueId unique_id_table : uid_cache_map.values()) {
         LOG.info("After preloading, uid cache '{}' has {} ids and {} names.",
                  unique_id_table.kind(),
                  unique_id_table.id_cache.size(),

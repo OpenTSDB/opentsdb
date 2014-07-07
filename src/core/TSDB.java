@@ -18,15 +18,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.ClientStats;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
@@ -142,11 +141,13 @@ public final class TSDB {
       tag_names.setTSDB(this);
       tag_values.setTSDB(this);
     }
+    
     if (config.getBoolean("tsd.core.preload_uid_cache")) {
-      int max_results = config.getInt("tsd.core.preload_uid_cache.max_entries");
-      List<UniqueId> uid_caches = ImmutableList.of(
-          metrics, tag_names, tag_values);
-      UniqueId.preload_uid_cache(client, uidtable, uid_caches, max_results);
+      final ByteMap<UniqueId> uid_cache_map = new ByteMap<UniqueId>();
+      uid_cache_map.put(METRICS_QUAL.getBytes(CHARSET), metrics);
+      uid_cache_map.put(TAG_NAME_QUAL.getBytes(CHARSET), tag_names);
+      uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
+      UniqueId.preloadUidCache(this, uid_cache_map);
     }
     LOG.debug(config.dumpConfiguration());
   }
