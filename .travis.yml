@@ -1,6 +1,6 @@
 language: java
-before_script: ./build.sh pom.xml && mvn dependency:go-offline
-script: mvn test
+before_script: ./build.sh pom.xml
+script: mvn test --quiet
 jdk:
   - oraclejdk7
   - openjdk6
