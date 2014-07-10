@@ -14,10 +14,10 @@ package net.opentsdb.tools;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 
@@ -36,8 +36,6 @@ final class CliUtils {
   static final Method toBytes;
   /** Function used to convert a byte[] to a String. */
   static final Method fromBytes;
-  /** Charset used to convert Strings to byte arrays and back. */
-  static final Charset CHARSET;
   /** The single column family used by this class. */
   static final byte[] ID_FAMILY;
   /** The single column family used by this class. */
@@ -53,9 +51,6 @@ final class CliUtils {
       // "THIS IS INTERNAL DO NOT USE".  If only Java had C++'s "friend" or
       // a less stupid notion of a package.
       Field f;
-      f = uidclass.getDeclaredField("CHARSET");
-      f.setAccessible(true);
-      CHARSET = (Charset) f.get(null);
       f = uidclass.getDeclaredField("ID_FAMILY");
       f.setAccessible(true);
       ID_FAMILY = (byte[]) f.get(null);
@@ -74,17 +69,17 @@ final class CliUtils {
     }
   }
   /** Qualifier for metrics meta data */
-  static final byte[] METRICS_META = "metric_meta".getBytes(CHARSET);
+  static final byte[] METRICS_META = "metric_meta".getBytes(Const.CHARSET_ASCII);
   /** Qualifier for tagk meta data */
-  static final byte[] TAGK_META = "tagk_meta".getBytes(CHARSET);
+  static final byte[] TAGK_META = "tagk_meta".getBytes(Const.CHARSET_ASCII);
   /** Qualifier for tagv meta data */
-  static final byte[] TAGV_META = "tagv_meta".getBytes(CHARSET);
+  static final byte[] TAGV_META = "tagv_meta".getBytes(Const.CHARSET_ASCII);
   /** Qualifier for metrics UIDs */
-  static final byte[] METRICS = "metrics".getBytes(CHARSET);
+  static final byte[] METRICS = "metrics".getBytes(Const.CHARSET_ASCII);
   /** Qualifier for tagk UIDs */
-  static final byte[] TAGK = "tagk".getBytes(CHARSET);
+  static final byte[] TAGK = "tagk".getBytes(Const.CHARSET_ASCII);
   /** Qualifier for tagv UIDs */
-  static final byte[] TAGV = "tagv".getBytes(CHARSET);
+  static final byte[] TAGV = "tagv".getBytes(Const.CHARSET_ASCII);
 
   /**
    * Returns the max metric ID from the UID table
@@ -98,8 +93,8 @@ final class CliUtils {
     // first up, we need the max metric ID so we can split up the data table
     // amongst threads.
     final GetRequest get = new GetRequest(tsdb.uidTable(), new byte[] { 0 });
-    get.family("id".getBytes(CHARSET));
-    get.qualifier("metrics".getBytes(CHARSET));
+    get.family("id".getBytes(Const.CHARSET_ASCII));
+    get.qualifier("metrics".getBytes(Const.CHARSET_ASCII));
     ArrayList<KeyValue> row;
     try {
       row = tsdb.getClient().get(get).joinUninterruptibly();

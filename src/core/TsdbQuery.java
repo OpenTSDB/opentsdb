@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,12 +54,6 @@ final class TsdbQuery implements Query {
    * 100 ms after we which we switch to exponential buckets.
    */
   static final Histogram scanlatency = new Histogram(16000, (short) 2, 100);
-
-  /**
-   * Charset to use with our server-side row-filter.
-   * We use this one because it preserves every possible byte unchanged.
-   */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
 
   /** The TSDB we belong to. */
   private final TSDB tsdb;
@@ -680,7 +673,7 @@ final class TsdbQuery implements Query {
     } while (tag != group_by);  // Stop when they both become null.
     // Skip any number of tags before the end.
     buf.append("(?:.{").append(tagsize).append("})*$");
-    scanner.setKeyRegexp(buf.toString(), CHARSET);
+    scanner.setKeyRegexp(buf.toString(), Const.CHARSET_ASCII);
    }
 
   /**
@@ -731,7 +724,7 @@ final class TsdbQuery implements Query {
     // Replace the pipe of the last iteration, close and set
     buf.setCharAt(buf.length() - 1, ')');
     buf.append("$");
-    scanner.setKeyRegexp(buf.toString(), CHARSET);
+    scanner.setKeyRegexp(buf.toString(), Const.CHARSET_ASCII);
   }
   
   /**

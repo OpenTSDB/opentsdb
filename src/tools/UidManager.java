@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.opentsdb.core.Const;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -285,7 +286,7 @@ final class UidManager {
     if (ignorecase) {
       regexp = "(?i)" + regexp;
     }
-    scanner.setKeyRegexp(regexp, CliUtils.CHARSET);
+    scanner.setKeyRegexp(regexp, Const.CHARSET_ASCII);
     boolean found = false;
     try {
       ArrayList<ArrayList<KeyValue>> rows;

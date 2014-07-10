@@ -32,6 +32,7 @@ import java.util.regex.PatternSyntaxException;
 
 import javax.xml.bind.DatatypeConverter;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
@@ -80,7 +81,6 @@ import com.stumbleupon.async.Deferred;
  */
 @Ignore
 public final class MockBase {
-  private static final Charset ASCII = Charset.forName("ISO-8859-1");
   private TSDB tsdb;
   
   //      KEY           Column Family Qualifier     Timestamp     Value
@@ -113,7 +113,7 @@ public final class MockBase {
       final boolean default_scan) {
     this.tsdb = tsdb;
     
-    default_family = "t".getBytes(ASCII);  // set a default
+    default_family = "t".getBytes(Const.CHARSET_ASCII);  // set a default
     
     // replace the "real" field objects with mocks
     Field cl;
@@ -498,23 +498,23 @@ public final class MockBase {
     
     for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> row : 
       storage.entrySet()) {
-      System.out.println("[Row] " + (ascii ? new String(row.getKey(), ASCII) : 
+      System.out.println("[Row] " + (ascii ? new String(row.getKey(), Const.CHARSET_ASCII) :
           bytesToString(row.getKey())));
       
       for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf : 
         row.getValue().entrySet()) {
         
-        final String family = ascii ? new String(cf.getKey(), ASCII) :
+        final String family = ascii ? new String(cf.getKey(), Const.CHARSET_ASCII) :
           bytesToString(cf.getKey());
         System.out.println("  [CF] " + family);
         
         for (Map.Entry<byte[], TreeMap<Long, byte[]>> column : cf.getValue().entrySet()) {
           System.out.println("    [Qual] " + (ascii ?
-              "\"" + new String(column.getKey(), ASCII) + "\""
+              "\"" + new String(column.getKey(), Const.CHARSET_ASCII) + "\""
               : bytesToString(column.getKey())));
           for (Map.Entry<Long, byte[]> cell : column.getValue().entrySet()) {
             System.out.println("      [TS] " + cell.getKey() + "  [Value] " + 
-                (ascii ?  new String(cell.getValue(), ASCII) 
+                (ascii ?  new String(cell.getValue(), Const.CHARSET_ASCII)
                 : bytesToString(cell.getValue())));
           }
         }
@@ -546,7 +546,7 @@ public final class MockBase {
   
   /** @return Returns the ASCII character set */
   public static Charset ASCII() {
-    return ASCII;
+    return Const.CHARSET_ASCII;
   }
   
   /**
@@ -993,7 +993,7 @@ public final class MockBase {
           continue;
         }
         if (pattern != null) {
-          final String from_bytes = new String(row.getKey(), MockBase.ASCII);
+          final String from_bytes = new String(row.getKey(), Const.CHARSET_ASCII);
           if (!pattern.matcher(from_bytes).find()) {
             continue;
           }

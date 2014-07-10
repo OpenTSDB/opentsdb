@@ -14,7 +14,6 @@ package net.opentsdb.tree;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -22,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
@@ -71,25 +71,23 @@ import com.stumbleupon.async.Deferred;
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class Tree {
   private static final Logger LOG = LoggerFactory.getLogger(Tree.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+
   /** Width of tree IDs in bytes */
   private static final short TREE_ID_WIDTH = 2;
   /** Name of the CF where trees and branches are stored */
-  private static final byte[] TREE_FAMILY = "t".getBytes(CHARSET);
+  private static final byte[] TREE_FAMILY = "t".getBytes(Const.CHARSET_ASCII);
   /** The tree qualifier */
-  private static final byte[] TREE_QUALIFIER = "tree".getBytes(CHARSET);
+  private static final byte[] TREE_QUALIFIER = "tree".getBytes(Const.CHARSET_ASCII);
   /** Integer width in bytes */
   private static final short INT_WIDTH = 4;
   /** Byte suffix for collision rows, appended after the tree ID */
   private static byte COLLISION_ROW_SUFFIX = 0x01;
   /** Byte prefix for collision columns */
-  private static byte[] COLLISION_PREFIX = "tree_collision:".getBytes(CHARSET);
+  private static byte[] COLLISION_PREFIX = "tree_collision:".getBytes(Const.CHARSET_ASCII);
   /** Byte suffix for not matched rows, appended after the tree ID */
   private static byte NOT_MATCHED_ROW_SUFFIX = 0x02;
   /** Byte prefix for not matched columns */
-  private static byte[] NOT_MATCHED_PREFIX = "tree_not_matched:".getBytes(CHARSET);
+  private static byte[] NOT_MATCHED_PREFIX = "tree_not_matched:".getBytes(Const.CHARSET_ASCII);
 
   /** The numeric ID of this tree object */
   private int tree_id;
@@ -687,7 +685,7 @@ public final class Tree {
             final byte[] parsed_tsuid = Arrays.copyOfRange(column.qualifier(), 
                 COLLISION_PREFIX.length, column.qualifier().length);
             collisions.put(UniqueId.uidToString(parsed_tsuid), 
-                new String(column.value(), CHARSET));
+                new String(column.value(), Const.CHARSET_ASCII));
           }
         }
         
@@ -767,7 +765,7 @@ public final class Tree {
           final byte[] parsed_tsuid = Arrays.copyOfRange(column.qualifier(), 
               NOT_MATCHED_PREFIX.length, column.qualifier().length);
           not_matched.put(UniqueId.uidToString(parsed_tsuid), 
-              new String(column.value(), CHARSET));
+              new String(column.value(), Const.CHARSET_ASCII));
         }
         
         return Deferred.fromResult(not_matched);
@@ -1057,7 +1055,7 @@ public final class Tree {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
         + "^\\Q");
     buf.append("\\E(?:.{").append(TREE_ID_WIDTH).append("})$");
-    scanner.setKeyRegexp(buf.toString(), CHARSET);
+    scanner.setKeyRegexp(buf.toString(), Const.CHARSET_ASCII);
     return scanner;
   }
 
@@ -1094,7 +1092,7 @@ public final class Tree {
       System.arraycopy(tsuid, 0, qualifiers[index], 
           COLLISION_PREFIX.length, tsuid.length);
 
-      values[index] = entry.getValue().getBytes(CHARSET);
+      values[index] = entry.getValue().getBytes(Const.CHARSET_ASCII);
       index++;
     }
 
@@ -1152,7 +1150,7 @@ public final class Tree {
       System.arraycopy(tsuid, 0, qualifiers[index], 
           NOT_MATCHED_PREFIX.length, tsuid.length);
       
-      values[index] = entry.getValue().getBytes(CHARSET);
+      values[index] = entry.getValue().getBytes(Const.CHARSET_ASCII);
       index++;
     }
     

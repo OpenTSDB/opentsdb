@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -857,6 +856,6 @@ public final class Internal {
     // Replace the pipe of the last iteration, close and set
     buf.setCharAt(buf.length() - 1, ')');
     buf.append("$");
-    scanner.setKeyRegexp(buf.toString(), Charset.forName("ISO-8859-1"));
+    scanner.setKeyRegexp(buf.toString(), Const.CHARSET_ASCII);
   }
 }

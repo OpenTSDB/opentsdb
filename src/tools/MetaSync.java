@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -537,7 +536,7 @@ final class MetaSync extends Thread {
     final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
-    scanner.setFamily("t".getBytes(Charset.forName("ISO-8859-1")));
+    scanner.setFamily("t".getBytes(Const.CHARSET_ASCII));
     return scanner;
   }
 

@@ -14,7 +14,6 @@ package net.opentsdb.meta;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,15 +73,12 @@ import com.stumbleupon.async.Deferred;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class Annotation implements Comparable<Annotation> {
   private static final Logger LOG = LoggerFactory.getLogger(Annotation.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  
+
   /** Byte used for the qualifier prefix to indicate this is an annotation */
   private static final byte PREFIX = 0x01;
     
   /** The single column family used by this class. */
-  private static final byte[] FAMILY = "t".getBytes(CHARSET);
+  private static final byte[] FAMILY = "t".getBytes(Const.CHARSET_ASCII);
   
   /** If the note is associated with a timeseries, represents the ID */
   private String tsuid = "";

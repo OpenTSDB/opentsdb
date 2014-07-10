@@ -12,8 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import java.nio.charset.Charset;
-
+import net.opentsdb.core.Const;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -26,8 +25,6 @@ import net.opentsdb.core.Tags;
  */
 final class WordSplitter extends OneToOneDecoder {
 
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-
   /** Constructor. */
   public WordSplitter() {
   }
@@ -36,7 +33,7 @@ final class WordSplitter extends OneToOneDecoder {
   protected Object decode(final ChannelHandlerContext ctx,
                           final Channel channel,
                           final Object msg) throws Exception {
-    return Tags.splitString(((ChannelBuffer) msg).toString(CHARSET), ' ');
+    return Tags.splitString(((ChannelBuffer) msg).toString(Const.CHARSET_ASCII), ' ');
   }
 
 }

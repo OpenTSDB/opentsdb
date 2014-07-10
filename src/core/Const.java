@@ -12,6 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import com.google.common.base.Charsets;
+
+import java.nio.charset.Charset;
+
 /** Constants used in various places.  */
 public final class Const {
 
@@ -74,4 +78,7 @@ public final class Const {
    * before losing precision.
    */
   public static final long MAX_INT_IN_DOUBLE = 0xFFE0000000000000L;
+
+  /** Charset used to convert Strings to byte arrays and back. */
+  public static final Charset CHARSET_ASCII = Charsets.ISO_8859_1;
 }

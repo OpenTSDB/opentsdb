@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -62,8 +61,6 @@ public final class TSDB {
   
   static final byte[] FAMILY = { 't' };
 
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   private static final String METRICS_QUAL = "metrics";
   private static final short METRICS_WIDTH = 3;
   private static final String TAG_NAME_QUAL = "tagk";
@@ -121,10 +118,10 @@ public final class TSDB {
     this.client = client;
 
     this.client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
-    table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
-    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
-    treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
-    meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
+    table = config.getString("tsd.storage.hbase.data_table").getBytes(Const.CHARSET_ASCII);
+    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(Const.CHARSET_ASCII);
+    treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(Const.CHARSET_ASCII);
+    meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(Const.CHARSET_ASCII);
 
     metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
@@ -144,9 +141,9 @@ public final class TSDB {
     
     if (config.getBoolean("tsd.core.preload_uid_cache")) {
       final ByteMap<UniqueId> uid_cache_map = new ByteMap<UniqueId>();
-      uid_cache_map.put(METRICS_QUAL.getBytes(CHARSET), metrics);
-      uid_cache_map.put(TAG_NAME_QUAL.getBytes(CHARSET), tag_names);
-      uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
+      uid_cache_map.put(METRICS_QUAL.getBytes(Const.CHARSET_ASCII), metrics);
+      uid_cache_map.put(TAG_NAME_QUAL.getBytes(Const.CHARSET_ASCII), tag_names);
+      uid_cache_map.put(TAG_VALUE_QUAL.getBytes(Const.CHARSET_ASCII), tag_values);
       UniqueId.preloadUidCache(this, uid_cache_map);
     }
     LOG.debug(config.dumpConfiguration());
@@ -378,9 +375,9 @@ public final class TSDB {
    */
   public void collectStats(final StatsCollector collector) {
     final byte[][] kinds = { 
-        METRICS_QUAL.getBytes(CHARSET), 
-        TAG_NAME_QUAL.getBytes(CHARSET), 
-        TAG_VALUE_QUAL.getBytes(CHARSET) 
+        METRICS_QUAL.getBytes(Const.CHARSET_ASCII),
+        TAG_NAME_QUAL.getBytes(Const.CHARSET_ASCII),
+        TAG_VALUE_QUAL.getBytes(Const.CHARSET_ASCII)
       };
     try {
       final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)

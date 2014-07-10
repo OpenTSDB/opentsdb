@@ -12,12 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
@@ -65,10 +65,8 @@ public final class TreeRule {
   }
   
   private static final Logger LOG = LoggerFactory.getLogger(TreeRule.class);
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** ASCII Rule prefix. Qualifier is tree_rule:<level>:<order> */
-  private static final byte[] RULE_PREFIX = "tree_rule:".getBytes(CHARSET);
+  private static final byte[] RULE_PREFIX = "tree_rule:".getBytes(Const.CHARSET_ASCII);
   
   /** Type of rule */
   @JsonDeserialize(using = JSON.TreeRuleTypeDeserializer.class)
@@ -505,7 +503,7 @@ public final class TreeRule {
    * @return A byte array with the column qualifier
    */
   public static byte[] getQualifier(final int level, final int order) {
-    final byte[] suffix = (level + ":" + order).getBytes(CHARSET);
+    final byte[] suffix = (level + ":" + order).getBytes(Const.CHARSET_ASCII);
     final byte[] qualifier = new byte[RULE_PREFIX.length + suffix.length];
     System.arraycopy(RULE_PREFIX, 0, qualifier, 0, RULE_PREFIX.length);
     System.arraycopy(suffix, 0, qualifier, RULE_PREFIX.length, suffix.length);

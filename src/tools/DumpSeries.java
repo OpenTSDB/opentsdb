@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -268,7 +267,7 @@ final class DumpSeries {
     .append("\t")
     .append(Internal.getOffsetFromQualifier(kv.qualifier(), 1) / 1000)
     .append("\t")
-    .append(new String(kv.value(), Charset.forName("ISO-8859-1")))
+    .append(new String(kv.value(), Const.CHARSET_ASCII))
     .append("\t")
     .append(timestamp)
     .append("\t")
