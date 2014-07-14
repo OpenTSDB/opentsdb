@@ -20,6 +20,8 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.Config;
 import org.hbase.async.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -33,7 +35,8 @@ public final class HBaseStore implements TsdbStore {
    * Charset used to convert Strings to byte arrays and back.
    */
   private static final Charset CHARSET = Charsets.ISO_8859_1;
-  public static final int MS_IN_A_SEC = 1000;
+  private static final int MS_IN_A_SEC = 1000;
+  private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
 
   private final org.hbase.async.HBaseClient client;
 
@@ -150,7 +153,19 @@ public final class HBaseStore implements TsdbStore {
 
   @Override
   public Deferred<Object> shutdown() {
-    return this.client.shutdown();
+    if (enable_compactions) {
+      LOG.info("Flushing compaction queue");
+
+      return compactionq.flush().addCallback(new Callback<Object,
+              ArrayList<Object>>() {
+        @Override
+        public Object call(ArrayList<Object> arg) throws Exception {
+          return client.shutdown();
+        }
+      });
+    }
+
+    return client.shutdown();
   }
 
   @Override

@@ -731,17 +731,7 @@ public final class TSDB {
         return "shutdown TsdbStore after error";
       }
     }
-    
-    final class CompactCB implements Callback<Object, ArrayList<Object>> {
-      public Object call(ArrayList<Object> compactions) throws Exception {
-        return null;
-      }
-    }
-    
-    if (config.enable_compactions()) {
-      LOG.info("Flushing compaction queue");
-      deferreds.add(compactionq.flush().addCallback(new CompactCB()));
-    }
+
     if (search != null) {
       LOG.info("Shutting down search plugin: " + 
           search.getClass().getCanonicalName());
