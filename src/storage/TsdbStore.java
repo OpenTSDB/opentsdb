@@ -40,7 +40,7 @@ public interface TsdbStore {
      * You probably want to attach at least an errback to this Deferred to
      * handle failures.
      */
-    public Deferred<Object> ensureTableExists(final String table);
+    public Deferred<ArrayList<Object>> checkNecessaryTablesExist();
 
     public Deferred<Object> flush();
 
