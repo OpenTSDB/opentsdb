@@ -10,13 +10,17 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import java.util.Arrays;
+
+import net.opentsdb.core.ByteBufferList;
+import net.opentsdb.core.Internal;
 import org.hbase.async.KeyValue;
 
 /**
-* Internal implementation detail for {@link net.opentsdb.core.CompactionQueue}.  This
+* Internal implementation detail for {@link net.opentsdb.storage
+ * .CompactionQueue}.  This
 * allows iterating over the datapoints in a column without creating objects for each
 * datapoint.
 * 

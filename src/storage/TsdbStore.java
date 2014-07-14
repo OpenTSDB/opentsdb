@@ -18,12 +18,17 @@ import org.hbase.async.HBaseClient;
 
 
 import java.util.ArrayList;
+import java.util.Map;
 
 /**
  * A interface defining the functions any database used with TSDB must implement.
  * Another requirement is tha the database connection has to be asynchronous.
  */
 public interface TsdbStore {
+  public Deferred<Object> addPoint(final byte[] row,
+                                   final long timestamp,
+                                   final byte[] value,
+                                   final short flags);
 
     public Deferred<Long> atomicIncrement(AtomicIncrementRequest air);
 

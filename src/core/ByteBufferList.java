@@ -20,7 +20,7 @@ import java.util.Arrays;
 * 
 * @since 2.1
 */
-final class ByteBufferList {
+public final class ByteBufferList {
 
   private static class BufferSegment {
     public final byte[] buf;

@@ -94,14 +94,6 @@ public final class TSDB {
   /** Configuration object for all TSDB components */
   final Config config;
 
-  /**
-   * Row keys that need to be compacted.
-   * Whenever we write a new data point to a row, we add the row key to this
-   * set.  Every once in a while, the compaction thread will go through old
-   * row keys and will read re-compact them.
-   */
-  private final CompactionQueue compactionq;
-
   /** Search indexer to use if configure */
   private SearchPlugin search = null;
   
@@ -129,7 +121,6 @@ public final class TSDB {
     metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
-    compactionq = new CompactionQueue(this);
 
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
@@ -645,26 +636,14 @@ public final class TSDB {
     }
 
     IncomingDataPoints.checkMetricAndTags(metric, tags);
+
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
-    final long base_time;
-    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
-    
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((timestamp / 1000) - 
-          ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-    }
-    
-    Bytes.setInt(row, (int) base_time, metrics.width());
-    scheduleForCompaction(row, (int) base_time);
-    final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
     
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
-    Deferred<Object> result = tsdb_store.put(point);
-    if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
+    Deferred<Object> result = tsdb_store.addPoint(row, timestamp, value, flags);
+
+    if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() &&
         !config.enable_tsuid_tracking() && rt_publisher == null) {
       return result;
     }
@@ -1042,40 +1021,19 @@ public final class TSDB {
       return null;
     }
   }
-  
-  // ------------------ //
-  // Compaction helpers //
-  // ------------------ //
-
-  final KeyValue compact(final ArrayList<KeyValue> row, 
-      List<Annotation> annotations) {
-    return compactionq.compact(row, annotations);
-  }
-
-  /**
-   * Schedules the given row key for later re-compaction.
-   * Once this row key has become "old enough", we'll read back all the data
-   * points in that row, write them back to TsdbStore in a more compact fashion,
-   * and delete the individual data points.
-   * @param row The row key to re-compact later.  Will not be modified.
-   * @param base_time The 32-bit unsigned UNIX timestamp.
-   */
-  final void scheduleForCompaction(final byte[] row, final int base_time) {
-    if (config.enable_compactions()) {
-      compactionq.add(row);
-    }
-  }
 
   // ------------------------ //
   // HBase operations helpers //
   // ------------------------ //
 
   /** Gets the entire given row from the data table. */
+  @Deprecated
   final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
     return tsdb_store.get(new GetRequest(table, key));
   }
 
   /** Puts the given value into the data table. */
+  @Deprecated
   final Deferred<Object> put(final byte[] key,
                              final byte[] qualifier,
                              final byte[] value) {
@@ -1083,8 +1041,8 @@ public final class TSDB {
   }
 
   /** Deletes the given cells from the data table. */
+  @Deprecated
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
     return tsdb_store.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
   }
-
 }
