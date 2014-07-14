@@ -13,6 +13,7 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
@@ -117,8 +118,19 @@ public final class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> flush() {
-    return this.client.flush();
+  public Deferred<Object> flush() throws HBaseException {
+    final class HClientFlush implements Callback<Object, ArrayList<Object>> {
+      public Object call(final ArrayList<Object> args) {
+        return client.flush();
+      }
+      public String toString() {
+        return "flush TsdbStore";
+      }
+    }
+
+    return enable_compactions && compactionq != null
+            ? compactionq.flush().addCallback(new HClientFlush())
+            : client.flush();
   }
 
   @Override
