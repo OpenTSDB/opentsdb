@@ -28,7 +28,9 @@ import java.util.List;
  * The HBaseStore that implements the client interface required by TSDB.
  */
 public final class HBaseStore implements TsdbStore {
-  /** Charset used to convert Strings to byte arrays and back. */
+  /**
+   * Charset used to convert Strings to byte arrays and back.
+   */
   private static final Charset CHARSET = Charsets.ISO_8859_1;
   public static final int MS_IN_A_SEC = 1000;
 
@@ -47,7 +49,7 @@ public final class HBaseStore implements TsdbStore {
   private final byte[] tree_table_name;
   private final byte[] meta_table_name;
 
-  static final byte[] FAMILY = { 't' };
+  static final byte[] FAMILY = {'t'};
 
   public static final short METRICS_WIDTH = 3;
 
@@ -61,125 +63,103 @@ public final class HBaseStore implements TsdbStore {
 
 
   public HBaseStore(final Config config) {
-        super();
-        this.client = new org.hbase.async.HBaseClient(
-                config.getString("tsd.storage.hbase.zk_quorum"),
-                config.getString("tsd.storage.hbase.zk_basedir"));
+    super();
+    this.client = new org.hbase.async.HBaseClient(
+            config.getString("tsd.storage.hbase.zk_quorum"),
+            config.getString("tsd.storage.hbase.zk_basedir"));
 
-      enable_tree_processing = config.enable_tree_processing();
-      enable_realtime_ts = config.enable_realtime_ts();
-      enable_realtime_uid = config.enable_realtime_uid();
-      enable_tsuid_incrementing = config.enable_tsuid_incrementing();
-      enable_compactions = config.enable_compactions();
-      fix_duplicates = config.fix_duplicates();
+    enable_tree_processing = config.enable_tree_processing();
+    enable_realtime_ts = config.enable_realtime_ts();
+    enable_realtime_uid = config.enable_realtime_uid();
+    enable_tsuid_incrementing = config.enable_tsuid_incrementing();
+    enable_compactions = config.enable_compactions();
+    fix_duplicates = config.fix_duplicates();
 
-      data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
-      uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
-      tree_table_name = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
-      meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
+    data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
+    uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
+    tree_table_name = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
+    meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
 
-      compactionq = new CompactionQueue(this);
+    compactionq = new CompactionQueue(this);
+  }
+
+  @Override
+  public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
+    return this.client.bufferAtomicIncrement(request);
+  }
+
+  @Override
+  public Deferred<Boolean> compareAndSet(PutRequest edit, byte[] expected) {
+    return this.client.compareAndSet(edit, expected);
+  }
+
+  @Override
+  public Deferred<Object> delete(DeleteRequest request) {
+    return this.client.delete(request);
+  }
+
+  @Override
+  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
+    final ArrayList<Deferred<Object>> checks = new ArrayList<Deferred<Object>>(4);
+    checks.add(client.ensureTableExists(data_table_name));
+    checks.add(client.ensureTableExists(uid_table_name));
+
+    if (enable_tree_processing) {
+      checks.add(client.ensureTableExists(tree_table_name));
+    }
+    if (enable_realtime_ts || enable_realtime_uid ||
+            enable_tsuid_incrementing) {
+      checks.add(client.ensureTableExists(meta_table_name));
     }
 
-    @Override
-    public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
-        return this.client.bufferAtomicIncrement(request);
-    }
+    return Deferred.group(checks);
+  }
 
-    @Override
-    public Deferred<Boolean> compareAndSet(PutRequest edit, byte[] expected) {
-        return this.client.compareAndSet(edit ,expected);
-    }
+  @Override
+  public Deferred<Object> flush() {
+    return this.client.flush();
+  }
 
-    @Override
-    public Deferred<Object> delete(DeleteRequest request) {
-        return this.client.delete(request);
-    }
+  @Override
+  public Deferred<ArrayList<KeyValue>> get(GetRequest request) {
+    return this.client.get(request);
+  }
 
-    @Override
-    public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-      final ArrayList<Deferred<Object>> checks = new ArrayList<Deferred<Object>>(4);
-      checks.add(client.ensureTableExists(data_table_name));
-      checks.add(client.ensureTableExists(uid_table_name));
+  @Override
+  public Scanner newScanner(byte[] table) {
+    return this.client.newScanner(table);
+  }
 
-      if (enable_tree_processing) {
-        checks.add(client.ensureTableExists(tree_table_name));
-      }
-      if (enable_realtime_ts || enable_realtime_uid ||
-              enable_tsuid_incrementing) {
-        checks.add(client.ensureTableExists(meta_table_name));
-      }
+  @Override
+  public Deferred<Object> put(PutRequest request) {
+    return this.client.put(request);
+  }
 
-      return Deferred.group(checks);
-    }
+  @Override
+  public Deferred<Object> shutdown() {
+    return this.client.shutdown();
+  }
 
-    @Override
-    public Deferred<Object> flush() {
-        return this.client.flush();
-    }
+  @Override
+  public ClientStats stats() {
+    return this.client.stats();
+  }
 
-    @Override
-    public Deferred<ArrayList<KeyValue>> get(GetRequest request) {
-        return this.client.get(request);
-    }
+  @Override
+  public void setFlushInterval(short aShort) {
+    this.client.setFlushInterval(aShort);
+  }
 
-    @Override
-    public Scanner newScanner(byte[] table) {
-        return this.client.newScanner(table);
-    }
+  @Override
+  public long getFlushInterval() {
+    return this.client.getFlushInterval();
+  }
 
-    @Override
-    public Deferred<Object> put(PutRequest request) {
-        return this.client.put(request);
-    }
-
-    @Override
-    public Deferred<Object> shutdown() {
-        return this.client.shutdown();
-    }
-
-    @Override
-    public ClientStats stats() {
-        return this.client.stats();
-    }
-
-    @Override
-    public void setFlushInterval(short aShort) {
-        this.client.setFlushInterval(aShort);
-    }
-
-    @Override
-    public long getFlushInterval() {
-        return this.client.getFlushInterval();
-    }
-
-    @Override
-    public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
-        return this.client.atomicIncrement(air);
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  @Override
+  public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
+    return this.client.atomicIncrement(air);
+  }
 
 
   @Override
@@ -220,7 +200,8 @@ public final class HBaseStore implements TsdbStore {
    * Once this row key has become "old enough", we'll read back all the data
    * points in that row, write them back to TsdbStore in a more compact fashion,
    * and delete the individual data points.
-   * @param row The row key to re-compact later.  Will not be modified.
+   *
+   * @param row       The row key to re-compact later.  Will not be modified.
    * @param base_time The 32-bit unsigned UNIX timestamp.
    */
   final void scheduleForCompaction(final byte[] row, final int base_time) {
@@ -230,13 +211,17 @@ public final class HBaseStore implements TsdbStore {
   }
 
 
-  /** Gets the entire given row from the data table. */
+  /**
+   * Gets the entire given row from the data table.
+   */
   @Deprecated
   final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
     return this.get(new GetRequest(data_table_name, key));
   }
 
-  /** Puts the given value into the data table. */
+  /**
+   * Puts the given value into the data table.
+   */
   @Deprecated
   final Deferred<Object> put(final byte[] key,
                              final byte[] qualifier,
@@ -245,7 +230,9 @@ public final class HBaseStore implements TsdbStore {
             value));
   }
 
-  /** Deletes the given cells from the data table. */
+  /**
+   * Deletes the given cells from the data table.
+   */
   @Deprecated
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
     return this.delete(new DeleteRequest(data_table_name, key, FAMILY,
