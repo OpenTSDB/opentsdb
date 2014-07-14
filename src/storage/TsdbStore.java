@@ -13,6 +13,7 @@
 package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.stats.StatsCollector;
 import org.hbase.async.*;
 import org.hbase.async.HBaseClient;
 
@@ -62,5 +63,5 @@ public interface TsdbStore {
 
   public Deferred<Object> shutdown();
 
-  public ClientStats stats();
+  void collectStats(StatsCollector collector);
 }

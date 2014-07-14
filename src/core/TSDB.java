@@ -349,39 +349,40 @@ public final class TSDB {
 
   /**
    * Collects the stats and metrics tracked by this instance.
+   *
    * @param collector The collector to use.
    */
   public void collectStats(final StatsCollector collector) {
-    final byte[][] kinds = { 
-        METRICS_QUAL.getBytes(CHARSET), 
-        TAG_NAME_QUAL.getBytes(CHARSET), 
-        TAG_VALUE_QUAL.getBytes(CHARSET) 
-      };
+    final byte[][] kinds = {
+            METRICS_QUAL.getBytes(CHARSET),
+            TAG_NAME_QUAL.getBytes(CHARSET),
+            TAG_VALUE_QUAL.getBytes(CHARSET)
+    };
     try {
       final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)
-        .joinUninterruptibly();
-      
+              .joinUninterruptibly();
+
       collectUidStats(metrics, collector);
-      collector.record("uid.ids-used", used_uids.get(METRICS_QUAL), 
-          "kind=" + METRICS_QUAL);
-      collector.record("uid.ids-available", 
-          (metrics.maxPossibleId() - used_uids.get(METRICS_QUAL)), 
-          "kind=" + METRICS_QUAL);
-      
+      collector.record("uid.ids-used", used_uids.get(METRICS_QUAL),
+              "kind=" + METRICS_QUAL);
+      collector.record("uid.ids-available",
+              (metrics.maxPossibleId() - used_uids.get(METRICS_QUAL)),
+              "kind=" + METRICS_QUAL);
+
       collectUidStats(tag_names, collector);
-      collector.record("uid.ids-used", used_uids.get(TAG_NAME_QUAL), 
-          "kind=" + TAG_NAME_QUAL);
-      collector.record("uid.ids-available", 
-          (tag_names.maxPossibleId() - used_uids.get(TAG_NAME_QUAL)), 
-          "kind=" + TAG_NAME_QUAL);
-      
+      collector.record("uid.ids-used", used_uids.get(TAG_NAME_QUAL),
+              "kind=" + TAG_NAME_QUAL);
+      collector.record("uid.ids-available",
+              (tag_names.maxPossibleId() - used_uids.get(TAG_NAME_QUAL)),
+              "kind=" + TAG_NAME_QUAL);
+
       collectUidStats(tag_values, collector);
-      collector.record("uid.ids-used", used_uids.get(TAG_VALUE_QUAL), 
-          "kind=" + TAG_VALUE_QUAL);
-      collector.record("uid.ids-available", 
-          (tag_values.maxPossibleId() - used_uids.get(TAG_VALUE_QUAL)), 
-          "kind=" + TAG_VALUE_QUAL);
-      
+      collector.record("uid.ids-used", used_uids.get(TAG_VALUE_QUAL),
+              "kind=" + TAG_VALUE_QUAL);
+      collector.record("uid.ids-available",
+              (tag_values.maxPossibleId() - used_uids.get(TAG_VALUE_QUAL)),
+              "kind=" + TAG_VALUE_QUAL);
+
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
     }
@@ -405,55 +406,38 @@ public final class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
-    final ClientStats stats = tsdb_store.stats();
-    collector.record("hbase.root_lookups", stats.rootLookups());
-    collector.record("hbase.meta_lookups",
-                     stats.uncontendedMetaLookups(), "type=uncontended");
-    collector.record("hbase.meta_lookups",
-                     stats.contendedMetaLookups(), "type=contended");
-    collector.record("hbase.rpcs",
-                     stats.atomicIncrements(), "type=increment");
-    collector.record("hbase.rpcs", stats.deletes(), "type=delete");
-    collector.record("hbase.rpcs", stats.gets(), "type=get");
-    collector.record("hbase.rpcs", stats.puts(), "type=put");
-    collector.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
-    collector.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
-    collector.record("hbase.rpcs", stats.scans(), "type=scan");
-    collector.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
-    collector.record("hbase.flushes", stats.flushes());
-    collector.record("hbase.connections.created", stats.connectionsCreated());
-    collector.record("hbase.nsre", stats.noSuchRegionExceptions());
-    collector.record("hbase.nsre.rpcs_delayed",
-                     stats.numRpcDelayedDueToNSRE());
 
-    compactionq.collectStats(collector);
+    tsdb_store.collectStats(collector);
+
     // Collect Stats from Plugins
     if (rt_publisher != null) {
       try {
-	collector.addExtraTag("plugin", "publish");
+        collector.addExtraTag("plugin", "publish");
         rt_publisher.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
-      }                        
+        collector.clearExtraTag("plugin");
+      }
     }
+
     if (search != null) {
       try {
-	collector.addExtraTag("plugin", "search");
-	search.collectStats(collector);
+        collector.addExtraTag("plugin", "search");
+        search.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
-      }                        
+        collector.clearExtraTag("plugin");
+      }
     }
+
     if (rpc_plugins != null) {
       try {
-	collector.addExtraTag("plugin", "rpc");
-	for(RpcPlugin rpc: rpc_plugins) {
-		rpc.collectStats(collector);
-	}                                
+        collector.addExtraTag("plugin", "rpc");
+        for (RpcPlugin rpc : rpc_plugins) {
+          rpc.collectStats(collector);
+        }
       } finally {
-	collector.clearExtraTag("plugin");
-      }                        
-    }        
+        collector.clearExtraTag("plugin");
+      }
+    }
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
