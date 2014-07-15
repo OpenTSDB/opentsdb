@@ -660,8 +660,8 @@ public final class TSDB {
           + " to metric=" + metric + ", tags=" + tags);
     }
 
-    IncomingDataPoints.checkMetricAndTags(metric, tags);
-    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    TSUID.checkMetricAndTags(metric, tags);
+    final byte[] row = TSUID.rowKeyTemplate(this, metric, tags);
     final long base_time;
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
     
