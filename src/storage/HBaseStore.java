@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
+import com.google.common.base.Charsets;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.utils.Config;
 import org.hbase.async.AtomicIncrementRequest;
@@ -22,20 +23,33 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.hbase.async.ClientStats;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 
 /**
  * The HBaseStore that implements the client interface required by TSDB.
  */
 public final class HBaseStore implements TsdbStore {
+  /** Charset used to convert Strings to byte arrays and back. */
+  private static final Charset CHARSET = Charsets.ISO_8859_1;
 
   final org.hbase.async.HBaseClient client;
+
+  private final byte[] data_table_name;
+  private final byte[] uid_table_name;
+  private final byte[] tree_table_name;
+  private final byte[] meta_table_name;
 
   public HBaseStore(final Config config) {
     super();
     this.client = new org.hbase.async.HBaseClient(
             config.getString("tsd.storage.hbase.zk_quorum"),
             config.getString("tsd.storage.hbase.zk_basedir"));
+
+    data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
+    uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
+    tree_table_name = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
+    meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
   }
 
   @Override
