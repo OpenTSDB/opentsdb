@@ -33,7 +33,6 @@ import net.opentsdb.utils.JSON;
 
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.RowLock;
@@ -53,7 +52,7 @@ import com.stumbleupon.async.Deferred;
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Branch.class, RowLock.class, PutRequest.class, 
-  HBaseClient.class, Scanner.class, GetRequest.class, KeyValue.class, 
+  Scanner.class, GetRequest.class, KeyValue.class,
   DeleteRequest.class, Tree.class})
 public final class TestTreeBuilder {
   private MockBase storage;

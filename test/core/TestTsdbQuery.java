@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -34,13 +35,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
-import org.apache.zookeeper.proto.DeleteRequest;
-import org.hbase.async.Bytes;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
-import org.hbase.async.Scanner;
+import org.hbase.async.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -67,14 +62,15 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
   Scanner.class, TsdbQuery.class, DeleteRequest.class, Annotation.class, 
-  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class })
+  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class,
+  TsdbTestStore.class})
 public final class TestTsdbQuery {
   private Config config;
-  private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TSDB tsdb;
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -83,11 +79,9 @@ public final class TestTsdbQuery {
 
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-    .withArguments(anyString(), anyString()).thenReturn(client); 
     config = new Config(false);
     config.setFixDuplicates(true);  // TODO(jat): test both ways
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(tsdb_store, config);
     query = new TsdbQuery(tsdb);
 
     // replace the "real" field objects with mocks
@@ -2593,7 +2587,7 @@ public final class TestTsdbQuery {
   
   @SuppressWarnings("unchecked")
   private void setQueryStorage() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
 
     PowerMockito.mockStatic(IncomingDataPoints.class);   

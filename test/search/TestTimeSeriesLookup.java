@@ -23,6 +23,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -32,7 +33,6 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.junit.Before;
@@ -47,12 +47,12 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  KeyValue.class, Scanner.class, TimeSeriesLookup.class})
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
+  KeyValue.class, Scanner.class, TimeSeriesLookup.class, TsdbTestStore.class})
 public class TestTimeSeriesLookup {
   private Config config;
   private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -74,10 +74,8 @@ public class TestTimeSeriesLookup {
   
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-    .withArguments(anyString(), anyString()).thenReturn(client); 
     config = new Config(false);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(tsdb_store, config);
 
     // replace the "real" field objects with mocks
     Field met = tsdb.getClass().getDeclaredField("metrics");
@@ -548,7 +546,7 @@ public class TestTimeSeriesLookup {
    * Stores some data in the mock tsdb-meta table for unit testing
    */
   private void generateMeta() {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
     
     final byte[] val = new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 };
@@ -561,7 +559,7 @@ public class TestTimeSeriesLookup {
    * Stores some data in the mock tsdb data table for unit testing
    */
   private void generateData() {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
     
     final byte[] qual = new byte[] { 0, 0 };

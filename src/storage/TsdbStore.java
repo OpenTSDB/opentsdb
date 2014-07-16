@@ -14,7 +14,6 @@ package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
 import org.hbase.async.*;
-import org.hbase.async.HBaseClient;
 
 
 import java.util.ArrayList;

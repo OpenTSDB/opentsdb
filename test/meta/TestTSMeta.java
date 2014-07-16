@@ -24,6 +24,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import com.stumbleupon.async.Deferred;
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -35,13 +37,14 @@ import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -54,14 +57,15 @@ import com.stumbleupon.async.DeferredGroupException;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, UIDMeta.class, TSMeta.class, AtomicIncrementRequest.class})
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
+  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class,
+  Scanner.class, UIDMeta.class, TSMeta.class, AtomicIncrementRequest.class,
+  TsdbTestStore.class})
 public final class TestTSMeta {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private Config config;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private MockBase storage;
   private TSMeta meta = new TSMeta();
   
@@ -74,11 +78,9 @@ public final class TestTSMeta {
     when(config.getString("tsd.storage.hbase.tree_table")).thenReturn("tsdb-tree");
     when(config.enable_tsuid_incrementing()).thenReturn(true);
     when(config.enable_realtime_ts()).thenReturn(true);
-    
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
-    storage = new MockBase(tsdb, client, true, true, true, true);
+
+    tsdb = new TSDB(tsdb_store, config);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     
     storage.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
@@ -332,7 +334,7 @@ public final class TestTSMeta {
   public void incrementAndGetCounter() throws Exception {
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
     TSMeta.incrementAndGetCounter(tsdb, tsuid).joinUninterruptibly();
-    verify(client).bufferAtomicIncrement((AtomicIncrementRequest)any());
+    verify(tsdb_store).bufferAtomicIncrement((AtomicIncrementRequest)any());
   }
   
   @Test (expected = NoSuchUniqueId.class)

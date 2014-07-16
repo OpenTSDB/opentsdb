@@ -24,6 +24,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
@@ -53,13 +54,13 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class,
   GetRequest.class, PutRequest.class, KeyValue.class, DumpSeries.class,
-  Scanner.class, DeleteRequest.class, Annotation.class })
+  Scanner.class, DeleteRequest.class, Annotation.class, TsdbTestStore.class})
 public class TestDumpSeries {
   private Config config;
   private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -75,7 +76,7 @@ public class TestDumpSeries {
   static {
     try {
       doDump = DumpSeries.class.getDeclaredMethod("doDump", TSDB.class, 
-          HBaseClient.class, byte[].class, boolean.class, boolean.class, 
+          HBaseClient.class, byte[].class, boolean.class, boolean.class,
           String[].class);
       doDump.setAccessible(true);
     } catch (Exception e) {
@@ -85,12 +86,10 @@ public class TestDumpSeries {
 
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(tsdb_store, config);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
     
     buffer = new ByteArrayOutputStream();
@@ -142,7 +141,7 @@ public class TestDumpSeries {
   @Test
   public void dumpRaw() throws Exception {
     writeData();    
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), false, 
+    doDump.invoke(null, tsdb, tsdb_store, "tsdb".getBytes(MockBase.ASCII()), false,
         false, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
@@ -227,7 +226,7 @@ public class TestDumpSeries {
   @Test
   public void dumpImport() throws Exception {
     writeData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), false, 
+    doDump.invoke(null, tsdb, tsdb_store, "tsdb".getBytes(MockBase.ASCII()), false,
         true, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
@@ -251,7 +250,7 @@ public class TestDumpSeries {
   @Test
   public void dumpRawAndDelete() throws Exception {
     writeData();    
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), true, 
+    doDump.invoke(null, tsdb, tsdb_store, "tsdb".getBytes(MockBase.ASCII()), true,
         false, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
@@ -265,7 +264,7 @@ public class TestDumpSeries {
   @Test
   public void dumpImportAndDelete() throws Exception {
     writeData();    
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), true, 
+    doDump.invoke(null, tsdb, tsdb_store, "tsdb".getBytes(MockBase.ASCII()), true,
         true, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
@@ -279,7 +278,7 @@ public class TestDumpSeries {
   @Test
   public void dumpRawCompacted() throws Exception {
     writeCompactedData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), false, 
+    doDump.invoke(null, tsdb, tsdb_store, "tsdb".getBytes(MockBase.ASCII()), false,
         false, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
@@ -306,7 +305,7 @@ public class TestDumpSeries {
   @Test
   public void dumpImportCompacted() throws Exception {
     writeCompactedData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), false, 
+    doDump.invoke(null, tsdb, tsdb_store, "tsdb".getBytes(MockBase.ASCII()), false,
         true, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
@@ -320,7 +319,7 @@ public class TestDumpSeries {
   @Test
   public void dumpRawCompactedAndDelete() throws Exception {
     writeCompactedData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), true, 
+    doDump.invoke(null, tsdb, tsdb_store, "tsdb".getBytes(MockBase.ASCII()), true,
         false, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
@@ -332,7 +331,7 @@ public class TestDumpSeries {
   @Test
   public void dumpImportCompactedAndDelete() throws Exception {
     writeCompactedData();
-    doDump.invoke(null, tsdb, client, "tsdb".getBytes(MockBase.ASCII()), true, 
+    doDump.invoke(null, tsdb, tsdb_store, "tsdb".getBytes(MockBase.ASCII()), true,
         true, new String[] { "1356998400", "1357002000", "sum", "sys.cpu.user" });
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);

@@ -21,13 +21,11 @@ import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.utils.JSON;
 
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -42,7 +40,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, HBaseClient.class, GetRequest.class,
+@PrepareForTest({TSDB.class, GetRequest.class,
   PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class, 
   Tree.class})
 public final class TestTreeRule {

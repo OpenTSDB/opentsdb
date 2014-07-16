@@ -21,8 +21,10 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -31,7 +33,6 @@ import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -49,14 +50,14 @@ import com.stumbleupon.async.Deferred;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, TSMeta.class, AtomicIncrementRequest.class})
+  Scanner.class, TSMeta.class, AtomicIncrementRequest.class, TsdbStore.class})
 public final class TestTSUIDQuery {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private Config config;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private MockBase storage;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
@@ -72,11 +73,9 @@ public final class TestTSUIDQuery {
     when(config.getString("tsd.storage.hbase.tree_table")).thenReturn("tsdb-tree");
     when(config.enable_tsuid_incrementing()).thenReturn(true);
     when(config.enable_realtime_ts()).thenReturn(true);
-    
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
-    storage = new MockBase(tsdb, client, true, true, true, true);
+
+    tsdb = new TSDB(tsdb_store, config);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     
     storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
         "metrics".getBytes(MockBase.ASCII()),
@@ -176,9 +175,9 @@ public final class TestTSUIDQuery {
         Bytes.fromLong(1L));
     
     // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("client");
+    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
     cl.setAccessible(true);
-    cl.set(tsdb, client);
+    cl.set(tsdb, tsdb_store);
     
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);

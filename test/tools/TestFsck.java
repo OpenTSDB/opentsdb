@@ -25,12 +25,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -39,7 +41,6 @@ import net.opentsdb.utils.Config;
 import org.apache.zookeeper.proto.DeleteRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -57,10 +58,10 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   GetRequest.class, PutRequest.class, KeyValue.class, Fsck.class,
   FsckOptions.class, Scanner.class, DeleteRequest.class, Annotation.class,
-  RowKey.class, Tags.class})
+  RowKey.class, Tags.class, TsdbStore.class})
 public final class TestFsck {
   private final static byte[] ROW = 
     MockBase.stringToBytes("00000150E22700000001000001");
@@ -70,7 +71,7 @@ public final class TestFsck {
       MockBase.stringToBytes("00000150E24320000001000001");
   private Config config;
   private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -84,13 +85,11 @@ public final class TestFsck {
   @SuppressWarnings("unchecked")
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
-    tsdb = new TSDB(config);
-    when(client.flush()).thenReturn(Deferred.fromResult(null));
+    tsdb = new TSDB(tsdb_store, config);
+    when(tsdb_store.flush()).thenReturn(Deferred.fromResult(null));
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
     
     when(options.fix()).thenReturn(false);

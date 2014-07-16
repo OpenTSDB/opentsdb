@@ -24,7 +24,10 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -34,7 +37,6 @@ import net.opentsdb.utils.Config;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -54,13 +56,13 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
   Scanner.class, AtomicIncrementRequest.class, IncomingDataPoints.class})
 public final class TestTSDB {
   private Config config;
   private TSDB tsdb;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -69,11 +71,9 @@ public final class TestTSDB {
   
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
     config.setFixDuplicates(true); // TODO(jat): test both ways
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(tsdb_store, config);
 
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);
@@ -849,7 +849,7 @@ public final class TestTSDB {
    * data points correctly.
    */
   private void setupAddPointStorage() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
 
     PowerMockito.mockStatic(IncomingDataPoints.class);   
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 

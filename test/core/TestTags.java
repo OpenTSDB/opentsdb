@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -27,7 +28,6 @@ import net.opentsdb.utils.Pair;
 
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.junit.Test;
@@ -50,12 +50,13 @@ import static org.powermock.api.mockito.PowerMockito.mock;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class})
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
+  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class,
+  TsdbTestStore.class})
 public final class TestTags {
   private TSDB tsdb;
   private Config config;
-  private HBaseClient client;
+  private TsdbTestStore tsdb_store;
   private MockBase storage = null;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
@@ -635,14 +636,14 @@ public final class TestTags {
   
   private void setupStorage() throws Exception {
     config = new Config(false);
-    client = mock(HBaseClient.class);
+    tsdb_store = mock(TsdbTestStore.class);
     tsdb = new TSDB(config);
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
 
     // replace the "real" field objects with mocks
     Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
     cl.setAccessible(true);
-    cl.set(tsdb, client);
+    cl.set(tsdb, tsdb_store);
     
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);

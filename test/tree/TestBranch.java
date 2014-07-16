@@ -18,7 +18,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
@@ -26,14 +25,15 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.TreeMap;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -48,8 +48,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ TSDB.class, HBaseClient.class, GetRequest.class,
-  PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class })
+@PrepareForTest({ TSDB.class, GetRequest.class,
+  PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class,
+  TsdbStore.class})
 public final class TestBranch {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private MockBase storage;
@@ -563,12 +564,11 @@ public final class TestBranch {
    * Mocks classes for testing the storage calls
    */
   private void setupStorage() throws Exception {
-    final HBaseClient client = mock(HBaseClient.class);
+    final TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
     
-    storage = new MockBase(new TSDB(config), client, true, true, true, true);
+    storage = new MockBase(new TSDB(tsdb_store, config), tsdb_store, true,
+      true, true, true);
     
     Branch branch = new Branch(1);
     TreeMap<Integer, String> path = new TreeMap<Integer, String>();

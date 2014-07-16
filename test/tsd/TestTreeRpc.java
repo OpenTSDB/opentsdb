@@ -15,12 +15,12 @@ package net.opentsdb.tsd;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Method;
 import java.util.TreeMap;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -38,7 +38,6 @@ import net.opentsdb.utils.JSON;
 
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -59,12 +58,13 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ TSDB.class, HBaseClient.class, GetRequest.class, Tree.class,
-  PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class })
+@PrepareForTest({ TSDB.class, GetRequest.class, Tree.class,
+  PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class,
+  TsdbTestStore.class})
 public final class TestTreeRpc {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private MockBase storage;
   private TreeRpc rpc = new TreeRpc();
   
@@ -121,10 +121,8 @@ public final class TestTreeRpc {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    tsdb = new TSDB(tsdb_store, config);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
   }
   
   @Test

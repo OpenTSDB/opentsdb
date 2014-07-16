@@ -29,10 +29,12 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -61,11 +63,11 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, KeyValue.class, Fsck.class,
   Scanner.class, DeleteRequest.class, Annotation.class, FileInputStream.class, 
-  TextImporter.class})
+  TextImporter.class, TsdbTestStore.class})
 public class TestTextImporter {
   private Config config;
   private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -94,12 +96,10 @@ public class TestTextImporter {
   
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(tsdb_store, config);
 
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
     
     // replace the "real" field objects with mocks
@@ -158,7 +158,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 0 host=web01\n" +
       "sys.cpu.user 1356998400 127 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -179,7 +179,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 -0 host=web01\n" +
       "sys.cpu.user 1356998400 -128 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -200,7 +200,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 128 host=web01\n" +
       "sys.cpu.user 1356998400 32767 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -221,7 +221,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 -129 host=web01\n" +
       "sys.cpu.user 1356998400 -32768 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -242,7 +242,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 32768 host=web01\n" +
       "sys.cpu.user 1356998400 2147483647 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -263,7 +263,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 -32769 host=web01\n" +
       "sys.cpu.user 1356998400 -2147483648 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -284,7 +284,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 2147483648 host=web01\n" +
       "sys.cpu.user 1356998400 9223372036854775807 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
@@ -304,7 +304,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 -2147483649 host=web01\n" +
       "sys.cpu.user 1356998400 -9223372036854775808 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -325,7 +325,7 @@ public class TestTextImporter {
       "sys.cpu.user 0 0 host=web01\n" +
       "sys.cpu.user 0 127 host=web02";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -334,7 +334,7 @@ public class TestTextImporter {
       "sys.cpu.user -11356998400 0 host=web01\n" +
       "sys.cpu.user -11356998400 127 host=web02";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test
@@ -343,7 +343,7 @@ public class TestTextImporter {
       "sys.cpu.user 4294967295 24 host=web01\n" +
       "sys.cpu.user 4294967295 42 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
@@ -364,7 +364,7 @@ public class TestTextImporter {
       "sys.cpu.user 4294967296 24 host=web01\n" +
       "sys.cpu.user 4294967296 42 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, (byte) 0x90, 
@@ -387,7 +387,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400500 24 host=web01\n" +
       "sys.cpu.user 1356998400500 42 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -408,7 +408,7 @@ public class TestTextImporter {
       "sys.cpu.user 13569984005001 24 host=web01\n" +
       "sys.cpu.user 13569984005001 42 host=web02";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -417,7 +417,7 @@ public class TestTextImporter {
       "sys.cpu.user -2147483648000L 24 host=web01\n" +
       "sys.cpu.user -2147483648000L 42 host=web02";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test
@@ -426,7 +426,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24.5 host=web01\n" +
       "sys.cpu.user 1356998400 42.5 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -447,7 +447,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 -24.5 host=web01\n" +
       "sys.cpu.user 1356998400 -42.5 host=web02";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(2, (int)points);
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
@@ -468,7 +468,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 1356998400 42 host=web03";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = NoSuchUniqueName.class)
@@ -477,7 +477,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 1356998400 42 fqdn=web02";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = NoSuchUniqueName.class)
@@ -486,7 +486,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.system 1356998400 42 host=web02";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -495,7 +495,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       " 1356998400 42 host=web03";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -504,7 +504,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user  42 host=web03";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -513,7 +513,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 1356998400  host=web03";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -522,7 +522,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 1356998400 42";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -531,7 +531,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 1356998400 42 host";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -540,7 +540,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 1356998400 42 host=";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -549,7 +549,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 0 42 host=web02";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = RuntimeException.class)
@@ -558,7 +558,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user -1356998400 42 host=web02";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -567,7 +567,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 1356998400 42 host=web01";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -576,7 +576,7 @@ public class TestTextImporter {
       "sys.cpu.user 1356998400 24 host=web01\n" +
       "sys.cpu.user 1356998300 42 host=web01";
     setData(data);
-    importFile.invoke(null, client, tsdb, "file");
+    importFile.invoke(null, tsdb_store, tsdb, "file");
   }
   
   // doesn't throw an exception, just returns "processed 0 data points"
@@ -584,7 +584,7 @@ public class TestTextImporter {
   public void importFileEmptyFile() throws Exception {
     String data = "";
     setData(data);
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(0, (int)points);
   }
   
@@ -593,7 +593,7 @@ public class TestTextImporter {
     PowerMockito.doThrow(new FileNotFoundException()).when(TextImporter.class, 
         PowerMockito.method(TextImporter.class, "open", String.class))
         .withArguments(anyString());
-    Integer points = (Integer)importFile.invoke(null, client, tsdb, "file");
+    Integer points = (Integer)importFile.invoke(null, tsdb_store, tsdb, "file");
     assertEquals(0, (int)points);
   }
   

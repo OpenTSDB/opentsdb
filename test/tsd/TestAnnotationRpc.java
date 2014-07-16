@@ -14,17 +14,16 @@ package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.nio.charset.Charset;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.RowLock;
 import org.hbase.async.Scanner;
@@ -46,11 +45,12 @@ import org.powermock.modules.junit4.PowerMockRunner;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, HBaseClient.class, RowLock.class, 
-  AnnotationRpc.class, KeyValue.class, GetRequest.class, Scanner.class})
+@PrepareForTest({TSDB.class, Config.class, RowLock.class,
+  AnnotationRpc.class, KeyValue.class, GetRequest.class, Scanner.class,
+  TsdbTestStore.class})
 public final class TestAnnotationRpc {
   private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private MockBase storage;
   private AnnotationRpc rpc = new AnnotationRpc();
   
@@ -63,11 +63,9 @@ public final class TestAnnotationRpc {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(tsdb_store, config);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     
  // add a global
     storage.addColumn(global_row_key, 

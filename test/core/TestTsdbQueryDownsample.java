@@ -29,6 +29,7 @@ import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -38,7 +39,6 @@ import net.opentsdb.utils.DateTime;
 
 import org.apache.zookeeper.proto.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -59,15 +59,16 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class,
+@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class,
   Scanner.class, TsdbQuery.class, DeleteRequest.class, Annotation.class,
-  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class })
+  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class,
+  TsdbTestStore.class})
 public class TestTsdbQueryDownsample {
 
   private Config config;
   private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -83,7 +84,7 @@ public class TestTsdbQueryDownsample {
     // replace the "real" field objects with mocks
     Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
     cl.setAccessible(true);
-    cl.set(tsdb, client);
+    cl.set(tsdb, tsdb_store);
 
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);
@@ -225,7 +226,7 @@ public class TestTsdbQueryDownsample {
     query.downsample(1000, Aggregators.AVG);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
-    verify(client).newScanner(tsdb.table);
+    verify(tsdb_store).newScanner(tsdb.table);
     assertNotNull(dps);
     assertEquals("sys.cpu.user", dps[0].metricName());
     assertTrue(dps[0].getAggregatedTags().isEmpty());
@@ -622,7 +623,7 @@ public class TestTsdbQueryDownsample {
 
   @SuppressWarnings("unchecked")
   private void setQueryStorage() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
 
     PowerMockito.mockStatic(IncomingDataPoints.class);

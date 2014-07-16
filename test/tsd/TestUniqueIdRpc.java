@@ -14,13 +14,13 @@ package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -31,7 +31,6 @@ import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.RowLock;
 import org.hbase.async.Scanner;
@@ -51,12 +50,12 @@ import com.stumbleupon.async.Deferred;
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, TSMeta.class, UIDMeta.class, 
-  HBaseClient.class, RowLock.class, UniqueIdRpc.class, KeyValue.class, 
-  GetRequest.class, Scanner.class, UniqueId.class})
+  RowLock.class, UniqueIdRpc.class, KeyValue.class,
+  GetRequest.class, Scanner.class, UniqueId.class, TsdbTestStore.class})
 public final class TestUniqueIdRpc {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -911,11 +910,9 @@ public final class TestUniqueIdRpc {
    */
   private void setupUID() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(tsdb_store, config);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     
     storage.addColumn(new byte[] { 0, 0, 1 }, 
         NAME_FAMILY,
@@ -942,9 +939,7 @@ public final class TestUniqueIdRpc {
    */
   private void setupTSUID() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(tsdb_store, config);
     
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);
@@ -958,7 +953,7 @@ public final class TestUniqueIdRpc {
     tagv.setAccessible(true);
     tagv.set(tsdb, tag_values);
     
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     storage.setFamily(NAME_FAMILY);
     
     storage.addColumn(new byte[] { 0, 0, 1 },

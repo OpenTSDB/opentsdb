@@ -180,6 +180,7 @@ test_SRC := \
 	test/tree/TestTree.java	\
 	test/tree/TestTreeBuilder.java	\
 	test/tree/TestTreeRule.java	\
+	test/TsdbTestStore.java \
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\

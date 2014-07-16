@@ -32,6 +32,7 @@ import java.util.regex.PatternSyntaxException;
 
 import javax.xml.bind.DatatypeConverter;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
@@ -39,7 +40,6 @@ import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -96,9 +96,9 @@ public final class MockBase {
    * Setups up mock intercepts for all of the calls. Depending on the given
    * flags, some mocks may not be enabled, allowing local unit tests to setup
    * their own mocks.
-   * @param tsdb A real TSDB (not mocked) that should have it's client set with
+   * @param tsdb A real TSDB (not mocked) that should have it's tsdb_store set with
    * the given mock
-   * @param client A mock client that may have been instantiated and should be
+   * @param tsdb_store A mock tsdb_store that may have been instantiated and should be
    * captured for use with MockBase
    * @param default_get Enable the default .get() mock
    * @param default_put Enable the default .put() and .compareAndSet() mocks
@@ -106,7 +106,7 @@ public final class MockBase {
    * @param default_scan Enable the Scanner mock implementation
    */
   public MockBase(
-      final TSDB tsdb, final HBaseClient client,
+      final TSDB tsdb, final TsdbTestStore tsdb_store,
       final boolean default_get, 
       final boolean default_put,
       final boolean default_delete,
@@ -114,38 +114,21 @@ public final class MockBase {
     this.tsdb = tsdb;
     
     default_family = "t".getBytes(ASCII);  // set a default
-    
-    // replace the "real" field objects with mocks
-    Field cl;
-    try {
-      cl = tsdb.getClass().getDeclaredField("client");
-      cl.setAccessible(true);
-      cl.set(tsdb, client);
-      cl.setAccessible(false);
-    } catch (SecurityException e) {
-      e.printStackTrace();
-    } catch (NoSuchFieldException e) {
-      e.printStackTrace();
-    } catch (IllegalArgumentException e) {
-      e.printStackTrace();
-    } catch (IllegalAccessException e) {
-      e.printStackTrace();
-    }
 
     // Default get answer will return one or more columns from the requested row
     if (default_get) {
-      when(client.get((GetRequest)any())).thenAnswer(new MockGet());
+      when(tsdb_store.get((GetRequest)any())).thenAnswer(new MockGet());
     }
     
     // Default put answer will store the given values in the proper location.
     if (default_put) {
-      when(client.put((PutRequest)any())).thenAnswer(new MockPut());
-      when(client.compareAndSet((PutRequest)any(), (byte[])any()))
+      when(tsdb_store.put((PutRequest)any())).thenAnswer(new MockPut());
+      when(tsdb_store.compareAndSet((PutRequest)any(), (byte[])any()))
         .thenAnswer(new MockCAS());
     }
 
     if (default_delete) {
-      when(client.delete((DeleteRequest)any())).thenAnswer(new MockDelete());
+      when(tsdb_store.delete((DeleteRequest)any())).thenAnswer(new MockDelete());
     }
     
     if (default_scan) {
@@ -153,7 +136,7 @@ public final class MockBase {
       // callback chain) we have to provide a new mock scanner for each new
       // scanner request. That's the way the mock scanner method knows when a
       // second call has been issued and it should return a null.
-      when(client.newScanner((byte[]) any())).thenAnswer(new Answer<Scanner>() {
+      when(tsdb_store.newScanner((byte[]) any())).thenAnswer(new Answer<Scanner>() {
 
         @Override
         public Scanner answer(InvocationOnMock arg0) throws Throwable {
@@ -161,14 +144,14 @@ public final class MockBase {
           scanners.add(new MockScanner(scanner));
           return scanner;
         }
-        
+
       });      
 
     }
     
-    when(client.atomicIncrement((AtomicIncrementRequest)any()))
+    when(tsdb_store.atomicIncrement((AtomicIncrementRequest)any()))
       .then(new MockAtomicIncrement());
-    when(client.bufferAtomicIncrement((AtomicIncrementRequest)any()))
+    when(tsdb_store.bufferAtomicIncrement((AtomicIncrementRequest)any()))
     .then(new MockAtomicIncrement());
   }
 
@@ -186,7 +169,7 @@ public final class MockBase {
       final boolean default_put,
       final boolean default_delete,
       final boolean default_scan) throws IOException {
-    this(new TSDB(new Config(false)), mock(HBaseClient.class), 
+    this(new TSDB(new Config(false)), mock(TsdbTestStore.class),
         default_get, default_put, default_delete, default_scan);
   }
   

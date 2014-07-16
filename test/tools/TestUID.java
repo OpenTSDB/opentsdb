@@ -19,8 +19,10 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Method;
 
+import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
@@ -45,11 +47,12 @@ import org.powermock.modules.junit4.PowerMockRunner;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, KeyValue.class, UidManager.class,
-  Scanner.class, DeleteRequest.class, AtomicIncrementRequest.class })
+  Scanner.class, DeleteRequest.class, AtomicIncrementRequest.class,
+  TsdbTestStore.class})
 public class TestUID {
   private Config config;
   private TSDB tsdb = null;
-  private HBaseClient client = mock(HBaseClient.class);
+  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
   private MockBase storage;
   
   // names used for testing
@@ -76,9 +79,9 @@ public class TestUID {
     tsdb = new TSDB(config);
     
     // replace the "real" field objects with mocks
-//    Field cl = tsdb.getClass().getDeclaredField("client");
+//    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
 //    cl.setAccessible(true);
-//    cl.set(tsdb, client);
+//    cl.set(tsdb, tsdb_store);
 //    
 //    Field met = tsdb.getClass().getDeclaredField("metrics");
 //    met.setAccessible(true);
@@ -142,7 +145,7 @@ public class TestUID {
   public void fsckNoData() throws Exception {
     setupMockBase();
     storage.flushStorage();
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -150,7 +153,7 @@ public class TestUID {
   @Test
   public void fsckNoErrors() throws Exception {
     setupMockBase();
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -165,7 +168,7 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(42L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -175,7 +178,7 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(42L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -185,7 +188,7 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(42L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -199,7 +202,7 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(1L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -209,10 +212,10 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(0L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -221,7 +224,7 @@ public class TestUID {
   public void fsckTagkUIDLow() throws Exception {
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(1L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -230,10 +233,10 @@ public class TestUID {
   public void fsckFIXTagkUIDLow() throws Exception {
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(1L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -242,7 +245,7 @@ public class TestUID {
   public void fsckTagvUIDLow() throws Exception {
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(1L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -251,10 +254,10 @@ public class TestUID {
   public void fsckFIXTagvUIDLow() throws Exception {
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(1L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -268,7 +271,7 @@ public class TestUID {
   public void fsckMetricsUIDWrongLength() throws Exception {
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromInt(3));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -277,7 +280,7 @@ public class TestUID {
   public void fsckTagkUIDWrongLength() throws Exception {
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromInt(3));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -286,7 +289,7 @@ public class TestUID {
   public void fsckTagvUIDWrongLength() throws Exception {
     setupMockBase();
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromInt(3));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -303,7 +306,7 @@ public class TestUID {
   public void fsckMetricsMissingReverse() throws Exception {
     setupMockBase();
     storage.flushColumn(new byte[] {0, 0, 1}, NAME_FAMILY, METRICS);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -312,12 +315,12 @@ public class TestUID {
   public void fsckFIXMetricsMissingReverse() throws Exception {
     setupMockBase();
     storage.flushColumn(new byte[] {0, 0, 1}, NAME_FAMILY, METRICS);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
     assertArrayEquals("foo".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 1}, NAME_FAMILY, METRICS));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -326,7 +329,7 @@ public class TestUID {
   public void fsckTagkMissingReverse() throws Exception {
     setupMockBase();
     storage.flushColumn(new byte[] {0, 0, 1}, NAME_FAMILY, TAGK);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -335,12 +338,12 @@ public class TestUID {
   public void fsckFIXTagkMissingReverse() throws Exception {
     setupMockBase();
     storage.flushColumn(new byte[] {0, 0, 1}, NAME_FAMILY, TAGK);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
     assertArrayEquals("host".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 1}, NAME_FAMILY, TAGK));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -349,7 +352,7 @@ public class TestUID {
   public void fsckTagvMissingReverse() throws Exception {
     setupMockBase();
     storage.flushColumn(new byte[] {0, 0, 1}, NAME_FAMILY, TAGV);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -358,12 +361,12 @@ public class TestUID {
   public void fsckFIXTagvMissingReverse() throws Exception {
     setupMockBase();
     storage.flushColumn(new byte[] {0, 0, 1}, NAME_FAMILY, TAGV);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
     assertArrayEquals("web01".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 1}, NAME_FAMILY, TAGV));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -389,7 +392,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS, new byte[] {0, 0, 1});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -400,7 +403,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS, new byte[] {0, 0, 1});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertArrayEquals("fsck.foo.wtf".getBytes(MockBase.ASCII()), 
@@ -409,7 +412,7 @@ public class TestUID {
         METRICS));
     assertNull(storage.getColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -420,7 +423,7 @@ public class TestUID {
     storage.addColumn("some.other.value".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGK, new byte[] {0, 0, 1});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -431,7 +434,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGK, new byte[] {0, 0, 1});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertArrayEquals("fsck.host.wtf".getBytes(MockBase.ASCII()), 
@@ -440,7 +443,7 @@ public class TestUID {
         TAGK));
     assertNull(storage.getColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGK));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -451,7 +454,7 @@ public class TestUID {
     storage.addColumn("some.other.value".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGV, new byte[] {0, 0, 1});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -462,7 +465,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGV, new byte[] {0, 0, 1});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertArrayEquals("fsck.web01.wtf".getBytes(MockBase.ASCII()), 
@@ -471,7 +474,7 @@ public class TestUID {
         TAGV));
     assertNull(storage.getColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGV));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -493,7 +496,7 @@ public class TestUID {
     setupMockBase();
     storage.addColumn(new byte[] {0, 0, 2}, NAME_FAMILY, 
         METRICS, "wtf".getBytes(MockBase.ASCII()));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -503,12 +506,12 @@ public class TestUID {
     setupMockBase();
     storage.addColumn(new byte[] {0, 0, 2}, NAME_FAMILY, 
         METRICS, "wtf".getBytes(MockBase.ASCII()));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertArrayEquals("bar".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 2}, NAME_FAMILY, METRICS));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -518,7 +521,7 @@ public class TestUID {
     setupMockBase();
     storage.addColumn(new byte[] {0, 0, 2}, NAME_FAMILY, 
         TAGK, "wtf".getBytes(MockBase.ASCII()));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -528,12 +531,12 @@ public class TestUID {
     setupMockBase();
     storage.addColumn(new byte[] {0, 0, 2}, NAME_FAMILY, 
         TAGK, "wtf".getBytes(MockBase.ASCII()));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertArrayEquals("dc".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 2}, NAME_FAMILY, TAGK));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -543,7 +546,7 @@ public class TestUID {
     setupMockBase();
     storage.addColumn(new byte[] {0, 0, 2}, NAME_FAMILY, 
         TAGV, "wtf".getBytes(MockBase.ASCII()));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -553,12 +556,12 @@ public class TestUID {
     setupMockBase();
     storage.addColumn(new byte[] {0, 0, 2}, NAME_FAMILY, 
         TAGV, "wtf".getBytes(MockBase.ASCII()));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertArrayEquals("web02".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 2}, NAME_FAMILY, TAGV));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -577,7 +580,7 @@ public class TestUID {
     setupMockBase();
     storage.flushColumn("bar".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -588,7 +591,7 @@ public class TestUID {
     setupMockBase();
     storage.flushColumn("bar".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(0, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 2}, NAME_FAMILY, METRICS));
@@ -599,7 +602,7 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.flushColumn("host".getBytes(MockBase.ASCII()), ID_FAMILY, TAGK);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -609,7 +612,7 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.flushColumn("host".getBytes(MockBase.ASCII()), ID_FAMILY, TAGK);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(0, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 1}, NAME_FAMILY, TAGK));
@@ -620,7 +623,7 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.flushColumn("web01".getBytes(MockBase.ASCII()), ID_FAMILY, TAGV);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -630,7 +633,7 @@ public class TestUID {
     // currently a warning, not an error
     setupMockBase();
     storage.flushColumn("web01".getBytes(MockBase.ASCII()), ID_FAMILY, TAGV);
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(0, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 1}, NAME_FAMILY, TAGV));
@@ -651,7 +654,7 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         METRICS, "foo".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -662,11 +665,11 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         METRICS, "foo".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 3}, NAME_FAMILY, METRICS));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -677,7 +680,7 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         TAGK, "host".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -688,11 +691,11 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         TAGK, "host".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 3}, NAME_FAMILY, TAGK));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -703,7 +706,7 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         TAGV, "web01".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(1, errors);
   }
@@ -714,11 +717,11 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         TAGV, "web01".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(1, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 3}, NAME_FAMILY, TAGV));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -742,7 +745,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS, new byte[] {0, 0, 4});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(4L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -755,13 +758,13 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS, new byte[] {0, 0, 4});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(4L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 3}, NAME_FAMILY, METRICS));
     assertArrayEquals("wtf".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 4}, NAME_FAMILY, METRICS));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -774,7 +777,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGK, new byte[] {0, 0, 4});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(4L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -787,13 +790,13 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGK, new byte[] {0, 0, 4});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(4L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 3}, NAME_FAMILY, TAGK));
     assertArrayEquals("wtf".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 4}, NAME_FAMILY, TAGK));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -806,7 +809,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGV, new byte[] {0, 0, 4});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(4L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
@@ -819,13 +822,13 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         TAGV, new byte[] {0, 0, 4});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGV, Bytes.fromLong(4L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertNull(storage.getColumn(new byte [] {0, 0, 3}, NAME_FAMILY, TAGV));
     assertArrayEquals("wtf".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 4}, NAME_FAMILY, TAGV));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -855,7 +858,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS, new byte[] {0, 0, 1});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(5, errors);
   }
@@ -868,7 +871,7 @@ public class TestUID {
     storage.addColumn("wtf".getBytes(MockBase.ASCII()), ID_FAMILY, 
         METRICS, new byte[] {0, 0, 1});
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(4, errors);
     assertArrayEquals("fsck.foo.wtf".getBytes(MockBase.ASCII()), 
@@ -879,7 +882,7 @@ public class TestUID {
         METRICS));
     assertArrayEquals("bar".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 2}, NAME_FAMILY, METRICS));
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -910,7 +913,7 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         METRICS, "foo".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(6, errors);
   }
@@ -925,7 +928,7 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         METRICS, "foo".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(4, errors); // diff than above since we remove some forwards early
     assertArrayEquals("fsck.foo.wtf".getBytes(MockBase.ASCII()), 
@@ -936,7 +939,7 @@ public class TestUID {
         METRICS));
     assertArrayEquals("bar".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 2}, NAME_FAMILY, METRICS));    
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(0, errors);
   }
@@ -962,7 +965,7 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         METRICS, "wtf".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(3, errors);
   }
@@ -977,12 +980,12 @@ public class TestUID {
     storage.addColumn(new byte[] {0, 0, 3}, NAME_FAMILY, 
         METRICS, "wtf".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(3L));
-    int errors = (Integer)fsck.invoke(null, client, 
+    int errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(2, errors);
     assertArrayEquals("bar".getBytes(MockBase.ASCII()), 
         storage.getColumn(new byte [] {0, 0, 2}, NAME_FAMILY, METRICS));    
-    errors = (Integer)fsck.invoke(null, client, 
+    errors = (Integer)fsck.invoke(null, tsdb_store,
         "tsdb".getBytes(MockBase.ASCII()), true, false);
     assertEquals(0, errors);
   }
@@ -991,7 +994,7 @@ public class TestUID {
    * Write clean data to MockBase that can be overridden by individual unit tests
    */
   private void setupMockBase() {
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
 
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, METRICS, Bytes.fromLong(2L));
     storage.addColumn(new byte[] { 0 }, ID_FAMILY, TAGK, Bytes.fromLong(2L));
