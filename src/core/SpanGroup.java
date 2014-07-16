@@ -19,6 +19,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.meta.Annotation;
@@ -48,6 +51,8 @@ import net.opentsdb.meta.Annotation;
 final class SpanGroup implements DataPoints {
   /** Annotations */
   private final ArrayList<Annotation> annotations;
+
+  private static final Logger LOG = LoggerFactory.getLogger(SpanGroup.class);
 
   /** Start time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
   private final long start_time;
@@ -83,6 +88,13 @@ final class SpanGroup implements DataPoints {
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;
 
+  /**
+   * Interpolation time window. An interpolated data point will be
+   * dropped while aggregating data points of spans if the time gap of
+   * two end-points for the interpolation is bigger than the window.
+   */
+  private long interpolation_window_ms = Long.MAX_VALUE;
+
   /** Options for downsampling before aggregation. */
   private final DownsampleOptions predownsample_options;
 
@@ -115,7 +127,8 @@ final class SpanGroup implements DataPoints {
     // NOTE: Keeps this constructor for the backward compatibility for any
     // third party code that uses the deprecated API.
     this(start_time, end_time, spans, rate, new RateOptions(false,
-        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator,
+        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE),
+        aggregator, Long.MAX_VALUE,
         new DownsampleOptions(downsampler == null ? 0 : interval, downsampler),
         DownsampleOptions.NONE);
   }
@@ -131,6 +144,8 @@ final class SpanGroup implements DataPoints {
    * @param rate If {@code true}, the rate of the series will be used instead
    * of the actual values.
    * @param aggregator The aggregation function to use.
+   * @param interpolation_window_ms Interpolation is valid only in this
+   * time window.
    * @param predownsample_options Options for downsampling before aggregation.
    * @param postdownsample_options Options for downsampling after aggregation.
    * @since 2.1
@@ -139,10 +154,12 @@ final class SpanGroup implements DataPoints {
             final Iterable<Span> spans,
             final boolean rate,
             final Aggregator aggregator,
+            final long interpolation_window_ms,
             final DownsampleOptions predownsample_options,
             final DownsampleOptions postdownsample_options) {
     this(start_time, end_time, spans, rate, new RateOptions(false,
-        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator,
+        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE),
+        aggregator, interpolation_window_ms,
         predownsample_options, postdownsample_options);
   }
 
@@ -173,7 +190,8 @@ final class SpanGroup implements DataPoints {
             final long interval, final Aggregator downsampler) {
     // NOTE: Keeps this constructor for the backward compatibility for any
     // third party code that uses the deprecated API.
-    this(start_time, end_time, spans, rate, rate_options, aggregator,
+    this(start_time, end_time, spans, rate, rate_options,
+        aggregator, Long.MAX_VALUE,
         new DownsampleOptions(downsampler == null ? 0 : interval, downsampler),
         DownsampleOptions.NONE);
   }
@@ -190,6 +208,8 @@ final class SpanGroup implements DataPoints {
    * of the actual values.
    * @param rate_options Specifies the optional additional rate calculation options.
    * @param aggregator The aggregation function to use.
+   * @param interpolation_window_ms Interpolation is valid only in this
+   * time window.
    * @param predownsample_options Options for downsampling before aggregation.
    * @param postdownsample_options Options for downsampling after aggregation.
    * @since 2.1
@@ -198,12 +218,13 @@ final class SpanGroup implements DataPoints {
             final Iterable<Span> spans,
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,
+            final long interpolation_window_ms,
             final DownsampleOptions predownsample_options,
             final DownsampleOptions postdownsample_options) {
     annotations = new ArrayList<Annotation>();
-     this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
+     this.start_time = (start_time & Const.SECOND_MASK) == 0 ?
          start_time * 1000 : start_time;
-     this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
+     this.end_time = (end_time & Const.SECOND_MASK) == 0 ?
          end_time * 1000 : end_time;
      if (spans != null) {
        for (final Span span : spans) {
@@ -213,6 +234,7 @@ final class SpanGroup implements DataPoints {
      this.rate = rate;
      this.rate_options = rate_options;
      this.aggregator = aggregator;
+     this.interpolation_window_ms = interpolation_window_ms;
      this.predownsample_options = predownsample_options;
      this.postdownsample_options = postdownsample_options;
   }
@@ -319,11 +341,16 @@ final class SpanGroup implements DataPoints {
         tags = new HashMap<String, String>(first_tags);
         final ArrayList<Deferred<Map<String, String>>> deferreds = 
           new ArrayList<Deferred<Map<String, String>>>(tags.size());
-        
+        final long started_ms = System.currentTimeMillis();
         while (it.hasNext()) {
           deferreds.add(it.next().getTagsAsync());
         }
-        
+        final long finished_ms = System.currentTimeMillis();
+        final long elapsed_ms = finished_ms - started_ms;
+        if (elapsed_ms > 30000) {
+          LOG.info(String.format("FirstTagSetCB loop took %d milliseconds.",
+                                 elapsed_ms));
+        }
         return Deferred.groupInOrder(deferreds).addCallback(new SpanTagsCB());
       }
     }
@@ -439,6 +466,7 @@ final class SpanGroup implements DataPoints {
     SeekableView aggregation_iter = AggregationIterator.create(
         spans, start_time, end_time, aggregator,
         aggregator.interpolationMethod(),
+        interpolation_window_ms,
         predownsample_options, rate, rate_options);
     if (postdownsample_options.enabled()) {
       // Downsamples aggregated results.

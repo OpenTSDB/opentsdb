@@ -165,6 +165,40 @@ public final class TestQueryRpc {
   }
 
   @Test
+  public void parseQueryMType_interpolationWindow() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/query?start=1h-ago&m=sum:iw-6m:7m-avg-pre:1h-avg:rate:sys.cpu.0");
+    TSQuery tsq = QueryRpc.parseQuery(query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals("iw-6m", sub.getInterpolationWindowOption());
+    assertEquals("7m-avg-pre", sub.getPredownsample());
+    assertEquals("1h-avg", sub.getDownsample());
+    assertTrue(sub.getRate());
+    assertEquals("sys.cpu.0", sub.getMetric());
+  }
+
+  @Test
+  public void parseQueryMType_zeroInterpolationWindow() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+        "/api/query?start=1h-ago&m=sum:iw-0s:3s-avg-pre:1h-avg:rate:sys.cpu.0");
+    TSQuery tsq = QueryRpc.parseQuery(query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals("iw-0s", sub.getInterpolationWindowOption());
+    assertEquals("3s-avg-pre", sub.getPredownsample());
+    assertEquals("1h-avg", sub.getDownsample());
+    assertTrue(sub.getRate());
+    assertEquals("sys.cpu.0", sub.getMetric());
+
+    sub.validateAndSetQuery();
+    DownsampleOptions downsampleOptions = sub.getPredownsampleOptions();
+    assertEquals(3000, downsampleOptions.getIntervalMs());
+    assertTrue(downsampleOptions.enabled());
+    assertEquals(0, sub.interpolationWindowMillis());
+  }
+
+  @Test
   public void parseQueryTSUIDType() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/query?start=1h-ago&tsuid=sum:010101");
@@ -191,6 +225,23 @@ public final class TestQueryRpc {
     assertNotNull(sub);
     assertEquals("sum", sub.getAggregator());
     assertEquals("7m-avg-pre", sub.getPredownsample());
+    assertEquals(1, sub.getTsuids().size());
+    assertEquals("010101", sub.getTsuids().get(0));
+  }
+
+  @Test
+  public void parseQueryTSUIDType__interpolationWindow() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb,
+      "/api/query?start=1h-ago&tsuid=sum:iw-6m:7m-avg-pre:010101");
+    TSQuery tsq = QueryRpc.parseQuery(query);
+    assertNotNull(tsq);
+    assertEquals("1h-ago", tsq.getStart());
+    assertNotNull(tsq.getQueries());
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertNotNull(sub);
+    assertEquals("sum", sub.getAggregator());
+    assertEquals("7m-avg-pre", sub.getPredownsample());
+    assertEquals("iw-6m", sub.getInterpolationWindowOption());
     assertEquals(1, sub.getTsuids().size());
     assertEquals("010101", sub.getTsuids().get(0));
   }

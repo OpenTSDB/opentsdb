@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static net.opentsdb.core.TSSubQuery.DEFAULT_INTERPOLTION_WINDOW_MS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -131,6 +132,8 @@ public final class TestTSQuery {
   public void testBuildQueries() throws IOException {
     TSQuery q = this.getMetricForValidate();
     TSSubQuery sub = q.getQueries().get(0);
+    // Forces the default interpolation window.
+    sub.setInterpolationWindowOption(null);
     // Forces the default pre downsampling options.
     sub.setPredownsample(null);
     q.validateAndSetQuery();
@@ -154,6 +157,7 @@ public final class TestTSQuery {
     assertTrue(downsample_options_captor_b.getValue().enabled());
     verify(mockQuery).setTimeSeries("sys.cpu.0", sub.getTags(),
                                     sub.aggregator(), sub.getRate());
+    verify(mockQuery).setInterpolationWindow(DEFAULT_INTERPOLTION_WINDOW_MS);
   }
 
   @Test
@@ -241,6 +245,66 @@ public final class TestTSQuery {
     assertTrue(downsample_options_captor_b.getValue().enabled());
     verify(mockQuery).setTimeSeries("sys.cpu.0", sub.getTags(),
                                     sub.aggregator(), sub.getRate());
+  }
+
+  @Test
+  public void testBuildQueries__interpolationWindow() throws IOException {
+    TSQuery q = this.getMetricForValidate();
+    TSSubQuery sub = q.getQueries().get(0);
+    sub.setPredownsample("2m-max-pre");
+    sub.setInterpolationWindowOption("iw-7m");
+    q.validateAndSetQuery();
+    TSDB mockTsdb = PowerMockito.mock(TSDB.class);
+    Query mockQuery = mock(Query.class);
+    when(mockTsdb.newQuery()).thenReturn(mockQuery);
+    Query[] returnedQueries = q.buildQueries(mockTsdb);
+    assertEquals(1, returnedQueries.length);
+    assertSame(mockQuery, returnedQueries[0]);
+    verify(mockQuery).setStartTime(1356998400000L);
+    verify(mockQuery).setEndTime(1356998460000L);
+    verify(mockQuery).setPredownsample(downsample_options_captor_a.capture());
+    verify(mockQuery).setPostdownsample(downsample_options_captor_b.capture());
+    assertEquals(120000, downsample_options_captor_a.getValue().getIntervalMs());
+    assertEquals(Aggregators.MAX,
+        downsample_options_captor_a.getValue().getDownsampler());
+    assertTrue(downsample_options_captor_a.getValue().enabled());
+    assertEquals(300000, downsample_options_captor_b.getValue().getIntervalMs());
+    assertEquals(Aggregators.AVG,
+        downsample_options_captor_b.getValue().getDownsampler());
+    assertTrue(downsample_options_captor_b.getValue().enabled());
+    verify(mockQuery).setTimeSeries("sys.cpu.0", sub.getTags(),
+                                    sub.aggregator(), sub.getRate());
+    verify(mockQuery).setInterpolationWindow(420000);
+  }
+
+  @Test
+  public void testBuildQueries__interpolationWindowZero() throws IOException {
+    TSQuery q = this.getMetricForValidate();
+    TSSubQuery sub = q.getQueries().get(0);
+    sub.setPredownsample("2m-max-pre");
+    sub.setInterpolationWindowOption("iw-0s");
+    q.validateAndSetQuery();
+    TSDB mockTsdb = PowerMockito.mock(TSDB.class);
+    Query mockQuery = mock(Query.class);
+    when(mockTsdb.newQuery()).thenReturn(mockQuery);
+    Query[] returnedQueries = q.buildQueries(mockTsdb);
+    assertEquals(1, returnedQueries.length);
+    assertSame(mockQuery, returnedQueries[0]);
+    verify(mockQuery).setStartTime(1356998400000L);
+    verify(mockQuery).setEndTime(1356998460000L);
+    verify(mockQuery).setPredownsample(downsample_options_captor_a.capture());
+    verify(mockQuery).setPostdownsample(downsample_options_captor_b.capture());
+    assertEquals(120000, downsample_options_captor_a.getValue().getIntervalMs());
+    assertEquals(Aggregators.MAX,
+        downsample_options_captor_a.getValue().getDownsampler());
+    assertTrue(downsample_options_captor_a.getValue().enabled());
+    assertEquals(300000, downsample_options_captor_b.getValue().getIntervalMs());
+    assertEquals(Aggregators.AVG,
+        downsample_options_captor_b.getValue().getDownsampler());
+    assertTrue(downsample_options_captor_b.getValue().enabled());
+    verify(mockQuery).setTimeSeries("sys.cpu.0", sub.getTags(),
+                                    sub.aggregator(), sub.getRate());
+    verify(mockQuery).setInterpolationWindow(0);
   }
 
   private TSQuery getMetricForValidate() {

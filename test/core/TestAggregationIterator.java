@@ -37,6 +37,11 @@ public class TestAggregationIterator {
     MutableDataPoint.ofLongValue(BASE_TIME + 10000, 37),
     MutableDataPoint.ofLongValue(BASE_TIME + 20000, 48)
   };
+  private static final DataPoint[] DATA_POINTS_3 = new DataPoint[] {
+    MutableDataPoint.ofLongValue(BASE_TIME + 10000, 37),
+    MutableDataPoint.ofLongValue(BASE_TIME + 20000, 48),
+    MutableDataPoint.ofLongValue(BASE_TIME + 35000, 78)
+  };
   final DataPoint[] DATA_5SEC = new DataPoint[] {
       MutableDataPoint.ofDoubleValue(BASE_TIME + 00000L, 1),
       MutableDataPoint.ofDoubleValue(BASE_TIME + 07000L, 1),
@@ -52,21 +57,24 @@ public class TestAggregationIterator {
   };
   private static final Aggregator AVG = Aggregators.get("avg");
   private static final Aggregator SUM = Aggregators.get("sum");
+  private static final long ZERO_INTERPOLATION_WINDOW = 0;
 
   private SeekableView[] iterators;
   private long start_time_ms;
   private long end_time_ms;
   private boolean rate;
   private Aggregator aggregator;
+  private long interpolationWindowMillis;
   private Interpolation interpolation;
 
 
   @Before
   public void setUp() {
-    start_time_ms = 1356998400L * 1000;
-    end_time_ms = 1356998500L * 1000;
+    start_time_ms = BASE_TIME;
+    end_time_ms = BASE_TIME + 100000;
     rate = false;
     aggregator = Aggregators.SUM;
+    interpolationWindowMillis = DateTime.parseDuration("1h");
     interpolation = Interpolation.LERP;
   }
 
@@ -76,7 +84,8 @@ public class TestAggregationIterator {
         SeekableViewsForTest.fromArray(DATA_POINTS_1)
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        start_time_ms, end_time_ms, aggregator, interpolation,rate);
+        start_time_ms, end_time_ms, aggregator, interpolation,
+        interpolationWindowMillis, rate);
     // Aggregating a single span should repeat the single span.
     for (DataPoint expected: DATA_POINTS_1) {
       assertTrue(sgai.hasNext());
@@ -94,7 +103,8 @@ public class TestAggregationIterator {
         SeekableViewsForTest.fromArray(DATA_POINTS_2),
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        start_time_ms, end_time_ms, aggregator, interpolation, rate);
+        start_time_ms, end_time_ms, aggregator, interpolation,
+        interpolationWindowMillis, rate);
     // Checks if all the distinct timestamps of both spans appear and missing
     // data point of one span for a timestamp of one span was interpolated.
     DataPoint[] expected_data_points = new DataPoint[] {
@@ -103,6 +113,90 @@ public class TestAggregationIterator {
         // 60 is the interpolated value.
         MutableDataPoint.ofLongValue(BASE_TIME + 20000, 60 + 48),
         MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70)
+      };
+    for (DataPoint expected: expected_data_points) {
+      assertTrue(sgai.hasNext());
+      DataPoint dp = sgai.next();
+      assertEquals(expected.timestamp(), dp.timestamp());
+      assertEquals(expected.longValue(), dp.longValue());
+    }
+    assertFalse(sgai.hasNext());
+  }
+
+  @Test
+  public void testSpanGroup_doubleSpansWithSmallInterpolationWindow() {
+    iterators = new SeekableView[] {
+        SeekableViewsForTest.fromArray(DATA_POINTS_1),
+        SeekableViewsForTest.fromArray(DATA_POINTS_3),
+    };
+    interpolationWindowMillis = 16000;
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
+        start_time_ms, end_time_ms, aggregator, interpolation,
+        interpolationWindowMillis, rate);
+    // Checks if all the distinct timestamps of both spans appear and missing
+    // data point of one span for a timestamp of one span was interpolated.
+    DataPoint[] expected_data_points = new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 10000, 50 + 37),
+        // No interpolation. Time gap is too big.
+        MutableDataPoint.ofLongValue(BASE_TIME + 20000, 48),
+        // 68 is the interpolated value.
+        MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70 + 68),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000, 78)
+      };
+    for (DataPoint expected: expected_data_points) {
+      assertTrue(sgai.hasNext());
+      DataPoint dp = sgai.next();
+      assertEquals(expected.timestamp(), dp.timestamp());
+      assertEquals(expected.longValue(), dp.longValue());
+    }
+    assertFalse(sgai.hasNext());
+  }
+
+  @Test
+  public void testSpanGroup_doubleSpansWithZeroInterpolationWindow() {
+    // Tests if zero interpolation window causes any problems or not.
+    iterators = new SeekableView[] {
+        SeekableViewsForTest.fromArray(DATA_POINTS_1),
+        SeekableViewsForTest.fromArray(DATA_POINTS_3),
+    };
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
+        start_time_ms, end_time_ms, aggregator, interpolation,
+        ZERO_INTERPOLATION_WINDOW, rate);
+    DataPoint[] expected_data_points = new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 10000, 50 + 37),
+        // No interpolation.
+        MutableDataPoint.ofLongValue(BASE_TIME + 20000, 48),
+        MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000, 78)
+      };
+    for (DataPoint expected: expected_data_points) {
+      assertTrue(sgai.hasNext());
+      DataPoint dp = sgai.next();
+      assertEquals(expected.timestamp(), dp.timestamp());
+      assertEquals(expected.longValue(), dp.longValue());
+    }
+    assertFalse(sgai.hasNext());
+  }
+
+  @Test
+  public void testSpanGroup_doubleSpansWithMaxInterpolationWindow() {
+    iterators = new SeekableView[] {
+        SeekableViewsForTest.fromArray(DATA_POINTS_1),
+        SeekableViewsForTest.fromArray(DATA_POINTS_3),
+    };
+    AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
+        start_time_ms, end_time_ms, aggregator, interpolation,
+        Long.MAX_VALUE, rate);
+    DataPoint[] expected_data_points = new DataPoint[] {
+        MutableDataPoint.ofLongValue(BASE_TIME, 40),
+        MutableDataPoint.ofLongValue(BASE_TIME + 10000, 50 + 37),
+        // 60 is the interpolated value.
+        MutableDataPoint.ofLongValue(BASE_TIME + 20000, 60 + 48),
+        // 68 is the interpolated value.
+        MutableDataPoint.ofLongValue(BASE_TIME + 30000, 70 + 68),
+        MutableDataPoint.ofLongValue(BASE_TIME + 35000, 78)
       };
     for (DataPoint expected: expected_data_points) {
       assertTrue(sgai.hasNext());
@@ -130,7 +224,7 @@ public class TestAggregationIterator {
     end_time_ms = BASE_TIME + 100000;
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         start_time_ms, end_time_ms, aggregator, interpolation,
-        rate);
+        interpolationWindowMillis, rate);
     DataPoint[] expected_data_points = new DataPoint[] {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 10000L, 7),
         MutableDataPoint.ofDoubleValue(BASE_TIME + 20000L, 7),
@@ -162,7 +256,7 @@ public class TestAggregationIterator {
     end_time_ms = BASE_TIME + 100000;
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         start_time_ms, end_time_ms, aggregator, interpolation,
-        rate);
+        interpolationWindowMillis, rate);
     Downsampler downsampler = new Downsampler(sgai, 15000, SUM);
     // Tests the case: downsamples by 10 seconds. Then, aggregates across spans.
     // Then, downsample by 15 seconds again.
@@ -193,7 +287,8 @@ public class TestAggregationIterator {
         iterator
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        start_time_ms, end_time_ms, aggregator, interpolation,rate);
+        start_time_ms, end_time_ms, aggregator, interpolation,
+        interpolationWindowMillis, rate);
     // The seek method should be called just once at the beginning.
     verify(iterator).seek(start_time_ms);
     for (DataPoint expected: DATA_POINTS_1) {
@@ -218,7 +313,7 @@ public class TestAggregationIterator {
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         BASE_TIME + 00000L, end_time_ms, aggregator, interpolation,
-        rate);
+        interpolationWindowMillis, rate);
     for (DataPoint expected: DATA_POINTS_1) {
       assertTrue(sgai.hasNext());
       DataPoint dp = sgai.next();
@@ -254,7 +349,7 @@ public class TestAggregationIterator {
                                     100);
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
         1356990000000L, 1356993600000L, aggregator, interpolation,
-        rate);
+        interpolationWindowMillis, rate);
     final long start_time_nano = System.nanoTime();
     long total_data_points = 0;
     long timestamp_checksum = 0;

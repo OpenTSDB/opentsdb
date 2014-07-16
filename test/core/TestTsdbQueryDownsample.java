@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static net.opentsdb.core.TSSubQuery.DEFAULT_INTERPOLTION_WINDOW_MS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -66,6 +67,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 public class TestTsdbQueryDownsample {
 
   private Config config;
+  private final static long DEFAULT_INTERPOLTION_WINDOW_SECS =
+      DEFAULT_INTERPOLTION_WINDOW_MS / 1000;
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
   private UniqueId metrics = mock(UniqueId.class);
@@ -148,23 +151,84 @@ public class TestTsdbQueryDownsample {
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     assertEquals(60000, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
-    long scanStartTime = 1356998400 - Const.MAX_TIMESPAN * 2 - 60;
-    assertEquals(scanStartTime, TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
-    long scanEndTime = 1357041600 + Const.MAX_TIMESPAN + 1 + 60;
-    assertEquals(scanEndTime, TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+    // Looks back just max time span without interpolation window by default.
+    long scanStartTime = 1356998400 - downsample_interval / 1000 -
+        Const.MAX_TIMESPAN_SECS;
+    assertEquals(scanStartTime,
+                 TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
+    long hbaseScanStartTime = scanStartTime - Const.MAX_TIMESPAN_SECS + 1;
+    assertEquals(hbaseScanStartTime,
+                 TsdbQuery.ForTesting.getHBaseScannerStartTimeSeconds(query));
+    // Looks forward just max time span without interpolation window by default.
+    long scanEndTime = 1357041600 + downsample_interval / 1000 +
+        Const.MAX_TIMESPAN_SECS;
+    assertEquals(scanEndTime,
+                 TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
   }
 
   @Test
   public void downsampleMilliseconds() throws Exception {
     int downsample_interval = (int)DateTime.parseDuration("60s");
     setPostdownsampler(downsample_interval, Aggregators.SUM);
-    query.setStartTime(1356998400000L);
-    query.setEndTime(1357041600000L);
+    query.setStartTime(2356998400000L);
+    query.setEndTime(2357041600000L);
     assertEquals(60000, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
-    long scanStartTime = 1356998400 - Const.MAX_TIMESPAN * 2 - 60;
-    assertEquals(scanStartTime, TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
-    long scanEndTime = 1357041600 + Const.MAX_TIMESPAN + 1 + 60;
-    assertEquals(scanEndTime, TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+    // Looks back just max time span without interpolation window by default.
+    long scanStartTime = 2356998400L - downsample_interval / 1000 -
+        Const.MAX_TIMESPAN_SECS;
+    assertEquals(scanStartTime,
+                 TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
+    long hbaseScanStartTime = scanStartTime - Const.MAX_TIMESPAN_SECS + 1;
+    assertEquals(hbaseScanStartTime,
+                 TsdbQuery.ForTesting.getHBaseScannerStartTimeSeconds(query));
+    // Looks forward just max time span without interpolation window by default.
+    long scanEndTime = 2357041600L + downsample_interval / 1000 +
+        Const.MAX_TIMESPAN_SECS;
+    assertEquals(scanEndTime,
+                 TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+  }
+
+  @Test
+  public void testScanTime_bigDownsampleTime() throws Exception {
+    query.setInterpolationWindow(DateTime.parseDuration("110s"));
+    int downsample_interval = (int)DateTime.parseDuration("200s");
+    query.setPredownsample(new DownsampleOptions(downsample_interval, Aggregators.AVG));
+    query.setPostdownsample(new DownsampleOptions(downsample_interval, Aggregators.AVG));
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    assertEquals(200000, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
+    long scanStartTime = 1356998400 - downsample_interval / 1000 -
+                         DateTime.parseDuration("110s") / 1000;
+    assertEquals(scanStartTime,
+        TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
+    long hbaseScanStartTime = scanStartTime - Const.MAX_TIMESPAN_SECS + 1;
+    assertEquals(hbaseScanStartTime,
+                 TsdbQuery.ForTesting.getHBaseScannerStartTimeSeconds(query));
+    long scanEndTime = 1357041600 + downsample_interval / 1000 +
+                       DateTime.parseDuration("110s") / 1000;
+    assertEquals(scanEndTime,
+                 TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+  }
+
+  @Test
+  public void testScanTime_interpolationWindowZero() throws Exception {
+    query.setInterpolationWindow(0);
+    int downsample_interval = (int)DateTime.parseDuration("200s");
+    query.setPredownsample(new DownsampleOptions(downsample_interval, Aggregators.AVG));
+    query.setPostdownsample(new DownsampleOptions(downsample_interval, Aggregators.AVG));
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    assertEquals(200000, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
+    // Checks if interpolation window does not contribute to scan start time.
+    long scanStartTime = 1356998400 - downsample_interval / 1000;
+    assertEquals(scanStartTime,
+        TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
+    long hbaseScanStartTime = scanStartTime - Const.MAX_TIMESPAN_SECS + 1;
+    assertEquals(hbaseScanStartTime,
+                 TsdbQuery.ForTesting.getHBaseScannerStartTimeSeconds(query));
+    long scanEndTime = 1357041600 + downsample_interval / 1000;
+    assertEquals(scanEndTime,
+                 TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
   }
 
   @Test
@@ -298,6 +362,54 @@ public class TestTsdbQueryDownsample {
     assertEquals(3201, dps[0].size());
   }
 
+  // TODO: DON'T SUBMIT.
+  /**
+   * This test is storing > Short.MAX_VALUE data points in a single row and
+   * making sure the state and iterators function properly. 1.x used a short as
+   * we would only have a max of 3600 data points but now we can have over 4M
+   * so we have to index with an int and store the state in a long.
+   */
+  @Test
+  public void runLongSingleTSDownsampleMsLarge_____XXXXX() throws Exception {
+    setQueryStorage();
+    long ts = 1356998400500L;
+    // mimicks having 64K data points in a row
+    final int limit = 64000;
+    final byte[] qualifier = new byte[4 * limit];
+    for (int i = 0; i < limit; i++) {
+      System.arraycopy(Internal.buildQualifier(ts, (short) 0), 0,
+          qualifier, i * 4, 4);
+      ts += 50;
+    }
+    final byte[] values = new byte[limit + 2];
+    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"),
+        qualifier, values);
+
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setPredownsample(new DownsampleOptions(1000, Aggregators.AVG));
+    query.setPostdownsample(new DownsampleOptions(1000, Aggregators.AVG));
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+
+    for (DataPoint dp : dps[0]) {
+      // NOTE: Downsampler supports just double values.
+      // TODO: Keep the original type - long or double.
+      assertEquals(0, dp.doubleValue(), 0);
+    }
+    // The first timestamp in second is 1356998400.500L, and the last one is
+    // 1357001600.450. Downsampler generates the timestamps in [1356998400,
+    // 1357001600], so there should be 3201 values.
+    assertEquals(3201, dps[0].size());
+  }
+
   @Test
   public void runLongSingleTSDownsampleAndRate() throws Exception {
     storeLongTimeSeriesSecondsWithBasetime(1356998403L, true, false);
@@ -347,6 +459,7 @@ public class TestTsdbQueryDownsample {
     assertNull(dps[0].getAnnotations());
     assertEquals("web01", dps[0].getTags().get("host"));
 
+    // TODO: DON'T SUBMIT.
     // Timeseries in intervals: (1), (2, 3), (4, 5), ... (298, 299), (300)
     // After downsampling: 1, 2.5, 4.5, ... 298.5, 300
     int i = 0;
@@ -506,6 +619,7 @@ public class TestTsdbQueryDownsample {
     assertNull(dps[0].getAnnotations());
     assertEquals("web01", dps[0].getTags().get("host"));
 
+    // TODO: DON'T SUBMIT.
     // Timeseries in intervals: (1.25), (1.5, 1.75), (2, 2.25), ...
     // (75.5, 75.75), (76).
     // After downsampling: 1.25, 1.625, 2.125, ... 75.625, 76

@@ -41,10 +41,26 @@ public final class TSSubQuery {
 
   /** Sub query option to specify the pre-downsample options. */
   public static final String SUFFIX_PREDOWNSAMPLE = "-pre";
+  /** Sub query option to specify the interpolation window. */
+  public static final String PREFIX_INTERPOLATION_WINDOW = "iw-";
+  /** No interpolation window by default. */
+  public static final long DEFAULT_INTERPOLTION_WINDOW_MS =
+      Long.MAX_VALUE;
 
   /** User given name of an aggregation function to use */
   private String aggregator;
-  
+
+  /**
+   * Interpolation time window. An interpolated data point will be
+   * dropped while aggregating data points of spans if the time gap of
+   * two end-points for the interpolation is bigger than the window.
+   */
+   // TODO: DO NOT SUBMIT. Following the naming convention.
+  private String interpolation_window_option;
+
+  /** Interpolation window in milliseconds */
+  private long interpolation_window_ms = DEFAULT_INTERPOLTION_WINDOW_MS;
+
   /** User given name for a metric, e.g. "sys.cpu.0" */
   private String metric;
   
@@ -113,6 +129,10 @@ public final class TSSubQuery {
     }
     buf.append("], agg=")
       .append(aggregator)
+      .append(", interpolation_window_option='")
+      .append(interpolation_window_option)
+      .append("', interpolation_window_ms=")
+      .append(interpolation_window_ms)
       .append(", predownsample='")
       .append(predownsample)
       .append("', predownsample_options=")
@@ -158,6 +178,34 @@ public final class TSSubQuery {
     
     predownsample_options = parseDownsampleOptions(predownsample, true);
     downsample_options = parseDownsampleOptions(downsample, false);
+    parseInterpolationWindow();
+  }
+
+  /**
+   * Parses interpolation window.
+   * @throws IllegalArgumentException if we failed to parse.
+   */
+  private void parseInterpolationWindow() {
+    if (interpolation_window_option == null ||
+        interpolation_window_option.isEmpty()) {
+      // Use the default value.
+      return;
+    }
+    if (!interpolation_window_option.startsWith(PREFIX_INTERPOLATION_WINDOW)) {
+      throw new IllegalArgumentException(
+          String.format("Invalid interpolation window specifier '%s'",
+              interpolation_window_option));
+    }
+    try {
+      String interpolation_window = interpolation_window_option.substring(
+          PREFIX_INTERPOLATION_WINDOW.length());
+      interpolation_window_ms =
+          DateTime.parseNonNegativeDuration(interpolation_window);
+    } catch (IllegalArgumentException ignored) {
+      throw new IllegalArgumentException(
+          String.format("Invalid interpolation window specifier '%s' - " +
+                        "error in time format", interpolation_window_option));
+    }
   }
 
   /**
@@ -204,6 +252,11 @@ public final class TSSubQuery {
     return this.agg;
   }
 
+  /** @return the interpolation window in milliseconds */
+  public long interpolationWindowMillis() {
+    return this.interpolation_window_ms;
+  }
+
   /** @return the parsed pre-downsample options. */
   public DownsampleOptions getPredownsampleOptions() {
     return this.predownsample_options;
@@ -217,6 +270,11 @@ public final class TSSubQuery {
   /** @return the user supplied aggregator */
   public String getAggregator() {
     return aggregator;
+  }
+
+  /** @return the interpolation window option in string */
+  public String getInterpolationWindowOption() {
+    return interpolation_window_option;
   }
 
   /** @return the user supplied metric */
@@ -262,6 +320,11 @@ public final class TSSubQuery {
   /** @param aggregator the name of an aggregation function */
   public void setAggregator(String aggregator) {
     this.aggregator = aggregator;
+  }
+
+  /** @param interpolation_window_option an interpolation time window */
+  public void setInterpolationWindowOption(String interpolation_window_option) {
+    this.interpolation_window_option = interpolation_window_option;
   }
 
   /** @param metric the name of a metric to fetch */

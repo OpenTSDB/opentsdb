@@ -388,10 +388,11 @@ final class QueryRpc implements HttpRpc {
    * @throws BadRequestException if there is no tokens or any unknown token.
    */
   private static TSSubQuery parseAggregatorParam(final String[] tokens) {
-    // Syntax = agg:[interval-agg-pre:][interval-agg:]
+    // Syntax = agg:[iw-interval:][interval-agg-pre:][interval-agg:]
     //          [rate[{counter[,[countermax][,resetvalue]]}]:]
     // where the parts in square brackets `[' .. `]' are optional.
     // agg is the name of an aggregation function. See {@link Aggregators}.
+    // iw-interval is a time window of interpolation.
     // interval-agg-pre is a pre-downsample interval and a pre-downsample
     // function. interval-agg is a post-downsample interval and a
     // post-downsample function. rate is a flag to enable change rate
@@ -408,6 +409,9 @@ final class QueryRpc implements HttpRpc {
         if (token.indexOf("{") >= 0) {
           sub_query.setRateOptions(parseRateOptions(true, token));
         }
+      } else if (token.toLowerCase().startsWith(
+          TSSubQuery.PREFIX_INTERPOLATION_WINDOW)) {
+        sub_query.setInterpolationWindowOption(token);
       } else if (token.toLowerCase().endsWith(
           TSSubQuery.SUFFIX_PREDOWNSAMPLE)) {
         sub_query.setPredownsample(token);
@@ -441,7 +445,7 @@ final class QueryRpc implements HttpRpc {
     // See parseAggregatorParam for Aggreagator_parameters.
     final String[] parts = Tags.splitString(query_string, ':');
     int i = parts.length;
-    if (i < 2 || i > 5) {
+    if (i < 2 || i > 6) {
       throw new BadRequestException("Invalid parameter m=" + query_string + " ("
           + (i < 2 ? "not enough" : "too many") + " :-separated parts)");
     }

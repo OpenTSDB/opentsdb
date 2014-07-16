@@ -17,6 +17,7 @@ import java.util.NoSuchElementException;
 
 /**
  * Iterator that generates rates from a sequence of adjacent data points.
+ * The timestamp of a rate is that of the second point between two data points.
  */
 public class RateSpan implements SeekableView {
 
@@ -29,6 +30,10 @@ public class RateSpan implements SeekableView {
   private final SeekableView source;
   /** Options for calculating rates. */
   private final RateOptions options;
+  /** Drops rates of time gaps bigger than the time span limit. */
+  private final long time_span_limit_ms;
+  /** Timestamp to end iteration. */
+  private final long end_time_ms;
   // TODO: use primitives for next_data, next_rate, and prev_rate instead
   // in order to reduce memory and CPU overhead.
   /** The latter of two raw data points used to calculate the next rate. */
@@ -46,7 +51,21 @@ public class RateSpan implements SeekableView {
    * @param options Options for calculating rates.
    */
   RateSpan(final SeekableView source, final RateOptions options) {
+    this(source, options, Long.MAX_VALUE, Long.MAX_VALUE);
+  }
+
+  /**
+   * Constructs a {@link RateSpan} instance.
+   * @param source The iterator to access the underlying data.
+   * @param options Options for calculating rates.
+   * @param time_span_limit_ms Limit of time span to calculate a rate.
+   * @param end_time_ms Timestamp to end iteration
+   */
+  RateSpan(final SeekableView source, final RateOptions options,
+           final long time_span_limit_ms, final long end_time_ms) {
     this.source = source;
+    this.time_span_limit_ms = time_span_limit_ms;
+    this.end_time_ms = end_time_ms;
     this.options = options;
   }
 
@@ -106,10 +125,14 @@ public class RateSpan implements SeekableView {
     // performance penalty by accessing the first data of a span.
     if (!initialized) {
       initialized = true;
-      // NOTE: Calculates the first rate between the time zero and the first
-      // data point for the backward compatibility.
-      // TODO: Don't compute the first rate with the time zero.
-      next_data.reset(0, 0);
+      if (source.hasNext()) {
+        next_data.reset(source.next());
+      }
+      // TODO: DO NOT SUBMIT. Remove the following dead code.
+//      // NOTE: Calculates the first rate between the time zero and the first
+//      // data point for the backward compatibility.
+//      // TODO: Don't compute the first rate with the time zero.
+//      next_data.reset(0, 0);
       // Sets the first rate to be retrieved.
       populateNextRate();
     }
@@ -120,17 +143,25 @@ public class RateSpan implements SeekableView {
    */
   private void populateNextRate() {
     final MutableDataPoint prev_data = new MutableDataPoint();
-    if (source.hasNext()) {
+    while (source.hasNext()) {
       prev_data.reset(next_data);
       next_data.reset(source.next());
       
       final long t0 = prev_data.timestamp();
       final long t1 = next_data.timestamp();
+      if (t1 >= end_time_ms) {
+          // Does not compute a rate beyond the end time.
+          break;
+      }
       if (t1 <= t0) {
         throw new IllegalStateException(
             "Next timestamp (" + t1 + ") is supposed to be "
             + " strictly greater than the previous one (" + t0 + "), but it's"
             + " not.  this=" + this);
+      }
+      if ((t1 - t0) > time_span_limit_ms) {
+          // The gap is too big. Skips this rate and continue to the next rate.
+          continue;
       }
       // TODO: for backwards compatibility we'll convert the ms to seconds
       // but in the future we should add a ratems flag that will calculate
@@ -161,17 +192,18 @@ public class RateSpan implements SeekableView {
         final double rate = difference / time_delta_secs;
         if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
             && rate > options.getResetValue()) {
-          next_rate.reset(next_data.timestamp(), 0.0D);
+          next_rate.reset(t1, 0.0D);
         } else {
-          next_rate.reset(next_data.timestamp(), rate);
+          next_rate.reset(t1, rate);
         }
       } else {
-        next_rate.reset(next_data.timestamp(), (difference / time_delta_secs));
+        next_rate.reset(t1, (difference / time_delta_secs));
       }
-    } else {
-      // Invalidates the next rate with invalid timestamp.
-      next_rate.reset(INVALID_TIMESTAMP, 0);
+      // We got a valid rate.
+      return;
     }
+    // Invalidates the next rate with invalid timestamp.
+    next_rate.reset(INVALID_TIMESTAMP, 0);
   }
 
   @Override

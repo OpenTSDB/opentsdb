@@ -183,6 +183,7 @@ public final class TSQuery {
         query.setTimeSeries(sub.getMetric(), sub.getTags(), sub.aggregator(), 
             sub.getRate());
       }
+      query.setInterpolationWindow(sub.interpolationWindowMillis());
       queries[i] = query;
       i++;
     }

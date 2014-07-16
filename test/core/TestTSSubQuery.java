@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static net.opentsdb.core.TSSubQuery.DEFAULT_INTERPOLTION_WINDOW_MS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -31,6 +32,8 @@ public final class TestTSSubQuery {
   @Test
   public void validate() {
     TSSubQuery sub = getMetricForValidate();
+    // Forces the default interpolation window.
+    sub.setInterpolationWindowOption(null);
     sub.validateAndSetQuery();
     assertEquals("sys.cpu.0", sub.getMetric());
     assertEquals("*", sub.getTags().get("host"));
@@ -42,6 +45,8 @@ public final class TestTSSubQuery {
     DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
     assertEquals(Aggregators.AVG, postdownsample_options.getDownsampler());
     assertEquals(300000, postdownsample_options.getIntervalMs());
+    assertEquals(DEFAULT_INTERPOLTION_WINDOW_MS,
+        sub.interpolationWindowMillis());
   }
 
   @Test
@@ -49,6 +54,8 @@ public final class TestTSSubQuery {
     TSSubQuery sub = getMetricForValidate();
     // Forces the default pre downsampling.
     sub.setPredownsample(null);
+    // Forces the default interpolation window.
+    sub.setInterpolationWindowOption(null);
     // TSUID query should not have any metric query param.
     sub.setMetric(null);
     ArrayList<String> tsuids = new ArrayList<String>(1);
@@ -63,6 +70,8 @@ public final class TestTSSubQuery {
     DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
     assertEquals(Aggregators.AVG, postdownsample_options.getDownsampler());
     assertEquals(300000, postdownsample_options.getIntervalMs());
+    assertEquals(DEFAULT_INTERPOLTION_WINDOW_MS,
+        sub.interpolationWindowMillis());
   }
 
   @Test
@@ -163,6 +172,52 @@ public final class TestTSSubQuery {
     assertEquals(300000, postdownsample_options.getIntervalMs());
   }
 
+  @Test
+  public void validateMetricSubQuery_interpolationWindow() {
+    TSSubQuery sub = getMetricForValidate();
+    sub.setPredownsample("4m-max-pre");
+    assertEquals("4m-max-pre", sub.getPredownsample());
+    sub.setInterpolationWindowOption("iw-7m");
+    assertEquals("iw-7m", sub.getInterpolationWindowOption());
+    sub.validateAndSetQuery();
+    assertEquals("sys.cpu.0", sub.getMetric());
+    assertEquals("*", sub.getTags().get("host"));
+    assertEquals("lga", sub.getTags().get("dc"));
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    DownsampleOptions predownsample_options = sub.getPredownsampleOptions();
+    assertEquals(Aggregators.MAX, predownsample_options.getDownsampler());
+    assertEquals(240000, predownsample_options.getIntervalMs());
+    DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
+    assertEquals(Aggregators.AVG, postdownsample_options.getDownsampler());
+    assertEquals(300000, postdownsample_options.getIntervalMs());
+    assertEquals(420000, sub.interpolationWindowMillis());
+  }
+
+  @Test
+  public void validateTsuid_interpolationWindow() {
+    TSSubQuery sub = getMetricForValidate();
+    sub.setMetric(null);
+    sub.setPredownsample("4m-max-pre");
+    assertEquals("4m-max-pre", sub.getPredownsample());
+    sub.setInterpolationWindowOption("iw-7m");
+    assertEquals("iw-7m", sub.getInterpolationWindowOption());
+    ArrayList<String> tsuids = new ArrayList<String>(1);
+    tsuids.add("ABCD");
+    sub.setTsuids(tsuids);
+    sub.validateAndSetQuery();
+    assertNotNull(sub.getTsuids());
+    assertEquals("*", sub.getTags().get("host"));
+    assertEquals("lga", sub.getTags().get("dc"));
+    assertEquals(Aggregators.SUM, sub.aggregator());
+    DownsampleOptions predownsample_options = sub.getPredownsampleOptions();
+    assertEquals(Aggregators.MAX, predownsample_options.getDownsampler());
+    assertEquals(240000, predownsample_options.getIntervalMs());
+    DownsampleOptions postdownsample_options = sub.getDownsampleOptions();
+    assertEquals(Aggregators.AVG, postdownsample_options.getDownsampler());
+    assertEquals(300000, postdownsample_options.getIntervalMs());
+    assertEquals(420000, sub.interpolationWindowMillis());
+  }
+
   /**
    * Sets up an object with good, common values for testing the validation
    * function with an "m" type query (no tsuids). Each test can "set" the 
@@ -176,6 +231,7 @@ public final class TestTSSubQuery {
     sub.setAggregator("sum");
     sub.setPredownsample("1m-avg-pre");
     sub.setDownsample("5m-avg");
+    sub.setInterpolationWindowOption("iw-6m");
     sub.setMetric("sys.cpu.0");
     sub.setRate(false);
     final HashMap<String, String> tags = new HashMap<String, String>();

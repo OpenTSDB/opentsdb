@@ -137,6 +137,13 @@ final class AggregationIterator implements SeekableView, DataPoint,
   /** Interpolation method to use when aggregating time series */
   private final Interpolation method;
 
+  /**
+   * Interpolation time window. An interpolated data point will be
+   * dropped while aggregating data points of spans if the time gap of
+   * two end-points for the interpolation is bigger than the window.
+   */
+  private final long interpolation_window_ms;
+
   /** If true, use rate of change instead of actual values. */
   private final boolean rate;
 
@@ -203,6 +210,8 @@ final class AggregationIterator implements SeekableView, DataPoint,
    * ignored.
    * @param aggregator The aggregation function to use.
    * @param method Interpolation method to use when aggregating time series
+   * @param interpolation_window_ms Interpolation is valid only in this
+   * time window.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
    * @param sample_interval_ms Number of milliseconds wanted between each data
@@ -218,6 +227,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
                                            final long end_time,
                                            final Aggregator aggregator,
                                            final Interpolation method,
+                                           final long interpolation_window_ms,
                                            final DownsampleOptions downsampler,
                                            final boolean rate,
                                            final RateOptions rate_options) {
@@ -232,12 +242,13 @@ final class AggregationIterator implements SeekableView, DataPoint,
         it = spans.get(i).spanIterator();
       }
       if (rate) {
-        it = new RateSpan(it, rate_options);
+        it = new RateSpan(it, rate_options, interpolation_window_ms,
+            end_time);
       }
       iterators[i] = it;
     }
     return new AggregationIterator(iterators, start_time, end_time, aggregator,
-                                   method, rate);
+                                   method, interpolation_window_ms, rate);
   }
 
   /**
@@ -250,6 +261,8 @@ final class AggregationIterator implements SeekableView, DataPoint,
    * ignored.
    * @param aggregator The aggregation function to use.
    * @param method Interpolation method to use when aggregating time series
+   * @param interpolation_window_ms Interpolation is valid only in this
+   * time window.
    * @param rate If {@code true}, the rate of the series will be used instead
    * of the actual values.
    */
@@ -258,6 +271,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
                               final long end_time,
                               final Aggregator aggregator,
                               final Interpolation method,
+                              final long interpolation_window_ms,
                               final boolean rate) {
     LOG.debug("Aggregating {} iterators", iterators.length);
     this.iterators = iterators;
@@ -265,6 +279,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     this.end_time = end_time;
     this.aggregator = aggregator;
     this.method = method;
+    this.interpolation_window_ms = interpolation_window_ms;
     this.rate = rate;
     final int size = iterators.length;
     timestamps = new long[size * 2];
@@ -291,6 +306,10 @@ final class AggregationIterator implements SeekableView, DataPoint,
       if (dp.timestamp() >= start_time) {
         //LOG.debug("First DP in range for #" + i + ": "
         //          + dp.timestamp() + " >= " + start_time);
+        // Stores the first data point as the next value. The timestamp of the
+        // current data point of this iterator remains unchanged as zero, and it
+        // will not participate aggregation and interpolation until it becomes
+        // the current iterator of aggregation for the first time.
         putDataPoint(size + i, dp);
       } else {
         if (LOG.isDebugEnabled()) {
@@ -300,22 +319,17 @@ final class AggregationIterator implements SeekableView, DataPoint,
         endReached(i);
         continue;
       }
-      if (rate) {
-        // The first rate against the time zero should be populated
-        // for the backward compatibility that uses the previous rate
-        // instead of interpolating for aggregation when a data point is
-        // missing for the current timestamp.
-        // TODO: Use the next rate that contains the current timestamp.
-        if (it.hasNext()) {
-          moveToNext(i);
-        } else {
-          endReached(i);
-        }
-      }
     }
     if (num_empty_spans > 0) {
       LOG.debug(String.format("%d out of %d spans are empty!",
                               num_empty_spans, size));
+    }
+    // TODO: DO NOT SUBMIT
+    for (int i = 0; i < size; i++) {
+      if (iterators[i] != null && timestamps[i] != 0) {
+        throw new RuntimeException("Must be zero but timestamps[" + i + "] is " + timestamps[i]
+            + " for iterators[" + i + "] = " + iterators[i]);
+      }
     }
   }
 
@@ -368,7 +382,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
 
   public DataPoint next() {
     final int size = iterators.length;
-    long min_ts = Long.MAX_VALUE;
 
     // In case we reached the end of one or more Spans, we need to make sure
     // we mark them as such by zeroing their current timestamp.  There may
@@ -388,6 +401,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     // set this to true so we can fetch the next data point in all of them at
     // the same time.
     boolean multiple = false;
+    long min_ts = Long.MAX_VALUE;
     for (int i = 0; i < size; i++) {
       final long timestamp = timestamps[size + i] & TIME_MASK;
       if (timestamp <= end_time) {
@@ -514,6 +528,49 @@ final class AggregationIterator implements SeekableView, DataPoint,
   }
 
   /**
+   * Checks if the values of the given iterator should be aggregated.
+   * @param itr_idx index into timestamps for an iterator
+   * @return true if the iterator value should be aggregated.
+   */
+  private boolean shouldAggregate(int itr_idx) {
+    if (timestamps[itr_idx] == 0) {
+      // Should *NOT* aggregate the span that has no data points to aggregate.
+      // The timestamp zero is used before the beginning and at the end of a span.
+      return false;
+    }
+    final long t0 = timestamps[itr_idx] & TIME_MASK;
+    final long t1 = timestamps[itr_idx + iterators.length] & TIME_MASK;
+    final long current_timestamp = timestamps[current] & TIME_MASK;
+    if ((current_timestamp == t0) || (current_timestamp == t1)) {
+      // Should aggregate the value of the current timestamp.
+      return true;
+    }
+    // Interpolation happens between the current and next data points of
+    // a span.
+    if (t1 <= t0) {
+      // t1 should be TIME_MASK or Long.MAX_VALUE if there is no next data.
+      throw new IllegalStateException(
+          "Next timestamp (" + t1 + ") is supposed to be "
+          + " strictly greater than the previous one (" + t0 + "), but it's"
+          + " not. itd_idx = " + itr_idx + ". this=" + this);
+    }
+    if (current_timestamp < t0 || current_timestamp > t1) {
+      throw new IllegalStateException(
+          "Current timestamp (" + current_timestamp + ") is supposed to be "
+          + " strictly in the range of " + t0 + " and " + t1 + ", but it's"
+          + " not. itd_idx = " + itr_idx + ". this=" + this);
+    }
+    if ((t1 - t0) <= interpolation_window_ms) {
+      // Should aggregate the interpolated data point of data points
+      // close enough together in time.
+      return true;
+    }
+    // Should *NOT* aggregate the interpolated data point that are *NOT*
+    // close enough together.
+    return false;
+  }
+
+  /**
    * Returns whether or not there are more values to aggregate.
    * @param update_pos Whether or not to also move the internal pointer
    * {@link #pos} to the index of the next value to aggregate.
@@ -522,7 +579,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   private boolean hasNextValue(boolean update_pos) {
     final int size = iterators.length;
     for (int i = pos + 1; i < size; i++) {
-      if (timestamps[i] != 0) {
+      if (shouldAggregate(i)) {
         //LOG.debug("hasNextValue -> true #" + i);
         if (update_pos) {
           pos = i;
@@ -593,16 +650,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
         //LOG.debug("Exact match, no lerp needed");
         return y0;
       }
-      if (rate) {
-        // No LERP for the rate. Just uses the rate of any previous timestamp.
-        // If x0 is smaller than the current time stamp 'x', we just use
-        // y0 as a current rate of the 'pos' span. If x0 is bigger than the
-        // current timestamp 'x', we don't go back further and just use y0
-        // instead. It happens only at the beginning of iteration.
-        // TODO: Use the next rate the time range of which includes the current
-        // timestamp 'x'.
-        return y0;
-      }
       final long x = timestamps[current] & TIME_MASK;
       final long x0 = timestamps[pos] & TIME_MASK;
       if (x == x0) {
@@ -616,6 +663,11 @@ final class AggregationIterator implements SeekableView, DataPoint,
       final long x1 = timestamps[next] & TIME_MASK;
       if (x == x1) {
         //LOG.debug("No lerp needed x == x1 (" + x + " == "+x1+") => " + y1);
+        return y1;
+      }
+      if (rate) {
+        // No LERP for the rate. Just uses the rate of any next timestamp.
+        // The time range of it includes the current timestamp 'x'.
         return y1;
       }
       if ((x1 & Const.MILLISECOND_MASK) != 0) {
@@ -682,8 +734,10 @@ final class AggregationIterator implements SeekableView, DataPoint,
                                               final long end_time,
                                               final Aggregator aggregator,
                                               final Interpolation method,
+                                              final long interpolation_window_ms,
                                               final boolean rate) {
     return new AggregationIterator(iterators, start_time, end_time,
-                                   aggregator, method, rate);
+                                   aggregator, method, interpolation_window_ms,
+                                   rate);
   }
 }

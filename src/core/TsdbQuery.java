@@ -21,6 +21,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,6 +110,16 @@ final class TsdbQuery implements Query {
   
   /** Aggregator function to use. */
   private Aggregator aggregator;
+
+  // TODO: Use a unit-safe way to express a time interval instead of relying
+  // on integer and the suffix of a variable name like "Millis".
+  /**
+   * Interpolation time window. An interpolated data point will be
+   * dropped while aggregating data points of spans if the time gap of
+   * two end-points for the interpolation is bigger than the window.
+   */
+  private long interpolation_window_ms =
+      TSSubQuery.DEFAULT_INTERPOLTION_WINDOW_MS;
 
   /** Options for downsampling before aggregation. */
   private DownsampleOptions predownsample_options = DownsampleOptions.NONE;
@@ -464,6 +475,7 @@ final class TsdbQuery implements Query {
                                               spans.values(),
                                               rate, rate_options,
                                               aggregator,
+                                              interpolation_window_ms,
                                               predownsample_options,
                                               postdownsample_options);
         return new SpanGroup[] { group };
@@ -508,7 +520,8 @@ final class TsdbQuery implements Query {
         if (thegroup == null) {
           thegroup = new SpanGroup(getScanStartTimeSeconds(),
                                    getScanEndTimeSeconds(),
-                                   null, rate, rate_options, aggregator,
+                                   null, rate, rate_options,
+                                   aggregator, interpolation_window_ms,
                                    predownsample_options,
                                    postdownsample_options);
           // Copy the array because we're going to keep `group' and overwrite
@@ -544,7 +557,9 @@ final class TsdbQuery implements Query {
     // rely on having a few extra data points before & after the exact start
     // & end dates in order to do proper rate calculation or downsampling near
     // the "edges" of the graph.
-    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(), metric_width);
+    Bytes.setInt(start_row,
+                 (int) getHBaseScannerStartTimeSeconds(),
+                 metric_width);
     Bytes.setInt(end_row, (end_time == UNSET
                            ? -1  // Will scan until the end (0xFFF...).
                            : (int) getScanEndTimeSeconds()),
@@ -574,48 +589,101 @@ final class TsdbQuery implements Query {
     return scanner;
   }
 
-  /** Returns the UNIX timestamp from which we must start scanning.  */
+  /** @return the UNIX timestamp from which we must start scanning.  */
   private long getScanStartTimeSeconds() {
-    // The reason we look before by `MAX_TIMESPAN * 2' seconds is because of
-    // the following.  Let's assume MAX_TIMESPAN = 600 (10 minutes) and the
-    // start_time = ... 12:31:00.  If we initialize the scanner to look
-    // only 10 minutes before, we'll start scanning at time=12:21, which will
-    // give us the row that starts at 12:30 (remember: rows are always aligned
-    // on MAX_TIMESPAN boundaries -- so in this example, on 10m boundaries).
-    // But we need to start scanning at least 1 row before, so we actually
-    // look back by twice MAX_TIMESPAN.  Only when start_time is aligned on a
-    // MAX_TIMESPAN boundary then we'll mistakenly scan back by an extra row,
-    // but this doesn't really matter.
-    // Additionally, in case our sample_interval_ms is large, we need to look
-    // even further before/after, so use that too.
-    long start = getStartTime();
-    // down cast to seconds if we have a query in ms
-    if ((start & Const.SECOND_MASK) != 0) {
-      start /= 1000;
-    }
+    // NOTE: The first value in the user requested time range is the result
+    // of the first downsampling window that could extend before the start
+    // time. To be conservative, we are adding a downsmapling interval
+    // to the amount of time to extend before the requested time range.
+    // TODO: Do not add the downsampling interval if the start time is
+    // well aligned.
     long sample_interval_ms = Math.max(predownsample_options.getIntervalMs(),
                                        postdownsample_options.getIntervalMs());
-    final long ts = start - Const.MAX_TIMESPAN * 2 - sample_interval_ms / 1000;
-    return ts > 0 ? ts : 0;
+    long extension_ms = sample_interval_ms;
+    // NOTE: Now, we are adding an interpolation window to the extension time
+    // because the first interpolated data of the first downsampling window
+    // requires a data point in the interpolation window but out side of the
+    // first downsampling window.
+    long iw_extenstion_ms = interpolation_window_ms;
+    if (interpolation_window_ms == Long.MAX_VALUE) {
+      // Looks back just an hour or max time span if there is no interpolation
+      // window.
+      iw_extenstion_ms = Const.MAX_TIMESPAN_MS;
+    } else if (rate) {
+      // NOTE: For the rate of changes, we are adding another interpolation
+      // window because we need a rate out side of the first downsampling
+      // window and a rate requires two data points. So we are adding
+      // additional interpolation time window.
+      iw_extenstion_ms += interpolation_window_ms;
+    }
+    if ((extension_ms + iw_extenstion_ms) < extension_ms) {
+      // Integer overflow.
+      throw new IllegalArgumentException(
+          String.format("Either downsampling interval '%d' or interpolation " +
+                        "window '%d' is too big ", sample_interval_ms,
+                        interpolation_window_ms));
+    }
+    extension_ms += iw_extenstion_ms;
+    long start_sec = getStartTime();
+    // down cast to seconds if we have a query in ms
+    if ((start_sec & Const.SECOND_MASK) != 0) {
+      start_sec = TimeUnit.MILLISECONDS.toSeconds(start_sec);
+    }
+    start_sec -= TimeUnit.MILLISECONDS.toSeconds(extension_ms);
+    return start_sec > 0 ? start_sec : 0;
+  }
+
+  /** @return the UNIX timestamp from which we must start scanning HBase. */
+  private long getHBaseScannerStartTimeSeconds() {
+    long scanner_start_sec = getScanStartTimeSeconds();
+    // Rounds down to align the start time by row key. The timestamps of
+    // row keys are multiple of Const.MAX_TIMESPAN_SECS. Instead actually
+    // dividing and multiplying Const.MAX_TIMESPAN_SECS, we just subtract
+    // Const.MAX_TIMESPAN_SECS -1 because it just makes the start time small
+    // enough to fetch the starting row but not too small to fetch one
+    // additional row before it.
+    scanner_start_sec -= (Const.MAX_TIMESPAN_SECS - 1);
+    return scanner_start_sec > 0 ? scanner_start_sec : 0;
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.  */
   private long getScanEndTimeSeconds() {
-    // For the end_time, we have a different problem.  For instance if our
-    // end_time = ... 12:30:00, we'll stop scanning when we get to 12:40, but
-    // once again we wanna try to look ahead one more row, so to avoid this
-    // problem we always add 1 second to the end_time.  Only when the end_time
-    // is of the form HH:59:59 then we will scan ahead an extra row, but once
-    // again that doesn't really matter.
-    // Additionally, in case our sample_interval_ms is large, we need to look
-    // even further before/after, so use that too.
-    long end = getEndTime();
-    if ((end & Const.SECOND_MASK) != 0) {
-      end /= 1000;
+    long end_sec = getEndTime();
+    // down cast to seconds if we have a query in ms
+    if ((end_sec & Const.SECOND_MASK) != 0) {
+      end_sec = TimeUnit.MILLISECONDS.toSeconds(end_sec);
     }
     long sample_interval_ms = Math.max(predownsample_options.getIntervalMs(),
                                        postdownsample_options.getIntervalMs());
-    return end + Const.MAX_TIMESPAN + 1 + sample_interval_ms / 1000;
+    // NOTE: The last value in the user requested time range is the result
+    // of the last downsampling window that could extend after the end
+    // time. To be conservative, we are adding a downsmapling interval
+    // to the amount of time to extend after the requested time range.
+    // TODO: Do not add the downsampling interval if the end time is
+    // well aligned.
+    long extension_ms = sample_interval_ms;
+    // NOTE: Now, we are adding an interpolation window to the extension time
+    // to make the last interpolated data of the last downsampling window
+    // valid
+    long iw_extenstion_ms = interpolation_window_ms;
+    if (interpolation_window_ms == Long.MAX_VALUE) {
+      // Looks forward just an hour or max time span if there is no
+      // interpolation window.
+      iw_extenstion_ms = Const.MAX_TIMESPAN_MS;
+    }
+    extension_ms += iw_extenstion_ms;
+    end_sec += TimeUnit.MILLISECONDS.toSeconds(extension_ms);
+    // Jan. 2014: The original implementation added 1 to the end time to
+    // include the data point at endSeconds, but now we made it exclusive and
+    // not including it.
+    if (end_sec <= 0) {
+      // Integer overflow.
+      throw new IllegalArgumentException(
+          String.format("Either downsampling interval '%d' or interpolation " +
+                        "window '%d' is too big ", sample_interval_ms,
+                        interpolation_window_ms));
+    }
+    return end_sec;
   }
 
   /**
@@ -876,13 +944,27 @@ final class TsdbQuery implements Query {
 
   }
 
+  /**
+   * Sets interpolation time window.
+   * @param millis Interpolation time window in millis.
+   */
+  @Override
+  public void setInterpolationWindow(long millis) {
+    interpolation_window_ms = millis;
+  }
+
   /** Helps unit tests inspect private methods. */
   @VisibleForTesting
   static class ForTesting {
 
-    /** @return the start time of the HBase scan for unit tests. */
+    /** @return the start time of the scan for unit tests. */
     static long getScanStartTimeSeconds(TsdbQuery query) {
       return query.getScanStartTimeSeconds();
+    }
+
+    /** @return the start time of HBase scannner for unit tests. */
+    public static long getHBaseScannerStartTimeSeconds(TsdbQuery query) {
+      return query.getHBaseScannerStartTimeSeconds();
     }
 
     /** @return the end time of the HBase scan for unit tests. */

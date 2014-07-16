@@ -162,6 +162,14 @@ public interface Query {
   void setPostdownsample(DownsampleOptions downsample_options);
 
   /**
+   * Sets an interpolation time window. An interpolated data point will be
+   * dropped while aggregating data points of spans if the time gap of
+   * two end-points for the interpolation is bigger than the window.
+   * @param millis Interpolation time window in milliseconds
+   */
+  void setInterpolationWindow(long millis);
+
+  /**
    * Runs this query.
    * @return The data points matched by this query.
    * <p>
