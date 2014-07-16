@@ -232,20 +232,11 @@ public final class UniqueId implements UniqueIdInterface {
         return name;
       }
     }
-    return getNameFromHBase(id).addCallback(new GetNameCB());
+    return tsdb_store.getName(id, table, kind).addCallback(new GetNameCB());
   }
 
   private String getNameFromCache(final byte[] id) {
     return id_cache.get(StringCoder.fromBytes(id));
-  }
-
-  private Deferred<String> getNameFromHBase(final byte[] id) {
-    class NameFromHBaseCB implements Callback<String, byte[]> {
-      public String call(final byte[] name) {
-        return name == null ? null : StringCoder.fromBytes(name);
-      }
-    }
-    return hbaseGet(id, NAME_FAMILY).addCallback(new NameFromHBaseCB());
   }
 
   private void addNameToCache(final byte[] id, final String name) {
@@ -292,16 +283,11 @@ public final class UniqueId implements UniqueIdInterface {
         return id;
       }
     }
-    Deferred<byte[]> d = getIdFromHBase(name).addCallback(new GetIdCB());
-    return d;
+    return tsdb_store.getId(name, table, kind).addCallback(new GetIdCB());
   }
 
   private byte[] getIdFromCache(final String name) {
     return name_cache.get(name);
-  }
-
-  private Deferred<byte[]> getIdFromHBase(final String name) {
-    return hbaseGet(toBytes(name), ID_FAMILY);
   }
 
   private void addIdToCache(final String name, final byte[] id) {
@@ -902,21 +888,6 @@ public final class UniqueId implements UniqueIdInterface {
     }
     scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;
-  }
-
-  /** Returns the cell of the specified row key, using family:kind. */
-  private Deferred<byte[]> hbaseGet(final byte[] key, final byte[] family) {
-    final GetRequest get = new GetRequest(table, key);
-    get.family(family).qualifier(kind);
-    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
-      public byte[] call(final ArrayList<KeyValue> row) {
-        if (row == null || row.isEmpty()) {
-          return null;
-        }
-        return row.get(0).value();
-      }
-    }
-    return tsdb_store.get(get).addCallback(new GetCB());
   }
 
   /**

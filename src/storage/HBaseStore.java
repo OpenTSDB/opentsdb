@@ -13,6 +13,7 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.utils.Config;
@@ -33,6 +34,11 @@ import java.util.ArrayList;
 public final class HBaseStore implements TsdbStore {
   /** Charset used to convert Strings to byte arrays and back. */
   private static final Charset CHARSET = Charsets.ISO_8859_1;
+
+  /** The single column family used by this class. */
+  private static final byte[] ID_FAMILY = StringCoder.toBytes("id");
+  /** The single column family used by this class. */
+  private static final byte[] NAME_FAMILY = StringCoder.toBytes("name");
 
   final org.hbase.async.HBaseClient client;
 
@@ -116,5 +122,46 @@ public final class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
     return this.client.atomicIncrement(air);
+  }
+
+  @Override
+  public Deferred<String> getName(final byte[] id, byte[] table, byte[] kind) {
+    class NameFromHBaseCB implements Callback<String, byte[]> {
+      public String call(final byte[] name) {
+        return name == null ? null : StringCoder.fromBytes(name);
+      }
+    }
+
+    final GetRequest request = new GetRequest(table, id);
+    request.family(NAME_FAMILY).qualifier(kind);
+
+    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
+      public byte[] call(final ArrayList<KeyValue> row) {
+        if (row == null || row.isEmpty()) {
+          return null;
+        }
+        return row.get(0).value();
+      }
+    }
+
+    return client.get(request).addCallback(new GetCB()).addCallback(new
+            NameFromHBaseCB());
+  }
+
+  @Override
+  public Deferred<byte[]> getId(final String name, byte[] table, byte[] kind) {
+    final GetRequest get = new GetRequest(table, StringCoder.toBytes(name));
+    get.family(ID_FAMILY).qualifier(kind);
+
+    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
+      public byte[] call(final ArrayList<KeyValue> row) {
+        if (row == null || row.isEmpty()) {
+          return null;
+        }
+        return row.get(0).value();
+      }
+    }
+
+    return client.get(get).addCallback(new GetCB());
   }
 }

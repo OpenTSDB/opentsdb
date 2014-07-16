@@ -58,4 +58,7 @@ public interface TsdbStore {
   public Deferred<Object> shutdown();
 
   public ClientStats stats();
+
+  public Deferred<byte[]> getId(final String name, byte[] table, byte[] kind);
+  public Deferred<String> getName(final byte[] id, byte[] table, byte[] kind);
 }
