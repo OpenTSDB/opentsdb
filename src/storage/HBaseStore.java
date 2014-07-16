@@ -29,77 +29,77 @@ import java.util.ArrayList;
  */
 public final class HBaseStore implements TsdbStore {
 
-    final org.hbase.async.HBaseClient client;
+  final org.hbase.async.HBaseClient client;
 
-    public HBaseStore(final Config config) {
-        super();
-        this.client = new org.hbase.async.HBaseClient(
-                config.getString("tsd.storage.hbase.zk_quorum"),
-                config.getString("tsd.storage.hbase.zk_basedir"));
-    }
+  public HBaseStore(final Config config) {
+    super();
+    this.client = new org.hbase.async.HBaseClient(
+            config.getString("tsd.storage.hbase.zk_quorum"),
+            config.getString("tsd.storage.hbase.zk_basedir"));
+  }
 
-    @Override
-    public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
-        return this.client.bufferAtomicIncrement(request);
-    }
+  @Override
+  public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
+    return this.client.bufferAtomicIncrement(request);
+  }
 
-    @Override
-    public Deferred<Boolean> compareAndSet(PutRequest edit, byte[] expected) {
-        return this.client.compareAndSet(edit ,expected);
-    }
+  @Override
+  public Deferred<Boolean> compareAndSet(PutRequest edit, byte[] expected) {
+    return this.client.compareAndSet(edit, expected);
+  }
 
-    @Override
-    public Deferred<Object> delete(DeleteRequest request) {
-        return this.client.delete(request);
-    }
+  @Override
+  public Deferred<Object> delete(DeleteRequest request) {
+    return this.client.delete(request);
+  }
 
-    @Override
-    public Deferred<Object> ensureTableExists(String table) {
-        return this.client.ensureTableExists(table);
-    }
+  @Override
+  public Deferred<Object> ensureTableExists(String table) {
+    return this.client.ensureTableExists(table);
+  }
 
-    @Override
-    public Deferred<Object> flush() {
-        return this.client.flush();
-    }
+  @Override
+  public Deferred<Object> flush() {
+    return this.client.flush();
+  }
 
-    @Override
-    public Deferred<ArrayList<KeyValue>> get(GetRequest request) {
-        return this.client.get(request);
-    }
+  @Override
+  public Deferred<ArrayList<KeyValue>> get(GetRequest request) {
+    return this.client.get(request);
+  }
 
-    @Override
-    public Scanner newScanner(byte[] table) {
-        return this.client.newScanner(table);
-    }
+  @Override
+  public Scanner newScanner(byte[] table) {
+    return this.client.newScanner(table);
+  }
 
-    @Override
-    public Deferred<Object> put(PutRequest request) {
-        return this.client.put(request);
-    }
+  @Override
+  public Deferred<Object> put(PutRequest request) {
+    return this.client.put(request);
+  }
 
-    @Override
-    public Deferred<Object> shutdown() {
-        return this.client.shutdown();
-    }
+  @Override
+  public Deferred<Object> shutdown() {
+    return this.client.shutdown();
+  }
 
-    @Override
-    public ClientStats stats() {
-        return this.client.stats();
-    }
+  @Override
+  public ClientStats stats() {
+    return this.client.stats();
+  }
 
-    @Override
-    public void setFlushInterval(short aShort) {
-        this.client.setFlushInterval(aShort);
-    }
+  @Override
+  public void setFlushInterval(short aShort) {
+    this.client.setFlushInterval(aShort);
+  }
 
-    @Override
-    public long getFlushInterval() {
-        return this.client.getFlushInterval();
-    }
+  @Override
+  public long getFlushInterval() {
+    return this.client.getFlushInterval();
+  }
 
-    @Override
-    public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
-        return this.client.atomicIncrement(air);
-    }
+  @Override
+  public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
+    return this.client.atomicIncrement(air);
+  }
 }

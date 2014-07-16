@@ -25,36 +25,37 @@ import java.util.ArrayList;
  */
 public interface TsdbStore {
 
-    public Deferred<Long> atomicIncrement(AtomicIncrementRequest air);
+  public Deferred<Long> atomicIncrement(AtomicIncrementRequest air);
 
-    public Deferred<Long> bufferAtomicIncrement(final AtomicIncrementRequest request);
+  public Deferred<Long> bufferAtomicIncrement(final AtomicIncrementRequest request);
 
-    public Deferred<Boolean> compareAndSet(final PutRequest edit, final byte[] expected);
+  public Deferred<Boolean> compareAndSet(final PutRequest edit, final byte[] expected);
 
-    public Deferred<Object> delete(final DeleteRequest request);
+  public Deferred<Object> delete(final DeleteRequest request);
 
-    /**
-     * Ensures that a given table really exists.
-     * @param table The name of the table you intend to use.
-     * @return A deferred object that indicates the completion of the request.
-     * You probably want to attach at least an errback to this Deferred to
-     * handle failures.
-     */
-    public Deferred<Object> ensureTableExists(final String table);
+  /**
+   * Ensures that a given table really exists.
+   *
+   * @param table The name of the table you intend to use.
+   * @return A deferred object that indicates the completion of the request.
+   * You probably want to attach at least an errback to this Deferred to
+   * handle failures.
+   */
+  public Deferred<Object> ensureTableExists(final String table);
 
-    public Deferred<Object> flush();
+  public Deferred<Object> flush();
 
-    public Deferred<ArrayList<KeyValue>> get(final GetRequest request);
+  public Deferred<ArrayList<KeyValue>> get(final GetRequest request);
 
-    long getFlushInterval();
+  long getFlushInterval();
 
-    public Scanner newScanner(final byte[] table);
+  public Scanner newScanner(final byte[] table);
 
-    public Deferred<Object> put(final PutRequest request);
+  public Deferred<Object> put(final PutRequest request);
 
-    void setFlushInterval(short aShort);
+  void setFlushInterval(short aShort);
 
-    public Deferred<Object> shutdown();
+  public Deferred<Object> shutdown();
 
-    public ClientStats stats();
+  public ClientStats stats();
 }
