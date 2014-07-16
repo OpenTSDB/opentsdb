@@ -228,12 +228,12 @@ final class TsdbQuery implements Query {
     String first_metric = "";
     for (final String tsuid : tsuids) {
       if (first_metric.isEmpty()) {
-        first_metric = tsuid.substring(0, TSDB.metrics_width() * 2)
+        first_metric = tsuid.substring(0, Const.METRICS_WIDTH * 2)
           .toUpperCase();
         continue;
       }
-      
-      final String metric = tsuid.substring(0, TSDB.metrics_width() * 2)
+
+      final String metric = tsuid.substring(0, Const.METRICS_WIDTH * 2)
         .toUpperCase();
       if (!first_metric.equals(metric)) {
         throw new IllegalArgumentException(
@@ -555,7 +555,7 @@ final class TsdbQuery implements Query {
     // set the metric UID based on the TSUIDs if given, or the metric UID
     if (tsuids != null && !tsuids.isEmpty()) {
       final String tsuid = tsuids.get(0);
-      final String metric_uid = tsuid.substring(0, TSDB.metrics_width() * 2);
+      final String metric_uid = tsuid.substring(0, Const.METRICS_WIDTH * 2);
       metric = UniqueId.stringToUid(metric_uid);
       System.arraycopy(metric, 0, start_row, 0, metric_width);
       System.arraycopy(metric, 0, end_row, 0, metric_width); 

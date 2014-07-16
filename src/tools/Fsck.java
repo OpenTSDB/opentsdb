@@ -110,12 +110,12 @@ final class Fsck {
   final AtomicLong vle_fixed = new AtomicLong();
   
   /** Length of the metric + timestamp for key validation */
-  private static int key_prefix_length = TSDB.metrics_width() + 
+  private static int key_prefix_length = Const.METRICS_WIDTH +
       Const.TIMESTAMP_BYTES;
-  
+
   /** Length of a tagk + tagv pair for key validation */
-  private static int key_tags_length = TSDB.tagk_width() + TSDB.tagv_width();
-  
+  private static int key_tags_length = Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH;
+
   /** How often to report progress */
   private static long report_rows = 10000;
   
@@ -344,9 +344,9 @@ final class Fsck {
       if (!fsckKey(row.get(0).key())) {
         return;
       }
-      
-      final long base_time = Bytes.getUnsignedInt(row.get(0).key(), 
-          TSDB.metrics_width());
+
+      final long base_time = Bytes.getUnsignedInt(row.get(0).key(),
+              Const.METRICS_WIDTH);
       
       for (final KeyValue kv : row) {
         kvs_processed.getAndIncrement();
@@ -511,7 +511,7 @@ final class Fsck {
       
       // Process the time series ID by resolving the UIDs to names if we haven't
       // already seen this particular TSUID
-      final byte[] tsuid = UniqueId.getTSUIDFromKey(key, TSDB.metrics_width(), 
+      final byte[] tsuid = UniqueId.getTSUIDFromKey(key, Const.METRICS_WIDTH,
           Const.TIMESTAMP_BYTES);
       if (!tsuids.contains(tsuid)) {
         try {

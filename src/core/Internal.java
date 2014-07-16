@@ -115,11 +115,6 @@ public final class Internal {
     return RowSeq.extractFloatingPointValue(values, value_idx, flags);
   }
 
-  /** @see TSDB#metrics_width() */
-  public static short metricWidth(final TSDB tsdb) {
-    return tsdb.metrics.width();
-  }
-
   /**
    * Extracts a Cell from a single data point, fixing potential errors with
    * the qualifier flags
@@ -821,7 +816,7 @@ public final class Internal {
     
     // first, convert the tags to byte arrays and count up the total length
     // so we can allocate the string builder
-    final short metric_width = TSDB.metrics_width();
+    final short metric_width = Const.METRICS_WIDTH;
     int tags_length = 0;
     final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
     for (final String tsuid : tsuids) {
@@ -844,7 +839,7 @@ public final class Internal {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(TSDB.metrics_width() + Const.TIMESTAMP_BYTES)
+       .append(Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES)
        .append("}(");
     
     for (final byte[] tags : uids) {

@@ -25,6 +25,7 @@ import javax.xml.bind.DatatypeConverter;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 
@@ -1163,23 +1164,23 @@ public final class UniqueId implements UniqueIdInterface {
     if (tsuid == null || tsuid.isEmpty()) {
       throw new IllegalArgumentException("Missing TSUID");
     }
-    if (tsuid.length() <= TSDB.metrics_width() * 2) {
+    if (tsuid.length() <= Const.METRICS_WIDTH * 2) {
       throw new IllegalArgumentException(
           "TSUID is too short, may be missing tags");
     }
      
     final List<byte[]> tags = new ArrayList<byte[]>();
-    final int pair_width = (TSDB.tagk_width() * 2) + (TSDB.tagv_width() * 2);
+    final int pair_width = (Const.TAG_NAME_WIDTH * 2) + (Const.TAG_VALUE_WIDTH * 2);
     
     // start after the metric then iterate over each tagk/tagv pair
-    for (int i = TSDB.metrics_width() * 2; i < tsuid.length(); i+= pair_width) {
+    for (int i = Const.METRICS_WIDTH * 2; i < tsuid.length(); i+= pair_width) {
       if (i + pair_width > tsuid.length()){
         throw new IllegalArgumentException(
             "The TSUID appears to be malformed, improper tag width");
       }
-      String tag = tsuid.substring(i, i + (TSDB.tagk_width() * 2));
+      String tag = tsuid.substring(i, i + (Const.TAG_NAME_WIDTH * 2));
       tags.add(UniqueId.stringToUid(tag));
-      tag = tsuid.substring(i + (TSDB.tagk_width() * 2), i + pair_width);
+      tag = tsuid.substring(i + (Const.TAG_NAME_WIDTH * 2), i + pair_width);
       tags.add(UniqueId.stringToUid(tag));
     }
     return tags;
@@ -1196,16 +1197,16 @@ public final class UniqueId implements UniqueIdInterface {
      if (tsuid == null || tsuid.isEmpty()) {
        throw new IllegalArgumentException("Missing TSUID");
      }
-     if (tsuid.length() <= TSDB.metrics_width() * 2) {
+    if (tsuid.length() <= Const.METRICS_WIDTH * 2) {
        throw new IllegalArgumentException(
            "TSUID is too short, may be missing tags");
      }
       
      final List<byte[]> tags = new ArrayList<byte[]>();
-     final int pair_width = (TSDB.tagk_width() * 2) + (TSDB.tagv_width() * 2);
+    final int pair_width = (Const.TAG_NAME_WIDTH * 2) + (Const.TAG_VALUE_WIDTH * 2);
      
      // start after the metric then iterate over each tagk/tagv pair
-     for (int i = TSDB.metrics_width() * 2; i < tsuid.length(); i+= pair_width) {
+    for (int i = Const.METRICS_WIDTH * 2; i < tsuid.length(); i+= pair_width) {
        if (i + pair_width > tsuid.length()){
          throw new IllegalArgumentException(
              "The TSUID appears to be malformed, improper tag width");
@@ -1227,16 +1228,16 @@ public final class UniqueId implements UniqueIdInterface {
     if (tsuid == null) {
       throw new IllegalArgumentException("Missing TSUID");
     }
-    if (tsuid.length <= TSDB.metrics_width()) {
+    if (tsuid.length <= Const.METRICS_WIDTH) {
       throw new IllegalArgumentException(
           "TSUID is too short, may be missing tags");
     }
      
     final List<byte[]> tags = new ArrayList<byte[]>();
-    final int pair_width = TSDB.tagk_width() + TSDB.tagv_width();
+    final int pair_width = Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH;
     
     // start after the metric then iterate over each tagk/tagv pair
-    for (int i = TSDB.metrics_width(); i < tsuid.length; i+= pair_width) {
+    for (int i = Const.METRICS_WIDTH; i < tsuid.length; i+= pair_width) {
       if (i + pair_width > tsuid.length){
         throw new IllegalArgumentException(
             "The TSUID appears to be malformed, improper tag width");

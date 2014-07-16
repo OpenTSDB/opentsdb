@@ -19,11 +19,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-import net.opentsdb.core.IncomingDataPoint;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.RowKey;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
+import net.opentsdb.core.*;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -374,7 +370,7 @@ public class TSUIDQuery {
         }
         
         // start the resolve dance
-        final byte[] metric_uid = Arrays.copyOfRange(tsuid, 0, TSDB.metrics_width());     
+        final byte[] metric_uid = Arrays.copyOfRange(tsuid, 0, Const.METRICS_WIDTH);
         return tsdb.getUidName(UniqueIdType.METRIC, metric_uid)
           .addCallback(new MetricCB());
       }
@@ -478,14 +474,14 @@ public class TSUIDQuery {
     
     // increment the metric UID by one so we can scan all of the rows for the
     // given metric
-    final long stop = UniqueId.uidToLong(metric, TSDB.metrics_width()) + 1;
-    scanner.setStopKey(UniqueId.longToUID(stop, TSDB.metrics_width()));
+    final long stop = UniqueId.uidToLong(metric, Const.METRICS_WIDTH) + 1;
+    scanner.setStopKey(UniqueId.longToUID(stop, Const.METRICS_WIDTH));
     scanner.setFamily(TSMeta.FAMILY());
     
     // set the filter if we have tags
     if (!tags.isEmpty()) {
-      final short name_width = TSDB.tagk_width();
-      final short value_width = TSDB.tagv_width();
+      final short name_width = Const.TAG_NAME_WIDTH;
+      final short value_width = Const.TAG_VALUE_WIDTH;
       final short tagsize = (short) (name_width + value_width);
       // Generate a regexp for our tags.  Say we have 2 tags: { 0 0 1 0 0 2 }
       // and { 4 5 6 9 8 7 }, the regexp will be:
@@ -499,7 +495,7 @@ public class TSUIDQuery {
       buf.append("(?s)"  // Ensure we use the DOTALL flag.
                  + "^.{")
          // ... start by skipping the metric ID.
-         .append(TSDB.metrics_width())
+         .append(Const.METRICS_WIDTH)
          .append("}");
       final Iterator<byte[]> tags = this.tags.iterator();
       byte[] tag = tags.hasNext() ? tags.next() : null;

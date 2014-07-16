@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.tree.Tree;
@@ -339,7 +340,7 @@ final class TreeSync extends Thread {
    * @throws HBaseException if something goes boom
    */
   private Scanner getScanner() throws HBaseException {
-    final short metric_width = TSDB.metrics_width();
+    final short metric_width = Const.METRICS_WIDTH;
     final byte[] start_row = 
       Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
     final byte[] end_row = 

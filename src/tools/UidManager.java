@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -519,11 +520,11 @@ final class UidManager {
                 final String svalue = UniqueId.uidToString(value);
                 final long max_found_id;
                 if (Bytes.equals(qualifier, CliUtils.METRICS)) {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.metrics_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.METRICS_WIDTH);
                 } else if (Bytes.equals(qualifier, CliUtils.TAGK)) {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.tagk_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.TAG_NAME_WIDTH);
                 } else {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.tagv_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.TAG_VALUE_WIDTH);
                 }
                 if (uids.max_found_id < max_found_id) {
                   uids.max_found_id = max_found_id;

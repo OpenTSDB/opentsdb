@@ -322,18 +322,18 @@ public final class Annotation implements Comparable<Annotation> {
        * Initializes the scanner
        */
       public ScannerCB() {
-        final byte[] start = new byte[TSDB.metrics_width() + 
+        final byte[] start = new byte[Const.METRICS_WIDTH +
                                       Const.TIMESTAMP_BYTES];
-        final byte[] end = new byte[TSDB.metrics_width() + 
+        final byte[] end = new byte[Const.METRICS_WIDTH +
                                     Const.TIMESTAMP_BYTES];
         
         final long normalized_start = (start_time - 
             (start_time % Const.MAX_TIMESPAN));
         final long normalized_end = (end_time - 
             (end_time % Const.MAX_TIMESPAN));
-        
-        Bytes.setInt(start, (int) normalized_start, TSDB.metrics_width());
-        Bytes.setInt(end, (int) normalized_end, TSDB.metrics_width());
+
+        Bytes.setInt(start, (int) normalized_start, Const.METRICS_WIDTH);
+        Bytes.setInt(end, (int) normalized_end, Const.METRICS_WIDTH);
 
         scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
         scanner.setStartKey(start);
@@ -397,7 +397,7 @@ public final class Annotation implements Comparable<Annotation> {
     
     final List<Deferred<Object>> delete_requests = new ArrayList<Deferred<Object>>();
     int width = tsuid != null ? tsuid.length + Const.TIMESTAMP_BYTES :
-      TSDB.metrics_width() + Const.TIMESTAMP_BYTES;
+      Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
     final byte[] start_row = new byte[width];
     final byte[] end_row = new byte[width];
     
@@ -406,17 +406,17 @@ public final class Annotation implements Comparable<Annotation> {
     final long end = end_time / 1000;
     final long normalized_start = (start - (start % Const.MAX_TIMESPAN));
     final long normalized_end = (end - (end % Const.MAX_TIMESPAN));
-    Bytes.setInt(start_row, (int) normalized_start, TSDB.metrics_width());
-    Bytes.setInt(end_row, (int) normalized_end, TSDB.metrics_width());
+    Bytes.setInt(start_row, (int) normalized_start, Const.METRICS_WIDTH);
+    Bytes.setInt(end_row, (int) normalized_end, Const.METRICS_WIDTH);
     
     if (tsuid != null) {
       // first copy the metric UID then the tags
-      System.arraycopy(tsuid, 0, start_row, 0, TSDB.metrics_width());
-      System.arraycopy(tsuid, 0, end_row, 0, TSDB.metrics_width());
-      width = TSDB.metrics_width() + Const.TIMESTAMP_BYTES;
-      final int remainder = tsuid.length - TSDB.metrics_width();
-      System.arraycopy(tsuid, TSDB.metrics_width(), start_row, width, remainder);
-      System.arraycopy(tsuid, TSDB.metrics_width(), end_row, width, remainder);
+      System.arraycopy(tsuid, 0, start_row, 0, Const.METRICS_WIDTH);
+      System.arraycopy(tsuid, 0, end_row, 0, Const.METRICS_WIDTH);
+      width = Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
+      final int remainder = tsuid.length - Const.METRICS_WIDTH;
+      System.arraycopy(tsuid, Const.METRICS_WIDTH, start_row, width, remainder);
+      System.arraycopy(tsuid, Const.METRICS_WIDTH, end_row, width, remainder);
     }
 
     /**
@@ -663,17 +663,17 @@ public final class Annotation implements Comparable<Annotation> {
     // if the TSUID is empty, then we're a global annotation. The row key will 
     // just be an empty byte array of metric width plus the timestamp
     if (tsuid == null || tsuid.length < 1) {
-      final byte[] row = new byte[TSDB.metrics_width() + Const.TIMESTAMP_BYTES];
-      Bytes.setInt(row, (int) base_time, TSDB.metrics_width());
+      final byte[] row = new byte[Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES];
+      Bytes.setInt(row, (int) base_time, Const.METRICS_WIDTH);
       return row;
     }
     
     // otherwise we need to build the row key from the TSUID and start time
     final byte[] row = new byte[Const.TIMESTAMP_BYTES + tsuid.length];
-    System.arraycopy(tsuid, 0, row, 0, TSDB.metrics_width());
-    Bytes.setInt(row, (int) base_time, TSDB.metrics_width());
-    System.arraycopy(tsuid, TSDB.metrics_width(), row, TSDB.metrics_width() + 
-        Const.TIMESTAMP_BYTES, (tsuid.length - TSDB.metrics_width()));
+    System.arraycopy(tsuid, 0, row, 0, Const.METRICS_WIDTH);
+    Bytes.setInt(row, (int) base_time, Const.METRICS_WIDTH);
+    System.arraycopy(tsuid, Const.METRICS_WIDTH, row, Const.METRICS_WIDTH +
+        Const.TIMESTAMP_BYTES, (tsuid.length - Const.METRICS_WIDTH));
     return row;
   }
   

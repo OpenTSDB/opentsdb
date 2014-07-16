@@ -16,6 +16,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 
@@ -302,7 +303,7 @@ final class MetaPurge extends Thread {
    * @throws HBaseException if something goes boom
    */
   private Scanner getScanner(final byte[] table) throws HBaseException {
-    short metric_width = TSDB.metrics_width();
+    short metric_width = Const.METRICS_WIDTH;
     final byte[] start_row = 
       Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
     final byte[] end_row = 

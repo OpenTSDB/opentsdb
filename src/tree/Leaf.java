@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
@@ -322,7 +323,7 @@ public final class Leaf implements Comparable<Leaf> {
     
     // fetch the metric name first
     final byte[] metric_uid = UniqueId.stringToUid(
-        leaf.tsuid.substring(0, TSDB.metrics_width() * 2));
+        leaf.tsuid.substring(0, Const.METRICS_WIDTH * 2));
     uid_group.add(tsdb.getUidName(UniqueIdType.METRIC, metric_uid).addCallback(
             new UIDNameCB(-1)));
     

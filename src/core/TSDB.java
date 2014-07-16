@@ -64,12 +64,6 @@ public final class TSDB {
 
   /** Charset used to convert Strings to byte arrays and back. */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  private static final String METRICS_QUAL = "metrics";
-  private static final short METRICS_WIDTH = 3;
-  private static final String TAG_NAME_QUAL = "tagk";
-  private static final short TAG_NAME_WIDTH = 3;
-  private static final String TAG_VALUE_QUAL = "tagv";
-  private static final short TAG_VALUE_WIDTH = 3;
 
   /** TsdbStore, the database cluster to use for storage.  */
   final TsdbStore tsdb_store;
@@ -117,9 +111,9 @@ public final class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
-    tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
-    tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
+    metrics = new UniqueId(client, uidtable, Const.METRICS_QUAL, Const.METRICS_WIDTH);
+    tag_names = new UniqueId(client, uidtable, Const.TAG_NAME_QUAL, Const.TAG_NAME_WIDTH);
+    tag_values = new UniqueId(client, uidtable, Const.TAG_VALUE_QUAL, Const.TAG_VALUE_WIDTH);
 
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
@@ -134,9 +128,9 @@ public final class TSDB {
     
     if (config.getBoolean("tsd.core.preload_uid_cache")) {
       final ByteMap<UniqueId> uid_cache_map = new ByteMap<UniqueId>();
-      uid_cache_map.put(METRICS_QUAL.getBytes(CHARSET), metrics);
-      uid_cache_map.put(TAG_NAME_QUAL.getBytes(CHARSET), tag_names);
-      uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
+      uid_cache_map.put(Const.METRICS_QUAL.getBytes(CHARSET), metrics);
+      uid_cache_map.put(Const.TAG_NAME_QUAL.getBytes(CHARSET), tag_names);
+      uid_cache_map.put(Const.TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
       UniqueId.preloadUidCache(this, uid_cache_map);
     }
     LOG.debug(config.dumpConfiguration());
@@ -353,34 +347,34 @@ public final class TSDB {
    */
   public void collectStats(final StatsCollector collector) {
     final byte[][] kinds = {
-            METRICS_QUAL.getBytes(CHARSET),
-            TAG_NAME_QUAL.getBytes(CHARSET),
-            TAG_VALUE_QUAL.getBytes(CHARSET)
+            Const.METRICS_QUAL.getBytes(CHARSET),
+            Const.TAG_NAME_QUAL.getBytes(CHARSET),
+            Const.TAG_VALUE_QUAL.getBytes(CHARSET)
     };
     try {
       final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)
               .joinUninterruptibly();
 
       collectUidStats(metrics, collector);
-      collector.record("uid.ids-used", used_uids.get(METRICS_QUAL),
-              "kind=" + METRICS_QUAL);
+      collector.record("uid.ids-used", used_uids.get(Const.METRICS_QUAL),
+              "kind=" + Const.METRICS_QUAL);
       collector.record("uid.ids-available",
-              (metrics.maxPossibleId() - used_uids.get(METRICS_QUAL)),
-              "kind=" + METRICS_QUAL);
+              (metrics.maxPossibleId() - used_uids.get(Const.METRICS_QUAL)),
+              "kind=" + Const.METRICS_QUAL);
 
       collectUidStats(tag_names, collector);
-      collector.record("uid.ids-used", used_uids.get(TAG_NAME_QUAL),
-              "kind=" + TAG_NAME_QUAL);
+      collector.record("uid.ids-used", used_uids.get(Const.TAG_NAME_QUAL),
+              "kind=" + Const.TAG_NAME_QUAL);
       collector.record("uid.ids-available",
-              (tag_names.maxPossibleId() - used_uids.get(TAG_NAME_QUAL)),
-              "kind=" + TAG_NAME_QUAL);
+              (tag_names.maxPossibleId() - used_uids.get(Const.TAG_NAME_QUAL)),
+              "kind=" + Const.TAG_NAME_QUAL);
 
       collectUidStats(tag_values, collector);
-      collector.record("uid.ids-used", used_uids.get(TAG_VALUE_QUAL),
-              "kind=" + TAG_VALUE_QUAL);
+      collector.record("uid.ids-used", used_uids.get(Const.TAG_VALUE_QUAL),
+              "kind=" + Const.TAG_VALUE_QUAL);
       collector.record("uid.ids-available",
-              (tag_values.maxPossibleId() - used_uids.get(TAG_VALUE_QUAL)),
-              "kind=" + TAG_VALUE_QUAL);
+              (tag_values.maxPossibleId() - used_uids.get(Const.TAG_VALUE_QUAL)),
+              "kind=" + Const.TAG_VALUE_QUAL);
 
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
@@ -461,21 +455,6 @@ public final class TSDB {
     collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
   }
 
-  /** @return the width, in bytes, of metric UIDs */
-  public static short metrics_width() {
-    return METRICS_WIDTH;
-  }
-  
-  /** @return the width, in bytes, of tagk UIDs */
-  public static short tagk_width() {
-    return TAG_NAME_WIDTH;
-  }
-  
-  /** @return the width, in bytes, of tagv UIDs */
-  public static short tagv_width() {
-    return TAG_VALUE_WIDTH;
-  }
-  
   /**
    * Returns a new {@link Query} instance suitable for this TSDB.
    */
@@ -631,7 +610,7 @@ public final class TSDB {
       return result;
     }
     
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, Const.METRICS_WIDTH,
         Const.TIMESTAMP_BYTES);
     
     // for busy TSDs we may only enable TSUID tracking, storing a 1 in the

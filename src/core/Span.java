@@ -135,8 +135,8 @@ final class Span implements DataPoints {
     if (rows.size() < 1) {
       return null;
     }
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(rows.get(0).key, 
-        TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
+    final byte[] tsuid = UniqueId.getTSUIDFromKey(rows.get(0).key,
+            Const.METRICS_WIDTH, Const.TIMESTAMP_BYTES);
     final List<String> tsuids = new ArrayList<String>(1);
     tsuids.add(UniqueId.uidToString(tsuid));
     return tsuids;
