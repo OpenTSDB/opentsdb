@@ -31,6 +31,12 @@ public interface TsdbStore {
                                    final byte[] value,
                                    final short flags);
 
+  public Deferred<Object> addPoint(final byte[] row,
+                                   final long timestamp,
+                                   final byte[] value,
+                                   final short flags,
+                                   final boolean batch_import);
+
   public Deferred<Long> atomicIncrement(AtomicIncrementRequest air);
 
   public Deferred<Long> bufferAtomicIncrement(final AtomicIncrementRequest request);

@@ -211,16 +211,27 @@ public final class HBaseStore implements TsdbStore {
     return this.client.atomicIncrement(air);
   }
 
-
   @Override
   public Deferred<Object> addPoint(final byte[] row,
                                    final long timestamp,
                                    final byte[] value,
                                    final short flags) {
+    return addPoint(row, timestamp, value, flags, false);
+  }
+
+  @Override
+  public Deferred<Object> addPoint(final byte[] row,
+                                   final long timestamp,
+                                   final byte[] value,
+                                   final short flags,
+                                   final boolean batch_import) {
     final long base_time;
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
 
-    if ((timestamp & Const.SECOND_MASK) != 0) {
+    // true is we have higher resolution than seconds on timestamp
+    final boolean ms_timestamp = (timestamp & Const.SECOND_MASK) != 0;
+
+    if (ms_timestamp) {
       // drop the ms timestamp to seconds to calculate the base timestamp
       base_time = ((timestamp / MS_IN_A_SEC) -
               ((timestamp / MS_IN_A_SEC) % Const.MAX_TIMESPAN));
@@ -232,6 +243,7 @@ public final class HBaseStore implements TsdbStore {
     scheduleForCompaction(row, (int) base_time);
     final PutRequest point = new PutRequest(data_table_name, row, FAMILY, qualifier,
             value);
+    point.setDurable(batch_import);
 
     return client.put(point);
   }
