@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
@@ -103,8 +104,11 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     
     final boolean show_details = query.hasQueryStringParam("details");
     final boolean show_summary = query.hasQueryStringParam("summary");
+    final boolean synchronous_write = query.hasQueryStringParam("sync");
     final ArrayList<HashMap<String, Object>> details = show_details
       ? new ArrayList<HashMap<String, Object>>() : null;
+    final HashMap<IncomingDataPoint,Deferred<Object>> deferred_results
+      = new HashMap<IncomingDataPoint,Deferred<Object>>();
     long success = 0;
     long total = 0;
     
@@ -140,11 +144,11 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           continue;
         }
         if (Tags.looksLikeInteger(dp.getValue())) {
-          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
-              Tags.parseLong(dp.getValue()), dp.getTags());
+          deferred_results.put(dp, tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
+              Tags.parseLong(dp.getValue()), dp.getTags()));
         } else {
-          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
-              Float.parseFloat(dp.getValue()), dp.getTags());
+          deferred_results.put(dp, tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
+              Float.parseFloat(dp.getValue()), dp.getTags()));
         }
         success++;
       } catch (NumberFormatException x) {
@@ -169,6 +173,20 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
     }
     
+    if (synchronous_write) {
+      LOG.warn("Waiting for synchronous write");
+      for (Entry<IncomingDataPoint, Deferred<Object>> result : deferred_results.entrySet()) {
+        try {
+          result.getValue().joinUninterruptibly();
+        } catch (Exception e) {
+          if (show_details) {
+            details.add(this.getHttpDetails(e.getMessage(), result.getKey()));
+          }
+          success--;
+        }
+      }
+    }
+
     final long failures = total - success;
     if (!show_summary && !show_details) {
       if (failures > 0) {
