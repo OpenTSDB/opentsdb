@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.*;
 import net.opentsdb.meta.Annotation;
 
 import org.hbase.async.Bytes;
@@ -35,9 +36,9 @@ import com.stumbleupon.async.Deferred;
  * are stored in two byte arrays: one for the time offsets/flags and another
  * for the values. Access is granted via pointers.
  */
-final class RowSeq implements DataPoints {
+public final class RowSeq implements DataPoints {
 
-  /** The {@link TSDB} instance we belong to. */
+  /** The {@link net.opentsdb.core.TSDB} instance we belong to. */
   private final TSDB tsdb;
 
   /** First row key. */
@@ -46,7 +47,7 @@ final class RowSeq implements DataPoints {
   /**
    * Qualifiers for individual data points.
    * <p>
-   * Each qualifier is on 2 or 4 bytes.  The last {@link Const#FLAG_BITS} bits 
+   * Each qualifier is on 2 or 4 bytes.  The last {@link net.opentsdb.core.Const#FLAG_BITS} bits
    * are used to store flags (the type of the data point - integer or floating
    * point - and the size of the data point in bytes).  The remaining MSBs
    * store a delta in seconds from the base timestamp stored in the row key.
@@ -118,8 +119,8 @@ final class RowSeq implements DataPoints {
         local_q_index < qualifiers.length) {
       // if the remote q has finished, we just need to handle left over locals
       if (remote_q_index >= remote_qual.length) {
-        v_length = Internal.getValueLengthFromQualifier(qualifiers, 
-            local_q_index);
+        v_length = Internal.getValueLengthFromQualifier(qualifiers,
+                local_q_index);
         System.arraycopy(values, local_v_index, merged_values, 
             merged_v_index, v_length);
         local_v_index += v_length;
@@ -211,7 +212,7 @@ final class RowSeq implements DataPoints {
     
     // set the meta bit based on the local and remote metas
     byte meta = 0;
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
+    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) ==
                                      Const.MS_MIXED_COMPACT || 
         (remote_val[remote_val.length - 1] & Const.MS_MIXED_COMPACT) == 
                                              Const.MS_MIXED_COMPACT) {
@@ -230,7 +231,7 @@ final class RowSeq implements DataPoints {
    * @return The value of the cell.
    * @throws IllegalDataException if the data is malformed
    */
-  static long extractIntegerValue(final byte[] values,
+  public static long extractIntegerValue(final byte[] values,
                                   final int value_idx,
                                   final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
@@ -253,7 +254,7 @@ final class RowSeq implements DataPoints {
    * @return The value of the cell.
    * @throws IllegalDataException if the data is malformed
    */
-  static double extractFloatingPointValue(final byte[] values,
+  public static double extractFloatingPointValue(final byte[] values,
                                           final int value_idx,
                                           final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
@@ -356,7 +357,7 @@ final class RowSeq implements DataPoints {
 
   /** Extracts the base timestamp from the row key. */
   long baseTime() {
-    return Bytes.getUnsignedInt(key, tsdb.metrics.width());
+    return Bytes.getUnsignedInt(key, Const.METRICS_WIDTH);
   }
 
   /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */

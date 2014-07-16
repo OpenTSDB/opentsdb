@@ -22,6 +22,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +31,6 @@ import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
@@ -117,15 +118,14 @@ final class UidManager {
       .getBytes();
     
     final TSDB tsdb = new TSDB(config);
-    tsdb.getClient().ensureTableExists(
-        config.getString("tsd.storage.hbase.uid_table")).joinUninterruptibly();
+    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     int rc;
     try {
       rc = runCommand(tsdb, table, idwidth, ignorecase, args);
     } finally {
       try {
-        tsdb.getClient().shutdown().joinUninterruptibly();
+        tsdb.getTsdbStore().shutdown().joinUninterruptibly();
         LOG.info("Gracefully shutdown the TSD");
       } catch (Exception e) {
         LOG.error("Unexpected exception while shutting down", e);
@@ -144,7 +144,7 @@ final class UidManager {
     if (args[0].equals("grep")) {
       if (2 <= nargs && nargs <= 3) {
         try {
-          return grep(tsdb.getClient(), table, ignorecase, args);
+          return grep(tsdb.getTsdbStore(), table, ignorecase, args);
         } catch (HBaseException e) {
           return 3;
         }
@@ -157,13 +157,13 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return assign(tsdb.getClient(), table, idwidth, args);
+      return assign(tsdb.getTsdbStore(), table, idwidth, args);
     } else if (args[0].equals("rename")) {
       if (nargs != 4) {
         usage("Wrong number of arguments");
         return 2;
       }
-      return rename(tsdb.getClient(), table, idwidth, args);
+      return rename(tsdb.getTsdbStore(), table, idwidth, args);
     } else if (args[0].equals("fsck")) {
       boolean fix = false;
       boolean fix_unknowns = false;
@@ -176,14 +176,12 @@ final class UidManager {
           }
         }
       }
-      return fsck(tsdb.getClient(), table, fix, fix_unknowns);
+      return fsck(tsdb.getTsdbStore(), table, fix, fix_unknowns);
     } else if (args[0].equals("metasync")) {
       // check for the data table existence and initialize our plugins 
       // so that update meta data can be pushed to search engines
       try {
-        tsdb.getClient().ensureTableExists(
-            tsdb.getConfig().getString(
-                "tsd.storage.hbase.data_table")).joinUninterruptibly();
+        tsdb.checkNecessaryTablesExist().joinUninterruptibly();
         tsdb.initializePlugins(false);
         return metaSync(tsdb);
       } catch (Exception e) {
@@ -194,9 +192,7 @@ final class UidManager {
       // check for the data table existence and initialize our plugins 
       // so that update meta data can be pushed to search engines
       try {
-        tsdb.getClient().ensureTableExists(
-            tsdb.getConfig().getString(
-                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+        tsdb.checkNecessaryTablesExist().joinUninterruptibly();
         return metaPurge(tsdb);
       } catch (Exception e) {
         LOG.error("Unexpected exception", e);
@@ -205,9 +201,7 @@ final class UidManager {
     } else if (args[0].equals("treesync")) {
       // check for the UID table existence
       try {
-        tsdb.getClient().ensureTableExists(
-            tsdb.getConfig().getString(
-                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+        tsdb.checkNecessaryTablesExist().joinUninterruptibly();
         if (!tsdb.getConfig().enable_tree_processing()) {
           LOG.warn("Tree processing is disabled");
           return 0;
@@ -223,9 +217,7 @@ final class UidManager {
         return 2;
       }
       try {
-        tsdb.getClient().ensureTableExists(
-            tsdb.getConfig().getString(
-                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+        tsdb.checkNecessaryTablesExist().joinUninterruptibly();
         final int tree_id = Integer.parseInt(args[1]);
         final boolean delete_definitions;
         if (nargs < 3) {
@@ -248,9 +240,9 @@ final class UidManager {
         final String kind = nargs == 2 ? args[0] : null;
         try {
           final long id = Long.parseLong(args[nargs - 1]);
-          return lookupId(tsdb.getClient(), table, idwidth, id, kind);
+          return lookupId(tsdb.getTsdbStore(), table, idwidth, id, kind);
         } catch (NumberFormatException e) {
-          return lookupName(tsdb.getClient(), table, idwidth, 
+          return lookupName(tsdb.getTsdbStore(), table, idwidth,
               args[nargs - 1], kind);
         }
       } else {
@@ -262,17 +254,17 @@ final class UidManager {
 
   /**
    * Implements the {@code grep} subcommand.
-   * @param client The HBase client to use.
-   * @param table The name of the HBase table to use.
+   * @param tsdb_store The TsdbStore to use.
+   * @param table The name of the table to use.
    * @param ignorecase Whether or not to ignore the case while grepping.
    * @param args Command line arguments ({@code [kind] RE}).
    * @return The exit status of the command (0 means at least 1 match).
    */
-  private static int grep(final HBaseClient client,
+  private static int grep(final TsdbStore tsdb_store,
                           final byte[] table,
                           final boolean ignorecase,
                           final String[] args) {
-    final Scanner scanner = client.newScanner(table);
+    final Scanner scanner = tsdb_store.newScanner(table);
     scanner.setMaxNumRows(1024);
     String regexp;
     scanner.setFamily(CliUtils.ID_FAMILY);
@@ -336,22 +328,22 @@ final class UidManager {
 
   /**
    * Implements the {@code assign} subcommand.
-   * @param client The HBase client to use.
-   * @param table The name of the HBase table to use.
+   * @param tsdb_store The TsdbStore to use.
+   * @param table The name of the table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param args Command line arguments ({@code assign name [names]}).
    * @return The exit status of the command (0 means success).
    */
-  private static int assign(final HBaseClient client,
+  private static int assign(final TsdbStore tsdb_store,
                             final byte[] table,
                             final short idwidth,
                             final String[] args) {
-    final UniqueId uid = new UniqueId(client, table, args[1], (int) idwidth);
+    final UniqueId uid = new UniqueId(tsdb_store, table, args[1], (int) idwidth);
     for (int i = 2; i < args.length; i++) {
       try {
         uid.getOrCreateId(args[i]);
         // Lookup again the ID we've just created and print it.
-        extactLookupName(client, table, idwidth, args[1], args[i]);
+        extactLookupName(tsdb_store, table, idwidth, args[1], args[i]);
       } catch (HBaseException e) {
         LOG.error("error while processing " + args[i], e);
         return 3;
@@ -362,20 +354,20 @@ final class UidManager {
 
   /**
    * Implements the {@code rename} subcommand.
-   * @param client The HBase client to use.
-   * @param table The name of the HBase table to use.
+   * @param tsdb_store The TsdbStore to use.
+   * @param table The name of the table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param args Command line arguments ({@code assign name [names]}).
    * @return The exit status of the command (0 means success).
    */
-  private static int rename(final HBaseClient client,
+  private static int rename(final TsdbStore tsdb_store,
                             final byte[] table,
                             final short idwidth,
                             final String[] args) {
     final String kind = args[1];
     final String oldname = args[2];
     final String newname = args[3];
-    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(tsdb_store, table, kind, (int) idwidth);
     try {
       uid.rename(oldname, newname);
     } catch (HBaseException e) {
@@ -392,11 +384,11 @@ final class UidManager {
 
   /**
    * Implements the {@code fsck} subcommand.
-   * @param client The HBase client to use.
-   * @param table The name of the HBase table to use.
+   * @param tsdb_store The TsdbStore to use.
+   * @param table The name of the table to use.
    * @return The exit status of the command (0 means success).
    */
-  private static int fsck(final HBaseClient client, final byte[] table, 
+  private static int fsck(final TsdbStore tsdb_store, final byte[] table,
       final boolean fix, final boolean fix_unknowns) {
 
     if (fix) {
@@ -433,7 +425,7 @@ final class UidManager {
         final PutRequest put = new PutRequest(table, 
             UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, CliUtils.toBytes(kind), 
             CliUtils.toBytes(name));
-        client.put(put);
+        tsdb_store.put(put);
         id2name.put(uid, name);
         LOG.info("FIX: Restoring " + kind + " reverse mapping: " 
             + uid + " -> " + name);
@@ -457,7 +449,7 @@ final class UidManager {
         
         final DeleteRequest delete = new DeleteRequest(table, 
             UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, qualifiers);
-        client.delete(delete);
+        tsdb_store.delete(delete);
         // can't remove from the id2name map as this will be called while looping
         LOG.info("FIX: Removed " + kind + " reverse mapping: " + uid + " -> "
             + name);
@@ -466,7 +458,7 @@ final class UidManager {
 
     final long start_time = System.nanoTime();
     final HashMap<String, Uids> name2uids = new HashMap<String, Uids>();
-    final Scanner scanner = client.newScanner(table);
+    final Scanner scanner = tsdb_store.newScanner(table);
     scanner.setMaxNumRows(1024);
     int kvcount = 0;
     try {
@@ -493,7 +485,7 @@ final class UidManager {
               if (fix && fix_unknowns) {
                 final DeleteRequest delete = new DeleteRequest(table, kv.key(), 
                     kv.family(), qualifier);
-                client.delete(delete);
+                tsdb_store.delete(delete);
                 LOG.info("FIX: Removed unknown qualifier " 
                   + UniqueId.uidToString(qualifier) 
                   + " in row " + UniqueId.uidToString(kv.key()));
@@ -528,11 +520,11 @@ final class UidManager {
                 final String svalue = UniqueId.uidToString(value);
                 final long max_found_id;
                 if (Bytes.equals(qualifier, CliUtils.METRICS)) {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.metrics_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.METRICS_WIDTH);
                 } else if (Bytes.equals(qualifier, CliUtils.TAGK)) {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.tagk_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.TAG_NAME_WIDTH);
                 } else {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.tagv_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.TAG_VALUE_WIDTH);
                 }
                 if (uids.max_found_id < max_found_id) {
                   uids.max_found_id = max_found_id;
@@ -676,7 +668,7 @@ final class UidManager {
             
             final DeleteRequest delete = new DeleteRequest(table, 
                 CliUtils.toBytes(name), CliUtils.ID_FAMILY, CliUtils.toBytes(kind));
-            client.delete(delete);
+            tsdb_store.delete(delete);
             uids.name2id.remove(name);
             LOG.info("FIX: Removed forward " + kind + " mapping for " + name + " -> " 
                 + id);
@@ -686,7 +678,7 @@ final class UidManager {
           final String fsck_name = fsck_builder.toString();
           final PutRequest put = new PutRequest(table, CliUtils.toBytes(fsck_name), 
               CliUtils.ID_FAMILY, CliUtils.toBytes(kind), UniqueId.stringToUid(id));
-          client.put(put);
+          tsdb_store.put(put);
           LOG.info("FIX: Created forward " + kind + " mapping for fsck'd UID " + 
               fsck_name + " -> " + collision.getKey());
           
@@ -759,7 +751,7 @@ final class UidManager {
             final long diff = uids.max_found_id - uids.maxid;
             final AtomicIncrementRequest air = new AtomicIncrementRequest(table, 
                 CliUtils.MAXID_ROW, CliUtils.ID_FAMILY, CliUtils.toBytes(kind), diff);
-            client.atomicIncrement(air);
+            tsdb_store.atomicIncrement(air);
             LOG.info("FIX: Updated max ID for " + kind + " to " + uids.max_found_id);
           }          
         }
@@ -783,14 +775,14 @@ final class UidManager {
 
   /**
    * Looks up an ID and finds the corresponding name(s), if any.
-   * @param client The HBase client to use.
-   * @param table The name of the HBase table to use.
+   * @param tsdb_store The TsdbStore to use.
+   * @param table The name of the table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param lid The ID to look for.
    * @param kind The 'kind' of the ID (can be {@code null}).
    * @return The exit status of the command (0 means at least 1 found).
    */
-  private static int lookupId(final HBaseClient client,
+  private static int lookupId(final TsdbStore tsdb_store,
                               final byte[] table,
                               final short idwidth,
                               final long lid,
@@ -799,20 +791,20 @@ final class UidManager {
     if (id == null) {
       return 1;
     } else if (kind != null) {
-      return extactLookupId(client, table, idwidth, kind, id);
+      return extactLookupId(tsdb_store, table, idwidth, kind, id);
     }
-    return findAndPrintRow(client, table, id, CliUtils.NAME_FAMILY, false);
+    return findAndPrintRow(tsdb_store, table, id, CliUtils.NAME_FAMILY, false);
   }
 
   /**
-   * Gets a given row in HBase and prints it on standard output.
-   * @param client The HBase client to use.
-   * @param table The name of the HBase table to use.
-   * @param key The row key to attempt to get from HBase.
+   * Gets a given row in TsdbStore and prints it on standard output.
+   * @param tsdb_store The TsdbStore to use.
+   * @param table The name of the table to use.
+   * @param key The row key to attempt to get from TsdbStore.
    * @param family The family in which we're interested.
    * @return 0 if at least one cell was found and printed, 1 otherwise.
    */
-  private static int findAndPrintRow(final HBaseClient client,
+  private static int findAndPrintRow(final TsdbStore tsdb_store,
                                      final byte[] table,
                                      final byte[] key,
                                      final byte[] family,
@@ -821,7 +813,7 @@ final class UidManager {
     get.family(family);
     ArrayList<KeyValue> row;
     try {
-      row = client.get(get).joinUninterruptibly();
+      row = tsdb_store.get(get).joinUninterruptibly();
     } catch (HBaseException e) {
       LOG.error("Get failed: " + get, e);
       return 1;
@@ -834,19 +826,19 @@ final class UidManager {
 
   /**
    * Looks up an ID for a given kind, and prints it if found.
-   * @param client The HBase client to use.
-   * @param table The name of the HBase table to use.
+   * @param tsdb_store The TsdbStore to use.
+   * @param table The name of the table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param kind The 'kind' of the ID (must not be {@code null}).
    * @param id The ID to look for.
    * @return 0 if the ID for this kind was found, 1 otherwise.
    */
-  private static int extactLookupId(final HBaseClient client,
+  private static int extactLookupId(final TsdbStore tsdb_store,
                                     final byte[] table,
                                     final short idwidth,
                                     final String kind,
                                     final byte[] id) {
-    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(tsdb_store, table, kind, (int) idwidth);
     try {
       final String name = uid.getName(id);
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));
@@ -881,39 +873,39 @@ final class UidManager {
 
   /**
    * Looks up a name and finds the corresponding UID(s), if any.
-   * @param client The HBase client to use.
-   * @param table The name of the HBase table to use.
+   * @param tsdb_store The TsdbStore to use.
+   * @param table The name of the table to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param name The name to look for.
    * @param kind The 'kind' of the ID (can be {@code null}).
    * @return The exit status of the command (0 means at least 1 found).
    */
-  private static int lookupName(final HBaseClient client,
+  private static int lookupName(final TsdbStore tsdb_store,
                                 final byte[] table,
                                 final short idwidth,
                                 final String name,
                                 final String kind) {
     if (kind != null) {
-      return extactLookupName(client, table, idwidth, kind, name);
+      return extactLookupName(tsdb_store, table, idwidth, kind, name);
     }
-    return findAndPrintRow(client, table, CliUtils.toBytes(name), 
+    return findAndPrintRow(tsdb_store, table, CliUtils.toBytes(name),
         CliUtils.ID_FAMILY, true);
   }
 
   /**
    * Looks up a name for a given kind, and prints it if found.
-   * @param client The HBase client to use.
+   * @param tsdb_store The TsdbStore to use.
    * @param idwidth Number of bytes on which the UIDs should be.
    * @param kind The 'kind' of the ID (must not be {@code null}).
    * @param name The name to look for.
    * @return 0 if the name for this kind was found, 1 otherwise.
    */
-  private static int extactLookupName(final HBaseClient client,
+  private static int extactLookupName(final TsdbStore tsdb_store,
                                       final byte[] table,
                                       final short idwidth,
                                       final String kind,
                                       final String name) {
-    final UniqueId uid = new UniqueId(client, table, kind, (int) idwidth);
+    final UniqueId uid = new UniqueId(tsdb_store, table, kind, (int) idwidth);
     try {
       final byte[] id = uid.getId(name);
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));

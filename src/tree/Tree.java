@@ -365,7 +365,7 @@ public final class Tree {
         final PutRequest put = new PutRequest(tsdb.treeTable(), 
             Tree.idToBytes(tree_id), TREE_FAMILY, TREE_QUALIFIER, 
             stored_tree.toStorageJson());
-        return tsdb.getClient().compareAndSet(put, original_tree);
+        return tsdb.getTsdbStore().compareAndSet(put, original_tree);
       }
     }
     
@@ -522,7 +522,7 @@ public final class Tree {
     }
     
     // issue the get request
-    return tsdb.getClient().get(get).addCallbackDeferring(new FetchTreeCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new FetchTreeCB());
   }
 
   /**
@@ -696,7 +696,7 @@ public final class Tree {
       
     }
     
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   /**
@@ -775,7 +775,7 @@ public final class Tree {
       
     }
     
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   /**
@@ -806,7 +806,7 @@ public final class Tree {
     // qualifiers of every column to see if it's safe to delete
     final byte[] start = idToBytes(tree_id);
     final byte[] end = idToBytes(tree_id + 1);
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.treeTable());
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.treeTable());
     scanner.setStartKey(start);
     scanner.setStopKey(end);   
     scanner.setFamily(TREE_FAMILY);
@@ -897,7 +897,7 @@ public final class Tree {
                 row.get(0).key(), TREE_FAMILY, 
                 qualifiers.toArray(new byte[qualifiers.size()][])
                 );
-            delete_deferreds.add(tsdb.getClient().delete(delete));
+            delete_deferreds.add(tsdb.getTsdbStore().delete(delete));
           }
         }
         
@@ -1047,7 +1047,7 @@ public final class Tree {
     final byte[] end = new byte[TREE_ID_WIDTH];
     Arrays.fill(end, (byte)0xFF);
     
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.treeTable());
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.treeTable());
     scanner.setStartKey(start);
     scanner.setStopKey(end);   
     scanner.setFamily(TREE_FAMILY);
@@ -1116,7 +1116,7 @@ public final class Tree {
       
     }
       
-    return tsdb.getClient().put(put).addCallbackDeferring(new PutCB());
+    return tsdb.getTsdbStore().put(put).addCallbackDeferring(new PutCB());
   }
 
   /**
@@ -1174,7 +1174,7 @@ public final class Tree {
       
     }
       
-    return tsdb.getClient().put(put).addCallbackDeferring(new PutCB());
+    return tsdb.getTsdbStore().put(put).addCallbackDeferring(new PutCB());
   }
 
   // GETTERS AND SETTERS ----------------------------

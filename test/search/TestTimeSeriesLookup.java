@@ -568,10 +568,10 @@ public class TestTimeSeriesLookup {
     final byte[] val = new byte[] { 1 };
     for (final byte[] tsuid : test_tsuids) {
       byte[] row_key = new byte[tsuid.length + Const.TIMESTAMP_BYTES];
-      System.arraycopy(tsuid, 0, row_key, 0, TSDB.metrics_width());
-      System.arraycopy(tsuid, TSDB.metrics_width(), row_key, 
-          TSDB.metrics_width() + Const.TIMESTAMP_BYTES, 
-          tsuid.length - TSDB.metrics_width());
+      System.arraycopy(tsuid, 0, row_key, 0, Const.METRICS_WIDTH);
+      System.arraycopy(tsuid, Const.METRICS_WIDTH, row_key,
+          Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES,
+          tsuid.length - Const.METRICS_WIDTH);
       storage.addColumn(row_key, qual, val);
     }
   }

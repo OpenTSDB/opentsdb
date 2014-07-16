@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -190,7 +191,7 @@ public final class TSMeta {
 
     final DeleteRequest delete = new DeleteRequest(tsdb.metaTable(), 
         UniqueId.stringToUid(tsuid), FAMILY, META_QUALIFIER);
-    return tsdb.getClient().delete(delete);
+    return tsdb.getTsdbStore().delete(delete);
   }
   
   /**
@@ -260,7 +261,7 @@ public final class TSMeta {
     
     // calculate the metric UID and fetch it's name mapping
     final byte[] metric_uid = UniqueId.stringToUid(
-        tsuid.substring(0, TSDB.metrics_width() * 2));
+        tsuid.substring(0, Const.METRICS_WIDTH * 2));
     uid_group.add(tsdb.getUidName(UniqueIdType.METRIC, metric_uid)
         .addCallback(new UidCB()));
     
@@ -314,7 +315,7 @@ public final class TSMeta {
               UniqueId.stringToUid(local_meta.tsuid), FAMILY, META_QUALIFIER, 
               local_meta.getStorageJSON());
 
-          return tsdb.getClient().compareAndSet(put, original_meta);
+          return tsdb.getTsdbStore().compareAndSet(put, original_meta);
         }
         
       }
@@ -366,7 +367,7 @@ public final class TSMeta {
       }      
     }
     
-    return tsdb.getClient().put(put).addCallbackDeferring(new PutCB());
+    return tsdb.getTsdbStore().put(put).addCallbackDeferring(new PutCB());
   }
   
   /**
@@ -458,7 +459,7 @@ public final class TSMeta {
       
     }
     
-    return tsdb.getClient().get(get).addCallback(new ExistsCB());
+    return tsdb.getTsdbStore().get(get).addCallback(new ExistsCB());
   }
   
   /**
@@ -493,7 +494,7 @@ public final class TSMeta {
       
     }
     
-    return tsdb.getClient().get(get).addCallback(new ExistsCB());
+    return tsdb.getTsdbStore().get(get).addCallback(new ExistsCB());
   }
   
   /**
@@ -611,9 +612,9 @@ public final class TSMeta {
     // if the user has disabled real time TSMeta tracking (due to OOM issues)
     // then we only want to increment the data point count.
     if (!tsdb.getConfig().enable_realtime_ts()) {
-      return tsdb.getClient().bufferAtomicIncrement(inc);
+      return tsdb.getTsdbStore().bufferAtomicIncrement(inc);
     }
-    return tsdb.getClient().bufferAtomicIncrement(inc).addCallbackDeferring(
+    return tsdb.getTsdbStore().bufferAtomicIncrement(inc).addCallbackDeferring(
         new TSMetaCB());
   }
   
@@ -675,7 +676,7 @@ public final class TSMeta {
     final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
     get.family(FAMILY);
     get.qualifiers(new byte[][] { COUNTER_QUALIFIER, META_QUALIFIER });
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   /** @return The configured meta data column qualifier byte array*/
@@ -887,8 +888,8 @@ public final class TSMeta {
       // getUIDMeta request must be added to the uid_group array so that we
       // can wait for them to complete before returning the TSMeta object, 
       // otherwise the caller may get a TSMeta with missing UIDMetas
-      uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, 
-        tsuid.substring(0, TSDB.metrics_width() * 2)).addCallback(
+      uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC,
+        tsuid.substring(0, Const.METRICS_WIDTH * 2)).addCallback(
             new UIDMetaCB(-1)));
       
       int idx = 0;

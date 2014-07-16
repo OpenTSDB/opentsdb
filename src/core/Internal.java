@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.storage.RowSeq;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -101,7 +102,7 @@ public final class Internal {
     return Tags.getTags(tsdb, row);
   }
 
-  /** @see RowSeq#extractIntegerValue */
+  /** @see net.opentsdb.storage.RowSeq#extractIntegerValue */
   public static long extractIntegerValue(final byte[] values,
                                          final int value_idx,
                                          final byte flags) {
@@ -113,11 +114,6 @@ public final class Internal {
                                                  final int value_idx,
                                                  final byte flags) {
     return RowSeq.extractFloatingPointValue(values, value_idx, flags);
-  }
-
-  /** @see TSDB#metrics_width() */
-  public static short metricWidth(final TSDB tsdb) {
-    return tsdb.metrics.width();
   }
 
   /**
@@ -821,7 +817,7 @@ public final class Internal {
     
     // first, convert the tags to byte arrays and count up the total length
     // so we can allocate the string builder
-    final short metric_width = TSDB.metrics_width();
+    final short metric_width = Const.METRICS_WIDTH;
     int tags_length = 0;
     final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
     for (final String tsuid : tsuids) {
@@ -844,7 +840,7 @@ public final class Internal {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(TSDB.metrics_width() + Const.TIMESTAMP_BYTES)
+       .append(Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES)
        .append("}(");
     
     for (final byte[] tags : uids) {

@@ -18,6 +18,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 
@@ -102,7 +103,7 @@ final class CliUtils {
     get.qualifier("metrics".getBytes(CHARSET));
     ArrayList<KeyValue> row;
     try {
-      row = tsdb.getClient().get(get).joinUninterruptibly();
+      row = tsdb.getTsdbStore().get(get).joinUninterruptibly();
       if (row == null || row.isEmpty()) {
         return 0;
       }
@@ -127,13 +128,13 @@ final class CliUtils {
    */
   static final Scanner getDataTableScanner(final TSDB tsdb, final long start_id, 
       final long end_id) throws HBaseException {
-    final short metric_width = TSDB.metrics_width();
+    final short metric_width = Const.METRICS_WIDTH;
     final byte[] start_row = 
       Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
 
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(TSDB.FAMILY());

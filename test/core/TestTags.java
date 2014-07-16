@@ -640,7 +640,7 @@ public final class TestTags {
     storage = new MockBase(tsdb, client, true, true, true, true);
 
     // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("client");
+    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
     cl.setAccessible(true);
     cl.set(tsdb, client);
     

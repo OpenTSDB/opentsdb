@@ -16,6 +16,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 
@@ -162,7 +163,7 @@ final class MetaPurge extends Thread {
             final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
                 row.get(0).key(), NAME_FAMILY, 
                 qualifiers.toArray(new byte[qualifiers.size()][]));
-            delete_calls.add(tsdb.getClient().delete(delete));
+            delete_calls.add(tsdb.getTsdbStore().delete(delete));
           }
         }
         
@@ -260,7 +261,7 @@ final class MetaPurge extends Thread {
             final DeleteRequest delete = new DeleteRequest(tsdb.metaTable(), 
                 row.get(0).key(), NAME_FAMILY, 
                 qualifiers.toArray(new byte[qualifiers.size()][]));
-            delete_calls.add(tsdb.getClient().delete(delete));
+            delete_calls.add(tsdb.getTsdbStore().delete(delete));
           }
         }
         
@@ -302,12 +303,12 @@ final class MetaPurge extends Thread {
    * @throws HBaseException if something goes boom
    */
   private Scanner getScanner(final byte[] table) throws HBaseException {
-    short metric_width = TSDB.metrics_width();
+    short metric_width = Const.METRICS_WIDTH;
     final byte[] start_row = 
       Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
-    final Scanner scanner = tsdb.getClient().newScanner(table);
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(NAME_FAMILY);

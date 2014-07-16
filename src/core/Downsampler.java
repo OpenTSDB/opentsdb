@@ -36,7 +36,7 @@ public class Downsampler implements SeekableView, DataPoint {
    * point.
    * @param downsampler The downsampling function to use.
    */
-  Downsampler(final SeekableView source,
+  public Downsampler(final SeekableView source,
               final long interval_ms,
               final Aggregator downsampler) {
     this.values_in_interval = new ValuesInInterval(source, interval_ms);

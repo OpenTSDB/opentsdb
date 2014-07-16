@@ -128,8 +128,8 @@ public class TimeSeriesLookup {
       // table.
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
-          final byte[] tsuid = query.useMeta() ? row.get(0).key() : 
-            UniqueId.getTSUIDFromKey(row.get(0).key(), TSDB.metrics_width(), 
+          final byte[] tsuid = query.useMeta() ? row.get(0).key() :
+            UniqueId.getTSUIDFromKey(row.get(0).key(), Const.METRICS_WIDTH,
                 Const.TIMESTAMP_BYTES);
           
           // TODO - there MUST be a better way than creating a ton of temp
@@ -189,7 +189,7 @@ public class TimeSeriesLookup {
    * @return A configured scanner
    */
   private Scanner getScanner(final StringBuilder tagv_filter) {
-    final Scanner scanner = tsdb.getClient().newScanner(
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(
         query.useMeta() ? tsdb.metaTable() : tsdb.dataTable());
     
     // if a metric is given, we need to resolve it's UID and set the start key
@@ -201,9 +201,9 @@ public class TimeSeriesLookup {
       LOG.debug("Found UID (" + UniqueId.uidToString(metric_uid) + 
         ") for metric (" + query.getMetric() + ")");
       scanner.setStartKey(metric_uid);
-      long uid = UniqueId.uidToLong(metric_uid, TSDB.metrics_width());
+      long uid = UniqueId.uidToLong(metric_uid, Const.METRICS_WIDTH);
       uid++; // TODO - see what happens when this rolls over
-      scanner.setStopKey(UniqueId.longToUID(uid, TSDB.metrics_width()));
+      scanner.setStopKey(UniqueId.longToUID(uid, Const.METRICS_WIDTH));
     } else {
       LOG.debug("Performing full table scan, no metric provided");
     }
@@ -221,9 +221,9 @@ public class TimeSeriesLookup {
       // remember, tagks are sorted in the row key so we need to supply a sorted
       // regex or matching will fail.
       Collections.sort(pairs);
-      
-      final short name_width = TSDB.tagk_width();
-      final short value_width = TSDB.tagv_width();
+
+      final short name_width = Const.TAG_NAME_WIDTH;
+      final short value_width = Const.TAG_VALUE_WIDTH;
       final short tagsize = (short) (name_width + value_width);
       
       int index = 0;
@@ -231,7 +231,7 @@ public class TimeSeriesLookup {
           22  // "^.{N}" + "(?:.{M})*" + "$" + wiggle
           + ((13 + tagsize) // "(?:.{M})*\\Q" + tagsize bytes + "\\E"
              * (pairs.size())));
-      buf.append("(?s)^.{").append(TSDB.metrics_width())
+      buf.append("(?s)^.{").append(Const.METRICS_WIDTH)
         .append("}");
       if (!query.useMeta()) {
         buf.append("(?:.{").append(Const.TIMESTAMP_BYTES).append("})*");
@@ -274,7 +274,7 @@ public class TimeSeriesLookup {
       // catch any left over tagk/tag pairs
       if (index < pairs.size()){
         buf.setLength(0);
-        buf.append("(?s)^.{").append(TSDB.metrics_width())
+        buf.append("(?s)^.{").append(Const.METRICS_WIDTH)
            .append("}");
         if (!query.useMeta()) {
           buf.append("(?:.{").append(Const.TIMESTAMP_BYTES).append("})*");

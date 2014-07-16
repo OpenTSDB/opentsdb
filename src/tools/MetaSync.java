@@ -334,8 +334,8 @@ final class MetaSync extends Thread {
         
         for (final ArrayList<KeyValue> row : rows) {
 
-          final byte[] tsuid = UniqueId.getTSUIDFromKey(row.get(0).key(), 
-              TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
+          final byte[] tsuid = UniqueId.getTSUIDFromKey(row.get(0).key(),
+                  Const.METRICS_WIDTH, Const.TIMESTAMP_BYTES);
           
           // if the current tsuid is the same as the last, just continue
           // so we save time
@@ -356,15 +356,15 @@ final class MetaSync extends Thread {
           // we may have a new TSUID or UIDs, so fetch the timestamp of the 
           // row for use as the "created" time. Depending on speed we could 
           // parse datapoints, but for now the hourly row time is enough
-          final long timestamp = Bytes.getUnsignedInt(row.get(0).key(), 
-              TSDB.metrics_width());
+          final long timestamp = Bytes.getUnsignedInt(row.get(0).key(),
+                  Const.METRICS_WIDTH);
           
           LOG.debug("[" + thread_id + "] Processing TSUID: " + tsuid_string + 
               "  row timestamp: " + timestamp);
           
           // now process the UID metric meta data
-          final byte[] metric_uid_bytes = 
-            Arrays.copyOfRange(tsuid, 0, TSDB.metrics_width()); 
+          final byte[] metric_uid_bytes =
+            Arrays.copyOfRange(tsuid, 0, Const.METRICS_WIDTH);
           final String metric_uid = UniqueId.uidToString(metric_uid_bytes);
           Long last_get = metric_uids.get(metric_uid);
           
@@ -526,7 +526,7 @@ final class MetaSync extends Thread {
    * @throws HBaseException if something goes boom
    */
   private Scanner getScanner() throws HBaseException {
-    final short metric_width = TSDB.metrics_width();
+    final short metric_width = Const.METRICS_WIDTH;
     final byte[] start_row = 
       Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
     final byte[] end_row = 
@@ -534,7 +534,7 @@ final class MetaSync extends Thread {
 
     LOG.debug("[" + thread_id + "] Start row: " + UniqueId.uidToString(start_row));
     LOG.debug("[" + thread_id + "] End row: " + UniqueId.uidToString(end_row));
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily("t".getBytes(Charset.forName("ISO-8859-1")));

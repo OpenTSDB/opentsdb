@@ -306,7 +306,7 @@ public final class TreeRule {
         final PutRequest put = new PutRequest(tsdb.treeTable(), 
             Tree.idToBytes(tree_id), Tree.TREE_FAMILY(), 
             getQualifier(level, order), JSON.serializeToBytes(stored_rule));
-        return tsdb.getClient().compareAndSet(put, original_rule);
+        return tsdb.getTsdbStore().compareAndSet(put, original_rule);
       }
       
     }
@@ -379,7 +379,7 @@ public final class TreeRule {
       }
     }
       
-    return tsdb.getClient().get(get).addCallbackDeferring(new FetchCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new FetchCB());
   }
   
   /**
@@ -408,7 +408,7 @@ public final class TreeRule {
     
     final DeleteRequest delete = new DeleteRequest(tsdb.treeTable(), 
         Tree.idToBytes(tree_id), Tree.TREE_FAMILY(), getQualifier(level, order));
-    return tsdb.getClient().delete(delete);
+    return tsdb.getTsdbStore().delete(delete);
   }
   
   /**
@@ -460,12 +460,12 @@ public final class TreeRule {
         final DeleteRequest delete = new DeleteRequest(tsdb.treeTable(), 
             Tree.idToBytes(tree_id), Tree.TREE_FAMILY(), 
             qualifiers.toArray(new byte[qualifiers.size()][]));
-        return tsdb.getClient().delete(delete);
+        return tsdb.getTsdbStore().delete(delete);
       }
       
     }
     
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   /**

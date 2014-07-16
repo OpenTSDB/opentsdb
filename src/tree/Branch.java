@@ -359,7 +359,7 @@ public final class Branch implements Comparable<Branch> {
     final PutRequest put = new PutRequest(tsdb.treeTable(), row, Tree.TREE_FAMILY(), 
         BRANCH_QUALIFIER, storage_data);
     put.setBufferable(true);
-    storage_results.add(tsdb.getClient().compareAndSet(put, new byte[0]));
+    storage_results.add(tsdb.getTsdbStore().compareAndSet(put, new byte[0]));
     
     // store leaves if told to and put the storage calls in our deferred group
     if (store_leaves && leaves != null && !leaves.isEmpty()) {
@@ -411,7 +411,7 @@ public final class Branch implements Comparable<Branch> {
       
     }
     
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   /**
@@ -652,7 +652,7 @@ public final class Branch implements Comparable<Branch> {
       final byte[] branch_id) {
     final byte[] start = branch_id;
     final byte[] end = Arrays.copyOf(branch_id, branch_id.length);
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.treeTable());
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.treeTable());
     scanner.setStartKey(start);
     
     // increment the tree ID so we scan the whole tree

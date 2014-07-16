@@ -110,12 +110,12 @@ final class Fsck {
   final AtomicLong vle_fixed = new AtomicLong();
   
   /** Length of the metric + timestamp for key validation */
-  private static int key_prefix_length = TSDB.metrics_width() + 
+  private static int key_prefix_length = Const.METRICS_WIDTH +
       Const.TIMESTAMP_BYTES;
-  
+
   /** Length of a tagk + tagv pair for key validation */
-  private static int key_tags_length = TSDB.tagk_width() + TSDB.tagv_width();
-  
+  private static int key_tags_length = Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH;
+
   /** How often to report progress */
   private static long report_rows = 10000;
   
@@ -312,7 +312,7 @@ final class Fsck {
             fsckRow(row, datapoints);
           }
         }
-        
+
         // handle the last row
         if (!datapoints.isEmpty()) {
           rows_processed.getAndIncrement();
@@ -344,9 +344,9 @@ final class Fsck {
       if (!fsckKey(row.get(0).key())) {
         return;
       }
-      
-      final long base_time = Bytes.getUnsignedInt(row.get(0).key(), 
-          TSDB.metrics_width());
+
+      final long base_time = Bytes.getUnsignedInt(row.get(0).key(),
+              Const.METRICS_WIDTH);
       
       for (final KeyValue kv : row) {
         kvs_processed.getAndIncrement();
@@ -360,7 +360,7 @@ final class Fsck {
           LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t" + kv);
           if (options.fix() && options.deleteUnknownColumns()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-            tsdb.getClient().delete(delete);
+            tsdb.getTsdbStore().delete(delete);
             unknown_fixed.getAndIncrement();
           }
           continue;
@@ -380,7 +380,7 @@ final class Fsck {
                 "of bytes.\n\t" + kv);
             if (options.fix() && options.deleteUnknownColumns()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-              tsdb.getClient().delete(delete);
+              tsdb.getTsdbStore().delete(delete);
               unknown_fixed.getAndIncrement();
             }
             continue;
@@ -457,7 +457,7 @@ final class Fsck {
             LOG.error(e.getMessage());
             if (options.fix() && options.deleteBadCompacts()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-              tsdb.getClient().delete(delete);
+              tsdb.getTsdbStore().delete(delete);
               bad_compacted_columns_deleted.getAndIncrement();
             }
           }
@@ -503,7 +503,7 @@ final class Fsck {
         
         if (options.fix() && options.deleteBadRows()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-          tsdb.getClient().delete(delete);
+          tsdb.getTsdbStore().delete(delete);
           bad_key_fixed.getAndIncrement();
         }
         return false;
@@ -511,7 +511,7 @@ final class Fsck {
       
       // Process the time series ID by resolving the UIDs to names if we haven't
       // already seen this particular TSUID
-      final byte[] tsuid = UniqueId.getTSUIDFromKey(key, TSDB.metrics_width(), 
+      final byte[] tsuid = UniqueId.getTSUIDFromKey(key, Const.METRICS_WIDTH,
           Const.TIMESTAMP_BYTES);
       if (!tsuids.contains(tsuid)) {
         try {
@@ -523,7 +523,7 @@ final class Fsck {
           
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getClient().delete(delete);
+            tsdb.getTsdbStore().delete(delete);
             orphans_fixed.getAndIncrement();
           }
           return false;
@@ -539,7 +539,7 @@ final class Fsck {
           
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getClient().delete(delete);
+            tsdb.getTsdbStore().delete(delete);
             orphans_fixed.getAndIncrement();
           }
           return false;
@@ -629,7 +629,7 @@ final class Fsck {
                   !last_dp.compacted) {
                 final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                     last_dp.kv.key(), last_dp.kv.family(), last_dp.qualifier());
-                tsdb.getClient().delete(delete);
+                tsdb.getTsdbStore().delete(delete);
               }
             }             
           } else if (!options.lastWriteWins() && index == 0) {
@@ -649,7 +649,7 @@ final class Fsck {
                 !dp.compacted) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                   dp.kv.key(), dp.kv.family(), dp.qualifier());
-              tsdb.getClient().delete(delete);
+              tsdb.getTsdbStore().delete(delete);
             }
           }
           index++;
@@ -699,19 +699,19 @@ final class Fsck {
           if (Bytes.memcmp(unique_columns.get(new_qualifier), new_value) != 0) {
             // Important: Make sure to wait for the write to complete before
             // proceeding with the deletes.
-            tsdb.getClient().put(put).joinUninterruptibly();
+            tsdb.getTsdbStore().put(put).joinUninterruptibly();
           }
           unique_columns.remove(new_qualifier);
         } else {
           // Important: Make sure to wait for the write to complete before
           // proceeding with the deletes.
-          tsdb.getClient().put(put).joinUninterruptibly();
+          tsdb.getTsdbStore().put(put).joinUninterruptibly();
         }
         
         for (byte[] qualifier : unique_columns.keySet()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key, 
               TSDB.FAMILY(), qualifier);
-          tsdb.getClient().delete(delete);
+          tsdb.getTsdbStore().delete(delete);
         }
       }
     }
@@ -755,7 +755,7 @@ final class Fsck {
             } else if (!dp.compacted){
               final PutRequest put = new PutRequest(tsdb.dataTable(), 
                   dp.kv.key(), dp.kv.family(), qual, value);
-              tsdb.getClient().put(put);
+              tsdb.getTsdbStore().put(put);
             } else {
               LOG.error("SHOULDN'T be here as we didn't compact or fix a "
                   + "single value");
@@ -774,7 +774,7 @@ final class Fsck {
           if (options.fix() && options.deleteBadValues() && !dp.compacted) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                 dp.kv);
-            tsdb.getClient().delete(delete);
+            tsdb.getTsdbStore().delete(delete);
             bad_values_deleted.getAndIncrement();
           } else if (dp.compacted) {
             LOG.error("The value was in a compacted column. This should "
@@ -799,7 +799,7 @@ final class Fsck {
             } else if (!dp.compacted) {
               final PutRequest put = new PutRequest(tsdb.dataTable(), 
                   dp.kv.key(), dp.kv.family(), qual, value);
-              tsdb.getClient().put(put);
+              tsdb.getTsdbStore().put(put);
             } else {
               LOG.error("SHOULDN'T be here as we didn't compact or fix a single value");
             }
@@ -816,7 +816,7 @@ final class Fsck {
                   + " was only " + value.length + " bytes.\n\t" + dp.kv);
         if (options.fix() && options.deleteBadValues() && !dp.compacted) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getClient().delete(delete);
+          tsdb.getTsdbStore().delete(delete);
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -832,7 +832,7 @@ final class Fsck {
                   + " bytes.\n\t" + dp.kv);
         if (options.fix() && options.deleteBadValues() && !dp.compacted) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getClient().delete(delete);
+          tsdb.getTsdbStore().delete(delete);
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -873,7 +873,7 @@ final class Fsck {
             + "should be " + length + " bytes.\n\t" + dp.kv);
         if (options.fix() && options.deleteBadValues()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getClient().delete(delete);
+          tsdb.getTsdbStore().delete(delete);
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -914,10 +914,10 @@ final class Fsck {
             // put the new value, THEN delete the old
             final PutRequest put = new PutRequest(tsdb.dataTable(), 
                 dp.kv.key(), dp.kv.family(), new_qualifier, value);
-            tsdb.getClient().put(put).joinUninterruptibly();
+            tsdb.getTsdbStore().put(put).joinUninterruptibly();
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                 dp.kv.key(), dp.kv.family(), qual);
-            tsdb.getClient().delete(delete);
+            tsdb.getTsdbStore().delete(delete);
           }
           vle_fixed.getAndIncrement();
         } // don't return true here as we don't consider a VLE an error.

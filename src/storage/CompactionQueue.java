@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,6 +25,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.ByteBufferList;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,20 +75,20 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   private final AtomicLong deleted_cells = new AtomicLong();
 
   /** The {@code TSDB} instance we belong to. */
-  private final TSDB tsdb;
+  private final HBaseStore hbase_store;
 
   /** On how many bytes do we encode metrics IDs.  */
   private final short metric_width;
 
   /**
    * Constructor.
-   * @param tsdb The TSDB we belong to.
+   * @param hbase_store The TSDB we belong to.
    */
-  public CompactionQueue(final TSDB tsdb) {
-    super(new Cmp(tsdb));
-    this.tsdb = tsdb;
-    metric_width = tsdb.metrics.width();
-    if (tsdb.config.enable_compactions()) {
+  public CompactionQueue(final HBaseStore hbase_store) {
+    super(new Cmp(hbase_store));
+    this.hbase_store = hbase_store;
+    metric_width = HBaseStore.METRICS_WIDTH;
+    if (hbase_store.enable_compactions) {
       startCompactionThread();
     }
   }
@@ -124,7 +128,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     collector.record("compaction.count", compaction_count);
     collector.record("compaction.duplicates", duplicates_same, "type=identical");
     collector.record("compaction.duplicates", duplicates_different, "type=variant");
-    if (!tsdb.config.enable_compactions()) {
+    if (!hbase_store.enable_compactions) {
       return;
     }
     // The remaining stats only make sense with compactions enabled.
@@ -182,13 +186,13 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       nflushes++;
       maxflushes--;
       size.decrementAndGet();
-      ds.add(tsdb.get(row).addCallbacks(compactcb, handle_read_error));
+      ds.add(hbase_store.get(row).addCallbacks(compactcb, handle_read_error));
     }
     final Deferred<ArrayList<Object>> group = Deferred.group(ds);
     if (nflushes == MAX_CONCURRENT_FLUSHES && maxflushes > 0) {
       // We're not done yet.  Once this group of flushes completes, we need
       // to kick off more.
-      tsdb.flush();  // Speed up this batch by telling the client to flush.
+      hbase_store.flush();  // Speed up this batch by telling the TsdbStore to flush.
       final int maxflushez = maxflushes;  // Make it final for closure.
       final class FlushMoreCB implements Callback<Deferred<ArrayList<Object>>,
                                                   ArrayList<Object>> {
@@ -356,7 +360,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         }
       }
       // if compactions aren't enabled or there is nothing to write, we're done
-      if (!tsdb.config.enable_compactions() || (!write && to_delete.isEmpty())) {
+      if (!hbase_store.enable_compactions || (!write && to_delete.isEmpty())) {
         return null;
       }
 
@@ -365,7 +369,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       deleted_cells.addAndGet(to_delete.size());  // We're going to delete this.
       if (write) {
         written_cells.incrementAndGet();
-        Deferred<Object> deferred = tsdb.put(key, compact.qualifier(), compact.value());
+        Deferred<Object> deferred = hbase_store.put(key, compact.qualifier(), compact.value());
         if (!to_delete.isEmpty()) {
           deferred = deferred.addCallbacks(new DeleteCompactedCB(to_delete), handle_write_error);
         }
@@ -448,7 +452,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           final byte[] discardedVal = col.getCopyOfCurrentValue();
           if (!Arrays.equals(existingVal, discardedVal)) {
             duplicates_different.incrementAndGet();
-            if (!tsdb.config.fix_duplicates()) {
+            if (!hbase_store.fix_duplicates) {
               throw new IllegalDataException("Duplicate timestamp for key="
                   + Arrays.toString(row.get(0).key()) + ", ms_offset=" + ts + ", older="
                   + Arrays.toString(existingVal) + ", newer=" + Arrays.toString(discardedVal)
@@ -583,7 +587,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
     @Override
     public Object call(final Object arg) {
-      return tsdb.delete(key, qualifiers).addErrback(handle_delete_error);
+      return hbase_store.delete(key, qualifiers).addErrback(handle_delete_error);
     }
 
     @Override
@@ -761,8 +765,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     /** On how many bytes do we encode metrics IDs.  */
     private final short metric_width;
 
-    public Cmp(final TSDB tsdb) {
-      metric_width = tsdb.metrics.width();
+    public Cmp(final HBaseStore tsdb) {
+      metric_width = HBaseStore.METRICS_WIDTH;
     }
 
     @Override

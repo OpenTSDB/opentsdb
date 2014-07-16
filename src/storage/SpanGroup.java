@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +21,7 @@ import java.util.Map;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.*;
 import net.opentsdb.meta.Annotation;
 
 /**
@@ -30,19 +31,19 @@ import net.opentsdb.meta.Annotation;
  * {@link Span}s that are for the same time series but different tags
  * together.  We need to "hide" data points that are outside of the
  * time period of the query and do on-the-fly aggregation of the data
- * points coming from the different Spans, using an {@link Aggregator}.
+ * points coming from the different Spans, using an {@link net.opentsdb.core.Aggregator}.
  * Since not all the Spans will have their data points at exactly the
  * same time, we also do on-the-fly linear interpolation.  If needed,
  * this view can also return the rate of change instead of the actual
  * data points.
  * <p>
  * This is one of the rare (if not the only) implementations of
- * {@link DataPoints} for which {@link #getTags} can potentially return
+ * {@link net.opentsdb.core.DataPoints} for which {@link #getTags} can potentially return
  * an empty map.
  * <p>
  * The implementation can also dynamically downsample the data when a
  * sampling interval a downsampling function (in the form of an
- * {@link Aggregator}) are given.  This is done by using a special
+ * {@link net.opentsdb.core.Aggregator}) are given.  This is done by using a special
  * iterator when using the {@link Span.DownsamplingIterator}.
  */
 final class SpanGroup implements DataPoints {
@@ -78,7 +79,7 @@ final class SpanGroup implements DataPoints {
   private final boolean rate;
   
   /** Specifies the various options for rate calculations */
-  private RateOptions rate_options; 
+  private RateOptions rate_options;
 
   /** Aggregator to use to aggregate data points from different Spans. */
   private final Aggregator aggregator;

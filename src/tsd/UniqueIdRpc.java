@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -354,7 +355,7 @@ final class UniqueIdRpc implements HttpRpc {
               final PutRequest put = new PutRequest(tsdb.metaTable(), 
                   UniqueId.stringToUid(tsuid), TSMeta.FAMILY(), 
                   TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(0));    
-              tsdb.getClient().put(put);
+              tsdb.getTsdbStore().put(put);
             }
 
             return exists;
@@ -569,8 +570,8 @@ final class UniqueIdRpc implements HttpRpc {
     final TreeMap<String, String> sortedTags = new TreeMap<String, String>(tags);
     // Byte Buffer to generate TSUID, pre allocated to the size of the TSUID
     final ByteArrayOutputStream buf = new ByteArrayOutputStream(
-        TSDB.metrics_width() + sortedTags.size() * 
-        (TSDB.tagk_width() + TSDB.tagv_width()));
+        Const.METRICS_WIDTH + sortedTags.size() *
+        (Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH));
     try {
     buf.write(tsdb.getUID(UniqueIdType.METRIC, metric));
       for (Entry<String, String> e: sortedTags.entrySet()) {

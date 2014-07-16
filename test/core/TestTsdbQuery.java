@@ -29,6 +29,8 @@ import java.util.Map;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.Span;
+import net.opentsdb.storage.SpanGroup;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -70,7 +72,8 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
   Scanner.class, TsdbQuery.class, DeleteRequest.class, Annotation.class, 
-  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class })
+  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class,
+  TSUID.class})
 public final class TestTsdbQuery {
   private Config config;
   private TSDB tsdb = null;
@@ -2596,7 +2599,7 @@ public final class TestTsdbQuery {
     storage = new MockBase(tsdb, client, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
 
-    PowerMockito.mockStatic(IncomingDataPoints.class);   
+    PowerMockito.mockStatic(TSUID.class);
     PowerMockito.doAnswer(
         new Answer<byte[]>() {
           @Override
@@ -2621,7 +2624,7 @@ public final class TestTsdbQuery {
             }
           }
         }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", any(), anyString(), 
+    ).when(TSUID.class, "rowKeyTemplate", any(), anyString(),
         any());
   }
   

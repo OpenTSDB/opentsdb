@@ -31,6 +31,8 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.Span;
+import net.opentsdb.storage.SpanGroup;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -62,7 +64,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class,
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class,
   Scanner.class, TsdbQuery.class, DeleteRequest.class, Annotation.class,
-  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class })
+  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class,
+  TSUID.class})
 public class TestTsdbQueryDownsample {
 
   private Config config;
@@ -81,7 +84,7 @@ public class TestTsdbQueryDownsample {
     query = new TsdbQuery(tsdb);
 
     // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("client");
+    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
     cl.setAccessible(true);
     cl.set(tsdb, client);
 
@@ -625,7 +628,7 @@ public class TestTsdbQueryDownsample {
     storage = new MockBase(tsdb, client, true, true, true, true);
     storage.setFamily("t".getBytes(MockBase.ASCII()));
 
-    PowerMockito.mockStatic(IncomingDataPoints.class);
+    PowerMockito.mockStatic(TSUID.class);
     PowerMockito.doAnswer(
         new Answer<byte[]>() {
           public byte[] answer(final InvocationOnMock args)
@@ -649,7 +652,7 @@ public class TestTsdbQueryDownsample {
             }
           }
         }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", (TSDB)any(), anyString(),
+    ).when(TSUID.class, "rowKeyTemplate", (TSDB)any(), anyString(),
         (Map<String, String>)any());
   }
 }

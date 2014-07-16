@@ -45,7 +45,7 @@ public class RateSpan implements SeekableView {
    * @param source The iterator to access the underlying data.
    * @param options Options for calculating rates.
    */
-  RateSpan(final SeekableView source, final RateOptions options) {
+  public RateSpan(final SeekableView source, final RateOptions options) {
     this.source = source;
     this.options = options;
   }
