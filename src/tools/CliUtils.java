@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 
@@ -33,10 +34,6 @@ import org.hbase.async.Scanner;
  * @since 2.1
  */
 final class CliUtils {
-  /** Function used to convert a String to a byte[]. */
-  static final Method toBytes;
-  /** Function used to convert a byte[] to a String. */
-  static final Method fromBytes;
   /** Charset used to convert Strings to byte arrays and back. */
   static final Charset CHARSET;
   /** The single column family used by this class. */
@@ -66,10 +63,6 @@ final class CliUtils {
       f = uidclass.getDeclaredField("MAXID_ROW");
       f.setAccessible(true);
       MAXID_ROW = (byte[]) f.get(null);
-      toBytes = uidclass.getDeclaredMethod("toBytes", String.class);
-      toBytes.setAccessible(true);
-      fromBytes = uidclass.getDeclaredMethod("fromBytes", byte[].class);
-      fromBytes.setAccessible(true);
     } catch (Exception e) {
       throw new RuntimeException("static initializer failed", e);
     }
@@ -150,9 +143,9 @@ final class CliUtils {
    */
   static byte[] toBytes(final String s) {
     try {
-      return (byte[]) toBytes.invoke(null, s);
+      return StringCoder.toBytes(s);
     } catch (Exception e) {
-      throw new RuntimeException("toBytes=" + toBytes, e);
+      throw new RuntimeException("toBytes=" + s, e);
     }
   }
 
@@ -165,9 +158,9 @@ final class CliUtils {
    */
   static String fromBytes(final byte[] b) {
     try {
-      return (String) fromBytes.invoke(null, b);
+      return StringCoder.fromBytes(b);
     } catch (Exception e) {
-      throw new RuntimeException("fromBytes=" + fromBytes, e);
+      throw new RuntimeException("fromBytes=" + b, e);
     }
   }
 }

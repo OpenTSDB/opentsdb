@@ -25,6 +25,7 @@ import javax.xml.bind.DatatypeConverter;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 
@@ -148,7 +149,7 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   public String kind() {
-    return fromBytes(kind);
+    return StringCoder.fromBytes(kind);
   }
 
   public short width() {
@@ -235,20 +236,20 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   private String getNameFromCache(final byte[] id) {
-    return id_cache.get(fromBytes(id));
+    return id_cache.get(StringCoder.fromBytes(id));
   }
 
   private Deferred<String> getNameFromHBase(final byte[] id) {
     class NameFromHBaseCB implements Callback<String, byte[]> {
       public String call(final byte[] name) {
-        return name == null ? null : fromBytes(name);
+        return name == null ? null : StringCoder.fromBytes(name);
       }
     }
     return hbaseGet(id, NAME_FAMILY).addCallback(new NameFromHBaseCB());
   }
 
   private void addNameToCache(final byte[] id, final String name) {
-    final String key = fromBytes(id);
+    final String key = StringCoder.fromBytes(id);
     String found = id_cache.get(key);
     if (found == null) {
       found = id_cache.putIfAbsent(key, name);
@@ -756,7 +757,7 @@ public final class UniqueId implements UniqueIdInterface {
           }
         }
         final byte[] key = row.get(0).key();
-        final String name = fromBytes(key);
+        final String name = StringCoder.fromBytes(key);
         final byte[] id = row.get(0).value();
         final byte[] cached_id = name_cache.get(name);
         if (cached_id == null) {
@@ -842,7 +843,7 @@ public final class UniqueId implements UniqueIdInterface {
 
     // Update cache.
     addIdToCache(newname, row);            // add     new name -> ID
-    id_cache.put(fromBytes(row), newname);  // update  ID -> new name
+    id_cache.put(StringCoder.fromBytes(row), newname);  // update  ID -> new name
     name_cache.remove(oldname);             // remove  old name -> ID
 
     // Delete the old forward mapping.
@@ -961,13 +962,11 @@ public final class UniqueId implements UniqueIdInterface {
     return s.getBytes(CHARSET);
   }
 
-  private static String fromBytes(final byte[] b) {
-    return new String(b, CHARSET);
-  }
 
   /** Returns a human readable string representation of the object. */
   public String toString() {
-    return "UniqueId(" + fromBytes(table) + ", " + kind() + ", " + id_width + ")";
+    return "UniqueId(" + StringCoder.fromBytes(table) + ", " + kind() + ", " +
+            "" + id_width + ")";
   }
 
   /**
@@ -1330,11 +1329,11 @@ public final class UniqueId implements UniqueIdInterface {
           rows = scanner.nextRows().join()) {
         for (final ArrayList<KeyValue> row : rows) {
           for (KeyValue kv: row) {
-            final String name = fromBytes(kv.key());
+            final String name = StringCoder.fromBytes(kv.key());
             final byte[] kind = kv.qualifier();
             final byte[] id = kv.value();
             LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
-                name, fromBytes(kind));
+                name, StringCoder.fromBytes(kind));
             UniqueId uid_cache = uid_cache_map.get(kind);
             if (uid_cache != null) {
               uid_cache.cacheMapping(name, id);

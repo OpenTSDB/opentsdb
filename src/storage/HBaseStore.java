@@ -14,6 +14,7 @@ package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.StringCoder;
 import net.opentsdb.utils.Config;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.PutRequest;
