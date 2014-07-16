@@ -56,7 +56,8 @@ import com.stumbleupon.async.Deferred;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
-  Scanner.class, AtomicIncrementRequest.class, IncomingDataPoints.class})
+  Scanner.class, AtomicIncrementRequest.class, IncomingDataPoints.class,
+  TSUID.class})
 public final class TestTSDB {
   private Config config;
   private TSDB tsdb;
@@ -526,8 +527,8 @@ public final class TestTSDB {
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
-    when(IncomingDataPoints.rowKeyTemplate((TSDB)any(), anyString(), 
-        (Map<String, String>)any()))
+    when(TSUID.rowKeyTemplate((TSDB) any(), anyString(),
+            (Map<String, String>) any()))
       .thenThrow(new NoSuchUniqueName("sys.cpu.user", "metric"));
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -851,7 +852,7 @@ public final class TestTSDB {
   private void setupAddPointStorage() throws Exception {
     storage = new MockBase(tsdb, client, true, true, true, true);
 
-    PowerMockito.mockStatic(IncomingDataPoints.class);   
+    PowerMockito.mockStatic(TSUID.class);
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 
     PowerMockito.doAnswer(
         new Answer<byte[]>() {
@@ -861,7 +862,7 @@ public final class TestTSDB {
             return row;
           }
         }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", any(), anyString(), 
+    ).when(TSUID.class, "rowKeyTemplate", any(), anyString(),
         any());
 
     when(metrics.width()).thenReturn((short)3);

@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
-import org.hbase.async.ClientStats;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
@@ -619,9 +618,9 @@ public final class TSDB {
           + " to metric=" + metric + ", tags=" + tags);
     }
 
-    IncomingDataPoints.checkMetricAndTags(metric, tags);
+    TSUID.checkMetricAndTags(metric, tags);
 
-    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    final byte[] row = TSUID.rowKeyTemplate(this, metric, tags);
     
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
