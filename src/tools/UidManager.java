@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.opentsdb.core.Const;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -118,7 +119,7 @@ final class UidManager {
     
     final TSDB tsdb = new TSDB(config);
     tsdb.getClient().ensureTableExists(
-        config.getString("tsd.storage.hbase.uid_table")).joinUninterruptibly();
+            config.getString("tsd.storage.hbase.uid_table")).joinUninterruptibly();
     argp = null;
     int rc;
     try {
@@ -182,8 +183,8 @@ final class UidManager {
       // so that update meta data can be pushed to search engines
       try {
         tsdb.getClient().ensureTableExists(
-            tsdb.getConfig().getString(
-                "tsd.storage.hbase.data_table")).joinUninterruptibly();
+                tsdb.getConfig().getString(
+                        "tsd.storage.hbase.data_table")).joinUninterruptibly();
         tsdb.initializePlugins(false);
         return metaSync(tsdb);
       } catch (Exception e) {
@@ -195,8 +196,8 @@ final class UidManager {
       // so that update meta data can be pushed to search engines
       try {
         tsdb.getClient().ensureTableExists(
-            tsdb.getConfig().getString(
-                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+                tsdb.getConfig().getString(
+                        "tsd.storage.hbase.uid_table")).joinUninterruptibly();
         return metaPurge(tsdb);
       } catch (Exception e) {
         LOG.error("Unexpected exception", e);
@@ -206,8 +207,8 @@ final class UidManager {
       // check for the UID table existence
       try {
         tsdb.getClient().ensureTableExists(
-            tsdb.getConfig().getString(
-                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+                tsdb.getConfig().getString(
+                        "tsd.storage.hbase.uid_table")).joinUninterruptibly();
         if (!tsdb.getConfig().enable_tree_processing()) {
           LOG.warn("Tree processing is disabled");
           return 0;
@@ -224,8 +225,8 @@ final class UidManager {
       }
       try {
         tsdb.getClient().ensureTableExists(
-            tsdb.getConfig().getString(
-                "tsd.storage.hbase.uid_table")).joinUninterruptibly();
+                tsdb.getConfig().getString(
+                        "tsd.storage.hbase.uid_table")).joinUninterruptibly();
         final int tree_id = Integer.parseInt(args[1]);
         final boolean delete_definitions;
         if (nargs < 3) {
@@ -528,11 +529,11 @@ final class UidManager {
                 final String svalue = UniqueId.uidToString(value);
                 final long max_found_id;
                 if (Bytes.equals(qualifier, CliUtils.METRICS)) {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.metrics_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.METRICS_WIDTH);
                 } else if (Bytes.equals(qualifier, CliUtils.TAGK)) {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.tagk_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.TAG_NAME_WIDTH);
                 } else {
-                  max_found_id = UniqueId.uidToLong(value, TSDB.tagv_width());
+                  max_found_id = UniqueId.uidToLong(value, Const.TAG_VALUE_WIDTH);
                 }
                 if (uids.max_found_id < max_found_id) {
                   uids.max_found_id = max_found_id;

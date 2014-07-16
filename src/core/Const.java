@@ -74,4 +74,12 @@ public final class Const {
    * before losing precision.
    */
   public static final long MAX_INT_IN_DOUBLE = 0xFFE0000000000000L;
+
+  public static final short METRICS_WIDTH = 3;
+  public static final short TAG_NAME_WIDTH = 3;
+  public static final short TAG_VALUE_WIDTH = 3;
+
+  public static final String METRICS_QUAL = "metrics";
+  public static final String TAG_NAME_QUAL = "tagk";
+  public static final String TAG_VALUE_QUAL = "tagv";
 }

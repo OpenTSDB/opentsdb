@@ -20,6 +20,7 @@ import java.util.Map;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
@@ -655,9 +656,9 @@ public final class TestUniqueId {
   @Test
   public void getTagPairsFromTSUIDStringNonStandardWidth() {
     PowerMockito.mockStatic(TSDB.class);
-    when(TSDB.metrics_width()).thenReturn((short)3);
-    when(TSDB.tagk_width()).thenReturn((short)4);
-    when(TSDB.tagv_width()).thenReturn((short)3);
+    when(Const.METRICS_WIDTH).thenReturn((short)3);
+    when(Const.TAG_NAME_WIDTH).thenReturn((short)4);
+    when(Const.TAG_VALUE_WIDTH).thenReturn((short)3);
     
     List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
         "0000000000000100000200000003000004");
@@ -711,9 +712,9 @@ public final class TestUniqueId {
   @Test
   public void getTagPairsFromTSUIDBytesNonStandardWidth() {
     PowerMockito.mockStatic(TSDB.class);
-    when(TSDB.metrics_width()).thenReturn((short)3);
-    when(TSDB.tagk_width()).thenReturn((short)4);
-    when(TSDB.tagv_width()).thenReturn((short)3);
+    when(Const.METRICS_WIDTH).thenReturn((short)3);
+    when(Const.TAG_NAME_WIDTH).thenReturn((short)4);
+    when(Const.TAG_VALUE_WIDTH).thenReturn((short)3);
     
     List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
         new byte[] { 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 3, 0, 0, 4 });
@@ -763,9 +764,9 @@ public final class TestUniqueId {
   @Test
   public void getTagFromTSUIDNonStandardWidth() {
     PowerMockito.mockStatic(TSDB.class);
-    when(TSDB.metrics_width()).thenReturn((short)3);
-    when(TSDB.tagk_width()).thenReturn((short)4);
-    when(TSDB.tagv_width()).thenReturn((short)3);
+    when(Const.METRICS_WIDTH).thenReturn((short)3);
+    when(Const.TAG_NAME_WIDTH).thenReturn((short)4);
+    when(Const.TAG_VALUE_WIDTH).thenReturn((short)3);
     
     List<byte[]> tags = UniqueId.getTagsFromTSUID(
         "0000000000000100000200000003000004");

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -260,7 +261,7 @@ public final class TSMeta {
     
     // calculate the metric UID and fetch it's name mapping
     final byte[] metric_uid = UniqueId.stringToUid(
-        tsuid.substring(0, TSDB.metrics_width() * 2));
+        tsuid.substring(0, Const.METRICS_WIDTH * 2));
     uid_group.add(tsdb.getUidName(UniqueIdType.METRIC, metric_uid)
         .addCallback(new UidCB()));
     
@@ -887,8 +888,8 @@ public final class TSMeta {
       // getUIDMeta request must be added to the uid_group array so that we
       // can wait for them to complete before returning the TSMeta object, 
       // otherwise the caller may get a TSMeta with missing UIDMetas
-      uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, 
-        tsuid.substring(0, TSDB.metrics_width() * 2)).addCallback(
+      uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC,
+        tsuid.substring(0, Const.METRICS_WIDTH * 2)).addCallback(
             new UIDMetaCB(-1)));
       
       int idx = 0;

@@ -74,11 +74,11 @@ final public class RowKey {
       base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     }
     final byte[] row = new byte[tsuid.length + Const.TIMESTAMP_BYTES];
-    System.arraycopy(tsuid, 0, row, 0, TSDB.metrics_width());
-    Bytes.setInt(row, (int) base_time, TSDB.metrics_width());
-    System.arraycopy(tsuid, TSDB.metrics_width(), row, 
-        TSDB.metrics_width() + Const.TIMESTAMP_BYTES, 
-        tsuid.length - TSDB.metrics_width());
+    System.arraycopy(tsuid, 0, row, 0, Const.METRICS_WIDTH);
+    Bytes.setInt(row, (int) base_time, Const.METRICS_WIDTH);
+    System.arraycopy(tsuid, Const.METRICS_WIDTH, row,
+        Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES,
+        tsuid.length - Const.METRICS_WIDTH);
     return row;
   }
 }
