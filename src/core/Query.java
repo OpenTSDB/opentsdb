@@ -155,6 +155,8 @@ public interface Query {
    */
   void downsample(long interval, Aggregator downsampler);
 
+  long getSampleInterval();
+
   /**
    * Runs this query.
    * @return The data points matched by this query.

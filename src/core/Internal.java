@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.storage.RowSeq;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -101,7 +102,7 @@ public final class Internal {
     return Tags.getTags(tsdb, row);
   }
 
-  /** @see RowSeq#extractIntegerValue */
+  /** @see net.opentsdb.storage.RowSeq#extractIntegerValue */
   public static long extractIntegerValue(final byte[] values,
                                          final int value_idx,
                                          final byte flags) {

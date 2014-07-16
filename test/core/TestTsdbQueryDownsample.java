@@ -31,6 +31,8 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.Span;
+import net.opentsdb.storage.SpanGroup;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;

@@ -13,6 +13,8 @@
 package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.Query;
 import net.opentsdb.stats.StatsCollector;
 import org.hbase.async.*;
 import org.hbase.async.HBaseClient;
@@ -70,4 +72,6 @@ public interface TsdbStore {
   public Deferred<Object> shutdown();
 
   void collectStats(StatsCollector collector);
+
+  public Deferred<DataPoints[]> executeQuery(Query query);
 }

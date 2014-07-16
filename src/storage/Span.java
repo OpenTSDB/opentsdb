@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.*;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 
@@ -34,7 +35,7 @@ import com.stumbleupon.async.Deferred;
  */
 final class Span implements DataPoints {
 
-  /** The {@link TSDB} instance we belong to. */
+  /** The {@link net.opentsdb.core.TSDB} instance we belong to. */
   private final TSDB tsdb;
 
   /** All the rows in this span. */
@@ -160,7 +161,7 @@ final class Span implements DataPoints {
       // Verify that we have the same metric id and tags.
       final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
-      final short metric_width = tsdb.metrics.width();
+      final short metric_width = Const.METRICS_WIDTH;
       final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
       final short tags_bytes = (short) (key.length - tags_offset);
       String error = null;

@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import java.util.Arrays;
 import java.util.List;
@@ -18,6 +18,7 @@ import java.util.NoSuchElementException;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import net.opentsdb.core.*;
 import net.opentsdb.core.Aggregators.Interpolation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,8 +27,8 @@ import org.slf4j.LoggerFactory;
  * Iterator that aggregates multiple spans or time series data and does linear
  * interpolation (lerp) for missing data points.
  * <p>
- * This where the real business of {@link SpanGroup} is.  This iterator
- * provides a merged, aggregated view of multiple {@link Span}s.  The data
+ * This where the real business of {@link net.opentsdb.storage.SpanGroup} is.  This iterator
+ * provides a merged, aggregated view of multiple {@link net.opentsdb.storage.Span}s.  The data
  * points in all the Spans are returned in chronological order.  Each time
  * we return a data point from a span, we aggregate it with the current
  * value from all the other Spans.  If other Spans don't have a value at
@@ -116,7 +117,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  */
 final class AggregationIterator implements SeekableView, DataPoint,
-                                           Aggregator.Longs, Aggregator.Doubles {
+        Aggregator.Longs, Aggregator.Doubles {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(AggregationIterator.class);
@@ -141,7 +142,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   private final boolean rate;
 
   /**
-   * Where we are in each {@link Span} in the group.
+   * Where we are in each {@link net.opentsdb.storage.Span} in the group.
    * The iterators in this array always points to 2 values ahead of the
    * current value, as we pre-load the current and the next values into the
    * {@link #timestamps} and {@link #values} member.
@@ -195,7 +196,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   private int pos;
 
   /**
-   * Creates a new iterator for a {@link SpanGroup}.
+   * Creates a new iterator for a {@link net.opentsdb.storage.SpanGroup}.
    * @param spans Spans in a group.
    * @param start_time Any data point strictly before this timestamp will be
    * ignored.
