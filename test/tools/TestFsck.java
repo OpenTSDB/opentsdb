@@ -86,7 +86,6 @@ public final class TestFsck {
     config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-    when(tsdb_store.flush()).thenReturn(Deferred.fromResult(null));
 
     when(options.fix()).thenReturn(false);
     when(options.compact()).thenReturn(false);
