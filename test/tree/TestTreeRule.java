@@ -20,8 +20,10 @@ import static org.junit.Assert.assertTrue;
 import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
+import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
 import org.hbase.async.DeleteRequest;
@@ -44,9 +46,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
   PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class, 
   Tree.class})
 public final class TestTreeRule {
-  private MockBase storage;
+  private MemoryStore tsdb_store;
+  private TSDB tsdb;
   private TreeRule rule;
-  
+
   @Before
   public void before() {
     rule = new TreeRule();
@@ -180,7 +183,7 @@ public final class TestTreeRule {
   @Test
   public void fetchRule() throws Exception {
     setupStorage();
-    final TreeRule rule = TreeRule.fetchRule(storage.getTSDB(), 1, 2, 1)
+    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 1)
       .joinUninterruptibly();
     assertNotNull(rule);
     assertEquals(1, rule.getTreeId());
@@ -192,7 +195,7 @@ public final class TestTreeRule {
   @Test
   public void fetchRuleDoesNotExist() throws Exception {
     setupStorage();
-    final TreeRule rule = TreeRule.fetchRule(storage.getTSDB(), 1, 2, 2)
+    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 2)
       .joinUninterruptibly();
     assertNull(rule);
   }
@@ -200,25 +203,25 @@ public final class TestTreeRule {
   @Test (expected = IllegalArgumentException.class)
   public void fetchRuleBadTreeID0() throws Exception {
     setupStorage();
-    TreeRule.fetchRule(storage.getTSDB(), 0, 2, 1);
+    TreeRule.fetchRule(tsdb, 0, 2, 1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchRuleBadTreeID65536() throws Exception {
     setupStorage();
-    TreeRule.fetchRule(storage.getTSDB(), 65536, 2, 1);
+    TreeRule.fetchRule(tsdb, 65536, 2, 1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchRuleBadLevel() throws Exception {
     setupStorage();
-    TreeRule.fetchRule(storage.getTSDB(), 1, -1, 1);
+    TreeRule.fetchRule(tsdb, 1, -1, 1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchRuleBadOrder() throws Exception {
     setupStorage();
-    TreeRule.fetchRule(storage.getTSDB(), 1, 2, -1);
+    TreeRule.fetchRule(tsdb, 1, 2, -1);
   }
   
   @Test
@@ -229,8 +232,8 @@ public final class TestTreeRule {
     rule.setOrder(0);
     rule.setType(TreeRuleType.METRIC);
     rule.setNotes("Just some notes");
-    assertTrue(rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly());
-    assertEquals(3, storage.numColumns(new byte[] { 0, 1 }));
+    assertTrue(rule.syncToStorage(tsdb, false).joinUninterruptibly());
+    assertEquals(3, tsdb_store.numColumns(new byte[] { 0, 1 }));
   }
   
   @Test
@@ -240,10 +243,10 @@ public final class TestTreeRule {
     rule.setLevel(2);
     rule.setOrder(1);
     rule.setNotes("Just some notes");
-    assertTrue(rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly());
-    assertEquals(2, storage.numColumns(new byte[] { 0, 1 }));
+    assertTrue(rule.syncToStorage(tsdb, false).joinUninterruptibly());
+    assertEquals(2, tsdb_store.numColumns(new byte[] { 0, 1 }));
     final TreeRule stored = JSON.parseToObject(
-        storage.getColumn(new byte[] { 0, 1 }, 
+        tsdb_store.getColumn(new byte[] { 0, 1 },
         "tree_rule:2:1".getBytes(MockBase.ASCII())), TreeRule.class);
     assertEquals("Host owner", stored.getDescription());
     assertEquals("Just some notes", stored.getNotes());
@@ -253,22 +256,22 @@ public final class TestTreeRule {
   public void storeRuleBadID0() throws Exception {
     setupStorage();
     final TreeRule rule = new TreeRule(0);
-    rule.syncToStorage(storage.getTSDB(), false);
+    rule.syncToStorage(tsdb, false);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleBadID65536() throws Exception {
     setupStorage();
     final TreeRule rule = new TreeRule(65536);
-    rule.syncToStorage(storage.getTSDB(), false);
+    rule.syncToStorage(tsdb, false);
   }
   
   @Test (expected = IllegalStateException.class)
   public void storeRuleNoChanges() throws Exception {
     setupStorage();
-    final TreeRule rule = TreeRule.fetchRule(storage.getTSDB(), 1, 2, 1)
+    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 1)
       .joinUninterruptibly();
-    rule.syncToStorage(storage.getTSDB(), false);
+    rule.syncToStorage(tsdb, false);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -278,7 +281,7 @@ public final class TestTreeRule {
     rule.setLevel(1);
     rule.setOrder(0);
     rule.setNotes("Just some notes");
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -289,7 +292,7 @@ public final class TestTreeRule {
     rule.setOrder(0);
     rule.setType(TreeRuleType.TAGK);
     rule.setNotes("Just some notes");
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -300,7 +303,7 @@ public final class TestTreeRule {
     rule.setOrder(0);
     rule.setType(TreeRuleType.TAGK_CUSTOM);
     rule.setNotes("Just some notes");
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -311,7 +314,7 @@ public final class TestTreeRule {
     rule.setOrder(0);
     rule.setType(TreeRuleType.TAGV_CUSTOM);
     rule.setNotes("Just some notes");
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -322,7 +325,7 @@ public final class TestTreeRule {
     rule.setOrder(0);
     rule.setType(TreeRuleType.METRIC_CUSTOM);
     rule.setNotes("Just some notes");
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -334,7 +337,7 @@ public final class TestTreeRule {
     rule.setType(TreeRuleType.TAGK_CUSTOM);
     rule.setNotes("Just some notes");
     rule.setField("foo");
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -346,7 +349,7 @@ public final class TestTreeRule {
     rule.setType(TreeRuleType.TAGV_CUSTOM);
     rule.setNotes("Just some notes");
     rule.setField("foo");
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -358,7 +361,7 @@ public final class TestTreeRule {
     rule.setType(TreeRuleType.METRIC_CUSTOM);
     rule.setNotes("Just some notes");
     rule.setField("foo");
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -370,21 +373,21 @@ public final class TestTreeRule {
     rule.setType(TreeRuleType.TAGK);
     rule.setRegex("^.*$");
     rule.setRegexGroupIdx(-1);
-    rule.syncToStorage(storage.getTSDB(), false).joinUninterruptibly();
+    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test
   public void deleteRule() throws Exception {
     setupStorage();
-    assertNotNull(TreeRule.deleteRule(storage.getTSDB(), 1, 2, 1));
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    assertNotNull(TreeRule.deleteRule(tsdb, 1, 2, 1));
+    assertEquals(1, tsdb_store.numColumns(new byte[] { 0, 1 }));
   }
   
   @Test
   public void deleteAllRules() throws Exception {
     setupStorage();
-    TreeRule.deleteAllRules(storage.getTSDB(), 1);
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    TreeRule.deleteAllRules(tsdb, 1);
+    assertEquals(1, tsdb_store.numColumns(new byte[] { 0, 1 }));
   }
 
   @Test
@@ -403,7 +406,8 @@ public final class TestTreeRule {
    * Mocks classes for testing the storage calls
    */
   private void setupStorage() throws Exception {
-    storage = new MockBase(true, true, true, true);
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(new Config(false));
 
     final TreeRule stored_rule = new TreeRule(1);
     stored_rule.setLevel(2);
@@ -415,12 +419,12 @@ public final class TestTreeRule {
     stored_rule.setNotes("Owner of the host machine");
     
     // pretend there's a tree definition in the storage row
-    storage.addColumn(new byte[] { 0, 1 }, "tree".getBytes(MockBase.ASCII()), 
+    tsdb_store.addColumn(new byte[] { 0, 1 }, "tree".getBytes(MockBase.ASCII()),
         new byte[] { 1 });
     
     // add a rule to the row
-    storage.addColumn(new byte[] { 0, 1 }, 
-        "tree_rule:2:1".getBytes(MockBase.ASCII()),
-        JSON.serializeToBytes(stored_rule));
+    tsdb_store.addColumn(new byte[]{0, 1},
+      "tree_rule:2:1".getBytes(MockBase.ASCII()),
+      JSON.serializeToBytes(stored_rule));
   }
 }

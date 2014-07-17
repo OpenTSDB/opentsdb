@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -57,7 +56,6 @@ public final class TestTags {
   private TSDB tsdb;
   private Config config;
   private MemoryStore tsdb_store;
-  private MockBase storage = null;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
@@ -636,9 +634,8 @@ public final class TestTags {
   
   private void setupStorage() throws Exception {
     config = new Config(false);
-    tsdb_store = mock(MemoryStore.class);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(config);
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
 
     // replace the "real" field objects with mocks
     Field cl = tsdb.getClass().getDeclaredField("tsdb_store");

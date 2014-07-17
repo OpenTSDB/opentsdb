@@ -49,8 +49,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
   MemoryStore.class})
 public final class TestAnnotationRpc {
   private TSDB tsdb = null;
-  private MemoryStore tsdb_store = mock(MemoryStore.class);
-  private MockBase storage;
+  private MemoryStore tsdb_store;
   private AnnotationRpc rpc = new AnnotationRpc();
   
   final private byte[] global_row_key = 
@@ -62,43 +61,42 @@ public final class TestAnnotationRpc {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-    
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    
+
  // add a global
-    storage.addColumn(global_row_key, 
-        new byte[] { 1, 0, 0 }, 
-        ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" + 
-            "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" + 
-            "\"ops\"}}").getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(global_row_key,
+      new byte[]{1, 0, 0},
+      ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" +
+        "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" +
+        "\"ops\"}}").getBytes(MockBase.ASCII()));
     
-    storage.addColumn(global_row_key, 
-        new byte[] { 1, 0, 1 }, 
-        ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" + 
-            "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(global_row_key,
+      new byte[]{1, 0, 1},
+      ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" +
+        "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(MockBase.ASCII()));
     
     // add a local
-    storage.addColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x02 }, 
-        ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
-            "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" + 
-            "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}")
-            .getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x02},
+      ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
+        "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" +
+        "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}")
+        .getBytes(MockBase.ASCII()));
     
-    storage.addColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x03 }, 
-        ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
-            "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" + 
-            "\"Nothing\"}")
-            .getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x03},
+      ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
+        "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" +
+        "\"Nothing\"}")
+        .getBytes(MockBase.ASCII()));
     
     // add some data points too
-    storage.addColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }, new byte[] { 1 });
+    tsdb_store.addColumn(tsuid_row_key,
+      new byte[]{0x50, 0x10}, new byte[]{1});
     
-    storage.addColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x18 }, new byte[] { 2 });
+    tsdb_store.addColumn(tsuid_row_key,
+      new byte[]{0x50, 0x18}, new byte[]{2});
   }
   
   @Test
@@ -163,7 +161,7 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"\""));
-    assertEquals(5, storage.numColumns(tsuid_row_key));
+    assertEquals(5, tsdb_store.numColumns(tsuid_row_key));
   }
   
   @Test
@@ -177,7 +175,7 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"\""));
-    assertEquals(3, storage.numColumns(global_row_key));
+    assertEquals(3, tsdb_store.numColumns(global_row_key));
   }
   
   @Test (expected = BadRequestException.class)
@@ -284,7 +282,7 @@ public final class TestAnnotationRpc {
       "&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(3, storage.numColumns(tsuid_row_key));
+    assertEquals(3, tsdb_store.numColumns(tsuid_row_key));
   }
   
   @Test
@@ -294,7 +292,7 @@ public final class TestAnnotationRpc {
       "&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(1, storage.numColumns(global_row_key));
+    assertEquals(1, tsdb_store.numColumns(global_row_key));
   }
 
   @Test (expected = BadRequestException.class)
@@ -403,7 +401,7 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
-    assertEquals(3, storage.numColumns(tsuid_row_key));
+    assertEquals(3, tsdb_store.numColumns(tsuid_row_key));
   }
   
   @Test
@@ -416,7 +414,7 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":0"));
-    assertEquals(4, storage.numColumns(tsuid_row_key));
+    assertEquals(4, tsdb_store.numColumns(tsuid_row_key));
   }
   
   @Test
@@ -429,7 +427,7 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":2"));
-    assertEquals(2, storage.numColumns(tsuid_row_key));
+    assertEquals(2, tsdb_store.numColumns(tsuid_row_key));
   }
 
   @Test
@@ -442,7 +440,7 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
-    assertEquals(1, storage.numColumns(global_row_key));
+    assertEquals(1, tsdb_store.numColumns(global_row_key));
   }
   
   @Test
@@ -455,7 +453,7 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":0"));
-    assertEquals(2, storage.numColumns(global_row_key));
+    assertEquals(2, tsdb_store.numColumns(global_row_key));
   }
   
   @Test
@@ -468,7 +466,7 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":2"));
-    assertEquals(-1, storage.numColumns(global_row_key));
+    assertEquals(-1, tsdb_store.numColumns(global_row_key));
   }
   
   @Test (expected = BadRequestException.class)
@@ -504,7 +502,7 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
-    assertEquals(3, storage.numColumns(tsuid_row_key));
+    assertEquals(3, tsdb_store.numColumns(tsuid_row_key));
   }
   
   @Test
@@ -517,7 +515,7 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
-    assertEquals(1, storage.numColumns(global_row_key));
+    assertEquals(1, tsdb_store.numColumns(global_row_key));
   }
   
   @Test (expected = BadRequestException.class)

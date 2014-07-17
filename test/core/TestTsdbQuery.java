@@ -70,17 +70,17 @@ import com.stumbleupon.async.Deferred;
 public final class TestTsdbQuery {
   private Config config;
   private TSDB tsdb;
-  private MemoryStore tsdb_store = mock(MemoryStore.class);
+  private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
   private TsdbQuery query = null;
-  private MockBase storage = null;
 
   @Before
   public void before() throws Exception {
     config = new Config(false);
     config.setFixDuplicates(true);  // TODO(jat): test both ways
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
     query = new TsdbQuery(tsdb);
 
@@ -778,12 +778,12 @@ public final class TestTsdbQuery {
     
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    assertEquals(1, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
-    assertEquals(1, storage.numColumns(
-        MockBase.stringToBytes("00000150E23510000001000001")));
-    assertEquals(1, storage.numColumns(
-        MockBase.stringToBytes("00000150E24320000001000001")));
+    assertEquals(1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000001")));
+    assertEquals(1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E23510000001000001")));
+    assertEquals(1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E24320000001000001")));
     
     // run it again to verify the compacted data uncompacts properly
     final DataPoints[] dps = query.run();
@@ -879,17 +879,17 @@ public final class TestTsdbQuery {
   
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    assertEquals(1, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
-    assertEquals(119, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000002")));
-    assertEquals(1, storage.numColumns(
-        MockBase.stringToBytes("00000150E23510000001000001")));
-    assertEquals(120, storage.numColumns(
+    assertEquals(1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000001")));
+    assertEquals(119, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000002")));
+    assertEquals(1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E23510000001000001")));
+    assertEquals(120, tsdb_store.numColumns(
         MockBase.stringToBytes("00000150E23510000001000002")));
-    assertEquals(1, storage.numColumns(
-        MockBase.stringToBytes("00000150E24320000001000001")));
-    assertEquals(61, storage.numColumns(
+    assertEquals(1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E24320000001000001")));
+    assertEquals(61, tsdb_store.numColumns(
         MockBase.stringToBytes("00000150E24320000001000002")));
     
     // run it again to verify the compacted data uncompacts properly
@@ -980,17 +980,17 @@ public final class TestTsdbQuery {
 
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    assertEquals(2, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
-    assertEquals(119, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000002")));
-    assertEquals(1, storage.numColumns(
-        MockBase.stringToBytes("00000150E23510000001000001")));
-    assertEquals(120, storage.numColumns(
+    assertEquals(2, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000001")));
+    assertEquals(119, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000002")));
+    assertEquals(1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E23510000001000001")));
+    assertEquals(120, tsdb_store.numColumns(
         MockBase.stringToBytes("00000150E23510000001000002")));
-    assertEquals(1, storage.numColumns(
-        MockBase.stringToBytes("00000150E24320000001000001")));
-    assertEquals(61, storage.numColumns(
+    assertEquals(1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E24320000001000001")));
+    assertEquals(61, tsdb_store.numColumns(
         MockBase.stringToBytes("00000150E24320000001000002")));
     
     final DataPoints[] dps = query.run();
@@ -1012,7 +1012,7 @@ public final class TestTsdbQuery {
 
     // verifies that we can pickup an annotation stored all by it's lonesome
     // in a row without any data
-    storage.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
+    tsdb_store.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
     final Annotation note = new Annotation();
     note.setTSUID("000001000001000001");
     note.setStartTime(1357002090);
@@ -1048,7 +1048,7 @@ public final class TestTsdbQuery {
 
     // verifies that we can pickup an annotation stored all by it's lonesome
     // in a row without any data
-    storage.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
+    tsdb_store.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
     final Annotation note = new Annotation();
     note.setTSUID("000001000001000001");
     note.setStartTime(1357002090);
@@ -1100,7 +1100,7 @@ public final class TestTsdbQuery {
     tags.put("host", "web01");
     long timestamp = 1356998410;
     tsdb.addPoint("sys.cpu.user", timestamp, 42, tags).joinUninterruptibly();
-    storage.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
+    tsdb_store.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
     final Annotation note = new Annotation();
     note.setTSUID("000001000001000001");
     note.setStartTime(1357002090);
@@ -1323,15 +1323,15 @@ public final class TestTsdbQuery {
         0x27, 0x00, 0, 0, 1, 0, 0, 1 };
     
     setQueryStorage();
-    storage.addColumn(KEY, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(KEY, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(KEY, 
-        MockBase.concatByteArrays(qual5, qual6), 
-        MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
+    tsdb_store.addColumn(KEY,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(KEY,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(KEY,
+      MockBase.concatByteArrays(qual5, qual6),
+      MockBase.concatByteArrays(val5, val6, new byte[]{0}));
     
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -1377,14 +1377,14 @@ public final class TestTsdbQuery {
         0x27, 0x00, 0, 0, 1, 0, 0, 1 };
     
     setQueryStorage();
-    storage.addColumn(KEY, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(KEY, qual3, val3);
-    storage.addColumn(KEY, qual4, val4);
-    storage.addColumn(KEY, 
-        MockBase.concatByteArrays(qual5, qual6), 
-        MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
+    tsdb_store.addColumn(KEY,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(KEY, qual3, val3);
+    tsdb_store.addColumn(KEY, qual4, val4);
+    tsdb_store.addColumn(KEY,
+      MockBase.concatByteArrays(qual5, qual6),
+      MockBase.concatByteArrays(val5, val6, new byte[]{0}));
     
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -2587,9 +2587,6 @@ public final class TestTsdbQuery {
   
   @SuppressWarnings("unchecked")
   private void setQueryStorage() throws Exception {
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-
     PowerMockito.mockStatic(IncomingDataPoints.class);   
     PowerMockito.doAnswer(
         new Answer<byte[]>() {
@@ -2771,8 +2768,8 @@ public final class TestTsdbQuery {
       System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
       value++;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E22700000001000001"),
+      qualifier, column_qualifier);
     
     base_timestamp = 1357002000;
     qualifier = new byte[120 * 2];
@@ -2790,8 +2787,8 @@ public final class TestTsdbQuery {
       System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
       value++;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E23510000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E23510000001000001"),
+      qualifier, column_qualifier);
     
     base_timestamp = 1357005600;
     qualifier = new byte[61 * 2];
@@ -2809,8 +2806,8 @@ public final class TestTsdbQuery {
       System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
       value++;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E24320000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E24320000001000001"),
+      qualifier, column_qualifier);
   }
   
   private void storeFloatCompactions() throws Exception {
@@ -2833,8 +2830,8 @@ public final class TestTsdbQuery {
           column_qualifier, index, 4);
       value += 0.25F;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E22700000001000001"),
+      qualifier, column_qualifier);
     
     base_timestamp = 1357002000;
     qualifier = new byte[120 * 2];
@@ -2853,8 +2850,8 @@ public final class TestTsdbQuery {
           column_qualifier, index, 4);
       value += 0.25F;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E23510000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E23510000001000001"),
+      qualifier, column_qualifier);
     
     base_timestamp = 1357005600;
     qualifier = new byte[61 * 2];
@@ -2873,8 +2870,8 @@ public final class TestTsdbQuery {
           column_qualifier, index, 4);
       value += 0.25F;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E24320000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E24320000001000001"),
+      qualifier, column_qualifier);
   }
   
   private void storeMixedCompactions() throws Exception {
@@ -2912,8 +2909,8 @@ public final class TestTsdbQuery {
       }
       value += 0.25F;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E22700000001000001"),
+      qualifier, column_qualifier);
     
     base_timestamp = 1357002000;
     qualifier = new byte[120 * 2];
@@ -2946,8 +2943,8 @@ public final class TestTsdbQuery {
       }
       value += 0.25F;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E23510000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E23510000001000001"),
+      qualifier, column_qualifier);
     
     base_timestamp = 1357005600;
     qualifier = new byte[61 * 2];
@@ -2981,7 +2978,7 @@ public final class TestTsdbQuery {
       }
       value += 0.25F;
     }
-    storage.addColumn(MockBase.stringToBytes("00000150E24320000001000001"), 
-        qualifier, column_qualifier);
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E24320000001000001"),
+      qualifier, column_qualifier);
   }
 }

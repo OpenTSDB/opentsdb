@@ -68,17 +68,17 @@ public class TestTsdbQueryDownsample {
 
   private Config config;
   private TSDB tsdb = null;
-  private MemoryStore tsdb_store = mock(MemoryStore.class);
+  private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
   private TsdbQuery query = null;
-  private MockBase storage = null;
 
   @Before
   public void before() throws Exception {
     config = new Config(false);
-    tsdb = new TSDB(config);
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, config);
     query = new TsdbQuery(tsdb);
 
     // replace the "real" field objects with mocks
@@ -623,9 +623,6 @@ public class TestTsdbQueryDownsample {
 
   @SuppressWarnings("unchecked")
   private void setQueryStorage() throws Exception {
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-
     PowerMockito.mockStatic(IncomingDataPoints.class);
     PowerMockito.doAnswer(
         new Answer<byte[]>() {

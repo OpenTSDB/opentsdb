@@ -50,11 +50,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 public class TestTimeSeriesLookup {
   private Config config;
   private TSDB tsdb = null;
-  private MemoryStore tsdb_store = mock(MemoryStore.class);
+  private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
-  private MockBase storage = null;
   
   // tsuids
   private static List<byte[]> test_tsuids = new ArrayList<byte[]>(7);
@@ -73,6 +72,7 @@ public class TestTimeSeriesLookup {
   @Before
   public void before() throws Exception {
     config = new Config(false);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
     // replace the "real" field objects with mocks
@@ -544,12 +544,9 @@ public class TestTimeSeriesLookup {
    * Stores some data in the mock tsdb-meta table for unit testing
    */
   private void generateMeta() {
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-    
     final byte[] val = new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 };
     for (final byte[] tsuid : test_tsuids) {
-      storage.addColumn(tsuid, TSMeta.COUNTER_QUALIFIER(), val);
+      tsdb_store.addColumn(tsuid, TSMeta.COUNTER_QUALIFIER(), val);
     }
   }
   
@@ -557,9 +554,6 @@ public class TestTimeSeriesLookup {
    * Stores some data in the mock tsdb data table for unit testing
    */
   private void generateData() {
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-    
     final byte[] qual = new byte[] { 0, 0 };
     final byte[] val = new byte[] { 1 };
     for (final byte[] tsuid : test_tsuids) {
@@ -568,7 +562,7 @@ public class TestTimeSeriesLookup {
       System.arraycopy(tsuid, Const.METRICS_WIDTH, row_key,
           Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES,
           tsuid.length - Const.METRICS_WIDTH);
-      storage.addColumn(row_key, qual, val);
+      tsdb_store.addColumn(row_key, qual, val);
     }
   }
 }

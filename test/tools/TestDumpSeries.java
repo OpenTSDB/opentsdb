@@ -58,11 +58,10 @@ import com.stumbleupon.async.Deferred;
 public class TestDumpSeries {
   private Config config;
   private TSDB tsdb = null;
-  private MemoryStore tsdb_store = mock(MemoryStore.class);
+  private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
-  private MockBase storage;
   private ByteArrayOutputStream buffer;
   // the simplest way to test is to capture the System.out.print() data so we
   // need to capture a reference to the original stdout stream here and reset
@@ -85,11 +84,9 @@ public class TestDumpSeries {
   @Before
   public void before() throws Exception {
     config = new Config(false);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-    
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-    
+
     buffer = new ByteArrayOutputStream();
     System.setOut(new PrintStream(buffer));
     
@@ -253,9 +250,9 @@ public class TestDumpSeries {
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
     assertEquals(16, log_lines.length);
-    assertEquals(-1, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
-    assertEquals(-1, storage.numColumns(
+    assertEquals(-1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000001")));
+    assertEquals(-1, tsdb_store.numColumns(
         MockBase.stringToBytes("00000150E23510000001000001")));
   }
   
@@ -267,9 +264,9 @@ public class TestDumpSeries {
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
     assertEquals(12, log_lines.length);
-    assertEquals(-1, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
-    assertEquals(-1, storage.numColumns(
+    assertEquals(-1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000001")));
+    assertEquals(-1, tsdb_store.numColumns(
         MockBase.stringToBytes("00000150E23510000001000001")));
   }
   
@@ -322,8 +319,8 @@ public class TestDumpSeries {
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
     assertEquals(5, log_lines.length);
-    assertEquals(-1, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
+    assertEquals(-1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000001")));
   }
   
   @Test
@@ -334,8 +331,8 @@ public class TestDumpSeries {
     final String[] log_lines = buffer.toString("ISO-8859-1").split("\n");
     assertNotNull(log_lines);
     assertEquals(3, log_lines.length);
-    assertEquals(-1, storage.numColumns(
-        MockBase.stringToBytes("00000150E22700000001000001")));
+    assertEquals(-1, tsdb_store.numColumns(
+      MockBase.stringToBytes("00000150E22700000001000001")));
   }
   
   /**
@@ -390,10 +387,10 @@ public class TestDumpSeries {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual3 = { (byte) 0xF0, 0x00, 0x01, 0x07 };
     final byte[] val3 = Bytes.fromLong(6L);
-    storage.addColumn(MockBase.stringToBytes("00000150E22700000001000001"), 
-        "t".getBytes(MockBase.ASCII()), 
-        MockBase.concatByteArrays(qual1, qual2, qual3),
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+    tsdb_store.addColumn(MockBase.stringToBytes("00000150E22700000001000001"),
+      "t".getBytes(MockBase.ASCII()),
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
 //    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
 //    kvs.add(makekv(qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
 

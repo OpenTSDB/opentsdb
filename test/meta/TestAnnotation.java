@@ -47,8 +47,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
   Scanner.class, Annotation.class, MemoryStore.class})
 public final class TestAnnotation {
   private TSDB tsdb;
-  private MemoryStore tsdb_store = mock(MemoryStore.class);
-  private MockBase storage;
+  private MemoryStore tsdb_store;
   private Annotation note = new Annotation();
   
   final private byte[] global_row_key = 
@@ -60,43 +59,42 @@ public final class TestAnnotation {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
     
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    
     // add a global
-    storage.addColumn(global_row_key, 
-        new byte[] { 1, 0, 0 }, 
-        ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" + 
-            "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" + 
-            "\"ops\"}}").getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(global_row_key,
+      new byte[]{1, 0, 0},
+      ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" +
+        "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" +
+        "\"ops\"}}").getBytes(MockBase.ASCII()));
     
-    storage.addColumn(global_row_key, 
-        new byte[] { 1, 0, 1 }, 
-        ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" + 
-            "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(global_row_key,
+      new byte[]{1, 0, 1},
+      ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" +
+        "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(MockBase.ASCII()));
     
     // add a local
-    storage.addColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x02 }, 
-        ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
-            "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" + 
-            "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}")
-            .getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x02},
+      ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
+        "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" +
+        "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}")
+        .getBytes(MockBase.ASCII()));
     
-    storage.addColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x03 }, 
-        ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
-            "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" + 
-            "\"Nothing\"}")
-            .getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x03},
+      ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
+        "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" +
+        "\"Nothing\"}")
+        .getBytes(MockBase.ASCII()));
     
     // add some data points too
-    storage.addColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }, new byte[] { 1 });
+    tsdb_store.addColumn(tsuid_row_key,
+      new byte[]{0x50, 0x10}, new byte[]{1});
     
-    storage.addColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x18 }, new byte[] { 2 });
+    tsdb_store.addColumn(tsuid_row_key,
+      new byte[]{0x50, 0x18}, new byte[]{2});
   }
   
   @Test
@@ -201,7 +199,7 @@ public final class TestAnnotation {
     note.setStartTime(1388450562L);
     note.setDescription("Synced!");
     note.syncToStorage(tsdb, false).joinUninterruptibly();
-    final byte[] col = storage.getColumn(tsuid_row_key,
+    final byte[] col = tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 1, 0x0A, 0x02 });
     note = JSON.parseToObject(col, Annotation.class);
     assertEquals("000001000001000001", note.getTSUID());
@@ -215,7 +213,7 @@ public final class TestAnnotation {
     note.setStartTime(1388450562500L);
     note.setDescription("Synced!");
     note.syncToStorage(tsdb, false).joinUninterruptibly();
-    final byte[] col = storage.getColumn(tsuid_row_key,
+    final byte[] col = tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 1, 0x00, 0x27, 0x19, (byte) 0xC4 });
     note = JSON.parseToObject(col, Annotation.class);
     assertEquals("000001000001000001", note.getTSUID());
@@ -229,7 +227,7 @@ public final class TestAnnotation {
     note.setStartTime(1328140800L);
     note.setDescription("Synced!");
     note.syncToStorage(tsdb, false).joinUninterruptibly();
-    final byte[] col = storage.getColumn(global_row_key, 
+    final byte[] col = tsdb_store.getColumn(global_row_key,
         new byte[] { 1, 0, 0 });
     note = JSON.parseToObject(col, Annotation.class);
     assertEquals("", note.getTSUID());
@@ -242,7 +240,7 @@ public final class TestAnnotation {
     note.setStartTime(1328140800500L);
     note.setDescription("Synced!");
     note.syncToStorage(tsdb, false).joinUninterruptibly();
-    final byte[] col = storage.getColumn(global_row_key, 
+    final byte[] col = tsdb_store.getColumn(global_row_key,
         new byte[] { 1, 0, 0, 1, (byte) 0xF4 });
     note = JSON.parseToObject(col, Annotation.class);
     assertEquals("", note.getTSUID());
@@ -269,13 +267,13 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562);
     note.delete(tsdb).joinUninterruptibly();
-    assertNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x02 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x02}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 1, 0x0A, 0x03 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{0x50, 0x10}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 0x50, 0x18 }));
   }
   
@@ -284,13 +282,13 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562000L);
     note.delete(tsdb).joinUninterruptibly();
-    assertNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x02 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x02}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 1, 0x0A, 0x03 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{0x50, 0x10}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 0x50, 0x18 }));
   }
   
@@ -301,13 +299,13 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450561);
     note.delete(tsdb).joinUninterruptibly();
-    assertNotNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x02 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x02}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 1, 0x0A, 0x03 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{0x50, 0x10}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 0x50, 0x18 }));
   }
   
@@ -321,9 +319,9 @@ public final class TestAnnotation {
   public void deleteGlobal() throws Exception {
     note.setStartTime(1328140800);
     note.delete(tsdb).joinUninterruptibly();
-    assertNull(storage.getColumn(global_row_key, 
-        new byte[] { 1, 0, 0 }));
-    assertNotNull(storage.getColumn(global_row_key, 
+    assertNull(tsdb_store.getColumn(global_row_key,
+      new byte[]{1, 0, 0}));
+    assertNotNull(tsdb_store.getColumn(global_row_key,
         new byte[] { 1, 0, 1 }));
   }
   
@@ -331,9 +329,9 @@ public final class TestAnnotation {
   public void deleteGlobalNotFound() throws Exception {
     note.setStartTime(1328140803);
     note.delete(tsdb).joinUninterruptibly();
-    assertNotNull(storage.getColumn(global_row_key, 
-        new byte[] { 1, 0, 0 }));
-    assertNotNull(storage.getColumn(global_row_key, 
+    assertNotNull(tsdb_store.getColumn(global_row_key,
+      new byte[]{1, 0, 0}));
+    assertNotNull(tsdb_store.getColumn(global_row_key,
         new byte[] { 1, 0, 1 }));
   }
   
@@ -343,13 +341,13 @@ public final class TestAnnotation {
         new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L, 
         1388450562000L).joinUninterruptibly();
     assertEquals(1, count);
-    assertNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x02 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x02}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 1, 0x0A, 0x03 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{0x50, 0x10}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 0x50, 0x18 }));
   }
   
@@ -359,13 +357,13 @@ public final class TestAnnotation {
         new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L, 
         1388450561000L).joinUninterruptibly();
     assertEquals(0, count);
-    assertNotNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x02 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x02}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 1, 0x0A, 0x03 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{0x50, 0x10}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 0x50, 0x18 }));
   }
   
@@ -375,13 +373,13 @@ public final class TestAnnotation {
         new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L, 
         1388450568000L).joinUninterruptibly();
     assertEquals(2, count);
-    assertNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 1, 0x0A, 0x02 }));
-    assertNull(storage.getColumn(tsuid_row_key, 
+    assertNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{1, 0x0A, 0x02}));
+    assertNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 1, 0x0A, 0x03 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
-        new byte[] { 0x50, 0x10 }));
-    assertNotNull(storage.getColumn(tsuid_row_key, 
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
+      new byte[]{0x50, 0x10}));
+    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
         new byte[] { 0x50, 0x18 }));
   }
   
@@ -390,9 +388,9 @@ public final class TestAnnotation {
     final int count = Annotation.deleteRange(tsdb, null, 1328140799000L, 
         1328140800000L).joinUninterruptibly();
     assertEquals(1, count);
-    assertNull(storage.getColumn(global_row_key, 
-        new byte[] { 1, 0, 0 }));
-    assertNotNull(storage.getColumn(global_row_key, 
+    assertNull(tsdb_store.getColumn(global_row_key,
+      new byte[]{1, 0, 0}));
+    assertNotNull(tsdb_store.getColumn(global_row_key,
         new byte[] { 1, 0, 1 }));
   }
   
@@ -401,9 +399,9 @@ public final class TestAnnotation {
     final int count = Annotation.deleteRange(tsdb, null, 1328140798000L, 
         1328140799000L).joinUninterruptibly();
     assertEquals(0, count);
-    assertNotNull(storage.getColumn(global_row_key, 
-        new byte[] { 1, 0, 0 }));
-    assertNotNull(storage.getColumn(global_row_key, 
+    assertNotNull(tsdb_store.getColumn(global_row_key,
+      new byte[]{1, 0, 0}));
+    assertNotNull(tsdb_store.getColumn(global_row_key,
         new byte[] { 1, 0, 1 }));
   }
   
@@ -412,9 +410,9 @@ public final class TestAnnotation {
     final int count = Annotation.deleteRange(tsdb, null, 1328140799000L, 
         1328140900000L).joinUninterruptibly();
     assertEquals(2, count);
-    assertNull(storage.getColumn(global_row_key, 
-        new byte[] { 1, 0, 0 }));
-    assertNull(storage.getColumn(global_row_key, 
+    assertNull(tsdb_store.getColumn(global_row_key,
+      new byte[]{1, 0, 0}));
+    assertNull(tsdb_store.getColumn(global_row_key,
         new byte[] { 1, 0, 1 }));
   }
   

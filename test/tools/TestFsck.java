@@ -70,11 +70,10 @@ public final class TestFsck {
       MockBase.stringToBytes("00000150E24320000001000001");
   private Config config;
   private TSDB tsdb = null;
-  private MemoryStore tsdb_store = mock(MemoryStore.class);
+  private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
-  private MockBase storage;
   private FsckOptions options = mock(FsckOptions.class);
   private final static List<byte[]> tags = new ArrayList<byte[]>(1);
   static {
@@ -85,12 +84,10 @@ public final class TestFsck {
   @Before
   public void before() throws Exception {
     config = new Config(false);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
     when(tsdb_store.flush()).thenReturn(Deferred.fromResult(null));
-    
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-    
+
     when(options.fix()).thenReturn(false);
     when(options.compact()).thenReturn(false);
     when(options.resolveDupes()).thenReturn(false);
@@ -156,8 +153,8 @@ public final class TestFsck {
   public void globalAnnotation() throws Exception {
     // make sure we don't catch this during a query. We should start with
     // the first metric (0, 0, 1) whereas globals are on metric (0, 0, 0).
-    storage.addColumn(new byte[] {0, 0, 0, 0x52, (byte)0xC3, 0x5A, (byte)0x80}, 
-        new byte[] {1, 0, 0}, "{}".getBytes());
+    tsdb_store.addColumn(new byte[]{0, 0, 0, 0x52, (byte) 0xC3, 0x5A, (byte) 0x80},
+      new byte[]{1, 0, 0}, "{}".getBytes());
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -180,8 +177,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
 
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(2, fsck.kvs_processed.get());
@@ -196,12 +193,12 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
 
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW2, qual1, val1);
-    storage.addColumn(ROW2, qual2, val2);
-    storage.addColumn(ROW3, qual1, val1);
-    storage.addColumn(ROW3, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW2, qual1, val1);
+    tsdb_store.addColumn(ROW2, qual2, val2);
+    tsdb_store.addColumn(ROW3, qual1, val1);
+    tsdb_store.addColumn(ROW3, qual2, val2);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(6, fsck.kvs_processed.get());
@@ -243,9 +240,9 @@ public final class TestFsck {
     final byte[] noteq = { 0x01, 0x00, 0x01 };
     final byte[] notev = "{}".getBytes();
     
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, noteq, notev);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, noteq, notev);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -296,7 +293,7 @@ public final class TestFsck {
     
     final byte[] noteq = { 0x01, 0x00, 0x01 };
     final byte[] notev = "{}".getBytes();
-    storage.addColumn(ROW, noteq, notev);
+    tsdb_store.addColumn(ROW, noteq, notev);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -313,7 +310,7 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     final byte[] val12 = MockBase.concatByteArrays(val1, val2, new byte[] { 0 });
-    storage.addColumn(ROW, qual12, val12);
+    tsdb_store.addColumn(ROW, qual12, val12);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -329,9 +326,9 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual3 = { (byte) 0xF0, 0x00, 0x04, 0x07 };
     final byte[] val3 = Bytes.fromLong(6L);
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -347,7 +344,7 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     final byte[] val12 = MockBase.concatByteArrays(val1, val2, new byte[] { 0 });
-    storage.addColumn(ROW, qual12, val12);
+    tsdb_store.addColumn(ROW, qual12, val12);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -363,7 +360,7 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     final byte[] val12 = MockBase.concatByteArrays(val1, val2, new byte[] { 0 });
-    storage.addColumn(ROW, qual12, val12);
+    tsdb_store.addColumn(ROW, qual12, val12);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -377,15 +374,15 @@ public final class TestFsck {
     
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
-    storage.addColumn(ROW, qual1, MockBase.concatByteArrays(val1, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW, qual1, MockBase.concatByteArrays(val1, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(1, fsck.kvs_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, new byte[] { 0 }), 
-        storage.getColumn(ROW, qual1));
+    assertArrayEquals(MockBase.concatByteArrays(val1, new byte[]{0}),
+      tsdb_store.getColumn(ROW, qual1));
   }
   
   @Test
@@ -395,14 +392,14 @@ public final class TestFsck {
     
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
-    storage.addColumn(ROW, qual1, MockBase.concatByteArrays(val1, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW, qual1, MockBase.concatByteArrays(val1, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(1, fsck.kvs_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertNull(storage.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
   }
   
   @Test
@@ -416,15 +413,15 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0,5 };
 
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(0, fsck.kvs_processed.get());
     assertEquals(0, fsck.rows_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
   }
   
   @Test
@@ -439,15 +436,15 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0,5 };
 
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(0, fsck.kvs_processed.get());
     assertEquals(0, fsck.rows_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertNull(storage.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
   }
   
   @SuppressWarnings("unchecked")
@@ -461,8 +458,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0,5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -470,7 +467,7 @@ public final class TestFsck {
     assertEquals(0, fsck.rows_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
   }
   
   @SuppressWarnings("unchecked")
@@ -485,15 +482,15 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0,5 };
 
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(0, fsck.kvs_processed.get());
     assertEquals(0, fsck.rows_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertNull(storage.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
   }
   
   @Test
@@ -505,21 +502,21 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] bad_key = { 0x00, 0x00, 0x01 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(bad_key, qual1, val1);
-    storage.addColumn(bad_key, qual2, val2);
-    storage.addColumn(ROW3, qual1, val1);
-    storage.addColumn(ROW3, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(bad_key, qual1, val1);
+    tsdb_store.addColumn(bad_key, qual2, val2);
+    tsdb_store.addColumn(ROW3, qual1, val1);
+    tsdb_store.addColumn(ROW3, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(4, fsck.kvs_processed.get());
     assertEquals(3, fsck.rows_processed.get());
     assertEquals(1, fsck.totalErrors());
-    assertEquals(2, storage.numColumns(ROW));
-    assertEquals(2, storage.numColumns(bad_key));
-    assertEquals(2, storage.numColumns(ROW3));
+    assertEquals(2, tsdb_store.numColumns(ROW));
+    assertEquals(2, tsdb_store.numColumns(bad_key));
+    assertEquals(2, tsdb_store.numColumns(ROW3));
   }
   
   @Test
@@ -532,21 +529,21 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] bad_key = { 0x00, 0x00, 0x01 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(bad_key, qual1, val1);
-    storage.addColumn(bad_key, qual2, val2);
-    storage.addColumn(ROW3, qual1, val1);
-    storage.addColumn(ROW3, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(bad_key, qual1, val1);
+    tsdb_store.addColumn(bad_key, qual2, val2);
+    tsdb_store.addColumn(ROW3, qual1, val1);
+    tsdb_store.addColumn(ROW3, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(4, fsck.kvs_processed.get());
     assertEquals(3, fsck.rows_processed.get());
     assertEquals(1, fsck.totalErrors());
-    assertEquals(2, storage.numColumns(ROW));
-    assertEquals(-1, storage.numColumns(bad_key));
-    assertEquals(2, storage.numColumns(ROW3));
+    assertEquals(2, tsdb_store.numColumns(ROW));
+    assertEquals(-1, tsdb_store.numColumns(bad_key));
+    assertEquals(2, tsdb_store.numColumns(ROW3));
   }
   
   @Test
@@ -560,14 +557,14 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     final byte[] val12 = MockBase.concatByteArrays(val1, val2);
-    storage.addColumn(ROW, qual12, val12);
+    tsdb_store.addColumn(ROW, qual12, val12);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(1, fsck.kvs_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertArrayEquals(val12, storage.getColumn(ROW,  qual12));
+    assertArrayEquals(val12, tsdb_store.getColumn(ROW, qual12));
   }
   
   @Test
@@ -578,8 +575,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x01 };
     final byte[] val2 = new byte[] { 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -598,8 +595,8 @@ public final class TestFsck {
     final byte[] val1 = { 4 };
     final byte[] qual2 = { 0x01 };
     final byte[] val2 = new byte[] { 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -607,8 +604,8 @@ public final class TestFsck {
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.unknown.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -619,8 +616,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -639,8 +636,8 @@ public final class TestFsck {
     final byte[] val1 = { 4 };
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -648,8 +645,8 @@ public final class TestFsck {
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -660,8 +657,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -680,8 +677,8 @@ public final class TestFsck {
     final byte[] val1 = { 4 };
     final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -689,8 +686,8 @@ public final class TestFsck {
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -701,8 +698,8 @@ public final class TestFsck {
     final byte[] val1 = { 4 } ;
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = new byte[] { 0, 0, 0, 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -721,8 +718,8 @@ public final class TestFsck {
     final byte[] val1 = { 4 } ;
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = new byte[] { 0, 0, 0, 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -730,8 +727,8 @@ public final class TestFsck {
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -742,8 +739,8 @@ public final class TestFsck {
     final byte[] val1 =  { 4 };
     final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x03 };
     final byte[] val2 = new byte[] { 0, 0, 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -762,8 +759,8 @@ public final class TestFsck {
     final byte[] val1 =  { 4 };
     final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x03 };
     final byte[] val2 = new byte[] { 0, 0, 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -771,8 +768,8 @@ public final class TestFsck {
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -781,8 +778,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(Float.floatToRawIntBits(4.2F));
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] val2 = Bytes.fromLong(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -790,8 +787,8 @@ public final class TestFsck {
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.value_encoding.get());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -804,8 +801,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] val2 = Bytes.fromLong(Float.floatToRawIntBits(500.8F));
     final byte[] fixed_val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -814,8 +811,8 @@ public final class TestFsck {
     assertEquals(2, fsck.totalFixed());
     assertEquals(2, fsck.correctable());
     assertEquals(2, fsck.value_encoding.get());
-    assertArrayEquals(fixed_val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(fixed_val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(fixed_val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(fixed_val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -824,8 +821,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(Double.doubleToRawLongBits(4.2F));
     final byte[] qual2 = { 0x00, 0x2F };
     final byte[] val2 = Bytes.fromLong(Double.doubleToRawLongBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -833,8 +830,8 @@ public final class TestFsck {
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.value_encoding.get());
     assertEquals(0, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -844,8 +841,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] bug = { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF };
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, MockBase.concatByteArrays(bug, val2));
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, MockBase.concatByteArrays(bug, val2));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -865,8 +862,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] bug = { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF };
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, MockBase.concatByteArrays(bug, val2));
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, MockBase.concatByteArrays(bug, val2));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -875,7 +872,7 @@ public final class TestFsck {
     assertEquals(1, fsck.totalFixed());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.value_encoding.get());
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
 
   @Test
@@ -888,8 +885,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] bug = { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF };
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, bug, val2, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, bug, val2, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -911,8 +908,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] bug = { (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF };
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, bug, val2, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, bug, val2, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -922,7 +919,7 @@ public final class TestFsck {
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_compacted_columns.get());
     assertEquals(1, fsck.bad_compacted_columns_deleted.get());
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
   }
   
   @Test
@@ -934,8 +931,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] bug = { (byte) 0xFB, (byte) 0x02, (byte) 0xF4, (byte) 0x0F };
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, MockBase.concatByteArrays(bug, val2));
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, MockBase.concatByteArrays(bug, val2));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -944,9 +941,9 @@ public final class TestFsck {
     assertEquals(0, fsck.totalFixed());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
     assertArrayEquals(MockBase.concatByteArrays(bug, val2), 
-        storage.getColumn(ROW, qual2));
+        tsdb_store.getColumn(ROW, qual2));
   }
 
   @Test
@@ -959,8 +956,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] bug = { (byte) 0xFB, (byte) 0x02, (byte) 0xF4, (byte) 0x0F };
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, MockBase.concatByteArrays(bug, val2));
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, MockBase.concatByteArrays(bug, val2));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -970,8 +967,8 @@ public final class TestFsck {
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
     assertEquals(1, fsck.bad_values_deleted.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -982,8 +979,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromInt(Float.floatToRawIntBits(42.5F));
     final byte[] qual2 = { 0x00, 0x2F };
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -991,8 +988,8 @@ public final class TestFsck {
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.bad_values.get());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1004,8 +1001,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromInt(Float.floatToRawIntBits(42.5F));
     final byte[] qual2 = { 0x00, 0x2F };
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1013,8 +1010,8 @@ public final class TestFsck {
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.bad_values.get());
     assertEquals(2, fsck.correctable());
-    assertNull(storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1025,8 +1022,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromInt(Float.floatToRawIntBits(4.2F));
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] val2 = { 1 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1035,8 +1032,8 @@ public final class TestFsck {
     assertEquals(0, fsck.totalFixed());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
 
   @Test
@@ -1048,8 +1045,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromInt(Float.floatToRawIntBits(4.2F));
     final byte[] qual2 = { 0x00, 0x2B };
     final byte[] val2 = { 1 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1059,8 +1056,8 @@ public final class TestFsck {
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
     assertEquals(1, fsck.bad_values_deleted.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1071,8 +1068,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromInt(Float.floatToRawIntBits(4.2F));
     final byte[] qual2 = { 0x00, 0x2F };
     final byte[] val2 = { 1 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1081,8 +1078,8 @@ public final class TestFsck {
     assertEquals(0, fsck.totalFixed());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
 
   @Test
@@ -1094,8 +1091,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromInt(Float.floatToRawIntBits(4.2F));
     final byte[] qual2 = { 0x00, 0x2F };
     final byte[] val2 = { 1 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1105,8 +1102,8 @@ public final class TestFsck {
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
     assertEquals(1, fsck.bad_values_deleted.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1117,8 +1114,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27, 0x04, 0x01, 0x01, 0x01, 0x01 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1138,8 +1135,8 @@ public final class TestFsck {
     final byte[] val1 = { 4 };
     final byte[] qual2 = { 0x00, 0x27, 0x04, 0x01, 0x01, 0x01, 0x01 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1149,8 +1146,8 @@ public final class TestFsck {
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.unknown.get());
     assertEquals(1, fsck.unknown_fixed.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1161,8 +1158,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x04, 0x27, 0x04 };
     final byte[] val2 = "Future Object".getBytes();
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1171,7 +1168,7 @@ public final class TestFsck {
     assertEquals(0, fsck.totalFixed());
     assertEquals(0, fsck.correctable());
     assertEquals(1, fsck.future.get());
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1183,8 +1180,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x04, 0x27, 0x04 };
     final byte[] val2 = "Future Object".getBytes();
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1193,7 +1190,7 @@ public final class TestFsck {
     assertEquals(0, fsck.totalFixed());
     assertEquals(0, fsck.correctable());
     assertEquals(1, fsck.future.get());
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1204,8 +1201,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x23 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1225,8 +1222,8 @@ public final class TestFsck {
     final byte[] val1 = { 4 };
     final byte[] qual2 = { 0x00, 0x23 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1235,8 +1232,8 @@ public final class TestFsck {
     assertEquals(1, fsck.totalFixed());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
 
   @Test
@@ -1247,8 +1244,8 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x0, 0x30 };
     final byte[] val3 = { 6 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual3, qual2), 
-        MockBase.concatByteArrays(val1, val3, val2, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual3, qual2),
+      MockBase.concatByteArrays(val1, val3, val2, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1256,8 +1253,8 @@ public final class TestFsck {
     assertEquals(1, fsck.fixable_compacted_columns.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual3, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val3, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual3, qual2)));
   }
   
   @Test
@@ -1270,8 +1267,8 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x0, 0x30 };
     final byte[] val3 = { 6 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual3, qual2), 
-        MockBase.concatByteArrays(val1, val3, val2, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual3, qual2),
+      MockBase.concatByteArrays(val1, val3, val2, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1279,8 +1276,8 @@ public final class TestFsck {
     assertEquals(1, fsck.fixable_compacted_columns.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
   }
   
   @Test
@@ -1293,9 +1290,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x0, 0x30 };
     final byte[] val3 = { 6 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1303,9 +1300,9 @@ public final class TestFsck {
     assertEquals(0, fsck.vle.get());
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -1319,9 +1316,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x0, 0x30 };
     final byte[] val3 = { 6 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1329,11 +1326,11 @@ public final class TestFsck {
     assertEquals(0, fsck.vle.get());
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] {0}), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertNull(storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -1346,10 +1343,10 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x0, 0x30 };
     final byte[] val3 = { 6 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW2, qual2, val2);
-    storage.addColumn(ROW2, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW2, qual2, val2);
+    tsdb_store.addColumn(ROW2, qual3, val3);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1357,10 +1354,10 @@ public final class TestFsck {
     assertEquals(0, fsck.vle.get());
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val2, storage.getColumn(ROW2, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW2, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW2, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW2, qual3));
   }
   
   @Test
@@ -1374,10 +1371,10 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x0, 0x30 };
     final byte[] val3 = { 6 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW2, qual2, val2);
-    storage.addColumn(ROW2, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW2, qual2, val2);
+    tsdb_store.addColumn(ROW2, qual3, val3);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1385,14 +1382,14 @@ public final class TestFsck {
     assertEquals(0, fsck.vle.get());
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] {0}), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val2, val3, new byte[] {0}), 
-        storage.getColumn(ROW2, MockBase.concatByteArrays(qual2, qual3)));
-    assertNull(storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW2, qual2));
-    assertNull(storage.getColumn(ROW2, qual3));
+        tsdb_store.getColumn(ROW2, MockBase.concatByteArrays(qual2, qual3)));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW2, qual2));
+    assertNull(tsdb_store.getColumn(ROW2, qual3));
   }
   
   @Test
@@ -1405,8 +1402,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual3 = { 0x0, 0x37 };
     final byte[] val3 = Bytes.fromInt(6);
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] {0}));
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1414,8 +1411,8 @@ public final class TestFsck {
     assertEquals(1, fsck.bad_compacted_columns.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] {0}), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
   }
   
   @Test
@@ -1429,8 +1426,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual3 = { 0x0, 0x37 };
     final byte[] val3 = Bytes.fromInt(6);
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] {0}));
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1438,7 +1435,7 @@ public final class TestFsck {
     assertEquals(1, fsck.bad_compacted_columns.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertEquals(-1, storage.numColumns(ROW));
+    assertEquals(-1, tsdb_store.numColumns(ROW));
   }
   
   @Test
@@ -1451,8 +1448,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual3 = { 0x0, 0x33 };
     final byte[] val3 = Bytes.fromLong(6);
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] {0}));
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1460,8 +1457,8 @@ public final class TestFsck {
     assertEquals(1, fsck.bad_compacted_columns.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] {0}), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
   }
   
   @Test
@@ -1475,8 +1472,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual3 = { 0x0, 0x33 };
     final byte[] val3 = Bytes.fromLong(6);
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] {0}));
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1484,7 +1481,7 @@ public final class TestFsck {
     assertEquals(1, fsck.bad_compacted_columns.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.correctable());
-    assertEquals(-1, storage.numColumns(ROW));
+    assertEquals(-1, tsdb_store.numColumns(ROW));
   }
   
   // VLE --------------------------------------------
@@ -1495,8 +1492,8 @@ public final class TestFsck {
     final byte[] val1 = new byte[] { 1 };
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(2L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1506,8 +1503,8 @@ public final class TestFsck {
     assertEquals(0, fsck.correctable());
     assertEquals(1, fsck.vle.get());
     assertEquals(7, fsck.vle_bytes.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1520,8 +1517,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(2L);
     final byte[] fixed_qual2 = { 0x00, 0x20 };
     final byte[] fixed_val2 = new byte[] { 2 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1532,9 +1529,9 @@ public final class TestFsck {
     assertEquals(1, fsck.vle.get());
     assertEquals(7, fsck.vle_bytes.get());
     assertEquals(1, fsck.vle_fixed.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(fixed_val2, storage.getColumn(ROW, fixed_qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(fixed_val2, tsdb_store.getColumn(ROW, fixed_qual2));
   }
   
   @Test
@@ -1543,8 +1540,8 @@ public final class TestFsck {
     final byte[] val1 = new byte[] { 1 };
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(-2L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1554,8 +1551,8 @@ public final class TestFsck {
     assertEquals(0, fsck.correctable());
     assertEquals(1, fsck.vle.get());
     assertEquals(7, fsck.vle_bytes.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1568,8 +1565,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(-2L);
     final byte[] fixed_qual2 = { 0x00, 0x20 };
     final byte[] fixed_val2 = new byte[] { -2 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1580,9 +1577,9 @@ public final class TestFsck {
     assertEquals(1, fsck.vle.get());
     assertEquals(7, fsck.vle_bytes.get());
     assertEquals(1, fsck.vle_fixed.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(fixed_val2, storage.getColumn(ROW, fixed_qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(fixed_val2, tsdb_store.getColumn(ROW, fixed_qual2));
   }
   
   @Test
@@ -1591,8 +1588,8 @@ public final class TestFsck {
     final byte[] val1 = new byte[] { 1 };
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(257L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1602,8 +1599,8 @@ public final class TestFsck {
     assertEquals(0, fsck.correctable());
     assertEquals(1, fsck.vle.get());
     assertEquals(6, fsck.vle_bytes.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1616,8 +1613,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(257L);
     final byte[] fixed_qual2 = { 0x00, 0x21 };
     final byte[] fixed_val2 = Bytes.fromShort((short)257);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1628,9 +1625,9 @@ public final class TestFsck {
     assertEquals(1, fsck.vle.get());
     assertEquals(6, fsck.vle_bytes.get());
     assertEquals(1, fsck.vle_fixed.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(fixed_val2, storage.getColumn(ROW, fixed_qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(fixed_val2, tsdb_store.getColumn(ROW, fixed_qual2));
   }
   
   @Test
@@ -1639,8 +1636,8 @@ public final class TestFsck {
     final byte[] val1 = new byte[] { 1 };
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(-257L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1650,8 +1647,8 @@ public final class TestFsck {
     assertEquals(0, fsck.correctable());
     assertEquals(1, fsck.vle.get());
     assertEquals(6, fsck.vle_bytes.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1664,8 +1661,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(-257L);
     final byte[] fixed_qual2 = { 0x00, 0x21 };
     final byte[] fixed_val2 = Bytes.fromShort((short)-257);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1676,9 +1673,9 @@ public final class TestFsck {
     assertEquals(1, fsck.vle.get());
     assertEquals(6, fsck.vle_bytes.get());
     assertEquals(1, fsck.vle_fixed.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(fixed_val2, storage.getColumn(ROW, fixed_qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(fixed_val2, tsdb_store.getColumn(ROW, fixed_qual2));
   }
   
   @Test
@@ -1687,8 +1684,8 @@ public final class TestFsck {
     final byte[] val1 = new byte[] { 1 };
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(65537L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1698,8 +1695,8 @@ public final class TestFsck {
     assertEquals(0, fsck.correctable());
     assertEquals(1, fsck.vle.get());
     assertEquals(4, fsck.vle_bytes.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1712,8 +1709,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(65537L);
     final byte[] fixed_qual2 = { 0x00, 0x23 };
     final byte[] fixed_val2 = Bytes.fromInt(65537);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1724,9 +1721,9 @@ public final class TestFsck {
     assertEquals(1, fsck.vle.get());
     assertEquals(4, fsck.vle_bytes.get());
     assertEquals(1, fsck.vle_fixed.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(fixed_val2, storage.getColumn(ROW, fixed_qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(fixed_val2, tsdb_store.getColumn(ROW, fixed_qual2));
   }
   
   @Test
@@ -1735,8 +1732,8 @@ public final class TestFsck {
     final byte[] val1 = new byte[] { 1 };
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(-65537L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1746,8 +1743,8 @@ public final class TestFsck {
     assertEquals(0, fsck.correctable());
     assertEquals(1, fsck.vle.get());
     assertEquals(4, fsck.vle_bytes.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -1760,8 +1757,8 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(-65537L);
     final byte[] fixed_qual2 = { 0x00, 0x23 };
     final byte[] fixed_val2 = Bytes.fromInt(-65537);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1772,9 +1769,9 @@ public final class TestFsck {
     assertEquals(1, fsck.vle.get());
     assertEquals(4, fsck.vle_bytes.get());
     assertEquals(1, fsck.vle_fixed.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(fixed_val2, storage.getColumn(ROW, fixed_qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(fixed_val2, tsdb_store.getColumn(ROW, fixed_qual2));
   }
   
   @Test
@@ -1783,9 +1780,9 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x0, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1793,8 +1790,8 @@ public final class TestFsck {
     assertEquals(2, fsck.vle.get());
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
   }
   
   @Test
@@ -1805,9 +1802,9 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x0, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
     final byte[] compacted_qual = { 0x0, 0x0, 0x0, 0x20 };
     final byte[] compacted_value = { 0x4, 0x5, 0x0 };
     final Fsck fsck = new Fsck(tsdb, options);
@@ -1816,9 +1813,9 @@ public final class TestFsck {
     assertEquals(2, fsck.vle.get());
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.correctable());
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(compacted_value, 
-        storage.getColumn(ROW, compacted_qual));
+        tsdb_store.getColumn(ROW, compacted_qual));
   }
   
   @Test
@@ -1832,9 +1829,9 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual3 = { 0x0, 0x37 };
     final byte[] val3 = Bytes.fromLong(6L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     final byte[] vle_qual = { 0x0, 0x0, 0x0, 0x20, 0x0, 0x30 };
     final byte[] vle_value = { 0x04, 0x05, 0x06, 0x0 };
     
@@ -1844,10 +1841,10 @@ public final class TestFsck {
     assertEquals(3, fsck.vle.get());
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.correctable());
-    assertArrayEquals(vle_value, storage.getColumn(ROW, vle_qual));
-    assertNull(storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
+    assertArrayEquals(vle_value, tsdb_store.getColumn(ROW, vle_qual));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
   }
   
   // DUPLICATE DATA POINTS ---------------------------------
@@ -1860,9 +1857,9 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
     final byte[] qual3 = { 0x00, 0x20 };
     final byte[] val3 = { 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1870,9 +1867,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -1886,9 +1883,9 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
     final byte[] qual3 = { 0x00, 0x20 };
     final byte[] val3 = { 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1896,9 +1893,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -1911,9 +1908,9 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
     final byte[] qual3 = { 0x00, 0x20 };
     final byte[] val3 = { 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1921,9 +1918,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -1938,9 +1935,9 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
     final byte[] qual3 = { 0x00, 0x20 };
     final byte[] val3 = { 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1948,9 +1945,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertNull(storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -1965,11 +1962,11 @@ public final class TestFsck {
     final byte[] val4 = Bytes.fromShort((short)24);
     final byte[] qual5 = { 0x00, 0x21 };
     final byte[] val5 = Bytes.fromShort((short)24);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -1977,11 +1974,11 @@ public final class TestFsck {
     assertEquals(4, fsck.duplicates.get());
     assertEquals(4, fsck.totalErrors());
     assertEquals(4, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -1999,11 +1996,11 @@ public final class TestFsck {
     final byte[] val4 = Bytes.fromShort((short)24);
     final byte[] qual5 = { 0x00, 0x21 };
     final byte[] val5 = Bytes.fromShort((short)24);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2011,11 +2008,11 @@ public final class TestFsck {
     assertEquals(4, fsck.duplicates.get());
     assertEquals(4, fsck.totalErrors());
     assertEquals(4, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertNull(storage.getColumn(ROW, qual4));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2032,11 +2029,11 @@ public final class TestFsck {
     final byte[] val4 = Bytes.fromShort((short)24);
     final byte[] qual5 = { 0x00, 0x21 };
     final byte[] val5 = Bytes.fromShort((short)24);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2044,11 +2041,11 @@ public final class TestFsck {
     assertEquals(4, fsck.duplicates.get());
     assertEquals(4, fsck.totalErrors());
     assertEquals(4, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2067,11 +2064,11 @@ public final class TestFsck {
     final byte[] val4 = Bytes.fromShort((short)24);
     final byte[] qual5 = { 0x00, 0x21 };
     final byte[] val5 = Bytes.fromShort((short)24);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2079,11 +2076,11 @@ public final class TestFsck {
     assertEquals(4, fsck.duplicates.get());
     assertEquals(4, fsck.totalErrors());
     assertEquals(4, fsck.correctable());
-    assertNull(storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2094,9 +2091,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { (byte) 0xF0, 0x00, 0x02, 0x0B };
     final byte[] val3 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2104,9 +2101,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
 
   @Test
@@ -2120,9 +2117,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { (byte) 0xF0, 0x00, 0x02, 0x0B };
     final byte[] val3 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2130,9 +2127,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -2145,9 +2142,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { (byte) 0xF0, 0x00, 0x02, 0x0B };
     final byte[] val3 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2155,9 +2152,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -2172,9 +2169,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { (byte) 0xF0, 0x00, 0x02, 0x0B };
     final byte[] val3 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2182,9 +2179,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -2199,11 +2196,11 @@ public final class TestFsck {
     final byte[] val4 = Bytes.fromShort((short)7);
     final byte[] qual5 = { (byte) 0xF0, 0x00, 0x03, 0x00 };
     final byte[] val5 = { 8 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2211,11 +2208,11 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2233,11 +2230,11 @@ public final class TestFsck {
     final byte[] val4 = Bytes.fromShort((short)7);
     final byte[] qual5 = { (byte) 0xF0, 0x00, 0x03, 0x00 };
     final byte[] val5 = { 8 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2245,11 +2242,11 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertNull(storage.getColumn(ROW, qual4));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2266,11 +2263,11 @@ public final class TestFsck {
     final byte[] val4 = Bytes.fromShort((short)7);
     final byte[] qual5 = { (byte) 0xF0, 0x00, 0x03, 0x00 };
     final byte[] val5 = { 8 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2278,11 +2275,11 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2301,11 +2298,11 @@ public final class TestFsck {
     final byte[] val4 = Bytes.fromShort((short)7);
     final byte[] qual5 = { (byte) 0xF0, 0x00, 0x03, 0x00 };
     final byte[] val5 = { 8 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2313,11 +2310,11 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2328,9 +2325,9 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual3 = { 0x00, 0x27 };
     final byte[] val3 = Bytes.fromLong(6L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2338,9 +2335,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -2354,9 +2351,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x00, 0x23 };
     final byte[] val3 = Bytes.fromInt(6);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2364,9 +2361,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -2379,9 +2376,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x00, 0x23 };
     final byte[] val3 = Bytes.fromInt(6);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2389,9 +2386,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -2406,9 +2403,9 @@ public final class TestFsck {
     final byte[] val2 = { 5 };
     final byte[] qual3 = { 0x00, 0x23 };
     final byte[] val3 = Bytes.fromInt(6);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2416,9 +2413,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   // DUPLICATE COMPACTED DATA POINTS ----------------------------
@@ -2434,12 +2431,12 @@ public final class TestFsck {
     final byte[] val3 = Bytes.fromShort((short)7);
     final byte[] qual4 = { 0x0, 0x30 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2447,10 +2444,10 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+        tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
   }
   
   @Test
@@ -2465,12 +2462,12 @@ public final class TestFsck {
     final byte[] val3 = Bytes.fromShort((short)7);
     final byte[] qual4 = { 0x0, 0x30 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2478,11 +2475,11 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, 
-        new byte[] { 0 }), storage.getColumn(ROW, 
-            MockBase.concatByteArrays(qual1, qual2, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4,
+      new byte[]{0}), tsdb_store.getColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual4)));
   }
   
   @Test
@@ -2497,12 +2494,12 @@ public final class TestFsck {
     final byte[] val3 = Bytes.fromShort((short)7);
     final byte[] qual4 = { 0x0, 0x30 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2510,10 +2507,10 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+        tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
   }
   
   @Test
@@ -2530,12 +2527,12 @@ public final class TestFsck {
     final byte[] val3 = Bytes.fromShort((short)7);
     final byte[] qual4 = { 0x0, 0x30 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2543,11 +2540,11 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertArrayEquals(MockBase.concatByteArrays(val1, val3, val4, 
-        new byte[] { 0 }), storage.getColumn(ROW, 
-            MockBase.concatByteArrays(qual1, qual3, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val3, val4,
+      new byte[]{0}), tsdb_store.getColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual3, qual4)));
   }
 
   @Test
@@ -2560,12 +2557,12 @@ public final class TestFsck {
     final byte[] val3 = Bytes.fromLong(6L);
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x04, 0x07 };
     final byte[] val4 = Bytes.fromLong(7L);
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2573,10 +2570,10 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+        tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
   }
   
   @Test
@@ -2592,12 +2589,12 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x04, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2605,10 +2602,10 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual4)));
   }
   
   @Test
@@ -2623,12 +2620,12 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x04, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2636,10 +2633,10 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+        tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
   }
   
   @Test
@@ -2656,12 +2653,12 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x04, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2669,10 +2666,10 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertArrayEquals(MockBase.concatByteArrays(val1, val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual3, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val3, val4, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual3, qual4)));
   }
   
   @Test
@@ -2688,13 +2685,13 @@ public final class TestFsck {
     final byte[] val4 = { 7 };
     final byte[] qual5 = { 0x0, 0x23 };
     final byte[] val5 = Bytes.fromInt(8);
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2702,11 +2699,11 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+        tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2724,13 +2721,13 @@ public final class TestFsck {
     final byte[] val4 = { 7 };
     final byte[] qual5 = { 0x0, 0x23 };
     final byte[] val5 = Bytes.fromInt(8);
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2738,12 +2735,12 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, 
-        new byte[] { 0 }), storage.getColumn(ROW, 
-            MockBase.concatByteArrays(qual1, qual2, qual4)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertNull(storage.getColumn(ROW, qual5));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4,
+      new byte[]{0}), tsdb_store.getColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2761,13 +2758,13 @@ public final class TestFsck {
     final byte[] val4 = { 7 };
     final byte[] qual5 = { 0x0, 0x23 };
     final byte[] val5 = Bytes.fromInt(8);
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2775,11 +2772,11 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertArrayEquals(val5, storage.getColumn(ROW, qual5));
+        tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertArrayEquals(val5, tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2798,13 +2795,13 @@ public final class TestFsck {
     final byte[] val4 = { 7 };
     final byte[] qual5 = { 0x0, 0x23 };
     final byte[] val5 = Bytes.fromInt(8);
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(ROW, qual5, val5);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual5, val5);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2812,12 +2809,12 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val5, val4, 
-        new byte[] { 0 }), storage.getColumn(ROW, 
-            MockBase.concatByteArrays(qual1, qual5, qual4)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertNull(storage.getColumn(ROW, qual5));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val5, val4,
+      new byte[]{0}), tsdb_store.getColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual5, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, qual5));
   }
   
   @Test
@@ -2830,19 +2827,19 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { 0x0, 0x30 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual4, val4);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -2858,19 +2855,19 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { 0x0, 0x30 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual4, val4);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertNull(storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -2885,10 +2882,10 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { 0x0, 0x30 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual4, val4);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2896,9 +2893,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -2915,19 +2912,19 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { 0x0, 0x30 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual4, val4);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual4)));
-    assertNull(storage.getColumn(ROW, qual3));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -2940,10 +2937,10 @@ public final class TestFsck {
     final byte[] val3 =  { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x04, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual4, val4);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2951,9 +2948,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -2969,10 +2966,10 @@ public final class TestFsck {
     final byte[] val3 =  { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x04, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual4, val4);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -2980,9 +2977,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertNull(storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -2997,10 +2994,10 @@ public final class TestFsck {
     final byte[] val3 =  { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x04, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual4, val4);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3008,9 +3005,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3027,10 +3024,10 @@ public final class TestFsck {
     final byte[] val3 =  { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x04, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual4, val4);
 
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3038,9 +3035,9 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual4)));
-    assertNull(storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3053,19 +3050,19 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x02, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 1 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{1}));
+    tsdb_store.addColumn(ROW, qual4, val4);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 1 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{1}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3081,19 +3078,19 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x02, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 1 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{1}));
+    tsdb_store.addColumn(ROW, qual4, val4);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] {1 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertNull(storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{1}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3107,19 +3104,19 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x02, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 1 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{1}));
+    tsdb_store.addColumn(ROW, qual4, val4);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 1 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[]{1}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3136,19 +3133,19 @@ public final class TestFsck {
     final byte[] val3 = { 6 };
     final byte[] qual4 = { (byte) 0xF0, 0x00, 0x02, 0x00 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2, qual3), 
-        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 1 }));
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2, qual3),
+      MockBase.concatByteArrays(val1, val2, val3, new byte[]{1}));
+    tsdb_store.addColumn(ROW, qual4, val4);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val4, val3, new byte[] {1 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual4, qual3)));
-    assertNull(storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val4, val3, new byte[]{1}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual4, qual3)));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3166,15 +3163,15 @@ public final class TestFsck {
     final byte[] val5 = Bytes.fromInt(8);
     final byte[] qual6 = { 0x0, 0x40 };
     final byte[] val6 = { 9 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual5, qual6), 
-        MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual5, qual6),
+      MockBase.concatByteArrays(val5, val6, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3182,12 +3179,12 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertArrayEquals(MockBase.concatByteArrays(val5, val6, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
+        tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertArrayEquals(MockBase.concatByteArrays(val5, val6, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
   }
   
   @Test
@@ -3207,15 +3204,15 @@ public final class TestFsck {
     final byte[] val5 = Bytes.fromInt(8);
     final byte[] qual6 = { 0x0, 0x40 };
     final byte[] val6 = { 9 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual5, qual6), 
-        MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual5, qual6),
+      MockBase.concatByteArrays(val5, val6, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3223,11 +3220,11 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, val6, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual4, qual6)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val4, val6, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual4, qual6)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
   }
   
   @Test
@@ -3246,15 +3243,15 @@ public final class TestFsck {
     final byte[] val5 = Bytes.fromInt(8);
     final byte[] qual6 = { 0x0, 0x40 };
     final byte[] val6 = { 9 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual5, qual6), 
-        MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual5, qual6),
+      MockBase.concatByteArrays(val5, val6, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3262,12 +3259,12 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(MockBase.concatByteArrays(val3, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertArrayEquals(MockBase.concatByteArrays(val5, val6, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
+        tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertArrayEquals(MockBase.concatByteArrays(val5, val6, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
   }
   
   @Test
@@ -3288,15 +3285,15 @@ public final class TestFsck {
     final byte[] val5 = Bytes.fromInt(8);
     final byte[] qual6 = { 0x0, 0x40 };
     final byte[] val6 = { 9 };
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual3, qual4), 
-        MockBase.concatByteArrays(val3, val4, new byte[] { 0 }));
-    storage.addColumn(ROW, 
-        MockBase.concatByteArrays(qual5, qual6), 
-        MockBase.concatByteArrays(val5, val6, new byte[] { 0 }));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual3, qual4),
+      MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    tsdb_store.addColumn(ROW,
+      MockBase.concatByteArrays(qual5, qual6),
+      MockBase.concatByteArrays(val5, val6, new byte[]{0}));
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3304,11 +3301,11 @@ public final class TestFsck {
     assertEquals(3, fsck.duplicates.get());
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val5, val4, val6, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual5, qual4, qual6)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
-    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val5, val4, val6, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual5, qual4, qual6)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
+    assertNull(tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
   }
 
   // MULTIPLE ISSUES ----------------------------
@@ -3326,20 +3323,20 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
     final byte[] qual3 = { 0x00, 0x20 };
     final byte[] val3 = { 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
-    storage.dumpToSystemOut();
+    tsdb_store.dumpToSystemOut();
     assertEquals(3, fsck.kvs_processed.get());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -3354,9 +3351,9 @@ public final class TestFsck {
     final byte[] val2 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
     final byte[] qual3 = { 0x00, 0x20 };
     final byte[] val3 = { 5 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3364,11 +3361,11 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
-    assertNull(storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
     assertArrayEquals(MockBase.concatByteArrays(val1, val3, new byte[] { 0 }),
-        storage.getColumn(ROW,  MockBase.concatByteArrays(qual1, qual3)));
+        tsdb_store.getColumn(ROW,  MockBase.concatByteArrays(qual1, qual3)));
   }
 
   @Test
@@ -3380,8 +3377,8 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x0, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     final byte[] compacted_qual = { 0x0, 0x0, 0x0, 0x20 };
     final byte[] compacted_value = { 0x4, 0x5, 0x0 };
     
@@ -3391,9 +3388,9 @@ public final class TestFsck {
     assertEquals(2, fsck.vle.get());
     assertEquals(0, fsck.totalErrors());
     assertEquals(0, fsck.correctable());
-    assertNull(storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertArrayEquals(compacted_value, storage.getColumn(ROW, compacted_qual));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(compacted_value, tsdb_store.getColumn(ROW, compacted_qual));
   }
   
   @Test
@@ -3405,19 +3402,19 @@ public final class TestFsck {
     final byte[] val1 = { 4 };
     final byte[] qual2 = { 0x00, 0x23 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
-    storage.dumpToSystemOut();
+    tsdb_store.dumpToSystemOut();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(0, fsck.totalFixed());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
   }
   
   @Test
@@ -3430,19 +3427,19 @@ public final class TestFsck {
     final byte[] val1 = { 4 };
     final byte[] qual2 = { 0x00, 0x23 };
     final byte[] val2 = Bytes.fromLong(5L);
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
-    storage.dumpToSystemOut();
+    tsdb_store.dumpToSystemOut();
     assertEquals(2, fsck.kvs_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(1, fsck.totalFixed());
     assertEquals(1, fsck.correctable());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
   }
 
   @Test
@@ -3456,9 +3453,9 @@ public final class TestFsck {
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 5 };
     final byte[] qual3 = { 0x00, 0x47 };
     final byte[] val3 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3466,9 +3463,9 @@ public final class TestFsck {
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
     assertEquals(3, fsck.bad_values.get());
-    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
-    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
+    assertArrayEquals(val2, tsdb_store.getColumn(ROW, qual2));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
   }
   
   @Test
@@ -3483,9 +3480,9 @@ public final class TestFsck {
     final byte[] val2 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 5 };
     final byte[] qual3 = { 0x00, 0x47 };
     final byte[] val3 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual3, val3);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3493,10 +3490,10 @@ public final class TestFsck {
     assertEquals(3, fsck.totalErrors());
     assertEquals(3, fsck.correctable());
     assertEquals(3, fsck.bad_values.get());
-    assertNull(storage.getColumn(ROW, qual1));
-    assertNull(storage.getColumn(ROW, qual2));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertEquals(-1, storage.numColumns(ROW));
+    assertNull(tsdb_store.getColumn(ROW, qual1));
+    assertNull(tsdb_store.getColumn(ROW, qual2));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertEquals(-1, tsdb_store.numColumns(ROW));
   }
 
   @Test
@@ -3512,10 +3509,10 @@ public final class TestFsck {
     final byte[] val3 = { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
     final byte[] qual4 = { 0x00, 0x57 };
     final byte[] val4 = { 0, 0, 0, 0, 0, 0, 0, 0, 7 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3523,10 +3520,10 @@ public final class TestFsck {
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
     assertEquals(2, fsck.bad_values.get());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3543,10 +3540,10 @@ public final class TestFsck {
     final byte[] val3 = { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
     final byte[] qual4 = { 0x00, 0x57 };
     final byte[] val4 = { 0, 0, 0, 0, 0, 0, 0, 0, 7 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3554,10 +3551,10 @@ public final class TestFsck {
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
     assertEquals(2, fsck.bad_values.get());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertNull(storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3573,10 +3570,10 @@ public final class TestFsck {
     final byte[] val3 = { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
     final byte[] qual4 = { 0x00, 0x20 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3585,10 +3582,10 @@ public final class TestFsck {
     assertEquals(3, fsck.correctable());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3606,10 +3603,10 @@ public final class TestFsck {
     final byte[] val3 = { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
     final byte[] qual4 = { 0x00, 0x20 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3618,10 +3615,10 @@ public final class TestFsck {
     assertEquals(3, fsck.correctable());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3640,10 +3637,10 @@ public final class TestFsck {
     final byte[] val3 = { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
     final byte[] qual4 = { 0x00, 0x20 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3652,10 +3649,10 @@ public final class TestFsck {
     assertEquals(3, fsck.correctable());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
-    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(val3, tsdb_store.getColumn(ROW, qual3));
+    assertArrayEquals(val4, tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3673,10 +3670,10 @@ public final class TestFsck {
     final byte[] val3 = { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
     final byte[] qual4 = { 0x00, 0x20 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3685,10 +3682,10 @@ public final class TestFsck {
     assertEquals(3, fsck.correctable());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertNull(storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
   }
   
   @Test
@@ -3707,10 +3704,10 @@ public final class TestFsck {
     final byte[] val3 = { 0, 0, 0, 0, 0, 0, 0, 0, 6 };
     final byte[] qual4 = { 0x00, 0x20 };
     final byte[] val4 = { 7 };
-    storage.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2), 
-        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
-    storage.addColumn(ROW, qual3, val3);
-    storage.addColumn(ROW, qual4, val4);
+    tsdb_store.addColumn(ROW, MockBase.concatByteArrays(qual1, qual2),
+      MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    tsdb_store.addColumn(ROW, qual3, val3);
+    tsdb_store.addColumn(ROW, qual4, val4);
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -3719,10 +3716,10 @@ public final class TestFsck {
     assertEquals(3, fsck.correctable());
     assertEquals(2, fsck.duplicates.get());
     assertEquals(1, fsck.bad_values.get());
-    assertArrayEquals(MockBase.concatByteArrays(val1, val4, new byte[] { 0 }), 
-        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
-    assertNull(storage.getColumn(ROW, qual3));
-    assertNull(storage.getColumn(ROW, qual4));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val4, new byte[]{0}),
+      tsdb_store.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertNull(tsdb_store.getColumn(ROW, qual3));
+    assertNull(tsdb_store.getColumn(ROW, qual4));
   }
 
   // QUERIES --------------------------------------------
@@ -3734,8 +3731,8 @@ public final class TestFsck {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
 
-    storage.addColumn(ROW, qual1, val1);
-    storage.addColumn(ROW, qual2, val2);
+    tsdb_store.addColumn(ROW, qual1, val1);
+    tsdb_store.addColumn(ROW, qual2, val2);
     final String[] args = "1356998400 sum sys.cpu.user".split(" ");
     final ArrayList<Query> queries = new ArrayList<Query>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);

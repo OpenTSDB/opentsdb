@@ -66,11 +66,10 @@ import com.stumbleupon.async.Deferred;
 public class TestTextImporter {
   private Config config;
   private TSDB tsdb = null;
-  private MemoryStore tsdb_store = mock(MemoryStore.class);
+  private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
-  private MockBase storage;
   
   private final static Field datapoints;
   static {
@@ -96,11 +95,9 @@ public class TestTextImporter {
   @Before
   public void before() throws Exception {
     config = new Config(false);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-    
     // replace the "real" field objects with mocks
     Field met = tsdb.getClass().getDeclaredField("metrics");
     met.setAccessible(true);
@@ -162,12 +159,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(0, value[0]);
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 0 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(127, value[0]);
   }
@@ -183,12 +180,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(0, value[0]);
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 0 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(-128, value[0]);
   }
@@ -204,12 +201,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(128, Bytes.getShort(value));
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 1 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(32767, Bytes.getShort(value));
   }
@@ -225,12 +222,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(-129, Bytes.getShort(value));
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 1 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(-32768, Bytes.getShort(value));
   }
@@ -246,12 +243,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(32768, Bytes.getInt(value));
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 3 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(2147483647, Bytes.getInt(value));
   }
@@ -267,12 +264,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(-32769, Bytes.getInt(value));
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 3 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(-2147483648, Bytes.getInt(value));
   }
@@ -287,12 +284,12 @@ public class TestTextImporter {
     assertEquals(2, (int)points);
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(2147483648L, Bytes.getLong(value));
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 7 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(9223372036854775807L, Bytes.getLong(value));
   }
@@ -308,12 +305,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(-2147483649L, Bytes.getLong(value));
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 7 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(-9223372036854775808L, Bytes.getLong(value));
   }
@@ -347,12 +344,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
     assertNotNull(value);
     assertEquals(24, value[0]);
     row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
+    value = tsdb_store.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -368,13 +365,13 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, (byte) 0x90, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, (byte) 0xA3, 
+    byte[] value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF0, (byte) 0xA3,
         0x60, 0 });
     assertNotNull(value);
     assertEquals(24, value[0]);
     row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, (byte) 0x90, 0, 
         0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { (byte) 0xF0, (byte) 0xA3, 
+    value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF0, (byte) 0xA3,
         0x60, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -391,12 +388,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
     assertEquals(24, value[0]);
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
+    value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -430,12 +427,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
     assertNotNull(value);
     assertEquals(24.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 11 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
     assertNotNull(value);
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
   }
@@ -451,12 +448,12 @@ public class TestTextImporter {
     
     byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
+    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
     assertNotNull(value);
     assertEquals(-24.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
     row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 2};
-    value = storage.getColumn(row, new byte[] { 0, 11 });
+    value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
     assertNotNull(value);
     assertEquals(-42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
   }
