@@ -20,7 +20,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -38,7 +38,6 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -51,11 +50,11 @@ import com.stumbleupon.async.Deferred;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, TSMeta.class, UIDMeta.class, 
   RowLock.class, UniqueIdRpc.class, KeyValue.class,
-  GetRequest.class, Scanner.class, UniqueId.class, TsdbTestStore.class})
+  GetRequest.class, Scanner.class, UniqueId.class, MemoryStore.class})
 public final class TestUniqueIdRpc {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb = null;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);

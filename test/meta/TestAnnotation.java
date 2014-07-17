@@ -15,12 +15,11 @@ package net.opentsdb.meta;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Matchers.anyString;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.List;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.UniqueId;
@@ -35,7 +34,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -46,10 +44,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, Annotation.class, TsdbTestStore.class})
+  Scanner.class, Annotation.class, MemoryStore.class})
 public final class TestAnnotation {
   private TSDB tsdb;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private MockBase storage;
   private Annotation note = new Annotation();
   

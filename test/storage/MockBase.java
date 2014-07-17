@@ -19,7 +19,6 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,7 +31,6 @@ import java.util.regex.PatternSyntaxException;
 
 import javax.xml.bind.DatatypeConverter;
 
-import net.opentsdb.TsdbTestStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
@@ -106,7 +104,7 @@ public final class MockBase {
    * @param default_scan Enable the Scanner mock implementation
    */
   public MockBase(
-      final TSDB tsdb, final TsdbTestStore tsdb_store,
+      final TSDB tsdb, final MemoryStore tsdb_store,
       final boolean default_get, 
       final boolean default_put,
       final boolean default_delete,
@@ -169,7 +167,7 @@ public final class MockBase {
       final boolean default_put,
       final boolean default_delete,
       final boolean default_scan) throws IOException {
-    this(new TSDB(new Config(false)), mock(TsdbTestStore.class),
+    this(new TSDB(new Config(false)), mock(MemoryStore.class),
         default_get, default_put, default_delete, default_scan);
   }
   

@@ -25,7 +25,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.TreeMap;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
@@ -39,7 +39,6 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -564,7 +563,7 @@ public final class TestBranch {
    * Mocks classes for testing the storage calls
    */
   private void setupStorage() throws Exception {
-    final TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+    final MemoryStore tsdb_store = mock(MemoryStore.class);
     final Config config = new Config(false);
     
     storage = new MockBase(new TSDB(tsdb_store, config), tsdb_store, true,

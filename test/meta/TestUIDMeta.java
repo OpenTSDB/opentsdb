@@ -15,11 +15,10 @@ package net.opentsdb.meta;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -47,11 +46,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, UIDMeta.class, TsdbTestStore.class})
+  Scanner.class, UIDMeta.class, MemoryStore.class})
 public final class TestUIDMeta {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private MockBase storage;
   private UIDMeta meta = new UIDMeta();
   

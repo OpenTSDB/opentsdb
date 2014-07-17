@@ -15,7 +15,6 @@ package net.opentsdb.search;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -23,7 +22,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -38,7 +37,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -48,11 +46,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  KeyValue.class, Scanner.class, TimeSeriesLookup.class, TsdbTestStore.class})
+  KeyValue.class, Scanner.class, TimeSeriesLookup.class, MemoryStore.class})
 public class TestTimeSeriesLookup {
   private Config config;
   private TSDB tsdb = null;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);

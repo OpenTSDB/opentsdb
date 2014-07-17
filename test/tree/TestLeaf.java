@@ -16,11 +16,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -35,7 +34,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -48,11 +46,11 @@ import com.stumbleupon.async.DeferredGroupException;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, TsdbTestStore.class})
+  Scanner.class, MemoryStore.class})
 public final class TestLeaf {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private MockBase storage;
   
   @Before

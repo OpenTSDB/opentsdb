@@ -13,7 +13,6 @@
 package net.opentsdb.meta;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -21,7 +20,7 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
@@ -39,7 +38,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -57,7 +55,7 @@ public final class TestTSUIDQuery {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private Config config;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private MockBase storage;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);

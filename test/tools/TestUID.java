@@ -19,10 +19,9 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Method;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
@@ -48,11 +47,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, KeyValue.class, UidManager.class,
   Scanner.class, DeleteRequest.class, AtomicIncrementRequest.class,
-  TsdbTestStore.class})
+  MemoryStore.class})
 public class TestUID {
   private Config config;
   private TSDB tsdb = null;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private MockBase storage;
   
   // names used for testing

@@ -18,7 +18,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.nio.charset.Charset;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
@@ -36,7 +36,6 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -47,10 +46,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, RowLock.class,
   AnnotationRpc.class, KeyValue.class, GetRequest.class, Scanner.class,
-  TsdbTestStore.class})
+  MemoryStore.class})
 public final class TestAnnotationRpc {
   private TSDB tsdb = null;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private MockBase storage;
   private AnnotationRpc rpc = new AnnotationRpc();
   

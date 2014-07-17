@@ -1,12 +1,11 @@
-package net.opentsdb;
+package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.storage.TsdbStore;
 import org.hbase.async.*;
 
 import java.util.ArrayList;
 
-public class TsdbTestStore implements TsdbStore {
+public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
     throw new UnsupportedOperationException("Method seems to not be mocked?");

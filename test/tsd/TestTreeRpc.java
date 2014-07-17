@@ -20,7 +20,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import java.lang.reflect.Method;
 import java.util.TreeMap;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -49,7 +49,6 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -60,11 +59,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
                   "com.sum.*", "org.xml.*"})
 @PrepareForTest({ TSDB.class, GetRequest.class, Tree.class,
   PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class,
-  TsdbTestStore.class})
+  MemoryStore.class})
 public final class TestTreeRpc {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private MockBase storage;
   private TreeRpc rpc = new TreeRpc();
   

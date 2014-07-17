@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -66,11 +66,11 @@ import com.stumbleupon.async.Deferred;
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
   Scanner.class, TsdbQuery.class, DeleteRequest.class, Annotation.class, 
   RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class,
-  TsdbTestStore.class})
+  MemoryStore.class})
 public final class TestTsdbQuery {
   private Config config;
   private TSDB tsdb;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);

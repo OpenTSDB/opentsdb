@@ -29,12 +29,11 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -63,11 +62,11 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, KeyValue.class, Fsck.class,
   Scanner.class, DeleteRequest.class, Annotation.class, FileInputStream.class, 
-  TextImporter.class, TsdbTestStore.class})
+  TextImporter.class, MemoryStore.class})
 public class TestTextImporter {
   private Config config;
   private TSDB tsdb = null;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store = mock(MemoryStore.class);
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
