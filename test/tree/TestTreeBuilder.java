@@ -26,9 +26,11 @@ import java.util.TreeMap;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
 import org.hbase.async.DeleteRequest;
@@ -55,7 +57,9 @@ import com.stumbleupon.async.Deferred;
   Scanner.class, GetRequest.class, KeyValue.class,
   DeleteRequest.class, Tree.class})
 public final class TestTreeBuilder {
-  private MockBase storage;
+  private MemoryStore tsdb_store;
+  private TSDB tsdb;
+
   private Tree tree = TestTree.buildTestTree();
   private TreeBuilder treebuilder;
   // for UTs we'll use 1 byte tag IDs
@@ -81,14 +85,16 @@ public final class TestTreeBuilder {
       throw new RuntimeException("Failed in static initializer", e);
     }
   }
-  
+
   @Before
   public void before() throws Exception {
-    storage = new MockBase(true, true, true, true);
-    treebuilder = new TreeBuilder(storage.getTSDB(), tree);
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, new Config(false));
+
+    treebuilder = new TreeBuilder(tsdb, tree);
     PowerMockito.spy(Tree.class);
-    PowerMockito.doReturn(Deferred.fromResult(tree)).when(Tree.class, 
-        "fetchTree", (TSDB)any(), anyInt());
+    PowerMockito.doReturn(Deferred.fromResult(tree)).when(Tree.class,
+      "fetchTree", (TSDB) any(), anyInt());
     
     // set private fields via reflection so the UTs can change things at will
     Field tag_metric = TSMeta.class.getDeclaredField("metric");
@@ -112,24 +118,24 @@ public final class TestTreeBuilder {
     root.setDisplayName("ROOT");
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(root.compileBranchId(), 
-        "branch".getBytes(MockBase.ASCII()), 
-        (byte[])toStorageJson.invoke(root));
+    tsdb_store.addColumn(root.compileBranchId(),
+      "branch".getBytes(MockBase.ASCII()),
+      (byte[]) toStorageJson.invoke(root));
   }
   
   @Test
   public void processTimeseriesMetaDefaults() throws Exception {
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(Branch.stringToId(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(Branch.stringToId(
         "00010001A2460001CB54247F72020001BECD000181A800000030")));
     final Branch branch = JSON.parseToObject(
-        storage.getColumn(Branch.stringToId(
+        tsdb_store.getColumn(Branch.stringToId(
         "00010001A2460001CB54247F72020001BECD000181A800000030"), 
         "branch".getBytes(MockBase.ASCII())), Branch.class);
     assertNotNull(branch);
     assertEquals("0", branch.getDisplayName());
-    final Leaf leaf = JSON.parseToObject(storage.getColumn(Branch.stringToId(
+    final Leaf leaf = JSON.parseToObject(tsdb_store.getColumn(Branch.stringToId(
         "00010001A2460001CB54247F72020001BECD000181A800000030"), 
         new Leaf("user", "").columnQualifier()), Leaf.class);
     assertNotNull(leaf);
@@ -138,10 +144,10 @@ public final class TestTreeBuilder {
   
   @Test
   public void processTimeseriesMetaNewRoot() throws Exception {
-    storage.flushStorage();
+    tsdb_store.flushStorage();
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(1, tsdb_store.numColumns(new byte[] { 0, 1 }));
   }
 
   @Test
@@ -183,8 +189,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(5, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(5, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId("0001247F72020001BECD000181A800000030")));
   }
   
@@ -228,8 +234,8 @@ public final class TestTreeBuilder {
     treebuilder.setTree(tree);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
             "00010001A2460001CB54247F72020001BECD000181A800000030")));
   }
@@ -269,8 +275,8 @@ public final class TestTreeBuilder {
     tags_field.set(meta, tags);
     tags_field.setAccessible(false);
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(5, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(5, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
             "00010036EBCB0001BECD000181A800000030")));
   }
@@ -278,15 +284,15 @@ public final class TestTreeBuilder {
   @Test
   public void processTimeseriesMetaTesting() throws Exception {
     treebuilder.processTimeseriesMeta(meta, true).joinUninterruptibly();
-    assertEquals(1, storage.numRows());
+    assertEquals(1, tsdb_store.numRows());
   }
 
   @Test
   public void processTimeseriesMetaStrict() throws Exception {
     tree.setStrictMatch(true);
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
             "00010001A2460001CB54247F72020001BECD000181A800000030")));
   }
@@ -299,15 +305,15 @@ public final class TestTreeBuilder {
     name.setAccessible(false);
     tree.setStrictMatch(true);
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(1, storage.numRows());
+    assertEquals(1, tsdb_store.numRows());
   }
 
   @Test
   public void processTimeseriesMetaNoSplit() throws Exception {
     tree.getRules().get(3).get(0).setSeparator("");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(5, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(5, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId("00010001A2460001CB54247F7202CBBF5B09")));
   }
   
@@ -315,8 +321,8 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetBadSeparator() throws Exception {
     tree.getRules().get(3).get(0).setSeparator(".");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(4, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(4, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId("00010001A2460001CB54247F7202")));
   }
   
@@ -324,8 +330,8 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaInvalidRegexIdx() throws Exception {
     tree.getRules().get(1).get(1).setRegexGroupIdx(42);
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(6, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(6, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId("00010001A246247F72020001BECD000181A800000030")));
   }
   
@@ -344,8 +350,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
           "0001AE805CA50001CB54247F72020001BECD000181A800000030")));
   }
@@ -382,8 +388,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
           "00010001A2460001CB54247F72020001BECD000181A800000030")));
   }
@@ -404,8 +410,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
           "0001AE805CA50001CB54247F72020001BECD000181A800000030")));
   }
@@ -444,8 +450,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
           "00010001A2460001CB54247F72020001BECD000181A800000030")));
   }
@@ -466,8 +472,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
           "00010001A2460001CB54247F72020001BECD000181A800000030")));
   }
@@ -488,8 +494,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
           "0001AE805CA50001CB54247F72020001BECD000181A800000030")));
   }
@@ -528,8 +534,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
           "00010001A2460001CB54247F72020001BECD000181A800000030")));
   }
@@ -550,8 +556,8 @@ public final class TestTreeBuilder {
     tree.addRule(rule);
     
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
-    assertEquals(2, storage.numColumns(
+    assertEquals(7, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(
         Branch.stringToId(
           "00010001A2460001CB54247F72020001BECD000181A800000030")));
   }
@@ -560,9 +566,9 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaFormatOvalue() throws Exception {
     tree.getRules().get(1).get(1).setDisplayFormat("OV: {ovalue}");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
+    assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
-        storage.getColumn(Branch.stringToId("00010001A24637E140D5"), 
+        tsdb_store.getColumn(Branch.stringToId("00010001A24637E140D5"),
             "branch".getBytes(MockBase.ASCII())), Branch.class);
     assertEquals("OV: web-01.lga.mysite.com", branch.getDisplayName());
   }
@@ -571,9 +577,9 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaFormatValue() throws Exception {
     tree.getRules().get(1).get(1).setDisplayFormat("V: {value}");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
+    assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
-        storage.getColumn(Branch.stringToId("00010001A24696026FD8"), 
+        tsdb_store.getColumn(Branch.stringToId("00010001A24696026FD8"),
             "branch".getBytes(MockBase.ASCII())), Branch.class);
     assertEquals("V: web", branch.getDisplayName());
   }
@@ -582,9 +588,9 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaFormatTSUID() throws Exception {
     tree.getRules().get(1).get(1).setDisplayFormat("TSUID: {tsuid}");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
+    assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
-        storage.getColumn(Branch.stringToId("00010001A246E0A07086"), 
+        tsdb_store.getColumn(Branch.stringToId("00010001A246E0A07086"),
             "branch".getBytes(MockBase.ASCII())), Branch.class);
     assertEquals("TSUID: " + tsuid, branch.getDisplayName());    
   }
@@ -593,9 +599,9 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaFormatTagName() throws Exception {
     tree.getRules().get(1).get(1).setDisplayFormat("TAGNAME: {tag_name}");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
+    assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
-        storage.getColumn(Branch.stringToId("00010001A2467BFCCB13"), 
+        tsdb_store.getColumn(Branch.stringToId("00010001A2467BFCCB13"),
             "branch".getBytes(MockBase.ASCII())), Branch.class);
     assertEquals("TAGNAME: host", branch.getDisplayName());    
   }
@@ -605,9 +611,9 @@ public final class TestTreeBuilder {
     tree.getRules().get(1).get(1).setDisplayFormat(
         "{ovalue}:{value}:{tag_name}:{tsuid}");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(7, storage.numRows());
+    assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
-        storage.getColumn(Branch.stringToId("00010001A246E4592083"), 
+        tsdb_store.getColumn(Branch.stringToId("00010001A246E4592083"),
             "branch".getBytes(MockBase.ASCII())), Branch.class);
     assertEquals("web-01.lga.mysite.com:web:host:0102030405", 
         branch.getDisplayName());    
@@ -617,9 +623,9 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaFormatBadType() throws Exception {
     tree.getRules().get(3).get(0).setDisplayFormat("Wrong: {tag_name}");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(5, storage.numRows());
+    assertEquals(5, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
-        storage.getColumn(Branch.stringToId(
+        tsdb_store.getColumn(Branch.stringToId(
           "00010001A2460001CB54247F7202C3165573"), 
               "branch".getBytes(MockBase.ASCII())), Branch.class);
     assertEquals("Wrong: ", branch.getDisplayName());    
@@ -629,9 +635,9 @@ public final class TestTreeBuilder {
   public void processTimeseriesMetaFormatOverride() throws Exception {
     tree.getRules().get(3).get(0).setDisplayFormat("OVERRIDE");
     treebuilder.processTimeseriesMeta(meta, false).joinUninterruptibly();
-    assertEquals(5, storage.numRows());
+    assertEquals(5, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
-        storage.getColumn(Branch.stringToId(
+        tsdb_store.getColumn(Branch.stringToId(
           "00010001A2460001CB54247F72024E3D0BCC"), 
             "branch".getBytes(MockBase.ASCII())), Branch.class);
     assertEquals("OVERRIDE", branch.getDisplayName());    

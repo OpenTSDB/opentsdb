@@ -15,7 +15,6 @@ package net.opentsdb.search;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -23,7 +22,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -38,7 +37,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -48,15 +46,14 @@ import org.powermock.modules.junit4.PowerMockRunner;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  KeyValue.class, Scanner.class, TimeSeriesLookup.class, TsdbTestStore.class})
+  KeyValue.class, Scanner.class, TimeSeriesLookup.class, MemoryStore.class})
 public class TestTimeSeriesLookup {
   private Config config;
   private TSDB tsdb = null;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
-  private MockBase storage = null;
   
   // tsuids
   private static List<byte[]> test_tsuids = new ArrayList<byte[]>(7);
@@ -75,6 +72,7 @@ public class TestTimeSeriesLookup {
   @Before
   public void before() throws Exception {
     config = new Config(false);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
     // replace the "real" field objects with mocks
@@ -546,12 +544,9 @@ public class TestTimeSeriesLookup {
    * Stores some data in the mock tsdb-meta table for unit testing
    */
   private void generateMeta() {
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-    
     final byte[] val = new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 };
     for (final byte[] tsuid : test_tsuids) {
-      storage.addColumn(tsuid, TSMeta.COUNTER_QUALIFIER(), val);
+      tsdb_store.addColumn(tsuid, TSMeta.COUNTER_QUALIFIER(), val);
     }
   }
   
@@ -559,9 +554,6 @@ public class TestTimeSeriesLookup {
    * Stores some data in the mock tsdb data table for unit testing
    */
   private void generateData() {
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-    
     final byte[] qual = new byte[] { 0, 0 };
     final byte[] val = new byte[] { 1 };
     for (final byte[] tsuid : test_tsuids) {
@@ -570,7 +562,7 @@ public class TestTimeSeriesLookup {
       System.arraycopy(tsuid, Const.METRICS_WIDTH, row_key,
           Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES,
           tsuid.length - Const.METRICS_WIDTH);
-      storage.addColumn(row_key, qual, val);
+      tsdb_store.addColumn(row_key, qual, val);
     }
   }
 }

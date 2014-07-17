@@ -16,11 +16,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -35,7 +34,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -48,33 +46,31 @@ import com.stumbleupon.async.DeferredGroupException;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, TsdbTestStore.class})
+  Scanner.class, MemoryStore.class})
 public final class TestLeaf {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
-  private MockBase storage;
+  private MemoryStore tsdb_store;
   
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
+
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "metrics".getBytes(MockBase.ASCII()),
+      "sys.cpu.0".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "tagk".getBytes(MockBase.ASCII()),
+      "host".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "tagv".getBytes(MockBase.ASCII()),
+      "web01".getBytes(MockBase.ASCII()));
     
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "metrics".getBytes(MockBase.ASCII()),
-        "sys.cpu.0".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "tagk".getBytes(MockBase.ASCII()),
-        "host".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "tagv".getBytes(MockBase.ASCII()),
-        "web01".getBytes(MockBase.ASCII()));
-    
-    storage.addColumn(new byte[] { 0, 1 }, Tree.TREE_FAMILY(),
-        new Leaf("0", "000001000001000001").columnQualifier(), 
-        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
+    tsdb_store.addColumn(new byte[]{0, 1}, Tree.TREE_FAMILY(),
+      new Leaf("0", "000001000001000001").columnQualifier(),
+      ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
         .getBytes(MockBase.ASCII()));
   }
   
@@ -152,7 +148,7 @@ public final class TestLeaf {
     final Tree tree = TestTree.buildTestTree();
     assertTrue(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
         .joinUninterruptibly());
-    assertEquals(2, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(2, tsdb_store.numColumns(new byte[]{0, 1}));
   }
   
   @Test
@@ -161,7 +157,7 @@ public final class TestLeaf {
     final Tree tree = TestTree.buildTestTree();
     assertTrue(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
         .joinUninterruptibly());
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(1, tsdb_store.numColumns(new byte[]{0, 1}));
   }
   
   @Test
@@ -170,7 +166,7 @@ public final class TestLeaf {
     final Tree tree = TestTree.buildTestTree();
     assertFalse(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
         .joinUninterruptibly());
-    assertEquals(1, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(1, tsdb_store.numColumns(new byte[]{0, 1}));
     assertEquals(1, tree.getCollisions().size());
   }
   

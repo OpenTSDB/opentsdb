@@ -19,13 +19,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-import com.stumbleupon.async.Deferred;
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -43,9 +41,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -60,13 +55,12 @@ import com.stumbleupon.async.DeferredGroupException;
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class,
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class,
   Scanner.class, UIDMeta.class, TSMeta.class, AtomicIncrementRequest.class,
-  TsdbTestStore.class})
+  MemoryStore.class})
 public final class TestTSMeta {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb;
   private Config config;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
-  private MockBase storage;
+  private MemoryStore tsdb_store;
   private TSMeta meta = new TSMeta();
   
   @Before
@@ -79,57 +73,57 @@ public final class TestTSMeta {
     when(config.enable_tsuid_incrementing()).thenReturn(true);
     when(config.enable_realtime_ts()).thenReturn(true);
 
+    tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
     
-    storage.addColumn(new byte[] { 0, 0, 1 },
-        NAME_FAMILY,
-        "metrics".getBytes(MockBase.ASCII()),
-        "sys.cpu.0".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
-        NAME_FAMILY,
-        "metric_meta".getBytes(MockBase.ASCII()), 
-        ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+    tsdb_store.addColumn(new byte[]{0, 0, 1},
+      NAME_FAMILY,
+      "metrics".getBytes(MockBase.ASCII()),
+      "sys.cpu.0".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(new byte[]{0, 0, 1},
+      NAME_FAMILY,
+      "metric_meta".getBytes(MockBase.ASCII()),
+      ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"System CPU\"}")
         .getBytes(MockBase.ASCII()));
     
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
-        NAME_FAMILY,
-        "tagk".getBytes(MockBase.ASCII()),
-        "host".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
-        NAME_FAMILY,
-        "tagk_meta".getBytes(MockBase.ASCII()), 
-        ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+    tsdb_store.addColumn(new byte[]{0, 0, 1},
+      NAME_FAMILY,
+      "tagk".getBytes(MockBase.ASCII()),
+      "host".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(new byte[]{0, 0, 1},
+      NAME_FAMILY,
+      "tagk_meta".getBytes(MockBase.ASCII()),
+      ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Host server name\"}")
         .getBytes(MockBase.ASCII()));
 
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
-        NAME_FAMILY,
-        "tagv".getBytes(MockBase.ASCII()),
-        "web01".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
-        NAME_FAMILY,
-        "tagv_meta".getBytes(MockBase.ASCII()), 
-        ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+    tsdb_store.addColumn(new byte[]{0, 0, 1},
+      NAME_FAMILY,
+      "tagv".getBytes(MockBase.ASCII()),
+      "web01".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(new byte[]{0, 0, 1},
+      NAME_FAMILY,
+      "tagv_meta".getBytes(MockBase.ASCII()),
+      ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Web server 1\"}")
         .getBytes(MockBase.ASCII()));
 
-    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
-        NAME_FAMILY,
-        "ts_meta".getBytes(MockBase.ASCII()),
-        ("{\"tsuid\":\"000001000001000001\",\"" +
+    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
+      NAME_FAMILY,
+      "ts_meta".getBytes(MockBase.ASCII()),
+      ("{\"tsuid\":\"000001000001000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
-        NAME_FAMILY,
-        "ts_ctr".getBytes(MockBase.ASCII()),
-        Bytes.fromLong(1L));
+    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
+      NAME_FAMILY,
+      "ts_ctr".getBytes(MockBase.ASCII()),
+      Bytes.fromLong(1L));
   }
   
   @Test
@@ -186,10 +180,10 @@ public final class TestTSMeta {
   
   @Test (expected = NoSuchUniqueId.class)
   public void getTSMetaNSUMetric() throws Throwable {
-    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1 },
-        NAME_FAMILY,
-        "ts_meta".getBytes(MockBase.ASCII()),
-        ("{\"tsuid\":\"000002000001000001\",\"" +
+    tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 1, 0, 0, 1},
+      NAME_FAMILY,
+      "ts_meta".getBytes(MockBase.ASCII()),
+      ("{\"tsuid\":\"000002000001000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
@@ -203,10 +197,10 @@ public final class TestTSMeta {
   
   @Test (expected = NoSuchUniqueId.class)
   public void getTSMetaNSUTagk() throws Throwable {
-    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 2, 0, 0, 1 },
-        NAME_FAMILY,
-        "ts_meta".getBytes(MockBase.ASCII()),
-        ("{\"tsuid\":\"000001000002000001\",\"" +
+    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 2, 0, 0, 1},
+      NAME_FAMILY,
+      "ts_meta".getBytes(MockBase.ASCII()),
+      ("{\"tsuid\":\"000001000002000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
@@ -220,10 +214,10 @@ public final class TestTSMeta {
   
   @Test (expected = NoSuchUniqueId.class)
   public void getTSMetaNSUTagv() throws Throwable {
-    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 },
-        NAME_FAMILY,
-        "ts_meta".getBytes(MockBase.ASCII()),
-        ("{\"tsuid\":\"000001000001000002\",\"" +
+    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2},
+      NAME_FAMILY,
+      "ts_meta".getBytes(MockBase.ASCII()),
+      ("{\"tsuid\":\"000001000001000002\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
@@ -279,7 +273,7 @@ public final class TestTSMeta {
 
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageDoesNotExist() throws Exception {
-    storage.flushRow(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
     meta.syncToStorage(tsdb, false).joinUninterruptibly();
   }
@@ -312,7 +306,7 @@ public final class TestTSMeta {
   
   @Test
   public void metaExistsInStorageNot() throws Exception {
-    storage.flushRow(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     assertFalse(TSMeta.metaExistsInStorage(tsdb, "000001000001000001")
         .joinUninterruptibly());
   }
@@ -325,7 +319,7 @@ public final class TestTSMeta {
   
   @Test
   public void counterExistsInStorageNot() throws Exception {
-    storage.flushRow(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     assertFalse(TSMeta.counterExistsInStorage(tsdb, 
         new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }).joinUninterruptibly());
   }
@@ -371,10 +365,10 @@ public final class TestTSMeta {
   public void parseFromColumn() throws Exception {
     final KeyValue column = mock(KeyValue.class);
     when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
-    when(column.value()).thenReturn(storage.getColumn(
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 
-            NAME_FAMILY,
-            "ts_meta".getBytes(MockBase.ASCII())));
+    when(column.value()).thenReturn(tsdb_store.getColumn(
+      new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
+      NAME_FAMILY,
+      "ts_meta".getBytes(MockBase.ASCII())));
     final TSMeta meta = TSMeta.parseFromColumn(tsdb, column, false)
       .joinUninterruptibly();
     assertNotNull(meta);
@@ -386,10 +380,10 @@ public final class TestTSMeta {
   public void parseFromColumnWithUIDMeta() throws Exception {
     final KeyValue column = mock(KeyValue.class);
     when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
-    when(column.value()).thenReturn(storage.getColumn(
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 
-            NAME_FAMILY,
-            "ts_meta".getBytes(MockBase.ASCII())));
+    when(column.value()).thenReturn(tsdb_store.getColumn(
+      new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
+      NAME_FAMILY,
+      "ts_meta".getBytes(MockBase.ASCII())));
     final TSMeta meta = TSMeta.parseFromColumn(tsdb, column, true)
       .joinUninterruptibly();
     assertNotNull(meta);

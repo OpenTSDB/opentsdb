@@ -29,7 +29,7 @@ import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.TsdbTestStore;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -63,22 +63,22 @@ import org.powermock.modules.junit4.PowerMockRunner;
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class,
   Scanner.class, TsdbQuery.class, DeleteRequest.class, Annotation.class,
   RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class,
-  TsdbTestStore.class})
+  MemoryStore.class})
 public class TestTsdbQueryDownsample {
 
   private Config config;
   private TSDB tsdb = null;
-  private TsdbTestStore tsdb_store = mock(TsdbTestStore.class);
+  private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
   private TsdbQuery query = null;
-  private MockBase storage = null;
 
   @Before
   public void before() throws Exception {
     config = new Config(false);
-    tsdb = new TSDB(config);
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, config);
     query = new TsdbQuery(tsdb);
 
     // replace the "real" field objects with mocks
@@ -623,9 +623,6 @@ public class TestTsdbQueryDownsample {
 
   @SuppressWarnings("unchecked")
   private void setQueryStorage() throws Exception {
-    storage = new MockBase(tsdb, tsdb_store, true, true, true, true);
-    storage.setFamily("t".getBytes(MockBase.ASCII()));
-
     PowerMockito.mockStatic(IncomingDataPoints.class);
     PowerMockito.doAnswer(
         new Answer<byte[]>() {
