@@ -23,11 +23,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.TreeMap;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
@@ -119,7 +119,7 @@ public final class TestTreeBuilder {
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
     tsdb_store.addColumn(root.compileBranchId(),
-      "branch".getBytes(MockBase.ASCII()),
+      "branch".getBytes(Const.CHARSET_ASCII),
       (byte[]) toStorageJson.invoke(root));
   }
   
@@ -132,7 +132,7 @@ public final class TestTreeBuilder {
     final Branch branch = JSON.parseToObject(
         tsdb_store.getColumn(Branch.stringToId(
         "00010001A2460001CB54247F72020001BECD000181A800000030"), 
-        "branch".getBytes(MockBase.ASCII())), Branch.class);
+        "branch".getBytes(Const.CHARSET_ASCII)), Branch.class);
     assertNotNull(branch);
     assertEquals("0", branch.getDisplayName());
     final Leaf leaf = JSON.parseToObject(tsdb_store.getColumn(Branch.stringToId(
@@ -569,7 +569,7 @@ public final class TestTreeBuilder {
     assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
         tsdb_store.getColumn(Branch.stringToId("00010001A24637E140D5"),
-            "branch".getBytes(MockBase.ASCII())), Branch.class);
+            "branch".getBytes(Const.CHARSET_ASCII)), Branch.class);
     assertEquals("OV: web-01.lga.mysite.com", branch.getDisplayName());
   }
   
@@ -580,7 +580,7 @@ public final class TestTreeBuilder {
     assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
         tsdb_store.getColumn(Branch.stringToId("00010001A24696026FD8"),
-            "branch".getBytes(MockBase.ASCII())), Branch.class);
+            "branch".getBytes(Const.CHARSET_ASCII)), Branch.class);
     assertEquals("V: web", branch.getDisplayName());
   }
   
@@ -591,7 +591,7 @@ public final class TestTreeBuilder {
     assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
         tsdb_store.getColumn(Branch.stringToId("00010001A246E0A07086"),
-            "branch".getBytes(MockBase.ASCII())), Branch.class);
+            "branch".getBytes(Const.CHARSET_ASCII)), Branch.class);
     assertEquals("TSUID: " + tsuid, branch.getDisplayName());    
   }
   
@@ -602,7 +602,7 @@ public final class TestTreeBuilder {
     assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
         tsdb_store.getColumn(Branch.stringToId("00010001A2467BFCCB13"),
-            "branch".getBytes(MockBase.ASCII())), Branch.class);
+            "branch".getBytes(Const.CHARSET_ASCII)), Branch.class);
     assertEquals("TAGNAME: host", branch.getDisplayName());    
   }
   
@@ -614,7 +614,7 @@ public final class TestTreeBuilder {
     assertEquals(7, tsdb_store.numRows());
     final Branch branch = JSON.parseToObject(
         tsdb_store.getColumn(Branch.stringToId("00010001A246E4592083"),
-            "branch".getBytes(MockBase.ASCII())), Branch.class);
+            "branch".getBytes(Const.CHARSET_ASCII)), Branch.class);
     assertEquals("web-01.lga.mysite.com:web:host:0102030405", 
         branch.getDisplayName());    
   }
@@ -627,7 +627,7 @@ public final class TestTreeBuilder {
     final Branch branch = JSON.parseToObject(
         tsdb_store.getColumn(Branch.stringToId(
           "00010001A2460001CB54247F7202C3165573"), 
-              "branch".getBytes(MockBase.ASCII())), Branch.class);
+              "branch".getBytes(Const.CHARSET_ASCII)), Branch.class);
     assertEquals("Wrong: ", branch.getDisplayName());    
   }
   
@@ -639,7 +639,7 @@ public final class TestTreeBuilder {
     final Branch branch = JSON.parseToObject(
         tsdb_store.getColumn(Branch.stringToId(
           "00010001A2460001CB54247F72024E3D0BCC"), 
-            "branch".getBytes(MockBase.ASCII())), Branch.class);
+            "branch".getBytes(Const.CHARSET_ASCII)), Branch.class);
     assertEquals("OVERRIDE", branch.getDisplayName());    
   }
 }

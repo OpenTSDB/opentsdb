@@ -19,9 +19,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -48,7 +48,7 @@ import com.stumbleupon.async.DeferredGroupException;
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
   Scanner.class, MemoryStore.class})
 public final class TestLeaf {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
   private MemoryStore tsdb_store;
   
@@ -59,19 +59,19 @@ public final class TestLeaf {
     tsdb = new TSDB(tsdb_store, config);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.0".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagk".getBytes(MockBase.ASCII()),
-      "host".getBytes(MockBase.ASCII()));
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "host".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagv".getBytes(MockBase.ASCII()),
-      "web01".getBytes(MockBase.ASCII()));
-    
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "web01".getBytes(Const.CHARSET_ASCII));
+
     tsdb_store.addColumn(new byte[]{0, 1}, Tree.TREE_FAMILY(),
       new Leaf("0", "000001000001000001").columnQualifier(),
       ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
   }
   
   @Test
@@ -177,7 +177,7 @@ public final class TestLeaf {
         new Leaf("0", "000001000001000001").columnQualifier());
     when(column.value()).thenReturn(
         ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     final Leaf leaf = Leaf.parseFromStorage(tsdb, column, true).joinUninterruptibly();
     assertNotNull(leaf);
     assertEquals("0", leaf.getDisplayName());
@@ -194,7 +194,7 @@ public final class TestLeaf {
         new Leaf("0", "000002000001000001").columnQualifier());
     when(column.value()).thenReturn(
         ("{\"displayName\":\"0\",\"tsuid\":\"000002000001000001\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     try {
       Leaf.parseFromStorage(tsdb, column, true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
@@ -209,7 +209,7 @@ public final class TestLeaf {
         new Leaf("0", "000001000002000001").columnQualifier());
     when(column.value()).thenReturn(
         ("{\"displayName\":\"0\",\"tsuid\":\"000001000002000001\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     try {
       Leaf.parseFromStorage(tsdb, column, true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
@@ -224,7 +224,7 @@ public final class TestLeaf {
         new Leaf("0", "000001000001000002").columnQualifier());
     when(column.value()).thenReturn(
         ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000002\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     try {
       Leaf.parseFromStorage(tsdb, column, true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
@@ -234,6 +234,6 @@ public final class TestLeaf {
 
   @Test
   public void LEAF_PREFIX() throws Exception {
-    assertEquals("leaf:", new String(Leaf.LEAF_PREFIX(), MockBase.ASCII()));
+    assertEquals("leaf:", new String(Leaf.LEAF_PREFIX(), Const.CHARSET_ASCII));
   }
 }

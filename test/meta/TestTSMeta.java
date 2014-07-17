@@ -23,9 +23,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -57,7 +57,7 @@ import com.stumbleupon.async.DeferredGroupException;
   Scanner.class, UIDMeta.class, TSMeta.class, AtomicIncrementRequest.class,
   MemoryStore.class})
 public final class TestTSMeta {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
   private Config config;
   private MemoryStore tsdb_store;
@@ -75,54 +75,54 @@ public final class TestTSMeta {
 
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-    
+
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.0".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "metric_meta".getBytes(MockBase.ASCII()),
+      "metric_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"System CPU\"}")
-        .getBytes(MockBase.ASCII()));
-    
+        .getBytes(Const.CHARSET_ASCII));
+
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "tagk".getBytes(MockBase.ASCII()),
-      "host".getBytes(MockBase.ASCII()));
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "host".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "tagk_meta".getBytes(MockBase.ASCII()),
+      "tagk_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Host server name\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "tagv".getBytes(MockBase.ASCII()),
-      "web01".getBytes(MockBase.ASCII()));
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "web01".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "tagv_meta".getBytes(MockBase.ASCII()),
+      "tagv_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Web server 1\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
       NAME_FAMILY,
-      "ts_meta".getBytes(MockBase.ASCII()),
+      "ts_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"tsuid\":\"000001000001000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
       NAME_FAMILY,
-      "ts_ctr".getBytes(MockBase.ASCII()),
+      "ts_ctr".getBytes(Const.CHARSET_ASCII),
       Bytes.fromLong(1L));
   }
   
@@ -182,12 +182,12 @@ public final class TestTSMeta {
   public void getTSMetaNSUMetric() throws Throwable {
     tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 1, 0, 0, 1},
       NAME_FAMILY,
-      "ts_meta".getBytes(MockBase.ASCII()),
+      "ts_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"tsuid\":\"000002000001000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     try {
       TSMeta.getTSMeta(tsdb, "000002000001000001").joinUninterruptibly();
     } catch (DeferredGroupException e) {
@@ -199,12 +199,12 @@ public final class TestTSMeta {
   public void getTSMetaNSUTagk() throws Throwable {
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 2, 0, 0, 1},
       NAME_FAMILY,
-      "ts_meta".getBytes(MockBase.ASCII()),
+      "ts_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"tsuid\":\"000001000002000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     try {
       TSMeta.getTSMeta(tsdb, "000001000002000001").joinUninterruptibly();
     } catch (DeferredGroupException e) {
@@ -216,12 +216,12 @@ public final class TestTSMeta {
   public void getTSMetaNSUTagv() throws Throwable {
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2},
       NAME_FAMILY,
-      "ts_meta".getBytes(MockBase.ASCII()),
+      "ts_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"tsuid\":\"000001000001000002\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     try {
       TSMeta.getTSMeta(tsdb, "000001000001000002").joinUninterruptibly();
     } catch (DeferredGroupException e) {
@@ -351,13 +351,13 @@ public final class TestTSMeta {
   
   @Test
   public void META_QUALIFIER() throws Exception {
-    assertArrayEquals("ts_meta".getBytes(MockBase.ASCII()), 
+    assertArrayEquals("ts_meta".getBytes(Const.CHARSET_ASCII),
         TSMeta.META_QUALIFIER());
   }
   
   @Test
   public void COUNTER_QUALIFIER() throws Exception {
-    assertArrayEquals("ts_ctr".getBytes(MockBase.ASCII()), 
+    assertArrayEquals("ts_ctr".getBytes(Const.CHARSET_ASCII),
         TSMeta.COUNTER_QUALIFIER());
   }
 
@@ -368,7 +368,7 @@ public final class TestTSMeta {
     when(column.value()).thenReturn(tsdb_store.getColumn(
       new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
       NAME_FAMILY,
-      "ts_meta".getBytes(MockBase.ASCII())));
+      "ts_meta".getBytes(Const.CHARSET_ASCII)));
     final TSMeta meta = TSMeta.parseFromColumn(tsdb, column, false)
       .joinUninterruptibly();
     assertNotNull(meta);
@@ -383,7 +383,7 @@ public final class TestTSMeta {
     when(column.value()).thenReturn(tsdb_store.getColumn(
       new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
       NAME_FAMILY,
-      "ts_meta".getBytes(MockBase.ASCII())));
+      "ts_meta".getBytes(Const.CHARSET_ASCII)));
     final TSMeta meta = TSMeta.parseFromColumn(tsdb, column, true)
       .joinUninterruptibly();
     assertNotNull(meta);
@@ -411,7 +411,7 @@ public final class TestTSMeta {
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     TSMeta.parseFromColumn(tsdb, column, true).addErrback(new ErrBack())
       .joinUninterruptibly();
   }

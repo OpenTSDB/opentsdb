@@ -19,9 +19,9 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.List;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
@@ -67,12 +67,12 @@ public final class TestAnnotation {
       new byte[]{1, 0, 0},
       ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" +
         "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" +
-        "\"ops\"}}").getBytes(MockBase.ASCII()));
-    
+        "\"ops\"}}").getBytes(Const.CHARSET_ASCII));
+
     tsdb_store.addColumn(global_row_key,
       new byte[]{1, 0, 1},
       ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" +
-        "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(MockBase.ASCII()));
+        "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(Const.CHARSET_ASCII));
     
     // add a local
     tsdb_store.addColumn(tsuid_row_key,
@@ -80,14 +80,14 @@ public final class TestAnnotation {
       ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
         "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" +
         "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}")
-        .getBytes(MockBase.ASCII()));
-    
+        .getBytes(Const.CHARSET_ASCII));
+
     tsdb_store.addColumn(tsuid_row_key,
       new byte[]{1, 0x0A, 0x03},
       ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
         "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" +
         "\"Nothing\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     
     // add some data points too
     tsdb_store.addColumn(tsuid_row_key,

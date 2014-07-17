@@ -19,9 +19,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.regex.PatternSyntaxException;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
@@ -247,7 +247,7 @@ public final class TestTreeRule {
     assertEquals(2, tsdb_store.numColumns(new byte[] { 0, 1 }));
     final TreeRule stored = JSON.parseToObject(
         tsdb_store.getColumn(new byte[] { 0, 1 },
-        "tree_rule:2:1".getBytes(MockBase.ASCII())), TreeRule.class);
+        "tree_rule:2:1".getBytes(Const.CHARSET_ASCII)), TreeRule.class);
     assertEquals("Host owner", stored.getDescription());
     assertEquals("Just some notes", stored.getNotes());
   }
@@ -392,14 +392,14 @@ public final class TestTreeRule {
 
   @Test
   public void RULE_PREFIX() throws Exception {
-    assertEquals("tree_rule:", 
-        new String(TreeRule.RULE_PREFIX(), MockBase.ASCII()));
+    assertEquals("tree_rule:",
+        new String(TreeRule.RULE_PREFIX(), Const.CHARSET_ASCII));
   }
   
   @Test
   public void getQualifier() throws Exception {
-    assertEquals("tree_rule:1:2", 
-        new String(TreeRule.getQualifier(1, 2), MockBase.ASCII()));
+    assertEquals("tree_rule:1:2",
+        new String(TreeRule.getQualifier(1, 2), Const.CHARSET_ASCII));
   }
   
   /**
@@ -419,12 +419,12 @@ public final class TestTreeRule {
     stored_rule.setNotes("Owner of the host machine");
     
     // pretend there's a tree definition in the storage row
-    tsdb_store.addColumn(new byte[] { 0, 1 }, "tree".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(new byte[] { 0, 1 }, "tree".getBytes(Const.CHARSET_ASCII),
         new byte[] { 1 });
     
     // add a rule to the row
     tsdb_store.addColumn(new byte[]{0, 1},
-      "tree_rule:2:1".getBytes(MockBase.ASCII()),
+      "tree_rule:2:1".getBytes(Const.CHARSET_ASCII),
       JSON.serializeToBytes(stored_rule));
   }
 }

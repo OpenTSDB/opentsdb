@@ -20,9 +20,9 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -52,7 +52,7 @@ import com.stumbleupon.async.Deferred;
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
   Scanner.class, TSMeta.class, AtomicIncrementRequest.class, TsdbStore.class})
 public final class TestTSUIDQuery {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
   private Config config;
   private MemoryStore tsdb_store;
@@ -73,102 +73,102 @@ public final class TestTSUIDQuery {
 
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-    
+
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.user".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.user".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "metric_meta".getBytes(MockBase.ASCII()),
+      "metric_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.user\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"System CPU\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.nice".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.nice".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "metric_meta".getBytes(MockBase.ASCII()),
+      "metric_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.nice\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"System CPU\"}")
-        .getBytes(MockBase.ASCII()));
-    
+        .getBytes(Const.CHARSET_ASCII));
+
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagk".getBytes(MockBase.ASCII()),
-      "host".getBytes(MockBase.ASCII()));
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "host".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagk_meta".getBytes(MockBase.ASCII()),
+      "tagk_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Host server name\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagk".getBytes(MockBase.ASCII()),
-      "datacenter".getBytes(MockBase.ASCII()));
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "datacenter".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagk_meta".getBytes(MockBase.ASCII()),
+      "tagk_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Datecenter name\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagv".getBytes(MockBase.ASCII()),
-      "web01".getBytes(MockBase.ASCII()));
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "web01".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagv_meta".getBytes(MockBase.ASCII()),
+      "tagv_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Web server 1\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagv".getBytes(MockBase.ASCII()),
-      "web02".getBytes(MockBase.ASCII()));
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "web02".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagv_meta".getBytes(MockBase.ASCII()),
+      "tagv_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"web02\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Web server 2\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 3}, NAME_FAMILY,
-      "tagv".getBytes(MockBase.ASCII()),
-      "dc01".getBytes(MockBase.ASCII()));
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "dc01".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 3}, NAME_FAMILY,
-      "tagv_meta".getBytes(MockBase.ASCII()),
+      "tagv_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
         "1328140801,\"displayName\":\"Web server 2\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, NAME_FAMILY,
-      "ts_meta".getBytes(MockBase.ASCII()),
+      "ts_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"tsuid\":\"000001000001000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, NAME_FAMILY,
-      "ts_ctr".getBytes(MockBase.ASCII()),
+      "ts_ctr".getBytes(Const.CHARSET_ASCII),
       Bytes.fromLong(1L));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2}, NAME_FAMILY,
-      "ts_meta".getBytes(MockBase.ASCII()),
+      "ts_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"tsuid\":\"000001000001000002\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2}, NAME_FAMILY,
-      "ts_ctr".getBytes(MockBase.ASCII()),
+      "ts_ctr".getBytes(Const.CHARSET_ASCII),
       Bytes.fromLong(1L));
     tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 2, 0, 0, 3, 0, 0, 1, 0, 0, 1},
-      NAME_FAMILY, "ts_meta".getBytes(MockBase.ASCII()),
+      NAME_FAMILY, "ts_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"tsuid\":\"000002000002000003000001000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 2, 0, 0, 3, 0, 0, 1, 0, 0, 1},
-      NAME_FAMILY, "ts_ctr".getBytes(MockBase.ASCII()),
+      NAME_FAMILY, "ts_ctr".getBytes(Const.CHARSET_ASCII),
       Bytes.fromLong(1L));
     
     // replace the "real" field objects with mocks

@@ -18,9 +18,9 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -48,7 +48,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
   Scanner.class, UIDMeta.class, MemoryStore.class})
 public final class TestUIDMeta {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
   private MemoryStore tsdb_store;
   private UIDMeta meta = new UIDMeta();
@@ -61,20 +61,20 @@ public final class TestUIDMeta {
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.0".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[]{0, 0, 3},
       NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.2".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.2".getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "metric_meta".getBytes(MockBase.ASCII()),
+      "metric_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"System CPU\"}").getBytes(MockBase.ASCII()));
+        "1328140801,\"displayName\":\"System CPU\"}").getBytes(Const.CHARSET_ASCII));
   }
   
   @Test
@@ -250,7 +250,7 @@ public final class TestUIDMeta {
     meta.storeNew(tsdb).joinUninterruptibly();
     meta = JSON.parseToObject(tsdb_store.getColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
-        "metric_meta".getBytes(MockBase.ASCII())), UIDMeta.class);
+        "metric_meta".getBytes(Const.CHARSET_ASCII)), UIDMeta.class);
     assertEquals("System CPU", meta.getDisplayName());
   }
   

@@ -27,9 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -369,7 +369,7 @@ public final class TestTree {
     final Tree max_tree = new Tree(65535);
     max_tree.setName("max");
     tsdb_store.addColumn(new byte[]{(byte) 0xFF, (byte) 0xFF},
-      "tree".getBytes(MockBase.ASCII()), JSON.serializeToBytes(max_tree));
+      "tree".getBytes(Const.CHARSET_ASCII), JSON.serializeToBytes(max_tree));
     
     final Tree tree = new Tree();
     tree.createNewTree(tsdb).joinUninterruptibly();
@@ -726,20 +726,20 @@ public final class TestTree {
     
     byte[] key = new byte[] { 0, 1 };
     // set pre-test values
-    tsdb_store.addColumn(key, "tree".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(key, "tree".getBytes(Const.CHARSET_ASCII),
       (byte[]) TreetoStorageJson.invoke(buildTestTree()));
 
     TreeRule rule = new TreeRule(1);
     rule.setField("host");
     rule.setType(TreeRuleType.TAGK);
-    tsdb_store.addColumn(key, "tree_rule:0:0".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(key, "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
       JSON.serializeToBytes(rule));
 
     rule = new TreeRule(1);
     rule.setField("");
     rule.setLevel(1);
     rule.setType(TreeRuleType.METRIC);
-    tsdb_store.addColumn(key, "tree_rule:1:0".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(key, "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
       JSON.serializeToBytes(rule));
     
     Branch root = new Branch(1);
@@ -750,7 +750,7 @@ public final class TestTree {
     // TODO - static
     Method branch_json = Branch.class.getDeclaredMethod("toStorageJson");
     branch_json.setAccessible(true);
-    tsdb_store.addColumn(key, "branch".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(key, "branch".getBytes(Const.CHARSET_ASCII),
       (byte[]) branch_json.invoke(root));
     
     // tree 2
@@ -760,20 +760,20 @@ public final class TestTree {
     tree2.setTreeId(2);
     tree2.setName("2nd Tree");
     tree2.setDescription("Other Tree");
-    tsdb_store.addColumn(key, "tree".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(key, "tree".getBytes(Const.CHARSET_ASCII),
       (byte[]) TreetoStorageJson.invoke(tree2));
     
     rule = new TreeRule(2);
     rule.setField("host");
     rule.setType(TreeRuleType.TAGK);
-    tsdb_store.addColumn(key, "tree_rule:0:0".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(key, "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
       JSON.serializeToBytes(rule));
     
     rule = new TreeRule(2);
     rule.setField("");
     rule.setLevel(1);
     rule.setType(TreeRuleType.METRIC);
-    tsdb_store.addColumn(key, "tree_rule:1:0".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(key, "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
       JSON.serializeToBytes(rule));
     
     root = new Branch(2);
@@ -781,7 +781,7 @@ public final class TestTree {
     root_path = new TreeMap<Integer, String>();
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    tsdb_store.addColumn(key, "branch".getBytes(MockBase.ASCII()),
+    tsdb_store.addColumn(key, "branch".getBytes(Const.CHARSET_ASCII),
       (byte[]) branch_json.invoke(root));
     
     // sprinkle in some collisions and no matches for fun
@@ -795,7 +795,7 @@ public final class TestTree {
     byte[] tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length,
       tsuid_bytes.length);
-    tsdb_store.addColumn(key, qualifier, "AAAAAA".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(key, qualifier, "AAAAAA".getBytes(Const.CHARSET_ASCII));
     
     tsuid = "020202";
     qualifier = new byte[Tree.COLLISION_PREFIX().length + 
@@ -805,7 +805,7 @@ public final class TestTree {
     tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length,
       tsuid_bytes.length);
-    tsdb_store.addColumn(key, qualifier, "BBBBBB".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(key, qualifier, "BBBBBB".getBytes(Const.CHARSET_ASCII));
     
     // not matched
     key = new byte[] { 0, 1, 2 };
@@ -818,7 +818,7 @@ public final class TestTree {
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length,
       tsuid_bytes.length);
     tsdb_store.addColumn(key, qualifier, "Failed rule 0:0"
-      .getBytes(MockBase.ASCII()));
+      .getBytes(Const.CHARSET_ASCII));
     
     tsuid = "020202";
     qualifier = new byte[Tree.NOT_MATCHED_PREFIX().length + 
@@ -829,7 +829,7 @@ public final class TestTree {
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
     tsuid_bytes.length);
     tsdb_store.addColumn(key, qualifier, "Failed rule 1:1"
-      .getBytes(MockBase.ASCII()));
+      .getBytes(Const.CHARSET_ASCII));
     
   }
 }

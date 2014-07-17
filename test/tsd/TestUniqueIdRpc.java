@@ -20,11 +20,11 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
@@ -52,7 +52,7 @@ import com.stumbleupon.async.Deferred;
   RowLock.class, UniqueIdRpc.class, KeyValue.class,
   GetRequest.class, Scanner.class, UniqueId.class, MemoryStore.class})
 public final class TestUniqueIdRpc {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb = null;
   private MemoryStore tsdb_store;
   private UniqueId metrics = mock(UniqueId.class);
@@ -913,21 +913,21 @@ public final class TestUniqueIdRpc {
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.0".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[]{0, 0, 3},
       NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.2".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.2".getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "metric_meta".getBytes(MockBase.ASCII()),
+      "metric_meta".getBytes(Const.CHARSET_ASCII),
       ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"displayName\":\"System CPU\",\"description\":\"Description\"," +
         "\"notes\":\"MyNotes\",\"created\":1328140801,\"custom\":null}")
-        .getBytes(MockBase.ASCII()));
+        .getBytes(Const.CHARSET_ASCII));
   }
 
   /**
@@ -953,105 +953,105 @@ public final class TestUniqueIdRpc {
 
     tsdb_store.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
-        "metrics".getBytes(MockBase.ASCII()),
-        "sys.cpu.0".getBytes(MockBase.ASCII()));
+        "metrics".getBytes(Const.CHARSET_ASCII),
+        "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
-        "metric_meta".getBytes(MockBase.ASCII()), 
+        "metric_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"System CPU\"}").getBytes(MockBase.ASCII()));   
+        "1328140801,\"displayName\":\"System CPU\"}").getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "metrics".getBytes(MockBase.ASCII()),
-        "sys.cpu.2".getBytes(MockBase.ASCII()));
+        "metrics".getBytes(Const.CHARSET_ASCII),
+        "sys.cpu.2".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "metric_meta".getBytes(MockBase.ASCII()), 
+        "metric_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.2\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"System CPU\"}").getBytes(MockBase.ASCII()));
-    
-    tsdb_store.addColumn(new byte[] { 0, 0, 1 },
-        NAME_FAMILY,
-        "tagk".getBytes(MockBase.ASCII()),
-        "host".getBytes(MockBase.ASCII()));
-    tsdb_store.addColumn(new byte[] { 0, 0, 1 },
-        NAME_FAMILY,
-        "tagk_meta".getBytes(MockBase.ASCII()), 
-        ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"Host server name\"}").getBytes(MockBase.ASCII()));
-    tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "tagk".getBytes(MockBase.ASCII()),
-        "datacenter".getBytes(MockBase.ASCII()));
-    tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "tagk_meta".getBytes(MockBase.ASCII()), 
-        ("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"Host server name\"}").getBytes(MockBase.ASCII()));
+        "1328140801,\"displayName\":\"System CPU\"}").getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
-        "tagv".getBytes(MockBase.ASCII()),
-        "web01".getBytes(MockBase.ASCII()));
+        "tagk".getBytes(Const.CHARSET_ASCII),
+        "host".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
-        "tagv_meta".getBytes(MockBase.ASCII()), 
+        "tagk_meta".getBytes(Const.CHARSET_ASCII),
+        ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"Host server name\"}").getBytes(Const.CHARSET_ASCII));
+    tsdb_store.addColumn(new byte[] { 0, 0, 2 },
+        "tagk".getBytes(Const.CHARSET_ASCII),
+        "datacenter".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.addColumn(new byte[] { 0, 0, 2 },
+        "tagk_meta".getBytes(Const.CHARSET_ASCII),
+        ("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"Host server name\"}").getBytes(Const.CHARSET_ASCII));
+
+    tsdb_store.addColumn(new byte[] { 0, 0, 1 },
+        NAME_FAMILY,
+        "tagv".getBytes(Const.CHARSET_ASCII),
+        "web01".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.addColumn(new byte[] { 0, 0, 1 },
+        NAME_FAMILY,
+        "tagv_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
+        "1328140801,\"displayName\":\"Web server 1\"}").getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 3 },
-        "tagv".getBytes(MockBase.ASCII()),
-        "web02".getBytes(MockBase.ASCII()));
+        "tagv".getBytes(Const.CHARSET_ASCII),
+        "web02".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 3 },
-        "tagv_meta".getBytes(MockBase.ASCII()), 
+        "tagv_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"web02\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
+        "1328140801,\"displayName\":\"Web server 1\"}").getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "tagv".getBytes(MockBase.ASCII()),
-        "dc01".getBytes(MockBase.ASCII()));
+        "tagv".getBytes(Const.CHARSET_ASCII),
+        "dc01".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "tagv_meta".getBytes(MockBase.ASCII()), 
+        "tagv_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
+        "1328140801,\"displayName\":\"Web server 1\"}").getBytes(Const.CHARSET_ASCII));
 
     tsdb_store.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
         NAME_FAMILY,
-        "ts_meta".getBytes(MockBase.ASCII()),
+        "ts_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"tsuid\":\"000001000001000001\",\"displayName\":\"Display\"," +
             "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
             "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
             "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
-            .getBytes(MockBase.ASCII()));
+            .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
         NAME_FAMILY,
-        "ts_ctr".getBytes(MockBase.ASCII()),
+        "ts_ctr".getBytes(Const.CHARSET_ASCII),
         Bytes.fromLong(1L));
 
     tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
         NAME_FAMILY,
-        "ts_meta".getBytes(MockBase.ASCII()),
+        "ts_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"tsuid\":\"000002000001000001000002000002\",\"displayName\":\"Display\"," +
             "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
             "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
             "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
-            .getBytes(MockBase.ASCII()));
+            .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
         NAME_FAMILY,
-        "ts_ctr".getBytes(MockBase.ASCII()),
+        "ts_ctr".getBytes(Const.CHARSET_ASCII),
         Bytes.fromLong(1L));
     tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
         NAME_FAMILY,
-        "ts_meta".getBytes(MockBase.ASCII()),
+        "ts_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"tsuid\":\"000002000001000003000002000002\",\"displayName\":\"Display\"," +
             "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
             "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
             "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
-            .getBytes(MockBase.ASCII()));
+            .getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
         NAME_FAMILY,
-        "ts_ctr".getBytes(MockBase.ASCII()),
+        "ts_ctr".getBytes(Const.CHARSET_ASCII),
         Bytes.fromLong(1L));
 
     when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });

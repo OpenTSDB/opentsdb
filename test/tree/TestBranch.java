@@ -25,9 +25,9 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.TreeMap;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
@@ -51,7 +51,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
   PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class,
   TsdbStore.class})
 public final class TestBranch {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   MemoryStore tsdb_store;
   private TSDB tsdb;
   private Tree tree = TestTree.buildTestTree();
@@ -269,32 +269,32 @@ public final class TestBranch {
   @Test
   public void fetchBranch() throws Exception {
     setupStorage();
-    
+
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.0".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "tagk".getBytes(MockBase.ASCII()),
-      "host".getBytes(MockBase.ASCII()));
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "host".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "tagv".getBytes(MockBase.ASCII()),
-      "web01".getBytes(MockBase.ASCII()));
-    
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "web01".getBytes(Const.CHARSET_ASCII));
+
     tsdb_store.addColumn(new byte[]{0, 0, 2},
       NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.1".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.1".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2},
       NAME_FAMILY,
-      "tagk".getBytes(MockBase.ASCII()),
-      "owner".getBytes(MockBase.ASCII()));
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "owner".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 2},
       NAME_FAMILY,
-      "tagv".getBytes(MockBase.ASCII()),
-      "ops".getBytes(MockBase.ASCII()));
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "ops".getBytes(Const.CHARSET_ASCII));
     
     final Branch branch = Branch.fetchBranch(tsdb,
         Branch.stringToId("00010001BECD000181A8"), true).joinUninterruptibly();
@@ -309,19 +309,19 @@ public final class TestBranch {
   @Test
   public void fetchBranchNSU() throws Exception {
     setupStorage();
-    
+
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "metrics".getBytes(MockBase.ASCII()),
-      "sys.cpu.0".getBytes(MockBase.ASCII()));
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "tagk".getBytes(MockBase.ASCII()),
-      "host".getBytes(MockBase.ASCII()));
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "host".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
-      "tagv".getBytes(MockBase.ASCII()),
-      "web01".getBytes(MockBase.ASCII()));
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "web01".getBytes(Const.CHARSET_ASCII));
     
     final Branch branch = Branch.fetchBranch(tsdb,
         Branch.stringToId("00010001BECD000181A8"), true).joinUninterruptibly();
@@ -368,7 +368,7 @@ public final class TestBranch {
     assertEquals(3, tsdb_store.numRows());
     assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
     final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-        new byte[] { 0, 1 }, "branch".getBytes(MockBase.ASCII())), 
+        new byte[] { 0, 1 }, "branch".getBytes(Const.CHARSET_ASCII)),
         Branch.class);
     parsed.setTreeId(1);
     assertEquals("ROOT", parsed.getDisplayName());
@@ -411,7 +411,7 @@ public final class TestBranch {
     assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
     assertNull(tree.getCollisions());
     final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-        new byte[] { 0, 1 }, "branch".getBytes(MockBase.ASCII())), 
+        new byte[] { 0, 1 }, "branch".getBytes(Const.CHARSET_ASCII)),
         Branch.class);
     parsed.setTreeId(1);
     assertEquals("ROOT", parsed.getDisplayName());
@@ -431,7 +431,7 @@ public final class TestBranch {
     assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
     assertEquals(1, tree.getCollisions().size());
     final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-        new byte[] { 0, 1 }, "branch".getBytes(MockBase.ASCII())), 
+        new byte[] { 0, 1 }, "branch".getBytes(Const.CHARSET_ASCII)),
         Branch.class);
     parsed.setTreeId(1);
     assertEquals("ROOT", parsed.getDisplayName());
@@ -496,7 +496,7 @@ public final class TestBranch {
   
   @Test
   public void BRANCH_QUALIFIER() throws Exception {
-    assertArrayEquals("branch".getBytes(MockBase.ASCII()), 
+    assertArrayEquals("branch".getBytes(Const.CHARSET_ASCII),
         Branch.BRANCH_QUALIFIER());
   }
   
@@ -578,7 +578,7 @@ public final class TestBranch {
     branch.prependParentPath(path);
     branch.setDisplayName("cpu");
     this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      "branch".getBytes(MockBase.ASCII()),
+      "branch".getBytes(Const.CHARSET_ASCII),
       (byte[]) toStorageJson.invoke(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
@@ -597,7 +597,7 @@ public final class TestBranch {
     branch.prependParentPath(path);
     branch.setDisplayName("mboard");
     this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      "branch".getBytes(MockBase.ASCII()),
+      "branch".getBytes(Const.CHARSET_ASCII),
       (byte[]) toStorageJson.invoke(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");

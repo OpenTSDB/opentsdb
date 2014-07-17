@@ -16,6 +16,7 @@ import java.nio.charset.Charset;
 
 import javax.xml.bind.DatatypeConverter;
 
+import com.google.common.base.Charsets;
 import org.junit.Ignore;
 
 /**
@@ -49,8 +50,6 @@ import org.junit.Ignore;
  */
 @Ignore
 public final class MockBase {
-  private static final Charset ASCII = Charset.forName("ISO-8859-1");
-
   /**
    * Helper to convert a hex encoded string into a byte array.
    * <b>Warning:</b> This method won't pad the string to make sure it's an
@@ -63,12 +62,7 @@ public final class MockBase {
   public static byte[] stringToBytes(final String bytes) {
     return DatatypeConverter.parseHexBinary(bytes);
   }
-  
-  /** @return Returns the ASCII character set */
-  public static Charset ASCII() {
-    return ASCII;
-  }
-  
+
   /**
    * Concatenates byte arrays into one big array
    * @param arrays Any number of arrays to concatenate
