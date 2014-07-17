@@ -283,7 +283,7 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> flush() {
-    throw new UnsupportedOperationException("Not implemented yet");
+    return Deferred.fromResult(null);
   }
 
   /**
