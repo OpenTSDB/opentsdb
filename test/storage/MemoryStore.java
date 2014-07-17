@@ -1,3 +1,15 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2014  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
@@ -21,6 +33,26 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+/**
+ * TsdbStore implementation useful in testing calls to and from
+ * storage with actual pretend data. The underlying data store is an
+ * incredibly ugly nesting of ByteMaps from AsyncHbase so it stores and
+ * orders byte arrays similar to HBase. A MemoryStore instance represents a
+ * SINGLE table in HBase but it provides support for column families and
+ * timestamped entries.
+ * <p>
+ * It's not a perfect implementation but is useful for the majority of unit
+ * tests. Gets, puts, cas, deletes and scans are currently supported. See
+ * notes for each method below about what does and doesn't work.
+ * <p>
+ * Regarding timestamps, whenever you execute an RPC request, the
+ * {@code current_timestamp} will be incremented by one millisecond. By default
+ * the timestamp starts at 1/1/2014 00:00:00 but you can set it to any value
+ * at any time. If a PutRequest comes in with a specific time, that time will
+ * be stored and the timestamp will not be incremented.
+ * <p>
+ * @since 2.0
+ */
 public class MemoryStore implements TsdbStore {
   private static final Charset ASCII = Charsets.ISO_8859_1;
 
