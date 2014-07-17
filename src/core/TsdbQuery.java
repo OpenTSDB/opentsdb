@@ -35,7 +35,6 @@ import com.stumbleupon.async.Deferred;
 
 import static org.hbase.async.Bytes.ByteMap;
 import net.opentsdb.stats.Histogram;
-import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 
@@ -145,7 +144,7 @@ final class TsdbQuery implements Query {
   }
 
   /**
-   * @returns the start time for the query
+   * @return the start time for the query
    * @throws IllegalStateException if the start time hasn't been set yet
    */
   public long getStartTime() {
@@ -769,55 +768,42 @@ final class TsdbQuery implements Query {
        .append(getStartTime())
        .append(", end_time=")
        .append(getEndTime());
-   if (tsuids != null && !tsuids.isEmpty()) {
-     buf.append(", tsuids=");
-     for (final String tsuid : tsuids) {
-       buf.append(tsuid).append(",");
-     }
-   } else {
+    if (tsuids != null && !tsuids.isEmpty()) {
+      buf.append(", tsuids=");
+      for (final String tsuid : tsuids) {
+        buf.append(tsuid).append(",");
+      }
+    } else {
       buf.append(", metric=").append(Arrays.toString(metric));
-      try {
-        buf.append(" (").append(tsdb.metrics.getName(metric));
-      } catch (NoSuchUniqueId e) {
-        buf.append(" (<").append(e.getMessage()).append('>');
-      }
-      try {
-        buf.append("), tags=").append(Tags.resolveIds(tsdb, tags));
-      } catch (NoSuchUniqueId e) {
-        buf.append("), tags=<").append(e.getMessage()).append('>');
-      }
-    }
-    buf.append(", rate=").append(rate)
-       .append(", aggregator=").append(aggregator)
-       .append(", group_bys=(");
-    if (group_bys != null) {
-      for (final byte[] tag_id : group_bys) {
-        try {
-          buf.append(tsdb.tag_names.getName(tag_id));
-        } catch (NoSuchUniqueId e) {
-          buf.append('<').append(e.getMessage()).append('>');
+      buf.append(", tags=[");
+      for (final Iterator<byte[]> it = tags.iterator(); it.hasNext(); ) {
+        buf.append(Arrays.toString(it.next()));
+        if (it.hasNext()) {
+          buf.append(',');
         }
-        buf.append(' ')
-           .append(Arrays.toString(tag_id));
-        if (group_by_values != null) {
-          final byte[][] value_ids = group_by_values.get(tag_id);
-          if (value_ids == null) {
-            continue;
-          }
-          buf.append("={");
-          for (final byte[] value_id : value_ids) {
-            try {
-              buf.append(tsdb.tag_values.getName(value_id));
-            } catch (NoSuchUniqueId e) {
-              buf.append('<').append(e.getMessage()).append('>');
+      }
+      buf.append("], rate=").append(rate)
+        .append(", aggregator=").append(aggregator)
+        .append(", group_bys=(");
+      if (group_bys != null) {
+        for (final byte[] tag_id : group_bys) {
+          buf.append(Arrays.toString(tag_id));
+          if (group_by_values != null) {
+            final byte[][] value_ids = group_by_values.get(tag_id);
+            if (value_ids == null) {
+              continue;
             }
-            buf.append(' ')
-               .append(Arrays.toString(value_id))
-               .append(", ");
+            buf.append("={");
+            for (int i = 0; i < value_ids.length; i++) {
+              buf.append(Arrays.toString(value_ids[i]));
+              if (i < value_ids.length - 1) {
+                buf.append(',');
+              }
+            }
+            buf.append('}');
           }
-          buf.append('}');
+          buf.append(", ");
         }
-        buf.append(", ");
       }
     }
     buf.append("))");
