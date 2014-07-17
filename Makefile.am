@@ -170,6 +170,7 @@ test_SRC := \
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
 	test/stats/TestHistogram.java	\
+	test/storage/MemoryStore.java \
 	test/storage/MockBase.java	\
 	test/tools/TestDumpSeries.java	\
 	test/tools/TestFsck.java	\
@@ -180,7 +181,6 @@ test_SRC := \
 	test/tree/TestTree.java	\
 	test/tree/TestTreeBuilder.java	\
 	test/tree/TestTreeRule.java	\
-	test/TsdbTestStore.java \
 	test/tsd/NettyMocks.java	\
 	test/tsd/TestAnnotationRpc.java	\
 	test/tsd/TestGraphHandler.java	\
