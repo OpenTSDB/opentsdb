@@ -34,6 +34,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -85,7 +86,7 @@ public class TestTextImporter {
   static {
     try {
       importFile = TextImporter.class.getDeclaredMethod("importFile", 
-          HBaseClient.class, TSDB.class, String.class);
+          TsdbStore.class, TSDB.class, String.class);
       importFile.setAccessible(true);
     } catch (Exception e) {
       throw new RuntimeException("Failed in static initializer", e);

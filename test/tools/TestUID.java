@@ -21,6 +21,7 @@ import java.lang.reflect.Method;
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
@@ -62,7 +63,7 @@ public class TestUID {
   private final static Method fsck;
   static {
     try {
-      fsck = UidManager.class.getDeclaredMethod("fsck", HBaseClient.class, 
+      fsck = UidManager.class.getDeclaredMethod("fsck", TsdbStore.class,
           byte[].class, boolean.class, boolean.class);
       fsck.setAccessible(true);
     } catch (Exception e) {
