@@ -1,7 +1,9 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.StringCoder;
 import org.hbase.async.*;
 import org.hbase.async.Scanner;
 import org.mockito.invocation.InvocationOnMock;
@@ -27,6 +29,11 @@ public class MemoryStore implements TsdbStore {
     storage = new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>();
   private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
   private byte[] default_family = "t".getBytes(ASCII);
+
+  /** The single column family used by this class. */
+  private static final byte[] ID_FAMILY = StringCoder.toBytes("id");
+  /** The single column family used by this class. */
+  private static final byte[] NAME_FAMILY = StringCoder.toBytes("name");
 
   /** Incremented every time a new value is stored (without a timestamp) */
   private long current_timestamp = 1388534400000L;
@@ -367,12 +374,43 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<byte[]> getId(String name, byte[] table, byte[] kind) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    final GetRequest get = new GetRequest(table, StringCoder.toBytes(name));
+    get.family(ID_FAMILY).qualifier(kind);
+
+    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
+      public byte[] call(final ArrayList<KeyValue> row) {
+        if (row == null || row.isEmpty()) {
+          return null;
+        }
+        return row.get(0).value();
+      }
+    }
+
+    return get(get).addCallback(new GetCB());
   }
 
   @Override
   public Deferred<String> getName(byte[] id, byte[] table, byte[] kind) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    class NameFromHBaseCB implements Callback<String, byte[]> {
+      public String call(final byte[] name) {
+        return name == null ? null : StringCoder.fromBytes(name);
+      }
+    }
+
+    final GetRequest request = new GetRequest(table, id);
+    request.family(NAME_FAMILY).qualifier(kind);
+
+    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
+      public byte[] call(final ArrayList<KeyValue> row) {
+        if (row == null || row.isEmpty()) {
+          return null;
+        }
+        return row.get(0).value();
+      }
+    }
+
+    return get(request).addCallback(new GetCB()).addCallback(new
+      NameFromHBaseCB());
   }
 
   /**
