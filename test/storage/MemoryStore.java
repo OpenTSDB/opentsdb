@@ -347,7 +347,7 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public long getFlushInterval() {
-    throw new UnsupportedOperationException("Not implemented yet");
+    return 0;
   }
 
   @Override
