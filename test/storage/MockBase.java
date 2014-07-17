@@ -12,42 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
-import java.nio.charset.Charset;
-
 import javax.xml.bind.DatatypeConverter;
 
-import com.google.common.base.Charsets;
 import org.junit.Ignore;
 
-/**
- * Mock HBase implementation useful in testing calls to and from storage with
- * actual pretend data. The underlying data store is an incredibly ugly nesting
- * of ByteMaps from AsyncHbase so it stores and orders byte arrays similar to 
- * HBase. A MockBase instance represents a SINGLE table in HBase but it provides
- * support for column families and timestamped entries.
- * <p>
- * It's not a perfect mock but is useful for the majority of unit tests. Gets,
- * puts, cas, deletes and scans are currently supported. See notes for each
- * inner class below about what does and doesn't work.
- * <p>
- * Regarding timestamps, whenever you execute an RPC request, the 
- * {@code current_timestamp} will be incremented by one millisecond. By default
- * the timestamp starts at 1/1/2014 00:00:00 but you can set it to any value
- * at any time. If a PutRequest comes in with a specific time, that time will 
- * be stored and the timestamp will not be incremented.
- * <p>
- * <b>Warning:</b> To use this class, you need to prepare the classes for testing
- * with the @PrepareForTest annotation. The classes you need to prepare are:
- * <ul><li>TSDB</li>
- * <li>HBaseStore</li>
- * <li>GetRequest</li>
- * <li>PutRequest</li>
- * <li>KeyValue</li>
- * <li>Scanner</li>
- * <li>DeleteRequest</li>
- * <li>AtomicIncrementRequest</li></ul>
- * @since 2.0
- */
 @Ignore
 public final class MockBase {
   /**
