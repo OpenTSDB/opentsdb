@@ -28,6 +28,7 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -74,7 +75,7 @@ public class TestDumpSeries {
   static {
     try {
       doDump = DumpSeries.class.getDeclaredMethod("doDump", TSDB.class, 
-          HBaseClient.class, byte[].class, boolean.class, boolean.class,
+          TsdbStore.class, byte[].class, boolean.class, boolean.class,
           String[].class);
       doDump.setAccessible(true);
     } catch (Exception e) {
