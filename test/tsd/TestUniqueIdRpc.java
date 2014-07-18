@@ -36,6 +36,7 @@ import org.hbase.async.RowLock;
 import org.hbase.async.Scanner;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -682,7 +683,7 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
   
-  @Test
+  @Test @Ignore
   public void tsuidGetByM() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
