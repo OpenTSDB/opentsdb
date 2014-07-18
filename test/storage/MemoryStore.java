@@ -20,8 +20,11 @@ import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.UniqueId;
 import org.hbase.async.*;
 import org.hbase.async.Scanner;
+import org.mockito.Matchers;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
 
 import javax.xml.bind.DatatypeConverter;
 import java.nio.charset.Charset;
@@ -336,11 +339,11 @@ public class MemoryStore implements TsdbStore {
 
         // TODO - if we want to support multiple values, iterate over the
         // tree map. Otherwise Get returns just the latest value.
-        KeyValue kv = mock(KeyValue.class);
-        when(kv.timestamp()).thenReturn(column.getValue().firstKey());
-        when(kv.value()).thenReturn(column.getValue().firstEntry().getValue());
-        when(kv.qualifier()).thenReturn(column.getKey());
-        when(kv.key()).thenReturn(get.key());
+        KeyValue kv = PowerMockito.mock(KeyValue.class);
+        Mockito.when(kv.timestamp()).thenReturn(column.getValue().firstKey());
+        Mockito.when(kv.value()).thenReturn(column.getValue().firstEntry().getValue());
+        Mockito.when(kv.qualifier()).thenReturn(column.getKey());
+        Mockito.when(kv.key()).thenReturn(get.key());
         kvs.add(kv);
       }
     }
@@ -354,7 +357,7 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Scanner newScanner(byte[] table) {
-    final Scanner scanner = mock(Scanner.class);
+    final Scanner scanner = PowerMockito.mock(Scanner.class);
     scanners.add(new MockScanner(scanner));
     return scanner;
   }
@@ -815,75 +818,75 @@ public class MemoryStore implements TsdbStore {
     public MockScanner(final Scanner mock_scanner) {
 
       // capture the scanner fields when set
-      doAnswer(new Answer<Object>() {
+      Mockito.doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
-          regex = (String)args[0];
+          regex = (String) args[0];
           return null;
         }
-      }).when(mock_scanner).setKeyRegexp(anyString());
+      }).when(mock_scanner).setKeyRegexp(Matchers.anyString());
 
-      doAnswer(new Answer<Object>() {
+      Mockito.doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
-          regex = (String)args[0];
+          regex = (String) args[0];
           return null;
         }
-      }).when(mock_scanner).setKeyRegexp(anyString(), (Charset)any());
+      }).when(mock_scanner).setKeyRegexp(Matchers.anyString(), (Charset) Matchers.any());
 
-      doAnswer(new Answer<Object>() {
+      Mockito.doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
-          start = (byte[])args[0];
+          start = (byte[]) args[0];
           return null;
         }
-      }).when(mock_scanner).setStartKey((byte[])any());
+      }).when(mock_scanner).setStartKey((byte[]) Matchers.any());
 
-      doAnswer(new Answer<Object>() {
+      Mockito.doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
-          stop = (byte[])args[0];
+          stop = (byte[]) args[0];
           return null;
         }
-      }).when(mock_scanner).setStopKey((byte[])any());
+      }).when(mock_scanner).setStopKey((byte[]) Matchers.any());
 
-      doAnswer(new Answer<Object>() {
+      Mockito.doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
-          family = (byte[])args[0];
+          family = (byte[]) args[0];
           return null;
         }
-      }).when(mock_scanner).setFamily((byte[])any());
+      }).when(mock_scanner).setFamily((byte[]) Matchers.any());
 
-      doAnswer(new Answer<Object>() {
+      Mockito.doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
           scnr_qualifiers = new HashSet<String>(1);
-          scnr_qualifiers.add(bytesToString((byte[])args[0]));
+          scnr_qualifiers.add(bytesToString((byte[]) args[0]));
           return null;
         }
-      }).when(mock_scanner).setQualifier((byte[])any());
+      }).when(mock_scanner).setQualifier((byte[]) Matchers.any());
 
-      doAnswer(new Answer<Object>() {
+      Mockito.doAnswer(new Answer<Object>() {
         @Override
         public Object answer(InvocationOnMock invocation) throws Throwable {
           final Object[] args = invocation.getArguments();
-          final byte[][] qualifiers = (byte[][])args[0];
+          final byte[][] qualifiers = (byte[][]) args[0];
           scnr_qualifiers = new HashSet<String>(qualifiers.length);
           for (byte[] qualifier : qualifiers) {
             scnr_qualifiers.add(bytesToString(qualifier));
           }
           return null;
         }
-      }).when(mock_scanner).setQualifiers((byte[][])any());
+      }).when(mock_scanner).setQualifiers((byte[][]) Matchers.any());
 
-      when(mock_scanner.nextRows()).thenAnswer(this);
+      Mockito.when(mock_scanner.nextRows()).thenAnswer(this);
 
     }
 
@@ -950,13 +953,13 @@ public class MemoryStore implements TsdbStore {
               continue;
             }
 
-            KeyValue kv = mock(KeyValue.class);
-            when(kv.key()).thenReturn(row.getKey());
-            when(kv.value()).thenReturn(column.getValue().firstEntry().getValue());
-            when(kv.qualifier()).thenReturn(column.getKey());
-            when(kv.timestamp()).thenReturn(column.getValue().firstKey());
-            when(kv.family()).thenReturn(cf.getKey());
-            when(kv.toString()).thenReturn("[k '" + bytesToString(row.getKey()) +
+            KeyValue kv = PowerMockito.mock(KeyValue.class);
+            Mockito.when(kv.key()).thenReturn(row.getKey());
+            Mockito.when(kv.value()).thenReturn(column.getValue().firstEntry().getValue());
+            Mockito.when(kv.qualifier()).thenReturn(column.getKey());
+            Mockito.when(kv.timestamp()).thenReturn(column.getValue().firstKey());
+            Mockito.when(kv.family()).thenReturn(cf.getKey());
+            Mockito.when(kv.toString()).thenReturn("[k '" + bytesToString(row.getKey()) +
               "' q '" + bytesToString(column.getKey()) + "' v '" +
               bytesToString(column.getValue().firstEntry().getValue()) + "']");
             kvs.add(kv);
