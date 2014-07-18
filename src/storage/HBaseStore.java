@@ -13,6 +13,7 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -20,13 +21,7 @@ import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
-import org.hbase.async.AtomicIncrementRequest;
-import org.hbase.async.PutRequest;
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
-import org.hbase.async.ClientStats;
+import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,11 +60,9 @@ public final class HBaseStore implements TsdbStore {
   private final byte[] tree_table_name;
   private final byte[] meta_table_name;
 
-  public HBaseStore(final Config config) {
+  public HBaseStore(final HBaseClient client, final Config config) {
     super();
-    this.client = new org.hbase.async.HBaseClient(
-      config.getString("tsd.storage.hbase.zk_quorum"),
-      config.getString("tsd.storage.hbase.zk_basedir"));
+    this.client = client;
 
     data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);

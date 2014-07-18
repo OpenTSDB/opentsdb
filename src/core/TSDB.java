@@ -26,16 +26,10 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.JSON;
+import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.hbase.async.Bytes;
 import org.hbase.async.Bytes.ByteMap;
-import org.hbase.async.ClientStats;
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseException;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
@@ -154,7 +148,10 @@ public final class TSDB {
    * @since 2.0
    */
   public TSDB(final Config config) {
-    this(new HBaseStore(config),
+    this(new HBaseStore(
+      new HBaseClient(
+        config.getString("tsd.storage.hbase.zk_quorum"),
+        config.getString("tsd.storage.hbase.zk_basedir")), config),
          config);
   }
   
