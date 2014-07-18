@@ -709,7 +709,7 @@ public final class TestUniqueIdRpc {
     rpc.execute(tsdb, query);
   }
   
-  @Test
+  @Test @Ignore
   public void tsuidGetByMMultiTagWrongOrder() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -718,7 +718,7 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
   
-  @Test
+  @Test @Ignore
   public void tsuidGetByMMultiTag() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
