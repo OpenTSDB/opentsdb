@@ -18,6 +18,8 @@ import org.junit.Ignore;
 
 @Ignore
 public final class MockBase {
+  public static final int DEFAULT_TIMEOUT = 20000;
+
   /**
    * Helper to convert a hex encoded string into a byte array.
    * <b>Warning:</b> This method won't pad the string to make sure it's an

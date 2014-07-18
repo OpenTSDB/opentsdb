@@ -23,6 +23,7 @@ import java.util.List;
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -36,7 +37,6 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -280,43 +280,43 @@ public final class TestTSUIDQuery {
   @Test (expected = IllegalArgumentException.class)
   public void getLastWriteTimesQueryNotSet() throws Exception {
     query = new TSUIDQuery(tsdb);
-    query.getLastWriteTimes().joinUninterruptibly();
+    query.getLastWriteTimes().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
-  @Test @Ignore
+  @Test
   public void getTSMetasSingle() throws Exception {
     query = new TSUIDQuery(tsdb);
     HashMap<String, String> tags = new HashMap<String, String>();
     tags.put("host", "web01");
     query.setQuery("sys.cpu.user", tags);
-    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, tsmetas.size());
   }
   
-  @Test @Ignore
+  @Test
   public void getTSMetasMulti() throws Exception {
     query = new TSUIDQuery(tsdb);
     HashMap<String, String> tags = new HashMap<String, String>();
     query.setQuery("sys.cpu.user", tags);
-    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(2, tsmetas.size());
   }
   
-  @Test @Ignore
+  @Test
   public void getTSMetasMultipleTags() throws Exception {
     query = new TSUIDQuery(tsdb);
     HashMap<String, String> tags = new HashMap<String, String>();
     query.setQuery("sys.cpu.nice", tags);
     tags.put("host", "web01");
     tags.put("datacenter", "dc01");
-    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly();
+    List<TSMeta> tsmetas = query.getTSMetas().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, tsmetas.size());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getTSMetasNullMetric() throws Exception {
     query = new TSUIDQuery(tsdb);
-    query.getTSMetas().joinUninterruptibly();
+    query.getTSMetas().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
 }
