@@ -16,7 +16,10 @@ import com.google.common.base.Charsets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
+import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.JSON;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.PutRequest;
 import org.hbase.async.DeleteRequest;
@@ -24,6 +27,8 @@ import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.hbase.async.ClientStats;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -32,13 +37,26 @@ import java.util.ArrayList;
  * The HBaseStore that implements the client interface required by TSDB.
  */
 public final class HBaseStore implements TsdbStore {
-  /** Charset used to convert Strings to byte arrays and back. */
+  private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
+
+  /**
+   * Charset used to convert Strings to byte arrays and back.
+   */
   private static final Charset CHARSET = Charsets.ISO_8859_1;
 
-  /** The single column family used by this class. */
+  /**
+   * The single column family used by this class.
+   */
   private static final byte[] ID_FAMILY = StringCoder.toBytes("id");
-  /** The single column family used by this class. */
+  /**
+   * The single column family used by this class.
+   */
   private static final byte[] NAME_FAMILY = StringCoder.toBytes("name");
+
+  /**
+   * The single column family used by this class.
+   */
+  private static final byte[] UID_FAMILY = StringCoder.toBytes("name");
 
   final org.hbase.async.HBaseClient client;
 
@@ -50,8 +68,8 @@ public final class HBaseStore implements TsdbStore {
   public HBaseStore(final Config config) {
     super();
     this.client = new org.hbase.async.HBaseClient(
-            config.getString("tsd.storage.hbase.zk_quorum"),
-            config.getString("tsd.storage.hbase.zk_basedir"));
+      config.getString("tsd.storage.hbase.zk_quorum"),
+      config.getString("tsd.storage.hbase.zk_basedir"));
 
     data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
@@ -145,7 +163,7 @@ public final class HBaseStore implements TsdbStore {
     }
 
     return client.get(request).addCallback(new GetCB()).addCallback(new
-            NameFromHBaseCB());
+      NameFromHBaseCB());
   }
 
   @Override
@@ -163,5 +181,167 @@ public final class HBaseStore implements TsdbStore {
     }
 
     return client.get(get).addCallback(new GetCB());
+  }
+
+
+  /**
+   * Attempts to store a blank, new UID meta object in the proper location.
+   * <b>Warning:</b> This should not be called by user accessible methods as it
+   * will overwrite any data already in the column. This method does not use
+   * a CAS, instead it uses a PUT to overwrite anything in the column.
+   *
+   * @param meta The meta object to store
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws org.hbase.async.HBaseException   if there was an issue writing to storage
+   * @throws IllegalArgumentException         if data was missing
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   */
+  @Override
+  public Deferred<Object> add(final UIDMeta meta) {
+    final PutRequest put = new PutRequest(uid_table_name,
+      UniqueId.stringToUid(meta.getUID()), UID_FAMILY,
+      (meta.getType().toString().toLowerCase() + "_meta").getBytes(CHARSET),
+      meta.getStorageJSON());
+
+    return client.put(put);
+  }
+
+  /**
+   * Attempts to delete the meta object from storage
+   *
+   * @param meta The meta object to delete
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws org.hbase.async.HBaseException if there was an issue
+   * @throws IllegalArgumentException       if data was missing (uid and type)
+   */
+  @Override
+  public Deferred<Object> delete(final UIDMeta meta) {
+    final DeleteRequest delete = new DeleteRequest(uid_table_name,
+      UniqueId.stringToUid(meta.getUID()), UID_FAMILY,
+      (meta.getType().toString().toLowerCase() + "_meta").getBytes(CHARSET));
+    return client.delete(delete);
+  }
+
+  @Override
+  public Deferred<Boolean> updateMeta(final UIDMeta meta, final boolean overwrite) {
+
+    return getMeta(meta.getUID().getBytes(CHARSET),
+      meta.getType()).addCallbackDeferring(
+
+      /**
+       *  Nested callback used to merge and store the meta data after verifying
+       *  that the UID mapping exists. It has to access the {@code local_meta}
+       *  object so that's why it's nested within the NameCB class
+       */
+      new Callback<Deferred<Boolean>, KeyValue>() {
+        /**
+         * Executes the CompareAndSet after merging changes
+         * @return True if the CAS was successful, false if the stored data
+         * was modified during flight.
+         */
+
+      @Override
+      public Deferred<Boolean> call(KeyValue cell) throws Exception {
+        final UIDMeta stored_meta;
+        if (null == cell) {
+          stored_meta = null;
+        } else {
+          stored_meta = JSON.parseToObject(cell.value(), UIDMeta.class);
+          stored_meta.initializeChangedMap();
+        }
+
+        final byte[] original_meta = cell == null ?
+          new byte[0] : cell.value();
+
+        if (stored_meta != null) {
+          meta.syncMeta(stored_meta, overwrite);
+        }
+
+        final PutRequest put = new PutRequest(uid_table_name,
+          UniqueId.stringToUid(meta.getUID()), UID_FAMILY,
+          (meta.getType().toString().toLowerCase() + "_meta").getBytes
+            (CHARSET),
+          meta.getStorageJSON());
+        return client.compareAndSet(put, original_meta);
+      }
+    });
+  }
+
+
+  private Deferred<KeyValue> getMeta(byte[] uid, final UniqueId.UniqueIdType
+    type) {
+    /**
+     * Inner class called to retrieve the meta data after verifying that the
+     * name mapping exists. It requires the name to set the default, hence
+     * the reason it's nested.
+     */
+    class FetchMetaCB implements Callback<KeyValue, ArrayList<KeyValue>> {
+
+      /**
+       * Called to parse the response of our storage GET call after
+       * verification
+       * @return The stored UIDMeta or a default object if the meta data
+       * did not exist
+       */
+      @Override
+      public KeyValue call(ArrayList<KeyValue> row)
+        throws Exception {
+
+        if (row == null || row.isEmpty()) {
+          return null;
+        } else {
+          return row.get(0);
+        }
+      }
+    }
+
+    final GetRequest request = new GetRequest(uid_table_name, uid);
+    request.family(UID_FAMILY);
+    request.qualifier((type.toString().toLowerCase() + "_meta").getBytes(CHARSET));
+    return client.get(request).addCallback(new FetchMetaCB());
+  }
+
+  @Override
+  public Deferred<UIDMeta> getMeta(final byte[] uid, final String name,
+                                   final UniqueId.UniqueIdType type) {
+    /**
+     * Inner class called to retrieve the meta data after verifying that the
+     * name mapping exists. It requires the name to set the default, hence
+     * the reason it's nested.
+     */
+    class FetchMetaCB implements Callback<UIDMeta, KeyValue> {
+      /**
+       * Called to parse the response of our storage GET call after
+       * verification
+       * @return The stored UIDMeta or a default object if the meta data
+       * did not exist
+       */
+      @Override
+      public UIDMeta call(KeyValue cell)
+        throws Exception {
+        if (cell == null) {
+          // return the default
+          return new UIDMeta(type,
+            uid, name, false);
+        }
+
+        UniqueId.UniqueIdType effective_type = type;
+        if (effective_type == null) {
+          final String qualifier =
+            new String(cell.qualifier(), CHARSET);
+          effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
+            qualifier.indexOf("_meta")));
+        }
+
+        UIDMeta return_meta = UIDMeta.buildFromJSON(cell.value(),
+          effective_type, uid, name);
+
+        return return_meta;
+      }
+    }
+
+    return getMeta(uid, type).addCallback(new FetchMetaCB());
   }
 }

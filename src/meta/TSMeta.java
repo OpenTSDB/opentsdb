@@ -888,17 +888,17 @@ public final class TSMeta {
       // getUIDMeta request must be added to the uid_group array so that we
       // can wait for them to complete before returning the TSMeta object, 
       // otherwise the caller may get a TSMeta with missing UIDMetas
-      uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC,
+      uid_group.add(tsdb.getUIDMeta(UniqueIdType.METRIC,
         tsuid.substring(0, Const.METRICS_WIDTH * 2)).addCallback(
             new UIDMetaCB(-1)));
       
       int idx = 0;
       for (byte[] tag : tags) {
         if (idx % 2 == 0) {
-          uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.TAGK, tag)
+          uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGK, tag)
                 .addCallback(new UIDMetaCB(idx)));
         } else {
-          uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.TAGV, tag)
+          uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGV, tag)
               .addCallback(new UIDMetaCB(idx)));
         }          
         idx++;

@@ -164,7 +164,7 @@ final class UniqueIdRpc implements HttpRpc {
       final UniqueIdType type = UniqueId.stringToUniqueIdType(
           query.getRequiredQueryStringParam("type"));
       try {
-        final UIDMeta meta = UIDMeta.getUIDMeta(tsdb, type, uid)
+        final UIDMeta meta = tsdb.getUIDMeta(type, uid)
         .joinUninterruptibly();
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (NoSuchUniqueId e) {
@@ -198,14 +198,14 @@ final class UniqueIdRpc implements HttpRpc {
                 "This may be caused by another process modifying storage data");
           }
           
-          return UIDMeta.getUIDMeta(tsdb, meta.getType(), meta.getUID());
+          return tsdb.getUIDMeta(meta.getType(), meta.getUID());
         }
         
       }
       
       try {
-        final Deferred<UIDMeta> process_meta = meta.syncToStorage(tsdb, 
-            method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+        final Deferred<UIDMeta> process_meta = tsdb.syncUIDMetaToStorage(meta,
+          method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
         final UIDMeta updated_meta = process_meta.joinUninterruptibly();
         tsdb.indexUIDMeta(updated_meta);
         query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
@@ -228,8 +228,8 @@ final class UniqueIdRpc implements HttpRpc {
       } else {
         meta = this.parseUIDMetaQS(query);
       }
-      try {        
-        meta.delete(tsdb).joinUninterruptibly();
+      try {
+        tsdb.delete(meta).joinUninterruptibly();
         tsdb.deleteUIDMeta(meta);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete UIDMeta information", e);

@@ -135,7 +135,7 @@ public final class TestUIDMeta {
 
   @Test
   public void getUIDMeta() throws Exception {
-    meta = UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, "000003")
+    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, "000003")
       .joinUninterruptibly();
     assertEquals(UniqueIdType.METRIC, meta.getType());
     assertEquals("sys.cpu.2", meta.getName());
@@ -144,7 +144,7 @@ public final class TestUIDMeta {
   
   @Test
   public void getUIDMetaByte() throws Exception {
-    meta = UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, new byte[] { 0, 0, 3 })
+    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 3 })
       .joinUninterruptibly();
     assertEquals(UniqueIdType.METRIC, meta.getType());
     assertEquals("sys.cpu.2", meta.getName());
@@ -153,7 +153,7 @@ public final class TestUIDMeta {
   
   @Test
   public void getUIDMetaExists() throws Exception {
-    meta = UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, "000001")
+    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, "000001")
       .joinUninterruptibly();
     assertEquals(UniqueIdType.METRIC, meta.getType());
     assertEquals("sys.cpu.0", meta.getName());
@@ -163,40 +163,40 @@ public final class TestUIDMeta {
 
   @Test (expected = NoSuchUniqueId.class)
   public void getUIDMetaNoSuch() throws Exception {
-    UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, "000002")
+    tsdb.getUIDMeta(UniqueIdType.METRIC, "000002")
       .joinUninterruptibly();
   }
   
   @Test
   public void delete() throws Exception {
-    meta = UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, "000001")
+    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, "000001")
       .joinUninterruptibly();
-    meta.delete(tsdb);
+    tsdb.delete(meta);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void deleteNullType() throws Exception {
     meta = new UIDMeta(null, "000001");
-    meta.delete(tsdb);
+    tsdb.delete(meta);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void deleteNullUID() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, null);
-    meta.delete(tsdb);
+    tsdb.delete(meta);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void deleteEmptyUID() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, "");
-    meta.delete(tsdb);
+    tsdb.delete(meta);
   }
   
   @Test
   public void syncToStorage() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, "000001");
     meta.setDisplayName("New Display Name");
-    meta.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncUIDMetaToStorage(meta, false).joinUninterruptibly();
     assertEquals("New Display Name", meta.getDisplayName());
     assertEquals("MyNotes", meta.getNotes());
     assertEquals(1328140801, meta.getCreated());
@@ -206,48 +206,48 @@ public final class TestUIDMeta {
   public void syncToStorageOverwrite() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, "000001");
     meta.setDisplayName("New Display Name");
-    meta.syncToStorage(tsdb, true).joinUninterruptibly();
+    tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
     assertEquals("New Display Name", meta.getDisplayName());
     assertTrue(meta.getNotes().isEmpty());
   }
   
   @Test (expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
-    meta = UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, "000001")
+    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, "000001")
       .joinUninterruptibly();
-    meta.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncUIDMetaToStorage(meta, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageNullType() throws Exception {
     meta = new UIDMeta(null, "000001");
-    meta.syncToStorage(tsdb, true).joinUninterruptibly();
+    tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageNullUID() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, null);
-    meta.syncToStorage(tsdb, true).joinUninterruptibly();
+    tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageEmptyUID() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, "");
-    meta.syncToStorage(tsdb, true).joinUninterruptibly();
+    tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueId.class)
   public void syncToStorageNoSuch() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, "000002");
     meta.setDisplayName("Testing");
-    meta.syncToStorage(tsdb, true).joinUninterruptibly();
+    tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
   }
 
   @Test
   public void storeNew() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
     meta.setDisplayName("System CPU");
-    meta.storeNew(tsdb).joinUninterruptibly();
+    tsdb_store.add(meta).joinUninterruptibly();
     meta = JSON.parseToObject(tsdb_store.getColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
         "metric_meta".getBytes(Const.CHARSET_ASCII)), UIDMeta.class);
@@ -257,18 +257,18 @@ public final class TestUIDMeta {
   @Test (expected = IllegalArgumentException.class)
   public void storeNewNoName() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, "");
-    meta.storeNew(tsdb).joinUninterruptibly();
+    tsdb_store.add(meta).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeNewNullType() throws Exception {
     meta = new UIDMeta(null, new byte[] { 0, 0, 1 }, "sys.cpu.1");
-    meta.storeNew(tsdb).joinUninterruptibly();
+    tsdb_store.add(meta).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeNewEmptyUID() throws Exception {
     meta = new UIDMeta(UniqueIdType.METRIC, "");
-    meta.storeNew(tsdb).joinUninterruptibly();
+    tsdb_store.add(meta).joinUninterruptibly();
   }
 }

@@ -16,6 +16,8 @@ import com.google.common.base.Charsets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
+import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.uid.UniqueId;
 import org.hbase.async.*;
 import org.hbase.async.Scanner;
 import org.mockito.invocation.InvocationOnMock;
@@ -443,6 +445,26 @@ public class MemoryStore implements TsdbStore {
 
     return get(request).addCallback(new GetCB()).addCallback(new
       NameFromHBaseCB());
+  }
+
+  @Override
+  public Deferred<Object> add(UIDMeta meta) {
+    throw new UnsupportedOperationException("Not implemented yet!");
+  }
+
+  @Override
+  public Deferred<Object> delete(UIDMeta meta) {
+    throw new UnsupportedOperationException("Not implemented yet!");
+  }
+
+  @Override
+  public Deferred<UIDMeta> getMeta(byte[] uid, String name, UniqueId.UniqueIdType type) {
+    throw new UnsupportedOperationException("Not implemented yet!");
+  }
+
+  @Override
+  public Deferred<Boolean> updateMeta(UIDMeta meta, boolean overwrite) {
+    throw new UnsupportedOperationException("Not implemented yet!");
   }
 
   /**

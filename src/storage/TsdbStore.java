@@ -13,6 +13,8 @@
 package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.uid.UniqueId;
 import org.hbase.async.*;
 
 
@@ -60,4 +62,14 @@ public interface TsdbStore {
 
   public Deferred<byte[]> getId(final String name, byte[] table, byte[] kind);
   public Deferred<String> getName(final byte[] id, byte[] table, byte[] kind);
+
+  public Deferred<Object> add(final UIDMeta meta);
+
+  Deferred<Object> delete(UIDMeta meta);
+
+  public Deferred<UIDMeta> getMeta(byte[] uid, String name,
+                            UniqueId.UniqueIdType type);
+
+  public Deferred<Boolean> updateMeta(final UIDMeta meta,
+                                      final boolean overwrite);
 }
