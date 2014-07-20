@@ -19,6 +19,7 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
+import org.jboss.netty.handler.codec.http.HttpContentDecompressor;
 import org.jboss.netty.handler.codec.string.StringEncoder;
 import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
@@ -98,6 +99,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
       // so use this as a cheap way to differentiate the two.
       if ('A' <= firstbyte && firstbyte <= 'Z') {
         pipeline.addLast("decoder", new HttpRequestDecoder());
+        pipeline.addLast("inflater", new HttpContentDecompressor());
         if (tsdb.getConfig().enable_chunked_requests()) {
           pipeline.addLast("aggregator", new HttpChunkAggregator(
               tsdb.getConfig().max_chunked_requests()));
