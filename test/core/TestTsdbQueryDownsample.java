@@ -104,9 +104,11 @@ public class TestTsdbQueryDownsample {
       .thenReturn(Deferred.fromResult("sys.cpu.user"));
     when(metrics.getId("sys.cpu.system"))
       .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
+
     when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
     when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("sys.cpu.nice"));
+
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getOrCreateId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getIdAsync("host")).thenReturn(
@@ -115,8 +117,10 @@ public class TestTsdbQueryDownsample {
       .thenReturn(Deferred.fromResult("host"));
     when(tag_names.getOrCreateIdAsync("host")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
+
     when(tag_names.getIdAsync("dc"))
       .thenThrow(new NoSuchUniqueName("dc", "metric"));
+
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getIdAsync("web01")).thenReturn(
@@ -125,14 +129,16 @@ public class TestTsdbQueryDownsample {
       .thenReturn(Deferred.fromResult("web01"));
     when(tag_values.getOrCreateIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
+
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getOrCreateId("web02")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getOrCreateId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getIdAsync("web02")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("web02"));
     when(tag_values.getOrCreateIdAsync("web02")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
+
     when(tag_values.getId("web03"))
       .thenThrow(new NoSuchUniqueName("web03", "metric"));
 
@@ -229,7 +235,6 @@ public class TestTsdbQueryDownsample {
     query.downsample(1000, Aggregators.AVG);
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
-    verify(tsdb_store).newScanner(tsdb.table);
     assertNotNull(dps);
     assertEquals("sys.cpu.user", dps[0].metricName());
     assertTrue(dps[0].getAggregatedTags().isEmpty());
@@ -264,7 +269,7 @@ public class TestTsdbQueryDownsample {
 
   @Test
   public void runLongSingleTSDownsampleAndRate() throws Exception {
-    storeLongTimeSeriesSeconds(true, false);;
+    storeLongTimeSeriesSeconds(true, false);
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
