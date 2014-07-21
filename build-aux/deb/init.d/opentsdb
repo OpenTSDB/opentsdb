@@ -18,6 +18,9 @@ PATH=/bin:/usr/bin:/sbin:/usr/sbin
 NAME=opentsdb
 TSD_USER=opentsdb
 TSD_GROUP=opentsdb
+DAEMON=/usr/share/opentsdb/bin/tsdb
+DAEMON_OPTS=tsd
+PID_FILE=/var/run/$NAME.pid
 
 # Maximum number of open files
 MAX_OPEN_FILES=65535
@@ -45,11 +48,6 @@ fi
 
 export JAVA_HOME
 
-# Define other required variables
-PID_FILE=/var/run/$NAME.pid
-
-DAEMON=/usr/share/opentsdb/bin/tsdb
-DAEMON_OPTS=tsd
 
 case "$1" in
 start)
