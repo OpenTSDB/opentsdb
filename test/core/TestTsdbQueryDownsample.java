@@ -108,6 +108,7 @@ public class TestTsdbQueryDownsample {
     when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("sys.cpu.nice"));
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getOrCreateId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getIdAsync("host")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
@@ -117,6 +118,7 @@ public class TestTsdbQueryDownsample {
     when(tag_names.getIdAsync("dc"))
       .thenThrow(new NoSuchUniqueName("dc", "metric"));
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
@@ -124,6 +126,7 @@ public class TestTsdbQueryDownsample {
     when(tag_values.getOrCreateIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_values.getOrCreateId("web02")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getIdAsync("web02")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
@@ -525,7 +528,6 @@ public class TestTsdbQueryDownsample {
 
   private void storeLongTimeSeriesSecondsWithBasetime(final long baseTimestamp,
       final boolean two_metrics, final boolean offset) throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -551,7 +553,6 @@ public class TestTsdbQueryDownsample {
   }
 
   private void storeLongTimeSeriesMs() throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -574,7 +575,6 @@ public class TestTsdbQueryDownsample {
 
   private void storeFloatTimeSeriesSeconds(final boolean two_metrics,
       final boolean offset) throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -600,7 +600,6 @@ public class TestTsdbQueryDownsample {
   }
 
   private void storeFloatTimeSeriesMs() throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -619,35 +618,5 @@ public class TestTsdbQueryDownsample {
       tsdb.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly();
       tsdb.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly();
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  private void setQueryStorage() throws Exception {
-    PowerMockito.mockStatic(IncomingDataPoints.class);
-    PowerMockito.doAnswer(
-        new Answer<byte[]>() {
-          public byte[] answer(final InvocationOnMock args)
-            throws Exception {
-            final String metric = (String)args.getArguments()[1];
-            final Map<String, String> tags =
-              (Map<String, String>)args.getArguments()[2];
-
-            if (metric.equals("sys.cpu.user")) {
-              if (tags.get("host").equals("web01")) {
-                return new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-              } else {
-                return new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2};
-              }
-            } else {
-              if (tags.get("host").equals("web01")) {
-                return new byte[] { 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-              } else {
-                return new byte[] { 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2};
-              }
-            }
-          }
-        }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", (TSDB)any(), anyString(),
-        (Map<String, String>)any());
   }
 }
