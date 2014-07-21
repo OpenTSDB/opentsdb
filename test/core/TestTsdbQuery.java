@@ -107,6 +107,7 @@ public final class TestTsdbQuery {
     when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("sys.cpu.nice"));
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getOrCreateId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getIdAsync("host")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
@@ -116,6 +117,7 @@ public final class TestTsdbQuery {
     when(tag_names.getIdAsync("dc"))
       .thenThrow(new NoSuchUniqueName("dc", "metric"));
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
@@ -123,6 +125,7 @@ public final class TestTsdbQuery {
     when(tag_values.getOrCreateIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_values.getOrCreateId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getIdAsync("web02")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
@@ -212,7 +215,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void setTimeSeries() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
@@ -331,7 +333,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runLongSingleTSNoData() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     query.setStartTime(1356998400);
@@ -1044,8 +1045,6 @@ public final class TestTsdbQuery {
 
   @Test
   public void runWithSingleAnnotation() throws Exception {
-    setQueryStorage();
-
     // verifies that we can pickup an annotation stored all by it's lonesome
     // in a row without any data
     tsdb_store.flushRow(MockBase.stringToBytes("00000150E23510000001000001"));
@@ -1071,7 +1070,6 @@ public final class TestTsdbQuery {
 
   @Test
   public void runSingleDataPoint() throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -1095,7 +1093,6 @@ public final class TestTsdbQuery {
 
   @Test
   public void runSingleDataPointWithAnnotation() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998410;
@@ -1170,7 +1167,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runTSUIDQueryNoData() throws Exception {
-    setQueryStorage();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
@@ -1185,7 +1181,6 @@ public final class TestTsdbQuery {
   public void runTSUIDQueryNoDataForTSUID() throws Exception {
     // this doesn't throw an exception since the UIDs are only looked for when
     // the query completes.
-    setQueryStorage();
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
     final List<String> tsuids = new ArrayList<String>(1);
@@ -1213,7 +1208,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runRateCounterDefault() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
@@ -1237,7 +1231,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runRateCounterDefaultNoOp() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
@@ -1259,7 +1252,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runRateCounterMaxSet() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
@@ -1281,7 +1273,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runRateCounterAnomally() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
@@ -1321,8 +1312,7 @@ public final class TestTsdbQuery {
 
     final byte[] KEY = { 0, 0, 1, 0x50, (byte) 0xE2, 
         0x27, 0x00, 0, 0, 1, 0, 0, 1 };
-    
-    setQueryStorage();
+
     tsdb_store.addColumn(KEY,
       MockBase.concatByteArrays(qual1, qual2),
       MockBase.concatByteArrays(val1, val2, new byte[]{0}));
@@ -1375,8 +1365,7 @@ public final class TestTsdbQuery {
 
     final byte[] KEY = { 0, 0, 1, 0x50, (byte) 0xE2, 
         0x27, 0x00, 0, 0, 1, 0, 0, 1 };
-    
-    setQueryStorage();
+
     tsdb_store.addColumn(KEY,
       MockBase.concatByteArrays(qual1, qual2),
       MockBase.concatByteArrays(val1, val2, new byte[]{0}));
@@ -1409,8 +1398,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runInterpolationSeconds() throws Exception {
-    setQueryStorage();
-    
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
@@ -1458,8 +1445,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runInterpolationMs() throws Exception {
-    setQueryStorage();
-    
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
@@ -1507,8 +1492,6 @@ public final class TestTsdbQuery {
   
   @Test
   public void runInterpolationMsDownsampled() throws Exception {
-    setQueryStorage();
-    
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     // ts = 1356998400500, v = 1
@@ -2584,41 +2567,9 @@ public final class TestTsdbQuery {
   // ----------------- //
   // Helper functions. //
   // ----------------- //
-  
-  @SuppressWarnings("unchecked")
-  private void setQueryStorage() throws Exception {
-    PowerMockito.mockStatic(IncomingDataPoints.class);   
-    PowerMockito.doAnswer(
-        new Answer<byte[]>() {
-          @Override
-          public byte[] answer(final InvocationOnMock args) 
-            throws Exception {
-            final String metric = (String)args.getArguments()[1];
-            final Map<String, String> tags = 
-              (Map<String, String>)args.getArguments()[2];
-            
-            if (metric.equals("sys.cpu.user")) {
-              if (tags.get("host").equals("web01")) {
-                return new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-              } else {
-                return new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2};
-              }
-            } else {
-              if (tags.get("host").equals("web01")) {
-                return new byte[] { 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-              } else {
-                return new byte[] { 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2};
-              }
-            }
-          }
-        }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", any(), anyString(), 
-        any());
-  }
-  
-  private void storeLongTimeSeriesSeconds(final boolean two_metrics, 
+
+  private void storeLongTimeSeriesSeconds(final boolean two_metrics,
       final boolean offset) throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -2644,7 +2595,6 @@ public final class TestTsdbQuery {
   }
 
   private void storeLongTimeSeriesMs() throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -2667,7 +2617,6 @@ public final class TestTsdbQuery {
   
   private void storeFloatTimeSeriesSeconds(final boolean two_metrics, 
       final boolean offset) throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -2693,7 +2642,6 @@ public final class TestTsdbQuery {
   }
   
   private void storeFloatTimeSeriesMs() throws Exception {
-    setQueryStorage();
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
     HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -2715,7 +2663,6 @@ public final class TestTsdbQuery {
   }
   
   private void storeMixedTimeSeriesSeconds() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
@@ -2732,7 +2679,6 @@ public final class TestTsdbQuery {
   
   // dumps ints, floats, seconds and ms
   private void storeMixedTimeSeriesMsAndS() throws Exception {
-    setQueryStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
@@ -2750,7 +2696,6 @@ public final class TestTsdbQuery {
   }
   
   private void storeLongCompactions() throws Exception {
-    setQueryStorage();
     long base_timestamp = 1356998400;
     long value = 1;
     byte[] qualifier = new byte[119 * 2];
@@ -2811,7 +2756,6 @@ public final class TestTsdbQuery {
   }
   
   private void storeFloatCompactions() throws Exception {
-    setQueryStorage();
     long base_timestamp = 1356998400;
     float value = 1.25F;
     byte[] qualifier = new byte[119 * 2];
@@ -2875,7 +2819,6 @@ public final class TestTsdbQuery {
   }
   
   private void storeMixedCompactions() throws Exception {
-    setQueryStorage();
     long base_timestamp = 1356998400;
     float q_counter = 1.25F;
     byte[] qualifier = new byte[119 * 2];
