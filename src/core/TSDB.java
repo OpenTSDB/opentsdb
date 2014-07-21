@@ -25,7 +25,6 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.utils.JSON;
 import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,7 +158,102 @@ public final class TSDB {
   public static byte[] FAMILY() {
     return FAMILY;
   }
-  
+
+  /**
+   * Returns a partially initialized row key for this metric and these tags.
+   * The only thing left to fill in is the base timestamp.
+   * @since 2.0
+   */
+  Deferred<byte[]> rowKeyTemplateAsync(final String metric,
+                                       final Map<String, String> tags) {
+    final short metric_width = metrics.width();
+    final short tag_name_width = tag_names.width();
+    final short tag_value_width = tag_values.width();
+    final short num_tags = (short) tags.size();
+
+    int row_size = (metric_width + Const.TIMESTAMP_BYTES
+                    + tag_name_width * num_tags
+                    + tag_value_width * num_tags);
+    final byte[] row = new byte[row_size];
+
+    // Lookup or create the metric ID.
+    final Deferred<byte[]> metric_id;
+    if (config.auto_metric()) {
+      metric_id = metrics.getOrCreateIdAsync(metric);
+    } else {
+      metric_id = metrics.getIdAsync(metric);
+    }
+
+    // Copy the metric ID at the beginning of the row key.
+    class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
+      public byte[] call(final byte[] metricid) {
+        copyInRowKey(row, (short) 0, metricid);
+        return row;
+      }
+    }
+
+    // Copy the tag IDs in the row key.
+    class CopyTagsInRowKeyCB
+      implements Callback<Deferred<byte[]>, ArrayList<byte[]>> {
+      public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
+        short pos = metric_width;
+        pos += Const.TIMESTAMP_BYTES;
+        for (final byte[] tag : tags) {
+          copyInRowKey(row, pos, tag);
+          pos += tag.length;
+        }
+        // Once we've resolved all the tags, schedule the copy of the metric
+        // ID and return the row key we produced.
+        return metric_id.addCallback(new CopyMetricInRowKeyCB());
+      }
+    }
+
+    // Kick off the resolution of all tags.
+    return Tags.resolveOrCreateAllAsync(this, tags)
+      .addCallbackDeferring(new CopyTagsInRowKeyCB());
+  }
+
+  /**
+  * Returns a partially initialized row key for this metric and these tags.
+  * The only thing left to fill in is the base timestamp.
+  */
+  byte[] rowKeyTemplate(final String metric,
+                        final Map<String, String> tags) {
+    final short metric_width = metrics.width();
+    final short tag_name_width = tag_names.width();
+    final short tag_value_width = tag_values.width();
+    final short num_tags = (short) tags.size();
+
+    int row_size = (metric_width + Const.TIMESTAMP_BYTES
+                    + tag_name_width * num_tags
+                    + tag_value_width * num_tags);
+    final byte[] row = new byte[row_size];
+
+    short pos = 0;
+
+    copyInRowKey(row, pos, (config.auto_metric() ?
+      metrics.getOrCreateId(metric) : metrics.getId(metric)));
+    pos += metric_width;
+
+    pos += Const.TIMESTAMP_BYTES;
+
+    for(final byte[] tag : Tags.resolveOrCreateAll(this, tags)) {
+      copyInRowKey(row, pos, tag);
+      pos += tag.length;
+    }
+    return row;
+  }
+
+  /**
+   * Copies the specified byte array at the specified offset in the row key.
+   * @param row The row key into which to copy the bytes.
+   * @param offset The offset in the row key to start writing at.
+   * @param bytes The bytes to copy.
+   */
+  private void copyInRowKey(final byte[] row, final short offset, final byte[] bytes) {
+    System.arraycopy(bytes, 0, row, offset, bytes.length);
+  }
+
   /**
    * Should be called immediately after construction to initialize plugins and
    * objects that rely on such. It also moves most of the potential exception
@@ -638,7 +732,7 @@ public final class TSDB {
     }
 
     IncomingDataPoints.checkMetricAndTags(metric, tags);
-    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
+    final byte[] row = this.rowKeyTemplate(metric, tags);
     final long base_time;
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
     

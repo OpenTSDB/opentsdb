@@ -17,12 +17,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.Map;
 
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -40,9 +38,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -523,8 +518,7 @@ public final class TestTSDB {
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
-    when(IncomingDataPoints.rowKeyTemplate((TSDB)any(), anyString(), 
-        (Map<String, String>)any()))
+    when(metrics.getId(anyString()))
       .thenThrow(new NoSuchUniqueName("sys.cpu.user", "metric"));
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -846,21 +840,13 @@ public final class TestTSDB {
    * data points correctly.
    */
   private void setupAddPointStorage() throws Exception {
-    PowerMockito.mockStatic(IncomingDataPoints.class);   
-    final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 
-    PowerMockito.doAnswer(
-        new Answer<byte[]>() {
-          @Override
-          public byte[] answer(final InvocationOnMock unused) 
-            throws Exception {
-            return row;
-          }
-        }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", any(), anyString(), 
-        any());
-
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
     when(tag_values.width()).thenReturn((short)3);
+
+    final byte[] row = new byte[] { 0, 0, 1};
+    when(metrics.getId(anyString())).thenReturn(row);
+    when(tag_names.getOrCreateId(anyString())).thenReturn(row);
+    when(tag_values.getOrCreateId(anyString())).thenReturn(row);
   }
 }
