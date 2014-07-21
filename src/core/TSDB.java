@@ -53,7 +53,7 @@ import net.opentsdb.stats.StatsCollector;
  * This class is the central class of OpenTSDB.  You use it to add new data
  * points or query the database.
  */
-public final class TSDB {
+public class TSDB {
   private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
   
   static final byte[] FAMILY = { 't' };

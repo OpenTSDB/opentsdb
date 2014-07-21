@@ -14,41 +14,23 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.List;
 
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
 import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
 
-@RunWith(PowerMockRunner.class)
-//"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
-//because they fiddle with the class loader.  We don't test them anyway.
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-             "ch.qos.*", "org.slf4j.*",
-             "com.sum.*", "org.xml.*"})
-@PrepareForTest({ RowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
-Config.class, RowKey.class })
 public final class TestSpan {
   private TSDB tsdb = mock(TSDB.class);
-  private Config config = mock(Config.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  private static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] HOUR1 = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
   private static final byte[] HOUR2 = 
@@ -60,14 +42,7 @@ public final class TestSpan {
   
   @Before
   public void before() throws Exception {
-    // Inject the attributes we need into the "tsdb" object.
-    Whitebox.setInternalState(tsdb, "metrics", metrics);
-    Whitebox.setInternalState(tsdb, "table", TABLE);
-    Whitebox.setInternalState(tsdb, "config", config);
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.metrics.width()).thenReturn((short)3);
-    when(RowKey.metricNameAsync(tsdb, HOUR1))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
+    tsdb = new TSDB(new MemoryStore(), new Config(false));
   }
   
   @Test
