@@ -1,10 +1,12 @@
 package net.opentsdb.storage;
 
 import net.opentsdb.uid.UniqueId;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
 
+@Ignore
 public abstract class TestTsdbStore {
   protected TsdbStore tsdb_store;
 
