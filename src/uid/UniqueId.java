@@ -52,7 +52,7 @@ import org.hbase.async.Bytes.ByteMap;
  * @see UniqueIdInterface
  */
 @SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
-public final class UniqueId implements UniqueIdInterface {
+public class UniqueId implements UniqueIdInterface {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */

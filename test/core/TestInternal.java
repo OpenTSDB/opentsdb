@@ -25,12 +25,7 @@ import net.opentsdb.storage.MockBase;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ Internal.class })
 public final class TestInternal {
   private static final byte[] KEY = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };

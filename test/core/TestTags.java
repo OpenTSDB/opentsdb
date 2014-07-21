@@ -25,15 +25,7 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
 
@@ -45,13 +37,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class,
-  MemoryStore.class})
 public final class TestTags {
   private TSDB tsdb;
   private Config config;

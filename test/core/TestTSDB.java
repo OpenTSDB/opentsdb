@@ -29,28 +29,13 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
-import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
-import org.hbase.async.GetRequest;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
-import org.hbase.async.Scanner;
+
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
-  Scanner.class, AtomicIncrementRequest.class, IncomingDataPoints.class})
 public final class TestTSDB {
   private Config config;
   private TSDB tsdb;

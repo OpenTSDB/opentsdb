@@ -54,7 +54,7 @@ import net.opentsdb.utils.JSON;
  * every single cell.  And because there is no way to efficiently append bytes
  * at the end of a cell, we have to do this instead.
  */
-final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
+class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   private static final Logger LOG = LoggerFactory.getLogger(CompactionQueue.class);
 
