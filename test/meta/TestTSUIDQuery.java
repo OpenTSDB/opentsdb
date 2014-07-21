@@ -19,22 +19,18 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
-import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
@@ -49,30 +45,24 @@ import com.stumbleupon.async.Deferred;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, TSMeta.class, AtomicIncrementRequest.class, TsdbStore.class})
+@PrepareForTest({KeyValue.class, Scanner.class})
 public final class TestTSUIDQuery {
   private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
-  private Config config;
-  private MemoryStore tsdb_store;
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
   private TSUIDQuery query;
   
   @Before
   public void before() throws Exception {
-    config = mock(Config.class);
-    when(config.getString("tsd.storage.hbase.data_table")).thenReturn("tsdb");
-    when(config.getString("tsd.storage.hbase.uid_table")).thenReturn("tsdb-uid");
-    when(config.getString("tsd.storage.hbase.meta_table")).thenReturn("tsdb-meta");
-    when(config.getString("tsd.storage.hbase.tree_table")).thenReturn("tsdb-tree");
-    when(config.enable_tsuid_incrementing()).thenReturn(true);
-    when(config.enable_realtime_ts()).thenReturn(true);
+    UniqueId metrics = mock(UniqueId.class);
+    UniqueId tag_names = mock(UniqueId.class);
+    UniqueId tag_values = mock(UniqueId.class);
 
-    tsdb_store = new MemoryStore();
+    Map<String, String> overrides = new HashMap<String, String>();
+    overrides.put("tsd.core.meta.enable_tsuid_incrementing", "TRUE");
+    overrides.put("tsd.core.meta.enable_realtime_ts", "TRUE");
+    Config config = new Config(false, overrides);
+
+    MemoryStore tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,

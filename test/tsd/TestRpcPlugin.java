@@ -14,38 +14,31 @@ package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
+
+import com.google.common.collect.Maps;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, RpcPlugin.class})
+import java.util.Map;
+
 public final class TestRpcPlugin {
-  private TSDB tsdb= mock(TSDB.class);
-  private Config config = mock(Config.class);
+  private TSDB tsdb;
+  private Config config;
   private RpcPlugin rpc_plugin;
   
   @Before
   public void before() throws Exception {
-    // setups a good default for the config
-    when(config.hasProperty("tsd.rpcplugin.DummyRPCPlugin.hosts"))
-      .thenReturn(true);
-    when(config.getString("tsd.rpcplugin.DummyRPCPlugin.hosts"))
-      .thenReturn("localhost");
-    when(config.getInt("tsd.rpcplugin.DummyRPCPlugin.port")).thenReturn(42);
-    when(tsdb.getConfig()).thenReturn(config);
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.rpcplugin.DummyRPCPlugin.hosts", "localhost");
+    overrides.put("tsd.rpcplugin.DummyRPCPlugin.port", "42");
+    config = new Config(false, overrides);
+    tsdb = new TSDB(new MemoryStore(), config);
+
     PluginLoader.loadJAR("plugin_test.jar");
     rpc_plugin = PluginLoader.loadSpecificPlugin(
         "net.opentsdb.tsd.DummyRpcPlugin", RpcPlugin.class);
@@ -58,28 +51,43 @@ public final class TestRpcPlugin {
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeMissingHost() throws Exception {
-    when(config.hasProperty("tsd.rpcplugin.DummyRPCPlugin.hosts"))
-      .thenReturn(false);
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.rpcplugin.DummyRPCPlugin.port", "42");
+    config = new Config(false, overrides);
+    tsdb = new TSDB(new MemoryStore(), config);
+
     rpc_plugin.initialize(tsdb);
   }
-  
+
+  @Test (expected = IllegalArgumentException.class)
   public void initializeEmptyHost() throws Exception {
-    when(config.getString("tsd.rpcplugin.DummyRPCPlugin.hosts"))
-      .thenReturn("");
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.rpcplugin.DummyRPCPlugin.hosts", "");
+    overrides.put("tsd.rpcplugin.DummyRPCPlugin.port", "42");
+    config = new Config(false, overrides);
+    tsdb = new TSDB(new MemoryStore(), config);
+
     rpc_plugin.initialize(tsdb);
   }
   
-  @Test (expected = NullPointerException.class)
+  @Test (expected = NumberFormatException.class)
   public void initializeMissingPort() throws Exception {
-    when(config.getInt("tsd.rpcplugin.DummyRPCPlugin.port"))
-      .thenThrow(new NullPointerException());
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.rpcplugin.DummyRPCPlugin.hosts", "localhost");
+    config = new Config(false, overrides);
+    tsdb = new TSDB(new MemoryStore(), config);
+
     rpc_plugin.initialize(tsdb);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeInvalidPort() throws Exception {
-    when(config.getInt("tsd.rpcplugin.DummyRPCPlugin.port"))
-    .thenThrow(new NumberFormatException());
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.rpcplugin.DummyRPCPlugin.hosts", "localhost");
+    overrides.put("tsd.rpcplugin.DummyRPCPlugin.port", "not a number");
+    config = new Config(false, overrides);
+    tsdb = new TSDB(new MemoryStore(), config);
+
     rpc_plugin.initialize(tsdb);
   }
   

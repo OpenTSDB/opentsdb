@@ -124,6 +124,12 @@ public class Config {
     this.setDefaults();
   }
 
+  public Config(final boolean auto_load_config, Map<String,
+          String> overrides) throws IOException {
+    this(auto_load_config);
+    this.properties.putAll(overrides);
+  }
+
   /**
    * Constructor that initializes default values and attempts to load the given
    * properties file

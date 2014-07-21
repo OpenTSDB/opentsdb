@@ -16,7 +16,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
@@ -27,10 +26,7 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,9 +40,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, UIDMeta.class, MemoryStore.class})
+@PrepareForTest({
+  KeyValue.class,
+  Scanner.class, UIDMeta.class})
 public final class TestUIDMeta {
   private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
@@ -55,9 +51,8 @@ public final class TestUIDMeta {
   
   @Before
   public void before() throws Exception {
-    final Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, new Config(false));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,
