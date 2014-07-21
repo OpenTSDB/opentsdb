@@ -14,7 +14,7 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.mockito.Mockito.mock;
 
 import java.util.List;
 
