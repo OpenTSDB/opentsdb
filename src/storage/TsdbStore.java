@@ -14,6 +14,7 @@ package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
 import org.hbase.async.*;
 
@@ -34,15 +35,7 @@ public interface TsdbStore {
 
   public Deferred<Object> delete(final DeleteRequest request);
 
-  /**
-   * Ensures that a given table really exists.
-   *
-   * @param table The name of the table you intend to use.
-   * @return A deferred object that indicates the completion of the request.
-   * You probably want to attach at least an errback to this Deferred to
-   * handle failures.
-   */
-  public Deferred<Object> ensureTableExists(final String table);
+  public Deferred<ArrayList<Object>> checkNecessaryTablesExist();
 
   public Deferred<Object> flush();
 
@@ -58,7 +51,7 @@ public interface TsdbStore {
 
   public Deferred<Object> shutdown();
 
-  public ClientStats stats();
+  public void recordStats(StatsCollector collector);
 
   public Deferred<byte[]> getId(final String name, byte[] table, byte[] kind);
   public Deferred<String> getName(final byte[] id, byte[] table, byte[] kind);

@@ -17,6 +17,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
 import org.hbase.async.*;
 import org.hbase.async.Scanner;
@@ -33,9 +34,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 /**
@@ -282,7 +280,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> ensureTableExists(String table) {
+  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -405,7 +403,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public ClientStats stats() {
+  public void recordStats(StatsCollector collector) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

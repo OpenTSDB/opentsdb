@@ -13,11 +13,11 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Preconditions;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
@@ -55,6 +55,11 @@ public final class HBaseStore implements TsdbStore {
 
   final org.hbase.async.HBaseClient client;
 
+  private final boolean enable_realtime_ts;
+  private final boolean enable_realtime_uid;
+  private final boolean enable_tsuid_incrementing;
+  private final boolean enable_tree_processing;
+
   private final byte[] data_table_name;
   private final byte[] uid_table_name;
   private final byte[] tree_table_name;
@@ -64,10 +69,17 @@ public final class HBaseStore implements TsdbStore {
     super();
     this.client = client;
 
+    enable_tree_processing = config.enable_tree_processing();
+    enable_realtime_ts = config.enable_realtime_ts();
+    enable_realtime_uid = config.enable_realtime_uid();
+    enable_tsuid_incrementing = config.enable_tsuid_incrementing();
+
     data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     tree_table_name = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
+
+    client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
   }
 
   @Override
@@ -86,8 +98,21 @@ public final class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> ensureTableExists(String table) {
-    return this.client.ensureTableExists(table);
+  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
+    final ArrayList<Deferred<Object>> checks = new ArrayList<Deferred<Object>>(4);
+    checks.add(client.ensureTableExists(data_table_name));
+    checks.add(client.ensureTableExists(uid_table_name));
+
+    if (enable_tree_processing) {
+      checks.add(client.ensureTableExists(tree_table_name));
+    }
+    if (enable_realtime_ts ||
+        enable_realtime_uid ||
+        enable_tsuid_incrementing) {
+      checks.add(client.ensureTableExists(meta_table_name));
+    }
+
+    return Deferred.group(checks);
   }
 
   @Override
@@ -116,8 +141,24 @@ public final class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public ClientStats stats() {
-    return this.client.stats();
+  public void recordStats(StatsCollector col) {
+    final ClientStats stats = client.stats();
+
+    col.record("hbase.root_lookups", stats.rootLookups());
+    col.record("hbase.meta_lookups", stats.uncontendedMetaLookups(), "type=uncontended");
+    col.record("hbase.meta_lookups", stats.contendedMetaLookups(), "type=contended");
+    col.record("hbase.rpcs", stats.atomicIncrements(), "type=increment");
+    col.record("hbase.rpcs", stats.deletes(), "type=delete");
+    col.record("hbase.rpcs", stats.gets(), "type=get");
+    col.record("hbase.rpcs", stats.puts(), "type=put");
+    col.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
+    col.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
+    col.record("hbase.rpcs", stats.scans(), "type=scan");
+    col.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
+    col.record("hbase.flushes", stats.flushes());
+    col.record("hbase.connections.created", stats.connectionsCreated());
+    col.record("hbase.nsre", stats.noSuchRegionExceptions());
+    col.record("hbase.nsre.rpcs_delayed", stats.numRpcDelayedDueToNSRE());
   }
 
   @Override

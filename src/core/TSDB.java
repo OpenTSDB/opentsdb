@@ -109,7 +109,6 @@ public class TSDB {
   public TSDB(final TsdbStore client, final Config config) {
     this.config = config;
     this.tsdb_store = client;
-    this.tsdb_store.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
@@ -422,22 +421,7 @@ public class TSDB {
    * @since 2.0
    */
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    final ArrayList<Deferred<Object>> checks = 
-      new ArrayList<Deferred<Object>>(2);
-    checks.add(tsdb_store.ensureTableExists(
-        config.getString("tsd.storage.hbase.data_table")));
-    checks.add(tsdb_store.ensureTableExists(
-        config.getString("tsd.storage.hbase.uid_table")));
-    if (config.enable_tree_processing()) {
-      checks.add(tsdb_store.ensureTableExists(
-          config.getString("tsd.storage.hbase.tree_table")));
-    }
-    if (config.enable_realtime_ts() || config.enable_realtime_uid() || 
-        config.enable_tsuid_incrementing()) {
-      checks.add(tsdb_store.ensureTableExists(
-          config.getString("tsd.storage.hbase.meta_table")));
-    }
-    return Deferred.group(checks);
+    return tsdb_store.checkNecessaryTablesExist();
   }
   
   /** Number of cache hits during lookups involving UIDs. */
@@ -516,26 +500,8 @@ public class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
-    final ClientStats stats = tsdb_store.stats();
-    collector.record("hbase.root_lookups", stats.rootLookups());
-    collector.record("hbase.meta_lookups",
-                     stats.uncontendedMetaLookups(), "type=uncontended");
-    collector.record("hbase.meta_lookups",
-                     stats.contendedMetaLookups(), "type=contended");
-    collector.record("hbase.rpcs",
-                     stats.atomicIncrements(), "type=increment");
-    collector.record("hbase.rpcs", stats.deletes(), "type=delete");
-    collector.record("hbase.rpcs", stats.gets(), "type=get");
-    collector.record("hbase.rpcs", stats.puts(), "type=put");
-    collector.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
-    collector.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
-    collector.record("hbase.rpcs", stats.scans(), "type=scan");
-    collector.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
-    collector.record("hbase.flushes", stats.flushes());
-    collector.record("hbase.connections.created", stats.connectionsCreated());
-    collector.record("hbase.nsre", stats.noSuchRegionExceptions());
-    collector.record("hbase.nsre.rpcs_delayed",
-                     stats.numRpcDelayedDueToNSRE());
+
+    tsdb_store.recordStats(collector);
 
     compactionq.collectStats(collector);
     // Collect Stats from Plugins
