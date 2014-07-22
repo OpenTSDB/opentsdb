@@ -257,8 +257,8 @@ public class Config {
    * Returns the given property as an integer
    * @param property The property to load
    * @return A parsed integer or an exception if the value could not be parsed
-   * @throws NumberFormatException if the property could not be parsed
-   * @throws NullPointerException if the property did not exist
+   * @throws NumberFormatException if the property could not be parsed or
+   * doesn't exist
    */
   public final int getInt(final String property) {
     return Integer.parseInt(this.properties.get(property));
@@ -268,8 +268,8 @@ public class Config {
    * Returns the given property as a short
    * @param property The property to load
    * @return A parsed short or an exception if the value could not be parsed
-   * @throws NumberFormatException if the property could not be parsed
-   * @throws NullPointerException if the property did not exist
+   * @throws NumberFormatException if the property could not be parsed or
+   * doesn't exist
    */
   public final short getShort(final String property) {
     return Short.parseShort(this.properties.get(property));
@@ -279,8 +279,8 @@ public class Config {
    * Returns the given property as a long
    * @param property The property to load
    * @return A parsed long or an exception if the value could not be parsed
-   * @throws NumberFormatException if the property could not be parsed
-   * @throws NullPointerException if the property did not exist
+   * @throws NumberFormatException if the property could not be parsed or
+   * doesn't exist
    */
   public final long getLong(final String property) {
     return Long.parseLong(this.properties.get(property));
@@ -290,8 +290,8 @@ public class Config {
    * Returns the given property as a float
    * @param property The property to load
    * @return A parsed float or an exception if the value could not be parsed
-   * @throws NumberFormatException if the property could not be parsed
-   * @throws NullPointerException if the property did not exist
+   * @throws NumberFormatException if the property could not be parsed or
+   * doesn't exist
    */
   public final float getFloat(final String property) {
     return Float.parseFloat(this.properties.get(property));
@@ -301,8 +301,8 @@ public class Config {
    * Returns the given property as a double
    * @param property The property to load
    * @return A parsed double or an exception if the value could not be parsed
-   * @throws NumberFormatException if the property could not be parsed
-   * @throws NullPointerException if the property did not exist
+   * @throws NumberFormatException if the property could not be parsed or
+   * doesn't exist
    */
   public final double getDouble(final String property) {
     return Double.parseDouble(this.properties.get(property));
