@@ -501,26 +501,8 @@ public class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
-    final ClientStats stats = tsdb_store.stats();
-    collector.record("hbase.root_lookups", stats.rootLookups());
-    collector.record("hbase.meta_lookups",
-                     stats.uncontendedMetaLookups(), "type=uncontended");
-    collector.record("hbase.meta_lookups",
-                     stats.contendedMetaLookups(), "type=contended");
-    collector.record("hbase.rpcs",
-                     stats.atomicIncrements(), "type=increment");
-    collector.record("hbase.rpcs", stats.deletes(), "type=delete");
-    collector.record("hbase.rpcs", stats.gets(), "type=get");
-    collector.record("hbase.rpcs", stats.puts(), "type=put");
-    collector.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
-    collector.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
-    collector.record("hbase.rpcs", stats.scans(), "type=scan");
-    collector.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
-    collector.record("hbase.flushes", stats.flushes());
-    collector.record("hbase.connections.created", stats.connectionsCreated());
-    collector.record("hbase.nsre", stats.noSuchRegionExceptions());
-    collector.record("hbase.nsre.rpcs_delayed",
-                     stats.numRpcDelayedDueToNSRE());
+
+    tsdb_store.recordStats(collector);
 
     compactionq.collectStats(collector);
     // Collect Stats from Plugins

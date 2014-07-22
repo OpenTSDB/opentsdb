@@ -14,6 +14,7 @@ package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
 import org.hbase.async.*;
 
@@ -50,7 +51,7 @@ public interface TsdbStore {
 
   public Deferred<Object> shutdown();
 
-  public ClientStats stats();
+  public void recordStats(StatsCollector collector);
 
   public Deferred<byte[]> getId(final String name, byte[] table, byte[] kind);
   public Deferred<String> getName(final byte[] id, byte[] table, byte[] kind);

@@ -17,6 +17,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
 import org.hbase.async.*;
 import org.hbase.async.Scanner;
@@ -402,7 +403,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public ClientStats stats() {
+  public void recordStats(StatsCollector collector) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

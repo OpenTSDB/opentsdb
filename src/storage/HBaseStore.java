@@ -17,6 +17,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
@@ -138,8 +139,24 @@ public final class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public ClientStats stats() {
-    return this.client.stats();
+  public void recordStats(StatsCollector col) {
+    final ClientStats stats = client.stats();
+
+    col.record("hbase.root_lookups", stats.rootLookups());
+    col.record("hbase.meta_lookups", stats.uncontendedMetaLookups(), "type=uncontended");
+    col.record("hbase.meta_lookups", stats.contendedMetaLookups(), "type=contended");
+    col.record("hbase.rpcs", stats.atomicIncrements(), "type=increment");
+    col.record("hbase.rpcs", stats.deletes(), "type=delete");
+    col.record("hbase.rpcs", stats.gets(), "type=get");
+    col.record("hbase.rpcs", stats.puts(), "type=put");
+    col.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
+    col.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
+    col.record("hbase.rpcs", stats.scans(), "type=scan");
+    col.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
+    col.record("hbase.flushes", stats.flushes());
+    col.record("hbase.connections.created", stats.connectionsCreated());
+    col.record("hbase.nsre", stats.noSuchRegionExceptions());
+    col.record("hbase.nsre.rpcs_delayed", stats.numRpcDelayedDueToNSRE());
   }
 
   @Override
