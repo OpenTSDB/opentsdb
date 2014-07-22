@@ -14,10 +14,7 @@ package net.opentsdb.search;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
@@ -30,13 +27,9 @@ import net.opentsdb.utils.PluginLoader;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Callback;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public final class TestSearchPlugin {

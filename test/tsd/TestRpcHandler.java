@@ -50,7 +50,7 @@ import com.google.common.net.HttpHeaders;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ TSDB.class, Config.class, HBaseClient.class, RpcHandler.class, 
+@PrepareForTest({ TSDB.class, Config.class, HBaseClient.class, RpcHandler.class,
   HttpQuery.class, MessageEvent.class, DefaultHttpResponse.class, 
   ChannelHandlerContext.class })
 public final class TestRpcHandler {

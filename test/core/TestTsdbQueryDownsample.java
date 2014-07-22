@@ -17,37 +17,25 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 
-import org.apache.zookeeper.proto.DeleteRequest;
-import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -59,11 +47,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class,
-  Scanner.class, TsdbQuery.class, DeleteRequest.class, Annotation.class,
-  RowKey.class, Span.class, SpanGroup.class, IncomingDataPoints.class,
-  MemoryStore.class})
+@PrepareForTest({KeyValue.class, Scanner.class})
 public class TestTsdbQueryDownsample {
 
   private Config config;

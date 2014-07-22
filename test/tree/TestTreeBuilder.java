@@ -53,9 +53,7 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Branch.class, RowLock.class, PutRequest.class, 
-  Scanner.class, GetRequest.class, KeyValue.class,
-  DeleteRequest.class, Tree.class})
+@PrepareForTest({KeyValue.class, Tree.class})
 public final class TestTreeBuilder {
   private MemoryStore tsdb_store;
   private TSDB tsdb;

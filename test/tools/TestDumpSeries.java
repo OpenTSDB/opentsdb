@@ -54,9 +54,7 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class,
-  GetRequest.class, PutRequest.class, KeyValue.class, DumpSeries.class,
-  Scanner.class, DeleteRequest.class, Annotation.class, MemoryStore.class})
+@PrepareForTest({KeyValue.class, Scanner.class})
 public class TestDumpSeries {
   private Config config;
   private TSDB tsdb = null;

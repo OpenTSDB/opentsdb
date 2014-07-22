@@ -47,9 +47,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ TSDB.class, GetRequest.class,
-  PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class,
-  TsdbStore.class})
+@PrepareForTest({KeyValue.class, Scanner.class})
 public final class TestBranch {
   private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   MemoryStore tsdb_store;

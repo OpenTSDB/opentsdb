@@ -47,7 +47,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
+@PrepareForTest({TSDB.class, HttpQuery.class})
 public final class TestHttpQuery {
   private TSDB tsdb = null;
   final static private Method guessMimeTypeFromUri;
