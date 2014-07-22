@@ -44,10 +44,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  GetRequest.class, PutRequest.class, KeyValue.class, UidManager.class,
-  Scanner.class, DeleteRequest.class, AtomicIncrementRequest.class,
-  MemoryStore.class})
+@PrepareForTest({KeyValue.class, Scanner.class})
 public class TestUID {
   private Config config;
   private TSDB tsdb = null;

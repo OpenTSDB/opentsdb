@@ -19,6 +19,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.FileNotFoundException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -46,6 +49,15 @@ public final class TestConfig {
     Config c = new Config(false);
     assertNotNull(c);
     assertNotNull(new Config(c));
+  }
+
+  @Test
+  public void constructorOverride() throws Exception {
+    Map<String, String> overrides = new HashMap<String, String>();
+    final String cfg_id = "tsd.network.reuse_address";
+    overrides.put(cfg_id, "FALSE");
+    Config c = new Config(false, overrides);
+    assertFalse(c.getBoolean(cfg_id));
   }
   
   @Test

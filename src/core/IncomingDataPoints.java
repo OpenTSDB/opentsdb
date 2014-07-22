@@ -29,7 +29,7 @@ import net.opentsdb.stats.Histogram;
 /**
  * Receives new data points and stores them in HBase.
  */
-final class IncomingDataPoints implements WritableDataPoints {
+class IncomingDataPoints implements WritableDataPoints {
 
   /** For how long to buffer edits when doing batch imports (in ms).  */
   private static final short DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL = 5000;

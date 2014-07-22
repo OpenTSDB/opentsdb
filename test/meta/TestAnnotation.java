@@ -42,9 +42,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
-  Scanner.class, Annotation.class, MemoryStore.class})
+@PrepareForTest({KeyValue.class, Scanner.class})
 public final class TestAnnotation {
   private TSDB tsdb;
   private MemoryStore tsdb_store;

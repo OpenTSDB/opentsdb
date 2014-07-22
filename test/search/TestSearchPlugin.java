@@ -14,41 +14,39 @@ package net.opentsdb.search;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
+import com.google.common.collect.Maps;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
 
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Callback;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class})
+import java.util.Map;
+
 public final class TestSearchPlugin {
-  private TSDB tsdb= mock(TSDB.class);
-  private Config config = mock(Config.class);
+  private TSDB tsdb;
+  private Config config;
   private SearchPlugin search;
   
   @Before
   public void before() throws Exception {
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.search.DummySearchPlugin.hosts", "localhost");
+    overrides.put("tsd.search.DummySearchPlugin.port", "42");
+    config = new Config(false, overrides);
+
+    tsdb = new TSDB(new MemoryStore(), config);
+
     // setups a good default for the config
-    when(config.hasProperty("tsd.search.DummySearchPlugin.hosts"))
-      .thenReturn(true);
-    when(config.getString("tsd.search.DummySearchPlugin.hosts"))
-      .thenReturn("localhost");
-    when(config.getInt("tsd.search.DummySearchPlugin.port")).thenReturn(42);
-    when(tsdb.getConfig()).thenReturn(config);
     PluginLoader.loadJAR("plugin_test.jar");
     search = PluginLoader.loadSpecificPlugin(
         "net.opentsdb.search.DummySearchPlugin", SearchPlugin.class);
@@ -61,29 +59,37 @@ public final class TestSearchPlugin {
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeMissingHost() throws Exception {
-    when(config.hasProperty("tsd.search.DummySearchPlugin.hosts"))
-      .thenReturn(false);
+    tsdb = new TSDB(new MemoryStore(), new Config(false));
     search.initialize(tsdb);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeEmptyHost() throws Exception {
-    when(config.getString("tsd.search.DummySearchPlugin.hosts"))
-      .thenReturn("");
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.search.DummySearchPlugin.hosts", "");
+    config = new Config(false, overrides);
+    tsdb = new TSDB(new MemoryStore(), config);
+
     search.initialize(tsdb);
   }
   
-  @Test (expected = NullPointerException.class)
+  @Test (expected = NumberFormatException.class)
   public void initializeMissingPort() throws Exception {
-    when(config.getInt("tsd.search.DummySearchPlugin.port"))
-      .thenThrow(new NullPointerException());
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.search.DummySearchPlugin.hosts", "localhost");
+    config = new Config(false, overrides);
+    tsdb = new TSDB(new MemoryStore(), config);
+
     search.initialize(tsdb);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeInvalidPort() throws Exception {
-    when(config.getInt("tsd.search.DummySearchPlugin.port"))
-    .thenThrow(new NumberFormatException());
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.search.DummySearchPlugin.port", "no number");
+    config = new Config(false, overrides);
+    tsdb = new TSDB(new MemoryStore(), config);
+
     search.initialize(tsdb);
   }
   

@@ -50,8 +50,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, GetRequest.class,
-  PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class})
+@PrepareForTest({KeyValue.class, Scanner.class})
 public final class TestTree {
   private MemoryStore tsdb_store;
   private TSDB tsdb;

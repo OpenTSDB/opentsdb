@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import com.google.common.collect.Maps;
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
@@ -48,6 +49,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.DeferredGroupException;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
@@ -65,13 +70,10 @@ public final class TestTSMeta {
   
   @Before
   public void before() throws Exception {
-    config = mock(Config.class);
-    when(config.getString("tsd.storage.hbase.data_table")).thenReturn("tsdb");
-    when(config.getString("tsd.storage.hbase.uid_table")).thenReturn("tsdb-uid");
-    when(config.getString("tsd.storage.hbase.meta_table")).thenReturn("tsdb-meta");
-    when(config.getString("tsd.storage.hbase.tree_table")).thenReturn("tsdb-tree");
-    when(config.enable_tsuid_incrementing()).thenReturn(true);
-    when(config.enable_realtime_ts()).thenReturn(true);
+    Map<String, String> overrides = Maps.newHashMap();
+    overrides.put("tsd.core.meta.enable_tsuid_incrementing", "TRUE");
+    overrides.put("tsd.core.meta.enable_realtime_ts", "TRUE");
+    config = new Config(false, overrides);
 
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);

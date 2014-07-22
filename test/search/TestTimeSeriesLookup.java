@@ -45,8 +45,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  KeyValue.class, Scanner.class, TimeSeriesLookup.class, MemoryStore.class})
+@PrepareForTest({KeyValue.class, Scanner.class})
 public class TestTimeSeriesLookup {
   private Config config;
   private TSDB tsdb = null;

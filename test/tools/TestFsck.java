@@ -57,10 +57,8 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class,
-  GetRequest.class, PutRequest.class, KeyValue.class, Fsck.class,
-  FsckOptions.class, Scanner.class, DeleteRequest.class, Annotation.class,
-  RowKey.class, Tags.class, TsdbStore.class})
+@PrepareForTest({KeyValue.class, Fsck.class, FsckOptions.class,
+        Scanner.class, RowKey.class, Tags.class})
 public final class TestFsck {
   private final static byte[] ROW = 
     MockBase.stringToBytes("00000150E22700000001000001");
