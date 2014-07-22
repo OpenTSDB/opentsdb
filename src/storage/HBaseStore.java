@@ -78,6 +78,8 @@ public final class HBaseStore implements TsdbStore {
     uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     tree_table_name = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
+
+    client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
   }
 
   @Override

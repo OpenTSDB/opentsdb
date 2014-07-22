@@ -109,7 +109,6 @@ public class TSDB {
   public TSDB(final TsdbStore client, final Config config) {
     this.config = config;
     this.tsdb_store = client;
-    this.tsdb_store.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
