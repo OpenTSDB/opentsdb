@@ -34,15 +34,7 @@ public interface TsdbStore {
 
   public Deferred<Object> delete(final DeleteRequest request);
 
-  /**
-   * Ensures that a given table really exists.
-   *
-   * @param table The name of the table you intend to use.
-   * @return A deferred object that indicates the completion of the request.
-   * You probably want to attach at least an errback to this Deferred to
-   * handle failures.
-   */
-  public Deferred<Object> ensureTableExists(final String table);
+  public Deferred<ArrayList<Object>> checkNecessaryTablesExist();
 
   public Deferred<Object> flush();
 

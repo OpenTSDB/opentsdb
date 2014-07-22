@@ -13,7 +13,6 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Preconditions;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -55,6 +54,11 @@ public final class HBaseStore implements TsdbStore {
 
   final org.hbase.async.HBaseClient client;
 
+  private final boolean enable_realtime_ts;
+  private final boolean enable_realtime_uid;
+  private final boolean enable_tsuid_incrementing;
+  private final boolean enable_tree_processing;
+
   private final byte[] data_table_name;
   private final byte[] uid_table_name;
   private final byte[] tree_table_name;
@@ -63,6 +67,11 @@ public final class HBaseStore implements TsdbStore {
   public HBaseStore(final HBaseClient client, final Config config) {
     super();
     this.client = client;
+
+    enable_tree_processing = config.enable_tree_processing();
+    enable_realtime_ts = config.enable_realtime_ts();
+    enable_realtime_uid = config.enable_realtime_uid();
+    enable_tsuid_incrementing = config.enable_tsuid_incrementing();
 
     data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
@@ -86,8 +95,21 @@ public final class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> ensureTableExists(String table) {
-    return this.client.ensureTableExists(table);
+  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
+    final ArrayList<Deferred<Object>> checks = new ArrayList<Deferred<Object>>(4);
+    checks.add(client.ensureTableExists(data_table_name));
+    checks.add(client.ensureTableExists(uid_table_name));
+
+    if (enable_tree_processing) {
+      checks.add(client.ensureTableExists(tree_table_name));
+    }
+    if (enable_realtime_ts ||
+        enable_realtime_uid ||
+        enable_tsuid_incrementing) {
+      checks.add(client.ensureTableExists(meta_table_name));
+    }
+
+    return Deferred.group(checks);
   }
 
   @Override

@@ -33,9 +33,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 /**
@@ -282,7 +279,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> ensureTableExists(String table) {
+  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

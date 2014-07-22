@@ -422,22 +422,7 @@ public class TSDB {
    * @since 2.0
    */
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    final ArrayList<Deferred<Object>> checks = 
-      new ArrayList<Deferred<Object>>(2);
-    checks.add(tsdb_store.ensureTableExists(
-        config.getString("tsd.storage.hbase.data_table")));
-    checks.add(tsdb_store.ensureTableExists(
-        config.getString("tsd.storage.hbase.uid_table")));
-    if (config.enable_tree_processing()) {
-      checks.add(tsdb_store.ensureTableExists(
-          config.getString("tsd.storage.hbase.tree_table")));
-    }
-    if (config.enable_realtime_ts() || config.enable_realtime_uid() || 
-        config.enable_tsuid_incrementing()) {
-      checks.add(tsdb_store.ensureTableExists(
-          config.getString("tsd.storage.hbase.meta_table")));
-    }
-    return Deferred.group(checks);
+    return tsdb_store.checkNecessaryTablesExist();
   }
   
   /** Number of cache hits during lookups involving UIDs. */

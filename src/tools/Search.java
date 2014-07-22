@@ -128,9 +128,7 @@ final class Search {
                             final boolean use_data_table,
                             final String[] args) throws Exception {
     if (!use_data_table) {
-      tsdb.getTsdbStore().ensureTableExists(
-          tsdb.getConfig().getString(
-              "tsd.storage.hbase.meta_table")).joinUninterruptibly();
+      tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     }
     
     final SearchQuery query = new SearchQuery();
