@@ -51,7 +51,7 @@ public interface TsdbStore {
 
   void setFlushInterval(short aShort);
 
-  Deferred<Object> addPoint(byte[] value, byte[] row, byte[] qualifier);
+  Deferred<Object> addPoint(byte[] row, byte[] qualifier, byte[] value);
 
   public Deferred<Object> shutdown();
 

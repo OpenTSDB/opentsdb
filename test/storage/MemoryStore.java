@@ -410,7 +410,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(byte[] value, byte[] row, byte[] qualifier) {
+  public Deferred<Object> addPoint(byte[] row, byte[] qualifier, byte[] value) {
     final String s_row = new String(row, ASCII);
     final String s_qual = new String(qualifier, ASCII);
     data_table.put(s_row, s_qual, value);

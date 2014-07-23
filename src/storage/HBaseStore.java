@@ -163,7 +163,7 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(byte[] value, byte[] row, byte[] qualifier) {
+  public Deferred<Object> addPoint(byte[] row, byte[] qualifier, byte[] value) {
     final PutRequest point = new PutRequest(data_table_name, row, TS_FAMILY,
             qualifier,
             value);
