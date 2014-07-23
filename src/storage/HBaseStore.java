@@ -15,7 +15,9 @@ package net.opentsdb.storage;
 import com.google.common.base.Charsets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.core.StringCoder;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
@@ -27,12 +29,15 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The HBaseStore that implements the client interface required by TSDB.
  */
-public final class HBaseStore implements TsdbStore {
+public class HBaseStore implements TsdbStore {
   private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
+
+  private static final byte[] TS_FAMILY = { 't' };
 
   /**
    * Charset used to convert Strings to byte arrays and back.
@@ -55,10 +60,19 @@ public final class HBaseStore implements TsdbStore {
 
   final org.hbase.async.HBaseClient client;
 
+  /**
+   * Row keys that need to be compacted.
+   * Whenever we write a new data point to a row, we add the row key to this
+   * set.  Every once in a while, the compaction thread will go through old
+   * row keys and will read re-compact them.
+   */
+  private final CompactionQueue compactionq;
+
   private final boolean enable_realtime_ts;
   private final boolean enable_realtime_uid;
   private final boolean enable_tsuid_incrementing;
   private final boolean enable_tree_processing;
+  private final boolean enable_compactions;
 
   private final byte[] data_table_name;
   private final byte[] uid_table_name;
@@ -73,6 +87,7 @@ public final class HBaseStore implements TsdbStore {
     enable_realtime_ts = config.enable_realtime_ts();
     enable_realtime_uid = config.enable_realtime_uid();
     enable_tsuid_incrementing = config.enable_tsuid_incrementing();
+    enable_compactions = config.enable_compactions();
 
     data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
@@ -80,6 +95,8 @@ public final class HBaseStore implements TsdbStore {
     meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
     client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
+
+    compactionq = new CompactionQueue(this, config, data_table_name, TS_FAMILY);
   }
 
   @Override
@@ -117,7 +134,18 @@ public final class HBaseStore implements TsdbStore {
 
   @Override
   public Deferred<Object> flush() {
-    return this.client.flush();
+    final class HClientFlush implements Callback<Object, ArrayList<Object>> {
+      public Object call(final ArrayList<Object> args) {
+        return client.flush();
+      }
+      public String toString() {
+        return "flush TsdbStore";
+      }
+    }
+
+    return enable_compactions && compactionq != null
+            ? compactionq.flush().addCallback(new HClientFlush())
+            : client.flush();
   }
 
   @Override
@@ -136,12 +164,44 @@ public final class HBaseStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Object> addPoint(byte[] row, byte[] qualifier, byte[] value) {
+    final PutRequest point = new PutRequest(data_table_name, row, TS_FAMILY,
+            qualifier,
+            value);
+
+    scheduleForCompaction(row);
+
+    return client.put(point);
+  }
+
+  @Override
   public Deferred<Object> shutdown() {
-    return this.client.shutdown();
+    final class CompactCB implements Callback<Object, ArrayList<Object>> {
+      public Object call(ArrayList<Object> compactions) throws Exception {
+        return client.shutdown();
+      }
+    }
+
+    final class CompactEB implements Callback<Object, Exception> {
+      public Object call(final Exception e) {
+        LOG.error("Failed to shutdown. Received an error when " +
+                "flushing the compaction queue", e);
+        return client.shutdown();
+      }
+    }
+
+    if (enable_compactions) {
+      LOG.info("Flushing compaction queue");
+      return compactionq.flush().addCallbacks(new CompactCB(), new CompactEB());
+    } else {
+      return client.shutdown();
+    }
   }
 
   @Override
   public void recordStats(StatsCollector col) {
+    compactionq.collectStats(col);
+
     final ClientStats stats = client.stats();
 
     col.record("hbase.root_lookups", stats.rootLookups());
@@ -377,5 +437,28 @@ public final class HBaseStore implements TsdbStore {
     }
 
     return getMeta(uid, type).addCallback(new FetchMetaCB());
+  }
+
+  // ------------------ //
+  // Compaction helpers //
+  // ------------------ //
+  @Override
+  public final KeyValue compact(final ArrayList<KeyValue> row,
+                                List<Annotation> annotations) {
+    return compactionq.compact(row, annotations);
+  }
+
+  /**
+   * Schedules the given row key for later re-compaction.
+   * Once this row key has become "old enough", we'll read back all the data
+   * points in that row, write them back to TsdbStore in a more compact fashion,
+   * and delete the individual data points.
+   * @param row The row key to re-compact later.  Will not be modified.
+   */
+  @Override
+  public final void scheduleForCompaction(final byte[] row) {
+    if (enable_compactions) {
+      compactionq.add(row);
+    }
   }
 }

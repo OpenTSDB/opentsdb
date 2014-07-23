@@ -128,6 +128,7 @@ public class Config {
           String> overrides) throws IOException {
     this(auto_load_config);
     this.properties.putAll(overrides);
+    loadStaticVariables();
   }
 
   /**

@@ -13,12 +13,16 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.JSON;
 import org.hbase.async.*;
 import org.hbase.async.Scanner;
 import org.mockito.Matchers;
@@ -62,6 +66,9 @@ public class MemoryStore implements TsdbStore {
   //      KEY           Column Family Qualifier     Timestamp     Value
   private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
     storage = new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>();
+  private final Table<String, String, byte[]> data_table;
+  private final Table<String, String, byte[]> uid_table;
+
   private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
   private byte[] default_family = "t".getBytes(ASCII);
 
@@ -72,6 +79,11 @@ public class MemoryStore implements TsdbStore {
 
   /** Incremented every time a new value is stored (without a timestamp) */
   private long current_timestamp = 1388534400000L;
+
+  public MemoryStore() {
+    data_table = HashBasedTable.create();
+    uid_table = HashBasedTable.create();
+  }
 
   /**
    * Creates or increments (possibly decrements) a Long in the hash table at the
@@ -398,6 +410,14 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Object> addPoint(byte[] row, byte[] qualifier, byte[] value) {
+    final String s_row = new String(row, ASCII);
+    final String s_qual = new String(qualifier, ASCII);
+    data_table.put(s_row, s_qual, value);
+    return Deferred.fromResult(null);
+  }
+
+  @Override
   public Deferred<Object> shutdown() {
     throw new UnsupportedOperationException("Not implemented yet");
   }
@@ -449,23 +469,97 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> add(UIDMeta meta) {
-    throw new UnsupportedOperationException("Not implemented yet!");
+  public Deferred<Object> add(final UIDMeta meta) {
+    byte[] uid = UniqueId.stringToUid(meta.getUID());
+    uid_table.put(
+            new String(uid, ASCII),
+            meta.getType().toString().toLowerCase() + "_meta",
+            meta.getStorageJSON());
+
+    return Deferred.fromResult(null);
   }
 
   @Override
-  public Deferred<Object> delete(UIDMeta meta) {
-    throw new UnsupportedOperationException("Not implemented yet!");
+  public Deferred<Object> delete(final UIDMeta meta) {
+    byte[] uid = UniqueId.stringToUid(meta.getUID());
+    uid_table.remove(
+            new String(uid, ASCII),
+            meta.getType().toString().toLowerCase() + "_meta");
+
+    return Deferred.fromResult(null);
   }
 
   @Override
-  public Deferred<UIDMeta> getMeta(byte[] uid, String name, UniqueId.UniqueIdType type) {
-    throw new UnsupportedOperationException("Not implemented yet!");
+  public Deferred<UIDMeta> getMeta(final byte[] uid,
+                                   final String name,
+                                   final UniqueId.UniqueIdType type) {
+    final String qualifier = type.toString().toLowerCase() + "_meta";
+    byte[] json_value = uid_table.get(
+            new String(uid, ASCII),
+            qualifier);
+
+    if (json_value == null) {
+      // return the default
+      return Deferred.fromResult(new UIDMeta(type,
+              uid, name, false));
+    }
+
+    UniqueId.UniqueIdType effective_type = type;
+    if (effective_type == null) {
+      effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
+              qualifier.indexOf("_meta")));
+    }
+
+    UIDMeta return_meta = UIDMeta.buildFromJSON(
+            json_value, effective_type, uid, name);
+
+    return Deferred.fromResult(return_meta);
+  }
+
+  private Deferred<UIDMeta> getMeta(final String uid,
+                                    final UniqueId.UniqueIdType
+          type) {
+    final String qualifier = type.toString().toLowerCase() + "_meta";
+    byte[] json_value = uid_table.get(uid, qualifier);
+
+    if (json_value == null)
+      return Deferred.fromResult(null);
+
+    UIDMeta meta = JSON.parseToObject(json_value, UIDMeta.class);
+    meta.initializeChangedMap();
+
+    return Deferred.fromResult(meta);
   }
 
   @Override
-  public Deferred<Boolean> updateMeta(UIDMeta meta, boolean overwrite) {
-    throw new UnsupportedOperationException("Not implemented yet!");
+  public Deferred<Boolean> updateMeta(final UIDMeta meta,
+                                      final boolean overwrite) {
+    return getMeta(meta.getUID(), meta.getType()).addCallbackDeferring(
+            new Callback<Deferred<Boolean>, UIDMeta>() {
+              @Override
+              public Deferred<Boolean> call(UIDMeta meta2) throws Exception {
+                if (null != meta2) {
+                  meta.syncMeta(meta2, overwrite);
+                  add(meta);
+                }
+
+                // The MemoryStore is not expected to run in multiple threads
+                // and because of this there won't be multiple clients that
+                // can change the value between #updateMeta's initial
+                // #getMeta and the subsequent #add(meta) above. Because of
+                // this we can safely always return TRUE here.
+                return Deferred.fromResult(Boolean.TRUE);
+              }
+            });
+  }
+
+  @Override
+  public KeyValue compact(ArrayList<KeyValue> row, List<Annotation> annotations) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public void scheduleForCompaction(byte[] row) {
   }
 
   /**
@@ -563,6 +657,20 @@ public class MemoryStore implements TsdbStore {
   }
 
   /**
+   * Total number of columns in the given row on the data table.
+   * @param row The row to search for
+   * @return -1 if the row did not exist, otherwise the number of columns.
+   */
+  public long numColumnsDataTable(final byte[] row) {
+    final String s_row = new String(row, ASCII);
+
+    if (!data_table.containsRow(s_row))
+      return -1;
+
+    return data_table.row(s_row).size();
+  }
+
+  /**
    * Total number of columns in the given row across all column families
    * @param key The row to search for
    * @return -1 if the row did not exist, otherwise the number of columns.
@@ -632,6 +740,19 @@ public class MemoryStore implements TsdbStore {
       return null;
     }
     return column.firstEntry().getValue();
+  }
+
+  /**
+   * Retrieve a column from the data table.
+   * @param key The row key of the column
+   * @param qualifier The column qualifier
+   * @return The byte array of data or null if not found
+   */
+  public byte[] getColumnDataTable(final byte[] key,
+                          final byte[] qualifier) {
+    final String s_key = new String(key, ASCII);
+    final String s_qual = new String(qualifier, ASCII);
+    return data_table.get(s_key, s_qual);
   }
 
   /**

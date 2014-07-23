@@ -133,7 +133,7 @@ class IncomingDataPoints implements WritableDataPoints {
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
     Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
-    tsdb.scheduleForCompaction(row, (int) base_time);
+    tsdb.getTsdbStore().scheduleForCompaction(row);
     return base_time;
   }
 
