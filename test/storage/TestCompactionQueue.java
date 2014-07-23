@@ -15,6 +15,7 @@ package net.opentsdb.storage;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.*;
 
 import java.nio.charset.Charset;
 import java.util.*;
@@ -24,46 +25,19 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.TSDB;
 import org.hbase.async.*;
 
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
-import org.mockito.AdditionalMatchers;
-import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import static org.mockito.AdditionalMatchers.aryEq;
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
-@RunWith(PowerMockRunner.class)
-// "Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
-// because they fiddle with the class loader.  We don't test them anyway.
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-                  "ch.qos.*", "org.slf4j.*",
-                  "com.sum.*", "org.xml.*"})
-@PrepareForTest({ CompactionQueue.class, CompactionQueue.Thrd.class,
-                  TSDB.class, UniqueId.class, Config.class })
 public final class TestCompactionQueue {
   private HBaseStore tsdb_store;
   private Config config;

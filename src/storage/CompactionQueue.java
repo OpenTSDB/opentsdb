@@ -678,7 +678,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   /**
    * Background thread to trigger periodic compactions.
    */
-  final class Thrd extends Thread {
+  class Thrd extends Thread {
     public Thrd() {
       super("CompactionThread");
     }
