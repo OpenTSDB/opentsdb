@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,13 +25,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Internal;
+import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.utils.Config;
+import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.hbase.async.Bytes;
-import org.hbase.async.HBaseRpc;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PleaseThrottleException;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
@@ -55,7 +56,6 @@ import net.opentsdb.utils.JSON;
  * at the end of a cell, we have to do this instead.
  */
 class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
-
   private static final Logger LOG = LoggerFactory.getLogger(CompactionQueue.class);
 
   /**
@@ -70,21 +70,27 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   private final AtomicLong written_cells = new AtomicLong();
   private final AtomicLong deleted_cells = new AtomicLong();
 
-  /** The {@code TSDB} instance we belong to. */
-  private final TSDB tsdb;
+  private final TsdbStore tsdb_store;
+  private final Config config;
 
-  /** On how many bytes do we encode metrics IDs.  */
-  private final short metric_width;
+  private final byte[] table_name;
+  private final byte[] column_family;
 
   /**
    * Constructor.
-   * @param tsdb The TSDB we belong to.
+   * @param tsdb_store
    */
-  public CompactionQueue(final TSDB tsdb) {
-    super(new Cmp(tsdb));
-    this.tsdb = tsdb;
-    metric_width = tsdb.metrics.width();
-    if (tsdb.config.enable_compactions()) {
+  public CompactionQueue(final TsdbStore tsdb_store,
+                         final Config config,
+                         final byte[] table_name,
+                         final byte[] column_family) {
+    super(new Cmp());
+    this.tsdb_store = tsdb_store;
+    this.config = config;
+    this.table_name = table_name;
+    this.column_family = column_family;
+
+    if (config.enable_compactions()) {
       startCompactionThread();
     }
   }
@@ -101,6 +107,27 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   }
 
   /**
+   * Collects the stats and metrics tracked by this instance.
+   * @param collector The collector to use.
+   */
+  void collectStats(final StatsCollector collector) {
+    collector.record("compaction.count", compaction_count);
+    collector.record("compaction.duplicates", duplicates_same, "type=identical");
+    collector.record("compaction.duplicates", duplicates_different, "type=variant");
+    if (!config.enable_compactions()) {
+      return;
+    }
+    // The remaining stats only make sense with compactions enabled.
+    collector.record("compaction.queue.size", size);
+    collector.record("compaction.errors", handle_read_error.errors, "rpc=read");
+    collector.record("compaction.errors", handle_write_error.errors, "rpc=put");
+    collector.record("compaction.errors", handle_delete_error.errors,
+            "rpc=delete");
+    collector.record("compaction.writes", written_cells);
+    collector.record("compaction.deletes", deleted_cells);
+  }
+
+  /**
    * Forces a flush of the all old entries in the compaction queue.
    * @return A deferred that will be called back once everything has been
    * flushed (or something failed, in which case the deferred will carry the
@@ -114,27 +141,6 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     }
     final long now = System.currentTimeMillis();
     return flush(now / 1000 - Const.MAX_TIMESPAN - 1, Integer.MAX_VALUE);
-  }
-
-  /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
-   */
-  void collectStats(final StatsCollector collector) {
-    collector.record("compaction.count", compaction_count);
-    collector.record("compaction.duplicates", duplicates_same, "type=identical");
-    collector.record("compaction.duplicates", duplicates_different, "type=variant");
-    if (!tsdb.config.enable_compactions()) {
-      return;
-    }
-    // The remaining stats only make sense with compactions enabled.
-    collector.record("compaction.queue.size", size);
-    collector.record("compaction.errors", handle_read_error.errors, "rpc=read");
-    collector.record("compaction.errors", handle_write_error.errors, "rpc=put");
-    collector.record("compaction.errors", handle_delete_error.errors,
-                     "rpc=delete");
-    collector.record("compaction.writes", written_cells);
-    collector.record("compaction.deletes", deleted_cells);
   }
 
   /**
@@ -164,7 +170,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       if (seed == row.hashCode() % 3) {
         continue;
       }
-      final long base_time = Bytes.getUnsignedInt(row, metric_width);
+      final long base_time = Bytes.getUnsignedInt(row, Const.METRICS_WIDTH);
       if (base_time > cut_off) {
         break;
       } else if (nflushes == MAX_CONCURRENT_FLUSHES) {
@@ -182,13 +188,14 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       nflushes++;
       maxflushes--;
       size.decrementAndGet();
-      ds.add(tsdb.get(row).addCallbacks(compactcb, handle_read_error));
+      final GetRequest request = new GetRequest(table_name, row);
+      ds.add(tsdb_store.get(request).addCallbacks(compactcb, handle_read_error));
     }
     final Deferred<ArrayList<Object>> group = Deferred.group(ds);
     if (nflushes == MAX_CONCURRENT_FLUSHES && maxflushes > 0) {
       // We're not done yet.  Once this group of flushes completes, we need
       // to kick off more.
-      tsdb.flush();  // Speed up this batch by telling the TsdbStore to flush.
+      tsdb_store.flush(); // Speed up this batch by telling the TsdbStore to flush.
       final int maxflushez = maxflushes;  // Make it final for closure.
       final class FlushMoreCB implements Callback<Deferred<ArrayList<Object>>,
                                                   ArrayList<Object>> {
@@ -348,7 +355,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
       if (compacted != null) {  // Caller is interested in the compacted form.
         compacted[0] = compact;
-        final long base_time = Bytes.getUnsignedInt(compact.key(), metric_width);
+        final long base_time = Bytes.getUnsignedInt(compact.key(), Const.METRICS_WIDTH);
         final long cut_off = System.currentTimeMillis() / 1000
             - Const.MAX_TIMESPAN - 1;
         if (base_time > cut_off) {  // If row is too recent...
@@ -356,7 +363,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         }
       }
       // if compactions aren't enabled or there is nothing to write, we're done
-      if (!tsdb.config.enable_compactions() || (!write && to_delete.isEmpty())) {
+      if (!config.enable_compactions() || (!write && to_delete.isEmpty())) {
         return null;
       }
 
@@ -365,7 +372,8 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       deleted_cells.addAndGet(to_delete.size());  // We're going to delete this.
       if (write) {
         written_cells.incrementAndGet();
-        Deferred<Object> deferred = tsdb.put(key, compact.qualifier(), compact.value());
+        Deferred<Object> deferred = tsdb_store.put(new PutRequest(table_name, key,
+                column_family, compact.qualifier(), compact.value()));
         if (!to_delete.isEmpty()) {
           deferred = deferred.addCallbacks(new DeleteCompactedCB(to_delete), handle_write_error);
         }
@@ -448,7 +456,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           final byte[] discardedVal = col.getCopyOfCurrentValue();
           if (!Arrays.equals(existingVal, discardedVal)) {
             duplicates_different.incrementAndGet();
-            if (!tsdb.config.fix_duplicates()) {
+            if (!config.fix_duplicates()) {
               throw new IllegalDataException("Duplicate timestamp for key="
                   + Arrays.toString(row.get(0).key()) + ", ms_offset=" + ts + ", older="
                   + Arrays.toString(existingVal) + ", newer=" + Arrays.toString(discardedVal)
@@ -583,7 +591,8 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
     @Override
     public Object call(final Object arg) {
-      return tsdb.delete(key, qualifiers).addErrback(handle_delete_error);
+      return tsdb_store.delete(new DeleteRequest(table_name, key, column_family,
+              qualifiers)).addErrback(handle_delete_error);
     }
 
     @Override
@@ -757,17 +766,9 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * all rows of the same age at once.
    */
   private static final class Cmp implements Comparator<byte[]> {
-
-    /** On how many bytes do we encode metrics IDs.  */
-    private final short metric_width;
-
-    public Cmp(final TSDB tsdb) {
-      metric_width = tsdb.metrics.width();
-    }
-
     @Override
     public int compare(final byte[] a, final byte[] b) {
-      final int c = Bytes.memcmp(a, b, metric_width, Const.TIMESTAMP_BYTES);
+      final int c = Bytes.memcmp(a, b, Const.METRICS_WIDTH, Const.TIMESTAMP_BYTES);
       // If the timestamps are equal, sort according to the entire row key.
       return c != 0 ? c : Bytes.memcmp(a, b);
     }

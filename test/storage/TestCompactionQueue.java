@@ -10,22 +10,22 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
+import java.util.*;
 
+import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.TSDB;
+import org.hbase.async.*;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
@@ -36,12 +36,13 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.mockito.AdditionalMatchers;
 import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Matchers.eq;
+import static org.mockito.AdditionalMatchers.aryEq;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -64,9 +65,9 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @PrepareForTest({ CompactionQueue.class, CompactionQueue.Thrd.class,
                   TSDB.class, UniqueId.class, Config.class })
 public final class TestCompactionQueue {
+  private HBaseStore tsdb_store;
+  private Config config;
 
-  private TSDB tsdb = mock(TSDB.class);
-  private Config config = mock(Config.class);
   private static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] KEY = { 0, 0, 1, 78, 36, -84, 42, 0, 0, 1, 0, 0, 2 };
   private static final byte[] FAMILY = { 't' };
@@ -82,23 +83,20 @@ public final class TestCompactionQueue {
 
   @Before
   public void before() throws Exception {
-    // Inject the attributes we need into the "tsdb" object.
-    Whitebox.setInternalState(tsdb, "metrics", mock(UniqueId.class));
-    Whitebox.setInternalState(tsdb, "table", TABLE);
-    Whitebox.setInternalState(config, "enable_compactions", true);
-    Whitebox.setInternalState(config, "fix_duplicates", true);
-    Whitebox.setInternalState(tsdb, "config", config);
+    tsdb_store = mock(HBaseStore.class);
+
+    Map<String,String> overrides = Maps.newHashMap();
+    overrides.put("tsd.storage.fix_duplicates", "TRUE");
+    config = new Config(false, overrides);
+
     // Stub out the compaction thread, so it doesn't even start.
     PowerMockito.whenNew(CompactionQueue.Thrd.class).withNoArguments()
       .thenReturn(mock(CompactionQueue.Thrd.class));
-    PowerMockito.when(config.enable_compactions()).thenReturn(true);
-    PowerMockito.when(config.fix_duplicates()).thenReturn(true);
-    compactionq = new CompactionQueue(tsdb);
 
-    when(tsdb.put(anyBytes(), anyBytes(), anyBytes()))
-      .thenAnswer(newDeferred());
-    when(tsdb.delete(anyBytes(), any(byte[][].class)))
-      .thenAnswer(newDeferred());
+    compactionq = new CompactionQueue(tsdb_store, config, TABLE, FAMILY);
+
+    when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
+    when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
   }
 
   @Test
@@ -110,9 +108,9 @@ public final class TestCompactionQueue {
     
     // We had nothing to do so...
     // ... verify there were no put.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // ... verify there were no delete.
-    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+    verify(tsdb_store, never()).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -128,9 +126,9 @@ public final class TestCompactionQueue {
     
     // We had nothing to do so...
     // ... verify there were no put.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // ... verify there were no delete.
-    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+    verify(tsdb_store, never()).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -148,9 +146,9 @@ public final class TestCompactionQueue {
     
     // We had nothing to do so...
     // ... verify there were no put.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // ... verify there were no delete.
-    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+    verify(tsdb_store, never()).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -168,9 +166,9 @@ public final class TestCompactionQueue {
     
     // We had nothing to do so...
     // ... verify there were no put.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // ... verify there were no delete.
-    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+    verify(tsdb_store, never()).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -186,9 +184,9 @@ public final class TestCompactionQueue {
     assertArrayEquals(val, kv.value());
 
     // The old one needed the length fixed up, so verify that we wrote the new one
-    verify(tsdb, times(1)).put(KEY, cqual, val);
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // ... and deleted the old one
-    verify(tsdb, times(1)).delete(KEY, new byte[][] { qual });
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -204,9 +202,9 @@ public final class TestCompactionQueue {
     
     // We had nothing to do so...
     // ... verify there were no put.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // ... verify there were no delete.
-    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+    verify(tsdb_store, never()).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -225,10 +223,9 @@ public final class TestCompactionQueue {
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, ZERO), kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual2),
-                               MockBase.concatByteArrays(val1, val2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -249,37 +246,35 @@ public final class TestCompactionQueue {
     assertEquals(1, annotations.size());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual2),
-                               MockBase.concatByteArrays(val1, val2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test
   public void fullRowSeconds() throws Exception {
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3600);
     ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
-    
+
     byte[] qualifiers = new byte[] {};
     byte[] values = new byte[] {};
-    
+
     for (int i = 0; i < 3600; i++) {
       final short qualifier = (short) (i << Const.FLAG_BITS | 0x07);
       kvs.add(makekv(Bytes.fromShort(qualifier), Bytes.fromLong(i)));
-      qualifiers = MockBase.concatByteArrays(qualifiers, 
-          Bytes.fromShort(qualifier));
+      qualifiers = MockBase.concatByteArrays(qualifiers,
+              Bytes.fromShort(qualifier));
       values = MockBase.concatByteArrays(values, Bytes.fromLong(i));
     }
 
     final KeyValue kv = compactionq.compact(kvs, annotations);
     assertArrayEquals(MockBase.concatByteArrays(qualifiers), kv.qualifier());
     assertArrayEquals(MockBase.concatByteArrays(values, ZERO), kv.value());
-    
+
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, qualifiers,
-                               MockBase.concatByteArrays(values, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete((byte[])any(), (byte[][])any());
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -302,10 +297,9 @@ public final class TestCompactionQueue {
     assertArrayEquals(MockBase.concatByteArrays(values, ZERO), kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, qualifiers,
-        MockBase.concatByteArrays(values, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete((byte[])any(), (byte[][])any());
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -324,10 +318,9 @@ public final class TestCompactionQueue {
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, ZERO), kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual2),
-                               MockBase.concatByteArrays(val1, val2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -351,11 +344,9 @@ public final class TestCompactionQueue {
         new byte[] { 1 }), kv.value());
 
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual3, qual2),
-         MockBase.concatByteArrays(val1, val3, val2, new byte[] { 1 }));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, 
-        qual2, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -379,11 +370,9 @@ public final class TestCompactionQueue {
         kv.value());
 
     // We compacted all columns to one, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual2, qual3, qual1),
-        MockBase.concatByteArrays(val2, val3, val1, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, 
-        qual2, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -409,10 +398,9 @@ public final class TestCompactionQueue {
         kv.value());
 
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual2, qual3, qual1),
-                               MockBase.concatByteArrays(val2, val3, val1, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -432,10 +420,9 @@ public final class TestCompactionQueue {
         kv.value());
 
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual2),
-         MockBase.concatByteArrays(val1, val2, new byte[] { 1 }));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -457,15 +444,21 @@ public final class TestCompactionQueue {
     assertEquals(1, annotations.size());
 
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual2),
-         MockBase.concatByteArrays(val1, val2, new byte[] { 1 }));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test (expected = IllegalDataException.class)
   public void msSameAsSecond() throws Exception {
-    PowerMockito.when(config.fix_duplicates()).thenReturn(false);
+    tsdb_store = mock(HBaseStore.class);
+    config = new Config(false);
+
+    compactionq = new CompactionQueue(tsdb_store, config, TABLE, FAMILY);
+
+    when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
+    when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
+
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
     ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     final byte[] qual1 = { 0x00, 0x07 };
@@ -494,9 +487,9 @@ public final class TestCompactionQueue {
     assertArrayEquals(val2, kv.value());
     
     // no compacted row
-    verify(tsdb, never()).put(KEY, qual2, val2);
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // And we had to delete the earlier entry.
-    verify(tsdb, times(1)).delete(KEY, new byte[][] {qual1});
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -518,10 +511,9 @@ public final class TestCompactionQueue {
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, ZERO), kv.value());
 
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(cqual1, qual2),
-                               MockBase.concatByteArrays(val1, val2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -545,15 +537,21 @@ public final class TestCompactionQueue {
     assertArrayEquals(MockBase.concatByteArrays(val1, cval2, ZERO), kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual2),
-                               MockBase.concatByteArrays(val1, cval2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete individual cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2, }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test (expected = IllegalDataException.class)
   public void overlappingDataPoints() throws Exception {
-    PowerMockito.when(config.fix_duplicates()).thenReturn(false);
+    tsdb_store = mock(HBaseStore.class);
+    config = new Config(false);
+
+    compactionq = new CompactionQueue(tsdb_store, config, TABLE, FAMILY);
+
+    when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
+    when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
+
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
     ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
     final byte[] qual1 = { 0x00, 0x07 };
@@ -584,9 +582,9 @@ public final class TestCompactionQueue {
     assertArrayEquals(val2, kv.value());
 
     // We didn't have anything to write.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // We had to delete the first entry as it was older.
-    verify(tsdb, times(1)).delete(KEY, new byte[][] {qual1});
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -611,9 +609,9 @@ public final class TestCompactionQueue {
     assertArrayEquals(valcompact, kv.value());
     
     // We didn't have anything to write.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // We had to delete stuff in 1 row.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -627,9 +625,9 @@ public final class TestCompactionQueue {
     assertEquals(1, annotations.size());
 
     // ... verify there were no put.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // ... verify there were no delete.
-    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+    verify(tsdb_store, never()).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -646,9 +644,9 @@ public final class TestCompactionQueue {
     assertEquals(2, annotations.size());
 
     // ... verify there were no put.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // ... verify there were no delete.
-    verify(tsdb, never()).delete(anyBytes(), any(byte[][].class));
+    verify(tsdb_store, never()).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -677,10 +675,9 @@ public final class TestCompactionQueue {
         kv.value());
 
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual3, qual2),
-                               MockBase.concatByteArrays(val1, val3, val2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the individual cell + pre-existing compacted cell.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -711,10 +708,9 @@ public final class TestCompactionQueue {
     assertEquals(1, annotations.size());
 
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual3, qual2),
-                               MockBase.concatByteArrays(val1, val3, val2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the individual cell + pre-existing compacted cell.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -743,10 +739,9 @@ public final class TestCompactionQueue {
         kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual3, qual2),
-                               MockBase.concatByteArrays(val1, val3, val2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the individual cell + pre-existing compacted cell.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -776,11 +771,9 @@ public final class TestCompactionQueue {
         new byte[] { 1 }), kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual3, qual2),
-                               MockBase.concatByteArrays(val1, val3, val2, 
-                                   new byte[] { 1 }));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the individual cell + pre-existing compacted cell.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -810,11 +803,9 @@ public final class TestCompactionQueue {
         new byte[] { 1 }), kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual3, qual2),
-                               MockBase.concatByteArrays(val1, val3, val2, 
-                                   new byte[] { 1 }));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the individual cell + pre-existing compacted cell.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -845,16 +836,21 @@ public final class TestCompactionQueue {
         new byte[] { 1 }), kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual3, qual1, qual2),
-                               MockBase.concatByteArrays(val3, val1, val2, 
-                                   new byte[] { 1 }));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the individual cell + pre-existing compacted cell.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual3 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test (expected = IllegalDataException.class)
   public void secondCompactOverwrite() throws Exception {
-    PowerMockito.when(config.fix_duplicates()).thenReturn(false);
+    tsdb_store = mock(HBaseStore.class);
+    config = new Config(false);
+
+    compactionq = new CompactionQueue(tsdb_store, config, TABLE, FAMILY);
+
+    when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
+    when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
+
     // In this test the row has already been compacted, and a new value for an
     // old data point was written in the mean time
     ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
@@ -901,11 +897,10 @@ public final class TestCompactionQueue {
         kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual3, qual2),
-        MockBase.concatByteArrays(val3, val2, new byte[] { 0 }));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the individual cell, but we overwrite the pre-existing compacted cell
     // rather than delete it.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] {qual3}));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -941,11 +936,10 @@ public final class TestCompactionQueue {
     
     // We didn't have anything to write, the last cell is already the correct
     // compacted version of the row.
-    verify(tsdb, never()).put(anyBytes(), anyBytes(), anyBytes());
+    verify(tsdb_store, never()).put(any(PutRequest.class));
     // And we had to delete the 3 individual cells + the first pre-existing
     // compacted cell.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, 
-        qual12, qual3, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -979,11 +973,10 @@ public final class TestCompactionQueue {
         kv.value());
     
     // We had one row to compact, so one put to do.
-    verify(tsdb, times(1)).put(KEY, MockBase.concatByteArrays(qual1, qual3, qual2),
-                               MockBase.concatByteArrays(val1, val3, val2, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the 3 individual cells + 2 pre-existing
     // compacted cells.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual1, qual12, qual13, qual3, qual2 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
 
   @Test
@@ -1022,11 +1015,9 @@ public final class TestCompactionQueue {
         kv.value());
 
     // We wrote only the combined column.
-    verify(tsdb, times(1)).put(KEY, 
-        MockBase.concatByteArrays(qual1, qual2, qual3, qual4, qual5, qual6),
-        MockBase.concatByteArrays(val1, val2, val3, val4, val5, val6, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the 3 partially compacted columns.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual34, qual56 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -1065,11 +1056,9 @@ public final class TestCompactionQueue {
         kv.value());    
     
     // We wrote only the combined column.
-    verify(tsdb, times(1)).put(KEY, 
-        MockBase.concatByteArrays(qual1, qual2, qual3, qual4, qual5, qual6),
-        MockBase.concatByteArrays(val1, val2, val3, val4, val5, val6, ZERO));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the 3 partially compacted columns.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual56, qual34 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   @Test
@@ -1110,11 +1099,9 @@ public final class TestCompactionQueue {
         kv.value());
 
     // We wrote only the combined column.
-    verify(tsdb, times(1)).put(KEY, 
-        MockBase.concatByteArrays(qual1, qual2, qual3, qual4, qual5, qual6),
-        MockBase.concatByteArrays(val1, val2, val3, val4, val5, val6, MIXED_FLAG));
+    verify(tsdb_store, times(1)).put(any(PutRequest.class));
     // And we had to delete the 3 partially compacted columns.
-    verify(tsdb, times(1)).delete(eq(KEY), eqAnyOrder(new byte[][] { qual12, qual34, qual56 }));
+    verify(tsdb_store, times(1)).delete(any(DeleteRequest.class));
   }
   
   // ----------------- //
@@ -1127,35 +1114,6 @@ public final class TestCompactionQueue {
   /** Shorthand to create a {@link KeyValue}.  */
   private static KeyValue makekv(final byte[] qualifier, final byte[] value) {
     return new KeyValue(KEY, FAMILY, qualifier, kvCount++, value);
-  }
-
-  private static byte[] anyBytes() {
-    return any(byte[].class);
-  }
-
-  // check that the byte arrays appear in any order, but otherwise match exactly
-  private static byte[][] eqAnyOrder(byte[][] wanted) {
-    return argThat(new EqAnyOrder(wanted));
-  }
-
-  private static class EqAnyOrder extends ArgumentMatcher<byte[][]> {
-
-    private final Set<byte[]> wanted;
-
-    public EqAnyOrder(byte[][] wanted) {
-      this.wanted = new HashSet<byte[]>(Arrays.asList(wanted));
-    }
-
-    @Override public boolean matches(Object o) {
-      if (o.getClass() != byte[][].class) {
-        return false;
-      }
-      byte[][] obytes = (byte[][]) o;
-      if (obytes.length != wanted.size()) {
-        return false;
-      }
-      return wanted.containsAll(Arrays.asList(obytes));
-    }
   }
 
   /** Creates a new Deferred that's already called back.  */

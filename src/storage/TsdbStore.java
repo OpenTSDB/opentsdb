@@ -13,6 +13,7 @@
 package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
@@ -20,6 +21,7 @@ import org.hbase.async.*;
 
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A interface defining the functions any database used with TSDB must implement.
@@ -67,4 +69,12 @@ public interface TsdbStore {
 
   public Deferred<Boolean> updateMeta(final UIDMeta meta,
                                       final boolean overwrite);
+
+  // ------------------ //
+  // Compaction helpers //
+  // ------------------ //
+  KeyValue compact(ArrayList<KeyValue> row,
+                   List<Annotation> annotations);
+
+  void scheduleForCompaction(byte[] row);
 }

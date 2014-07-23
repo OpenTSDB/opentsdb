@@ -43,7 +43,6 @@ public final class TestTSDB {
   private UniqueId metrics = mock(UniqueId.class);
   private UniqueId tag_names = mock(UniqueId.class);
   private UniqueId tag_values = mock(UniqueId.class);
-  private CompactionQueue compactionq = mock(CompactionQueue.class);
   
   @Before
   public void before() throws Exception {
@@ -63,10 +62,6 @@ public final class TestTSDB {
     Field tagv = tsdb.getClass().getDeclaredField("tag_values");
     tagv.setAccessible(true);
     tagv.set(tsdb, tag_values);
-    
-    Field cq = tsdb.getClass().getDeclaredField("compactionq");
-    cq.setAccessible(true);
-    cq.set(tsdb, compactionq);
   }
   
   @Test

@@ -16,6 +16,7 @@ import com.google.common.base.Charsets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UniqueId;
@@ -398,6 +399,11 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Object> addPoint(byte[] value, byte[] row, byte[] qualifier) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
   public Deferred<Object> shutdown() {
     throw new UnsupportedOperationException("Not implemented yet");
   }
@@ -466,6 +472,16 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Boolean> updateMeta(UIDMeta meta, boolean overwrite) {
     throw new UnsupportedOperationException("Not implemented yet!");
+  }
+
+  @Override
+  public KeyValue compact(ArrayList<KeyValue> row, List<Annotation> annotations) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public void scheduleForCompaction(byte[] row) {
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   /**
