@@ -15,6 +15,7 @@ package net.opentsdb.storage;
 import com.google.common.base.Charsets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -181,9 +182,17 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
+    final class CompactEB implements Callback<Object, Exception> {
+      public Object call(final Exception e) {
+        LOG.error("Failed to shutdown. Received an error when " +
+                "flushing the compaction queue", e);
+        return client.shutdown();
+      }
+    }
+
     if (enable_compactions) {
       LOG.info("Flushing compaction queue");
-      return compactionq.flush().addCallback(new CompactCB());
+      return compactionq.flush().addCallbacks(new CompactCB(), new CompactEB());
     } else {
       return client.shutdown();
     }
