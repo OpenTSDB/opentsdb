@@ -321,7 +321,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -334,7 +334,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(-42, value[0]);
   }
@@ -347,7 +347,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 257, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 1 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(257, Bytes.getShort(value));
   }
@@ -360,7 +360,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -257, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 1 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(-257, Bytes.getShort(value));
   }
@@ -373,7 +373,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 65537, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 3 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(65537, Bytes.getInt(value));
   }
@@ -386,7 +386,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -65537, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 3 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(-65537, Bytes.getInt(value));
   }
@@ -399,7 +399,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 4294967296L, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 7 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(4294967296L, Bytes.getLong(value));
   }
@@ -412,7 +412,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -4294967296L, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 7 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(-4294967296L, Bytes.getLong(value));
   }
@@ -425,7 +425,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row,
+    final byte[] value = tsdb_store.getColumnDataTable(row,
         new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -442,10 +442,10 @@ public final class TestTSDB {
     }
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(1, value[0]);
-    assertEquals(50, tsdb_store.numColumns(row));
+    assertEquals(50, tsdb_store.numColumnsDataTable(row));
   }
   
   @Test
@@ -459,11 +459,11 @@ public final class TestTSDB {
     }
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row,
+    final byte[] value = tsdb_store.getColumnDataTable(row,
         new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
     assertEquals(1, value[0]);
-    assertEquals(50, tsdb_store.numColumns(row));
+    assertEquals(50, tsdb_store.numColumnsDataTable(row));
   }
   
   @Test
@@ -474,7 +474,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1357001999, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { (byte) 0xE0,
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xE0,
         (byte) 0xF0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -489,7 +489,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 24, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(24, value[0]);
   }
@@ -513,7 +513,7 @@ public final class TestTSDB {
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 0, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -526,7 +526,7 @@ public final class TestTSDB {
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 16 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 16 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -540,7 +540,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 4294967295L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0x69, (byte) 0xF0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -567,7 +567,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 4294967296L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, 
         (byte) 0x90, 0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF0,
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0,
         (byte) 0xA3, 0x60, 0});
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -582,7 +582,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 4294967295000L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF6,
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF6,
         (byte) 0x77, 0x46, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -597,7 +597,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 9999999999999L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9, 
         0x10, 0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { (byte) 0xFA,
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xFA,
         (byte) 0xAE, 0x5F, (byte) 0xC0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -630,7 +630,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -644,7 +644,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(-42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -658,7 +658,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row,
+    final byte[] value = tsdb_store.getColumnDataTable(row,
         new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -673,7 +673,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1357001999, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { (byte) 0xE0,
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xE0,
         (byte) 0xFB });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -689,7 +689,7 @@ public final class TestTSDB {
       .joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.512345F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -704,7 +704,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 25.4F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(25.4F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -722,11 +722,11 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
-    assertEquals(2, tsdb_store.numColumns(row));
+    byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
+    assertEquals(2, tsdb_store.numColumnsDataTable(row));
     assertNotNull(value);
     assertEquals(42, value[0]);
-    value = tsdb_store.getColumn(row, new byte[] { 0, 11 });
+    value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -744,11 +744,11 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
-    assertEquals(2, tsdb_store.numColumns(row));
+    byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
+    assertEquals(2, tsdb_store.numColumnsDataTable(row));
     assertNotNull(value);
     assertEquals(42, value[0]);
-    value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
+    value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -765,11 +765,11 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400000L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = tsdb_store.getColumn(row, new byte[] { 0, 0 });
-    assertEquals(2, tsdb_store.numColumns(row));
+    byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
+    assertEquals(2, tsdb_store.numColumnsDataTable(row));
     assertNotNull(value);
     assertEquals(42, value[0]);
-    value = tsdb_store.getColumn(row, new byte[] { (byte) 0xF0, 0, 0, 0 });
+    value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0, 0, 0, 0 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42, value[0]);

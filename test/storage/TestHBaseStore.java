@@ -3,11 +3,13 @@ package net.opentsdb.storage;
 import net.opentsdb.utils.Config;
 import org.hbase.async.HBaseClient;
 import org.junit.Before;
+import org.junit.Ignore;
 
 import java.io.IOException;
 
 import static org.mockito.Mockito.mock;
 
+@Ignore
 public class TestHBaseStore extends TestTsdbStore {
   private HBaseClient client;
 
