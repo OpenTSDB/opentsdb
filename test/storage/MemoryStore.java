@@ -494,11 +494,11 @@ public class MemoryStore implements TsdbStore {
                                    final String name,
                                    final UniqueId.UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    byte[] json = uid_table.get(
+    byte[] json_value = uid_table.get(
             new String(uid, ASCII),
             qualifier);
 
-    if (json == null) {
+    if (json_value == null) {
       // return the default
       return Deferred.fromResult(new UIDMeta(type,
               uid, name, false));
@@ -511,7 +511,7 @@ public class MemoryStore implements TsdbStore {
     }
 
     UIDMeta return_meta = UIDMeta.buildFromJSON(
-            json, effective_type, uid, name);
+            json_value, effective_type, uid, name);
 
     return Deferred.fromResult(return_meta);
   }
@@ -520,12 +520,12 @@ public class MemoryStore implements TsdbStore {
                                     final UniqueId.UniqueIdType
           type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    byte[] json = uid_table.get(uid, qualifier);
+    byte[] json_value = uid_table.get(uid, qualifier);
 
-    if (json == null)
-      return null;
+    if (json_value == null)
+      return Deferred.fromResult(null);
 
-    UIDMeta meta = JSON.parseToObject(json, UIDMeta.class);
+    UIDMeta meta = JSON.parseToObject(json_value, UIDMeta.class);
     meta.initializeChangedMap();
 
     return Deferred.fromResult(meta);
@@ -543,6 +543,11 @@ public class MemoryStore implements TsdbStore {
                   add(meta);
                 }
 
+                // The MemoryStore is not expected to run in multiple threads
+                // and because of this there won't be multiple clients that
+                // can change the value between #updateMeta's initial
+                // #getMeta and the subsequent #add(meta) above. Because of
+                // this we can safely always return TRUE here.
                 return Deferred.fromResult(Boolean.TRUE);
               }
             });
