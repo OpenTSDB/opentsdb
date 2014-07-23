@@ -34,6 +34,8 @@ import java.util.ArrayList;
 public final class HBaseStore implements TsdbStore {
   private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
 
+  private static final byte[] TS_FAMILY = { 't' };
+
   /**
    * Charset used to convert Strings to byte arrays and back.
    */
@@ -133,6 +135,14 @@ public final class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Object> put(PutRequest request) {
     return this.client.put(request);
+  }
+
+  @Override
+  public Deferred<Object> addPoint(byte[] value, byte[] row, byte[] qualifier) {
+    final PutRequest point = new PutRequest(data_table_name, row, TS_FAMILY,
+            qualifier,
+            value);
+    return client.put(point);
   }
 
   @Override

@@ -712,11 +712,11 @@ public class TSDB {
     
     Bytes.setInt(row, (int) base_time, metrics.width());
     scheduleForCompaction(row, (int) base_time);
-    final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
-    
+
     // TODO(tsuna): Add a callback to time the latency of HBase and store the
     // timing in a moving Histogram (once we have a class for this).
-    Deferred<Object> result = tsdb_store.put(point);
+    Deferred<Object> result = tsdb_store.addPoint(value, row, qualifier);
+
     if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
         !config.enable_tsuid_tracking() && rt_publisher == null) {
       return result;

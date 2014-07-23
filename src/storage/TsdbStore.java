@@ -49,6 +49,8 @@ public interface TsdbStore {
 
   void setFlushInterval(short aShort);
 
+  Deferred<Object> addPoint(byte[] value, byte[] row, byte[] qualifier);
+
   public Deferred<Object> shutdown();
 
   public void recordStats(StatsCollector collector);
