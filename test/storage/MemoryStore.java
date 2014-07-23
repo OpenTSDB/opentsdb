@@ -470,9 +470,8 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
-    byte[] uid = UniqueId.stringToUid(meta.getUID());
     uid_table.put(
-            new String(uid, ASCII),
+            meta.getUID(),
             meta.getType().toString().toLowerCase() + "_meta",
             meta.getStorageJSON());
 
@@ -481,9 +480,8 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> delete(final UIDMeta meta) {
-    byte[] uid = UniqueId.stringToUid(meta.getUID());
     uid_table.remove(
-            new String(uid, ASCII),
+            meta.getUID(),
             meta.getType().toString().toLowerCase() + "_meta");
 
     return Deferred.fromResult(null);
@@ -494,14 +492,13 @@ public class MemoryStore implements TsdbStore {
                                    final String name,
                                    final UniqueId.UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    byte[] json_value = uid_table.get(
-            new String(uid, ASCII),
-            qualifier);
+    final String s_uid = UniqueId.uidToString(uid);
+
+    byte[] json_value = uid_table.get(s_uid, qualifier);
 
     if (json_value == null) {
       // return the default
-      return Deferred.fromResult(new UIDMeta(type,
-              uid, name, false));
+      return Deferred.fromResult(new UIDMeta(type, uid, name, false));
     }
 
     UniqueId.UniqueIdType effective_type = type;
