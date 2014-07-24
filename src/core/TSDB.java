@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -46,6 +47,8 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Thread-safe implementation of the TSDB client.
@@ -99,8 +102,9 @@ public class TSDB {
    * @since 2.1
    */
   public TSDB(final TsdbStore client, final Config config) {
-    this.config = config;
-    this.tsdb_store = client;
+    this.config = checkNotNull(config);
+    this.tsdb_store = checkNotNull(client);
+
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);

@@ -13,6 +13,7 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -30,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * The HBaseStore that implements the client interface required by TSDB.
@@ -80,8 +83,7 @@ public class HBaseStore implements TsdbStore {
   private final byte[] meta_table_name;
 
   public HBaseStore(final HBaseClient client, final Config config) {
-    super();
-    this.client = client;
+    this.client = checkNotNull(client);
 
     enable_tree_processing = config.enable_tree_processing();
     enable_realtime_ts = config.enable_realtime_ts();
