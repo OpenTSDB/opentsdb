@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -37,7 +38,6 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.core.Const;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
-import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
@@ -73,10 +73,6 @@ public class UniqueId implements UniqueIdInterface {
   private static final byte[] MAXID_ROW = { 0 };
   /** How many time do we try to assign an ID before giving up. */
   private static final short MAX_ATTEMPTS_ASSIGN_ID = 3;
-  /** How many time do we try to apply an edit before giving up. */
-  private static final short MAX_ATTEMPTS_PUT = 6;
-  /** Initial delay in ms for exponential backoff to retry failed RPCs. */
-  private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
   /** Maximum number of results to return in suggest(). */
   private static final short MAX_SUGGESTIONS = 25;
 
@@ -782,75 +778,36 @@ public class UniqueId implements UniqueIdInterface {
    * update the mapping.
    */
   public void rename(final String oldname, final String newname) {
-    final byte[] row = getId(oldname);
-    {
-      byte[] id = null;
-      try {
-        id = getId(newname);
-      } catch (NoSuchUniqueName e) {
-        // OK, we don't want the new name to be assigned.
-      }
-      if (id != null) {
-        throw new IllegalArgumentException("When trying rename(\"" + oldname
-          + "\", \"" + newname + "\") on " + this + ": new name already"
-          + " assigned ID=" + Arrays.toString(id));
-      }
+    if (checkUidExists(newname)) {
+      throw new IllegalArgumentException("An UID with name " + newname + " " +
+              "for " + kind() + " already exists");
     }
 
-    final byte[] newnameb = toBytes(newname);
-
-    // Update the reverse mapping first, so that if we die before updating
-    // the forward mapping we don't run the risk of "publishing" a
-    // partially assigned ID.  The reverse mapping on its own is harmless
-    // but the forward mapping without reverse mapping is bad.
-    try {
-      final PutRequest reverse_mapping = new PutRequest(
-        table, row, NAME_FAMILY, kind, newnameb);
-      hbasePutWithRetry(reverse_mapping, MAX_ATTEMPTS_PUT,
-                        INITIAL_EXP_BACKOFF_DELAY);
-    } catch (HBaseException e) {
-      LOG.error("When trying rename(\"" + oldname
-        + "\", \"" + newname + "\") on " + this + ": Failed to update reverse"
-        + " mapping for ID=" + Arrays.toString(row), e);
-      throw e;
-    }
-
-    // Now create the new forward mapping.
-    try {
-      final PutRequest forward_mapping = new PutRequest(
-        table, newnameb, ID_FAMILY, kind, row);
-      hbasePutWithRetry(forward_mapping, MAX_ATTEMPTS_PUT,
-                        INITIAL_EXP_BACKOFF_DELAY);
-    } catch (HBaseException e) {
-      LOG.error("When trying rename(\"" + oldname
-        + "\", \"" + newname + "\") on " + this + ": Failed to create the"
-        + " new forward mapping with ID=" + Arrays.toString(row), e);
-      throw e;
-    }
+    final byte[] old_uid = getId(oldname);
+    tsdb_store.allocateUID(toBytes(newname), old_uid, kind);
 
     // Update cache.
-    addIdToCache(newname, row);            // add     new name -> ID
-    id_cache.put(StringCoder.fromBytes(row), newname);  // update  ID -> new name
+    addIdToCache(newname, old_uid);            // add     new name -> ID
+    id_cache.put(StringCoder.fromBytes(old_uid), newname);  // update  ID -> new name
     name_cache.remove(oldname);             // remove  old name -> ID
 
     // Delete the old forward mapping.
     try {
-      final DeleteRequest old_forward_mapping = new DeleteRequest(
-        table, toBytes(oldname), ID_FAMILY, kind);
-      tsdb_store.delete(old_forward_mapping).joinUninterruptibly();
-    } catch (HBaseException e) {
-      LOG.error("When trying rename(\"" + oldname
-        + "\", \"" + newname + "\") on " + this + ": Failed to remove the"
-        + " old forward mapping for ID=" + Arrays.toString(row), e);
-      throw e;
+      tsdb_store.deleteUID(toBytes(oldname), kind).joinUninterruptibly();
     } catch (Exception e) {
-      final String msg = "Unexpected exception when trying rename(\"" + oldname
-        + "\", \"" + newname + "\") on " + this + ": Failed to remove the"
-        + " old forward mapping for ID=" + Arrays.toString(row);
-      LOG.error("WTF?  " + msg, e);
-      throw new RuntimeException(msg, e);
+      Throwables.propagate(e);
     }
     // Success!
+  }
+
+  private boolean checkUidExists(String newname) {
+    try {
+      byte[] id = getId(newname);
+      return id != null;
+    } catch (NoSuchUniqueName e) {
+      // OK, we don't want the new name to be assigned.
+      return false;
+    }
   }
 
   /** The start row to scan on empty search strings.  `!' = first ASCII char. */
@@ -889,45 +846,6 @@ public class UniqueId implements UniqueIdInterface {
     }
     scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;
-  }
-
-  /**
-   * Attempts to run the PutRequest given in argument, retrying if needed.
-   *
-   * Puts are synchronized.
-   *
-   * @param put The PutRequest to execute.
-   * @param attempts The maximum number of attempts.
-   * @param wait The initial amount of time in ms to sleep for after a
-   * failure.  This amount is doubled after each failed attempt.
-   * @throws HBaseException if all the attempts have failed.  This exception
-   * will be the exception of the last attempt.
-   */
-  private void hbasePutWithRetry(final PutRequest put, short attempts, short wait)
-    throws HBaseException {
-    put.setBufferable(false);  // TODO(tsuna): Remove once this code is async.
-    while (attempts-- > 0) {
-      try {
-        tsdb_store.put(put).joinUninterruptibly();
-        return;
-      } catch (HBaseException e) {
-        if (attempts > 0) {
-          LOG.error("Put failed, attempts left=" + attempts
-                    + " (retrying in " + wait + " ms), put=" + put, e);
-          try {
-            Thread.sleep(wait);
-          } catch (InterruptedException ie) {
-            throw new RuntimeException("interrupted", ie);
-          }
-          wait *= 2;
-        } else {
-          throw e;
-        }
-      } catch (Exception e) {
-        LOG.error("WTF?  Unexpected exception type, put=" + put, e);
-      }
-    }
-    throw new IllegalStateException("This code should never be reached!");
   }
 
   private static byte[] toBytes(final String s) {
