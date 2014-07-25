@@ -57,8 +57,8 @@ public interface TsdbStore {
 
   public void recordStats(StatsCollector collector);
 
-  public Deferred<byte[]> getId(final String name, byte[] table, byte[] kind);
-  public Deferred<String> getName(final byte[] id, byte[] table, byte[] kind);
+  public Deferred<byte[]> getId(final String name, byte[] kind);
+  public Deferred<String> getName(final byte[] id, byte[] kind);
 
   public Deferred<Object> add(final UIDMeta meta);
 

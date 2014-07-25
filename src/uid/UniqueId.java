@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.xml.bind.DatatypeConverter;
 
+import com.google.common.base.Objects;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -232,7 +233,7 @@ public class UniqueId implements UniqueIdInterface {
         return name;
       }
     }
-    return tsdb_store.getName(id, table, kind).addCallback(new GetNameCB());
+    return tsdb_store.getName(id, kind).addCallback(new GetNameCB());
   }
 
   private String getNameFromCache(final byte[] id) {
@@ -283,7 +284,7 @@ public class UniqueId implements UniqueIdInterface {
         return id;
       }
     }
-    return tsdb_store.getId(name, table, kind).addCallback(new GetIdCB());
+    return tsdb_store.getId(name, kind).addCallback(new GetIdCB());
   }
 
   private byte[] getIdFromCache(final String name) {
@@ -936,8 +937,10 @@ public class UniqueId implements UniqueIdInterface {
 
   /** Returns a human readable string representation of the object. */
   public String toString() {
-    return "UniqueId(" + StringCoder.fromBytes(table) + ", " + kind() + ", " +
-            "" + id_width + ")";
+    return Objects.toStringHelper(this)
+            .add("kind", kind())
+            .add("id_width", id_width)
+            .toString();
   }
 
   /**

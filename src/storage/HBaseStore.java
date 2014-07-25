@@ -13,10 +13,8 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Preconditions;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -239,14 +237,14 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<String> getName(final byte[] id, byte[] table, byte[] kind) {
+  public Deferred<String> getName(final byte[] id, byte[] kind) {
     class NameFromHBaseCB implements Callback<String, byte[]> {
       public String call(final byte[] name) {
         return name == null ? null : StringCoder.fromBytes(name);
       }
     }
 
-    final GetRequest request = new GetRequest(table, id);
+    final GetRequest request = new GetRequest(uid_table_name, id);
     request.family(NAME_FAMILY).qualifier(kind);
 
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
@@ -263,8 +261,8 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> getId(final String name, byte[] table, byte[] kind) {
-    final GetRequest get = new GetRequest(table, StringCoder.toBytes(name));
+  public Deferred<byte[]> getId(final String name, byte[] kind) {
+    final GetRequest get = new GetRequest(uid_table_name, StringCoder.toBytes(name));
     get.family(ID_FAMILY).qualifier(kind);
 
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {

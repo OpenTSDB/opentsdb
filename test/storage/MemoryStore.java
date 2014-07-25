@@ -428,8 +428,11 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> getId(String name, byte[] table, byte[] kind) {
-    final GetRequest get = new GetRequest(table, StringCoder.toBytes(name));
+  public Deferred<byte[]> getId(String name, byte[] kind) {
+    // TODO #getId should be rewritten to use guava tables instead of this
+    // HBase implementation
+    final GetRequest get = new GetRequest("deprecated",
+            StringCoder.toBytes(name));
     get.family(ID_FAMILY).qualifier(kind);
 
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
@@ -445,14 +448,16 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<String> getName(byte[] id, byte[] table, byte[] kind) {
+  public Deferred<String> getName(byte[] id, byte[] kind) {
     class NameFromHBaseCB implements Callback<String, byte[]> {
       public String call(final byte[] name) {
         return name == null ? null : StringCoder.fromBytes(name);
       }
     }
 
-    final GetRequest request = new GetRequest(table, id);
+    // TODO #getName should be rewritten to use guava tables instead of this
+    // HBase implementation
+    final GetRequest request = new GetRequest("deprecated", id);
     request.family(NAME_FAMILY).qualifier(kind);
 
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
