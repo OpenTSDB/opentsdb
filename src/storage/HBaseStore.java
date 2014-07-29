@@ -13,7 +13,6 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Objects;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -40,10 +39,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class HBaseStore implements TsdbStore {
   private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
 
-  /** How many time do we try to apply an edit before giving up. */
-  private static final short MAX_ATTEMPTS_PUT = 6;
-  /** Initial delay in ms for exponential backoff to retry failed RPCs. */
-  private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
+  /** Row key of the special row used to track the max ID already assigned. */
+  private static final byte[] MAXID_ROW = { 0 };
 
   private static final byte[] TS_FAMILY = { 't' };
 
@@ -488,8 +485,58 @@ public class HBaseStore implements TsdbStore {
       LOG.error("When deleting(\"{}\", on {}: Failed to remove the mapping" +
               "for (key, qualifier) = ({}, {}). ", name, this, name, kind, e);
       throw e;
-
     }
+  }
+
+  @Override
+  public Deferred<byte[]> allocateUID(final byte[] name,
+                                      final byte[] kind,
+                                      final short id_width) {
+    class IdCB implements Callback<Deferred<byte[]>, Long> {
+      @Override
+      public Deferred<byte[]> call(Long id) throws Exception {
+        if (id <= 0) {
+          throw new IllegalStateException("Got a negative ID from HBase: " + id);
+        }
+
+        LOG.info("Got ID={} for kind='{}' name='{}'", id, kind, name);
+
+        final byte[] row = Bytes.fromLong(id);
+
+        // row.length should actually be 8.
+        if (row.length < id_width) {
+          throw new IllegalStateException("row.length = " + row.length
+                  + " which is less than " + id_width
+                  + " for id=" + id
+                  + " row=" + Arrays.toString(row));
+        }
+
+        // Verify that the indices in the row array that won't be used in the
+        // uid with the current length are zero so we haven't reached the upper
+        // limits.
+        for (int i = 0; i < row.length - id_width; i++) {
+          if (row[i] != 0) {
+            throw new IllegalStateException("All Unique IDs for " + kind
+                    + " on " + id_width + " bytes are already assigned!");
+          }
+        }
+
+        // Shrink the ID on the requested number of bytes.
+        final byte[] uid = Arrays.copyOfRange(row, row.length - id_width,
+                row.length);
+
+        return allocateUID(name, uid, kind);
+      }
+    }
+
+    Deferred<Long> new_id_d = client.atomicIncrement(
+            new AtomicIncrementRequest(
+                    uid_table_name,
+                    MAXID_ROW,
+                    ID_FAMILY,
+                    kind));
+
+    return new_id_d.addCallbackDeferring(new IdCB());
   }
 
   /**
@@ -497,77 +544,80 @@ public class HBaseStore implements TsdbStore {
    * create a reverse and forward mapping in HBase using two {@link org.hbase
    * .async.PutRequest}s.
    * @param name The name of the new UID
-   * @param uid The UID to try to create
+   * @param uid The UID to asign to the name
    * @param kind The type of the UID.
    */
   @Override
-  public void allocateUID(final byte[] name, final byte[] uid,
-                          final byte[] kind) {
-    // Update the reverse mapping first, so that if we die before updating
+  public Deferred<byte[]> allocateUID(final byte[] name,
+                                      final byte[] uid,
+                                      final byte[] kind) {
+    // Create the reverse mapping first, so that if we die before updating
     // the forward mapping we don't run the risk of "publishing" a
     // partially assigned ID.  The reverse mapping on its own is harmless
     // but the forward mapping without reverse mapping is bad.
-    try {
-      final PutRequest reverse_mapping = new PutRequest(
-              uid_table_name, uid, NAME_FAMILY, kind, name);
-      putWithRetry(reverse_mapping, MAX_ATTEMPTS_PUT,
-              INITIAL_EXP_BACKOFF_DELAY);
-    } catch (HBaseException e) {
-      LOG.error("Failed to create reverse mapping when allocating UID with " +
-              "key {} and qualifier {}",
-              Arrays.toString(uid), Arrays.toString(kind));
-      throw e;
-    }
+    //
+    // We are CAS'ing the KV into existence -- the second argument is how
+    // we tell HBase we want to atomically create the KV, so that if there
+    // is already a KV in this cell, we'll fail.  Technically we could do
+    // just a `put' here, as we have a freshly allocated UID, so there is
+    // not reason why a KV should already exist for this UID, but just to
+    // err on the safe side and catch really weird corruption cases, we do
+    // a CAS instead to create the KV.
+    class ReverseCB implements Callback<Deferred<Boolean>, Boolean> {
+      private final PutRequest reverse_request;
+      private final PutRequest forward_request;
 
-    // Now create the new forward mapping.
-    try {
-      final PutRequest forward_mapping = new PutRequest(
-              uid_table_name, name, ID_FAMILY, kind, uid);
-      putWithRetry(forward_mapping, MAX_ATTEMPTS_PUT,
-              INITIAL_EXP_BACKOFF_DELAY);
-    } catch (HBaseException e) {
-      LOG.error("Failed to create forward mapping when allocating UID with " +
-                      "key {} and qualifier {}",
-              Arrays.toString(kind), Arrays.toString(uid));
-      throw e;
-    }
-  }
-  /**
-   * Attempts to run the PutRequest given in argument, retrying if needed.
-   *
-   * Puts are synchronized.
-   *
-   * @param put The PutRequest to execute.
-   * @param attempts The maximum number of attempts.
-   * @param wait The initial amount of time in ms to sleep for after a
-   * failure.  This amount is doubled after each failed attempt.
-   * @throws HBaseException if all the attempts have failed.  This exception
-   * will be the exception of the last attempt.
-   */
-  private void putWithRetry(final PutRequest put, short attempts, short wait)
-          throws HBaseException {
-    put.setBufferable(false);  // TODO(tsuna): Remove once this code is async.
-    while (attempts-- > 0) {
-      try {
-        this.put(put).joinUninterruptibly();
-        return;
-      } catch (HBaseException e) {
-        if (attempts > 0) {
-          LOG.error("Put failed, attempts left=" + attempts
-                  + " (retrying in " + wait + " ms), put=" + put, e);
-          try {
-            Thread.sleep(wait);
-          } catch (InterruptedException ie) {
-            throw new RuntimeException("interrupted", ie);
-          }
-          wait *= 2;
+      ReverseCB(PutRequest reverse_request, PutRequest forward_request) {
+        this.reverse_request = reverse_request;
+        this.forward_request = forward_request;
+      }
+
+      @Override
+      public Deferred<Boolean> call(Boolean created) throws Exception {
+        if (created) {
+          return client.compareAndSet(forward_request, HBaseClient.EMPTY_ARRAY);
         } else {
-          throw e;
+          throw new IllegalStateException("CAS to create mapping when " +
+                  "allocating UID with request " + current_request + " failed. " +
+                  "You should probably run a FSCK against the UID table.");
         }
-      } catch (Exception e) {
-        LOG.error("WTF?  Unexpected exception type, put=" + put, e);
       }
     }
-    throw new IllegalStateException("This code should never be reached!");
+
+    class ForwardCB implements Callback<Deferred<byte[]>, Boolean> {
+      private final PutRequest request;
+      private final byte[] uid;
+
+      public ForwardCB(final PutRequest request, byte[] uid) {
+        this.request = request;
+        this.uid = uid;
+      }
+
+      @Override
+      public Deferred<byte[]> call(Boolean created) throws Exception {
+        if (created) {
+          return Deferred.fromResult(uid);
+        } else {
+          // If two TSDs attempted to allocate a UID for the same name at the
+          // same time, they would both have allocated a UID, and created a
+          // reverse mapping, and upon getting here, only one of them would
+          // manage to CAS this KV into existence.  The one that loses the
+          // race will retry and discover the UID assigned by the winner TSD,
+          // and a UID will have been wasted in the process.  No big deal.
+          LOG.warn("Race condition on CAS to create forward mapping for uid " +
+                  "{} with request {}. Another TSDB instance must have " +
+                  "allocated this uid concurrently.", uid, request);
+
+          return getId(name, kind);
+        }
+      }
+    }
+
+    final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, kind, name);
+    final PutRequest forward_mapping = new PutRequest(uid_table_name, name, ID_FAMILY, kind, uid);
+
+    return client.compareAndSet(reverse_mapping, HBaseClient.EMPTY_ARRAY)
+            .addCallbackDeferring(new ReverseCB(reverse_mapping, forward_mapping))
+            .addCallbackDeferring(new ForwardCB(forward_mapping, uid));
   }
 }
