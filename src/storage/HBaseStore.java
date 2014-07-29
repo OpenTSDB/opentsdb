@@ -564,11 +564,11 @@ public class HBaseStore implements TsdbStore {
     // err on the safe side and catch really weird corruption cases, we do
     // a CAS instead to create the KV.
     class ReverseCB implements Callback<Deferred<Boolean>, Boolean> {
-      private final PutRequest current_request;
+      private final PutRequest reverse_request;
       private final PutRequest forward_request;
 
-      ReverseCB(PutRequest current_request, PutRequest forward_request) {
-        this.current_request = current_request;
+      ReverseCB(PutRequest reverse_request, PutRequest forward_request) {
+        this.reverse_request = reverse_request;
         this.forward_request = forward_request;
       }
 
@@ -584,7 +584,7 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
-    class ForwardCB implements Callback<byte[], Boolean> {
+    class ForwardCB implements Callback<Deferred<byte[]>, Boolean> {
       private final PutRequest request;
       private final byte[] uid;
 
@@ -594,13 +594,21 @@ public class HBaseStore implements TsdbStore {
       }
 
       @Override
-      public byte[] call(Boolean created) throws Exception {
+      public Deferred<byte[]> call(Boolean created) throws Exception {
         if (created) {
-          return uid;
+          return Deferred.fromResult(uid);
         } else {
-          throw new IllegalStateException("CAS to create mapping when " +
-                  "allocating UID with request " + request + " failed. " +
-                  "You should probably run a FSCK against the UID table.");
+          // If two TSDs attempted to allocate a UID for the same name at the
+          // same time, they would both have allocated a UID, and created a
+          // reverse mapping, and upon getting here, only one of them would
+          // manage to CAS this KV into existence.  The one that loses the
+          // race will retry and discover the UID assigned by the winner TSD,
+          // and a UID will have been wasted in the process.  No big deal.
+          LOG.warn("Race condition on CAS to create forward mapping for uid " +
+                  "{} with request {}. Another TSDB instance must have " +
+                  "allocated this uid concurrently.", uid, request);
+
+          return getId(name, kind);
         }
       }
     }
@@ -610,6 +618,6 @@ public class HBaseStore implements TsdbStore {
 
     return client.compareAndSet(reverse_mapping, HBaseClient.EMPTY_ARRAY)
             .addCallbackDeferring(new ReverseCB(reverse_mapping, forward_mapping))
-            .addCallback(new ForwardCB(forward_mapping, uid));
+            .addCallbackDeferring(new ForwardCB(forward_mapping, uid));
   }
 }
