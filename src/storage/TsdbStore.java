@@ -72,7 +72,11 @@ public interface TsdbStore {
 
   Deferred<Object> deleteUID(byte[] name, byte[] kind);
 
-  void allocateUID(byte[] name, byte[] uid, byte[] kind);
+  public Deferred<byte[]> allocateUID(final byte[] name,
+                                      final byte[] kind,
+                                      final short id_width);
+
+  Deferred<byte[]> allocateUID(byte[] name, byte[] uid, byte[] kind);
 
   // ------------------ //
   // Compaction helpers //

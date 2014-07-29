@@ -303,226 +303,6 @@ public class UniqueId implements UniqueIdInterface {
     }
   }
 
-  /**
-   * Implements the process to allocate a new UID.
-   * This callback is re-used multiple times in a four step process:
-   *   1. Allocate a new UID via atomic increment.
-   *   2. Create the reverse mapping (ID to name).
-   *   3. Create the forward mapping (name to ID).
-   *   4. Return the new UID to the caller.
-   */
-  private final class UniqueIdAllocator implements Callback<Object, Object> {
-    private final String name;  // What we're trying to allocate an ID for.
-    private final Deferred<byte[]> assignment; // deferred to call back
-    private short attempt = MAX_ATTEMPTS_ASSIGN_ID;  // Give up when zero.
-
-    private HBaseException hbe = null;  // Last exception caught.
-
-    private long id = -1;  // The ID we'll grab with an atomic increment.
-    private byte row[];    // The same ID, as a byte array.
-
-    private static final byte ALLOCATE_UID = 0;
-    private static final byte CREATE_REVERSE_MAPPING = 1;
-    private static final byte CREATE_FORWARD_MAPPING = 2;
-    private static final byte DONE = 3;
-    private byte state = ALLOCATE_UID;  // Current state of the process.
-
-    UniqueIdAllocator(final String name, final Deferred<byte[]> assignment) {
-      this.name = name;
-      this.assignment = assignment;
-    }
-
-    Deferred<byte[]> tryAllocate() {
-      attempt--;
-      state = ALLOCATE_UID;
-      call(null);
-      return assignment;
-    }
-
-    @SuppressWarnings("unchecked")
-    public Object call(final Object arg) {
-      if (attempt == 0) {
-        if (hbe == null) {
-          throw new IllegalStateException("Should never happen!");
-        }
-        LOG.error("Failed to assign an ID for kind='" + kind()
-                  + "' name='" + name + "'", hbe);
-        throw hbe;
-      }
-
-      if (arg instanceof Exception) {
-        final String msg = ("Failed attempt #" + (MAX_ATTEMPTS_ASSIGN_ID - attempt)
-                            + " to assign an UID for " + kind() + ':' + name
-                            + " at step #" + state);
-        if (arg instanceof HBaseException) {
-          LOG.error(msg, (Exception) arg);
-          hbe = (HBaseException) arg;
-          return tryAllocate();  // Retry from the beginning.
-        } else {
-          LOG.error("WTF?  Unexpected exception!  " + msg, (Exception) arg);
-          return arg;  // Unexpected exception, let it bubble up.
-        }
-      }
-
-      class ErrBack implements Callback<Object, Exception> {
-        public Object call(final Exception e) throws Exception {
-          assignment.callback(e);
-          LOG.warn("Failed pending assignment for: " + name);
-          return assignment;
-        }
-      }
-      
-      final Deferred d;
-      switch (state) {
-        case ALLOCATE_UID:
-          d = allocateUid();
-          break;
-        case CREATE_REVERSE_MAPPING:
-          d = createReverseMapping(arg);
-          break;
-        case CREATE_FORWARD_MAPPING:
-          d = createForwardMapping(arg);
-          break;
-        case DONE:
-          return done(arg);
-        default:
-          throw new AssertionError("Should never be here!");
-      }
-      return d.addBoth(this).addErrback(new ErrBack());
-    }
-
-    private Deferred<Long> allocateUid() {
-      LOG.info("Creating an ID for kind='" + kind()
-               + "' name='" + name + '\'');
-
-      state = CREATE_REVERSE_MAPPING;
-      return tsdb_store.atomicIncrement(new AtomicIncrementRequest(table, MAXID_ROW,
-                                                               ID_FAMILY,
-                                                               kind));
-    }
-
-
-    /**
-     * Create the reverse mapping.
-     * We do this before the forward one so that if we die before creating
-     * the forward mapping we don't run the risk of "publishing" a
-     * partially assigned ID.  The reverse mapping on its own is harmless
-     * but the forward mapping without reverse mapping is bad as it would
-     * point to an ID that cannot be resolved.
-     */
-    private Deferred<Boolean> createReverseMapping(final Object arg) {
-      if (!(arg instanceof Long)) {
-        throw new IllegalStateException("Expected a Long but got " + arg);
-      }
-      id = (Long) arg;
-      if (id <= 0) {
-        throw new IllegalStateException("Got a negative ID from HBase: " + id);
-      }
-      LOG.info("Got ID=" + id
-               + " for kind='" + kind() + "' name='" + name + "'");
-      row = Bytes.fromLong(id);
-      // row.length should actually be 8.
-      if (row.length < id_width) {
-        throw new IllegalStateException("OMG, row.length = " + row.length
-                                        + " which is less than " + id_width
-                                        + " for id=" + id
-                                        + " row=" + Arrays.toString(row));
-      }
-      // Verify that we're going to drop bytes that are 0.
-      for (int i = 0; i < row.length - id_width; i++) {
-        if (row[i] != 0) {
-          final String message = "All Unique IDs for " + kind()
-            + " on " + id_width + " bytes are already assigned!";
-          LOG.error("OMG " + message);
-          throw new IllegalStateException(message);
-        }
-      }
-      // Shrink the ID on the requested number of bytes.
-      row = Arrays.copyOfRange(row, row.length - id_width, row.length);
-
-      state = CREATE_FORWARD_MAPPING;
-      // We are CAS'ing the KV into existence -- the second argument is how
-      // we tell HBase we want to atomically create the KV, so that if there
-      // is already a KV in this cell, we'll fail.  Technically we could do
-      // just a `put' here, as we have a freshly allocated UID, so there is
-      // not reason why a KV should already exist for this UID, but just to
-      // err on the safe side and catch really weird corruption cases, we do
-      // a CAS instead to create the KV.
-      return tsdb_store.compareAndSet(reverseMapping(), org.hbase.async.HBaseClient.EMPTY_ARRAY);
-    }
-
-    private PutRequest reverseMapping() {
-      return new PutRequest(table, row, NAME_FAMILY, kind, toBytes(name));
-    }
-
-    private Deferred<?> createForwardMapping(final Object arg) {
-      if (!(arg instanceof Boolean)) {
-        throw new IllegalStateException("Expected a Boolean but got " + arg);
-      }
-      if (!((Boolean) arg)) {  // Previous CAS failed.  Something is really messed up.
-        LOG.error("WTF!  Failed to CAS reverse mapping: " + reverseMapping()
-                  + " -- run an fsck against the UID table!");
-        return tryAllocate();  // Try again from the beginning.
-      }
-
-      state = DONE;
-      return tsdb_store.compareAndSet(forwardMapping(), org.hbase.async.HBaseClient.EMPTY_ARRAY);
-    }
-
-    private PutRequest forwardMapping() {
-        return new PutRequest(table, toBytes(name), ID_FAMILY, kind, row);
-    }
-
-    private Deferred<byte[]> done(final Object arg) {
-      if (!(arg instanceof Boolean)) {
-        throw new IllegalStateException("Expected a Boolean but got " + arg);
-      }
-      if (!((Boolean) arg)) {  // Previous CAS failed.  We lost a race.
-        LOG.warn("Race condition: tried to assign ID " + id + " to "
-                 + kind() + ":" + name + ", but CAS failed on "
-                 + forwardMapping() + ", which indicates this UID must have"
-                 + " been allocated concurrently by another TSD or thread. "
-                 + "So ID " + id + " was leaked.");
-        // If two TSDs attempted to allocate a UID for the same name at the
-        // same time, they would both have allocated a UID, and created a
-        // reverse mapping, and upon getting here, only one of them would
-        // manage to CAS this KV into existence.  The one that loses the
-        // race will retry and discover the UID assigned by the winner TSD,
-        // and a UID will have been wasted in the process.  No big deal.
-        class GetIdCB implements Callback<Object, byte[]> {
-          public Object call(final byte[] row) throws Exception {
-            assignment.callback(row);
-            return null;
-          }
-        }
-        getIdAsync(name).addCallback(new GetIdCB());
-        return assignment;
-      }
-
-      cacheMapping(name, row);
-      
-      if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
-        final UIDMeta meta = new UIDMeta(type, row, name);
-        tsdb_store.add(meta);
-        LOG.info("Wrote UIDMeta for: " + name);
-        tsdb.indexUIDMeta(meta);
-      }
-      
-      synchronized (pending_assignments) {
-        pending_assignments.remove(name);
-      }
-      assignment.callback(row);
-      synchronized(pending_assignments) {
-        if (pending_assignments.containsKey(name)) {
-          pending_assignments.remove(name);
-          LOG.info("Completed pending assignment for: " + name);
-        }
-      }
-      return assignment;
-    }
-
-  }
-
   /** Adds the bidirectional mapping in the cache. */
   private void cacheMapping(final String name, final byte[] id) {
     addIdToCache(name, id);
@@ -576,7 +356,16 @@ public class UniqueId implements UniqueIdInterface {
       // start the assignment dance after stashing the deferred
       byte[] uid = null;
       try {
-        uid = new UniqueIdAllocator(name, assignment).tryAllocate().joinUninterruptibly();
+        uid = tsdb_store.allocateUID(toBytes(name), kind, id_width).joinUninterruptibly();
+
+        cacheMapping(name, uid);
+
+        if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
+          final UIDMeta meta = new UIDMeta(type, uid, name);
+          tsdb_store.add(meta);
+          LOG.info("Wrote UIDMeta for: {}", name);
+          tsdb.indexUIDMeta(meta);
+        }
       } catch (RuntimeException e1) {
         throw e1;
       } catch (Exception e1) {
@@ -634,9 +423,27 @@ public class UniqueId implements UniqueIdInterface {
               return assignment;
             }
           }
-          
+
           // start the assignment dance after stashing the deferred
-          return new UniqueIdAllocator(name, assignment).tryAllocate();
+          Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), kind, id_width);
+
+          uid.addCallback(new Callback<Object, byte[]>() {
+            @Override
+            public byte[] call(byte[] uid) throws Exception {
+              cacheMapping(name, uid);
+
+              if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
+                final UIDMeta meta = new UIDMeta(type, uid, name);
+                tsdb_store.add(meta);
+                LOG.info("Wrote UIDMeta for: {}", name);
+                tsdb.indexUIDMeta(meta);
+              }
+
+              return uid;
+            }
+          });
+
+          return uid;
         }
         return e;  // Other unexpected exception, let it bubble up.
       }
