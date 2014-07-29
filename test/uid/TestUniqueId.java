@@ -23,12 +23,17 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.HBaseStore;
+import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.*;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -61,58 +66,57 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HBaseStore.class, TSDB.class, Config.class })
 public final class TestUniqueId {
 
-  private HBaseStore client = mock(HBaseStore.class);
+  private TsdbStore client;
   private static final byte[] table = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] ID = { 'i', 'd' };
   private UniqueId uid;
-  private static final String kind = "metric";
+  private static final String kind = "metrics";
   private static final byte[] kind_array = { 'm', 'e', 't', 'r', 'i', 'c' };
 
-  @Test(expected=IllegalArgumentException.class)
-  public void testCtorZeroWidth() {
-    uid = new UniqueId(client, table, kind, 0);
+  @Before
+  public void setUp() {
+    client = new MemoryStore();
   }
 
-  @Test(expected=IllegalArgumentException.class)
-  public void testCtorNegativeWidth() {
-    uid = new UniqueId(client, table, kind, -1);
+  @Test(expected=NullPointerException.class)
+  public void testCtorNoTsdbStore() {
+    uid = new UniqueId(null, table, UniqueIdType.METRIC);
   }
 
-  @Test(expected=IllegalArgumentException.class)
-  public void testCtorEmptyKind() {
-    uid = new UniqueId(client, table, "", 3);
+  @Test(expected=NullPointerException.class)
+  public void testCtorNoTable() {
+    uid = new UniqueId(client, null, UniqueIdType.METRIC);
   }
 
-  @Test(expected=IllegalArgumentException.class)
-  public void testCtorLargeWidth() {
-    uid = new UniqueId(client, table, kind, 9);
+  @Test(expected=NullPointerException.class)
+  public void testCtorNoType() {
+    uid = new UniqueId(client, table, null);
   }
 
   @Test
   public void kindEqual() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     assertEquals(kind, uid.kind());
   }
 
   @Test
   public void widthEqual() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     assertEquals(3, uid.width());
   }
 
   @Test
   public void testMaxPossibleId() {
-    assertEquals(255, (new UniqueId(client, table, kind, 1)).maxPossibleId());
-    assertEquals(65535, (new UniqueId(client, table, kind, 2)).maxPossibleId());
-    assertEquals(16777215L, (new UniqueId(client, table, kind, 3)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.METRIC)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGK)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGV)).maxPossibleId());
   } 
   
   @Test
   public void getNameSuccessfulHBaseLookup() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
@@ -135,7 +139,7 @@ public final class TestUniqueId {
 
   @Test
   public void getNameWithErrorDuringHBaseLookup() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
@@ -167,7 +171,7 @@ public final class TestUniqueId {
 
   @Test(expected=NoSuchUniqueId.class)
   public void getNameForNonexistentId() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     when(client.get(anyGet()))
       .thenReturn(Deferred.fromResult(new ArrayList<KeyValue>(0)));
@@ -177,14 +181,14 @@ public final class TestUniqueId {
 
   @Test(expected=IllegalArgumentException.class)
   public void getNameWithInvalidId() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     uid.getName(new byte[] { 1 });
   }
 
   @Test
   public void getIdSuccessfulHBaseLookup() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
@@ -210,7 +214,7 @@ public final class TestUniqueId {
   // The table contains IDs encoded on 2 bytes but the instance wants 3.
   @Test(expected=IllegalStateException.class)
   public void getIdMisconfiguredWidth() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
@@ -224,7 +228,7 @@ public final class TestUniqueId {
 
   @Test(expected=NoSuchUniqueName.class)
   public void getIdForNonexistentName() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
@@ -235,7 +239,7 @@ public final class TestUniqueId {
 
   @Test
   public void getOrCreateIdWithExistingId() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
@@ -257,7 +261,7 @@ public final class TestUniqueId {
 
   @Test  // Test the creation of an ID with no problem.
   public void getOrCreateIdAssignIdWithSuccess() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 0, 5 };
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
@@ -293,7 +297,7 @@ public final class TestUniqueId {
   public void getOrCreateIdUnableToIncrementMaxId() throws Exception {
     PowerMockito.mockStatic(Thread.class);
 
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
@@ -322,9 +326,9 @@ public final class TestUniqueId {
     // Then A attempts to go through the process and should discover that the
     // ID has already been assigned.
 
-    uid = new UniqueId(client, table, kind, 3); // Used by client A.
+    uid = new UniqueId(client, table, UniqueIdType.METRIC); // Used by client A.
     HBaseStore client_b = mock(HBaseStore.class); // For client B.
-    final UniqueId uid_b = new UniqueId(client_b, table, kind, 3);
+    final UniqueId uid_b = new UniqueId(client_b, table, UniqueIdType.METRIC);
 
     final byte[] id = { 0, 0, 5 };
     final byte[] byte_name = { 'f', 'o', 'o' };
@@ -393,7 +397,7 @@ public final class TestUniqueId {
   @Test
   // Test the creation of an ID when all possible IDs are already in use
   public void getOrCreateIdWithOverflow() {
-    uid = new UniqueId(client, table, kind, 1);  // IDs are only on 1 byte.
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);  // IDs are only on 1 byte.
 
     when(client.get(anyGet()))      // null  =>  ID doesn't exist.
       .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
@@ -417,7 +421,7 @@ public final class TestUniqueId {
 
   @Test  // ICV throws an exception, we can't get an ID.
   public void getOrCreateIdWithICVFailure() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
     final TSDB tsdb = mock(TSDB.class);
@@ -449,7 +453,7 @@ public final class TestUniqueId {
 
   @Test  // Test that the reverse mapping is created before the forward one.
   public void getOrCreateIdPutsReverseMappingFirst() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
     final TSDB tsdb = mock(TSDB.class);
@@ -481,7 +485,7 @@ public final class TestUniqueId {
   @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
   public void suggestWithNoMatch() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final Scanner fake_scanner = mock(Scanner.class);
     when(client.newScanner(table))
@@ -503,7 +507,7 @@ public final class TestUniqueId {
   @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
   public void suggestWithMatches() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final Scanner fake_scanner = mock(Scanner.class);
     when(client.newScanner(table))

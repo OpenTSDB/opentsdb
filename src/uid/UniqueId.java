@@ -47,6 +47,7 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.hbase.async.Bytes.ByteMap;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -70,6 +71,9 @@ public class UniqueId implements UniqueIdInterface {
     public final short width;
 
     UniqueIdType(String qualifier, short width) {
+      checkArgument(!Strings.isNullOrEmpty(qualifier), "Empty string as 'qualifier' argument!");
+      checkArgument(width > 0 && width <= 8, "Invalid width: %s", width);
+
       this.qualifier = qualifier;
       this.width = width;
     }
@@ -122,26 +126,16 @@ public class UniqueId implements UniqueIdInterface {
    * Constructor.
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
-   * @param kind The kind of Unique ID this instance will deal with.
-   * @param width The number of bytes on which Unique IDs should be encoded.
+   * @param type
    * @throws IllegalArgumentException if width is negative or too small/large
    * or if kind is an empty string.
    */
-  public UniqueId(final TsdbStore tsdb_store, final byte[] table, final String kind,
-                  final int width) {
+  public UniqueId(final TsdbStore tsdb_store, final byte[] table, UniqueIdType type) {
     this.tsdb_store = checkNotNull(tsdb_store);
     this.table = checkNotNull(table);
-
-    if (Strings.isNullOrEmpty(kind)) {
-      throw new IllegalArgumentException("Empty string as 'kind' argument!");
-    }
-    this.kind = toBytes(kind);
-
-    type = stringToUniqueIdType(kind);
-    if (width < 1 || width > 8) {
-      throw new IllegalArgumentException("Invalid width: " + width);
-    }
-    this.id_width = (short) width;
+    this.type = checkNotNull(type);
+    this.kind = toBytes(type.qualifier);
+    this.id_width = type.width;
   }
 
   /** The number of times we avoided reading from TsdbStore thanks to the cache. */
@@ -743,12 +737,16 @@ public class UniqueId implements UniqueIdInterface {
    * @param width The width of the UID in bytes
    * @return The UID as a byte array
    * @throws IllegalStateException if the UID is larger than the width would
+   * @throws IllegalArgumentException if width <= 0.
    * allow
    * @since 2.1
    */
   public static byte[] longToUID(final long uid, final short width) {
-    // Verify that we're going to drop bytes that are 0.
+    checkArgument(width > 0, "width can't be negative");
+
     final byte[] padded = Bytes.fromLong(uid);
+
+    // Verify that we're going to drop bytes that are 0.
     for (int i = 0; i < padded.length - width; i++) {
       if (padded[i] != 0) {
         final String message = "UID " + Long.toString(uid) + 
@@ -757,6 +755,7 @@ public class UniqueId implements UniqueIdInterface {
         throw new IllegalStateException(message);
       }
     }
+
     // Shrink the ID on the requested number of bytes.
     return Arrays.copyOfRange(padded, padded.length - width, padded.length);
   }

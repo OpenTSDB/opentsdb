@@ -43,6 +43,8 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
+
 /**
  * Command line tool to manipulate UIDs.
  * Can be used to find or assign UIDs.
@@ -90,8 +92,6 @@ final class UidManager {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     CliOptions.addVerbose(argp);
-    argp.addOption("--idwidth", "N",
-                   "Number of bytes on which the UniqueId is encoded.");
     argp.addOption("--ignore-case",
                    "Ignore case distinctions when matching a regexp.");
     argp.addOption("-i", "Short for --ignore-case.");
@@ -103,13 +103,7 @@ final class UidManager {
       usage(argp, "Not enough arguments");
       System.exit(2);
     }   
-    final short idwidth = (argp.has("--idwidth")
-                           ? Short.parseShort(argp.get("--idwidth"))
-                           : 3);
-    if (idwidth <= 0) {
-      usage(argp, "Negative or 0 --idwidth");
-      System.exit(3);
-    }
+
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
     
     // get a config object
@@ -122,7 +116,7 @@ final class UidManager {
     argp = null;
     int rc;
     try {
-      rc = runCommand(tsdb, table, idwidth, ignorecase, args);
+      rc = runCommand(tsdb, table, ignorecase, args);
     } finally {
       try {
         tsdb.getTsdbStore().shutdown().joinUninterruptibly();
@@ -137,7 +131,6 @@ final class UidManager {
 
   private static int runCommand(final TSDB tsdb,
                                 final byte[] table,
-                                final short idwidth,
                                 final boolean ignorecase,
                                 final String[] args) {
     final int nargs = args.length;
@@ -157,13 +150,13 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return assign(tsdb.getTsdbStore(), table, idwidth, args);
+      return assign(tsdb.getTsdbStore(), table, args);
     } else if (args[0].equals("rename")) {
       if (nargs != 4) {
         usage("Wrong number of arguments");
         return 2;
       }
-      return rename(tsdb.getTsdbStore(), table, idwidth, args);
+      return rename(tsdb.getTsdbStore(), table, args);
     } else if (args[0].equals("fsck")) {
       boolean fix = false;
       boolean fix_unknowns = false;
@@ -240,10 +233,10 @@ final class UidManager {
         final String kind = nargs == 2 ? args[0] : null;
         try {
           final long id = Long.parseLong(args[nargs - 1]);
-          return lookupId(tsdb.getTsdbStore(), table, idwidth, id, kind);
+          return lookupId(tsdb.getTsdbStore(), table, id, kind);
         } catch (NumberFormatException e) {
-          return lookupName(tsdb.getTsdbStore(), table, idwidth,
-              args[nargs - 1], kind);
+          return lookupName(tsdb.getTsdbStore(), table,
+                  args[nargs - 1], kind);
         }
       } else {
         usage("Wrong number of arguments");
@@ -326,24 +319,29 @@ final class UidManager {
     return printed;
   }
 
+  private static UniqueId buildUniqueIdInstance(final TsdbStore tsdb_store,
+                                                final byte[] table,
+                                                final String stype) {
+    final UniqueIdType type = UniqueId.stringToUniqueIdType(stype);
+    return new UniqueId(tsdb_store, table, type);
+  }
+
   /**
    * Implements the {@code assign} subcommand.
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
-   * @param idwidth Number of bytes on which the UIDs should be.
    * @param args Command line arguments ({@code assign name [names]}).
    * @return The exit status of the command (0 means success).
    */
   private static int assign(final TsdbStore tsdb_store,
                             final byte[] table,
-                            final short idwidth,
                             final String[] args) {
-    final UniqueId uid = new UniqueId(tsdb_store, table, args[1], (int) idwidth);
+    final UniqueId uid = buildUniqueIdInstance(tsdb_store, table, args[1]);
     for (int i = 2; i < args.length; i++) {
       try {
         uid.getOrCreateId(args[i]);
         // Lookup again the ID we've just created and print it.
-        extactLookupName(tsdb_store, table, idwidth, args[1], args[i]);
+        extactLookupName(tsdb_store, table, args[1], args[i]);
       } catch (HBaseException e) {
         LOG.error("error while processing " + args[i], e);
         return 3;
@@ -356,23 +354,20 @@ final class UidManager {
    * Implements the {@code rename} subcommand.
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
-   * @param idwidth Number of bytes on which the UIDs should be.
    * @param args Command line arguments ({@code assign name [names]}).
    * @return The exit status of the command (0 means success).
    */
   private static int rename(final TsdbStore tsdb_store,
                             final byte[] table,
-                            final short idwidth,
                             final String[] args) {
     final String kind = args[1];
     final String oldname = args[2];
     final String newname = args[3];
-    final UniqueId uid = new UniqueId(tsdb_store, table, kind, (int) idwidth);
+    final UniqueId uid = buildUniqueIdInstance(tsdb_store, table, kind);
     try {
       uid.rename(oldname, newname);
     } catch (HBaseException e) {
-      LOG.error("error while processing renaming " + oldname
-                + " to " + newname, e);
+      LOG.error("error while processing renaming {} to {}", oldname, newname, e);
       return 3;
     } catch (NoSuchUniqueName e) {
       LOG.error(e.getMessage());
@@ -777,21 +772,21 @@ final class UidManager {
    * Looks up an ID and finds the corresponding name(s), if any.
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
-   * @param idwidth Number of bytes on which the UIDs should be.
    * @param lid The ID to look for.
    * @param kind The 'kind' of the ID (can be {@code null}).
    * @return The exit status of the command (0 means at least 1 found).
    */
   private static int lookupId(final TsdbStore tsdb_store,
                               final byte[] table,
-                              final short idwidth,
                               final long lid,
                               final String kind) {
-    final byte[] id = idInBytes(idwidth, lid);
+    UniqueIdType type = UniqueId.stringToUniqueIdType(kind);
+    final byte[] id = UniqueId.longToUID(lid, type.width);
+
     if (id == null) {
       return 1;
     } else if (kind != null) {
-      return extactLookupId(tsdb_store, table, idwidth, kind, id);
+      return extactLookupId(tsdb_store, table, kind, id);
     }
     return findAndPrintRow(tsdb_store, table, id, CliUtils.NAME_FAMILY, false);
   }
@@ -828,17 +823,15 @@ final class UidManager {
    * Looks up an ID for a given kind, and prints it if found.
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
-   * @param idwidth Number of bytes on which the UIDs should be.
    * @param kind The 'kind' of the ID (must not be {@code null}).
    * @param id The ID to look for.
    * @return 0 if the ID for this kind was found, 1 otherwise.
    */
   private static int extactLookupId(final TsdbStore tsdb_store,
                                     final byte[] table,
-                                    final short idwidth,
                                     final String kind,
                                     final byte[] id) {
-    final UniqueId uid = new UniqueId(tsdb_store, table, kind, (int) idwidth);
+    final UniqueId uid = buildUniqueIdInstance(tsdb_store, table, kind);
     try {
       final String name = uid.getName(id);
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));
@@ -850,43 +843,19 @@ final class UidManager {
   }
 
   /**
-   * Transforms an ID into the corresponding byte array.
-   * @param idwidth Number of bytes on which the UIDs should be.
-   * @param lid The ID to transform.
-   * @return The ID represented in {@code idwidth} bytes, or
-   * {@code null} if {@code lid} couldn't fit in {@code idwidth} bytes.
-   */
-  private static byte[] idInBytes(final short idwidth, final long lid) {
-    if (idwidth <= 0) {
-      throw new AssertionError("negative idwidth: " + idwidth);
-    }
-    final byte[] id = Bytes.fromLong(lid);
-    for (int i = 0; i < id.length - idwidth; i++) {
-      if (id[i] != 0) {
-        System.err.println(lid + " is too large to fit on " + idwidth
-            + " bytes.  Maybe you forgot to adjust --idwidth?");
-        return null;
-      }
-    }
-    return Arrays.copyOfRange(id, id.length - idwidth, id.length);
-  }
-
-  /**
    * Looks up a name and finds the corresponding UID(s), if any.
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
-   * @param idwidth Number of bytes on which the UIDs should be.
    * @param name The name to look for.
    * @param kind The 'kind' of the ID (can be {@code null}).
    * @return The exit status of the command (0 means at least 1 found).
    */
   private static int lookupName(final TsdbStore tsdb_store,
                                 final byte[] table,
-                                final short idwidth,
                                 final String name,
                                 final String kind) {
     if (kind != null) {
-      return extactLookupName(tsdb_store, table, idwidth, kind, name);
+      return extactLookupName(tsdb_store, table, kind, name);
     }
     return findAndPrintRow(tsdb_store, table, CliUtils.toBytes(name),
         CliUtils.ID_FAMILY, true);
@@ -895,17 +864,15 @@ final class UidManager {
   /**
    * Looks up a name for a given kind, and prints it if found.
    * @param tsdb_store The TsdbStore to use.
-   * @param idwidth Number of bytes on which the UIDs should be.
    * @param kind The 'kind' of the ID (must not be {@code null}).
    * @param name The name to look for.
    * @return 0 if the name for this kind was found, 1 otherwise.
    */
   private static int extactLookupName(final TsdbStore tsdb_store,
                                       final byte[] table,
-                                      final short idwidth,
                                       final String kind,
                                       final String name) {
-    final UniqueId uid = new UniqueId(tsdb_store, table, kind, (int) idwidth);
+    final UniqueId uid = buildUniqueIdInstance(tsdb_store, table, kind);
     try {
       final byte[] id = uid.getId(name);
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));
