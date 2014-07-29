@@ -23,6 +23,8 @@ import org.hbase.async.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
+
 /**
  * A interface defining the functions any database used with TSDB must implement.
  * Another requirement is tha the database connection has to be asynchronous.
@@ -57,15 +59,15 @@ public interface TsdbStore {
 
   public void recordStats(StatsCollector collector);
 
-  public Deferred<byte[]> getId(final String name, byte[] kind);
-  public Deferred<String> getName(final byte[] id, byte[] kind);
+  public Deferred<byte[]> getId(final String name, final UniqueIdType type);
+  public Deferred<String> getName(final byte[] id, final UniqueIdType type);
 
   public Deferred<Object> add(final UIDMeta meta);
 
   Deferred<Object> delete(UIDMeta meta);
 
   public Deferred<UIDMeta> getMeta(byte[] uid, String name,
-                            UniqueId.UniqueIdType type);
+                            UniqueIdType type);
 
   public Deferred<Boolean> updateMeta(final UIDMeta meta,
                                       final boolean overwrite);
@@ -73,10 +75,10 @@ public interface TsdbStore {
   Deferred<Object> deleteUID(byte[] name, byte[] kind);
 
   public Deferred<byte[]> allocateUID(final byte[] name,
-                                      final byte[] kind,
+                                      final UniqueIdType type,
                                       final short id_width);
 
-  Deferred<byte[]> allocateUID(byte[] name, byte[] uid, byte[] kind);
+  Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type);
 
   // ------------------ //
   // Compaction helpers //

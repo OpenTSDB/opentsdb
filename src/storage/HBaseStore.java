@@ -15,6 +15,7 @@ package net.opentsdb.storage;
 import com.google.common.base.Charsets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -32,6 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
 /**
  * The HBaseStore that implements the client interface required by TSDB.
@@ -241,15 +243,22 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<String> getName(final byte[] id, byte[] kind) {
+  public Deferred<String> getName(final byte[] id, final UniqueIdType type) {
+    if (id.length != type.width) {
+      throw new IllegalArgumentException("Wrong id.length = " + id.length
+              + " which is != " + type.width
+              + " required for '" + type.qualifier + '\'');
+    }
+
     class NameFromHBaseCB implements Callback<String, byte[]> {
       public String call(final byte[] name) {
         return name == null ? null : StringCoder.fromBytes(name);
       }
     }
 
-    final GetRequest request = new GetRequest(uid_table_name, id);
-    request.family(NAME_FAMILY).qualifier(kind);
+    final GetRequest request = new GetRequest(uid_table_name, id)
+            .family(NAME_FAMILY)
+            .qualifier(type.qualifier.getBytes(CHARSET));
 
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
       public byte[] call(final ArrayList<KeyValue> row) {
@@ -260,27 +269,43 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
-    return client.get(request).addCallback(new GetCB()).addCallback(new
-      NameFromHBaseCB());
+    return client.get(request)
+            .addCallback(new GetCB())
+            .addCallback(new NameFromHBaseCB());
   }
 
   @Override
-  public Deferred<byte[]> getId(final String name, byte[] kind) {
-    final GetRequest get = new GetRequest(uid_table_name, StringCoder.toBytes(name));
-    get.family(ID_FAMILY).qualifier(kind);
+  public Deferred<byte[]> getId(final String name, final UniqueIdType type) {
+    return getId(StringCoder.toBytes(name), type);
+  }
+
+  private Deferred<byte[]> getId(final byte[] name, final UniqueIdType type) {
+    final byte[] qualifier = type.qualifier.getBytes(CHARSET);
+
+    final GetRequest get = new GetRequest(uid_table_name, name)
+            .family(ID_FAMILY)
+            .qualifier(qualifier);
 
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
       public byte[] call(final ArrayList<KeyValue> row) {
         if (row == null || row.isEmpty()) {
           return null;
         }
-        return row.get(0).value();
+
+        byte[] id = row.get(0).value();
+
+        if (id.length != type.width) {
+          throw new IllegalStateException("Found id.length = " + id.length
+                  + " which is != " + type.width
+                  + " required for '" + type.qualifier + '\'');
+        }
+
+        return id;
       }
     }
 
     return client.get(get).addCallback(new GetCB());
   }
-
 
   /**
    * Attempts to store a blank, new UID meta object in the proper location.
@@ -368,7 +393,7 @@ public class HBaseStore implements TsdbStore {
   }
 
 
-  private Deferred<KeyValue> getMeta(byte[] uid, final UniqueId.UniqueIdType
+  private Deferred<KeyValue> getMeta(byte[] uid, final UniqueIdType
     type) {
     /**
      * Inner class called to retrieve the meta data after verifying that the
@@ -403,7 +428,7 @@ public class HBaseStore implements TsdbStore {
 
   @Override
   public Deferred<UIDMeta> getMeta(final byte[] uid, final String name,
-                                   final UniqueId.UniqueIdType type) {
+                                   final UniqueIdType type) {
     /**
      * Inner class called to retrieve the meta data after verifying that the
      * name mapping exists. It requires the name to set the default, hence
@@ -425,7 +450,7 @@ public class HBaseStore implements TsdbStore {
             uid, name, false);
         }
 
-        UniqueId.UniqueIdType effective_type = type;
+        UniqueIdType effective_type = type;
         if (effective_type == null) {
           final String qualifier =
             new String(cell.qualifier(), CHARSET);
@@ -490,7 +515,7 @@ public class HBaseStore implements TsdbStore {
 
   @Override
   public Deferred<byte[]> allocateUID(final byte[] name,
-                                      final byte[] kind,
+                                      final UniqueIdType type,
                                       final short id_width) {
     class IdCB implements Callback<Deferred<byte[]>, Long> {
       @Override
@@ -499,7 +524,7 @@ public class HBaseStore implements TsdbStore {
           throw new IllegalStateException("Got a negative ID from HBase: " + id);
         }
 
-        LOG.info("Got ID={} for kind='{}' name='{}'", id, kind, name);
+        LOG.info("Got ID={} for kind='{}' name='{}'", id, type.qualifier, name);
 
         final byte[] row = Bytes.fromLong(id);
 
@@ -516,7 +541,7 @@ public class HBaseStore implements TsdbStore {
         // limits.
         for (int i = 0; i < row.length - id_width; i++) {
           if (row[i] != 0) {
-            throw new IllegalStateException("All Unique IDs for " + kind
+            throw new IllegalStateException("All Unique IDs for " + type.qualifier
                     + " on " + id_width + " bytes are already assigned!");
           }
         }
@@ -525,16 +550,17 @@ public class HBaseStore implements TsdbStore {
         final byte[] uid = Arrays.copyOfRange(row, row.length - id_width,
                 row.length);
 
-        return allocateUID(name, uid, kind);
+        return allocateUID(name, uid, type);
       }
     }
 
+    final byte[] qualifier = type.qualifier.getBytes(CHARSET);
     Deferred<Long> new_id_d = client.atomicIncrement(
             new AtomicIncrementRequest(
                     uid_table_name,
                     MAXID_ROW,
                     ID_FAMILY,
-                    kind));
+                    qualifier));
 
     return new_id_d.addCallbackDeferring(new IdCB());
   }
@@ -545,12 +571,12 @@ public class HBaseStore implements TsdbStore {
    * .async.PutRequest}s.
    * @param name The name of the new UID
    * @param uid The UID to asign to the name
-   * @param kind The type of the UID.
+   * @param type The type of the UID.
    */
   @Override
   public Deferred<byte[]> allocateUID(final byte[] name,
                                       final byte[] uid,
-                                      final byte[] kind) {
+                                      final UniqueIdType type) {
     // Create the reverse mapping first, so that if we die before updating
     // the forward mapping we don't run the risk of "publishing" a
     // partially assigned ID.  The reverse mapping on its own is harmless
@@ -578,7 +604,7 @@ public class HBaseStore implements TsdbStore {
           return client.compareAndSet(forward_request, HBaseClient.EMPTY_ARRAY);
         } else {
           throw new IllegalStateException("CAS to create mapping when " +
-                  "allocating UID with request " + current_request + " failed. " +
+                  "allocating UID with request " + reverse_request + " failed. " +
                   "You should probably run a FSCK against the UID table.");
         }
       }
@@ -608,13 +634,14 @@ public class HBaseStore implements TsdbStore {
                   "{} with request {}. Another TSDB instance must have " +
                   "allocated this uid concurrently.", uid, request);
 
-          return getId(name, kind);
+          return getId(name, type);
         }
       }
     }
 
-    final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, kind, name);
-    final PutRequest forward_mapping = new PutRequest(uid_table_name, name, ID_FAMILY, kind, uid);
+    final byte[] qualifier = type.qualifier.getBytes(CHARSET);
+    final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, qualifier, name);
+    final PutRequest forward_mapping = new PutRequest(uid_table_name, name, ID_FAMILY, qualifier, uid);
 
     return client.compareAndSet(reverse_mapping, HBaseClient.EMPTY_ARRAY)
             .addCallbackDeferring(new ReverseCB(reverse_mapping, forward_mapping))

@@ -37,6 +37,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static org.mockito.Matchers.any;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -428,12 +429,12 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> getId(String name, byte[] kind) {
+  public Deferred<byte[]> getId(String name, UniqueIdType type) {
     // TODO #getId should be rewritten to use guava tables instead of this
     // HBase implementation
-    final GetRequest get = new GetRequest("deprecated",
-            StringCoder.toBytes(name));
-    get.family(ID_FAMILY).qualifier(kind);
+    final GetRequest get = new GetRequest("deprecated", StringCoder.toBytes(name))
+            .family(ID_FAMILY)
+            .qualifier(StringCoder.toBytes(type.qualifier));
 
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
       public byte[] call(final ArrayList<KeyValue> row) {
@@ -448,7 +449,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<String> getName(byte[] id, byte[] kind) {
+  public Deferred<String> getName(byte[] id, UniqueIdType type) {
     class NameFromHBaseCB implements Callback<String, byte[]> {
       public String call(final byte[] name) {
         return name == null ? null : StringCoder.fromBytes(name);
@@ -457,8 +458,9 @@ public class MemoryStore implements TsdbStore {
 
     // TODO #getName should be rewritten to use guava tables instead of this
     // HBase implementation
-    final GetRequest request = new GetRequest("deprecated", id);
-    request.family(NAME_FAMILY).qualifier(kind);
+    final GetRequest request = new GetRequest("deprecated", id)
+            .family(NAME_FAMILY)
+            .qualifier(StringCoder.toBytes(type.qualifier));
 
     class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
       public byte[] call(final ArrayList<KeyValue> row) {
@@ -495,7 +497,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<UIDMeta> getMeta(final byte[] uid,
                                    final String name,
-                                   final UniqueId.UniqueIdType type) {
+                                   final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final String s_uid = UniqueId.uidToString(uid);
 
@@ -506,7 +508,7 @@ public class MemoryStore implements TsdbStore {
       return Deferred.fromResult(new UIDMeta(type, uid, name, false));
     }
 
-    UniqueId.UniqueIdType effective_type = type;
+    UniqueIdType effective_type = type;
     if (effective_type == null) {
       effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
               qualifier.indexOf("_meta")));
@@ -519,7 +521,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   private Deferred<UIDMeta> getMeta(final String uid,
-                                    final UniqueId.UniqueIdType
+                                    final UniqueIdType
           type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     byte[] json_value = uid_table.get(uid, qualifier);
@@ -561,12 +563,12 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(byte[] name, byte[] kind, short id_width) {
+  public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, byte[] kind) {
+  public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

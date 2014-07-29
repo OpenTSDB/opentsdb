@@ -24,6 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -45,6 +47,8 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.hbase.async.Bytes.ByteMap;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
  * <p>
@@ -58,9 +62,17 @@ public class UniqueId implements UniqueIdInterface {
 
   /** Enumerator for different types of UIDS @since 2.0 */
   public enum UniqueIdType {
-    METRIC,
-    TAGK,
-    TAGV
+    METRIC(Const.METRICS_QUAL, Const.METRICS_WIDTH),
+    TAGK(Const.TAG_NAME_QUAL, Const.TAG_NAME_WIDTH),
+    TAGV(Const.TAG_VALUE_QUAL, Const.TAG_VALUE_WIDTH);
+
+    public final String qualifier;
+    public final short width;
+
+    UniqueIdType(String qualifier, short width) {
+      this.qualifier = qualifier;
+      this.width = width;
+    }
   }
   
   /** Charset used to convert Strings to byte arrays and back. */
@@ -117,12 +129,14 @@ public class UniqueId implements UniqueIdInterface {
    */
   public UniqueId(final TsdbStore tsdb_store, final byte[] table, final String kind,
                   final int width) {
-    this.tsdb_store = tsdb_store;
-    this.table = table;
-    if (kind.isEmpty()) {
+    this.tsdb_store = checkNotNull(tsdb_store);
+    this.table = checkNotNull(table);
+
+    if (Strings.isNullOrEmpty(kind)) {
       throw new IllegalArgumentException("Empty string as 'kind' argument!");
     }
     this.kind = toBytes(kind);
+
     type = stringToUniqueIdType(kind);
     if (width < 1 || width > 8) {
       throw new IllegalArgumentException("Invalid width: " + width);
@@ -208,11 +222,6 @@ public class UniqueId implements UniqueIdInterface {
    * @since 1.1
    */
   public Deferred<String> getNameAsync(final byte[] id) {
-    if (id.length != id_width) {
-      throw new IllegalArgumentException("Wrong id.length = " + id.length
-                                         + " which is != " + id_width
-                                         + " required for '" + kind() + '\'');
-    }
     final String name = getNameFromCache(id);
     if (name != null) {
       cache_hits++;
@@ -229,7 +238,7 @@ public class UniqueId implements UniqueIdInterface {
         return name;
       }
     }
-    return tsdb_store.getName(id, kind).addCallback(new GetNameCB());
+    return tsdb_store.getName(id, type).addCallback(new GetNameCB());
   }
 
   private String getNameFromCache(final byte[] id) {
@@ -270,17 +279,13 @@ public class UniqueId implements UniqueIdInterface {
         if (id == null) {
           throw new NoSuchUniqueName(kind(), name);
         }
-        if (id.length != id_width) {
-          throw new IllegalStateException("Found id.length = " + id.length
-                                          + " which is != " + id_width
-                                          + " required for '" + kind() + '\'');
-        }
+
         addIdToCache(name, id);
         addNameToCache(id, name);
         return id;
       }
     }
-    return tsdb_store.getId(name, kind).addCallback(new GetIdCB());
+    return tsdb_store.getId(name, type).addCallback(new GetIdCB());
   }
 
   private byte[] getIdFromCache(final String name) {
@@ -356,7 +361,7 @@ public class UniqueId implements UniqueIdInterface {
       // start the assignment dance after stashing the deferred
       byte[] uid = null;
       try {
-        uid = tsdb_store.allocateUID(toBytes(name), kind, id_width).joinUninterruptibly();
+        uid = tsdb_store.allocateUID(toBytes(name), type, id_width).joinUninterruptibly();
 
         cacheMapping(name, uid);
 
@@ -425,7 +430,7 @@ public class UniqueId implements UniqueIdInterface {
           }
 
           // start the assignment dance after stashing the deferred
-          Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), kind, id_width);
+          Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type, id_width);
 
           uid.addCallback(new Callback<Object, byte[]>() {
             @Override
@@ -591,7 +596,7 @@ public class UniqueId implements UniqueIdInterface {
     }
 
     final byte[] old_uid = getId(oldname);
-    tsdb_store.allocateUID(toBytes(newname), old_uid, kind);
+    tsdb_store.allocateUID(toBytes(newname), old_uid, type);
 
     // Update cache.
     addIdToCache(newname, old_uid);            // add     new name -> ID
