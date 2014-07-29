@@ -556,6 +556,16 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Object> deleteUID(byte[] name, byte[] kind) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public void allocateUID(byte[] name, byte[] uid, byte[] kind) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
   public KeyValue compact(ArrayList<KeyValue> row, List<Annotation> annotations) {
     throw new UnsupportedOperationException("Not implemented yet");
   }

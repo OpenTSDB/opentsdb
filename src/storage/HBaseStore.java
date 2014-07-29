@@ -13,6 +13,7 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Objects;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -37,6 +39,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class HBaseStore implements TsdbStore {
   private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
+
+  /** How many time do we try to apply an edit before giving up. */
+  private static final short MAX_ATTEMPTS_PUT = 6;
+  /** Initial delay in ms for exponential backoff to retry failed RPCs. */
+  private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
 
   private static final byte[] TS_FAMILY = { 't' };
 
@@ -460,5 +467,107 @@ public class HBaseStore implements TsdbStore {
     if (enable_compactions) {
       compactionq.add(row);
     }
+  }
+
+  /**
+   * Delete the UID with the key specified by name with the qualifier kind.
+   * This only removes the forward mapping. The reverse mapping will not be
+   * removed.
+   * @param name The UID key to remove
+   * @param kind The qualifier of the UID to remove
+   * @return A deferred that indicated the completion of the request. The
+   * contained object has no special meaning and may be null.
+   */
+  @Override
+  public Deferred<Object> deleteUID(final byte[] name, final byte[] kind) {
+    try {
+      final DeleteRequest request = new DeleteRequest(
+              uid_table_name, name, ID_FAMILY, kind);
+      return client.delete(request);
+    } catch (HBaseException e) {
+      LOG.error("When deleting(\"{}\", on {}: Failed to remove the mapping" +
+              "for (key, qualifier) = ({}, {}). ", name, this, name, kind, e);
+      throw e;
+
+    }
+  }
+
+  /**
+   * Allocate a new UID with name and uid for the UID type kind. This will
+   * create a reverse and forward mapping in HBase using two {@link org.hbase
+   * .async.PutRequest}s.
+   * @param name The name of the new UID
+   * @param uid The UID to try to create
+   * @param kind The type of the UID.
+   */
+  @Override
+  public void allocateUID(final byte[] name, final byte[] uid,
+                          final byte[] kind) {
+    // Update the reverse mapping first, so that if we die before updating
+    // the forward mapping we don't run the risk of "publishing" a
+    // partially assigned ID.  The reverse mapping on its own is harmless
+    // but the forward mapping without reverse mapping is bad.
+    try {
+      final PutRequest reverse_mapping = new PutRequest(
+              uid_table_name, uid, NAME_FAMILY, kind, name);
+      putWithRetry(reverse_mapping, MAX_ATTEMPTS_PUT,
+              INITIAL_EXP_BACKOFF_DELAY);
+    } catch (HBaseException e) {
+      LOG.error("Failed to create reverse mapping when allocating UID with " +
+              "key {} and qualifier {}",
+              Arrays.toString(uid), Arrays.toString(kind));
+      throw e;
+    }
+
+    // Now create the new forward mapping.
+    try {
+      final PutRequest forward_mapping = new PutRequest(
+              uid_table_name, name, ID_FAMILY, kind, uid);
+      putWithRetry(forward_mapping, MAX_ATTEMPTS_PUT,
+              INITIAL_EXP_BACKOFF_DELAY);
+    } catch (HBaseException e) {
+      LOG.error("Failed to create forward mapping when allocating UID with " +
+                      "key {} and qualifier {}",
+              Arrays.toString(kind), Arrays.toString(uid));
+      throw e;
+    }
+  }
+  /**
+   * Attempts to run the PutRequest given in argument, retrying if needed.
+   *
+   * Puts are synchronized.
+   *
+   * @param put The PutRequest to execute.
+   * @param attempts The maximum number of attempts.
+   * @param wait The initial amount of time in ms to sleep for after a
+   * failure.  This amount is doubled after each failed attempt.
+   * @throws HBaseException if all the attempts have failed.  This exception
+   * will be the exception of the last attempt.
+   */
+  private void putWithRetry(final PutRequest put, short attempts, short wait)
+          throws HBaseException {
+    put.setBufferable(false);  // TODO(tsuna): Remove once this code is async.
+    while (attempts-- > 0) {
+      try {
+        this.put(put).joinUninterruptibly();
+        return;
+      } catch (HBaseException e) {
+        if (attempts > 0) {
+          LOG.error("Put failed, attempts left=" + attempts
+                  + " (retrying in " + wait + " ms), put=" + put, e);
+          try {
+            Thread.sleep(wait);
+          } catch (InterruptedException ie) {
+            throw new RuntimeException("interrupted", ie);
+          }
+          wait *= 2;
+        } else {
+          throw e;
+        }
+      } catch (Exception e) {
+        LOG.error("WTF?  Unexpected exception type, put=" + put, e);
+      }
+    }
+    throw new IllegalStateException("This code should never be reached!");
   }
 }

@@ -70,6 +70,10 @@ public interface TsdbStore {
   public Deferred<Boolean> updateMeta(final UIDMeta meta,
                                       final boolean overwrite);
 
+  Deferred<Object> deleteUID(byte[] name, byte[] kind);
+
+  void allocateUID(byte[] name, byte[] uid, byte[] kind);
+
   // ------------------ //
   // Compaction helpers //
   // ------------------ //
