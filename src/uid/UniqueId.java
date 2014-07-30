@@ -24,6 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -45,6 +47,9 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.hbase.async.Bytes.ByteMap;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
  * <p>
@@ -58,9 +63,20 @@ public class UniqueId implements UniqueIdInterface {
 
   /** Enumerator for different types of UIDS @since 2.0 */
   public enum UniqueIdType {
-    METRIC,
-    TAGK,
-    TAGV
+    METRIC(Const.METRICS_QUAL, Const.METRICS_WIDTH),
+    TAGK(Const.TAG_NAME_QUAL, Const.TAG_NAME_WIDTH),
+    TAGV(Const.TAG_VALUE_QUAL, Const.TAG_VALUE_WIDTH);
+
+    public final String qualifier;
+    public final short width;
+
+    UniqueIdType(String qualifier, short width) {
+      checkArgument(!Strings.isNullOrEmpty(qualifier), "Empty string as 'qualifier' argument!");
+      checkArgument(width > 0 && width <= 8, "Invalid width: %s", width);
+
+      this.qualifier = qualifier;
+      this.width = width;
+    }
   }
   
   /** Charset used to convert Strings to byte arrays and back. */
@@ -110,24 +126,16 @@ public class UniqueId implements UniqueIdInterface {
    * Constructor.
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
-   * @param kind The kind of Unique ID this instance will deal with.
-   * @param width The number of bytes on which Unique IDs should be encoded.
+   * @param type
    * @throws IllegalArgumentException if width is negative or too small/large
    * or if kind is an empty string.
    */
-  public UniqueId(final TsdbStore tsdb_store, final byte[] table, final String kind,
-                  final int width) {
-    this.tsdb_store = tsdb_store;
-    this.table = table;
-    if (kind.isEmpty()) {
-      throw new IllegalArgumentException("Empty string as 'kind' argument!");
-    }
-    this.kind = toBytes(kind);
-    type = stringToUniqueIdType(kind);
-    if (width < 1 || width > 8) {
-      throw new IllegalArgumentException("Invalid width: " + width);
-    }
-    this.id_width = (short) width;
+  public UniqueId(final TsdbStore tsdb_store, final byte[] table, UniqueIdType type) {
+    this.tsdb_store = checkNotNull(tsdb_store);
+    this.table = checkNotNull(table);
+    this.type = checkNotNull(type);
+    this.kind = toBytes(type.qualifier);
+    this.id_width = type.width;
   }
 
   /** The number of times we avoided reading from TsdbStore thanks to the cache. */
@@ -208,11 +216,6 @@ public class UniqueId implements UniqueIdInterface {
    * @since 1.1
    */
   public Deferred<String> getNameAsync(final byte[] id) {
-    if (id.length != id_width) {
-      throw new IllegalArgumentException("Wrong id.length = " + id.length
-                                         + " which is != " + id_width
-                                         + " required for '" + kind() + '\'');
-    }
     final String name = getNameFromCache(id);
     if (name != null) {
       cache_hits++;
@@ -229,7 +232,7 @@ public class UniqueId implements UniqueIdInterface {
         return name;
       }
     }
-    return tsdb_store.getName(id, kind).addCallback(new GetNameCB());
+    return tsdb_store.getName(id, type).addCallback(new GetNameCB());
   }
 
   private String getNameFromCache(final byte[] id) {
@@ -270,17 +273,13 @@ public class UniqueId implements UniqueIdInterface {
         if (id == null) {
           throw new NoSuchUniqueName(kind(), name);
         }
-        if (id.length != id_width) {
-          throw new IllegalStateException("Found id.length = " + id.length
-                                          + " which is != " + id_width
-                                          + " required for '" + kind() + '\'');
-        }
+
         addIdToCache(name, id);
         addNameToCache(id, name);
         return id;
       }
     }
-    return tsdb_store.getId(name, kind).addCallback(new GetIdCB());
+    return tsdb_store.getId(name, type).addCallback(new GetIdCB());
   }
 
   private byte[] getIdFromCache(final String name) {
@@ -356,7 +355,7 @@ public class UniqueId implements UniqueIdInterface {
       // start the assignment dance after stashing the deferred
       byte[] uid = null;
       try {
-        uid = tsdb_store.allocateUID(toBytes(name), kind, id_width).joinUninterruptibly();
+        uid = tsdb_store.allocateUID(toBytes(name), type, id_width).joinUninterruptibly();
 
         cacheMapping(name, uid);
 
@@ -425,7 +424,7 @@ public class UniqueId implements UniqueIdInterface {
           }
 
           // start the assignment dance after stashing the deferred
-          Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), kind, id_width);
+          Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type, id_width);
 
           uid.addCallback(new Callback<Object, byte[]>() {
             @Override
@@ -591,7 +590,7 @@ public class UniqueId implements UniqueIdInterface {
     }
 
     final byte[] old_uid = getId(oldname);
-    tsdb_store.allocateUID(toBytes(newname), old_uid, kind);
+    tsdb_store.allocateUID(toBytes(newname), old_uid, type);
 
     // Update cache.
     addIdToCache(newname, old_uid);            // add     new name -> ID
@@ -738,12 +737,16 @@ public class UniqueId implements UniqueIdInterface {
    * @param width The width of the UID in bytes
    * @return The UID as a byte array
    * @throws IllegalStateException if the UID is larger than the width would
+   * @throws IllegalArgumentException if width <= 0.
    * allow
    * @since 2.1
    */
   public static byte[] longToUID(final long uid, final short width) {
-    // Verify that we're going to drop bytes that are 0.
+    checkArgument(width > 0, "width can't be negative");
+
     final byte[] padded = Bytes.fromLong(uid);
+
+    // Verify that we're going to drop bytes that are 0.
     for (int i = 0; i < padded.length - width; i++) {
       if (padded[i] != 0) {
         final String message = "UID " + Long.toString(uid) + 
@@ -752,6 +755,7 @@ public class UniqueId implements UniqueIdInterface {
         throw new IllegalStateException(message);
       }
     }
+
     // Shrink the ID on the requested number of bytes.
     return Arrays.copyOfRange(padded, padded.length - width, padded.length);
   }

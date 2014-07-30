@@ -18,7 +18,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -110,9 +109,9 @@ public class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    metrics = new UniqueId(client, uidtable, Const.METRICS_QUAL, Const.METRICS_WIDTH);
-    tag_names = new UniqueId(client, uidtable, Const.TAG_NAME_QUAL, Const.TAG_NAME_WIDTH);
-    tag_values = new UniqueId(client, uidtable, Const.TAG_VALUE_QUAL, Const.TAG_VALUE_WIDTH);
+    metrics = new UniqueId(client, uidtable, UniqueIdType.METRIC);
+    tag_names = new UniqueId(client, uidtable, UniqueIdType.TAGK);
+    tag_values = new UniqueId(client, uidtable, UniqueIdType.TAGV);
 
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
@@ -1097,8 +1096,7 @@ public class TSDB {
     }
 
     boolean has_changes = false;
-    for (Map.Entry<String, Boolean> entry : meta.getChanged().entrySet
-      ()) {
+    for (Map.Entry<String, Boolean> entry : meta.getChanged().entrySet()) {
       if (entry.getValue()) {
         has_changes = true;
         break;

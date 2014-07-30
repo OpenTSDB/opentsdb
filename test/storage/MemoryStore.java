@@ -17,6 +17,7 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -37,6 +38,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static org.mockito.Matchers.any;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -69,6 +71,9 @@ public class MemoryStore implements TsdbStore {
   private final Table<String, String, byte[]> data_table;
   private final Table<String, String, byte[]> uid_table;
 
+  private final Table<String, UniqueIdType, byte[]> uid_forward_mapping;
+  private final Table<String, UniqueIdType, byte[]> uid_reverse_mapping;
+
   private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
   private byte[] default_family = "t".getBytes(ASCII);
 
@@ -83,6 +88,9 @@ public class MemoryStore implements TsdbStore {
   public MemoryStore() {
     data_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
+
+    uid_forward_mapping = HashBasedTable.create();
+    uid_reverse_mapping = HashBasedTable.create();
   }
 
   /**
@@ -428,49 +436,34 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> getId(String name, byte[] kind) {
-    // TODO #getId should be rewritten to use guava tables instead of this
-    // HBase implementation
-    final GetRequest get = new GetRequest("deprecated",
-            StringCoder.toBytes(name));
-    get.family(ID_FAMILY).qualifier(kind);
+  public Deferred<byte[]> getId(String name, UniqueIdType type) {
+    byte[] id = uid_forward_mapping.get(name, type);
 
-    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
-      public byte[] call(final ArrayList<KeyValue> row) {
-        if (row == null || row.isEmpty()) {
-          return null;
-        }
-        return row.get(0).value();
-      }
+    if (id != null && id.length != type.width) {
+      throw new IllegalStateException("Found id.length = " + id.length
+              + " which is != " + type.width
+              + " required for '" + type.qualifier + '\'');
     }
 
-    return get(get).addCallback(new GetCB());
+    return Deferred.fromResult(id);
   }
 
   @Override
-  public Deferred<String> getName(byte[] id, byte[] kind) {
-    class NameFromHBaseCB implements Callback<String, byte[]> {
-      public String call(final byte[] name) {
-        return name == null ? null : StringCoder.fromBytes(name);
-      }
+  public Deferred<String> getName(byte[] id, UniqueIdType type) {
+    if (id.length != type.width) {
+      throw new IllegalArgumentException("Wrong id.length = " + id.length
+              + " which is != " + type.width
+              + " required for '" + type.qualifier + '\'');
     }
 
-    // TODO #getName should be rewritten to use guava tables instead of this
-    // HBase implementation
-    final GetRequest request = new GetRequest("deprecated", id);
-    request.family(NAME_FAMILY).qualifier(kind);
+    String str_uid = new String(id, Const.CHARSET_ASCII);
 
-    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
-      public byte[] call(final ArrayList<KeyValue> row) {
-        if (row == null || row.isEmpty()) {
-          return null;
-        }
-        return row.get(0).value();
-      }
-    }
+    final byte[] b_name = uid_reverse_mapping.get(str_uid, type);
 
-    return get(request).addCallback(new GetCB()).addCallback(new
-      NameFromHBaseCB());
+    if (b_name == null)
+      return Deferred.fromResult(null);
+    else
+      return Deferred.fromResult(StringCoder.fromBytes(b_name));
   }
 
   @Override
@@ -495,7 +488,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<UIDMeta> getMeta(final byte[] uid,
                                    final String name,
-                                   final UniqueId.UniqueIdType type) {
+                                   final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final String s_uid = UniqueId.uidToString(uid);
 
@@ -506,7 +499,7 @@ public class MemoryStore implements TsdbStore {
       return Deferred.fromResult(new UIDMeta(type, uid, name, false));
     }
 
-    UniqueId.UniqueIdType effective_type = type;
+    UniqueIdType effective_type = type;
     if (effective_type == null) {
       effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
               qualifier.indexOf("_meta")));
@@ -519,7 +512,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   private Deferred<UIDMeta> getMeta(final String uid,
-                                    final UniqueId.UniqueIdType
+                                    final UniqueIdType
           type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     byte[] json_value = uid_table.get(uid, qualifier);
@@ -561,13 +554,28 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(byte[] name, byte[] kind, short id_width) {
+  public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, byte[] kind) {
-    throw new UnsupportedOperationException("Not implemented yet");
+  public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type) {
+    String str_uid = new String(uid, Const.CHARSET_ASCII);
+    String str_name = new String(name, Const.CHARSET_ASCII);
+
+    if (uid_reverse_mapping.contains(str_uid, type)) {
+      throw new IllegalStateException("A UID with " + str_uid + " already exists");
+    }
+
+    uid_reverse_mapping.put(str_uid, type, name);
+
+    if (uid_forward_mapping.contains(str_name, type)) {
+      throw new IllegalStateException("A UID with name " + str_name + "already exists");
+    }
+
+    uid_forward_mapping.put(str_name, type, uid);
+
+    return Deferred.fromResult(uid);
   }
 
   @Override

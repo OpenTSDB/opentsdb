@@ -54,22 +54,27 @@ public final class TestUIDMeta {
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, new Config(false));
 
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.allocateUID(
+            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.METRIC);
 
-    tsdb_store.addColumn(new byte[]{0, 0, 3},
-      NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.2".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.allocateUID(
+            "sys.cpu.2".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 3},
+            UniqueIdType.METRIC);
 
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "metric_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"System CPU\"}").getBytes(Const.CHARSET_ASCII));
+    UIDMeta uidMeta = new UIDMeta(
+            UniqueIdType.METRIC,
+            new byte[] {0, 0, 1},
+            "sys.cpu.0");
+
+    uidMeta.setDescription("Description");
+    uidMeta.setNotes("MyNotes");
+    uidMeta.setCreated(1328140801);;
+    uidMeta.setDisplayName("System CPU");
+
+    tsdb_store.add(uidMeta);
   }
   
   @Test

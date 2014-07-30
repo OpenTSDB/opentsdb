@@ -23,12 +23,17 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.HBaseStore;
+import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.*;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -61,65 +66,61 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HBaseStore.class, TSDB.class, Config.class })
 public final class TestUniqueId {
 
-  private HBaseStore client = mock(HBaseStore.class);
+  private TsdbStore client;
   private static final byte[] table = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] ID = { 'i', 'd' };
   private UniqueId uid;
-  private static final String kind = "metric";
+  private static final String kind = "metrics";
   private static final byte[] kind_array = { 'm', 'e', 't', 'r', 'i', 'c' };
 
-  @Test(expected=IllegalArgumentException.class)
-  public void testCtorZeroWidth() {
-    uid = new UniqueId(client, table, kind, 0);
+  @Before
+  public void setUp() {
+    client = new MemoryStore();
   }
 
-  @Test(expected=IllegalArgumentException.class)
-  public void testCtorNegativeWidth() {
-    uid = new UniqueId(client, table, kind, -1);
+  @Test(expected=NullPointerException.class)
+  public void testCtorNoTsdbStore() {
+    uid = new UniqueId(null, table, UniqueIdType.METRIC);
   }
 
-  @Test(expected=IllegalArgumentException.class)
-  public void testCtorEmptyKind() {
-    uid = new UniqueId(client, table, "", 3);
+  @Test(expected=NullPointerException.class)
+  public void testCtorNoTable() {
+    uid = new UniqueId(client, null, UniqueIdType.METRIC);
   }
 
-  @Test(expected=IllegalArgumentException.class)
-  public void testCtorLargeWidth() {
-    uid = new UniqueId(client, table, kind, 9);
+  @Test(expected=NullPointerException.class)
+  public void testCtorNoType() {
+    uid = new UniqueId(client, table, null);
   }
 
   @Test
   public void kindEqual() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     assertEquals(kind, uid.kind());
   }
 
   @Test
   public void widthEqual() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     assertEquals(3, uid.width());
   }
 
   @Test
   public void testMaxPossibleId() {
-    assertEquals(255, (new UniqueId(client, table, kind, 1)).maxPossibleId());
-    assertEquals(65535, (new UniqueId(client, table, kind, 2)).maxPossibleId());
-    assertEquals(16777215L, (new UniqueId(client, table, kind, 3)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.METRIC)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGK)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGV)).maxPossibleId());
   } 
   
   @Test
-  public void getNameSuccessfulHBaseLookup() {
-    uid = new UniqueId(client, table, kind, 3);
+  public void getNameSuccessfulLookup() {
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(id, ID, kind_array, byte_name));
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(kvs));
+    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
     assertEquals("foo", uid.getName(id));
     // Should be a cache hit ...
@@ -128,70 +129,27 @@ public final class TestUniqueId {
     assertEquals(1, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
     assertEquals(2, uid.cacheSize());
-
-    // ... so verify there was only one HBase Get.
-    verify(client).get(anyGet());
-  }
-
-  @Test
-  public void getNameWithErrorDuringHBaseLookup() {
-    uid = new UniqueId(client, table, kind, 3);
-    final byte[] id = { 0, 'a', 0x42 };
-    final byte[] byte_name = { 'f', 'o', 'o' };
-
-    HBaseException hbe = mock(HBaseException.class);
-
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(id, ID, kind_array, byte_name));
-    when(client.get(anyGet()))
-      .thenThrow(hbe)
-      .thenReturn(Deferred.fromResult(kvs));
-
-    // 1st calls fails.
-    try {
-      uid.getName(id);
-      fail("HBaseException should have been thrown.");
-    } catch (HBaseException e) {
-      assertSame(hbe, e);  // OK.
-    }
-
-    // 2nd call succeeds.
-    assertEquals("foo", uid.getName(id));
-
-    assertEquals(0, uid.cacheHits());
-    assertEquals(2, uid.cacheMisses());  // 1st (failed) attempt + 2nd.
-    assertEquals(2, uid.cacheSize());
-
-    verify(client, times(2)).get(anyGet());
   }
 
   @Test(expected=NoSuchUniqueId.class)
   public void getNameForNonexistentId() {
-    uid = new UniqueId(client, table, kind, 3);
-
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(new ArrayList<KeyValue>(0)));
-
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     uid.getName(new byte[] { 1, 2, 3 });
   }
 
   @Test(expected=IllegalArgumentException.class)
   public void getNameWithInvalidId() {
-    uid = new UniqueId(client, table, kind, 3);
-
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     uid.getName(new byte[] { 1 });
   }
 
   @Test
-  public void getIdSuccessfulHBaseLookup() {
-    uid = new UniqueId(client, table, kind, 3);
+  public void getIdSuccessfulLookup() {
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
+
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
-
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(kvs));
+    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
     assertArrayEquals(id, uid.getId("foo"));
     // Should be a cache hit ...
@@ -202,47 +160,33 @@ public final class TestUniqueId {
     assertEquals(2, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
     assertEquals(2, uid.cacheSize());
-
-    // ... so verify there was only one HBase Get.
-    verify(client).get(anyGet());
   }
 
   // The table contains IDs encoded on 2 bytes but the instance wants 3.
   @Test(expected=IllegalStateException.class)
   public void getIdMisconfiguredWidth() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
+
     final byte[] id = { 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
-
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(kvs));
+    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
     uid.getId("foo");
   }
 
   @Test(expected=NoSuchUniqueName.class)
   public void getIdForNonexistentName() {
-    uid = new UniqueId(client, table, kind, 3);
-
-    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
-
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     uid.getId("foo");
   }
 
   @Test
   public void getOrCreateIdWithExistingId() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
+
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
-
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(kvs));
+    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
     assertArrayEquals(id, uid.getOrCreateId("foo"));
     // Should be a cache hit ...
@@ -250,238 +194,24 @@ public final class TestUniqueId {
     assertEquals(1, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
     assertEquals(2, uid.cacheSize());
-
-    // ... so verify there was only one HBase Get.
-    verify(client).get(anyGet());
   }
 
   @Test  // Test the creation of an ID with no problem.
   public void getOrCreateIdAssignIdWithSuccess() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 0, 5 };
-    final Config config = mock(Config.class);
-    when(config.enable_realtime_uid()).thenReturn(false);
-    final TSDB tsdb = mock(TSDB.class);
-    when(tsdb.getConfig()).thenReturn(config);
-    uid.setTSDB(tsdb);
-    
-    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
-
-    when(client.atomicIncrement(incrementForRow(MAXID)))
-      .thenReturn(Deferred.fromResult(5L));
-
-    when(client.compareAndSet(anyPut(), emptyArray()))
-      .thenReturn(Deferred.fromResult(true))
-      .thenReturn(Deferred.fromResult(true));
 
     assertArrayEquals(id, uid.getOrCreateId("foo"));
     // Should be a cache hit since we created that entry.
     assertArrayEquals(id, uid.getOrCreateId("foo"));
     // Should be a cache hit too for the same reason.
     assertEquals("foo", uid.getName(id));
-
-    verify(client).get(anyGet()); // Initial Get.
-    verify(client).atomicIncrement(incrementForRow(MAXID));
-    // Reverse + forward mappings.
-    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
-  }
-
-  @PrepareForTest({HBaseStore.class, UniqueId.class})
-  @Test  // Test the creation of an ID when unable to increment MAXID
-  public void getOrCreateIdUnableToIncrementMaxId() throws Exception {
-    PowerMockito.mockStatic(Thread.class);
-
-    uid = new UniqueId(client, table, kind, 3);
-
-    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
-
-    HBaseException hbe = fakeHBaseException();
-    when(client.atomicIncrement(incrementForRow(MAXID)))
-      .thenThrow(hbe);
-    PowerMockito.doNothing().when(Thread.class); Thread.sleep(anyInt());
-
-    try {
-      uid.getOrCreateId("foo");
-      fail("HBaseException should have been thrown!");
-    } catch (HBaseException e) {
-      assertSame(hbe, e);
-    }
-  }
-
-  @Test  // Test the creation of an ID with a race condition.
-  @PrepareForTest({HBaseStore.class, Deferred.class})
-   public void getOrCreateIdAssignIdWithRaceCondition() {
-    // Simulate a race between client A and client B.
-    // A does a Get and sees that there's no ID for this name.
-    // B does a Get and sees that there's no ID too, and B actually goes
-    // through the entire process to create the ID.
-    // Then A attempts to go through the process and should discover that the
-    // ID has already been assigned.
-
-    uid = new UniqueId(client, table, kind, 3); // Used by client A.
-    HBaseStore client_b = mock(HBaseStore.class); // For client B.
-    final UniqueId uid_b = new UniqueId(client_b, table, kind, 3);
-
-    final byte[] id = { 0, 0, 5 };
-    final byte[] byte_name = { 'f', 'o', 'o' };
-    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-
-    @SuppressWarnings("unchecked")
-    final Deferred<ArrayList<KeyValue>> d = PowerMockito.spy(new Deferred<ArrayList<KeyValue>>());
-    when(client.get(anyGet()))
-      .thenReturn(d)
-      .thenReturn(Deferred.fromResult(kvs));
-
-    final Answer<byte[]> the_race = new Answer<byte[]>() {
-      public byte[] answer(final InvocationOnMock unused_invocation) throws Exception {
-        // While answering A's first Get, B doest a full getOrCreateId.
-        assertArrayEquals(id, uid_b.getOrCreateId("foo"));
-        d.callback(null);
-        return (byte[]) ((Deferred) d).join();
-      }
-    };
-
-    // Start the race when answering A's first Get.
-    try {
-      PowerMockito.doAnswer(the_race).when(d).joinUninterruptibly();
-    } catch (Exception e) {
-      fail("Should never happen: " + e);
-    }
-
-    when(client_b.get(anyGet())) // null => ID doesn't exist.
-      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^ I'm writing C++ in Java!
-
-    when(client_b.atomicIncrement(incrementForRow(MAXID)))
-      .thenReturn(Deferred.fromResult(5L));
-
-    when(client_b.compareAndSet(anyPut(), emptyArray()))
-      .thenReturn(Deferred.fromResult(true))
-      .thenReturn(Deferred.fromResult(true));
-
-    // Now that B is finished, A proceeds and allocates a UID that will be
-    // wasted, and creates the reverse mapping, but fails at creating the
-    // forward mapping.
-    when(client.atomicIncrement(incrementForRow(MAXID)))
-      .thenReturn(Deferred.fromResult(6L));
-
-    when(client.compareAndSet(anyPut(), emptyArray()))
-      .thenReturn(Deferred.fromResult(true)) // Orphan reverse mapping.
-      .thenReturn(Deferred.fromResult(false)); // Already CAS'ed by A.
-
-    // Start the execution.
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
-
-    // Verify the order of execution too.
-    final InOrder order = inOrder(client, client_b);
-    order.verify(client).get(anyGet()); // 1st Get for A.
-    order.verify(client_b).get(anyGet()); // 1st Get for B.
-    order.verify(client_b).atomicIncrement(incrementForRow(MAXID));
-    order.verify(client_b, times(2)).compareAndSet(anyPut(), // both mappings.
-                                                   emptyArray());
-    order.verify(client).atomicIncrement(incrementForRow(MAXID));
-    order.verify(client, times(2)).compareAndSet(anyPut(), // both mappings.
-                                                 emptyArray());
-    order.verify(client).get(anyGet()); // A retries and gets it.
-  }
-
-  @Test
-  // Test the creation of an ID when all possible IDs are already in use
-  public void getOrCreateIdWithOverflow() {
-    uid = new UniqueId(client, table, kind, 1);  // IDs are only on 1 byte.
-
-    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
-
-    // Update once HBASE-2292 is fixed:
-    when(client.atomicIncrement(incrementForRow(MAXID)))
-      .thenReturn(Deferred.fromResult(256L));
-
-    try {
-      final byte[] id = uid.getOrCreateId("foo");
-      fail("IllegalArgumentException should have been thrown but instead "
-           + " this was returned id=" + Arrays.toString(id));
-    } catch (IllegalStateException e) {
-      // OK.
-    }
-
-    verify(client, times(1)).get(anyGet());  // Initial Get.
-    verify(client).atomicIncrement(incrementForRow(MAXID));
-  }
-
-  @Test  // ICV throws an exception, we can't get an ID.
-  public void getOrCreateIdWithICVFailure() {
-    uid = new UniqueId(client, table, kind, 3);
-    final Config config = mock(Config.class);
-    when(config.enable_realtime_uid()).thenReturn(false);
-    final TSDB tsdb = mock(TSDB.class);
-    when(tsdb.getConfig()).thenReturn(config);
-    uid.setTSDB(tsdb);
-    
-    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
-
-    // Update once HBASE-2292 is fixed:
-    HBaseException hbe = fakeHBaseException();
-    when(client.atomicIncrement(incrementForRow(MAXID)))
-      .thenReturn(Deferred.<Long>fromError(hbe))
-      .thenReturn(Deferred.fromResult(5L));
-
-    when(client.compareAndSet(anyPut(), emptyArray()))
-      .thenReturn(Deferred.fromResult(true))
-      .thenReturn(Deferred.fromResult(true));
-
-    final byte[] id = { 0, 0, 5 };
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
-    verify(client, times(1)).get(anyGet()); // Initial Get.
-    // First increment (failed) + retry.
-    verify(client, times(2)).atomicIncrement(incrementForRow(MAXID));
-    // Reverse + forward mappings.
-    verify(client, times(2)).compareAndSet(anyPut(), emptyArray());
-  }
-
-  @Test  // Test that the reverse mapping is created before the forward one.
-  public void getOrCreateIdPutsReverseMappingFirst() {
-    uid = new UniqueId(client, table, kind, 3);
-    final Config config = mock(Config.class);
-    when(config.enable_realtime_uid()).thenReturn(false);
-    final TSDB tsdb = mock(TSDB.class);
-    when(tsdb.getConfig()).thenReturn(config);
-    uid.setTSDB(tsdb);
-    
-    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
-
-    when(client.atomicIncrement(incrementForRow(MAXID)))
-      .thenReturn(Deferred.fromResult(6L));
-
-    when(client.compareAndSet(anyPut(), emptyArray()))
-      .thenReturn(Deferred.fromResult(true))
-      .thenReturn(Deferred.fromResult(true));
-
-    final byte[] id = { 0, 0, 6 };
-    final byte[] row = { 'f', 'o', 'o' };
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
-
-    final InOrder order = inOrder(client);
-    order.verify(client).get(anyGet());            // Initial Get.
-    order.verify(client).atomicIncrement(incrementForRow(MAXID));
-    order.verify(client).compareAndSet(putForRow(id), emptyArray());
-    order.verify(client).compareAndSet(putForRow(row), emptyArray());
   }
 
   @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
   public void suggestWithNoMatch() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final Scanner fake_scanner = mock(Scanner.class);
     when(client.newScanner(table))
@@ -503,7 +233,7 @@ public final class TestUniqueId {
   @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
   public void suggestWithMatches() {
-    uid = new UniqueId(client, table, kind, 3);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final Scanner fake_scanner = mock(Scanner.class);
     when(client.newScanner(table))
