@@ -3,12 +3,12 @@ package net.opentsdb.storage;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
-import org.hbase.async.AtomicIncrementRequest;
-import org.hbase.async.HBaseClient;
+import org.hbase.async.*;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
+import org.mockito.InOrder;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -16,6 +16,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.IOException;
 import java.util.Arrays;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
@@ -25,96 +26,126 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(HBaseClient.class)
 public class TestHBaseStore extends TestTsdbStore {
-  private static final byte[] MAX_UID = { 0 };
+  private static final byte[] MAX_UID = {0};
 
   private HBaseClient client;
+  private byte[] foo_array;
 
   @Before
   public void setUp() throws IOException {
     client = PowerMockito.mock(HBaseClient.class);
     tsdb_store = new HBaseStore(client, new Config(false));
+    foo_array = new byte[]{'f', 'o', 'o'};
   }
 
   @Test
   // Test the creation of an ID when all possible IDs are already in use
-  public void getOrCreateIdWithOverflow() throws Exception {
-
-      when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.fromResult(256L));
-      try {
-          Deferred<byte[]> uid = tsdb_store.allocateUID(new byte[]{'f', 'o', 'o'},
-                  UniqueId.UniqueIdType.METRIC,
-                  UniqueId.UniqueIdType.METRIC.width);
-
-          fail("IllegalArgumentException should have been thrown but instead "
-                  + " this was returned id=" + uid.joinUninterruptibly());
-      } catch(IllegalStateException e) {
-          assertTrue(e.getMessage().startsWith("All Unique IDs for "));
-      }
-
-
-    // Update once HBASE-2292 is fixed:
-    when(client.atomicIncrement(incrementForRow(MAX_UID)))
-            .thenReturn(Deferred.fromResult(256L));
-
+  public void allocateUIDWithNegativeUID() throws Exception {
+    //If the atomicIncrement returns a negative id it is not valid should get
+    // exception
+    long id = -1;
+    //mock negative answer from atomic increment
+    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.
+            fromResult(id));
     try {
-      Deferred<byte[]> uid = tsdb_store.allocateUID(new byte[]{'f', 'o', 'o'},
+      Deferred<byte[]> uid = tsdb_store.allocateUID(foo_array,
               UniqueId.UniqueIdType.METRIC,
               UniqueId.UniqueIdType.METRIC.width);
 
       fail("IllegalArgumentException should have been thrown but instead "
               + " this was returned id=" + uid.joinUninterruptibly());
-    } catch(IllegalStateException e) {
+    } catch (IllegalStateException e) {
+      assertEquals("Got a negative ID from HBase: " + id, e.getMessage());
+    }
+  }
+
+  @Test
+  public void allocateUIDWithTooNarrowWidth() throws Exception {
+
+    final short id_width = 9;
+    long id = 16777216L;
+    //mock overflow answer from atomic Increment since width is checked first
+    when(client.atomicIncrement(incrementForRow(MAX_UID))).
+            thenReturn(Deferred.fromResult(16777216L));
+    final byte[] row = Bytes.fromLong(id);
+    try {
+      Deferred<byte[]> uid = tsdb_store.allocateUID(foo_array,
+              UniqueId.UniqueIdType.METRIC, id_width);
+
+      fail("IllegalArgumentException should have been thrown but instead "
+              + " this was returned id=" + uid.joinUninterruptibly());
+    } catch (IllegalStateException e) {
+      String expected_msg = "row.length = " + row.length
+              + " which is less than " + id_width
+              + " for id=" + id
+              + " row=" + Arrays.toString(row);
+      //Check if we got the right exception
+      assertEquals(expected_msg, e.getMessage());
+
+    }
+  }
+
+  @Test
+  // Test the creation of an ID when all possible IDs are already in use
+  public void allocateUIDWithOverflow() throws Exception {
+    //mock overflow answer from atomic Increment
+    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.
+            fromResult(16777216L));
+    try {
+      Deferred<byte[]> uid = tsdb_store.allocateUID(foo_array,
+              UniqueId.UniqueIdType.METRIC,
+              UniqueId.UniqueIdType.METRIC.width);
+
+      fail("IllegalArgumentException should have been thrown but instead "
+              + " this was returned id=" + uid.joinUninterruptibly());
+    } catch (IllegalStateException e) {
       assertTrue(e.getMessage().startsWith("All Unique IDs for "));
     }
   }
 
-  private static AtomicIncrementRequest incrementForRow(final byte[] p_row) {
-    return argThat(new ArgumentMatcher<AtomicIncrementRequest>() {
-      public boolean matches(Object incr) {
-        return Arrays.equals(((AtomicIncrementRequest) incr).key(), p_row);
-      }
-      public void describeTo(org.hamcrest.Description description) {
-        description.appendText("AtomicIncrementRequest for row "
-                + Arrays.toString(p_row));
-      }
-    });
-  }
-
-  /*
   @Test  // Test that the reverse mapping is created before the forward one.
-  public void getOrCreateIdPutsReverseMappingFirst() {
-    uid = new UniqueId(client, table, UniqueId.UniqueIdType.METRIC);
-    final Config config = mock(Config.class);
-    when(config.enable_realtime_uid()).thenReturn(false);
-    final TSDB tsdb = mock(TSDB.class);
-    when(tsdb.getConfig()).thenReturn(config);
-    uid.setTSDB(tsdb);
+  public void allocateUIDPutsReverseMappingFirst() throws Exception{
+    //mock valid
+    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.
+            fromResult(6L));
+    // next is compare and set make it return false and catch the exception
+    when(client.compareAndSet(any(PutRequest.class), eq(HBaseClient.EMPTY_ARRAY))).
+            thenReturn(Deferred.fromResult(false));
 
-    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
-            .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
+    try {
+      Deferred<byte[]> uid = tsdb_store.allocateUID(foo_array,
+              UniqueId.UniqueIdType.METRIC,
+              UniqueId.UniqueIdType.METRIC.width);
+      fail("IllegalArgumentException should have been thrown but instead "
+              + " this was returned id=" + uid.joinUninterruptibly());
 
-    when(client.atomicIncrement(incrementForRow(MAX_UID)))
-            .thenReturn(Deferred.fromResult(6L));
+    } catch(IllegalStateException e) {
+      //validate we got the right exception
+      //this together with verifying that compareAndSet has been run exactly
+      //once will guarantee that nothing else was called.
+      //Also make sure that the get was called or put.
+      //These should fail due to the fact that they have not been mocked,
+      //however we want to make sure in case someone decides to mock them and
+      //change the implementation.
+      assertTrue(e.getMessage().startsWith("CAS to create mapping when " +
+              "allocating UID with request ") && e.getMessage().endsWith(" " +
+              "failed. You should probably run a FSCK against the UID table."));
 
-    when(client.compareAndSet(anyPut(), emptyArray()))
-            .thenReturn(Deferred.fromResult(true))
-            .thenReturn(Deferred.fromResult(true));
-
-    final byte[] id = { 0, 0, 6 };
-    final byte[] row = { 'f', 'o', 'o' };
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
-
+    }
     final InOrder order = inOrder(client);
-    order.verify(client).get(anyGet());            // Initial Get.
-    order.verify(client).atomicIncrement(incrementForRow(MAXID));
-    order.verify(client).compareAndSet(putForRow(id), emptyArray());
-    order.verify(client).compareAndSet(putForRow(row), emptyArray());
+    order.verify(client).atomicIncrement(incrementForRow(MAX_UID));
+    order.verify(client).compareAndSet(any(PutRequest.class),
+            eq(HBaseClient.EMPTY_ARRAY));
+    verify(client, times(1)).compareAndSet(any(PutRequest.class),
+            eq(HBaseClient.EMPTY_ARRAY));
+    verify(client, times(1)).atomicIncrement(incrementForRow(MAX_UID));
+    verify(client, never()).get(any(GetRequest.class));
+    verify(client, never()).put(any(PutRequest.class));
   }
 
-  @PrepareForTest({HBaseStore.class, UniqueId.class})
+
   @Test  // Test the creation of an ID when unable to increment MAXID
-  public void getOrCreateIdUnableToIncrementMaxId() throws Exception {
+  public void allocateUIDUnableToIncrementMaxId() throws Exception {
     PowerMockito.mockStatic(Thread.class);
 
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
@@ -124,7 +155,7 @@ public class TestHBaseStore extends TestTsdbStore {
     // Watch this! ______,^   I'm writing C++ in Java!
 
     HBaseException hbe = fakeHBaseException();
-    when(client.atomicIncrement(incrementForRow(MAXID)))
+    when(client.atomicIncrement(incrementForRow(MAX_UID)))
       .thenThrow(hbe);
     PowerMockito.doNothing().when(Thread.class); Thread.sleep(anyInt());
 
@@ -136,6 +167,7 @@ public class TestHBaseStore extends TestTsdbStore {
     }
   }
 
+  /*
   @Test  // Test the creation of an ID with a race condition.
   @PrepareForTest({HBaseStore.class, Deferred.class})
    public void getOrCreateIdAssignIdWithRaceCondition() {
@@ -248,4 +280,24 @@ public class TestHBaseStore extends TestTsdbStore {
   }
 
   */
+  private static AtomicIncrementRequest incrementForRow(final byte[] p_row) {
+    return argThat(new ArgumentMatcher<AtomicIncrementRequest>() {
+      public boolean matches(Object incr) {
+        return Arrays.equals(((AtomicIncrementRequest) incr).key(), p_row);
+      }
+
+      public void describeTo(org.hamcrest.Description description) {
+        description.appendText("AtomicIncrementRequest for row "
+                + Arrays.toString(p_row));
+      }
+    });
+  }
+  private static HBaseException fakeHBaseException() {
+    final HBaseException hbe = mock(HBaseException.class);
+    when(hbe.getStackTrace()).thenReturn(Arrays.copyOf(
+            new RuntimeException().getStackTrace(), 3));
+    when(hbe.getMessage())
+            .thenReturn("fake exception");
+    return hbe;
+  }
 }
