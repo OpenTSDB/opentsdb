@@ -326,58 +326,13 @@ public class UniqueId implements UniqueIdInterface {
     try {
       return getIdAsync(name).joinUninterruptibly();
     } catch (NoSuchUniqueName e) {
-      Deferred<byte[]> assignment = null;
-      boolean pending = false;
-      synchronized (pending_assignments) {
-        assignment = pending_assignments.get(name);
-        if (assignment == null) {
-          // to prevent UID leaks that can be caused when multiple time
-          // series for the same metric or tags arrive, we need to write a 
-          // deferred to the pending map as quickly as possible. Then we can 
-          // start the assignment process after we've stashed the deferred 
-          // and released the lock
-          assignment = new Deferred<byte[]>();
-          pending_assignments.put(name, assignment);
-        } else {
-          pending = true;
-        }
-      }
-      
-      if (pending) {
-        LOG.info("Already waiting for UID assignment: " + name);
-        try {
-          return assignment.joinUninterruptibly();
-        } catch (Exception e1) {
-          throw new RuntimeException("Should never be here", e1);
-        }
-      }
-      
-      // start the assignment dance after stashing the deferred
-      byte[] uid = null;
       try {
-        uid = tsdb_store.allocateUID(toBytes(name), type, id_width).joinUninterruptibly();
-
-        cacheMapping(name, uid);
-
-        if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
-          final UIDMeta meta = new UIDMeta(type, uid, name);
-          tsdb_store.add(meta);
-          LOG.info("Wrote UIDMeta for: {}", name);
-          tsdb.indexUIDMeta(meta);
-        }
-      } catch (RuntimeException e1) {
-        throw e1;
+        return createId(name).joinUninterruptibly();
       } catch (Exception e1) {
-        throw new RuntimeException("Should never be here", e);
-      } finally {
-        LOG.info("Completed pending assignment for: " + name);
-        synchronized (pending_assignments) {
-          pending_assignments.remove(name);
-        }
+        throw Throwables.propagate(e1);
       }
-      return uid;
     } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
+      throw Throwables.propagate(e);
     }
   }
 
@@ -394,55 +349,10 @@ public class UniqueId implements UniqueIdInterface {
    * @since 1.2
    */
   public Deferred<byte[]> getOrCreateIdAsync(final String name) {
-    // Look in the cache first.
-    final byte[] id = getIdFromCache(name);
-    if (id != null) {
-      cache_hits++;
-      return Deferred.fromResult(id);
-    }
-    // Not found in our cache, so look in HBase instead.
-
     class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
       public Object call(final Exception e) {
         if (e instanceof NoSuchUniqueName) {
-          
-          Deferred<byte[]> assignment = null;
-          synchronized (pending_assignments) {
-            assignment = pending_assignments.get(name);
-            if (assignment == null) {
-              // to prevent UID leaks that can be caused when multiple time
-              // series for the same metric or tags arrive, we need to write a 
-              // deferred to the pending map as quickly as possible. Then we can 
-              // start the assignment process after we've stashed the deferred 
-              // and released the lock
-              assignment = new Deferred<byte[]>();
-              pending_assignments.put(name, assignment);
-            } else {
-              LOG.info("Already waiting for UID assignment: " + name);
-              return assignment;
-            }
-          }
-
-          // start the assignment dance after stashing the deferred
-          Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type, id_width);
-
-          uid.addCallback(new Callback<Object, byte[]>() {
-            @Override
-            public byte[] call(byte[] uid) throws Exception {
-              cacheMapping(name, uid);
-
-              if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
-                final UIDMeta meta = new UIDMeta(type, uid, name);
-                tsdb_store.add(meta);
-                LOG.info("Wrote UIDMeta for: {}", name);
-                tsdb.indexUIDMeta(meta);
-              }
-
-              return uid;
-            }
-          });
-
-          return uid;
+          return createId(name);
         }
         return e;  // Other unexpected exception, let it bubble up.
       }
@@ -451,6 +361,51 @@ public class UniqueId implements UniqueIdInterface {
     // Kick off the HBase lookup, and if we don't find it there either, start
     // the process to allocate a UID.
     return getIdAsync(name).addErrback(new HandleNoSuchUniqueNameCB());
+  }
+
+  public Deferred<byte[]> createId(final String name) {
+    Deferred<byte[]> assignment;
+    synchronized (pending_assignments) {
+      assignment = pending_assignments.get(name);
+      if (assignment == null) {
+        // to prevent UID leaks that can be caused when multiple time
+        // series for the same metric or tags arrive, we need to write a
+        // deferred to the pending map as quickly as possible. Then we can
+        // start the assignment process after we've stashed the deferred
+        // and released the lock
+        assignment = new Deferred<byte[]>();
+        pending_assignments.put(name, assignment);
+      } else {
+        LOG.info("Already waiting for UID assignment: {}", name);
+        return assignment;
+      }
+    }
+
+    // start the assignment dance after stashing the deferred
+    Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type, id_width);
+
+    uid.addCallback(new Callback<Object, byte[]>() {
+      @Override
+      public byte[] call(byte[] uid) throws Exception {
+        cacheMapping(name, uid);
+
+        LOG.info("Completed pending assignment for: {}", name);
+        synchronized (pending_assignments) {
+          pending_assignments.remove(name);
+        }
+
+        if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
+          final UIDMeta meta = new UIDMeta(type, uid, name);
+          tsdb_store.add(meta);
+          LOG.info("Wrote UIDMeta for: {}", name);
+          tsdb.indexUIDMeta(meta);
+        }
+
+        return uid;
+      }
+    });
+
+    return uid;
   }
 
   /**
