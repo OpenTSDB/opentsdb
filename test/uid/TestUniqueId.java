@@ -115,15 +115,12 @@ public final class TestUniqueId {
   } 
   
   @Test
-  public void getNameSuccessfulHBaseLookup() {
+  public void getNameSuccessfulLookup() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(id, ID, kind_array, byte_name));
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(kvs));
+    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
     assertEquals("foo", uid.getName(id));
     // Should be a cache hit ...
@@ -132,70 +129,27 @@ public final class TestUniqueId {
     assertEquals(1, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
     assertEquals(2, uid.cacheSize());
-
-    // ... so verify there was only one HBase Get.
-    verify(client).get(anyGet());
-  }
-
-  @Test
-  public void getNameWithErrorDuringHBaseLookup() {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    final byte[] id = { 0, 'a', 0x42 };
-    final byte[] byte_name = { 'f', 'o', 'o' };
-
-    HBaseException hbe = mock(HBaseException.class);
-
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(id, ID, kind_array, byte_name));
-    when(client.get(anyGet()))
-      .thenThrow(hbe)
-      .thenReturn(Deferred.fromResult(kvs));
-
-    // 1st calls fails.
-    try {
-      uid.getName(id);
-      fail("HBaseException should have been thrown.");
-    } catch (HBaseException e) {
-      assertSame(hbe, e);  // OK.
-    }
-
-    // 2nd call succeeds.
-    assertEquals("foo", uid.getName(id));
-
-    assertEquals(0, uid.cacheHits());
-    assertEquals(2, uid.cacheMisses());  // 1st (failed) attempt + 2nd.
-    assertEquals(2, uid.cacheSize());
-
-    verify(client, times(2)).get(anyGet());
   }
 
   @Test(expected=NoSuchUniqueId.class)
   public void getNameForNonexistentId() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(new ArrayList<KeyValue>(0)));
-
     uid.getName(new byte[] { 1, 2, 3 });
   }
 
   @Test(expected=IllegalArgumentException.class)
   public void getNameWithInvalidId() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-
     uid.getName(new byte[] { 1 });
   }
 
   @Test
-  public void getIdSuccessfulHBaseLookup() {
+  public void getIdSuccessfulLookup() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
+
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
-
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(kvs));
+    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
     assertArrayEquals(id, uid.getId("foo"));
     // Should be a cache hit ...
@@ -206,22 +160,16 @@ public final class TestUniqueId {
     assertEquals(2, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
     assertEquals(2, uid.cacheSize());
-
-    // ... so verify there was only one HBase Get.
-    verify(client).get(anyGet());
   }
 
   // The table contains IDs encoded on 2 bytes but the instance wants 3.
   @Test(expected=IllegalStateException.class)
   public void getIdMisconfiguredWidth() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
+
     final byte[] id = { 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
-
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(kvs));
+    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
     uid.getId("foo");
   }
@@ -229,24 +177,16 @@ public final class TestUniqueId {
   @Test(expected=NoSuchUniqueName.class)
   public void getIdForNonexistentName() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-
-    when(client.get(anyGet()))      // null  =>  ID doesn't exist.
-      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
-
     uid.getId("foo");
   }
 
   @Test
   public void getOrCreateIdWithExistingId() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
+
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
-
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(new KeyValue(byte_name, ID, kind_array, id));
-    when(client.get(anyGet()))
-      .thenReturn(Deferred.fromResult(kvs));
+    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
     assertArrayEquals(id, uid.getOrCreateId("foo"));
     // Should be a cache hit ...
@@ -254,15 +194,13 @@ public final class TestUniqueId {
     assertEquals(1, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
     assertEquals(2, uid.cacheSize());
-
-    // ... so verify there was only one HBase Get.
-    verify(client).get(anyGet());
   }
 
   @Test  // Test the creation of an ID with no problem.
   public void getOrCreateIdAssignIdWithSuccess() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 0, 5 };
+
     final Config config = mock(Config.class);
     when(config.enable_realtime_uid()).thenReturn(false);
     final TSDB tsdb = mock(TSDB.class);
