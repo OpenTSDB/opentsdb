@@ -1096,8 +1096,7 @@ public class TSDB {
     }
 
     boolean has_changes = false;
-    for (Map.Entry<String, Boolean> entry : meta.getChanged().entrySet
-      ()) {
+    for (Map.Entry<String, Boolean> entry : meta.getChanged().entrySet()) {
       if (entry.getValue()) {
         has_changes = true;
         break;
