@@ -1,30 +1,29 @@
 package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.HBaseClient;
-import org.hbase.async.KeyValue;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
-import org.mockito.InOrder;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-@Ignore
+
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(HBaseClient.class)
 public class TestHBaseStore extends TestTsdbStore {
   private static final byte[] MAX_UID = { 0 };
 
@@ -32,14 +31,27 @@ public class TestHBaseStore extends TestTsdbStore {
 
   @Before
   public void setUp() throws IOException {
-    // why.... why..... why final!?
-    client = mock(HBaseClient.class);
+    client = PowerMockito.mock(HBaseClient.class);
     tsdb_store = new HBaseStore(client, new Config(false));
   }
 
   @Test
   // Test the creation of an ID when all possible IDs are already in use
   public void getOrCreateIdWithOverflow() throws Exception {
+
+      when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.fromResult(256L));
+      try {
+          Deferred<byte[]> uid = tsdb_store.allocateUID(new byte[]{'f', 'o', 'o'},
+                  UniqueId.UniqueIdType.METRIC,
+                  UniqueId.UniqueIdType.METRIC.width);
+
+          fail("IllegalArgumentException should have been thrown but instead "
+                  + " this was returned id=" + uid.joinUninterruptibly());
+      } catch(IllegalStateException e) {
+          assertTrue(e.getMessage().startsWith("All Unique IDs for "));
+      }
+
+
     // Update once HBASE-2292 is fixed:
     when(client.atomicIncrement(incrementForRow(MAX_UID)))
             .thenReturn(Deferred.fromResult(256L));
