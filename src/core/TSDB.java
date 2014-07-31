@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -170,18 +171,23 @@ public class TSDB {
     final byte[] row = new byte[row_size];
 
     // Lookup or create the metric ID.
-    final Deferred<byte[]> metric_id;
-    if (config.auto_metric()) {
-      metric_id = metrics.getOrCreateIdAsync(metric);
-    } else {
-      metric_id = metrics.getIdAsync(metric);
-    }
+    final Deferred<byte[]> metric_id = metrics.getIdAsync(metric);
 
     // Copy the metric ID at the beginning of the row key.
     class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
       public byte[] call(final byte[] metricid) {
         copyInRowKey(row, (short) 0, metricid);
         return row;
+      }
+    }
+
+    class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
+      public Object call(final Exception e) {
+        if (e instanceof NoSuchUniqueName) {
+          return metrics.createId(metric);
+        }
+
+        return e; // Other unexpected exception, let it bubble up.
       }
     }
 
@@ -197,44 +203,15 @@ public class TSDB {
         }
         // Once we've resolved all the tags, schedule the copy of the metric
         // ID and return the row key we produced.
-        return metric_id.addCallback(new CopyMetricInRowKeyCB());
+        return metric_id
+                .addErrback(new HandleNoSuchUniqueNameCB())
+                .addCallback(new CopyMetricInRowKeyCB());
       }
     }
 
     // Kick off the resolution of all tags.
     return Tags.resolveOrCreateAllAsync(this, tags)
       .addCallbackDeferring(new CopyTagsInRowKeyCB());
-  }
-
-  /**
-  * Returns a partially initialized row key for this metric and these tags.
-  * The only thing left to fill in is the base timestamp.
-  */
-  byte[] rowKeyTemplate(final String metric,
-                        final Map<String, String> tags) {
-    final short metric_width = metrics.width();
-    final short tag_name_width = tag_names.width();
-    final short tag_value_width = tag_values.width();
-    final short num_tags = (short) tags.size();
-
-    int row_size = (metric_width + Const.TIMESTAMP_BYTES
-                    + tag_name_width * num_tags
-                    + tag_value_width * num_tags);
-    final byte[] row = new byte[row_size];
-
-    short pos = 0;
-
-    copyInRowKey(row, pos, (config.auto_metric() ?
-      metrics.getOrCreateId(metric) : metrics.getId(metric)));
-    pos += metric_width;
-
-    pos += Const.TIMESTAMP_BYTES;
-
-    for(final byte[] tag : Tags.resolveOrCreateAll(this, tags)) {
-      copyInRowKey(row, pos, tag);
-      pos += tag.length;
-    }
-    return row;
   }
 
   /**
@@ -691,47 +668,55 @@ public class TSDB {
     }
 
     IncomingDataPoints.checkMetricAndTags(metric, tags);
-    final byte[] row = this.rowKeyTemplate(metric, tags);
-    final long base_time;
-    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
-    
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((timestamp / 1000) - 
-          ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-    }
-    
-    Bytes.setInt(row, (int) base_time, metrics.width());
 
-    // TODO(tsuna): Add a callback to time the latency of HBase and store the
-    // timing in a moving Histogram (once we have a class for this).
-    Deferred<Object> result = tsdb_store.addPoint(row, qualifier, value);
+    class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
+      @Override
+      public Deferred<Object> call(byte[] row) throws Exception {
+        final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
 
-    if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
-        !config.enable_tsuid_tracking() && rt_publisher == null) {
-      return result;
+        final long base_time;
+        if ((timestamp & Const.SECOND_MASK) != 0) {
+          // drop the ms timestamp to seconds to calculate the base timestamp
+          base_time = ((timestamp / 1000) -
+                  ((timestamp / 1000) % Const.MAX_TIMESPAN));
+        } else {
+          base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+        }
+
+        Bytes.setInt(row, (int) base_time, metrics.width());
+
+        // TODO(tsuna): Add a callback to time the latency of HBase and store the
+        // timing in a moving Histogram (once we have a class for this).
+        Deferred<Object> result = tsdb_store.addPoint(row, qualifier, value);
+
+        if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() &&
+                !config.enable_tsuid_tracking() && rt_publisher == null) {
+          return result;
+        }
+
+        final byte[] tsuid = UniqueId.getTSUIDFromKey(row, Const.METRICS_WIDTH,
+                Const.TIMESTAMP_BYTES);
+
+        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
+        // counter field for a TSUID with the proper timestamp. If the user would
+        // rather have TSUID incrementing enabled, that will trump the PUT
+        if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
+          final PutRequest tracking = new PutRequest(meta_table, tsuid,
+                  TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
+          tsdb_store.put(tracking);
+        } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
+          TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+        }
+
+        if (rt_publisher != null) {
+          rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
+        }
+        return result;
+      }
     }
-    
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, Const.METRICS_WIDTH,
-        Const.TIMESTAMP_BYTES);
-    
-    // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-    // counter field for a TSUID with the proper timestamp. If the user would
-    // rather have TSUID incrementing enabled, that will trump the PUT
-    if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
-      final PutRequest tracking = new PutRequest(meta_table, tsuid, 
-          TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
-      tsdb_store.put(tracking);
-    } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
-      TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
-    }
-    
-    if (rt_publisher != null) {
-      rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
-    }
-    return result;
+
+    return this.rowKeyTemplateAsync(metric, tags)
+            .addCallbackDeferring(new RowKeyCB());
   }
 
   /**
@@ -906,33 +891,37 @@ public class TSDB {
    */
   public byte[] assignUid(final String type, final String name) {
     Tags.validateString(type, name);
-    if (type.toLowerCase().equals("metric")) {
-      try {
-        final byte[] uid = this.metrics.getId(name);
-        throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return this.metrics.getOrCreateId(name);
+    try {
+      if ("metric".equals(type.toLowerCase())) {
+        try {
+          final byte[] uid = this.metrics.getId(name);
+          throw new IllegalArgumentException("Name already exists with UID: " +
+                  UniqueId.uidToString(uid));
+        } catch (NoSuchUniqueName nsue) {
+          return this.metrics.createId(name).joinUninterruptibly();
+        }
+      } else if ("tagk".equals(type.toLowerCase())) {
+        try {
+          final byte[] uid = this.tag_names.getId(name);
+          throw new IllegalArgumentException("Name already exists with UID: " +
+                  UniqueId.uidToString(uid));
+        } catch (NoSuchUniqueName nsue) {
+          return this.tag_names.createId(name).joinUninterruptibly();
+        }
+      } else if ("tagv".equals(type.toLowerCase())) {
+        try {
+          final byte[] uid = this.tag_values.getId(name);
+          throw new IllegalArgumentException("Name already exists with UID: " +
+                  UniqueId.uidToString(uid));
+        } catch (NoSuchUniqueName nsue) {
+          return this.tag_values.createId(name).joinUninterruptibly();
+        }
+      } else {
+        LOG.warn("Unknown type name: {}", type);
+        throw new IllegalArgumentException("Unknown type name");
       }
-    } else if (type.toLowerCase().equals("tagk")) {
-      try {
-        final byte[] uid = this.tag_names.getId(name);
-        throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return this.tag_names.getOrCreateId(name);
-      }
-    } else if (type.toLowerCase().equals("tagv")) {
-      try {
-        final byte[] uid = this.tag_values.getId(name);
-        throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return this.tag_values.getOrCreateId(name);
-      }
-    } else {
-      LOG.warn("Unknown type name: " + type);
-      throw new IllegalArgumentException("Unknown type name");
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
     }
   }
   

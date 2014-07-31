@@ -118,14 +118,14 @@ public final class TestFsck {
     when(metrics.getName(new byte[] { 0, 0, 2 })).thenReturn("sys.cpu.nice");
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getName(new byte[] { 0, 0, 1 })).thenReturn("host");
-    when(tag_names.getOrCreateId("host")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getId("dc")).thenThrow(new NoSuchUniqueName("dc", "metric"));
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getName(new byte[] { 0, 0, 1 })).thenReturn("web01");
-    when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getName(new byte[] { 0, 0, 2 })).thenReturn("web02");
-    when(tag_values.getOrCreateId("web02")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getId("web03"))
       .thenThrow(new NoSuchUniqueName("web03", "metric"));
     

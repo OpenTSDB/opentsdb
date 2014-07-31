@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -427,7 +428,7 @@ public final class Tags {
                                       final Map<String, String> tags)
     throws NoSuchUniqueName {
     try {
-      return resolveAllInternal(tsdb, tags, false);
+      return resolveAllInternalAsync(tsdb, tags, false).joinUninterruptibly();
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
@@ -445,32 +446,12 @@ public final class Tags {
   */
   static ArrayList<byte[]> resolveOrCreateAll(final TSDB tsdb,
                                               final Map<String, String> tags) {
-    return resolveAllInternal(tsdb, tags, true);
-  }
-  
-  private
-  static ArrayList<byte[]> resolveAllInternal(final TSDB tsdb,
-                                              final Map<String, String> tags,
-                                              final boolean create)
-    throws NoSuchUniqueName {
-    final ArrayList<byte[]> tag_ids = new ArrayList<byte[]>(tags.size());
-    for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      final byte[] tag_id = (create && tsdb.getConfig().auto_tagk()
-                             ? tsdb.tag_names.getOrCreateId(entry.getKey())
-                             : tsdb.tag_names.getId(entry.getKey()));
-      final byte[] value_id = (create && tsdb.getConfig().auto_tagv()
-                               ? tsdb.tag_values.getOrCreateId(entry.getValue())
-                               : tsdb.tag_values.getId(entry.getValue()));
-      final byte[] thistag = new byte[tag_id.length + value_id.length];
-      System.arraycopy(tag_id, 0, thistag, 0, tag_id.length);
-      System.arraycopy(value_id, 0, thistag, tag_id.length, value_id.length);
-      tag_ids.add(thistag);
+    try {
+      return resolveAllInternalAsync(tsdb, tags, true).joinUninterruptibly();
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
     }
-    // Now sort the tags.
-    Collections.sort(tag_ids, Bytes.MEMCMP);
-    return tag_ids;
   }
-
 
   /**
    * Resolves (and creates, if necessary) all the tags (name=value) into the a
@@ -493,14 +474,33 @@ public final class Tags {
     final ArrayList<Deferred<byte[]>> tag_ids =
       new ArrayList<Deferred<byte[]>>(tags.size());
 
+    final boolean create_tagks = tsdb.getConfig().getBoolean("tsd.core.auto_create_tagks");
+    final boolean create_tagvs = tsdb.getConfig().getBoolean("tsd.core.auto_create_tagvs");
+
     // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      final Deferred<byte[]> name_id = create
-        ? tsdb.tag_names.getOrCreateIdAsync(entry.getKey())
-        : tsdb.tag_names.getIdAsync(entry.getKey());
-      final Deferred<byte[]> value_id = create
-        ? tsdb.tag_values.getOrCreateIdAsync(entry.getValue())
-        : tsdb.tag_values.getIdAsync(entry.getValue());
+      final Deferred<byte[]> name_id = tsdb.tag_names.getIdAsync(entry.getKey());
+      final Deferred<byte[]> value_id = tsdb.tag_values.getIdAsync(entry.getValue());
+
+      class NoSuchTagNameCB implements Callback<Object, Exception> {
+        public Object call(final Exception e) {
+          if (e instanceof NoSuchUniqueName && create && create_tagks) {
+            return tsdb.tag_names.createId(entry.getKey());
+          }
+
+          return e; // Other unexpected exception, let it bubble up.
+        }
+      }
+
+      class NoSuchTagValueCB implements Callback<Object, Exception> {
+        public Object call(final Exception e) {
+          if (e instanceof NoSuchUniqueName && create && create_tagvs) {
+            return tsdb.tag_values.createId(entry.getValue());
+          }
+
+          return e; // Other unexpected exception, let it bubble up.
+        }
+      }
 
       // Then once the tag name is resolved, get the resolved tag value.
       class TagNameResolvedCB implements Callback<Deferred<byte[]>, byte[]> {
@@ -515,13 +515,17 @@ public final class Tags {
             }
           }
 
-          return value_id.addCallback(new TagValueResolvedCB());
+          return value_id
+                  .addErrback(new NoSuchTagValueCB())
+                  .addCallback(new TagValueResolvedCB());
         }
       }
 
       // Put all the deferred tag resolutions in this list.
-      final Deferred<byte[]> resolve = 
-        name_id.addCallbackDeferring(new TagNameResolvedCB());
+      final Deferred<byte[]> resolve = name_id
+              .addErrback(new NoSuchTagNameCB())
+              .addCallbackDeferring(new TagNameResolvedCB());
+
       tag_ids.add(resolve);
     }
 

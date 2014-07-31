@@ -112,14 +112,14 @@ public class TestDumpSeries {
     when(metrics.getNameAsync(new byte[] { 0, 0, 2 })).thenReturn(Deferred.fromResult("sys.cpu.nice"));
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getNameAsync(new byte[] { 0, 0, 1 })).thenReturn(Deferred.fromResult("host"));
-    when(tag_names.getOrCreateId("host")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.getId("dc")).thenThrow(new NoSuchUniqueName("dc", "metric"));
     when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getNameAsync(new byte[] { 0, 0, 1 })).thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 })).thenReturn(Deferred.fromResult("web02"));
-    when(tag_values.getOrCreateId("web02")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getId("web03"))
       .thenThrow(new NoSuchUniqueName("web03", "metric"));
     

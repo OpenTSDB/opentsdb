@@ -194,7 +194,7 @@ public final class TestTSUIDQuery {
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenReturn(Deferred.fromResult("host"));
-    when(tag_names.getOrCreateIdAsync("host")).thenReturn(
+    when(tag_names.getIdAsync("host")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_names.getId("dc"))
       .thenThrow(new NoSuchUniqueName("dc", "metric"));
@@ -209,14 +209,14 @@ public final class TestTSUIDQuery {
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
       .thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getOrCreateIdAsync("web01")).thenReturn(
+    when(tag_values.getIdAsync("web01")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 1 }));
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getIdAsync("web02")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
       .thenReturn(Deferred.fromResult("web02"));
-    when(tag_values.getOrCreateIdAsync("web02")).thenReturn(
+    when(tag_values.getIdAsync("web02")).thenReturn(
         Deferred.fromResult(new byte[] { 0, 0, 2 }));
     when(tag_values.getId("web03"))
       .thenThrow(new NoSuchUniqueName("web03", "metric"));

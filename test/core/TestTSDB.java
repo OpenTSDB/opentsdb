@@ -211,19 +211,19 @@ public final class TestTSDB {
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDMetricNSU() {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.1");
+    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.2");
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDTagkNSU() {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGK, "datacenter");
+    tsdb.getUID(UniqueIdType.TAGK, "region");
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDTagvNSU() {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGV, "myserver");
+    tsdb.getUID(UniqueIdType.TAGV, "yourserver");
   }
   
   @Test (expected = NullPointerException.class)
@@ -498,8 +498,8 @@ public final class TestTSDB {
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
-    when(metrics.getId(anyString()))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.user", "metric"));
+    when(metrics.getIdAsync(anyString()))
+      .thenReturn(Deferred.<byte[]>fromError(new NoSuchUniqueName("sys.cpu.user", "metric")));
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
@@ -780,19 +780,16 @@ public final class TestTSDB {
    */
   private void setupAssignUid() {
     when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getId("sys.cpu.1")).thenThrow(
-        new NoSuchUniqueName("metric", "sys.cpu.1"));
-    when(metrics.getOrCreateId("sys.cpu.1")).thenReturn(new byte[] { 0, 0, 2 });
+    when(metrics.getId("sys.cpu.1")).thenReturn(new byte[] { 0, 0, 2 });
+    when(metrics.getId("sys.cpu.2")).thenThrow(new NoSuchUniqueName("metric","sys.cpu.2"));
     
     when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getId("datacenter")).thenThrow(
-        new NoSuchUniqueName("tagk", "datacenter"));
-    when(tag_names.getOrCreateId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_names.getId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_names.getId("region")).thenThrow(new NoSuchUniqueName("tagk", "region"));
     
     when(tag_values.getId("localhost")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getId("myserver")).thenThrow(
-        new NoSuchUniqueName("tagv", "myserver"));
-    when(tag_values.getOrCreateId("myserver")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_values.getId("myserver")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_values.getId("yourserver")).thenThrow(new NoSuchUniqueName("tagv", "yourserver"));
   }
   
   /**
@@ -825,8 +822,8 @@ public final class TestTSDB {
     when(tag_values.width()).thenReturn((short)3);
 
     final byte[] row = new byte[] { 0, 0, 1};
-    when(metrics.getId(anyString())).thenReturn(row);
-    when(tag_names.getOrCreateId(anyString())).thenReturn(row);
-    when(tag_values.getOrCreateId(anyString())).thenReturn(row);
+    when(metrics.getIdAsync(anyString())).thenReturn(Deferred.fromResult(row));
+    when(tag_names.getIdAsync(anyString())).thenReturn(Deferred.fromResult(row));
+    when(tag_values.getIdAsync(anyString())).thenReturn(Deferred.fromResult(row));
   }
 }

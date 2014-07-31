@@ -181,29 +181,29 @@ public final class TestUniqueId {
   }
 
   @Test
-  public void getOrCreateIdWithExistingId() {
+  public void getOrCreateIdWithExistingId() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
     client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    assertArrayEquals(id, uid.createId("foo").joinUninterruptibly());
     // Should be a cache hit ...
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     assertEquals(1, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
     assertEquals(2, uid.cacheSize());
   }
 
   @Test  // Test the creation of an ID with no problem.
-  public void getOrCreateIdAssignIdWithSuccess() {
+  public void getOrCreateIdAssignIdWithSuccess() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 0, 5 };
 
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    assertArrayEquals(id, uid.createId("foo").joinUninterruptibly());
     // Should be a cache hit since we created that entry.
-    assertArrayEquals(id, uid.getOrCreateId("foo"));
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     // Should be a cache hit too for the same reason.
     assertEquals("foo", uid.getName(id));
   }
@@ -232,7 +232,7 @@ public final class TestUniqueId {
 
   @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
-  public void suggestWithMatches() {
+  public void suggestWithMatches() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final Scanner fake_scanner = mock(Scanner.class);
@@ -267,7 +267,7 @@ public final class TestUniqueId {
 
     // Verify that the cached results are usable.
     // Should be a cache hit ...
-    assertArrayEquals(foo_bar_id, uid.getOrCreateId("foo.bar"));
+    assertArrayEquals(foo_bar_id, uid.getIdAsync("foo.bar").joinUninterruptibly());
     assertEquals(1, uid.cacheHits());
     // ... so verify there was no HBase Get.
     verify(client, never()).get(anyGet());

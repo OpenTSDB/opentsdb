@@ -55,10 +55,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * <p>
  * Don't attempt to use {@code equals()} or {@code hashCode()} on
  * this class.
- * @see UniqueIdInterface
  */
-@SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
-public class UniqueId implements UniqueIdInterface {
+public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */
@@ -187,7 +185,7 @@ public class UniqueId implements UniqueIdInterface {
    * is discouraged, please use {@link #getNameAsync} instead.
    * @param id The ID associated with that name.
    * @see #getId(String)
-   * @see #getOrCreateId(String)
+   * @see #createId(String)
    * @throws NoSuchUniqueId if the given ID is not assigned.
    * @throws HBaseException if there is a problem communicating with HBase.
    * @throws IllegalArgumentException if the ID given in argument is encoded
@@ -208,7 +206,7 @@ public class UniqueId implements UniqueIdInterface {
    *
    * @param id The ID associated with that name.
    * @see #getId(String)
-   * @see #getOrCreateIdAsync(String)
+   * @see #createId(String)
    * @throws NoSuchUniqueId if the given ID is not assigned.
    * @throws HBaseException if there is a problem communicating with HBase.
    * @throws IllegalArgumentException if the ID given in argument is encoded
@@ -306,61 +304,6 @@ public class UniqueId implements UniqueIdInterface {
   private void cacheMapping(final String name, final byte[] id) {
     addIdToCache(name, id);
     addNameToCache(id, name);
-  } 
-  
-  /**
-   * Finds the ID associated with a given name or creates it.
-   * <p>
-   * <strong>This method is blocking.</strong>  Its use within OpenTSDB itself
-   * is discouraged, please use {@link #getOrCreateIdAsync} instead.
-   * <p>
-   * The length of the byte array is fixed in advance by the implementation.
-   *
-   * @param name The name to lookup in the table or to assign an ID to.
-   * @throws HBaseException if there is a problem communicating with HBase.
-   * @throws IllegalStateException if all possible IDs are already assigned.
-   * @throws IllegalStateException if the ID found in TsdbStore is encoded on the
-   * wrong number of bytes.
-   */
-  public byte[] getOrCreateId(final String name) throws HBaseException {
-    try {
-      return getIdAsync(name).joinUninterruptibly();
-    } catch (NoSuchUniqueName e) {
-      try {
-        return createId(name).joinUninterruptibly();
-      } catch (Exception e1) {
-        throw Throwables.propagate(e1);
-      }
-    } catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  /**
-   * Finds the ID associated with a given name or creates it.
-   * <p>
-   * The length of the byte array is fixed in advance by the implementation.
-   *
-   * @param name The name to lookup in the table or to assign an ID to.
-   * @throws HBaseException if there is a problem communicating with HBase.
-   * @throws IllegalStateException if all possible IDs are already assigned.
-   * @throws IllegalStateException if the ID found in data-source is encoded on the
-   * wrong number of bytes.
-   * @since 1.2
-   */
-  public Deferred<byte[]> getOrCreateIdAsync(final String name) {
-    class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
-      public Object call(final Exception e) {
-        if (e instanceof NoSuchUniqueName) {
-          return createId(name);
-        }
-        return e;  // Other unexpected exception, let it bubble up.
-      }
-    }
-
-    // Kick off the HBase lookup, and if we don't find it there either, start
-    // the process to allocate a UID.
-    return getIdAsync(name).addErrback(new HandleNoSuchUniqueNameCB());
   }
 
   public Deferred<byte[]> createId(final String name) {
