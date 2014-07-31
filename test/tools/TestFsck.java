@@ -134,8 +134,8 @@ public final class TestFsck {
       .thenReturn(Deferred.fromResult("sys.cpu.user"));
 
     PowerMockito.mockStatic(Tags.class);
-    when(Tags.resolveIds((TSDB)any(), (ArrayList<byte[]>)any()))
-      .thenReturn(null); // don't care
+    when(Tags.resolveIdsAsync((TSDB) any(), (ArrayList<byte[]>) any()))
+      .thenReturn(Deferred.<HashMap<String, String>>fromResult(null)); // don't care
     
 //    PowerMockito.mockStatic(Thread.class);
 //    PowerMockito.doNothing().when(Thread.class);
@@ -448,8 +448,9 @@ public final class TestFsck {
   @Test
   public void noSuchTagId() throws Exception {
     when(options.fix()).thenReturn(true);
-    when(Tags.resolveIds((TSDB)any(), (ArrayList<byte[]>)any()))
-      .thenThrow(new NoSuchUniqueId("tagk", new byte[] { 0, 0, 1 }));
+    when(Tags.resolveIdsAsync((TSDB) any(), (ArrayList<byte[]>) any()))
+      .thenReturn(Deferred.<HashMap<String, String>>fromError(
+              new NoSuchUniqueId("tagk", new byte[]{0, 0, 1})));
     
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -472,8 +473,10 @@ public final class TestFsck {
   public void noSuchTagIdFix() throws Exception {
     when(options.fix()).thenReturn(true);
     when(options.deleteOrphans()).thenReturn(true);
-    when(Tags.resolveIds((TSDB)any(), (ArrayList<byte[]>)any()))
-      .thenThrow(new NoSuchUniqueId("tagk", new byte[] { 0, 0, 1 }));
+    when(Tags.resolveIdsAsync((TSDB) any(), (ArrayList<byte[]>) any()))
+      .thenReturn(Deferred.<HashMap<String, String>>fromError(
+              new NoSuchUniqueId("tagk", new byte[]{0, 0, 1})));
+
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };

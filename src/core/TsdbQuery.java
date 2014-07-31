@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
@@ -204,7 +205,13 @@ final class TsdbQuery implements Query {
   throws NoSuchUniqueName {
     findGroupBys(tags);
     this.metric = tsdb.metrics.getId(metric);
-    this.tags = Tags.resolveAll(tsdb, tags);
+
+    try {
+      this.tags = Tags.resolveAllAsync(tsdb, tags).joinUninterruptibly();
+    } catch (Exception e) {
+      Throwables.propagate(e);
+    }
+
     aggregator = function;
     this.rate = rate;
     this.rate_options = rate_options;
@@ -797,7 +804,12 @@ final class TsdbQuery implements Query {
         buf.append(" (<").append(e.getMessage()).append('>');
       }
       try {
-        buf.append("), tags=").append(Tags.resolveIds(tsdb, tags));
+        try {
+          buf.append("), tags=")
+                  .append(Tags.resolveIdsAsync(tsdb, tags).joinUninterruptibly());
+        } catch (Exception e) {
+          Throwables.propagate(e);
+        }
       } catch (NoSuchUniqueId e) {
         buf.append("), tags=<").append(e.getMessage()).append('>');
       }

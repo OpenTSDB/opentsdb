@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.stumbleupon.async.Callback;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -538,7 +539,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 1}, uids.get(0));
   }
@@ -550,7 +551,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("doesnotexist", "web01");
-    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 1}, uids.get(0));
   }
@@ -563,7 +564,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("pop", "web01");
-    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 2, 0, 0, 1}, uids.get(0));
   }
@@ -576,7 +577,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("nonesuch", "web01");
-    Tags.resolveOrCreateAll(tsdb, tags);
+    Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
   }
   
   @Test
@@ -586,7 +587,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "nohost");
-    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 3}, uids.get(0));
   }
@@ -599,7 +600,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web02");
-    final List<byte[]> uids = Tags.resolveOrCreateAll(tsdb, tags);
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2}, uids.get(0));
   }
@@ -612,7 +613,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "invalidhost");
-    Tags.resolveOrCreateAll(tsdb, tags);
+    Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
   }
   
   // PRIVATE helpers to setup unit tests

@@ -530,8 +530,8 @@ final class Fsck {
         }
         
         try {
-          Tags.resolveIds(tsdb, (ArrayList<byte[]>)
-              UniqueId.getTagPairsFromTSUID(tsuid));
+          Tags.resolveIdsAsync(tsdb,
+                  UniqueId.getTagPairsFromTSUID(tsuid)).joinUninterruptibly();
         } catch (NoSuchUniqueId nsui) {
           LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: "
               + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());

@@ -19,10 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Throwables;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -34,9 +30,6 @@ import net.opentsdb.utils.Pair;
 
 /** Helper functions to deal with tags. */
 public final class Tags {
-
-  private static final Logger LOG = LoggerFactory.getLogger(Tags.class);
-
   private Tags() {
     // Can't create instances of this utility class.
   }
@@ -257,31 +250,6 @@ public final class Tags {
   }
 
   /**
-   * Extracts the value of the given tag name from the given row key.
-   * @param tsdb The TSDB instance to use for UniqueId lookups.
-   * @param row The row key in which to search the tag name.
-   * @param name The name of the tag to search in the row key.
-   * @return The value associated with the given tag name, or null if this tag
-   * isn't present in this row key.
-   */
-  static String getValue(final TSDB tsdb, final byte[] row,
-                         final String name) throws NoSuchUniqueName {
-    validateString("tag name", name);
-    final byte[] id = tsdb.tag_names.getId(name);
-    final byte[] value_id = getValueId(tsdb, row, id);
-    if (value_id == null) {
-      return null;
-    }
-    // This shouldn't throw a NoSuchUniqueId.
-    try {
-      return tsdb.tag_values.getName(value_id);
-    } catch (NoSuchUniqueId e) {
-      LOG.error("Internal error, NoSuchUniqueId unexpected here!", e);
-      throw e;
-    }
-  }
-
-  /**
    * Extracts the value ID of the given tag UD name from the given row key.
    * @param tsdb The TSDB instance to use for UniqueId lookups.
    * @param row The row key in which to search the tag name.
@@ -322,24 +290,6 @@ public final class Tags {
       }
     }
     return true;
-  }
-
-  /**
-   * Returns the tags stored in the given row key.
-   * @param tsdb The TSDB instance to use for Unique ID lookups.
-   * @param row The row key from which to extract the tags.
-   * @return A map of tag names (keys), tag values (values).
-   * @throws NoSuchUniqueId if the row key contained an invalid ID (unlikely).
-   */
-  static Map<String, String> getTags(final TSDB tsdb,
-                                     final byte[] row) throws NoSuchUniqueId {
-    try {
-      return getTagsAsync(tsdb, row).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
   }
   
   /**
@@ -417,40 +367,16 @@ public final class Tags {
 
   /**
    * Resolves all the tags (name=value) into the a sorted byte arrays.
-   * This function is the opposite of {@link #resolveIds}.
+   * This function is the opposite of {@link #resolveIdsAsync(TSDB, java.util.List)}.
    * @param tsdb The TSDB to use for UniqueId lookups.
    * @param tags The tags to resolve.
    * @return an array of sorted tags (tag id, tag name).
    * @throws NoSuchUniqueName if one of the elements in the map contained an
    * unknown tag name or tag value.
    */
-  public static ArrayList<byte[]> resolveAll(final TSDB tsdb,
-                                      final Map<String, String> tags)
-    throws NoSuchUniqueName {
-    try {
-      return resolveAllInternalAsync(tsdb, tags, false).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never happen!", e);
-    }
-  }
-
-  /**
-  * Resolves (and creates, if necessary) all the tags (name=value) into the a
-  * sorted byte arrays.
-  * @param tsdb The TSDB to use for UniqueId lookups.
-  * @param tags The tags to resolve. If a new tag name or tag value is
-  * seen, it will be assigned an ID.
-  * @return an array of sorted tags (tag id, tag name).
-  */
-  static ArrayList<byte[]> resolveOrCreateAll(final TSDB tsdb,
-                                              final Map<String, String> tags) {
-    try {
-      return resolveAllInternalAsync(tsdb, tags, true).joinUninterruptibly();
-    } catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
+  public static Deferred<ArrayList<byte[]>> resolveAllAsync(final TSDB tsdb,
+                                                            final Map<String, String> tags) {
+      return resolveAllInternalAsync(tsdb, tags, false);
   }
 
   /**
@@ -549,29 +475,8 @@ public final class Tags {
   private static final SortResolvedTagsCB SORT_CB = new SortResolvedTagsCB();
 
   /**
-   * Resolves all the tags IDs (name followed by value) into the a map.
-   * This function is the opposite of {@link #resolveAll}.
-   * @param tsdb The TSDB to use for UniqueId lookups.
-   * @param tags The tag IDs to resolve.
-   * @return A map mapping tag names to tag values.
-   * @throws NoSuchUniqueId if one of the elements in the array contained an
-   * invalid ID.
-   * @throws IllegalArgumentException if one of the elements in the array had
-   * the wrong number of bytes.
-   */
-  public static HashMap<String, String> resolveIds(final TSDB tsdb,
-                                            final ArrayList<byte[]> tags)
-    throws NoSuchUniqueId {
-    try {
-      return resolveIdsAsync(tsdb, tags).joinUninterruptibly();
-    } catch (Exception e) {
-      throw new RuntimeException("Shouldn't be here", e);
-    }
-  }
-
-  /**
    * Resolves all the tags IDs asynchronously (name followed by value) into a map.
-   * This function is the opposite of {@link #resolveAll}.
+   * This function is the opposite of {@link #resolveAllAsync(TSDB, java.util.Map)}.
    * @param tsdb The TSDB to use for UniqueId lookups.
    * @param tags The tag IDs to resolve.
    * @return A map mapping tag names to tag values.
@@ -638,5 +543,4 @@ public final class Tags {
     }
     return true;
   }
-
 }
