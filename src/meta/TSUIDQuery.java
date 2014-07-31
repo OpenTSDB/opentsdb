@@ -82,8 +82,8 @@ public class TSUIDQuery {
    * not exist
    */
   public void setQuery(final String metric, final HashMap<String, String> tags) {
-    this.metric = tsdb.getUID(UniqueIdType.METRIC, metric);
     try {
+      this.metric = tsdb.getUID(UniqueIdType.METRIC, metric).joinUninterruptibly();
       this.tags = Tags.resolveAllAsync(tsdb, tags).joinUninterruptibly();
     } catch (Exception e) {
       Throwables.propagate(e);

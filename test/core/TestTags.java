@@ -12,40 +12,27 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.stumbleupon.async.Callback;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
 import org.junit.Test;
 
-import com.stumbleupon.async.Deferred;
-
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static org.junit.Assert.*;
 
 public final class TestTags {
   private TSDB tsdb;
   private Config config;
   private MemoryStore tsdb_store;
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
-  
+
   @Test
   public void parseWithMetricWTag() {
     final HashMap<String, String> tags = new HashMap<String, String>(1);
@@ -621,59 +608,21 @@ public final class TestTags {
   private void setupStorage() throws Exception {
     config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(config);
-
-    // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
-    cl.setAccessible(true);
-    cl.set(tsdb, tsdb_store);
-    
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
-    
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+    tsdb = new TSDB(tsdb_store, config);
   }
   
   private void setupResolveIds() throws Exception {
-
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("host"));
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
-      .thenThrow(new NoSuchUniqueId("tagk", new byte[] { 0, 0, 2 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
-        .thenThrow(new NoSuchUniqueId("tagv", new byte[] { 0, 0, 2 }));
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
   }
   
   private void setupResolveAll() throws Exception {
-    when(tag_names.getIdAsync("host"))
-            .thenReturn(Deferred.fromResult(new byte[]{0, 0, 1}));
-    when(tag_names.getIdAsync("doesnotexist"))
-            .thenReturn(Deferred.fromResult(new byte[]{0, 0, 3}));
-    when(tag_names.getIdAsync("pop"))
-            .thenReturn(Deferred.fromResult(new byte[]{0, 0, 2}));
-    when(tag_names.getIdAsync("nonesuch"))
-            .thenReturn(Deferred.<byte[]>fromError(new NoSuchUniqueName("tagv", "nonesuch")));
-    
-    when(tag_values.getIdAsync("web01"))
-            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_values.getIdAsync("nohost"))
-            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
-    when(tag_values.getIdAsync("web02"))
-            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(tag_values.getIdAsync("invalidhost"))
-            .thenReturn(Deferred.<byte[]>fromError(new NoSuchUniqueName("tagk", "invalidhost")));
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("pop", new byte[]{0, 0, 2}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("doesnotexist", new byte[]{0, 0, 3}, UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[]{0, 0, 2}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("nohost", new byte[]{0, 0, 3}, UniqueIdType.TAGV);
   }
 }

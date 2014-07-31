@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -66,22 +67,14 @@ public final class TestFsck {
       MockBase.stringToBytes("00000150E23510000001000001");
   private final static byte[] ROW3 = 
       MockBase.stringToBytes("00000150E24320000001000001");
-  private Config config;
-  private TSDB tsdb = null;
-  private MemoryStore tsdb_store;
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
-  private FsckOptions options = mock(FsckOptions.class);
-  private final static List<byte[]> tags = new ArrayList<byte[]>(1);
-  static {
-    tags.add(new byte[] { 0, 0, 1, 0, 0, 1});
-  }
 
-  @SuppressWarnings("unchecked")
+  private TSDB tsdb;
+  private MemoryStore tsdb_store;
+  private FsckOptions options = mock(FsckOptions.class);
+
   @Before
   public void before() throws Exception {
-    config = new Config(false);
+    Config config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
@@ -96,54 +89,17 @@ public final class TestFsck {
     when(options.deleteBadCompacts()).thenReturn(false);
     when(options.threads()).thenReturn(1);
 
-    // replace the "real" field objects with mocks
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
-    
-    // mock UniqueId
-    when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getName(new byte[] { 0, 0, 1 })).thenReturn("sys.cpu.user");
-    when(metrics.getId("sys.cpu.system"))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
-    when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
-    when(metrics.getName(new byte[] { 0, 0, 2 })).thenReturn("sys.cpu.nice");
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getName(new byte[] { 0, 0, 1 })).thenReturn("host");
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getId("dc")).thenThrow(new NoSuchUniqueName("dc", "metric"));
-    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getName(new byte[] { 0, 0, 1 })).thenReturn("web01");
-    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getName(new byte[] { 0, 0, 2 })).thenReturn("web02");
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getId("web03"))
-      .thenThrow(new NoSuchUniqueName("web03", "metric"));
-    
-    PowerMockito.mockStatic(RowKey.class);
-    when(RowKey.metricNameAsync((TSDB)any(), (byte[])any()))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
+    tsdb_store.allocateUID("sys.cpu.user", new byte[] {0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.nice", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
 
-    PowerMockito.mockStatic(Tags.class);
-    when(Tags.resolveIdsAsync((TSDB) any(), (ArrayList<byte[]>) any()))
-      .thenReturn(Deferred.<HashMap<String, String>>fromResult(null)); // don't care
+    tsdb_store.allocateUID("host", new byte[] {0, 0, 1}, UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID("web01", new byte[] {0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[] {0, 0, 2}, UniqueIdType.TAGV);
     
 //    PowerMockito.mockStatic(Thread.class);
 //    PowerMockito.doNothing().when(Thread.class);
 //    Thread.sleep(anyLong());
-    
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
   }
 
   @Test
@@ -402,8 +358,6 @@ public final class TestFsck {
   @Test
   public void noSuchMetricId() throws Exception {
     when(options.fix()).thenReturn(true);
-    when(RowKey.metricNameAsync((TSDB)any(), (byte[])any()))
-      .thenThrow(new NoSuchUniqueId("metric", new byte[] { 0, 0, 1 }));
     
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -425,8 +379,6 @@ public final class TestFsck {
   public void noSuchMetricIdFix() throws Exception {
     when(options.fix()).thenReturn(true);
     when(options.deleteOrphans()).thenReturn(true);
-    when(RowKey.metricNameAsync((TSDB)any(), (byte[])any()))
-      .thenThrow(new NoSuchUniqueId("metric", new byte[] { 0, 0, 1 }));
     
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -448,9 +400,6 @@ public final class TestFsck {
   @Test
   public void noSuchTagId() throws Exception {
     when(options.fix()).thenReturn(true);
-    when(Tags.resolveIdsAsync((TSDB) any(), (ArrayList<byte[]>) any()))
-      .thenReturn(Deferred.<HashMap<String, String>>fromError(
-              new NoSuchUniqueId("tagk", new byte[]{0, 0, 1})));
     
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -473,9 +422,6 @@ public final class TestFsck {
   public void noSuchTagIdFix() throws Exception {
     when(options.fix()).thenReturn(true);
     when(options.deleteOrphans()).thenReturn(true);
-    when(Tags.resolveIdsAsync((TSDB) any(), (ArrayList<byte[]>) any()))
-      .thenReturn(Deferred.<HashMap<String, String>>fromError(
-              new NoSuchUniqueId("tagk", new byte[]{0, 0, 1})));
 
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);

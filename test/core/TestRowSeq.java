@@ -12,18 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-import java.lang.reflect.Field;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
@@ -31,11 +23,11 @@ import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.stumbleupon.async.Deferred;
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static org.junit.Assert.*;
 
 public final class TestRowSeq {
   private TSDB tsdb;
-  private UniqueId metrics = mock(UniqueId.class);
   private static final byte[] KEY = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
   private static final byte[] FAMILY = { 't' };
@@ -43,16 +35,10 @@ public final class TestRowSeq {
   
   @Before
   public void before() throws Exception {
-    tsdb = new TSDB(new MemoryStore(), new Config(false));
+    final MemoryStore tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, new Config(false));
 
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-
-    // Inject the attributes we need into the "tsdb" object.
-    when(tsdb.metrics.width()).thenReturn((short)3);
-    when(RowKey.metricNameAsync(tsdb, KEY))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
+    tsdb_store.allocateUID("sys.cpu.user", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
   }
   
   @Test

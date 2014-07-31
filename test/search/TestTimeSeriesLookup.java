@@ -12,23 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.search;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
-
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
@@ -41,18 +32,17 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static org.junit.Assert.*;
+
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({KeyValue.class, Scanner.class})
 public class TestTimeSeriesLookup {
-  private Config config;
   private TSDB tsdb = null;
   private MemoryStore tsdb_store;
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
   
   // tsuids
   private static List<byte[]> test_tsuids = new ArrayList<byte[]>(7);
@@ -70,44 +60,20 @@ public class TestTimeSeriesLookup {
   
   @Before
   public void before() throws Exception {
-    config = new Config(false);
+    Config config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
-    // replace the "real" field objects with mocks
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
-    
-    // mock UniqueId
-    when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getId("sys.cpu.system"))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
-    when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
-    when(metrics.getId("sys.cpu.idle")).thenReturn(new byte[] { 0, 0, 3 });
-    when(metrics.getId("no.values")).thenReturn(new byte[] { 0, 0, 11 });
-    
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getId("dc"))
-      .thenThrow(new NoSuchUniqueName("dc", "metric"));
-    when(tag_names.getId("owner")).thenReturn(new byte[] { 0, 0, 4 });
-    
-    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getId("web03"))
-      .thenThrow(new NoSuchUniqueName("web03", "metric"));
-    
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+    tsdb_store.allocateUID("sys.cpu.user", new byte[] {0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.nice", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.idle", new byte[] {0, 0, 3}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("no.values", new byte[] {0, 0, 11}, UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID("host", new byte[] {0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("owner", new byte[] {0, 0, 4}, UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID("web01", new byte[] {0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[] {0, 0, 2}, UniqueIdType.TAGV);
   }
 
   @Test

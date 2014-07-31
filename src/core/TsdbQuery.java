@@ -204,9 +204,9 @@ final class TsdbQuery implements Query {
         final RateOptions rate_options)
   throws NoSuchUniqueName {
     findGroupBys(tags);
-    this.metric = tsdb.metrics.getId(metric);
 
     try {
+      this.metric = tsdb.metrics.getIdAsync(metric).joinUninterruptibly();
       this.tags = Tags.resolveAllAsync(tsdb, tags).joinUninterruptibly();
     } catch (Exception e) {
       Throwables.propagate(e);
@@ -290,35 +290,39 @@ final class TsdbQuery implements Query {
    * passed in argument.
    */
   private void findGroupBys(final Map<String, String> tags) {
-    final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
-    while (i.hasNext()) {
-      final Map.Entry<String, String> tag = i.next();
-      final String tagvalue = tag.getValue();
-      if (tagvalue.equals("*")  // 'GROUP BY' with any value.
-          || tagvalue.indexOf('|', 1) >= 0) {  // Multiple possible values.
-        if (group_bys == null) {
-          group_bys = new ArrayList<byte[]>();
-        }
-        group_bys.add(tsdb.tag_names.getId(tag.getKey()));
-        i.remove();
-        if (tagvalue.charAt(0) == '*') {
-          continue;  // For a 'GROUP BY' with any value, we're done.
-        }
-        // 'GROUP BY' with specific values.  Need to split the values
-        // to group on and store their IDs in group_by_values.
-        final String[] values = Tags.splitString(tagvalue, '|');
-        if (group_by_values == null) {
-          group_by_values = new ByteMap<byte[][]>();
-        }
-        final short value_width = tsdb.tag_values.width();
-        final byte[][] value_ids = new byte[values.length][value_width];
-        group_by_values.put(tsdb.tag_names.getId(tag.getKey()),
-                            value_ids);
-        for (int j = 0; j < values.length; j++) {
-          final byte[] value_id = tsdb.tag_values.getId(values[j]);
-          System.arraycopy(value_id, 0, value_ids[j], 0, value_width);
+    try {
+      final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
+      while (i.hasNext()) {
+        final Map.Entry<String, String> tag = i.next();
+        final String tagvalue = tag.getValue();
+        if ("*".equals(tagvalue)  // 'GROUP BY' with any value.
+                || tagvalue.indexOf('|', 1) >= 0) {  // Multiple possible values.
+          if (group_bys == null) {
+            group_bys = new ArrayList<byte[]>();
+          }
+          group_bys.add(tsdb.tag_names.getIdAsync(tag.getKey()).joinUninterruptibly());
+          i.remove();
+          if (tagvalue.charAt(0) == '*') {
+            continue;  // For a 'GROUP BY' with any value, we're done.
+          }
+          // 'GROUP BY' with specific values.  Need to split the values
+          // to group on and store their IDs in group_by_values.
+          final String[] values = Tags.splitString(tagvalue, '|');
+          if (group_by_values == null) {
+            group_by_values = new ByteMap<byte[][]>();
+          }
+          final short value_width = tsdb.tag_values.width();
+          final byte[][] value_ids = new byte[values.length][value_width];
+          group_by_values.put(tsdb.tag_names.getIdAsync(tag.getKey()).joinUninterruptibly(),
+                  value_ids);
+          for (int j = 0; j < values.length; j++) {
+            final byte[] value_id = tsdb.tag_values.getIdAsync(values[j]).joinUninterruptibly();
+            System.arraycopy(value_id, 0, value_ids[j], 0, value_width);
+          }
         }
       }
+    } catch (Exception e) {
+      Throwables.propagate(e);
     }
   }
 
@@ -799,11 +803,13 @@ final class TsdbQuery implements Query {
    } else {
       buf.append(", metric=").append(Arrays.toString(metric));
       try {
-        buf.append(" (").append(tsdb.metrics.getName(metric));
+        buf.append(" (").append(tsdb.metrics.getNameAsync(metric).joinUninterruptibly());
       } catch (NoSuchUniqueId e) {
         buf.append(" (<").append(e.getMessage()).append('>');
+      } catch (Exception e) {
+        Throwables.propagate(e);
       }
-      try {
+     try {
         try {
           buf.append("), tags=")
                   .append(Tags.resolveIdsAsync(tsdb, tags).joinUninterruptibly());
@@ -820,9 +826,11 @@ final class TsdbQuery implements Query {
     if (group_bys != null) {
       for (final byte[] tag_id : group_bys) {
         try {
-          buf.append(tsdb.tag_names.getName(tag_id));
+          buf.append(tsdb.tag_names.getNameAsync(tag_id).joinUninterruptibly());
         } catch (NoSuchUniqueId e) {
           buf.append('<').append(e.getMessage()).append('>');
+        } catch (Exception e) {
+          Throwables.propagate(e);
         }
         buf.append(' ')
            .append(Arrays.toString(tag_id));
@@ -834,9 +842,11 @@ final class TsdbQuery implements Query {
           buf.append("={");
           for (final byte[] value_id : value_ids) {
             try {
-              buf.append(tsdb.tag_values.getName(value_id));
+              buf.append(tsdb.tag_values.getNameAsync(value_id).joinUninterruptibly());
             } catch (NoSuchUniqueId e) {
               buf.append('<').append(e.getMessage()).append('>');
+            } catch (Exception e) {
+              Throwables.propagate(e);
             }
             buf.append(' ')
                .append(Arrays.toString(value_id))
