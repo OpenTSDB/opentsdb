@@ -657,18 +657,22 @@ public final class TestTags {
   }
   
   private void setupResolveAll() throws Exception {
-    when(tag_names.getOrCreateId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getOrCreateId("doesnotexist"))
-      .thenReturn(new byte[] { 0, 0, 3 });
-    when(tag_names.getId("pop")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_names.getId("nonesuch"))
-      .thenThrow(new NoSuchUniqueName("tagv", "nonesuch"));
+    when(tag_names.getIdAsync("host"))
+            .thenReturn(Deferred.fromResult(new byte[]{0, 0, 1}));
+    when(tag_names.getIdAsync("doesnotexist"))
+            .thenReturn(Deferred.fromResult(new byte[]{0, 0, 3}));
+    when(tag_names.getIdAsync("pop"))
+            .thenReturn(Deferred.fromResult(new byte[]{0, 0, 2}));
+    when(tag_names.getIdAsync("nonesuch"))
+            .thenReturn(Deferred.<byte[]>fromError(new NoSuchUniqueName("tagv", "nonesuch")));
     
-    when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getOrCreateId("nohost"))
-      .thenReturn(new byte[] { 0, 0, 3 });
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getId("invalidhost"))
-      .thenThrow(new NoSuchUniqueName("tagk", "invalidhost"));
+    when(tag_values.getIdAsync("web01"))
+            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_values.getIdAsync("nohost"))
+            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
+    when(tag_values.getIdAsync("web02"))
+            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(tag_values.getIdAsync("invalidhost"))
+            .thenReturn(Deferred.<byte[]>fromError(new NoSuchUniqueName("tagk", "invalidhost")));
   }
 }

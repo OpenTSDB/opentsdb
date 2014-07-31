@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.base.Throwables;
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
@@ -339,12 +340,15 @@ final class UidManager {
     final UniqueId uid = buildUniqueIdInstance(tsdb_store, table, args[1]);
     for (int i = 2; i < args.length; i++) {
       try {
-        uid.getOrCreateId(args[i]);
+        uid.createId(args[i]).joinUninterruptibly();
+
         // Lookup again the ID we've just created and print it.
         extactLookupName(tsdb_store, table, args[1], args[i]);
       } catch (HBaseException e) {
         LOG.error("error while processing " + args[i], e);
         return 3;
+      } catch (Exception e) {
+        Throwables.propagate(e);
       }
     }
     return 0;

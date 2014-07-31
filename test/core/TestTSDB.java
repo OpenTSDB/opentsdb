@@ -15,9 +15,6 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.anyString;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -25,7 +22,6 @@ import java.util.HashMap;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
@@ -34,15 +30,10 @@ import org.hbase.async.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.stumbleupon.async.Deferred;
-
 public final class TestTSDB {
   private Config config;
   private TSDB tsdb;
   private MemoryStore tsdb_store;
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
   
   @Before
   public void before() throws Exception {
@@ -50,18 +41,6 @@ public final class TestTSDB {
     config.setFixDuplicates(true); // TODO(jat): test both ways
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
   }
   
   @Test
@@ -211,19 +190,19 @@ public final class TestTSDB {
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDMetricNSU() {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.1");
+    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.2");
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDTagkNSU() {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGK, "datacenter");
+    tsdb.getUID(UniqueIdType.TAGK, "region");
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDTagvNSU() {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGV, "myserver");
+    tsdb.getUID(UniqueIdType.TAGV, "yourserver");
   }
   
   @Test (expected = NullPointerException.class)
@@ -247,8 +226,8 @@ public final class TestTSDB {
   @Test
   public void assignUidMetric() {
     setupAssignUid();
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        tsdb.assignUid("metric", "sys.cpu.1"));
+    assertArrayEquals(new byte[] { 0, 0, 3 },
+        tsdb.assignUid("metric", "sys.cpu.2"));
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -260,8 +239,8 @@ public final class TestTSDB {
   @Test
   public void assignUidTagk() {
     setupAssignUid();
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        tsdb.assignUid("tagk", "datacenter"));
+    assertArrayEquals(new byte[] {0, 0, 3},
+        tsdb.assignUid("tagk", "region"));
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -273,8 +252,8 @@ public final class TestTSDB {
   @Test
   public void assignUidTagv() {
     setupAssignUid();
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        tsdb.assignUid("tagv", "myserver"));
+    assertArrayEquals(new byte[] {0, 0, 3},
+        tsdb.assignUid("tagv", "yourserver"));
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -498,11 +477,9 @@ public final class TestTSDB {
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
-    when(metrics.getId(anyString()))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.user", "metric"));
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user.0", 1356998400, 42, tags).joinUninterruptibly();
   }
 
   @Test
@@ -779,40 +756,52 @@ public final class TestTSDB {
    * Helper to mock the UID caches with valid responses
    */
   private void setupAssignUid() {
-    when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getId("sys.cpu.1")).thenThrow(
-        new NoSuchUniqueName("metric", "sys.cpu.1"));
-    when(metrics.getOrCreateId("sys.cpu.1")).thenReturn(new byte[] { 0, 0, 2 });
-    
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getId("datacenter")).thenThrow(
-        new NoSuchUniqueName("tagk", "datacenter"));
-    when(tag_names.getOrCreateId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
-    
-    when(tag_values.getId("localhost")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getId("myserver")).thenThrow(
-        new NoSuchUniqueName("tagv", "myserver"));
-    when(tag_values.getOrCreateId("myserver")).thenReturn(new byte[] { 0, 0, 2 });
+    tsdb_store.allocateUID(
+            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.METRIC);
+    tsdb_store.allocateUID(
+            "sys.cpu.1".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 2},
+            UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.TAGK);
+    tsdb_store.allocateUID(
+            "datacenter".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 2},
+            UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID(
+            "localhost".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.TAGV);
+    tsdb_store.allocateUID(
+            "myserver".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 2},
+            UniqueIdType.TAGV);
   }
   
   /**
    * Helper to mock the UID caches with valid responses
    */
   private void setGetUidName() {
-    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("sys.cpu.0"));
-    when(metrics.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
-        new NoSuchUniqueId("metric", new byte[] { 0, 0, 2}));
-    
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("host"));
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
-        new NoSuchUniqueId("tagk", new byte[] { 0, 0, 2}));
-    
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
-        new NoSuchUniqueId("tag_values", new byte[] { 0, 0, 2}));
+    tsdb_store.allocateUID(
+            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID(
+            "web01".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.TAGV);
   }
 
   /**
@@ -820,13 +809,19 @@ public final class TestTSDB {
    * data points correctly.
    */
   private void setupAddPointStorage() throws Exception {
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+    tsdb_store.allocateUID(
+            "sys.cpu.user".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.METRIC);
 
-    final byte[] row = new byte[] { 0, 0, 1};
-    when(metrics.getId(anyString())).thenReturn(row);
-    when(tag_names.getOrCreateId(anyString())).thenReturn(row);
-    when(tag_values.getOrCreateId(anyString())).thenReturn(row);
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID(
+            "web01".getBytes(Const.CHARSET_ASCII),
+            new byte[] {0, 0, 1},
+            UniqueIdType.TAGV);
   }
 }

@@ -29,6 +29,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
@@ -268,31 +269,30 @@ public final class TestBranch {
   public void fetchBranch() throws Exception {
     setupStorage();
 
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "tagk".getBytes(Const.CHARSET_ASCII),
-      "host".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "web01".getBytes(Const.CHARSET_ASCII));
-
-    tsdb_store.addColumn(new byte[]{0, 0, 2},
-      NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.1".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[]{0, 0, 2},
-      NAME_FAMILY,
-      "tagk".getBytes(Const.CHARSET_ASCII),
-      "owner".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[]{0, 0, 2},
-      NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "ops".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.allocateUID(
+            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.METRIC);
+    tsdb_store.allocateUID(
+            "sys.cpu.1".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 2},
+            UniqueId.UniqueIdType.METRIC);
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.TAGK);
+    tsdb_store.allocateUID(
+            "owner".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 2},
+            UniqueId.UniqueIdType.TAGK);
+    tsdb_store.allocateUID(
+            "web01".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.TAGV);
+    tsdb_store.allocateUID(
+            "ops".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 2},
+            UniqueId.UniqueIdType.TAGV);
     
     final Branch branch = Branch.fetchBranch(tsdb,
         Branch.stringToId("00010001BECD000181A8"), true).joinUninterruptibly();
@@ -308,18 +308,18 @@ public final class TestBranch {
   public void fetchBranchNSU() throws Exception {
     setupStorage();
 
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "tagk".getBytes(Const.CHARSET_ASCII),
-      "host".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "web01".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.allocateUID(
+            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.METRIC);
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.TAGK);
+    tsdb_store.allocateUID(
+            "web01".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.TAGV);
     
     final Branch branch = Branch.fetchBranch(tsdb,
         Branch.stringToId("00010001BECD000181A8"), true).joinUninterruptibly();

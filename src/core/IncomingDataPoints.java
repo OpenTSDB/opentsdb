@@ -108,7 +108,7 @@ class IncomingDataPoints implements WritableDataPoints {
   public void setSeries(final String metric, final Map<String, String> tags) {
     checkMetricAndTags(metric, tags);
     try {
-      row = tsdb.rowKeyTemplate(metric, tags);
+      row = tsdb.rowKeyTemplateAsync(metric, tags).joinUninterruptibly();
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {

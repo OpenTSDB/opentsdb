@@ -26,11 +26,7 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
-import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,7 +42,6 @@ import com.stumbleupon.async.DeferredGroupException;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({KeyValue.class})
 public final class TestLeaf {
-  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
   private MemoryStore tsdb_store;
   
@@ -56,15 +51,18 @@ public final class TestLeaf {
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
-    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagk".getBytes(Const.CHARSET_ASCII),
-      "host".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "web01".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.allocateUID(
+            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.METRIC);
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.TAGK);
+    tsdb_store.allocateUID(
+            "web01".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueId.UniqueIdType.TAGV);
 
     tsdb_store.addColumn(new byte[]{0, 1}, Tree.TREE_FAMILY(),
       new Leaf("0", "000001000001000001").columnQualifier(),

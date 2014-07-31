@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
@@ -38,12 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
-import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.hbase.async.Bytes.ByteMap;
 
@@ -55,10 +52,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * <p>
  * Don't attempt to use {@code equals()} or {@code hashCode()} on
  * this class.
- * @see UniqueIdInterface
  */
-@SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
-public class UniqueId implements UniqueIdInterface {
+public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */
@@ -187,7 +182,7 @@ public class UniqueId implements UniqueIdInterface {
    * is discouraged, please use {@link #getNameAsync} instead.
    * @param id The ID associated with that name.
    * @see #getId(String)
-   * @see #getOrCreateId(String)
+   * @see #createId(String)
    * @throws NoSuchUniqueId if the given ID is not assigned.
    * @throws HBaseException if there is a problem communicating with HBase.
    * @throws IllegalArgumentException if the ID given in argument is encoded
@@ -208,7 +203,7 @@ public class UniqueId implements UniqueIdInterface {
    *
    * @param id The ID associated with that name.
    * @see #getId(String)
-   * @see #getOrCreateIdAsync(String)
+   * @see #createId(String)
    * @throws NoSuchUniqueId if the given ID is not assigned.
    * @throws HBaseException if there is a problem communicating with HBase.
    * @throws IllegalArgumentException if the ID given in argument is encoded
@@ -306,58 +301,43 @@ public class UniqueId implements UniqueIdInterface {
   private void cacheMapping(final String name, final byte[] id) {
     addIdToCache(name, id);
     addNameToCache(id, name);
-  } 
-  
-  /**
-   * Finds the ID associated with a given name or creates it.
-   * <p>
-   * <strong>This method is blocking.</strong>  Its use within OpenTSDB itself
-   * is discouraged, please use {@link #getOrCreateIdAsync} instead.
-   * <p>
-   * The length of the byte array is fixed in advance by the implementation.
-   *
-   * @param name The name to lookup in the table or to assign an ID to.
-   * @throws HBaseException if there is a problem communicating with HBase.
-   * @throws IllegalStateException if all possible IDs are already assigned.
-   * @throws IllegalStateException if the ID found in TsdbStore is encoded on the
-   * wrong number of bytes.
-   */
-  public byte[] getOrCreateId(final String name) throws HBaseException {
-    try {
-      return getIdAsync(name).joinUninterruptibly();
-    } catch (NoSuchUniqueName e) {
-      Deferred<byte[]> assignment = null;
-      boolean pending = false;
-      synchronized (pending_assignments) {
-        assignment = pending_assignments.get(name);
-        if (assignment == null) {
-          // to prevent UID leaks that can be caused when multiple time
-          // series for the same metric or tags arrive, we need to write a 
-          // deferred to the pending map as quickly as possible. Then we can 
-          // start the assignment process after we've stashed the deferred 
-          // and released the lock
-          assignment = new Deferred<byte[]>();
-          pending_assignments.put(name, assignment);
-        } else {
-          pending = true;
-        }
-      }
-      
-      if (pending) {
-        LOG.info("Already waiting for UID assignment: " + name);
-        try {
-          return assignment.joinUninterruptibly();
-        } catch (Exception e1) {
-          throw new RuntimeException("Should never be here", e1);
-        }
-      }
-      
-      // start the assignment dance after stashing the deferred
-      byte[] uid = null;
-      try {
-        uid = tsdb_store.allocateUID(toBytes(name), type, id_width).joinUninterruptibly();
+  }
 
+  /**
+   * Create an id with the specified name.
+   * @param name The name of the new id
+   * @return A deferred with the byte uid if the id was successfully created
+   */
+  public Deferred<byte[]> createId(final String name) {
+    Deferred<byte[]> assignment;
+    synchronized (pending_assignments) {
+      assignment = pending_assignments.get(name);
+      if (assignment == null) {
+        // to prevent UID leaks that can be caused when multiple time
+        // series for the same metric or tags arrive, we need to write a
+        // deferred to the pending map as quickly as possible. Then we can
+        // start the assignment process after we've stashed the deferred
+        // and released the lock
+        assignment = new Deferred<byte[]>();
+        pending_assignments.put(name, assignment);
+      } else {
+        LOG.info("Already waiting for UID assignment: {}", name);
+        return assignment;
+      }
+    }
+
+    // start the assignment dance after stashing the deferred
+    Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type, id_width);
+
+    uid.addCallback(new Callback<Object, byte[]>() {
+      @Override
+      public byte[] call(byte[] uid) throws Exception {
         cacheMapping(name, uid);
+
+        LOG.info("Completed pending assignment for: {}", name);
+        synchronized (pending_assignments) {
+          pending_assignments.remove(name);
+        }
 
         if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
           final UIDMeta meta = new UIDMeta(type, uid, name);
@@ -365,92 +345,12 @@ public class UniqueId implements UniqueIdInterface {
           LOG.info("Wrote UIDMeta for: {}", name);
           tsdb.indexUIDMeta(meta);
         }
-      } catch (RuntimeException e1) {
-        throw e1;
-      } catch (Exception e1) {
-        throw new RuntimeException("Should never be here", e);
-      } finally {
-        LOG.info("Completed pending assignment for: " + name);
-        synchronized (pending_assignments) {
-          pending_assignments.remove(name);
-        }
+
+        return uid;
       }
-      return uid;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
+    });
 
-  /**
-   * Finds the ID associated with a given name or creates it.
-   * <p>
-   * The length of the byte array is fixed in advance by the implementation.
-   *
-   * @param name The name to lookup in the table or to assign an ID to.
-   * @throws HBaseException if there is a problem communicating with HBase.
-   * @throws IllegalStateException if all possible IDs are already assigned.
-   * @throws IllegalStateException if the ID found in data-source is encoded on the
-   * wrong number of bytes.
-   * @since 1.2
-   */
-  public Deferred<byte[]> getOrCreateIdAsync(final String name) {
-    // Look in the cache first.
-    final byte[] id = getIdFromCache(name);
-    if (id != null) {
-      cache_hits++;
-      return Deferred.fromResult(id);
-    }
-    // Not found in our cache, so look in HBase instead.
-
-    class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
-      public Object call(final Exception e) {
-        if (e instanceof NoSuchUniqueName) {
-          
-          Deferred<byte[]> assignment = null;
-          synchronized (pending_assignments) {
-            assignment = pending_assignments.get(name);
-            if (assignment == null) {
-              // to prevent UID leaks that can be caused when multiple time
-              // series for the same metric or tags arrive, we need to write a 
-              // deferred to the pending map as quickly as possible. Then we can 
-              // start the assignment process after we've stashed the deferred 
-              // and released the lock
-              assignment = new Deferred<byte[]>();
-              pending_assignments.put(name, assignment);
-            } else {
-              LOG.info("Already waiting for UID assignment: " + name);
-              return assignment;
-            }
-          }
-
-          // start the assignment dance after stashing the deferred
-          Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type, id_width);
-
-          uid.addCallback(new Callback<Object, byte[]>() {
-            @Override
-            public byte[] call(byte[] uid) throws Exception {
-              cacheMapping(name, uid);
-
-              if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
-                final UIDMeta meta = new UIDMeta(type, uid, name);
-                tsdb_store.add(meta);
-                LOG.info("Wrote UIDMeta for: {}", name);
-                tsdb.indexUIDMeta(meta);
-              }
-
-              return uid;
-            }
-          });
-
-          return uid;
-        }
-        return e;  // Other unexpected exception, let it bubble up.
-      }
-    }
-
-    // Kick off the HBase lookup, and if we don't find it there either, start
-    // the process to allocate a UID.
-    return getIdAsync(name).addErrback(new HandleNoSuchUniqueNameCB());
+    return uid;
   }
 
   /**
