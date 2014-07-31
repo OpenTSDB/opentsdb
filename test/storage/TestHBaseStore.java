@@ -37,6 +37,68 @@ public class TestHBaseStore extends TestTsdbStore {
     foo_array = new byte[]{'f', 'o', 'o'};
   }
 
+  @Test(expected = NullPointerException.class)
+  // Test what happens when config is Null
+  public void constructorWithNullConfig() {
+    new HBaseStore(client, null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  // Test what happens when config is Null
+  public void constructorWithNullClient() {
+    try {
+      new HBaseStore(null, new Config(false));
+    } catch (IOException e) {
+      fail("Test should have thrown a NullPointerException but got " + e +
+        " with message" +e.getMessage());
+    }
+  }
+
+  @PrepareForTest({Config.class, HBaseClient.class})
+  @Test
+  public void constructorWithValidConfig() {
+    try {
+      short flush_interval = 50;
+      when(client.getFlushInterval()).thenReturn(flush_interval);
+      // Prepare mocking to verify all the calls
+      Config temp_config = PowerMockito.mock(Config.class);
+
+      when(temp_config.enable_tree_processing()).thenReturn(false);
+      when(temp_config.enable_realtime_ts()).thenReturn(false);
+      when(temp_config.enable_realtime_uid()).thenReturn(false);
+      when(temp_config.enable_tsuid_incrementing()).thenReturn(false);
+      when(temp_config.enable_compactions()).thenReturn(false);
+
+      when(temp_config.getString(eq("tsd.storage.hbase.data_table")))
+        .thenReturn("foo");
+      when(temp_config.getString(eq("tsd.storage.hbase.uid_table")))
+        .thenReturn("foo");
+      when(temp_config.getString(eq("tsd.storage.hbase.tree_table")))
+        .thenReturn("foo");
+      when(temp_config.getString(eq("tsd.storage.hbase.meta_table")))
+        .thenReturn("foo");
+      when(temp_config.getShort("tsd.storage.flush_interval"))
+        .thenReturn(flush_interval);
+
+      HBaseStore temp_store = new HBaseStore(client, temp_config);
+
+      final InOrder order = inOrder(temp_config);
+      order.verify(temp_config, times(1)).enable_tree_processing();
+      order.verify(temp_config, times(1)).enable_realtime_ts();
+      order.verify(temp_config, times(1)).enable_realtime_uid();
+      order.verify(temp_config, times(1)).enable_tsuid_incrementing();
+      order.verify(temp_config, times(1)).enable_compactions();
+
+      order.verify(temp_config, times(4)).getString(anyString());
+      order.verify(temp_config, times(1)).getShort(anyString());
+
+      assertEquals(flush_interval, temp_store.getFlushInterval());
+
+    } catch (Exception e) {
+      fail();
+    }
+  }
+
   @Test
   // Test the creation of an ID when all possible IDs are already in use
   public void allocateUIDWithNegativeUID() throws Exception {

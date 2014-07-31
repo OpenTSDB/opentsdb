@@ -88,6 +88,7 @@ public class HBaseStore implements TsdbStore {
 
   public HBaseStore(final HBaseClient client, final Config config) {
     this.client = checkNotNull(client);
+    checkNotNull(config);
 
     enable_tree_processing = config.enable_tree_processing();
     enable_realtime_ts = config.enable_realtime_ts();
