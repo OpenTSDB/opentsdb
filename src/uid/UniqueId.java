@@ -24,7 +24,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
@@ -38,12 +37,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
-import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.hbase.async.Bytes.ByteMap;
 
@@ -306,6 +303,11 @@ public class UniqueId {
     addNameToCache(id, name);
   }
 
+  /**
+   * Create an id with the specified name.
+   * @param name The name of the new id
+   * @return A deferred with the byte uid if the id was successfully created
+   */
   public Deferred<byte[]> createId(final String name) {
     Deferred<byte[]> assignment;
     synchronized (pending_assignments) {

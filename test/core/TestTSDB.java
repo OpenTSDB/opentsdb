@@ -15,9 +15,6 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.anyString;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -25,7 +22,6 @@ import java.util.HashMap;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
@@ -33,8 +29,6 @@ import org.hbase.async.Bytes;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import com.stumbleupon.async.Deferred;
 
 public final class TestTSDB {
   private Config config;
