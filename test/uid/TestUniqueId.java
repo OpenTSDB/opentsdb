@@ -659,16 +659,6 @@ public final class TestUniqueId {
     });
   }
 
-  private static HBaseException fakeHBaseException() {
-    final HBaseException hbe = mock(HBaseException.class);
-    when(hbe.getStackTrace())
-      // Truncate the stack trace because otherwise it's gigantic.
-      .thenReturn(Arrays.copyOf(new RuntimeException().getStackTrace(), 3));
-    when(hbe.getMessage())
-      .thenReturn("fake exception");
-    return hbe;
-  }
-
   private static final byte[] MAXID = { 0 };
 
 }
