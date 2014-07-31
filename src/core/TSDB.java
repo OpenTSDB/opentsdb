@@ -170,6 +170,9 @@ public class TSDB {
                     + tag_value_width * num_tags);
     final byte[] row = new byte[row_size];
 
+    final boolean auto_create_metrics =
+            config.getBoolean("tsd.core.auto_create_metrics");
+
     // Lookup or create the metric ID.
     final Deferred<byte[]> metric_id = metrics.getIdAsync(metric);
 
@@ -183,7 +186,7 @@ public class TSDB {
 
     class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
       public Object call(final Exception e) {
-        if (e instanceof NoSuchUniqueName) {
+        if (e instanceof NoSuchUniqueName && auto_create_metrics) {
           return metrics.createId(metric);
         }
 

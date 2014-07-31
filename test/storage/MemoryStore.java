@@ -15,6 +15,7 @@ package net.opentsdb.storage;
 import com.google.common.base.Charsets;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
+import com.google.common.primitives.Longs;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
@@ -556,7 +557,7 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
-    final byte[] row = Bytes.fromLong(uid_max++);
+    final byte[] row = Bytes.fromLong(++uid_max);
 
     // row.length should actually be 8.
     if (row.length < id_width) {
@@ -585,6 +586,8 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type) {
+    uid_max = Math.max(uid_max, UniqueId.uidToLong(uid, (short)uid.length));
+
     String str_uid = new String(uid, Const.CHARSET_ASCII);
     String str_name = new String(name, Const.CHARSET_ASCII);
 
