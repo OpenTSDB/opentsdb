@@ -71,6 +71,7 @@ public class MemoryStore implements TsdbStore {
   private final Table<String, String, byte[]> data_table;
   private final Table<String, String, byte[]> uid_table;
 
+  private long uid_max;
   private final Table<String, UniqueIdType, byte[]> uid_forward_mapping;
   private final Table<String, UniqueIdType, byte[]> uid_reverse_mapping;
 
@@ -555,7 +556,31 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    final byte[] row = Bytes.fromLong(uid_max++);
+
+    // row.length should actually be 8.
+    if (row.length < id_width) {
+      throw new IllegalStateException("row.length = " + row.length
+              + " which is less than " + id_width
+              + " for id=" + uid_max
+              + " row=" + Arrays.toString(row));
+    }
+
+    // Verify that the indices in the row array that won't be used in the
+    // uid with the current length are zero so we haven't reached the upper
+    // limits.
+    for (int i = 0; i < row.length - id_width; i++) {
+      if (row[i] != 0) {
+        throw new IllegalStateException("All Unique IDs for " + type.qualifier
+                + " on " + id_width + " bytes are already assigned!");
+      }
+    }
+
+    // Shrink the ID on the requested number of bytes.
+    final byte[] uid = Arrays.copyOfRange(row, row.length - id_width,
+            row.length);
+
+    return allocateUID(name, uid, type);
   }
 
   @Override
