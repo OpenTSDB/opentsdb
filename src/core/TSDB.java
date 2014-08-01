@@ -350,16 +350,8 @@ public class TSDB {
       throw new IllegalArgumentException("Missing UID");
     }
 
-    switch (type) {
-      case METRIC:
-        return this.metrics.getNameAsync(uid);
-      case TAGK:
-        return this.tag_names.getNameAsync(uid);
-      case TAGV:
-        return this.tag_values.getNameAsync(uid);
-      default:
-        throw new IllegalArgumentException("Unrecognized UID type");
-    }
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.getNameAsync(uid);
   }
   
   /**
@@ -373,16 +365,9 @@ public class TSDB {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException("Missing UID name");
     }
-    switch (type) {
-      case METRIC:
-        return this.metrics.getIdAsync(name);
-      case TAGK:
-        return this.tag_names.getIdAsync(name);
-      case TAGV:
-        return this.tag_values.getIdAsync(name);
-      default:
-        throw new IllegalArgumentException("Unrecognized UID type");
-    }
+
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.getIdAsync(name);
   }
   
   /**
