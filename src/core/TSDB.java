@@ -812,60 +812,31 @@ public class TSDB {
   }
 
   /**
-   * Given a prefix search, returns a few matching metric names.
+   * Given a prefix search, returns matching names from the specified id
+   * type.
+   * @param type The type of ids to search
    * @param search A prefix to search.
-   */
-  public List<String> suggestMetrics(final String search) {
-    return metrics.suggest(search);
-  }
-  
-  /**
-   * Given a prefix search, returns matching metric names.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggestMetrics(final String search, 
-      final int max_results) {
-    return metrics.suggest(search, max_results);
+  public List<String> suggest(final UniqueIdType type,
+                              final String search) {
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.suggest(search);
   }
 
   /**
-   * Given a prefix search, returns a few matching tag names.
-   * @param search A prefix to search.
-   */
-  public List<String> suggestTagNames(final String search) {
-    return tag_names.suggest(search);
-  }
-  
-  /**
-   * Given a prefix search, returns matching tagk names.
+   * Given a prefix search, returns matching names from the specified id
+   * type.
+   * @param type The type of ids to search
    * @param search A prefix to search.
    * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggestTagNames(final String search, 
-      final int max_results) {
-    return tag_names.suggest(search, max_results);
-  }
-
-  /**
-   * Given a prefix search, returns a few matching tag values.
-   * @param search A prefix to search.
-   */
-  public List<String> suggestTagValues(final String search) {
-    return tag_values.suggest(search);
-  }
-  
-  /**
-   * Given a prefix search, returns matching tag values.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @since 2.0
-   */
-  public List<String> suggestTagValues(final String search, 
-      final int max_results) {
-    return tag_values.suggest(search, max_results);
+  public List<String> suggest(final UniqueIdType type,
+                              final String search,
+                              final int max_results) {
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.suggest(search, max_results);
   }
 
   /**

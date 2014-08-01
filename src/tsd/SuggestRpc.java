@@ -20,6 +20,7 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -74,20 +75,16 @@ final class SuggestRpc implements HttpRpc {
     } else {
       max_results = 0;
     }
-    
-    List<String> suggestions;
-    if ("metrics".equals(type)) {
-      suggestions = max_results > 0 ? tsdb.suggestMetrics(q, max_results) :
-         tsdb.suggestMetrics(q);
-    } else if ("tagk".equals(type)) {
-      suggestions = max_results > 0 ? tsdb.suggestTagNames(q, max_results) :
-         tsdb.suggestTagNames(q);
-    } else if ("tagv".equals(type)) {
-      suggestions = max_results > 0 ? tsdb.suggestTagValues(q, max_results) :
-        tsdb.suggestTagValues(q);
-    } else {
-      throw new BadRequestException("Invalid 'type' parameter:" + type);
+
+    UniqueId.UniqueIdType utype;
+    try {
+      utype = UniqueId.stringToUniqueIdType(type);
+    } catch (IllegalArgumentException e) {
+      throw new BadRequestException("Invalid 'type' parameter:" + type, e);
     }
+
+    List<String> suggestions = max_results > 0 ? tsdb.suggest(utype, q,
+            max_results) : tsdb.suggest(utype, q);
     
     if (query.apiVersion() > 0) {
       query.sendReply(query.serializer().formatSuggestV1(suggestions));
