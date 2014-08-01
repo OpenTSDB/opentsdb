@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
@@ -194,14 +195,15 @@ public class UniqueId {
       return Deferred.fromResult(name);
     }
     cache_misses++;
-    class GetNameCB implements Callback<String, String> {
-      public String call(final String name) {
-        if (name == null) {
-          throw new NoSuchUniqueId(kind(), id);
+    class GetNameCB implements Callback<String, Optional<String>> {
+      public String call(final Optional<String> name) {
+        if (name.isPresent()) {
+          addNameToCache(id, name.get());
+          addIdToCache(name.get(), id);
+          return name.get();
         }
-        addNameToCache(id, name);
-        addIdToCache(name, id);        
-        return name;
+
+        throw new NoSuchUniqueId(kind(), id);
       }
     }
     return tsdb_store.getName(id, type).addCallback(new GetNameCB());
@@ -230,15 +232,15 @@ public class UniqueId {
       return Deferred.fromResult(id);
     }
     cache_misses++;
-    class GetIdCB implements Callback<byte[], byte[]> {
-      public byte[] call(final byte[] id) {
-        if (id == null) {
-          throw new NoSuchUniqueName(kind(), name);
+    class GetIdCB implements Callback<byte[], Optional<byte[]>> {
+      public byte[] call(final Optional<byte[]> id) {
+        if (id.isPresent()) {
+          addIdToCache(name, id.get());
+          addNameToCache(id.get(), name);
+          return id.get();
         }
 
-        addIdToCache(name, id);
-        addNameToCache(id, name);
-        return id;
+        throw new NoSuchUniqueName(kind(), name);
       }
     }
     return tsdb_store.getId(name, type).addCallback(new GetIdCB());

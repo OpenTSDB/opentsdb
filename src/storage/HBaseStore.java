@@ -13,9 +13,10 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.Const;
+
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -243,16 +244,21 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<String> getName(final byte[] id, final UniqueIdType type) {
+  public Deferred<Optional<String>> getName(final byte[] id, final UniqueIdType type) {
     if (id.length != type.width) {
       throw new IllegalArgumentException("Wrong id.length = " + id.length
               + " which is != " + type.width
               + " required for '" + type.qualifier + '\'');
     }
 
-    class NameFromHBaseCB implements Callback<String, byte[]> {
-      public String call(final byte[] name) {
-        return name == null ? null : StringCoder.fromBytes(name);
+    class GetCB implements Callback<Optional<String>, ArrayList<KeyValue>> {
+      public Optional<String> call(final ArrayList<KeyValue> row) {
+        if (row == null || row.isEmpty()) {
+          return Optional.absent();
+        }
+
+        String str_name = StringCoder.fromBytes(row.get(0).value());
+        return Optional.of(str_name);
       }
     }
 
@@ -260,36 +266,26 @@ public class HBaseStore implements TsdbStore {
             .family(NAME_FAMILY)
             .qualifier(type.qualifier.getBytes(CHARSET));
 
-    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
-      public byte[] call(final ArrayList<KeyValue> row) {
-        if (row == null || row.isEmpty()) {
-          return null;
-        }
-        return row.get(0).value();
-      }
-    }
-
     return client.get(request)
-            .addCallback(new GetCB())
-            .addCallback(new NameFromHBaseCB());
+            .addCallback(new GetCB());
   }
 
   @Override
-  public Deferred<byte[]> getId(final String name, final UniqueIdType type) {
+  public Deferred<Optional<byte[]>> getId(final String name, final UniqueIdType type) {
     return getId(StringCoder.toBytes(name), type);
   }
 
-  private Deferred<byte[]> getId(final byte[] name, final UniqueIdType type) {
+  private Deferred<Optional<byte[]>> getId(final byte[] name, final UniqueIdType type) {
     final byte[] qualifier = type.qualifier.getBytes(CHARSET);
 
     final GetRequest get = new GetRequest(uid_table_name, name)
             .family(ID_FAMILY)
             .qualifier(qualifier);
 
-    class GetCB implements Callback<byte[], ArrayList<KeyValue>> {
-      public byte[] call(final ArrayList<KeyValue> row) {
+    class GetCB implements Callback<Optional<byte[]>, ArrayList<KeyValue>> {
+      public Optional<byte[]> call(final ArrayList<KeyValue> row) {
         if (row == null || row.isEmpty()) {
-          return null;
+          return Optional.absent();
         }
 
         byte[] id = row.get(0).value();
@@ -300,7 +296,7 @@ public class HBaseStore implements TsdbStore {
                   + " required for '" + type.qualifier + '\'');
         }
 
-        return id;
+        return Optional.of(id);
       }
     }
 
@@ -634,7 +630,14 @@ public class HBaseStore implements TsdbStore {
                   "{} with request {}. Another TSDB instance must have " +
                   "allocated this uid concurrently.", uid, request);
 
-          return getId(name, type);
+          return getId(name, type).addCallback(new Callback<byte[], Optional<byte[]>>() {
+            @Override
+            public byte[] call(Optional<byte[]> id) throws Exception {
+              // Calling #get() here is safe since the failed CAS above
+              // indicates that the id should exist.
+              return id.get();
+            }
+          });
         }
       }
     }
