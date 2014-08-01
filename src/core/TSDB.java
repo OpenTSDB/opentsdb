@@ -891,39 +891,33 @@ public class TSDB {
    * exists
    * @since 2.0
    */
-  public byte[] assignUid(final String type, final String name) {
-    Tags.validateString(type, name);
+  public byte[] assignUid(final UniqueIdType type, final String name) {
+    Tags.validateString(type.toString(), name);
+    UniqueId instance = uniqueIdInstanceForType(type);
+
     try {
-      if ("metric".equals(type.toLowerCase())) {
-        try {
-          final byte[] uid = this.metrics.getIdAsync(name).joinUninterruptibly();
-          throw new IllegalArgumentException("Name already exists with UID: " +
-                  UniqueId.uidToString(uid));
-        } catch (NoSuchUniqueName nsue) {
-          return this.metrics.createId(name).joinUninterruptibly();
-        }
-      } else if ("tagk".equals(type.toLowerCase())) {
-        try {
-          final byte[] uid = this.tag_names.getIdAsync(name).joinUninterruptibly();
-          throw new IllegalArgumentException("Name already exists with UID: " +
-                  UniqueId.uidToString(uid));
-        } catch (NoSuchUniqueName nsue) {
-          return this.tag_names.createId(name).joinUninterruptibly();
-        }
-      } else if ("tagv".equals(type.toLowerCase())) {
-        try {
-          final byte[] uid = this.tag_values.getIdAsync(name).joinUninterruptibly();
-          throw new IllegalArgumentException("Name already exists with UID: " +
-                  UniqueId.uidToString(uid));
-        } catch (NoSuchUniqueName nsue) {
-          return this.tag_values.createId(name).joinUninterruptibly();
-        }
-      } else {
-        LOG.warn("Unknown type name: {}", type);
-        throw new IllegalArgumentException("Unknown type name");
+      try {
+        final byte[] uid = instance.getIdAsync(name).joinUninterruptibly();
+        throw new IllegalArgumentException("Name already exists with UID: " +
+                UniqueId.uidToString(uid));
+      } catch (NoSuchUniqueName nsue) {
+        return instance.createId(name).joinUninterruptibly();
       }
     } catch (Exception e) {
       throw Throwables.propagate(e);
+    }
+  }
+
+  private UniqueId uniqueIdInstanceForType(UniqueIdType type) {
+    switch (type) {
+      case METRIC:
+        return metrics;
+      case TAGK:
+        return tag_names;
+      case TAGV:
+        return tag_values;
+      default:
+        throw new IllegalArgumentException(type + " is unknown");
     }
   }
   

@@ -125,10 +125,12 @@ final class UniqueIdRpc implements HttpRpc {
         new TreeMap<String, String>();
       final TreeMap<String, String> errors = 
         new TreeMap<String, String>();
+
+      final UniqueIdType type = UniqueId.stringToUniqueIdType(entry.getKey());
       
       for (String name : entry.getValue()) {
         try {
-          final byte[] uid = tsdb.assignUid(entry.getKey(), name);
+          final byte[] uid = tsdb.assignUid(type, name);
           results.put(name, 
               UniqueId.uidToString(uid));
         } catch (IllegalArgumentException e) {
