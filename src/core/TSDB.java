@@ -1095,7 +1095,7 @@ public class TSDB {
       }
     }
     if (!has_changes) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
+      LOG.debug("{} does not have changes, skipping sync to storage", meta);
       throw new IllegalStateException("No changes detected in UID meta data");
     }
 
