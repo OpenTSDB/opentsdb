@@ -154,21 +154,13 @@ public final class Annotation implements Comparable<Annotation> {
     if (start_time < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
-    
-    boolean has_changes = false;
-    for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
-      if (entry.getValue()) {
-        has_changes = true;
-        break;
-      }
-    }
-    if (!has_changes) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
+
+    if (!hasChanges()) {
+      LOG.debug("{} does not have changes, skipping sync to storage", this);
       throw new IllegalStateException("No changes detected in Annotation data");
     }
     
     final class StoreCB implements Callback<Deferred<Boolean>, Annotation> {
-
       @Override
       public Deferred<Boolean> call(final Annotation stored_note) 
         throws Exception {
@@ -181,10 +173,12 @@ public final class Annotation implements Comparable<Annotation> {
         
         final byte[] tsuid_byte = tsuid != null && !tsuid.isEmpty() ? 
             UniqueId.stringToUid(tsuid) : null;
+
         final PutRequest put = new PutRequest(tsdb.dataTable(), 
             getRowKey(start_time, tsuid_byte), FAMILY, 
             getQualifier(start_time), 
             Annotation.this.getStorageJSON());
+
         return tsdb.getTsdbStore().compareAndSet(put, original_note);
       }
       
@@ -196,7 +190,18 @@ public final class Annotation implements Comparable<Annotation> {
     }
     return getAnnotation(tsdb, start_time).addCallbackDeferring(new StoreCB());
   }
-  
+
+  public boolean hasChanges() {
+    boolean has_changes = false;
+    for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
+      if (entry.getValue()) {
+        has_changes = true;
+        break;
+      }
+    }
+    return has_changes;
+  }
+
   /**
    * Attempts to mark an Annotation object for deletion. Note that if the
    * annoation does not exist in storage, this delete call will not throw an

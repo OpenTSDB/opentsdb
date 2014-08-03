@@ -360,4 +360,15 @@ public final class UIDMeta {
       this.created = created;
     }
   }
+
+  public boolean hasChanges() {
+    boolean has_changes = false;
+    for (Map.Entry<String, Boolean> entry : getChanged().entrySet()) {
+      if (entry.getValue()) {
+        has_changes = true;
+        break;
+      }
+    }
+    return has_changes;
+  }
 }

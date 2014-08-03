@@ -223,16 +223,9 @@ public final class TSMeta {
     if (tsuid == null || tsuid.isEmpty()) {
       throw new IllegalArgumentException("Missing TSUID");
     }
-    
-    boolean has_changes = false;
-    for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
-      if (entry.getValue()) {
-        has_changes = true;
-        break;
-      }
-    }
-    if (!has_changes) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
+
+    if (!hasChanges()) {
+      LOG.debug("{} does not have changes, skipping sync to storage", this);
       throw new IllegalStateException("No changes detected in TSUID meta data");
     }
 
@@ -337,7 +330,18 @@ public final class TSMeta {
     // Begins the callback chain by validating that the UID mappings exist
     return Deferred.group(uid_group).addCallbackDeferring(new ValidateCB(this));
   }
-  
+
+  public boolean hasChanges() {
+    boolean has_changes = false;
+    for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
+      if (entry.getValue()) {
+        has_changes = true;
+        break;
+      }
+    }
+    return has_changes;
+  }
+
   /**
    * Attempts to store a new, blank timeseries meta object via a CompareAndSet
    * <b>Note:</b> This should not be called by user accessible methods as it will 
