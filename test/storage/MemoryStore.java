@@ -13,9 +13,9 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
-import com.google.common.primitives.Longs;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
@@ -438,7 +438,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> getId(String name, UniqueIdType type) {
+  public Deferred<com.google.common.base.Optional<byte[]>> getId(String name, UniqueIdType type) {
     byte[] id = uid_forward_mapping.get(name, type);
 
     if (id != null && id.length != type.width) {
@@ -447,11 +447,11 @@ public class MemoryStore implements TsdbStore {
               + " required for '" + type.qualifier + '\'');
     }
 
-    return Deferred.fromResult(id);
+    return Deferred.fromResult(Optional.fromNullable(id));
   }
 
   @Override
-  public Deferred<String> getName(byte[] id, UniqueIdType type) {
+  public Deferred<com.google.common.base.Optional<String>> getName(byte[] id, UniqueIdType type) {
     if (id.length != type.width) {
       throw new IllegalArgumentException("Wrong id.length = " + id.length
               + " which is != " + type.width
@@ -461,7 +461,7 @@ public class MemoryStore implements TsdbStore {
     String str_uid = new String(id, Const.CHARSET_ASCII);
 
     final String name = uid_reverse_mapping.get(str_uid, type);
-    return Deferred.fromResult(name);
+    return Deferred.fromResult(Optional.fromNullable(name));
   }
 
   @Override
