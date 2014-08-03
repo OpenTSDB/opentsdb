@@ -15,7 +15,7 @@ package net.opentsdb.storage;
 import com.google.common.base.Charsets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.Const;
+
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -372,7 +372,7 @@ public class HBaseStore implements TsdbStore {
           stored_meta = null;
         } else {
           stored_meta = JSON.parseToObject(cell.value(), UIDMeta.class);
-          stored_meta.initializeChangedMap();
+          stored_meta.resetChangedMap();
         }
 
         final byte[] original_meta = cell == null ?

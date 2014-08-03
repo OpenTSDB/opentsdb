@@ -19,7 +19,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import com.google.common.collect.Sets;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
@@ -103,14 +105,12 @@ public final class Annotation implements Comparable<Annotation> {
   private HashMap<String, String> custom = null;
 
   /** Tracks fields that have changed by the user to avoid overwrites */
-  private final HashMap<String, Boolean> changed = 
-    new HashMap<String, Boolean>();
+  private final Set<String> changed = Sets.newHashSetWithExpectedSize(6);
 
   /**
    * Default constructor, initializes the change map
    */
   public Annotation() {
-    initializeChangedMap();
   }
   
   /** @return A string with information about the annotation object */
@@ -192,14 +192,7 @@ public final class Annotation implements Comparable<Annotation> {
   }
 
   public boolean hasChanges() {
-    boolean has_changes = false;
-    for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
-      if (entry.getValue()) {
-        has_changes = true;
-        break;
-      }
-    }
-    return has_changes;
+    return !changed.isEmpty();
   }
 
   /**
@@ -543,9 +536,9 @@ public final class Annotation implements Comparable<Annotation> {
   /**
    * Syncs the local object with the stored object for atomic writes, 
    * overwriting the stored data if the user issued a PUT request
-   * <b>Note:</b> This method also resets the {@code changed} map to false
+   * <b>Note:</b> This method also resets the {@code changed} set to false
    * for every field
-   * @param meta The stored object to sync from
+   * @param note The stored object to sync from
    * @param overwrite Whether or not all user mutable data in storage should be
    * replaced by the local object
    */
@@ -555,32 +548,28 @@ public final class Annotation implements Comparable<Annotation> {
     }
     
     // handle user-accessible stuff
-    if (!overwrite && !changed.get("end_time")) {
+    if (!overwrite && !changed.contains("end_time")) {
       end_time = note.end_time;
     }
-    if (!overwrite && !changed.get("description")) {
+    if (!overwrite && !changed.contains("description")) {
       description = note.description;
     }
-    if (!overwrite && !changed.get("notes")) {
+    if (!overwrite && !changed.contains("notes")) {
       notes = note.notes;
     }
-    if (!overwrite && !changed.get("custom")) {
+    if (!overwrite && !changed.contains("custom")) {
       custom = note.custom;
     }
     
     // reset changed flags
-    initializeChangedMap();
+    resetChangedMap();
   }
   
   /**
    * Sets or resets the changed map flags
    */
-  private void initializeChangedMap() {
-    // set changed flags
-    changed.put("end_time", false);
-    changed.put("description", false);
-    changed.put("notes", false);
-    changed.put("custom", false);
+  private void resetChangedMap() {
+    changed.clear();
   }
   
   /**
@@ -728,7 +717,7 @@ public final class Annotation implements Comparable<Annotation> {
   public void setEndTime(final long end_time) {
     if (this.end_time != end_time) {
       this.end_time = end_time;
-      changed.put("end_time", true);
+      changed.add("end_time");
     }
   }
 
@@ -736,7 +725,7 @@ public final class Annotation implements Comparable<Annotation> {
   public void setDescription(final String description) {
     if (!this.description.equals(description)) {
       this.description = description;
-      changed.put("description", true);
+      changed.add("description");
     }
   }
 
@@ -744,7 +733,7 @@ public final class Annotation implements Comparable<Annotation> {
   public void setNotes(final String notes) {
     if (!this.notes.equals(notes)) {
       this.notes = notes;
-      changed.put("notes", true);
+      changed.add("notes");
     }
   }
 
@@ -754,7 +743,7 @@ public final class Annotation implements Comparable<Annotation> {
     // anyway so we'll just mark it as changed every time we have a non-null
     // value
     if (this.custom != null || custom != null) {
-      changed.put("custom", true);
+      changed.add("custom");
       this.custom = new HashMap<String, String>(custom);
     }
   }

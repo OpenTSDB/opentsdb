@@ -15,7 +15,6 @@ package net.opentsdb.storage;
 import com.google.common.base.Charsets;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
-import com.google.common.primitives.Longs;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
@@ -523,7 +522,7 @@ public class MemoryStore implements TsdbStore {
       return Deferred.fromResult(null);
 
     UIDMeta meta = JSON.parseToObject(json_value, UIDMeta.class);
-    meta.initializeChangedMap();
+    meta.resetChangedMap();
 
     return Deferred.fromResult(meta);
   }
