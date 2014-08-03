@@ -14,11 +14,10 @@ package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
-import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
@@ -30,40 +29,38 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
-import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.RowLock;
 import org.hbase.async.Scanner;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.stumbleupon.async.Deferred;
-
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, TSMeta.class, UIDMeta.class, 
+@PrepareForTest({TSMeta.class, UIDMeta.class,
   RowLock.class, UniqueIdRpc.class, KeyValue.class,
-  GetRequest.class, Scanner.class, UniqueId.class, MemoryStore.class})
+  Scanner.class})
 public final class TestUniqueIdRpc {
   private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
-  private TSDB tsdb = null;
+  private TSDB tsdb;
   private MemoryStore tsdb_store;
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
   private UniqueIdRpc rpc = new UniqueIdRpc();
   
   @Before
   public void before() throws Exception {
-    tsdb = NettyMocks.getMockedHTTPTSDB();
+    Map<String, String> properties = new HashMap<String, String>();
+    properties.put("tsd.http.show_stack_trace", "true");
+    Config config = new Config(false, properties);
+
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, config);
   }
 
   @Test
@@ -683,7 +680,7 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
   
-  @Test @Ignore
+  @Test
   public void tsuidGetByM() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -709,7 +706,7 @@ public final class TestUniqueIdRpc {
     rpc.execute(tsdb, query);
   }
   
-  @Test @Ignore
+  @Test
   public void tsuidGetByMMultiTagWrongOrder() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -718,7 +715,7 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
   
-  @Test @Ignore
+  @Test
   public void tsuidGetByMMultiTag() throws Exception {
     setupTSUID();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -876,30 +873,14 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupAssign() throws Exception {
-    when(tsdb.assignUid("metric", "sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tsdb.assignUid("metric", "sys.cpu.1")).thenThrow(
-        new IllegalArgumentException("Name already exists with UID: 000002"));
-    when(tsdb.assignUid("metric", "sys.cpu.2")).thenReturn(new byte[] { 0, 0, 3 });
-    
-    when(tsdb.assignUid("tagk", "host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tsdb.assignUid("tagk", "datacenter")).thenThrow(
-        new IllegalArgumentException("Name already exists with UID: 000002"));
-    when(tsdb.assignUid("tagk", "fqdn")).thenReturn(new byte[] { 0, 0, 3 });
-    
-    when(tsdb.assignUid("tagv", "localhost")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tsdb.assignUid("tagv", "myserver")).thenThrow(
-        new IllegalArgumentException("Name already exists with UID: 000002"));
-    when(tsdb.assignUid("tagv", "foo")).thenReturn(new byte[] { 0, 0, 3 });
-    
     // setup UIDMeta objects for testing
-    UIDMeta metric = new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 1}, 
-        "sys.cpu.0");
+    UIDMeta metric = new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 1}, "sys.cpu.0");
     metric.setDisplayName("System CPU");
-    UIDMeta tagk = new UIDMeta(UniqueIdType.TAGK, new byte[] {0, 0, 1}, 
-        "host");
+
+    UIDMeta tagk = new UIDMeta(UniqueIdType.TAGK, new byte[] {0, 0, 1}, "host");
     tagk.setDisplayName("Server Name");
-    UIDMeta tagv = new UIDMeta(UniqueIdType.TAGV, new byte[] {0, 0, 1}, 
-        "web01");
+
+    UIDMeta tagv = new UIDMeta(UniqueIdType.TAGV, new byte[] {0, 0, 1}, "web01");
     tagv.setDisplayName("Web Server 1");
   }
   
@@ -908,27 +889,19 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupUID() throws Exception {
-    final Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, UniqueIdType.METRIC);
 
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
+    UIDMeta meta = new UIDMeta(
+            UniqueIdType.METRIC,
+            new byte[]{0, 0, 1},
+            "sys.cpu.0");
+    meta.setDisplayName("System CPU");
+    meta.setDescription("Description");
+    meta.setNotes("MyNotes");
+    meta.setCreated(1328140801);
 
-    tsdb_store.addColumn(new byte[]{0, 0, 3},
-      NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.2".getBytes(Const.CHARSET_ASCII));
-
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-      NAME_FAMILY,
-      "metric_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
-        "\"displayName\":\"System CPU\",\"description\":\"Description\"," +
-        "\"notes\":\"MyNotes\",\"created\":1328140801,\"custom\":null}")
-        .getBytes(Const.CHARSET_ASCII));
+    tsdb_store.add(meta);
   }
 
   /**
@@ -936,26 +909,15 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupTSUID() throws Exception {
-    final Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
-    
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
 
-    tsdb_store.addColumn(new byte[] { 0, 0, 1 },
-        NAME_FAMILY,
-        "metrics".getBytes(Const.CHARSET_ASCII),
-        "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("datacenter", new byte[] {0, 0, 2}, UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[]{0, 0, 3}, UniqueIdType.TAGV);
+
     tsdb_store.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
         "metric_meta".getBytes(Const.CHARSET_ASCII),
@@ -963,18 +925,10 @@ public final class TestUniqueIdRpc {
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"System CPU\"}").getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "metrics".getBytes(Const.CHARSET_ASCII),
-        "sys.cpu.2".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[] { 0, 0, 2 },
         "metric_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.2\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"System CPU\"}").getBytes(Const.CHARSET_ASCII));
-
-    tsdb_store.addColumn(new byte[] { 0, 0, 1 },
-        NAME_FAMILY,
-        "tagk".getBytes(Const.CHARSET_ASCII),
-        "host".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
         "tagk_meta".getBytes(Const.CHARSET_ASCII),
@@ -982,18 +936,10 @@ public final class TestUniqueIdRpc {
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Host server name\"}").getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "tagk".getBytes(Const.CHARSET_ASCII),
-        "datacenter".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[] { 0, 0, 2 },
         "tagk_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Host server name\"}").getBytes(Const.CHARSET_ASCII));
-
-    tsdb_store.addColumn(new byte[] { 0, 0, 1 },
-        NAME_FAMILY,
-        "tagv".getBytes(Const.CHARSET_ASCII),
-        "web01".getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
         "tagv_meta".getBytes(Const.CHARSET_ASCII),
@@ -1001,16 +947,11 @@ public final class TestUniqueIdRpc {
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}").getBytes(Const.CHARSET_ASCII));
     tsdb_store.addColumn(new byte[] { 0, 0, 3 },
-        "tagv".getBytes(Const.CHARSET_ASCII),
-        "web02".getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[] { 0, 0, 3 },
         "tagv_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"web02\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}").getBytes(Const.CHARSET_ASCII));
-    tsdb_store.addColumn(new byte[] { 0, 0, 2 },
-        "tagv".getBytes(Const.CHARSET_ASCII),
-        "dc01".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.allocateUID("dc01", new byte[]{0, 0, 2}, UniqueIdType.TAGV);
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
         "tagv_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
@@ -1029,7 +970,6 @@ public final class TestUniqueIdRpc {
         NAME_FAMILY,
         "ts_ctr".getBytes(Const.CHARSET_ASCII),
         Bytes.fromLong(1L));
-
     tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
         NAME_FAMILY,
         "ts_meta".getBytes(Const.CHARSET_ASCII),
@@ -1054,37 +994,5 @@ public final class TestUniqueIdRpc {
         NAME_FAMILY,
         "ts_ctr".getBytes(Const.CHARSET_ASCII),
         Bytes.fromLong(1L));
-
-    when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getIdAsync("sys.cpu.0")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("sys.cpu.0"));
-    when(metrics.getId("sys.cpu.2")).thenReturn(new byte[] { 0, 0, 2 });
-    when(metrics.getIdAsync("sys.cpu.2")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
-      .thenReturn(Deferred.fromResult("sys.cpu.2"));
-
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getIdAsync("host")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("host"));
-    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getIdAsync("web01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 3 });
-    when(tag_values.getIdAsync("web02")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 3 }))
-      .thenReturn(Deferred.fromResult("web02"));
-
-    when(tag_names.getId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_names.getIdAsync("datacenter")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
-      .thenReturn(Deferred.fromResult("datacenter"));
-    when(tag_values.getId("dc01")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getIdAsync("dc01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
-      .thenReturn(Deferred.fromResult("dc01"));
-    
   }
 }

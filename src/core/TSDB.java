@@ -367,20 +367,19 @@ public class TSDB {
    * @param type The type of UID
    * @param name The name to search for
    * @throws IllegalArgumentException if the type is not valid
-   * @throws NoSuchUniqueName if the name was not found
    * @since 2.0
    */
-  public byte[] getUID(final UniqueIdType type, final String name) {
+  public Deferred<byte[]> getUID(final UniqueIdType type, final String name) {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException("Missing UID name");
     }
     switch (type) {
       case METRIC:
-        return this.metrics.getId(name);
+        return this.metrics.getIdAsync(name);
       case TAGK:
-        return this.tag_names.getId(name);
+        return this.tag_names.getIdAsync(name);
       case TAGV:
-        return this.tag_values.getId(name);
+        return this.tag_values.getIdAsync(name);
       default:
         throw new IllegalArgumentException("Unrecognized UID type");
     }
@@ -897,7 +896,7 @@ public class TSDB {
     try {
       if ("metric".equals(type.toLowerCase())) {
         try {
-          final byte[] uid = this.metrics.getId(name);
+          final byte[] uid = this.metrics.getIdAsync(name).joinUninterruptibly();
           throw new IllegalArgumentException("Name already exists with UID: " +
                   UniqueId.uidToString(uid));
         } catch (NoSuchUniqueName nsue) {
@@ -905,7 +904,7 @@ public class TSDB {
         }
       } else if ("tagk".equals(type.toLowerCase())) {
         try {
-          final byte[] uid = this.tag_names.getId(name);
+          final byte[] uid = this.tag_names.getIdAsync(name).joinUninterruptibly();
           throw new IllegalArgumentException("Name already exists with UID: " +
                   UniqueId.uidToString(uid));
         } catch (NoSuchUniqueName nsue) {
@@ -913,7 +912,7 @@ public class TSDB {
         }
       } else if ("tagv".equals(type.toLowerCase())) {
         try {
-          final byte[] uid = this.tag_values.getId(name);
+          final byte[] uid = this.tag_values.getIdAsync(name).joinUninterruptibly();
           throw new IllegalArgumentException("Name already exists with UID: " +
                   UniqueId.uidToString(uid));
         } catch (NoSuchUniqueName nsue) {

@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Throwables;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -96,9 +97,13 @@ public final class Internal {
     return Bytes.getUnsignedInt(row, tsdb.metrics.width());
   }
 
-  /** @see Tags#getTags */
+  /** @see Tags#getTagsAsync(TSDB, byte[])  */
   public static Map<String, String> getTags(final TSDB tsdb, final byte[] row) {
-    return Tags.getTags(tsdb, row);
+    try {
+      return Tags.getTagsAsync(tsdb, row).joinUninterruptibly();
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   /** @see RowSeq#extractIntegerValue */

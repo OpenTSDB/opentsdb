@@ -67,7 +67,6 @@ import static org.powermock.api.mockito.PowerMockito.mock;
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
 public final class TestUniqueId {
-
   private TsdbStore client;
   private static final byte[] table = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] ID = { 'i', 'd' };
@@ -115,16 +114,16 @@ public final class TestUniqueId {
   } 
   
   @Test
-  public void getNameSuccessfulLookup() {
+  public void getNameSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
 
     client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
-    assertEquals("foo", uid.getName(id));
+    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly());
     // Should be a cache hit ...
-    assertEquals("foo", uid.getName(id));
+    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly());
 
     assertEquals(1, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
@@ -132,30 +131,30 @@ public final class TestUniqueId {
   }
 
   @Test(expected=NoSuchUniqueId.class)
-  public void getNameForNonexistentId() {
+  public void getNameForNonexistentId() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    uid.getName(new byte[] { 1, 2, 3 });
+    uid.getNameAsync(new byte[] { 1, 2, 3 }).joinUninterruptibly();
   }
 
   @Test(expected=IllegalArgumentException.class)
-  public void getNameWithInvalidId() {
+  public void getNameWithInvalidId() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    uid.getName(new byte[] { 1 });
+    uid.getNameAsync(new byte[] { 1 }).joinUninterruptibly();
   }
 
   @Test
-  public void getIdSuccessfulLookup() {
+  public void getIdSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final byte[] id = { 0, 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
     client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
-    assertArrayEquals(id, uid.getId("foo"));
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     // Should be a cache hit ...
-    assertArrayEquals(id, uid.getId("foo"));
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     // Should be a cache hit too ...
-    assertArrayEquals(id, uid.getId("foo"));
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
 
     assertEquals(2, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
@@ -164,20 +163,20 @@ public final class TestUniqueId {
 
   // The table contains IDs encoded on 2 bytes but the instance wants 3.
   @Test(expected=IllegalStateException.class)
-  public void getIdMisconfiguredWidth() {
+  public void getIdMisconfiguredWidth() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final byte[] id = { 'a', 0x42 };
     final byte[] byte_name = { 'f', 'o', 'o' };
     client.allocateUID(byte_name, id, UniqueIdType.METRIC);
 
-    uid.getId("foo");
+    uid.getIdAsync("foo").joinUninterruptibly();
   }
 
   @Test(expected=NoSuchUniqueName.class)
-  public void getIdForNonexistentName() {
+  public void getIdForNonexistentName() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    uid.getId("foo");
+    uid.getIdAsync("foo").joinUninterruptibly();
   }
 
   @Test
@@ -205,7 +204,7 @@ public final class TestUniqueId {
     // Should be a cache hit since we created that entry.
     assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     // Should be a cache hit too for the same reason.
-    assertEquals("foo", uid.getName(id));
+    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly());
   }
 
   @PrepareForTest({HBaseStore.class, Scanner.class})
@@ -487,11 +486,6 @@ public final class TestUniqueId {
   
   @Test
   public void getTagFromTSUIDNonStandardWidth() {
-    PowerMockito.mockStatic(TSDB.class);
-    when(Const.METRICS_WIDTH).thenReturn((short)3);
-    when(Const.TAG_NAME_WIDTH).thenReturn((short)4);
-    when(Const.TAG_VALUE_WIDTH).thenReturn((short)3);
-    
     List<byte[]> tags = UniqueId.getTagsFromTSUID(
         "0000000000000100000200000003000004");
     assertNotNull(tags);

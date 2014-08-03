@@ -115,7 +115,7 @@ public final class TestTSDB {
   @Test
   public void getUidNameMetric() throws Exception {
     setGetUidName();
-    assertEquals("sys.cpu.0", tsdb.getUidName(UniqueIdType.METRIC, 
+    assertEquals("sys.cpu.0", tsdb.getUidName(UniqueIdType.METRIC,
         new byte[] { 0, 0, 1 }).joinUninterruptibly());
   }
   
@@ -167,42 +167,42 @@ public final class TestTSDB {
   }
   
   @Test
-  public void getUIDMetric() {
+  public void getUIDMetric() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.0"));
+        tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.0").joinUninterruptibly());
   }
   
   @Test
-  public void getUIDTagk() {
+  public void getUIDTagk() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.TAGK, "host"));
+        tsdb.getUID(UniqueIdType.TAGK, "host").joinUninterruptibly());
   }
   
   @Test
-  public void getUIDTagv() {
+  public void getUIDTagv() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.TAGV, "localhost"));
+        tsdb.getUID(UniqueIdType.TAGV, "localhost").joinUninterruptibly());
   }
   
   @Test (expected = NoSuchUniqueName.class)
-  public void getUIDMetricNSU() {
+  public void getUIDMetricNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.2");
+    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.2").joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueName.class)
-  public void getUIDTagkNSU() {
+  public void getUIDTagkNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGK, "region");
+    tsdb.getUID(UniqueIdType.TAGK, "region").joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueName.class)
-  public void getUIDTagvNSU() {
+  public void getUIDTagvNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGV, "yourserver");
+    tsdb.getUID(UniqueIdType.TAGV, "yourserver").joinUninterruptibly();
   }
   
   @Test (expected = NullPointerException.class)
@@ -758,29 +758,29 @@ public final class TestTSDB {
   private void setupAssignUid() {
     tsdb_store.allocateUID(
             "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.METRIC);
     tsdb_store.allocateUID(
             "sys.cpu.1".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 2},
+            new byte[]{0, 0, 2},
             UniqueIdType.METRIC);
 
     tsdb_store.allocateUID(
             "host".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.TAGK);
     tsdb_store.allocateUID(
             "datacenter".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 2},
+            new byte[]{0, 0, 2},
             UniqueIdType.TAGK);
 
     tsdb_store.allocateUID(
             "localhost".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.TAGV);
     tsdb_store.allocateUID(
             "myserver".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 2},
+            new byte[]{0, 0, 2},
             UniqueIdType.TAGV);
   }
   
@@ -790,17 +790,17 @@ public final class TestTSDB {
   private void setGetUidName() {
     tsdb_store.allocateUID(
             "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.METRIC);
 
     tsdb_store.allocateUID(
             "host".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.TAGK);
 
     tsdb_store.allocateUID(
             "web01".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.TAGV);
   }
 
@@ -811,17 +811,17 @@ public final class TestTSDB {
   private void setupAddPointStorage() throws Exception {
     tsdb_store.allocateUID(
             "sys.cpu.user".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.METRIC);
 
     tsdb_store.allocateUID(
             "host".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.TAGK);
 
     tsdb_store.allocateUID(
             "web01".getBytes(Const.CHARSET_ASCII),
-            new byte[] {0, 0, 1},
+            new byte[]{0, 0, 1},
             UniqueIdType.TAGV);
   }
 }

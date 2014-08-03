@@ -12,33 +12,21 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
-
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
-import org.apache.zookeeper.proto.DeleteRequest;
 import org.hbase.async.Bytes;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.After;
 import org.junit.Before;
@@ -48,7 +36,9 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.stumbleupon.async.Deferred;
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -59,9 +49,6 @@ public class TestDumpSeries {
   private Config config;
   private TSDB tsdb = null;
   private MemoryStore tsdb_store;
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
   private ByteArrayOutputStream buffer;
   // the simplest way to test is to capture the System.out.print() data so we
   // need to capture a reference to the original stdout stream here and reset
@@ -89,43 +76,14 @@ public class TestDumpSeries {
 
     buffer = new ByteArrayOutputStream();
     System.setOut(new PrintStream(buffer));
-    
-    // replace the "real" field objects with mocks
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
-    
-    // mock UniqueId
-    when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getNameAsync(new byte[] { 0, 0, 1 })).thenReturn(Deferred.fromResult("sys.cpu.user"));
-    when(metrics.getId("sys.cpu.system"))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
-    when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
-    when(metrics.getNameAsync(new byte[] { 0, 0, 2 })).thenReturn(Deferred.fromResult("sys.cpu.nice"));
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 })).thenReturn(Deferred.fromResult("host"));
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getId("dc")).thenThrow(new NoSuchUniqueName("dc", "metric"));
-    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 })).thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 })).thenReturn(Deferred.fromResult("web02"));
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getId("web03"))
-      .thenThrow(new NoSuchUniqueName("web03", "metric"));
-    
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+
+    tsdb_store.allocateUID("sys.cpu.user", new byte[] {0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.nice", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID("host", new byte[] {0, 0, 1}, UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[]{0, 0, 2}, UniqueIdType.TAGV);
   }
   
   @After
