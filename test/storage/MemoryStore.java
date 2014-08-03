@@ -519,7 +519,7 @@ public class MemoryStore implements TsdbStore {
       return Deferred.fromResult(null);
 
     UIDMeta meta = JSON.parseToObject(json_value, UIDMeta.class);
-    meta.initializeChangedMap();
+    meta.resetChangedMap();
 
     return Deferred.fromResult(meta);
   }

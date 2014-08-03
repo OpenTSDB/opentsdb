@@ -1036,14 +1036,7 @@ public class TSDB {
       throw new IllegalArgumentException("Missing type");
     }
 
-    boolean has_changes = false;
-    for (Map.Entry<String, Boolean> entry : meta.getChanged().entrySet()) {
-      if (entry.getValue()) {
-        has_changes = true;
-        break;
-      }
-    }
-    if (!has_changes) {
+    if (!meta.hasChanges()) {
       LOG.debug("{} does not have changes, skipping sync to storage", meta);
       throw new IllegalStateException("No changes detected in UID meta data");
     }

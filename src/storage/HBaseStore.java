@@ -368,7 +368,7 @@ public class HBaseStore implements TsdbStore {
           stored_meta = null;
         } else {
           stored_meta = JSON.parseToObject(cell.value(), UIDMeta.class);
-          stored_meta.initializeChangedMap();
+          stored_meta.resetChangedMap();
         }
 
         final byte[] original_meta = cell == null ?
