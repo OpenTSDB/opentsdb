@@ -227,45 +227,39 @@ public final class TestTSDB {
   public void assignUidMetric() {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 3 },
-        tsdb.assignUid("metric", "sys.cpu.2"));
+        tsdb.assignUid(UniqueIdType.METRIC, "sys.cpu.2"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidMetricExists() {
     setupAssignUid();
-    tsdb.assignUid("metric", "sys.cpu.0");
+    tsdb.assignUid(UniqueIdType.METRIC, "sys.cpu.0");
   }
   
   @Test
   public void assignUidTagk() {
     setupAssignUid();
     assertArrayEquals(new byte[] {0, 0, 3},
-        tsdb.assignUid("tagk", "region"));
+        tsdb.assignUid(UniqueIdType.TAGK, "region"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidTagkExists() {
     setupAssignUid();
-    tsdb.assignUid("tagk", "host");
+    tsdb.assignUid(UniqueIdType.TAGK, "host");
   }
   
   @Test
   public void assignUidTagv() {
     setupAssignUid();
     assertArrayEquals(new byte[] {0, 0, 3},
-        tsdb.assignUid("tagv", "yourserver"));
+        tsdb.assignUid(UniqueIdType.TAGV, "yourserver"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidTagvExists() {
     setupAssignUid();
-    tsdb.assignUid("tagv", "localhost");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void assignUidBadType() {
-    setupAssignUid();
-    tsdb.assignUid("nothere", "localhost");
+    tsdb.assignUid(UniqueIdType.TAGV, "localhost");
   }
   
   @Test (expected = NullPointerException.class)
@@ -277,13 +271,13 @@ public final class TestTSDB {
   @Test (expected = IllegalArgumentException.class)
   public void assignUidNullName() {
     setupAssignUid();
-    tsdb.assignUid("metric", null);
+    tsdb.assignUid(UniqueIdType.METRIC, null);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidInvalidCharacter() {
     setupAssignUid();
-    tsdb.assignUid("metric", "Not!A:Valid@Name");
+    tsdb.assignUid(UniqueIdType.METRIC, "Not!A:Valid@Name");
   }
   
   @Test

@@ -350,16 +350,8 @@ public class TSDB {
       throw new IllegalArgumentException("Missing UID");
     }
 
-    switch (type) {
-      case METRIC:
-        return this.metrics.getNameAsync(uid);
-      case TAGK:
-        return this.tag_names.getNameAsync(uid);
-      case TAGV:
-        return this.tag_values.getNameAsync(uid);
-      default:
-        throw new IllegalArgumentException("Unrecognized UID type");
-    }
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.getNameAsync(uid);
   }
   
   /**
@@ -373,16 +365,9 @@ public class TSDB {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException("Missing UID name");
     }
-    switch (type) {
-      case METRIC:
-        return this.metrics.getIdAsync(name);
-      case TAGK:
-        return this.tag_names.getIdAsync(name);
-      case TAGV:
-        return this.tag_values.getIdAsync(name);
-      default:
-        throw new IllegalArgumentException("Unrecognized UID type");
-    }
+
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.getIdAsync(name);
   }
   
   /**
@@ -812,60 +797,31 @@ public class TSDB {
   }
 
   /**
-   * Given a prefix search, returns a few matching metric names.
+   * Given a prefix search, returns matching names from the specified id
+   * type.
+   * @param type The type of ids to search
    * @param search A prefix to search.
-   */
-  public List<String> suggestMetrics(final String search) {
-    return metrics.suggest(search);
-  }
-  
-  /**
-   * Given a prefix search, returns matching metric names.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggestMetrics(final String search, 
-      final int max_results) {
-    return metrics.suggest(search, max_results);
+  public List<String> suggest(final UniqueIdType type,
+                              final String search) {
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.suggest(search);
   }
 
   /**
-   * Given a prefix search, returns a few matching tag names.
-   * @param search A prefix to search.
-   */
-  public List<String> suggestTagNames(final String search) {
-    return tag_names.suggest(search);
-  }
-  
-  /**
-   * Given a prefix search, returns matching tagk names.
+   * Given a prefix search, returns matching names from the specified id
+   * type.
+   * @param type The type of ids to search
    * @param search A prefix to search.
    * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggestTagNames(final String search, 
-      final int max_results) {
-    return tag_names.suggest(search, max_results);
-  }
-
-  /**
-   * Given a prefix search, returns a few matching tag values.
-   * @param search A prefix to search.
-   */
-  public List<String> suggestTagValues(final String search) {
-    return tag_values.suggest(search);
-  }
-  
-  /**
-   * Given a prefix search, returns matching tag values.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @since 2.0
-   */
-  public List<String> suggestTagValues(final String search, 
-      final int max_results) {
-    return tag_values.suggest(search, max_results);
+  public List<String> suggest(final UniqueIdType type,
+                              final String search,
+                              final int max_results) {
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.suggest(search, max_results);
   }
 
   /**
@@ -891,39 +847,33 @@ public class TSDB {
    * exists
    * @since 2.0
    */
-  public byte[] assignUid(final String type, final String name) {
-    Tags.validateString(type, name);
+  public byte[] assignUid(final UniqueIdType type, final String name) {
+    Tags.validateString(type.toString(), name);
+    UniqueId instance = uniqueIdInstanceForType(type);
+
     try {
-      if ("metric".equals(type.toLowerCase())) {
-        try {
-          final byte[] uid = this.metrics.getIdAsync(name).joinUninterruptibly();
-          throw new IllegalArgumentException("Name already exists with UID: " +
-                  UniqueId.uidToString(uid));
-        } catch (NoSuchUniqueName nsue) {
-          return this.metrics.createId(name).joinUninterruptibly();
-        }
-      } else if ("tagk".equals(type.toLowerCase())) {
-        try {
-          final byte[] uid = this.tag_names.getIdAsync(name).joinUninterruptibly();
-          throw new IllegalArgumentException("Name already exists with UID: " +
-                  UniqueId.uidToString(uid));
-        } catch (NoSuchUniqueName nsue) {
-          return this.tag_names.createId(name).joinUninterruptibly();
-        }
-      } else if ("tagv".equals(type.toLowerCase())) {
-        try {
-          final byte[] uid = this.tag_values.getIdAsync(name).joinUninterruptibly();
-          throw new IllegalArgumentException("Name already exists with UID: " +
-                  UniqueId.uidToString(uid));
-        } catch (NoSuchUniqueName nsue) {
-          return this.tag_values.createId(name).joinUninterruptibly();
-        }
-      } else {
-        LOG.warn("Unknown type name: {}", type);
-        throw new IllegalArgumentException("Unknown type name");
+      try {
+        final byte[] uid = instance.getIdAsync(name).joinUninterruptibly();
+        throw new IllegalArgumentException("Name already exists with UID: " +
+                UniqueId.uidToString(uid));
+      } catch (NoSuchUniqueName nsue) {
+        return instance.createId(name).joinUninterruptibly();
       }
     } catch (Exception e) {
       throw Throwables.propagate(e);
+    }
+  }
+
+  private UniqueId uniqueIdInstanceForType(UniqueIdType type) {
+    switch (type) {
+      case METRIC:
+        return metrics;
+      case TAGK:
+        return tag_names;
+      case TAGV:
+        return tag_values;
+      default:
+        throw new IllegalArgumentException(type + " is unknown");
     }
   }
   
