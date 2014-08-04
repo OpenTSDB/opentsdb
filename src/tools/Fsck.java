@@ -389,7 +389,7 @@ final class Fsck {
           // TODO - create a list of TSDB objects and fsck them. Maybe a plugin
           // or interface.
           // TODO - perform validation of the annotation
-          if (qual[0] == Annotation.PREFIX()) {
+          if (qual[0] == Annotation.ANNOTATION_QUAL_PREFIX) {
             annotations.getAndIncrement();
             continue;
           }

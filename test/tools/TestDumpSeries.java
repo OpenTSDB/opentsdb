@@ -307,7 +307,7 @@ public class TestDumpSeries {
     annotation.setStartTime(timestamp);
     annotation.setTSUID("000001000001000001");
     annotation.setDescription("Annotation on seconds");
-    annotation.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(annotation, false).joinUninterruptibly();
     
     tsdb.addPoint("sys.cpu.user", timestamp++, 42, tags).joinUninterruptibly();
     tsdb.addPoint("sys.cpu.user", timestamp++, 257, tags).joinUninterruptibly();
@@ -323,7 +323,7 @@ public class TestDumpSeries {
     annotation.setStartTime(timestamp);
     annotation.setTSUID("000001000001000001");
     annotation.setDescription("Annotation on milliseconds");
-    annotation.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(annotation, false).joinUninterruptibly();
     
     tsdb.addPoint("sys.cpu.user", timestamp, 42, tags).joinUninterruptibly();
     tsdb.addPoint("sys.cpu.user", timestamp += 1000, 257, tags).joinUninterruptibly();

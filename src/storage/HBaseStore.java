@@ -14,10 +14,12 @@ package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.StringCoder;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -107,6 +109,174 @@ public class HBaseStore implements TsdbStore {
     client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
 
     compactionq = new CompactionQueue(this, config, data_table_name, TS_FAMILY);
+  }
+
+  /**
+   * Calculate the base time based on a timestamp to be used in a row key.
+   * TODO This should be made into an instance method
+   */
+  public static long buildBaseTime(final long timestamp) {
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      return ((timestamp / 1000) - ((timestamp / 1000) % Const.MAX_TIMESPAN));
+    } else {
+      return (timestamp - (timestamp % Const.MAX_TIMESPAN));
+    }
+  }
+
+  /**
+   * Calculate the row key based on a TSUID and the base time.
+   * TODO This should be made into an instance method
+   */
+  public static byte[] buildRowKeyFromTSUID(byte[] tsuid, int base_time) {
+    // otherwise we need to build the row key from the TSUID and start time
+    final byte[] row = new byte[Const.TIMESTAMP_BYTES + tsuid.length];
+    System.arraycopy(tsuid, 0, row, 0, Const.METRICS_WIDTH);
+    Bytes.setInt(row, base_time, Const.METRICS_WIDTH);
+    System.arraycopy(tsuid, Const.METRICS_WIDTH, row, Const.METRICS_WIDTH +
+        Const.TIMESTAMP_BYTES, (tsuid.length - Const.METRICS_WIDTH));
+    return row;
+  }
+
+  /**
+   * Calculates the row key based on the TSUID and the start time. If the TSUID
+   * is empty, the row key is a 0 filled byte array {@code TSDB.metrics_width()}
+   * wide plus the normalized start timestamp without any tag bytes.
+   * @param start_time The start time as a Unix epoch timestamp
+   * @param tsuid An optional TSUID if storing a local annotation
+   * @return The row key as a byte array
+   */
+  public static byte[] getAnnotationRowKey(final long start_time, final byte[] tsuid) {
+    if (start_time < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    final long base_time = buildBaseTime(start_time);
+
+    // if the TSUID is empty, then we're a global annotation. The row key will
+    // just be an empty byte array of metric width plus the timestamp
+    if (tsuid == null || tsuid.length < 1) {
+      final byte[] row = new byte[Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES];
+      Bytes.setInt(row, (int) base_time, Const.METRICS_WIDTH);
+      return row;
+    }
+
+    return buildRowKeyFromTSUID(tsuid, (int) base_time);
+  }
+
+  /**
+   * Calculates and returns the column qualifier. The qualifier is the offset
+   * of the {@code #start_time} from the row key's base time stamp in seconds
+   * with a prefix of {@code #ANNOTATION_QUAL_PREFIX}. Thus if the offset is 0 and the prefix is
+   * 1 and the timestamp is in seconds, the qualifier would be [1, 0, 0].
+   * Millisecond timestamps will have a 5 byte qualifier
+   * @return The column qualifier as a byte array
+   * @throws IllegalArgumentException if the start_time has not been set
+   */
+  public static byte[] getAnnotationQualifier(final long start_time) {
+    if (start_time < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    final long base_time;
+    final byte[] qualifier;
+    long timestamp = start_time;
+    // downsample to seconds to save space AND prevent duplicates if the time
+    // is on a second boundary (e.g. if someone posts at 1328140800 with value A
+    // and 1328140800000L with value B)
+    if (timestamp % 1000 == 0) {
+      timestamp = timestamp / 1000;
+    }
+
+    if ((timestamp & Const.SECOND_MASK) != 0) {
+      // drop the ms timestamp to seconds to calculate the base timestamp
+      base_time = ((timestamp / 1000) -
+          ((timestamp / 1000) % Const.MAX_TIMESPAN));
+      qualifier = new byte[5];
+      final int offset = (int) (timestamp - (base_time * 1000));
+      System.arraycopy(Bytes.fromInt(offset), 0, qualifier, 1, 4);
+    } else {
+      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+      qualifier = new byte[3];
+      final short offset = (short) (timestamp - base_time);
+      System.arraycopy(Bytes.fromShort(offset), 0, qualifier, 1, 2);
+    }
+    qualifier[0] = Annotation.ANNOTATION_QUAL_PREFIX;
+    return qualifier;
+  }
+
+  /**
+   * Attempts to fetch a global or local annotation from storage
+   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
+   * annotation
+   * @param start_time The start time as a Unix epoch timestamp
+   * @return A valid annotation object if found, null if not
+   */
+  @Override
+  public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long start_time) {
+    /**
+     * Called after executing the GetRequest to parse the meta data.
+     */
+    final class GetCB implements Callback<Deferred<Annotation>,
+      ArrayList<KeyValue>> {
+
+      /**
+       * @return Null if the meta did not exist or a valid Annotation object if
+       * it did.
+       */
+      @Override
+      public Deferred<Annotation> call(final ArrayList<KeyValue> row)
+        throws Exception {
+        if (row == null || row.isEmpty()) {
+          return Deferred.fromResult(null);
+        }
+
+        Annotation note = JSON.parseToObject(row.get(0).value(),
+            Annotation.class);
+        return Deferred.fromResult(note);
+      }
+    }
+
+    final GetRequest get = new GetRequest(data_table_name, getAnnotationRowKey(start_time, tsuid))
+            .family(TS_FAMILY)
+            .qualifier(getAnnotationQualifier(start_time));
+
+    return client.get(get).addCallbackDeferring(new GetCB());
+  }
+
+  /**
+   * Attempts to mark an Annotation object for deletion. Note that if the
+   * annoation does not exist in storage, this delete call will not throw an
+   * error.
+   *
+   * @param annotation
+   * @return A meaningless Deferred for the caller to wait on until the call is
+   * complete. The value may be null.
+   */
+  @Override
+  public Deferred<Object> delete(Annotation annotation) {
+    final byte[] tsuid_byte = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
+            UniqueId.stringToUid(annotation.getTSUID()) : null;
+    final DeleteRequest delete = new DeleteRequest(data_table_name,
+            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), TS_FAMILY,
+            getAnnotationQualifier(annotation.getStartTime()));
+    return delete(delete);
+  }
+
+  @Override
+  public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
+    final byte[] original_note = original == null ? new byte[0] :
+            original.getStorageJSON();
+
+    final byte[] tsuid_byte = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
+            UniqueId.stringToUid(annotation.getTSUID()) : null;
+
+    final PutRequest put = new PutRequest(data_table_name,
+            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), TS_FAMILY,
+            getAnnotationQualifier(annotation.getStartTime()),
+            annotation.getStorageJSON());
+
+    return client.compareAndSet(put, original_note);
   }
 
   @Override

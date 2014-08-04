@@ -180,7 +180,7 @@ final class DumpSeries {
     if (q_len % 2 != 0) {
       if (!importformat) {
         // custom data object, not a data point
-        if (kv.qualifier()[0] == Annotation.PREFIX()) {
+        if (kv.qualifier()[0] == Annotation.ANNOTATION_QUAL_PREFIX) {
           appendAnnotation(buf, kv, base_time);
         } else {
           buf.append(Arrays.toString(value))

@@ -24,10 +24,7 @@ import java.util.Set;
 import com.google.common.collect.Sets;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +34,6 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.JSONException;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -81,7 +77,7 @@ public final class Annotation implements Comparable<Annotation> {
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   
   /** Byte used for the qualifier prefix to indicate this is an annotation */
-  private static final byte PREFIX = 0x01;
+  public static final byte ANNOTATION_QUAL_PREFIX = 0x01;
     
   /** The single column family used by this class. */
   private static final byte[] FAMILY = "t".getBytes(CHARSET);
@@ -130,161 +126,11 @@ public final class Annotation implements Comparable<Annotation> {
     return start_time > note.start_time ? 1 : 
       start_time < note.start_time ? -1 : 0;
   }
-  
-  /**
-   * Attempts a CompareAndSet storage call, loading the object from storage, 
-   * synchronizing changes, and attempting a put.
-   * <b>Note:</b> If the local object didn't have any fields set by the caller
-   * or there weren't any changes, then the data will not be written and an 
-   * exception will be thrown.
-   * @param tsdb The TSDB to use for storage access
-   * @param overwrite When the RPC method is PUT, will overwrite all user
-   * accessible fields
-   * True if the storage call was successful, false if the object was
-   * modified in storage during the CAS call. If false, retry the call. Other 
-   * failures will result in an exception being thrown.
-   * @throws HBaseException if there was an issue
-   * @throws IllegalArgumentException if required data was missing such as the 
-   * {@code #start_time}
-   * @throws IllegalStateException if the data hasn't changed. This is OK!
-   * @throws JSONException if the object could not be serialized
-   */
-  public Deferred<Boolean> syncToStorage(final TSDB tsdb, 
-      final Boolean overwrite) {
-    if (start_time < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    if (!hasChanges()) {
-      LOG.debug("{} does not have changes, skipping sync to storage", this);
-      throw new IllegalStateException("No changes detected in Annotation data");
-    }
-    
-    final class StoreCB implements Callback<Deferred<Boolean>, Annotation> {
-      @Override
-      public Deferred<Boolean> call(final Annotation stored_note) 
-        throws Exception {
-        final byte[] original_note = stored_note == null ? new byte[0] :
-          stored_note.getStorageJSON();
-        
-        if (stored_note != null) {
-          Annotation.this.syncNote(stored_note, overwrite);
-        }
-        
-        final byte[] tsuid_byte = tsuid != null && !tsuid.isEmpty() ? 
-            UniqueId.stringToUid(tsuid) : null;
-
-        final PutRequest put = new PutRequest(tsdb.dataTable(), 
-            getRowKey(start_time, tsuid_byte), FAMILY, 
-            getQualifier(start_time), 
-            Annotation.this.getStorageJSON());
-
-        return tsdb.getTsdbStore().compareAndSet(put, original_note);
-      }
-      
-    }
-    
-    if (tsuid != null && !tsuid.isEmpty()) {
-      return getAnnotation(tsdb, UniqueId.stringToUid(tsuid), start_time)
-        .addCallbackDeferring(new StoreCB());
-    }
-    return getAnnotation(tsdb, start_time).addCallbackDeferring(new StoreCB());
-  }
 
   public boolean hasChanges() {
     return !changed.isEmpty();
   }
 
-  /**
-   * Attempts to mark an Annotation object for deletion. Note that if the
-   * annoation does not exist in storage, this delete call will not throw an
-   * error.
-   * @param tsdb The TSDB to use for storage access
-   * @return A meaningless Deferred for the caller to wait on until the call is
-   * complete. The value may be null.
-   */
-  public Deferred<Object> delete(final TSDB tsdb) {
-    if (start_time < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-    
-    final byte[] tsuid_byte = tsuid != null && !tsuid.isEmpty() ? 
-        UniqueId.stringToUid(tsuid) : null;
-    final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
-        getRowKey(start_time, tsuid_byte), FAMILY, 
-        getQualifier(start_time));
-    return tsdb.getTsdbStore().delete(delete);
-  }
-  
-  /**
-   * Attempts to fetch a global annotation from storage
-   * @param tsdb The TSDB to use for storage access
-   * @param start_time The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
-   */
-  public static Deferred<Annotation> getAnnotation(final TSDB tsdb, 
-      final long start_time) {
-    return getAnnotation(tsdb, (byte[])null, start_time);
-  }
-  
-  /**
-   * Attempts to fetch a global or local annotation from storage
-   * @param tsdb The TSDB to use for storage access
-   * @param tsuid The TSUID as a string. May be empty if retrieving a global
-   * annotation
-   * @param start_time The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
-   */
-  public static Deferred<Annotation> getAnnotation(final TSDB tsdb, 
-      final String tsuid, final long start_time) {
-    if (tsuid != null && !tsuid.isEmpty()) {
-      return getAnnotation(tsdb, UniqueId.stringToUid(tsuid), start_time);
-    }
-    return getAnnotation(tsdb, (byte[])null, start_time);
-  }
-  
-  /**
-   * Attempts to fetch a global or local annotation from storage
-   * @param tsdb The TSDB to use for storage access
-   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
-   * annotation
-   * @param start_time The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
-   */
-  public static Deferred<Annotation> getAnnotation(final TSDB tsdb, 
-      final byte[] tsuid, final long start_time) {
-    
-    /**
-     * Called after executing the GetRequest to parse the meta data.
-     */
-    final class GetCB implements Callback<Deferred<Annotation>, 
-      ArrayList<KeyValue>> {
-
-      /**
-       * @return Null if the meta did not exist or a valid Annotation object if 
-       * it did.
-       */
-      @Override
-      public Deferred<Annotation> call(final ArrayList<KeyValue> row) 
-        throws Exception {
-        if (row == null || row.isEmpty()) {
-          return Deferred.fromResult(null);
-        }
-        
-        Annotation note = JSON.parseToObject(row.get(0).value(), 
-            Annotation.class);
-        return Deferred.fromResult(note);
-      }
-      
-    }
-
-    final GetRequest get = new GetRequest(tsdb.dataTable(), 
-        getRowKey(start_time, tsuid));
-    get.family(FAMILY);
-    get.qualifier(getQualifier(start_time));
-    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
-  }
-  
   /**
    * Scans through the global annotation storage rows and returns a list of 
    * parsed annotation objects. If no annotations were found for the given
@@ -314,7 +160,7 @@ public final class Annotation implements Comparable<Annotation> {
     final class ScannerCB implements Callback<Deferred<List<Annotation>>, 
       ArrayList<ArrayList<KeyValue>>> {
       final Scanner scanner;
-      final ArrayList<Annotation> annotations = new ArrayList<Annotation>();
+      final List<Annotation> annotations = new ArrayList<Annotation>();
       
       /**
        * Initializes the scanner
@@ -347,13 +193,13 @@ public final class Annotation implements Comparable<Annotation> {
       public Deferred<List<Annotation>> call (
           final ArrayList<ArrayList<KeyValue>> rows) throws Exception {
         if (rows == null || rows.isEmpty()) {
-          return Deferred.fromResult((List<Annotation>)annotations);
+          return Deferred.fromResult(annotations);
         }
         
         for (final ArrayList<KeyValue> row : rows) {
           for (KeyValue column : row) {
-            if ((column.qualifier().length == 3 || column.qualifier().length == 5) 
-                && column.qualifier()[0] == PREFIX()) {
+            if ((column.qualifier().length == 3 || column.qualifier().length == 5)
+                && column.qualifier()[0] == ANNOTATION_QUAL_PREFIX) {
               Annotation note = JSON.parseToObject(row.get(0).value(), 
                   Annotation.class);
               if (note.start_time < start_time || note.end_time > end_time) {
@@ -452,7 +298,7 @@ public final class Annotation implements Comparable<Annotation> {
           final long base_time = Internal.baseTime(tsdb, row.get(0).key());
           for (KeyValue column : row) {
             if ((column.qualifier().length == 3 || column.qualifier().length == 5)
-                && column.qualifier()[0] == PREFIX()) {
+                && column.qualifier()[0] == ANNOTATION_QUAL_PREFIX) {
               final long timestamp = timeFromQualifier(column.qualifier(), 
                   base_time);
               if (timestamp < start_time || timestamp > end_time) {
@@ -491,18 +337,13 @@ public final class Annotation implements Comparable<Annotation> {
         .addCallbackDeferring(new ScannerDoneCB());
     return scanner_done.addCallbackDeferring(new GroupCB());
   }
-  
-  /** @return The prefix byte for annotation objects */
-  public static byte PREFIX() {
-    return PREFIX;
-  }
-  
+
   /**
    * Serializes the object in a uniform matter for storage. Needed for 
    * successful CAS calls
    * @return The serialized object as a byte array
    */
-  private byte[] getStorageJSON() {
+  public byte[] getStorageJSON() {
     // TODO - precalculate size
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try {
@@ -542,7 +383,7 @@ public final class Annotation implements Comparable<Annotation> {
    * @param overwrite Whether or not all user mutable data in storage should be
    * replaced by the local object
    */
-  private void syncNote(final Annotation note, final boolean overwrite) {
+  public void syncNote(final Annotation note, final boolean overwrite) {
     if (note.start_time > 0 && (note.start_time < start_time || start_time == 0)) {
       start_time = note.start_time;
     }
@@ -571,48 +412,7 @@ public final class Annotation implements Comparable<Annotation> {
   private void resetChangedMap() {
     changed.clear();
   }
-  
-  /**
-   * Calculates and returns the column qualifier. The qualifier is the offset
-   * of the {@code #start_time} from the row key's base time stamp in seconds
-   * with a prefix of {@code #PREFIX}. Thus if the offset is 0 and the prefix is
-   * 1 and the timestamp is in seconds, the qualifier would be [1, 0, 0]. 
-   * Millisecond timestamps will have a 5 byte qualifier
-   * @return The column qualifier as a byte array
-   * @throws IllegalArgumentException if the start_time has not been set
-   */
-  private static byte[] getQualifier(final long start_time) {
-    if (start_time < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-    
-    final long base_time;
-    final byte[] qualifier;
-    long timestamp = start_time;
-    // downsample to seconds to save space AND prevent duplicates if the time
-    // is on a second boundary (e.g. if someone posts at 1328140800 with value A 
-    // and 1328140800000L with value B)
-    if (timestamp % 1000 == 0) {
-      timestamp = timestamp / 1000;
-    }
-    
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((timestamp / 1000) - 
-          ((timestamp / 1000) % Const.MAX_TIMESPAN));
-      qualifier = new byte[5];
-      final int offset = (int) (timestamp - (base_time * 1000));
-      System.arraycopy(Bytes.fromInt(offset), 0, qualifier, 1, 4);
-    } else {
-      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-      qualifier = new byte[3];
-      final short offset = (short) (timestamp - base_time);
-      System.arraycopy(Bytes.fromShort(offset), 0, qualifier, 1, 2);
-    }
-    qualifier[0] = PREFIX;
-    return qualifier;
-  }
-  
+
   /**
    * Returns a timestamp after parsing an annotation qualifier.
    * @param qualifier The full qualifier (including prefix) on either 3 or 5 bytes
@@ -620,8 +420,7 @@ public final class Annotation implements Comparable<Annotation> {
    * @return A timestamp in milliseconds
    * @since 2.1
    */
-  private static long timeFromQualifier(final byte[] qualifier, 
-      final long base_time) {
+  private static long timeFromQualifier(final byte[] qualifier, final long base_time) {
     final long offset;
     if (qualifier.length == 3) {
       offset = Bytes.getUnsignedShort(qualifier, 1);
@@ -631,47 +430,8 @@ public final class Annotation implements Comparable<Annotation> {
       return (base_time * 1000) + offset;
     }
   }
-  
-  /**
-   * Calculates the row key based on the TSUID and the start time. If the TSUID 
-   * is empty, the row key is a 0 filled byte array {@code TSDB.metrics_width()}
-   * wide plus the normalized start timestamp without any tag bytes.
-   * @param start_time The start time as a Unix epoch timestamp
-   * @param tsuid An optional TSUID if storing a local annotation
-   * @return The row key as a byte array
-   */
-  private static byte[] getRowKey(final long start_time, final byte[] tsuid) {
-    if (start_time < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-    
-    final long base_time;
-    if ((start_time & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((start_time / 1000) - 
-          ((start_time / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      base_time = (start_time - (start_time % Const.MAX_TIMESPAN));
-    }
-    
-    // if the TSUID is empty, then we're a global annotation. The row key will 
-    // just be an empty byte array of metric width plus the timestamp
-    if (tsuid == null || tsuid.length < 1) {
-      final byte[] row = new byte[Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES];
-      Bytes.setInt(row, (int) base_time, Const.METRICS_WIDTH);
-      return row;
-    }
-    
-    // otherwise we need to build the row key from the TSUID and start time
-    final byte[] row = new byte[Const.TIMESTAMP_BYTES + tsuid.length];
-    System.arraycopy(tsuid, 0, row, 0, Const.METRICS_WIDTH);
-    Bytes.setInt(row, (int) base_time, Const.METRICS_WIDTH);
-    System.arraycopy(tsuid, Const.METRICS_WIDTH, row, Const.METRICS_WIDTH +
-        Const.TIMESTAMP_BYTES, (tsuid.length - Const.METRICS_WIDTH));
-    return row;
-  }
-  
-// Getters and Setters --------------  
+
+  // Getters and Setters --------------
   
   /** @return the tsuid, may be empty if this is a global annotation */
   public final String getTSUID() {

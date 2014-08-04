@@ -154,6 +154,21 @@ public class TSDB {
   }
 
   /**
+   * Attempts to fetch a global or local annotation from storage
+   * @param tsuid The TSUID as a string. May be empty if retrieving a global
+   * annotation
+   * @param start_time The start time as a Unix epoch timestamp
+   * @return A valid annotation object if found, null if not
+   */
+  public Deferred<Annotation> getAnnotation(final String tsuid, final long start_time) {
+    if (Strings.isNullOrEmpty(tsuid)) {
+      return tsdb_store.getAnnotation(null, start_time);
+    }
+
+    return tsdb_store.getAnnotation(UniqueId.stringToUid(tsuid), start_time);
+  }
+
+  /**
    * Returns a partially initialized row key for this metric and these tags.
    * The only thing left to fill in is the base timestamp.
    * @since 2.0
@@ -994,7 +1009,75 @@ public class TSDB {
     
     return search.executeQuery(query);
   }
-  
+
+  /**
+   * Attempts a CompareAndSet storage call, loading the object from storage,
+   * synchronizing changes, and attempting a put.
+   * <b>Note:</b> If the local object didn't have any fields set by the caller
+   * or there weren't any changes, then the data will not be written and an
+   * exception will be thrown.
+   * @param annotation
+   * @param overwrite When the RPC method is PUT, will overwrite all user
+   * accessible fields
+   * True if the storage call was successful, false if the object was
+   * modified in storage during the CAS call. If false, retry the call. Other
+   * failures will result in an exception being thrown.
+   * @throws org.hbase.async.HBaseException if there was an issue
+   * @throws IllegalArgumentException if required data was missing such as the
+   * {@code #start_time}
+   * @throws IllegalStateException if the data hasn't changed. This is OK!
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   */
+  public Deferred<Boolean> syncToStorage(final Annotation annotation,
+                                         final boolean overwrite) {
+    if (annotation.getStartTime() < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    if (!annotation.hasChanges()) {
+      LOG.debug("{} does not have changes, skipping sync to storage", annotation);
+      throw new IllegalStateException("No changes detected in Annotation data");
+    }
+
+    final class StoreCB implements Callback<Deferred<Boolean>, Annotation> {
+      @Override
+      public Deferred<Boolean> call(final Annotation stored_note)
+        throws Exception {
+        if (stored_note != null) {
+          annotation.syncNote(stored_note, overwrite);
+        }
+
+        return tsdb_store.updateAnnotation(stored_note, annotation);
+      }
+    }
+
+    final byte[] tsuid;
+    if (Strings.isNullOrEmpty(annotation.getTSUID())) {
+      tsuid = null;
+    } else {
+      tsuid = UniqueId.stringToUid(annotation.getTSUID());
+    }
+
+    return tsdb_store.getAnnotation(tsuid, annotation.getStartTime()).addCallbackDeferring(new StoreCB());
+  }
+
+  /**
+   * Attempts to mark an Annotation object for deletion. Note that if the
+   * annoation does not exist in storage, this delete call will not throw an
+   * error.
+   *
+   * @param annotation
+   * @return A meaningless Deferred for the caller to wait on until the call is
+   * complete. The value may be null.
+   */
+  public Deferred<Object> delete(Annotation annotation) {
+    if (annotation.getStartTime() < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    return tsdb_store.delete(annotation);
+  }
+
   /**
    * Simply logs plugin errors when they're thrown by attaching as an errorback. 
    * Without this, exceptions will just disappear (unless logged by the plugin) 
