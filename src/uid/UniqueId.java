@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
@@ -177,29 +178,6 @@ public class UniqueId {
 
   /**
    * Finds the name associated with a given ID.
-   * <p>
-   * <strong>This method is blocking.</strong>  Its use within OpenTSDB itself
-   * is discouraged, please use {@link #getNameAsync} instead.
-   * @param id The ID associated with that name.
-   * @see #getId(String)
-   * @see #createId(String)
-   * @throws NoSuchUniqueId if the given ID is not assigned.
-   * @throws HBaseException if there is a problem communicating with HBase.
-   * @throws IllegalArgumentException if the ID given in argument is encoded
-   * on the wrong number of bytes.
-   */
-  public String getName(final byte[] id) throws NoSuchUniqueId, HBaseException {
-    try {
-      return getNameAsync(id).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-
-  /**
-   * Finds the name associated with a given ID.
    *
    * @param id The ID associated with that name.
    * @see #getId(String)
@@ -217,14 +195,15 @@ public class UniqueId {
       return Deferred.fromResult(name);
     }
     cache_misses++;
-    class GetNameCB implements Callback<String, String> {
-      public String call(final String name) {
-        if (name == null) {
-          throw new NoSuchUniqueId(kind(), id);
+    class GetNameCB implements Callback<String, Optional<String>> {
+      public String call(final Optional<String> name) {
+        if (name.isPresent()) {
+          addNameToCache(id, name.get());
+          addIdToCache(name.get(), id);
+          return name.get();
         }
-        addNameToCache(id, name);
-        addIdToCache(name, id);        
-        return name;
+
+        throw new NoSuchUniqueId(kind(), id);
       }
     }
     return tsdb_store.getName(id, type).addCallback(new GetNameCB());
@@ -246,16 +225,6 @@ public class UniqueId {
     }
   }
 
-  public byte[] getId(final String name) throws NoSuchUniqueName, HBaseException {
-    try {
-      return getIdAsync(name).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-
   public Deferred<byte[]> getIdAsync(final String name) {
     final byte[] id = getIdFromCache(name);
     if (id != null) {
@@ -263,15 +232,15 @@ public class UniqueId {
       return Deferred.fromResult(id);
     }
     cache_misses++;
-    class GetIdCB implements Callback<byte[], byte[]> {
-      public byte[] call(final byte[] id) {
-        if (id == null) {
-          throw new NoSuchUniqueName(kind(), name);
+    class GetIdCB implements Callback<byte[], Optional<byte[]>> {
+      public byte[] call(final Optional<byte[]> id) {
+        if (id.isPresent()) {
+          addIdToCache(name, id.get());
+          addNameToCache(id.get(), name);
+          return id.get();
         }
 
-        addIdToCache(name, id);
-        addNameToCache(id, name);
-        return id;
+        throw new NoSuchUniqueName(kind(), name);
       }
     }
     return tsdb_store.getId(name, type).addCallback(new GetIdCB());
@@ -483,37 +452,49 @@ public class UniqueId {
    * @throws HBaseException if there was a problem with HBase while trying to
    * update the mapping.
    */
-  public void rename(final String oldname, final String newname) {
-    if (checkUidExists(newname)) {
-      throw new IllegalArgumentException("An UID with name " + newname + " " +
-              "for " + kind() + " already exists");
-    }
+  public Deferred<Object> rename(final String oldname, final String newname) {
+    return checkUidExists(newname).addCallback(new Callback<Object, Boolean>() {
+      @Override
+      public Object call(final Boolean exists) {
+        if (exists) {
+          throw new IllegalArgumentException("An UID with name " + newname + " " +
+                  "for " + kind() + " already exists");
+        }
 
-    final byte[] old_uid = getId(oldname);
-    tsdb_store.allocateUID(toBytes(newname), old_uid, type);
+        return getIdAsync(oldname).addCallbackDeferring(new Callback<Deferred<Object>, byte[]>() {
+          @Override
+          public Deferred<Object> call(final byte[] old_uid) {
+            tsdb_store.allocateUID(toBytes(newname), old_uid, type);
 
-    // Update cache.
-    addIdToCache(newname, old_uid);            // add     new name -> ID
-    id_cache.put(StringCoder.fromBytes(old_uid), newname);  // update  ID -> new name
-    name_cache.remove(oldname);             // remove  old name -> ID
+            // Update cache.
+            addIdToCache(newname, old_uid);            // add     new name -> ID
+            id_cache.put(StringCoder.fromBytes(old_uid), newname);  // update  ID -> new name
+            name_cache.remove(oldname);             // remove  old name -> ID
 
-    // Delete the old forward mapping.
-    try {
-      tsdb_store.deleteUID(toBytes(oldname), kind).joinUninterruptibly();
-    } catch (Exception e) {
-      Throwables.propagate(e);
-    }
-    // Success!
+            // Delete the old forward mapping.
+            return tsdb_store.deleteUID(toBytes(oldname), kind);
+          }
+        });
+      }
+    });
   }
 
-  private boolean checkUidExists(String newname) {
-    try {
-      byte[] id = getId(newname);
-      return id != null;
-    } catch (NoSuchUniqueName e) {
-      // OK, we don't want the new name to be assigned.
-      return false;
+  private Deferred<Boolean> checkUidExists(String newname) {
+    class NoId implements Callback<Boolean, byte[]> {
+      @Override
+      public Boolean call(byte[] uid) throws Exception {
+        return uid != null;
+      }
     }
+
+    class NoSuchId implements Callback<Object, Exception> {
+      @Override
+      public Object call(Exception e) throws Exception {
+        return null;
+      }
+    }
+
+    return getIdAsync(newname).addCallbacks(new NoId(), new NoSuchId());
   }
 
   /** The start row to scan on empty search strings.  `!' = first ASCII char. */

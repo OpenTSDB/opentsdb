@@ -29,6 +29,7 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.ByteArrayPair;
 import net.opentsdb.utils.Pair;
 
+import com.google.common.base.Throwables;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -191,19 +192,24 @@ public class TimeSeriesLookup {
   private Scanner getScanner(final StringBuilder tagv_filter) {
     final Scanner scanner = tsdb.getTsdbStore().newScanner(
         query.useMeta() ? tsdb.metaTable() : tsdb.dataTable());
-    
+
     // if a metric is given, we need to resolve it's UID and set the start key
     // to the UID and the stop key to the next row by incrementing the UID. 
     if (query.getMetric() != null && !query.getMetric().isEmpty() && 
         !query.getMetric().equals("*")) {
-      final byte[] metric_uid = tsdb.getUID(UniqueIdType.METRIC, 
-          query.getMetric());
-      LOG.debug("Found UID (" + UniqueId.uidToString(metric_uid) + 
-        ") for metric (" + query.getMetric() + ")");
-      scanner.setStartKey(metric_uid);
-      long uid = UniqueId.uidToLong(metric_uid, Const.METRICS_WIDTH);
-      uid++; // TODO - see what happens when this rolls over
-      scanner.setStopKey(UniqueId.longToUID(uid, Const.METRICS_WIDTH));
+      try {
+        final byte[] metric_uid = tsdb.getUID(UniqueIdType.METRIC,
+                query.getMetric()).joinUninterruptibly();
+
+        LOG.debug("Found UID ({}) for metric ({})",
+                UniqueId.uidToString(metric_uid), query.getMetric());
+        scanner.setStartKey(metric_uid);
+        long uid = UniqueId.uidToLong(metric_uid, Const.METRICS_WIDTH);
+        uid++; // TODO - see what happens when this rolls over
+        scanner.setStopKey(UniqueId.longToUID(uid, Const.METRICS_WIDTH));
+      } catch (Exception e) {
+        Throwables.propagate(e);
+      }
     } else {
       LOG.debug("Performing full table scan, no metric provided");
     }
@@ -212,11 +218,15 @@ public class TimeSeriesLookup {
       final List<ByteArrayPair> pairs = 
           new ArrayList<ByteArrayPair>(query.getTags().size());
       for (Pair<String, String> tag : query.getTags()) {
-        final byte[] tagk = tag.getKey() != null && !tag.getKey().equals("*")? 
-            tsdb.getUID(UniqueIdType.TAGK, tag.getKey()) : null;
-        final byte[] tagv = tag.getValue() != null && !tag.getValue().equals("*")?
-            tsdb.getUID(UniqueIdType.TAGV, tag.getValue()) : null;
-        pairs.add(new ByteArrayPair(tagk, tagv));
+        try {
+          final byte[] tagk = tag.getKey() != null && !tag.getKey().equals("*") ?
+                  tsdb.getUID(UniqueIdType.TAGK, tag.getKey()).joinUninterruptibly() : null;
+          final byte[] tagv = tag.getValue() != null && !tag.getValue().equals("*") ?
+                  tsdb.getUID(UniqueIdType.TAGV, tag.getValue()).joinUninterruptibly() : null;
+          pairs.add(new ByteArrayPair(tagk, tagv));
+        } catch (Exception e) {
+          Throwables.propagate(e);
+        }
       }
       // remember, tagks are sorted in the row key so we need to supply a sorted
       // regex or matching will fail.

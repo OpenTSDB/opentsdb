@@ -37,6 +37,31 @@ public class TestHBaseStore extends TestTsdbStore {
     foo_array = new byte[]{'f', 'o', 'o'};
   }
 
+  @Test(expected = NullPointerException.class)
+  // Test what happens when config is Null
+  public void constructorWithNullConfig() {
+    new HBaseStore(client, null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  // Test what happens when config is Null
+  public void constructorWithNullClient() throws IOException{
+    new HBaseStore(null, new Config(false));
+  }
+
+  @PrepareForTest({Config.class, HBaseClient.class})
+  @Test
+  public void constructorWithValidConfig() throws IOException{
+
+    short flush_interval = 50;
+    when(client.getFlushInterval()).thenReturn(flush_interval);
+
+
+    HBaseStore temp_store = new HBaseStore(client, new Config(false));
+
+    assertEquals(flush_interval, temp_store.getFlushInterval());
+  }
+
   @Test
   // Test the creation of an ID when all possible IDs are already in use
   public void allocateUIDWithNegativeUID() throws Exception {

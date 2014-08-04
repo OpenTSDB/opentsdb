@@ -59,8 +59,8 @@ public interface TsdbStore {
 
   public void recordStats(StatsCollector collector);
 
-  public Deferred<byte[]> getId(final String name, final UniqueIdType type);
-  public Deferred<String> getName(final byte[] id, final UniqueIdType type);
+  public Deferred<com.google.common.base.Optional<byte[]>> getId(final String name, final UniqueIdType type);
+  public Deferred<com.google.common.base.Optional<String>> getName(final byte[] id, final UniqueIdType type);
 
   public Deferred<Object> add(final UIDMeta meta);
 

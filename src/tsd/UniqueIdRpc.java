@@ -22,6 +22,8 @@ import java.util.Map.Entry;
 import java.util.TreeMap;
 
 import net.opentsdb.core.Const;
+
+import com.google.common.base.Throwables;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -123,10 +125,12 @@ final class UniqueIdRpc implements HttpRpc {
         new TreeMap<String, String>();
       final TreeMap<String, String> errors = 
         new TreeMap<String, String>();
+
+      final UniqueIdType type = UniqueId.stringToUniqueIdType(entry.getKey());
       
       for (String name : entry.getValue()) {
         try {
-          final byte[] uid = tsdb.assignUid(entry.getKey(), name);
+          final byte[] uid = tsdb.assignUid(type, name);
           results.put(name, 
               UniqueId.uidToString(uid));
         } catch (IllegalArgumentException e) {
@@ -556,12 +560,12 @@ final class UniqueIdRpc implements HttpRpc {
     if (query_string == null || query_string.isEmpty()) {
       throw new BadRequestException("The query string was empty");
     }
-    
+
     // m is of the following forms:
     // metric[{tag=value,...}]
     // where the parts in square brackets `[' .. `]' are optional.
     final HashMap<String, String> tags = new HashMap<String, String>();
-    String metric = null;
+    String metric;
     try {
       metric = Tags.parseWithMetric(query_string, tags);
     } catch (IllegalArgumentException e) {
@@ -570,20 +574,20 @@ final class UniqueIdRpc implements HttpRpc {
     final TreeMap<String, String> sortedTags = new TreeMap<String, String>(tags);
     // Byte Buffer to generate TSUID, pre allocated to the size of the TSUID
     final ByteArrayOutputStream buf = new ByteArrayOutputStream(
-        Const.METRICS_WIDTH + sortedTags.size() *
-        (Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH));
+            Const.METRICS_WIDTH + sortedTags.size() *
+                    (Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH));
     try {
-    buf.write(tsdb.getUID(UniqueIdType.METRIC, metric));
-      for (Entry<String, String> e: sortedTags.entrySet()) {
-        buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()), 0, 3);
-        buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()), 0, 3);
+      buf.write(tsdb.getUID(UniqueIdType.METRIC, metric).joinUninterruptibly());
+      for (Entry<String, String> e : sortedTags.entrySet()) {
+        buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()).joinUninterruptibly(), 0, 3);
+        buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()).joinUninterruptibly(), 0, 3);
       }
     } catch (IOException e) {
       throw new BadRequestException(e);
+    } catch (Exception e) {
+      Throwables.propagate(e);
     }
-    final String tsuid = UniqueId.uidToString(buf.toByteArray());
-    
-    return tsuid;
+
+    return UniqueId.uidToString(buf.toByteArray());
   }
-  
 }

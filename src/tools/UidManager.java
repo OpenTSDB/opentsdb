@@ -837,11 +837,14 @@ final class UidManager {
                                     final byte[] id) {
     final UniqueId uid = buildUniqueIdInstance(tsdb_store, table, kind);
     try {
-      final String name = uid.getName(id);
+      final String name = uid.getNameAsync(id).joinUninterruptibly();
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));
       return 0;
     } catch (NoSuchUniqueId e) {
       LOG.error(e.getMessage());
+      return 1;
+    } catch (Exception e) {
+      LOG.error(e.getMessage(), e);
       return 1;
     }
   }
@@ -878,11 +881,14 @@ final class UidManager {
                                       final String name) {
     final UniqueId uid = buildUniqueIdInstance(tsdb_store, table, kind);
     try {
-      final byte[] id = uid.getId(name);
+      final byte[] id = uid.getIdAsync(name).joinUninterruptibly();
       System.out.println(kind + ' ' + name + ": " + Arrays.toString(id));
       return 0;
     } catch (NoSuchUniqueName e) {
       LOG.error(e.getMessage());
+      return 1;
+    } catch (Exception e) {
+      LOG.error(e.getMessage(), e);
       return 1;
     }
   }

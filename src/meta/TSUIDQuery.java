@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
+import com.google.common.base.Throwables;
 import net.opentsdb.core.*;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -81,8 +82,12 @@ public class TSUIDQuery {
    * not exist
    */
   public void setQuery(final String metric, final HashMap<String, String> tags) {
-    this.metric = tsdb.getUID(UniqueIdType.METRIC, metric);
-    this.tags = Tags.resolveAll(tsdb, tags);
+    try {
+      this.metric = tsdb.getUID(UniqueIdType.METRIC, metric).joinUninterruptibly();
+      this.tags = Tags.resolveAllAsync(tsdb, tags).joinUninterruptibly();
+    } catch (Exception e) {
+      Throwables.propagate(e);
+    }
   }
   
   /**
@@ -251,9 +256,11 @@ public class TSUIDQuery {
     buf.append("TSUIDQuery(metric=")
        .append(Arrays.toString(metric));
     try {
-      buf.append("), tags=").append(Tags.resolveIds(tsdb, tags));
+      buf.append("), tags=").append(Tags.resolveIdsAsync(tsdb, tags).joinUninterruptibly());
     } catch (NoSuchUniqueId e) {
       buf.append("), tags=<").append(e.getMessage()).append('>');
+    } catch (Exception e) {
+      Throwables.propagate(e);
     }
     buf.append("))");
     return buf.toString();

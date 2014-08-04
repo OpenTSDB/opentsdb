@@ -12,21 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
-
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
@@ -39,7 +33,8 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.stumbleupon.async.Deferred;
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static org.junit.Assert.assertEquals;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -53,10 +48,6 @@ public final class TestTSUIDQuery {
   
   @Before
   public void before() throws Exception {
-    UniqueId metrics = mock(UniqueId.class);
-    UniqueId tag_names = mock(UniqueId.class);
-    UniqueId tag_values = mock(UniqueId.class);
-
     Map<String, String> overrides = new HashMap<String, String>();
     overrides.put("tsd.core.meta.enable_tsuid_incrementing", "TRUE");
     overrides.put("tsd.core.meta.enable_realtime_ts", "TRUE");
@@ -161,74 +152,16 @@ public final class TestTSUIDQuery {
     tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 2, 0, 0, 3, 0, 0, 1, 0, 0, 1},
       NAME_FAMILY, "ts_ctr".getBytes(Const.CHARSET_ASCII),
       Bytes.fromLong(1L));
-    
-    // replace the "real" field objects with mocks
-    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
-    cl.setAccessible(true);
-    cl.set(tsdb, tsdb_store);
-    
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
-    
-    // mock UniqueId
-    when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
-    when(metrics.getId("sys.cpu.system"))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
-    when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
-    when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
-      .thenReturn(Deferred.fromResult("sys.cpu.nice"));
-    
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getIdAsync("host")).thenReturn(
-        Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("host"));
-    when(tag_names.getIdAsync("host")).thenReturn(
-        Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_names.getId("dc"))
-      .thenThrow(new NoSuchUniqueName("dc", "metric"));
-    when(tag_names.getId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_names.getIdAsync("datacenter"))
-      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
-      .thenReturn(Deferred.fromResult("datacenter"));
-    
-    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getIdAsync("web01")).thenReturn(
-        Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getIdAsync("web01")).thenReturn(
-        Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
-    when(tag_values.getIdAsync("web02")).thenReturn(
-        Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
-      .thenReturn(Deferred.fromResult("web02"));
-    when(tag_values.getIdAsync("web02")).thenReturn(
-        Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(tag_values.getId("web03"))
-      .thenThrow(new NoSuchUniqueName("web03", "metric"));
-    when(tag_values.getId("dc01")).thenReturn(new byte[] { 0, 0, 3 });
-    when(tag_values.getIdAsync("dc01"))
-      .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 3 }))
-      .thenReturn(Deferred.fromResult("dc01"));
-    
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+
+    tsdb_store.allocateUID("sys.cpu.user", new byte[] {0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.nice", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID("host", new byte[] {0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("datacenter", new byte[] {0, 0, 2}, UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID("web01", new byte[] {0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[] {0, 0, 2}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("dc01", new byte[] {0, 0, 3}, UniqueIdType.TAGV);
   }
   
   @Test

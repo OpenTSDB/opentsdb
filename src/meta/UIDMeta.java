@@ -16,14 +16,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.google.common.collect.ImmutableMap;
+import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.google.common.collect.Sets;
 
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -88,15 +88,13 @@ public final class UIDMeta {
   private HashMap<String, String> custom = null;
   
   /** Tracks fields that have changed by the user to avoid overwrites */
-  private final HashMap<String, Boolean> changed = 
-    new HashMap<String, Boolean>();
+  private final Set<String> changed = Sets.newHashSetWithExpectedSize(5);
   
   /**
    * Default constructor
    * Initializes the the changed map
    */
   public UIDMeta() {
-    initializeChangedMap();
   }
  
   /**
@@ -108,7 +106,6 @@ public final class UIDMeta {
   public UIDMeta(final UniqueIdType type, final String uid) {
     this.type = type;
     this.uid = uid;
-    initializeChangedMap();
   }
   
   /**
@@ -123,8 +120,7 @@ public final class UIDMeta {
     this.uid = UniqueId.uidToString(uid);
     this.name = name;
     created = System.currentTimeMillis() / 1000;
-    initializeChangedMap();
-    changed.put("created", true);
+    changed.add("created");
   }
 
   /**
@@ -140,12 +136,11 @@ public final class UIDMeta {
     this.type = type;
     this.uid = UniqueId.uidToString(uid);
     this.name = name;
-    initializeChangedMap();
 
-    if (created)
+    if (created) {
       this.created = System.currentTimeMillis() / 1000;
-
-    changed.put("created", created);
+      changed.add("created");
+    }
   }
   /**
    * Constructor used by TSD only to create a new UID with the given data and
@@ -163,7 +158,7 @@ public final class UIDMeta {
     meta.uid = UniqueId.uidToString(uid);
     meta.name = name;
 
-    meta.initializeChangedMap();
+    meta.resetChangedMap();
 
     return meta;
   }
@@ -204,33 +199,28 @@ public final class UIDMeta {
     }
     
     // handle user-accessible stuff
-    if (!overwrite && !changed.get("display_name")) {
+    if (!overwrite && !changed.contains("display_name")) {
       display_name = meta.display_name;
     }
-    if (!overwrite && !changed.get("description")) {
+    if (!overwrite && !changed.contains("description")) {
       description = meta.description;
     }
-    if (!overwrite && !changed.get("notes")) {
+    if (!overwrite && !changed.contains("notes")) {
       notes = meta.notes;
     }
-    if (!overwrite && !changed.get("custom")) {
+    if (!overwrite && !changed.contains("custom")) {
       custom = meta.custom;
     }
 
     // reset changed flags
-    initializeChangedMap();
+    resetChangedMap();
   }
   
   /**
    * Sets or resets the changed map flags
    */
-  public void initializeChangedMap() {
-    // set changed flags
-    changed.put("display_name", false);
-    changed.put("description", false);
-    changed.put("notes", false);
-    changed.put("custom", false);
-    changed.put("created", false); 
+  public void resetChangedMap() {
+    changed.clear();
   }
   
   /**
@@ -312,16 +302,12 @@ public final class UIDMeta {
     return custom;
   }
 
-  public Map<String,Boolean> getChanged() {
-    return ImmutableMap.copyOf(changed);
-  }
-
   /**
    * @param display_name an optional descriptive name for the UID
    */
   public void setDisplayName(final String display_name) {
     if (!this.display_name.equals(display_name)) {
-      changed.put("display_name", true);
+      changed.add("display_name");
       this.display_name = display_name;
     }
   }
@@ -329,7 +315,7 @@ public final class UIDMeta {
   /** @param description an optional description of the UID */
   public void setDescription(final String description) {
     if (!this.description.equals(description)) {
-      changed.put("description", true);
+      changed.add("description");
       this.description = description;
     }
   }
@@ -337,7 +323,7 @@ public final class UIDMeta {
   /** @param notes optional notes */
   public void setNotes(final String notes) {
     if (!this.notes.equals(notes)) {
-      changed.put("notes", true);
+      changed.add("notes");
       this.notes = notes;
     }
   }
@@ -348,7 +334,7 @@ public final class UIDMeta {
     // anyway so we'll just mark it as changed every time we have a non-null
     // value
     if (this.custom != null || custom != null) {
-      changed.put("custom", true);
+      changed.add("custom");
       this.custom = new HashMap<String, String>(custom);
     }
   }
@@ -356,8 +342,12 @@ public final class UIDMeta {
   /** @param created the created timestamp Unix epoch in seconds */
   public final void setCreated(final long created) {
     if (this.created != created) {
-      changed.put("created", true);
+      changed.add("created");
       this.created = created;
     }
+  }
+
+  public boolean hasChanges() {
+    return !changed.isEmpty();
   }
 }

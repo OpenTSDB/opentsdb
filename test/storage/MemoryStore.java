@@ -13,9 +13,9 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
-import com.google.common.primitives.Longs;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
@@ -74,7 +74,7 @@ public class MemoryStore implements TsdbStore {
 
   private long uid_max;
   private final Table<String, UniqueIdType, byte[]> uid_forward_mapping;
-  private final Table<String, UniqueIdType, byte[]> uid_reverse_mapping;
+  private final Table<String, UniqueIdType, String> uid_reverse_mapping;
 
   private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
   private byte[] default_family = "t".getBytes(ASCII);
@@ -438,7 +438,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> getId(String name, UniqueIdType type) {
+  public Deferred<com.google.common.base.Optional<byte[]>> getId(String name, UniqueIdType type) {
     byte[] id = uid_forward_mapping.get(name, type);
 
     if (id != null && id.length != type.width) {
@@ -447,11 +447,11 @@ public class MemoryStore implements TsdbStore {
               + " required for '" + type.qualifier + '\'');
     }
 
-    return Deferred.fromResult(id);
+    return Deferred.fromResult(Optional.fromNullable(id));
   }
 
   @Override
-  public Deferred<String> getName(byte[] id, UniqueIdType type) {
+  public Deferred<com.google.common.base.Optional<String>> getName(byte[] id, UniqueIdType type) {
     if (id.length != type.width) {
       throw new IllegalArgumentException("Wrong id.length = " + id.length
               + " which is != " + type.width
@@ -460,12 +460,8 @@ public class MemoryStore implements TsdbStore {
 
     String str_uid = new String(id, Const.CHARSET_ASCII);
 
-    final byte[] b_name = uid_reverse_mapping.get(str_uid, type);
-
-    if (b_name == null)
-      return Deferred.fromResult(null);
-    else
-      return Deferred.fromResult(StringCoder.fromBytes(b_name));
+    final String name = uid_reverse_mapping.get(str_uid, type);
+    return Deferred.fromResult(Optional.fromNullable(name));
   }
 
   @Override
@@ -523,7 +519,7 @@ public class MemoryStore implements TsdbStore {
       return Deferred.fromResult(null);
 
     UIDMeta meta = JSON.parseToObject(json_value, UIDMeta.class);
-    meta.initializeChangedMap();
+    meta.resetChangedMap();
 
     return Deferred.fromResult(meta);
   }
@@ -584,12 +580,10 @@ public class MemoryStore implements TsdbStore {
     return allocateUID(name, uid, type);
   }
 
-  @Override
-  public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type) {
+  public Deferred<byte[]> allocateUID(String name, byte[] uid, UniqueIdType type) {
     uid_max = Math.max(uid_max, UniqueId.uidToLong(uid, (short)uid.length));
 
     String str_uid = new String(uid, Const.CHARSET_ASCII);
-    String str_name = new String(name, Const.CHARSET_ASCII);
 
     if (uid_reverse_mapping.contains(str_uid, type)) {
       throw new IllegalStateException("A UID with " + str_uid + " already exists");
@@ -597,13 +591,19 @@ public class MemoryStore implements TsdbStore {
 
     uid_reverse_mapping.put(str_uid, type, name);
 
-    if (uid_forward_mapping.contains(str_name, type)) {
-      throw new IllegalStateException("A UID with name " + str_name + "already exists");
+    if (uid_forward_mapping.contains(name, type)) {
+      throw new IllegalStateException("A UID with name " + name + "already exists");
     }
 
-    uid_forward_mapping.put(str_name, type, uid);
+    uid_forward_mapping.put(name, type, uid);
 
     return Deferred.fromResult(uid);
+  }
+
+  @Override
+  public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type) {
+    String str_name = new String(name, Const.CHARSET_ASCII);
+    return allocateUID(str_name, uid, type);
   }
 
   @Override

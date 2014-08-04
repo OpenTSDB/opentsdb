@@ -12,12 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.anyString;
-import static org.powermock.api.mockito.PowerMockito.mock;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -29,22 +23,15 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
-import net.opentsdb.meta.Annotation;
-import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
-import org.apache.zookeeper.proto.DeleteRequest;
 import org.hbase.async.Bytes;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,7 +41,10 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.stumbleupon.async.Deferred;
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.mockito.Matchers.anyString;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -63,12 +53,8 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({KeyValue.class, Fsck.class, Scanner.class,
         FileInputStream.class, TextImporter.class})
 public class TestTextImporter {
-  private Config config;
   private TSDB tsdb = null;
   private MemoryStore tsdb_store;
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
   
   private final static Field datapoints;
   static {
@@ -93,57 +79,22 @@ public class TestTextImporter {
   
   @Before
   public void before() throws Exception {
-    config = new Config(false);
+    Config config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-
-    // replace the "real" field objects with mocks
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
     
     PowerMockito.spy(TextImporter.class);
     // we need to purge the hash map before each unit test since it's a static
     // field
     datapoints.set(null, new HashMap<String, WritableDataPoints>());
-    
-    // mock UniqueId
-    when(metrics.getIdAsync("sys.cpu.user"))
-            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
-            .thenReturn(Deferred.fromResult("sys.cpu.user"));
-    when(metrics.getIdAsync("sys.cpu.system"))
-            .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
-    when(metrics.getIdAsync("sys.cpu.nice"))
-            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
-            .thenReturn(Deferred.fromResult("sys.cpu.nice"));
-    when(tag_names.getIdAsync("host"))
-            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
-            .thenReturn(Deferred.fromResult("host"));
-    when(tag_names.getIdAsync("fqdn")).thenThrow(new NoSuchUniqueName("dc", "tagk"));
-    when(tag_values.getIdAsync("web01"))
-            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
-            .thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getIdAsync("web02"))
-            .thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
-            .thenReturn(Deferred.fromResult("web02"));
-    when(tag_values.getIdAsync("web03")).thenThrow(new NoSuchUniqueName("web03", "tagv"));
-    
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+
+    tsdb_store.allocateUID("sys.cpu.user", new byte[] {0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.nice", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID("host", new byte[] {0, 0, 1}, UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[]{0, 0, 2}, UniqueIdType.TAGV);
   }
   
   @Test
