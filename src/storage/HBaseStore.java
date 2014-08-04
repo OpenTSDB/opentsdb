@@ -34,6 +34,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.core.StringCoder.fromBytes;
+import static net.opentsdb.core.StringCoder.toBytes;
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
 /**
@@ -55,16 +57,16 @@ public class HBaseStore implements TsdbStore {
   /**
    * The single column family used by this class.
    */
-  private static final byte[] ID_FAMILY = StringCoder.toBytes("id");
+  private static final byte[] ID_FAMILY = toBytes("id");
   /**
    * The single column family used by this class.
    */
-  private static final byte[] NAME_FAMILY = StringCoder.toBytes("name");
+  private static final byte[] NAME_FAMILY = toBytes("name");
 
   /**
    * The single column family used by this class.
    */
-  private static final byte[] UID_FAMILY = StringCoder.toBytes("name");
+  private static final byte[] UID_FAMILY = toBytes("name");
 
   final org.hbase.async.HBaseClient client;
 
@@ -251,14 +253,13 @@ public class HBaseStore implements TsdbStore {
               + " required for '" + type.qualifier + '\'');
     }
 
-    class GetCB implements Callback<Optional<String>, ArrayList<KeyValue>> {
-      public Optional<String> call(final ArrayList<KeyValue> row) {
-        if (row == null || row.isEmpty()) {
-          return Optional.absent();
+    class GetCB implements Callback<Optional<String>, Optional<KeyValue>> {
+      public Optional<String> call(final Optional<KeyValue> cell) {
+        if (cell.isPresent()) {
+          return Optional.of(fromBytes(cell.get().value()));
         }
 
-        String str_name = StringCoder.fromBytes(row.get(0).value());
-        return Optional.of(str_name);
+        return Optional.absent();
       }
     }
 
@@ -267,12 +268,13 @@ public class HBaseStore implements TsdbStore {
             .qualifier(type.qualifier.getBytes(CHARSET));
 
     return client.get(request)
+            .addCallback(new GetCellNotEmptyCB())
             .addCallback(new GetCB());
   }
 
   @Override
   public Deferred<Optional<byte[]>> getId(final String name, final UniqueIdType type) {
-    return getId(StringCoder.toBytes(name), type);
+    return getId(toBytes(name), type);
   }
 
   private Deferred<Optional<byte[]>> getId(final byte[] name, final UniqueIdType type) {
@@ -282,25 +284,27 @@ public class HBaseStore implements TsdbStore {
             .family(ID_FAMILY)
             .qualifier(qualifier);
 
-    class GetCB implements Callback<Optional<byte[]>, ArrayList<KeyValue>> {
-      public Optional<byte[]> call(final ArrayList<KeyValue> row) {
-        if (row == null || row.isEmpty()) {
-          return Optional.absent();
+    class GetCB implements Callback<Optional<byte[]>, Optional<KeyValue>> {
+      public Optional<byte[]> call(final Optional<KeyValue> cell) {
+        if (cell.isPresent()) {
+          byte[] id = cell.get().value();
+
+          if (id.length != type.width) {
+            throw new IllegalStateException("Found id.length = " + id.length
+                    + " which is != " + type.width
+                    + " required for '" + type.qualifier + '\'');
+          }
+
+          return Optional.of(id);
         }
 
-        byte[] id = row.get(0).value();
-
-        if (id.length != type.width) {
-          throw new IllegalStateException("Found id.length = " + id.length
-                  + " which is != " + type.width
-                  + " required for '" + type.qualifier + '\'');
-        }
-
-        return Optional.of(id);
+        return Optional.absent();
       }
     }
 
-    return client.get(get).addCallback(new GetCB());
+    return client.get(get)
+            .addCallback(new GetCellNotEmptyCB())
+            .addCallback(new GetCB());
   }
 
   /**
@@ -354,7 +358,7 @@ public class HBaseStore implements TsdbStore {
        *  that the UID mapping exists. It has to access the {@code local_meta}
        *  object so that's why it's nested within the NameCB class
        */
-      new Callback<Deferred<Boolean>, KeyValue>() {
+      new Callback<Deferred<Boolean>, Optional<KeyValue>>() {
         /**
          * Executes the CompareAndSet after merging changes
          * @return True if the CAS was successful, false if the stored data
@@ -362,64 +366,42 @@ public class HBaseStore implements TsdbStore {
          */
 
       @Override
-      public Deferred<Boolean> call(KeyValue cell) throws Exception {
+      public Deferred<Boolean> call(Optional<KeyValue> cell) throws Exception {
         final UIDMeta stored_meta;
-        if (null == cell) {
-          stored_meta = null;
-        } else {
-          stored_meta = JSON.parseToObject(cell.value(), UIDMeta.class);
-          stored_meta.resetChangedMap();
-        }
+        final byte[] original_meta;
 
-        final byte[] original_meta = cell == null ?
-          new byte[0] : cell.value();
+        if (cell.isPresent()) {
+          original_meta = cell.get().value();
+          stored_meta = JSON.parseToObject(original_meta, UIDMeta.class);
+          stored_meta.resetChangedMap();
+        } else {
+          original_meta = new byte[0];
+          stored_meta = null;
+        }
 
         if (stored_meta != null) {
           meta.syncMeta(stored_meta, overwrite);
         }
 
         final PutRequest put = new PutRequest(uid_table_name,
-          UniqueId.stringToUid(meta.getUID()), UID_FAMILY,
-          (meta.getType().toString().toLowerCase() + "_meta").getBytes
-            (CHARSET),
-          meta.getStorageJSON());
+                UniqueId.stringToUid(meta.getUID()),
+                UID_FAMILY,
+                toBytes(meta.getType().toString().toLowerCase() + "_meta"),
+                meta.getStorageJSON());
         return client.compareAndSet(put, original_meta);
       }
     });
   }
 
 
-  private Deferred<KeyValue> getMeta(byte[] uid, final UniqueIdType
-    type) {
-    /**
-     * Inner class called to retrieve the meta data after verifying that the
-     * name mapping exists. It requires the name to set the default, hence
-     * the reason it's nested.
-     */
-    class FetchMetaCB implements Callback<KeyValue, ArrayList<KeyValue>> {
+  private Deferred<Optional<KeyValue>> getMeta(byte[] uid, final UniqueIdType type) {
+    final byte[] qual = toBytes(type.toString().toLowerCase() + "_meta");
 
-      /**
-       * Called to parse the response of our storage GET call after
-       * verification
-       * @return The stored UIDMeta or a default object if the meta data
-       * did not exist
-       */
-      @Override
-      public KeyValue call(ArrayList<KeyValue> row)
-        throws Exception {
+    final GetRequest request = new GetRequest(uid_table_name, uid)
+            .family(UID_FAMILY)
+            .qualifier(qual);
 
-        if (row == null || row.isEmpty()) {
-          return null;
-        } else {
-          return row.get(0);
-        }
-      }
-    }
-
-    final GetRequest request = new GetRequest(uid_table_name, uid);
-    request.family(UID_FAMILY);
-    request.qualifier((type.toString().toLowerCase() + "_meta").getBytes(CHARSET));
-    return client.get(request).addCallback(new FetchMetaCB());
+    return client.get(request).addCallback(new GetCellNotEmptyCB());
   }
 
   @Override
@@ -430,7 +412,7 @@ public class HBaseStore implements TsdbStore {
      * name mapping exists. It requires the name to set the default, hence
      * the reason it's nested.
      */
-    class FetchMetaCB implements Callback<UIDMeta, KeyValue> {
+    class FetchMetaCB implements Callback<UIDMeta, Optional<KeyValue>> {
       /**
        * Called to parse the response of our storage GET call after
        * verification
@@ -438,9 +420,9 @@ public class HBaseStore implements TsdbStore {
        * did not exist
        */
       @Override
-      public UIDMeta call(KeyValue cell)
+      public UIDMeta call(Optional<KeyValue> cell)
         throws Exception {
-        if (cell == null) {
+        if (!cell.isPresent()) {
           // return the default
           return new UIDMeta(type,
             uid, name, false);
@@ -449,13 +431,13 @@ public class HBaseStore implements TsdbStore {
         UniqueIdType effective_type = type;
         if (effective_type == null) {
           final String qualifier =
-            new String(cell.qualifier(), CHARSET);
+            new String(cell.get().qualifier(), CHARSET);
           effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
             qualifier.indexOf("_meta")));
         }
 
-        UIDMeta return_meta = UIDMeta.buildFromJSON(cell.value(),
-          effective_type, uid, name);
+        UIDMeta return_meta = UIDMeta.buildFromJSON(cell.get().value(),
+                effective_type, uid, name);
 
         return return_meta;
       }
@@ -649,5 +631,22 @@ public class HBaseStore implements TsdbStore {
     return client.compareAndSet(reverse_mapping, HBaseClient.EMPTY_ARRAY)
             .addCallbackDeferring(new ReverseCB(reverse_mapping, forward_mapping))
             .addCallbackDeferring(new ForwardCB(forward_mapping, uid));
+  }
+
+  /**
+   * Callback that makes sure that the returned result is not empty or null
+   * and then returns the first cell.
+   */
+  private static class GetCellNotEmptyCB implements
+          Callback<Optional<KeyValue>,
+          ArrayList<KeyValue>> {
+    @Override
+    public Optional<KeyValue> call(ArrayList<KeyValue> cells)throws Exception {
+      if (cells == null || cells.isEmpty()) {
+        return Optional.absent();
+      } else {
+        return Optional.of(cells.get(0));
+      }
+    }
   }
 }
