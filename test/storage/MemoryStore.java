@@ -592,7 +592,7 @@ public class MemoryStore implements TsdbStore {
     uid_reverse_mapping.put(str_uid, type, name);
 
     if (uid_forward_mapping.contains(name, type)) {
-      throw new IllegalStateException("A UID with name " + name + "already exists");
+      throw new IllegalStateException("A UID with name " + name + " already exists");
     }
 
     uid_forward_mapping.put(name, type, uid);
