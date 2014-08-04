@@ -209,17 +209,14 @@ public final class TestUniqueId {
     final byte[] id = { 0, 0, 1 };
 
     assertArrayEquals(id, uid.createId("foo").joinUninterruptibly());
+
     // Should be a cache hit since we created that entry.
     assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     // Should be a cache hit too for the same reason.
-
-    //assertEquals("foo", uid.getName(id));
-
-    //assertEquals(2, uid.cacheHits());
-    //assertEquals(0, uid.cacheMisses());
-
     assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly());
 
+    assertEquals(2, uid.cacheHits());
+    assertEquals(0, uid.cacheMisses());
   }
 
   @PrepareForTest({HBaseStore.class, Scanner.class})
