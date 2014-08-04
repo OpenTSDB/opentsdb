@@ -413,7 +413,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         final int len = qual.length;
         if ((len & 1) != 0) {
           // process annotations and other extended formats
-          if (qual[0] == Annotation.ANNOTATION_QUAL_PREFIX) {
+          if (qual[0] == HBaseStore.ANNOTATION_QUAL_PREFIX) {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
           } else {
             LOG.warn("Ignoring unexpected extended format type " + qual[0]);

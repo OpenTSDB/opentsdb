@@ -19,6 +19,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -44,6 +45,8 @@ import static net.opentsdb.uid.UniqueId.UniqueIdType;
  * The HBaseStore that implements the client interface required by TSDB.
  */
 public class HBaseStore implements TsdbStore {
+  /** Byte used for the qualifier prefix to indicate this is an annotation */
+  public static final byte ANNOTATION_QUAL_PREFIX = 0x01;
   private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
 
   /** Row key of the special row used to track the max ID already assigned. */
@@ -201,8 +204,26 @@ public class HBaseStore implements TsdbStore {
       final short offset = (short) (timestamp - base_time);
       System.arraycopy(Bytes.fromShort(offset), 0, qualifier, 1, 2);
     }
-    qualifier[0] = Annotation.ANNOTATION_QUAL_PREFIX;
+    qualifier[0] = ANNOTATION_QUAL_PREFIX;
     return qualifier;
+  }
+
+  /**
+   * Returns a timestamp after parsing an annotation qualifier.
+   * @param qualifier The full qualifier (including prefix) on either 3 or 5 bytes
+   * @param base_time The base time from the row in seconds
+   * @return A timestamp in milliseconds
+   * @since 2.1
+   */
+  private static long timeFromQualifier(final byte[] qualifier, final long base_time) {
+    final long offset;
+    if (qualifier.length == 3) {
+      offset = Bytes.getUnsignedShort(qualifier, 1);
+      return (base_time + offset) * 1000;
+    } else {
+      offset = Bytes.getUnsignedInt(qualifier, 1);
+      return (base_time * 1000) + offset;
+    }
   }
 
   /**
@@ -802,6 +823,175 @@ public class HBaseStore implements TsdbStore {
     return client.compareAndSet(reverse_mapping, HBaseClient.EMPTY_ARRAY)
             .addCallbackDeferring(new ReverseCB(reverse_mapping, forward_mapping))
             .addCallbackDeferring(new ForwardCB(forward_mapping, uid));
+  }
+
+  @Override
+  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time) {
+    /**
+     * Scanner that loops through the [0, 0, 0, timestamp] rows looking for
+     * global annotations. Returns a list of parsed annotation objects.
+     * The list may be empty.
+     */
+    final class ScannerCB implements Callback<Deferred<List<Annotation>>,
+      ArrayList<ArrayList<KeyValue>>> {
+      final Scanner scanner;
+      final List<Annotation> annotations = new ArrayList<Annotation>();
+
+      /**
+       * Initializes the scanner
+       */
+      public ScannerCB() {
+        final byte[] start = new byte[Const.METRICS_WIDTH +
+                                      Const.TIMESTAMP_BYTES];
+        final byte[] end = new byte[Const.METRICS_WIDTH +
+                                    Const.TIMESTAMP_BYTES];
+
+        final long normalized_start = (start_time -
+            (start_time % Const.MAX_TIMESPAN));
+        final long normalized_end = (end_time -
+            (end_time % Const.MAX_TIMESPAN));
+
+        Bytes.setInt(start, (int) normalized_start, Const.METRICS_WIDTH);
+        Bytes.setInt(end, (int) normalized_end, Const.METRICS_WIDTH);
+
+        scanner = client.newScanner(data_table_name);
+        scanner.setStartKey(start);
+        scanner.setStopKey(end);
+        scanner.setFamily(TS_FAMILY);
+      }
+
+      public Deferred<List<Annotation>> scan() {
+        return scanner.nextRows().addCallbackDeferring(this);
+      }
+
+      @Override
+      public Deferred<List<Annotation>> call (
+          final ArrayList<ArrayList<KeyValue>> rows) throws Exception {
+        if (rows == null || rows.isEmpty()) {
+          return Deferred.fromResult(annotations);
+        }
+
+        for (final ArrayList<KeyValue> row : rows) {
+          for (KeyValue column : row) {
+            if ((column.qualifier().length == 3 || column.qualifier().length == 5)
+                && column.qualifier()[0] == ANNOTATION_QUAL_PREFIX) {
+              Annotation note = JSON.parseToObject(row.get(0).value(),
+                      Annotation.class);
+              if (note.getStartTime() < start_time || note.getEndTime() > end_time) {
+                continue;
+              }
+              annotations.add(note);
+            }
+          }
+        }
+
+        return scan();
+      }
+
+    }
+
+    return new ScannerCB().scan();
+  }
+
+  @Override
+  public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time, TSDB tsdb) {
+    final List<Deferred<Object>> delete_requests = new ArrayList<Deferred<Object>>();
+    int width = tsuid != null ? tsuid.length + Const.TIMESTAMP_BYTES :
+      Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
+    final byte[] start_row = new byte[width];
+    final byte[] end_row = new byte[width];
+
+    // downsample to seconds for the row keys
+    final long start = start_time / 1000;
+    final long end = end_time / 1000;
+    final long normalized_start = (start - (start % Const.MAX_TIMESPAN));
+    final long normalized_end = (end - (end % Const.MAX_TIMESPAN));
+    Bytes.setInt(start_row, (int) normalized_start, Const.METRICS_WIDTH);
+    Bytes.setInt(end_row, (int) normalized_end, Const.METRICS_WIDTH);
+
+    if (tsuid != null) {
+      // first copy the metric UID then the tags
+      System.arraycopy(tsuid, 0, start_row, 0, Const.METRICS_WIDTH);
+      System.arraycopy(tsuid, 0, end_row, 0, Const.METRICS_WIDTH);
+      width = Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
+      final int remainder = tsuid.length - Const.METRICS_WIDTH;
+      System.arraycopy(tsuid, Const.METRICS_WIDTH, start_row, width, remainder);
+      System.arraycopy(tsuid, Const.METRICS_WIDTH, end_row, width, remainder);
+    }
+
+    /**
+     * Iterates through the scanner results in an asynchronous manner, returning
+     * once the scanner returns a null result set.
+     */
+    final class ScannerCB implements Callback<Deferred<List<Deferred<Object>>>,
+        ArrayList<ArrayList<KeyValue>>> {
+      final Scanner scanner;
+
+      public ScannerCB() {
+        scanner = client.newScanner(data_table_name);
+        scanner.setStartKey(start_row);
+        scanner.setStopKey(end_row);
+        scanner.setFamily(TS_FAMILY);
+        if (tsuid != null) {
+          final List<String> tsuids = new ArrayList<String>(1);
+          tsuids.add(UniqueId.uidToString(tsuid));
+          Internal.createAndSetTSUIDFilter(scanner, tsuids);
+        }
+      }
+
+      public Deferred<List<Deferred<Object>>> scan() {
+        return scanner.nextRows().addCallbackDeferring(this);
+      }
+
+      @Override
+      public Deferred<List<Deferred<Object>>> call (
+          final ArrayList<ArrayList<KeyValue>> rows) throws Exception {
+        if (rows == null || rows.isEmpty()) {
+          return Deferred.fromResult(delete_requests);
+        }
+
+        for (final ArrayList<KeyValue> row : rows) {
+          final long base_time = Internal.baseTime(row.get(0).key());
+          for (KeyValue column : row) {
+            if ((column.qualifier().length == 3 || column.qualifier().length == 5)
+                && column.qualifier()[0] == ANNOTATION_QUAL_PREFIX) {
+              final long timestamp = timeFromQualifier(column.qualifier(),
+                      base_time);
+              if (timestamp < start_time || timestamp > end_time) {
+                continue;
+              }
+              final DeleteRequest delete = new DeleteRequest(data_table_name,
+                  column.key(), TS_FAMILY, column.qualifier());
+              delete_requests.add(client.delete(delete));
+            }
+          }
+        }
+        return scan();
+      }
+    }
+
+    /** Called when the scanner is done. Delete requests may still be pending */
+    final class ScannerDoneCB implements Callback<Deferred<ArrayList<Object>>,
+      List<Deferred<Object>>> {
+      @Override
+      public Deferred<ArrayList<Object>> call(final List<Deferred<Object>> deletes)
+          throws Exception {
+        return Deferred.group(delete_requests);
+      }
+    }
+
+    /** Waits on the group of deferreds to complete before returning the count */
+    final class GroupCB implements Callback<Deferred<Integer>, ArrayList<Object>> {
+      @Override
+      public Deferred<Integer> call(final ArrayList<Object> deletes)
+          throws Exception {
+        return Deferred.fromResult(deletes.size());
+      }
+    }
+
+    Deferred<ArrayList<Object>> scanner_done = new ScannerCB().scan()
+        .addCallbackDeferring(new ScannerDoneCB());
+    return scanner_done.addCallbackDeferring(new GroupCB());
   }
 
   /**

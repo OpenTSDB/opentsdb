@@ -14,25 +14,12 @@ package net.opentsdb.meta;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
-import org.hbase.async.Bytes;
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.Const;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
@@ -41,8 +28,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
 /**
  * Annotations are used to record time-based notes about timeseries events.
@@ -71,17 +56,6 @@ import com.stumbleupon.async.Deferred;
 @JsonInclude(Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class Annotation implements Comparable<Annotation> {
-  private static final Logger LOG = LoggerFactory.getLogger(Annotation.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  
-  /** Byte used for the qualifier prefix to indicate this is an annotation */
-  public static final byte ANNOTATION_QUAL_PREFIX = 0x01;
-    
-  /** The single column family used by this class. */
-  private static final byte[] FAMILY = "t".getBytes(CHARSET);
-  
   /** If the note is associated with a timeseries, represents the ID */
   private String tsuid = "";
   
@@ -129,213 +103,6 @@ public final class Annotation implements Comparable<Annotation> {
 
   public boolean hasChanges() {
     return !changed.isEmpty();
-  }
-
-  /**
-   * Scans through the global annotation storage rows and returns a list of 
-   * parsed annotation objects. If no annotations were found for the given
-   * timespan, the resulting list will be empty.
-   * @param tsdb The TSDB to use for storage access
-   * @param start_time Start time to scan from. May be 0
-   * @param end_time End time to scan to. Must be greater than 0
-   * @return A list with detected annotations. May be empty.
-   * @throws IllegalArgumentException if the end timestamp has not been set or 
-   * the end time is less than the start time
-   */
-  public static Deferred<List<Annotation>> getGlobalAnnotations(final TSDB tsdb, 
-      final long start_time, final long end_time) {
-    if (end_time < 1) {
-      throw new IllegalArgumentException("The end timestamp has not been set");
-    }
-    if (end_time < start_time) {
-      throw new IllegalArgumentException(
-          "The end timestamp cannot be less than the start timestamp");
-    }
-    
-    /**
-     * Scanner that loops through the [0, 0, 0, timestamp] rows looking for
-     * global annotations. Returns a list of parsed annotation objects.
-     * The list may be empty.
-     */
-    final class ScannerCB implements Callback<Deferred<List<Annotation>>, 
-      ArrayList<ArrayList<KeyValue>>> {
-      final Scanner scanner;
-      final List<Annotation> annotations = new ArrayList<Annotation>();
-      
-      /**
-       * Initializes the scanner
-       */
-      public ScannerCB() {
-        final byte[] start = new byte[Const.METRICS_WIDTH +
-                                      Const.TIMESTAMP_BYTES];
-        final byte[] end = new byte[Const.METRICS_WIDTH +
-                                    Const.TIMESTAMP_BYTES];
-        
-        final long normalized_start = (start_time - 
-            (start_time % Const.MAX_TIMESPAN));
-        final long normalized_end = (end_time - 
-            (end_time % Const.MAX_TIMESPAN));
-
-        Bytes.setInt(start, (int) normalized_start, Const.METRICS_WIDTH);
-        Bytes.setInt(end, (int) normalized_end, Const.METRICS_WIDTH);
-
-        scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
-        scanner.setStartKey(start);
-        scanner.setStopKey(end);
-        scanner.setFamily(FAMILY);
-      }
-      
-      public Deferred<List<Annotation>> scan() {
-        return scanner.nextRows().addCallbackDeferring(this);
-      }
-      
-      @Override
-      public Deferred<List<Annotation>> call (
-          final ArrayList<ArrayList<KeyValue>> rows) throws Exception {
-        if (rows == null || rows.isEmpty()) {
-          return Deferred.fromResult(annotations);
-        }
-        
-        for (final ArrayList<KeyValue> row : rows) {
-          for (KeyValue column : row) {
-            if ((column.qualifier().length == 3 || column.qualifier().length == 5)
-                && column.qualifier()[0] == ANNOTATION_QUAL_PREFIX) {
-              Annotation note = JSON.parseToObject(row.get(0).value(), 
-                  Annotation.class);
-              if (note.start_time < start_time || note.end_time > end_time) {
-                continue;
-              }
-              annotations.add(note);
-            }
-          }
-        }
-        
-        return scan();
-      }
-      
-    }
-
-    return new ScannerCB().scan();
-  }
-  
-  /**
-   * Deletes global or TSUID associated annotiations for the given time range.
-   * @param tsdb The TSDB object to use for storage access
-   * @param tsuid An optional TSUID. If set to null, then global annotations for
-   * the given range will be deleted
-   * @param start_time A start timestamp in milliseconds
-   * @param end_time An end timestamp in millseconds
-   * @return The number of annotations deleted
-   * @throws IllegalArgumentException if the timestamps are invalid
-   * @since 2.1
-   */
-  public static Deferred<Integer> deleteRange(final TSDB tsdb, 
-      final byte[] tsuid, final long start_time, final long end_time) {
-    if (end_time < 1) {
-      throw new IllegalArgumentException("The end timestamp has not been set");
-    }
-    if (end_time < start_time) {
-      throw new IllegalArgumentException(
-          "The end timestamp cannot be less than the start timestamp");
-    }
-    
-    final List<Deferred<Object>> delete_requests = new ArrayList<Deferred<Object>>();
-    int width = tsuid != null ? tsuid.length + Const.TIMESTAMP_BYTES :
-      Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
-    final byte[] start_row = new byte[width];
-    final byte[] end_row = new byte[width];
-    
-    // downsample to seconds for the row keys
-    final long start = start_time / 1000;
-    final long end = end_time / 1000;
-    final long normalized_start = (start - (start % Const.MAX_TIMESPAN));
-    final long normalized_end = (end - (end % Const.MAX_TIMESPAN));
-    Bytes.setInt(start_row, (int) normalized_start, Const.METRICS_WIDTH);
-    Bytes.setInt(end_row, (int) normalized_end, Const.METRICS_WIDTH);
-    
-    if (tsuid != null) {
-      // first copy the metric UID then the tags
-      System.arraycopy(tsuid, 0, start_row, 0, Const.METRICS_WIDTH);
-      System.arraycopy(tsuid, 0, end_row, 0, Const.METRICS_WIDTH);
-      width = Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
-      final int remainder = tsuid.length - Const.METRICS_WIDTH;
-      System.arraycopy(tsuid, Const.METRICS_WIDTH, start_row, width, remainder);
-      System.arraycopy(tsuid, Const.METRICS_WIDTH, end_row, width, remainder);
-    }
-
-    /**
-     * Iterates through the scanner results in an asynchronous manner, returning
-     * once the scanner returns a null result set.
-     */
-    final class ScannerCB implements Callback<Deferred<List<Deferred<Object>>>, 
-        ArrayList<ArrayList<KeyValue>>> {
-      final Scanner scanner;
-
-      public ScannerCB() {
-        scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
-        scanner.setStartKey(start_row);
-        scanner.setStopKey(end_row);
-        scanner.setFamily(FAMILY);
-        if (tsuid != null) {
-          final List<String> tsuids = new ArrayList<String>(1);
-          tsuids.add(UniqueId.uidToString(tsuid));
-          Internal.createAndSetTSUIDFilter(scanner, tsuids);
-        }
-      }
-      
-      public Deferred<List<Deferred<Object>>> scan() {
-        return scanner.nextRows().addCallbackDeferring(this);
-      }
-      
-      @Override
-      public Deferred<List<Deferred<Object>>> call (
-          final ArrayList<ArrayList<KeyValue>> rows) throws Exception {
-        if (rows == null || rows.isEmpty()) {
-          return Deferred.fromResult(delete_requests);
-        }
-        
-        for (final ArrayList<KeyValue> row : rows) {
-          final long base_time = Internal.baseTime(tsdb, row.get(0).key());
-          for (KeyValue column : row) {
-            if ((column.qualifier().length == 3 || column.qualifier().length == 5)
-                && column.qualifier()[0] == ANNOTATION_QUAL_PREFIX) {
-              final long timestamp = timeFromQualifier(column.qualifier(), 
-                  base_time);
-              if (timestamp < start_time || timestamp > end_time) {
-                continue;
-              }
-              final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
-                  column.key(), FAMILY, column.qualifier());
-              delete_requests.add(tsdb.getTsdbStore().delete(delete));
-            }
-          }
-        }
-        return scan();
-      }
-    }
-
-    /** Called when the scanner is done. Delete requests may still be pending */
-    final class ScannerDoneCB implements Callback<Deferred<ArrayList<Object>>, 
-      List<Deferred<Object>>> {
-      @Override
-      public Deferred<ArrayList<Object>> call(final List<Deferred<Object>> deletes)
-          throws Exception {
-        return Deferred.group(delete_requests);
-      }
-    }
-    
-    /** Waits on the group of deferreds to complete before returning the count */
-    final class GroupCB implements Callback<Deferred<Integer>, ArrayList<Object>> {
-      @Override
-      public Deferred<Integer> call(final ArrayList<Object> deletes)
-          throws Exception {
-        return Deferred.fromResult(deletes.size());
-      }
-    }
-    
-    Deferred<ArrayList<Object>> scanner_done = new ScannerCB().scan()
-        .addCallbackDeferring(new ScannerDoneCB());
-    return scanner_done.addCallbackDeferring(new GroupCB());
   }
 
   /**
@@ -411,24 +178,6 @@ public final class Annotation implements Comparable<Annotation> {
    */
   private void resetChangedMap() {
     changed.clear();
-  }
-
-  /**
-   * Returns a timestamp after parsing an annotation qualifier.
-   * @param qualifier The full qualifier (including prefix) on either 3 or 5 bytes
-   * @param base_time The base time from the row in seconds
-   * @return A timestamp in milliseconds
-   * @since 2.1
-   */
-  private static long timeFromQualifier(final byte[] qualifier, final long base_time) {
-    final long offset;
-    if (qualifier.length == 3) {
-      offset = Bytes.getUnsignedShort(qualifier, 1);
-      return (base_time + offset) * 1000;
-    } else {
-      offset = Bytes.getUnsignedInt(qualifier, 1);
-      return (base_time * 1000) + offset;
-    }
   }
 
   // Getters and Setters --------------

@@ -154,6 +154,50 @@ public class TSDB {
   }
 
   /**
+   * Deletes global or TSUID associated annotiations for the given time range.
+   * @param tsuid An optional TSUID. If set to null, then global annotations for
+   * the given range will be deleted
+   * @param start_time A start timestamp in milliseconds
+   * @param end_time An end timestamp in millseconds
+   * @return The number of annotations deleted
+   * @throws IllegalArgumentException if the timestamps are invalid
+   * @since 2.1
+   */
+  public Deferred<Integer> deleteRange(final byte[] tsuid, final long start_time, final long end_time) {
+    if (end_time < 1) {
+      throw new IllegalArgumentException("The end timestamp has not been set");
+    }
+    if (end_time < start_time) {
+      throw new IllegalArgumentException(
+          "The end timestamp cannot be less than the start timestamp");
+    }
+
+    return tsdb_store.deleteAnnotationRange(tsuid, start_time, end_time, this);
+  }
+
+  /**
+   * Scans through the global annotation storage rows and returns a list of
+   * parsed annotation objects. If no annotations were found for the given
+   * timespan, the resulting list will be empty.
+   * @param start_time Start time to scan from. May be 0
+   * @param end_time End time to scan to. Must be greater than 0
+   * @return A list with detected annotations. May be empty.
+   * @throws IllegalArgumentException if the end timestamp has not been set or
+   * the end time is less than the start time
+   */
+  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time) {
+    if (end_time < 1) {
+      throw new IllegalArgumentException("The end timestamp has not been set");
+    }
+    if (end_time < start_time) {
+      throw new IllegalArgumentException(
+          "The end timestamp cannot be less than the start timestamp");
+    }
+
+    return tsdb_store.getGlobalAnnotations(start_time, end_time);
+  }
+
+  /**
    * Attempts to fetch a global or local annotation from storage
    * @param tsuid The TSUID as a string. May be empty if retrieving a global
    * annotation

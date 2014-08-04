@@ -275,13 +275,13 @@ final class AnnotationRpc implements HttpRpc {
           delete_request.tsuids.size() + 1 : 1;
       List<Deferred<Integer>> deletes = new ArrayList<Deferred<Integer>>(pre_allocate);
       if (delete_request.global) {
-        deletes.add(Annotation.deleteRange(tsdb, null, 
-            delete_request.getStartTime(), delete_request.getEndTime()));
+        deletes.add(tsdb.deleteRange(null,
+                delete_request.getStartTime(), delete_request.getEndTime()));
       }
       if (delete_request.tsuids != null) {
         for (String tsuid : delete_request.tsuids) {
-          deletes.add(Annotation.deleteRange(tsdb, UniqueId.stringToUid(tsuid), 
-              delete_request.getStartTime(), delete_request.getEndTime()));
+          deletes.add(tsdb.deleteRange(UniqueId.stringToUid(tsuid),
+                  delete_request.getStartTime(), delete_request.getEndTime()));
         }
       }
       

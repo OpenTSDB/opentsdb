@@ -39,7 +39,7 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.meta.Annotation;
+import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -389,7 +389,7 @@ final class Fsck {
           // TODO - create a list of TSDB objects and fsck them. Maybe a plugin
           // or interface.
           // TODO - perform validation of the annotation
-          if (qual[0] == Annotation.ANNOTATION_QUAL_PREFIX) {
+          if (qual[0] == HBaseStore.ANNOTATION_QUAL_PREFIX) {
             annotations.getAndIncrement();
             continue;
           }

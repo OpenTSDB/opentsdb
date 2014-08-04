@@ -14,12 +14,12 @@ package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
-import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
@@ -989,6 +989,16 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time, TSDB tsdb) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

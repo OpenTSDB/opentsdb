@@ -39,10 +39,8 @@ import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.TSUIDQuery;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.JSON;
 
 /**
  * Handles queries for timeseries datapoints. Each request is parsed into a
@@ -146,8 +144,8 @@ final class QueryRpc implements HttpRpc {
     List<Annotation> globals = null;
     if (!data_query.getNoAnnotations() && data_query.getGlobalAnnotations()) {
       try {
-        globals = Annotation.getGlobalAnnotations(tsdb, 
-            data_query.startTime() / 1000, data_query.endTime() / 1000)
+        globals = tsdb.getGlobalAnnotations(
+                data_query.startTime() / 1000, data_query.endTime() / 1000)
             .joinUninterruptibly();
       } catch (Exception e) {
         throw new RuntimeException("Shouldn't be here", e);

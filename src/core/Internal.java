@@ -93,8 +93,8 @@ public final class Internal {
   }
 
   /** Extracts the timestamp from a row key.  */
-  public static long baseTime(final TSDB tsdb, final byte[] row) {
-    return Bytes.getUnsignedInt(row, tsdb.metrics.width());
+  public static long baseTime(final byte[] row) {
+    return Bytes.getUnsignedInt(row, Const.METRICS_WIDTH);
   }
 
   /** @see Tags#getTagsAsync(TSDB, byte[])  */
@@ -414,7 +414,7 @@ public final class Internal {
       }
       final Cell cell = cells.get(cells.size() - 1);
       final IncomingDataPoint dp = new IncomingDataPoint();
-      final long base_time = baseTime(tsdb, row.get(0).key());
+      final long base_time = baseTime(row.get(0).key());
       dp.setTimestamp(getTimestampFromQualifier(cell.qualifier(), base_time));
       dp.setValue(cell.parseValue().toString());
       return dp;

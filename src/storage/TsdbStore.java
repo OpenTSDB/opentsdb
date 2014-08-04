@@ -14,6 +14,7 @@ package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -109,4 +110,8 @@ public interface TsdbStore {
   Deferred<Object> delete(Annotation annotation);
 
   Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation);
+
+  Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time);
+
+  Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time, TSDB tsdb);
 }

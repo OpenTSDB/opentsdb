@@ -163,28 +163,28 @@ public final class TestAnnotation {
   
   @Test
   public void getGlobalAnnotations() throws Exception {
-    List<Annotation> notes = Annotation.getGlobalAnnotations(tsdb, 1328140000, 
-        1328141000).joinUninterruptibly();
+    List<Annotation> notes = tsdb.getGlobalAnnotations(1328140000,
+            1328141000).joinUninterruptibly();
     assertNotNull(notes);
     assertEquals(2, notes.size());
   }
   
   @Test
   public void getGlobalAnnotationsEmpty() throws Exception {
-    List<Annotation> notes = Annotation.getGlobalAnnotations(tsdb, 1328150000, 
-        1328160000).joinUninterruptibly();
+    List<Annotation> notes = tsdb.getGlobalAnnotations(1328150000,
+            1328160000).joinUninterruptibly();
     assertNotNull(notes);
     assertEquals(0, notes.size());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getGlobalAnnotationsZeroEndtime() throws Exception {
-    Annotation.getGlobalAnnotations(tsdb, 0, 0).joinUninterruptibly();
+    tsdb.getGlobalAnnotations(0, 0).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getGlobalAnnotationsEndLessThanStart() throws Exception {
-    Annotation.getGlobalAnnotations(tsdb, 1328150000, 1328140000).joinUninterruptibly();
+    tsdb.getGlobalAnnotations(1328150000, 1328140000).joinUninterruptibly();
   }
   
   @Test
@@ -331,9 +331,9 @@ public final class TestAnnotation {
   
   @Test
   public void deleteRange() throws Exception {
-    final int count = Annotation.deleteRange(tsdb, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L, 
-        1388450562000L).joinUninterruptibly();
+    final int count = tsdb.deleteRange(
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
+            1388450562000L).joinUninterruptibly();
     assertEquals(1, count);
     assertNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{1, 0x0A, 0x02}));
@@ -347,9 +347,9 @@ public final class TestAnnotation {
   
   @Test
   public void deleteRangeNone() throws Exception {
-    final int count = Annotation.deleteRange(tsdb, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L, 
-        1388450561000L).joinUninterruptibly();
+    final int count = tsdb.deleteRange(
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
+            1388450561000L).joinUninterruptibly();
     assertEquals(0, count);
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{1, 0x0A, 0x02}));
@@ -363,9 +363,9 @@ public final class TestAnnotation {
   
   @Test
   public void deleteRangeMultiple() throws Exception {
-    final int count = Annotation.deleteRange(tsdb, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L, 
-        1388450568000L).joinUninterruptibly();
+    final int count = tsdb.deleteRange(
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
+            1388450568000L).joinUninterruptibly();
     assertEquals(2, count);
     assertNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{1, 0x0A, 0x02}));
@@ -379,8 +379,8 @@ public final class TestAnnotation {
   
   @Test
   public void deleteRangeGlobal() throws Exception {
-    final int count = Annotation.deleteRange(tsdb, null, 1328140799000L, 
-        1328140800000L).joinUninterruptibly();
+    final int count = tsdb.deleteRange(null, 1328140799000L,
+            1328140800000L).joinUninterruptibly();
     assertEquals(1, count);
     assertNull(tsdb_store.getColumn(global_row_key,
       new byte[]{1, 0, 0}));
@@ -390,8 +390,8 @@ public final class TestAnnotation {
   
   @Test
   public void deleteRangeGlobalNone() throws Exception {
-    final int count = Annotation.deleteRange(tsdb, null, 1328140798000L, 
-        1328140799000L).joinUninterruptibly();
+    final int count = tsdb.deleteRange(null, 1328140798000L,
+            1328140799000L).joinUninterruptibly();
     assertEquals(0, count);
     assertNotNull(tsdb_store.getColumn(global_row_key,
       new byte[]{1, 0, 0}));
@@ -401,8 +401,8 @@ public final class TestAnnotation {
   
   @Test
   public void deleteRangeGlobalMultiple() throws Exception {
-    final int count = Annotation.deleteRange(tsdb, null, 1328140799000L, 
-        1328140900000L).joinUninterruptibly();
+    final int count = tsdb.deleteRange(null, 1328140799000L,
+            1328140900000L).joinUninterruptibly();
     assertEquals(2, count);
     assertNull(tsdb_store.getColumn(global_row_key,
       new byte[]{1, 0, 0}));
@@ -412,12 +412,12 @@ public final class TestAnnotation {
   
   @Test (expected = IllegalArgumentException.class)
   public void deleteRangeEmptyEnd() throws Exception {
-    Annotation.deleteRange(tsdb, null, 1328140799000L, 0).joinUninterruptibly();
+    tsdb.deleteRange(null, 1328140799000L, 0).joinUninterruptibly();
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void deleteRangeEndLessThanStart() throws Exception {
-    Annotation.deleteRange(tsdb, null, 1328140799000L, 1328140798000L)
+    tsdb.deleteRange(null, 1328140799000L, 1328140798000L)
       .joinUninterruptibly();
   }
 }
