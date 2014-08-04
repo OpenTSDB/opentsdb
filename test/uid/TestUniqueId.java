@@ -184,28 +184,36 @@ public final class TestUniqueId {
   public void getOrCreateIdWithExistingId() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
-    final byte[] id = { 0, 'a', 0x42 };
-    final byte[] byte_name = { 'f', 'o', 'o' };
-    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
+    final byte[] id = { 0, 0, 1};
+    //client.allocateUID(byte_name, id, UniqueIdType.METRIC);
+    uid.createId("foo").joinUninterruptibly();
 
-    assertArrayEquals(id, uid.createId("foo").joinUninterruptibly());
+    try {
+      uid.createId("foo").joinUninterruptibly();
+    } catch(Exception e) {
+      assertEquals("A UID with name foo already exists", e.getMessage());
+    }
     // Should be a cache hit ...
     assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     assertEquals(1, uid.cacheHits());
-    assertEquals(1, uid.cacheMisses());
     assertEquals(2, uid.cacheSize());
   }
 
   @Test  // Test the creation of an ID with no problem.
   public void getOrCreateIdAssignIdWithSuccess() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    final byte[] id = { 0, 0, 5 };
+    // Due to the implementation in the memoryStore used for testing the first
+    // call will always return 1
+    final byte[] id = { 0, 0, 1 };
 
     assertArrayEquals(id, uid.createId("foo").joinUninterruptibly());
     // Should be a cache hit since we created that entry.
     assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     // Should be a cache hit too for the same reason.
     assertEquals("foo", uid.getName(id));
+
+    assertEquals(2, uid.cacheHits());
+    assertEquals(0, uid.cacheMisses());
   }
 
   @PrepareForTest({HBaseStore.class, Scanner.class})
