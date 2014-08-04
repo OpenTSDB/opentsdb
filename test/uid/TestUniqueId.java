@@ -183,11 +183,10 @@ public final class TestUniqueId {
   }
 
   @Test
-  public void getOrCreateIdWithExistingId() throws Exception {
+  public void createIdWithExistingId() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final byte[] id = { 0, 0, 1};
-    //client.allocateUID(byte_name, id, UniqueIdType.METRIC);
     uid.createId("foo").joinUninterruptibly();
 
     try {
@@ -202,7 +201,7 @@ public final class TestUniqueId {
   }
 
   @Test  // Test the creation of an ID with no problem.
-  public void getOrCreateIdAssignIdWithSuccess() throws Exception {
+  public void createIdIdWithSuccess() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
     // Due to the implementation in the memoryStore used for testing the first
     // call will always return 1
