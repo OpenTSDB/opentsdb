@@ -12,9 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +27,9 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import org.hbase.async.*;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
@@ -38,6 +38,8 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import static org.junit.Assert.*;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -105,12 +107,19 @@ public final class TestUniqueIdRpc {
   @Test
   public void assignQsMetricSingleBad() throws Exception {
     setupAssign();
-    HttpQuery query = NettyMocks.getQuery(tsdb, 
+    HttpQuery query = NettyMocks.getQuery(tsdb,
         "/api/uid/assign?metric=sys.cpu.0");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"metric\":{},\"metric_errors\":{\"sys.cpu.0\":\"Name already exists with UID: 000001\"}}",
-            query.response().getContent().toString(Charset.forName("UTF-8")));
+
+    JsonNode jsonNode = RpcJSONUtils.parseResponse(query.response());
+
+    String s = jsonNode.findValue("metric_errors")
+                       .findValue("sys.cpu.0")
+                       .asText();
+
+    assertEquals(s, "Name already exists with UID: 000001");
+    assertFalse(jsonNode.findValue("metric").fieldNames().hasNext());
   }
   
   @Test
