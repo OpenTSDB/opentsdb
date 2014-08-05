@@ -874,7 +874,7 @@ public final class TestTsdbQuery {
     note.setTSUID("000001000001000001");
     note.setStartTime(1356998490);
     note.setDescription("Hello World!");
-    note.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly();
     
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -903,7 +903,7 @@ public final class TestTsdbQuery {
     note.setTSUID("000001000001000001");
     note.setStartTime(1356998490);
     note.setDescription("Hello World!");
-    note.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly();
 
     final Field compact = Config.class.getDeclaredField("enable_compactions");
     compact.setAccessible(true);
@@ -955,7 +955,7 @@ public final class TestTsdbQuery {
     note.setTSUID("000001000001000001");
     note.setStartTime(1357002090);
     note.setDescription("Hello World!");
-    note.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly();
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -989,7 +989,7 @@ public final class TestTsdbQuery {
     note.setTSUID("000001000001000001");
     note.setStartTime(1357002090);
     note.setDescription("Hello World!");
-    note.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly();
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
@@ -1039,7 +1039,7 @@ public final class TestTsdbQuery {
     note.setTSUID("000001000001000001");
     note.setStartTime(1357002090);
     note.setDescription("Hello World!");
-    note.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly();
 
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);

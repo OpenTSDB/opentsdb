@@ -66,7 +66,7 @@ final class AnnotationRpc implements HttpRpc {
     if (method == HttpMethod.GET) {
       try {
         final Annotation stored_annotation = 
-          Annotation.getAnnotation(tsdb, note.getTSUID(), note.getStartTime())
+          tsdb.getAnnotation(note.getTSUID(), note.getStartTime())
             .joinUninterruptibly();
         if (stored_annotation == null) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
@@ -96,15 +96,15 @@ final class AnnotationRpc implements HttpRpc {
                 "This may be caused by another process modifying storage data");
           }
           
-          return Annotation.getAnnotation(tsdb, note.getTSUID(), 
-              note.getStartTime());
+          return tsdb.getAnnotation(note.getTSUID(),
+                  note.getStartTime());
         }
         
       }
       
       try {
-        final Deferred<Annotation> process_meta = note.syncToStorage(tsdb, 
-            method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+        final Deferred<Annotation> process_meta = tsdb.syncToStorage(
+                note, method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
         final Annotation updated_meta = process_meta.joinUninterruptibly();
         tsdb.indexAnnotation(note);
         query.sendReply(query.serializer().formatAnnotationV1(updated_meta));
@@ -119,7 +119,7 @@ final class AnnotationRpc implements HttpRpc {
     } else if (method == HttpMethod.DELETE) {
 
       try {
-        note.delete(tsdb).joinUninterruptibly();
+        tsdb.delete(note).joinUninterruptibly();
         tsdb.deleteAnnotation(note);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException(
@@ -196,8 +196,8 @@ final class AnnotationRpc implements HttpRpc {
               + note);
         }
         
-        return Annotation.getAnnotation(tsdb, note.getTSUID(), 
-            note.getStartTime());
+        return tsdb.getAnnotation(note.getTSUID(),
+                note.getStartTime());
       }
     }
     
@@ -215,7 +215,7 @@ final class AnnotationRpc implements HttpRpc {
     for (Annotation note : notes) {
       try {
         Deferred<Annotation> deferred = 
-            note.syncToStorage(tsdb, method == HttpMethod.PUT)
+            tsdb.syncToStorage(note, method == HttpMethod.PUT)
             .addCallbackDeferring(new SyncCB(note));
         Deferred<Annotation> indexer = 
             deferred.addCallbackDeferring(new IndexCB());
@@ -275,13 +275,13 @@ final class AnnotationRpc implements HttpRpc {
           delete_request.tsuids.size() + 1 : 1;
       List<Deferred<Integer>> deletes = new ArrayList<Deferred<Integer>>(pre_allocate);
       if (delete_request.global) {
-        deletes.add(Annotation.deleteRange(tsdb, null, 
-            delete_request.getStartTime(), delete_request.getEndTime()));
+        deletes.add(tsdb.deleteRange(null,
+                delete_request.getStartTime(), delete_request.getEndTime()));
       }
       if (delete_request.tsuids != null) {
         for (String tsuid : delete_request.tsuids) {
-          deletes.add(Annotation.deleteRange(tsdb, UniqueId.stringToUid(tsuid), 
-              delete_request.getStartTime(), delete_request.getEndTime()));
+          deletes.add(tsdb.deleteRange(UniqueId.stringToUid(tsuid),
+                  delete_request.getStartTime(), delete_request.getEndTime()));
         }
       }
       

@@ -13,10 +13,12 @@
 package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.uid.UniqueId;
+
 import org.hbase.async.*;
 
 
@@ -30,6 +32,15 @@ import static net.opentsdb.uid.UniqueId.UniqueIdType;
  * Another requirement is tha the database connection has to be asynchronous.
  */
 public interface TsdbStore {
+
+  /**
+   * Attempts to fetch a global or local annotation from storage
+   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
+   * annotation
+   * @param start_time The start time as a Unix epoch timestamp
+   * @return A valid annotation object if found, null if not
+   */
+  Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time);
 
   public Deferred<Long> atomicIncrement(AtomicIncrementRequest air);
 
@@ -87,4 +98,20 @@ public interface TsdbStore {
                    List<Annotation> annotations);
 
   void scheduleForCompaction(byte[] row);
+
+  /**
+   * Attempts to mark an Annotation object for deletion. Note that if the
+   * annoation does not exist in storage, this delete call will not throw an
+   * error.
+   *
+   * @param annotation@return A meaningless Deferred for the caller to wait on until the call is
+   * complete. The value may be null.
+   */
+  Deferred<Object> delete(Annotation annotation);
+
+  Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation);
+
+  Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time);
+
+  Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time, TSDB tsdb);
 }

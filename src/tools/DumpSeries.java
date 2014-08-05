@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
+import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.storage.TsdbStore;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
@@ -29,7 +30,6 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.Config;
 
 /**
@@ -102,7 +102,7 @@ final class DumpSeries {
         for (final ArrayList<KeyValue> row : rows) {
           buf.setLength(0);
           final byte[] key = row.get(0).key();
-          final long base_time = Internal.baseTime(tsdb, key);
+          final long base_time = Internal.baseTime(key);
           final String metric = Internal.metricName(tsdb, key);
           // Print the row key.
           if (!importformat) {
@@ -180,7 +180,7 @@ final class DumpSeries {
     if (q_len % 2 != 0) {
       if (!importformat) {
         // custom data object, not a data point
-        if (kv.qualifier()[0] == Annotation.PREFIX()) {
+        if (kv.qualifier()[0] == HBaseStore.ANNOTATION_QUAL_PREFIX) {
           appendAnnotation(buf, kv, base_time);
         } else {
           buf.append(Arrays.toString(value))

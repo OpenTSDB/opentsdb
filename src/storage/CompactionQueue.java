@@ -28,7 +28,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 import org.hbase.async.*;
 import org.slf4j.Logger;
@@ -414,7 +413,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         final int len = qual.length;
         if ((len & 1) != 0) {
           // process annotations and other extended formats
-          if (qual[0] == Annotation.PREFIX()) {
+          if (qual[0] == HBaseStore.ANNOTATION_QUAL_PREFIX) {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
           } else {
             LOG.warn("Ignoring unexpected extended format type " + qual[0]);

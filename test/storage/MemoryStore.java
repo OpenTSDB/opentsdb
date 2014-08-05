@@ -19,7 +19,9 @@ import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.StringCoder;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -93,6 +95,17 @@ public class MemoryStore implements TsdbStore {
 
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
+  }
+
+  /**
+   * Attempts to fetch a global or local annotation from storage
+   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
+   * annotation
+   * @param start_time The start time as a Unix epoch timestamp
+   * @return A valid annotation object if found, null if not
+   */
+  public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long start_time) {
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   /**
@@ -959,6 +972,34 @@ public class MemoryStore implements TsdbStore {
         }
       }
     }
+  }
+
+  /**
+   * Attempts to mark an Annotation object for deletion. Note that if the
+   * annoation does not exist in storage, this delete call will not throw an
+   * error.
+   *
+   * @param annotation@return A meaningless Deferred for the caller to wait on until the call is
+   * complete. The value may be null.
+   */
+  @Override
+  public Deferred<Object> delete(Annotation annotation) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time, TSDB tsdb) {
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   /**
