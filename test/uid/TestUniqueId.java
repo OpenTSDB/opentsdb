@@ -23,7 +23,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.HBaseStore;
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;

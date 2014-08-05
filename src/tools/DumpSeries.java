@@ -18,7 +18,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
-import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.storage.TsdbStore;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
@@ -30,6 +29,7 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.utils.Config;
 
 /**

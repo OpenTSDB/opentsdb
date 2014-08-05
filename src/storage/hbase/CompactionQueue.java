@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.storage;
+package net.opentsdb.storage.hbase;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,6 +28,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 import org.hbase.async.*;
 import org.slf4j.Logger;
