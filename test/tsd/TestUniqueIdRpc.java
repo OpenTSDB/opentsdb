@@ -17,9 +17,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TSQuery;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -28,10 +30,7 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.RowLock;
-import org.hbase.async.Scanner;
+import org.hbase.async.*;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
@@ -84,7 +83,6 @@ public final class TestUniqueIdRpc {
   
   @Test
   public void assignQsMetricSingle() throws Exception {
-    setupAssign();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/assign?metric=sys.cpu.0");
     this.rpc.execute(tsdb, query);
@@ -95,13 +93,12 @@ public final class TestUniqueIdRpc {
   
   @Test
   public void assignQsMetricDouble() throws Exception {
-    setupAssign();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/uid/assign?metric=sys.cpu.0,sys.cpu.2");
+        "/api/uid/assign?metric=sys.cpu.0,sys.cpu.1");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals(
-        "{\"metric\":{\"sys.cpu.0\":\"000001\",\"sys.cpu.2\":\"000003\"}}", 
+        "{\"metric\":{\"sys.cpu.0\":\"000001\",\"sys.cpu.1\":\"000002\"}}",
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
@@ -109,31 +106,29 @@ public final class TestUniqueIdRpc {
   public void assignQsMetricSingleBad() throws Exception {
     setupAssign();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
-        "/api/uid/assign?metric=sys.cpu.1");
+        "/api/uid/assign?metric=sys.cpu.0");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"metric_errors\":{\"sys.cpu.1\":\"Name already exists with " 
-        + "UID: 000002\"},\"metric\":{}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    assertEquals("{\"metric\":{},\"metric_errors\":{\"sys.cpu.0\":\"Name already exists with UID: 000001\"}}",
+            query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
   @Test
   public void assignQsMetric2Good1Bad() throws Exception {
-    setupAssign();
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/assign?metric=sys.cpu.0,sys.cpu.1,sys.cpu.2");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"metric_errors\":{\"sys.cpu.1\":\"Name already exists with "
-        + "UID: 000002\"},\"metric\":{\"sys.cpu.0\":\"000001\",\"sys.cpu.2\":"
-        + "\"000003\"}}", 
+    assertEquals("{\"metric\":{\"sys.cpu.1\":\"000002\",\"sys.cpu.2\":" +
+                    "\"000003\"},\"metric_errors\":{\"sys.cpu.0\":" +
+                    "\"Name already exists with UID: 000001\"}}",
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
   @Test
   public void assignQsTagkSingle() throws Exception {
-    setupAssign();
-    HttpQuery query = NettyMocks.getQuery(tsdb, 
+    HttpQuery query = NettyMocks.getQuery(tsdb,
         "/api/uid/assign?tagk=host");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
@@ -143,43 +138,43 @@ public final class TestUniqueIdRpc {
   
   @Test
   public void assignQsTagkDouble() throws Exception {
-    setupAssign();
-    HttpQuery query = NettyMocks.getQuery(tsdb, 
+    HttpQuery query = NettyMocks.getQuery(tsdb,
         "/api/uid/assign?tagk=host,fqdn");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals(
-        "{\"tagk\":{\"fqdn\":\"000003\",\"host\":\"000001\"}}", 
+        "{\"tagk\":{\"fqdn\":\"000002\",\"host\":\"000001\"}}",
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
   @Test
   public void assignQsTagkSingleBad() throws Exception {
-    setupAssign();
+
+    tsdb_store.allocateUID("datacenter", new byte[] { 0, 0, 1 }, UniqueIdType.TAGK);
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/assign?tagk=datacenter");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"tagk_errors\":{\"datacenter\":\"Name already exists with " 
-        + "UID: 000002\"},\"tagk\":{}}", 
+    assertEquals("{\"tagk\":{},\"tagk_errors\":{\"datacenter\":\"Name already" +
+                    " exists with UID: 000001\"}}",
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
   @Test
-  public void assignQsTagk2Good1Bad() throws Exception {
-    setupAssign();
+    public void assignQsTagk2Good1Bad() throws Exception {
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/assign?tagk=host,datacenter,fqdn");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"tagk_errors\":{\"datacenter\":\"Name already exists with "
-        + "UID: 000002\"},\"tagk\":{\"fqdn\":\"000003\",\"host\":\"000001\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    assertEquals("{\"tagk\":{\"datacenter\":\"000002\",\"fqdn\":\"000003\"}," +
+                    "\"tagk_errors\":{\"host\":\"Name already exists with UID:" +
+                    " 000001\"}}",
+            query.response().getContent().toString(Charset.forName("UTF-8")));
   }
     
   @Test
   public void assignQsTagvSingle() throws Exception {
-    setupAssign();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/assign?tagv=localhost");
     this.rpc.execute(tsdb, query);
@@ -190,39 +185,39 @@ public final class TestUniqueIdRpc {
   
   @Test
   public void assignQsTagvDouble() throws Exception {
-    setupAssign();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/assign?tagv=localhost,foo");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals(
-        "{\"tagv\":{\"foo\":\"000003\",\"localhost\":\"000001\"}}", 
+        "{\"tagv\":{\"foo\":\"000002\",\"localhost\":\"000001\"}}",
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
   @Test
   public void assignQsTagvSingleBad() throws Exception {
-    setupAssign();
+    tsdb_store.allocateUID("myserver", new byte[] {0, 0, 1}, UniqueIdType.TAGV);
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/assign?tagv=myserver");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"tagv\":{},\"tagv_errors\":{\"myserver\":\"Name already "
-        + "exists with UID: 000002\"}}", 
+    assertEquals("{\"tagv_errors\":{\"myserver\":\"Name already exists with" +
+                    " UID: 000001\"},\"tagv\":{}}",
         query.response().getContent().toString(Charset.forName("UTF-8")));
   }
   
   @Test
   public void assignQsTagv2Good1Bad() throws Exception {
-    setupAssign();
-    HttpQuery query = NettyMocks.getQuery(tsdb, 
+    tsdb_store.allocateUID("localhost", new byte[] {0, 0, 1}, UniqueIdType.TAGV);
+    HttpQuery query = NettyMocks.getQuery(tsdb,
         "/api/uid/assign?tagv=localhost,myserver,foo");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    assertEquals("{\"tagv\":{\"foo\":\"000003\",\"localhost\":\"000001\"},"
-        + "\"tagv_errors\":{\"myserver\":\"Name already exists with "
-        + "UID: 000002\"}}", 
-        query.response().getContent().toString(Charset.forName("UTF-8")));
+    assertEquals("{\"tagv_errors\":{\"localhost\":\"Name already exists with" +
+            " UID: 000001\"},\"tagv\":{\"foo\":\"000003\",\"myserver\":" +
+            "\"000002\"}}",
+            query.response().getContent().toString(Charset.forName("UTF-8")));
+
   }
   
   @Test
@@ -230,7 +225,7 @@ public final class TestUniqueIdRpc {
     setupAssign();
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/uid/assign?tagv=localhost,foo" + 
-        "&metric=sys.cpu.0,sys.cpu.2" +
+        "&metric=sys.cpu.1,sys.cpu.2" +
         "&tagk=host,fqdn");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
@@ -275,7 +270,6 @@ public final class TestUniqueIdRpc {
 
   @Test
   public void assignPostMetricSingle() throws Exception {
-    setupAssign();
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/assign", 
         "{\"metric\":[\"sys.cpu.0\"]}");
     this.rpc.execute(tsdb, query);
@@ -320,7 +314,6 @@ public final class TestUniqueIdRpc {
 
   @Test
   public void assignPostTagkSingle() throws Exception {
-    setupAssign();
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/assign", 
         "{\"tagk\":[\"host\"]}");
     this.rpc.execute(tsdb, query);
@@ -364,7 +357,6 @@ public final class TestUniqueIdRpc {
 
   @Test
   public void assignPostTagvSingle() throws Exception {
-    setupAssign();
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/assign", 
         "{\"tagv\":[\"localhost\"]}");
     this.rpc.execute(tsdb, query);
@@ -412,7 +404,7 @@ public final class TestUniqueIdRpc {
     setupAssign();
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/assign", 
         "{\"tagv\":[\"localhost\",\"foo\"],"
-        + "\"metric\":[\"sys.cpu.0\",\"sys.cpu.2\"],"
+        + "\"metric\":[\"sys.cpu.1\",\"sys.cpu.2\"],"
         + "\"tagk\":[\"host\",\"fqdn\"]}");
     this.rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
@@ -873,15 +865,7 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupAssign() throws Exception {
-    // setup UIDMeta objects for testing
-    UIDMeta metric = new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 1}, "sys.cpu.0");
-    metric.setDisplayName("System CPU");
-
-    UIDMeta tagk = new UIDMeta(UniqueIdType.TAGK, new byte[] {0, 0, 1}, "host");
-    tagk.setDisplayName("Server Name");
-
-    UIDMeta tagv = new UIDMeta(UniqueIdType.TAGV, new byte[] {0, 0, 1}, "web01");
-    tagv.setDisplayName("Web Server 1");
+    tsdb_store.allocateUID("sys.cpu.0", new byte[] { 0, 0, 1 }, UniqueIdType.METRIC);
   }
   
   /**
