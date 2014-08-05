@@ -220,13 +220,13 @@ public final class TestUniqueId {
 
   @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
-  public void suggestWithNoMatch() {
+  public void suggestWithNoMatch() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
 
     // Watch this! ______,^   I'm writing C++ in Java!
 
-    final List<String> suggestions = uid.suggest("nomatch");
+    final List<String> suggestions = uid.suggest("nomatch").joinUninterruptibly();
     assertEquals(0, suggestions.size());  // No results.
 
     //verify(fake_scanner).setStartKey("nomatch".getBytes());
@@ -258,7 +258,7 @@ public final class TestUniqueId {
     //  .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
     // Watch this! ______,^   I'm writing C++ in Java!
 
-    final List<String> suggestions = uid.suggest("foo");
+    final List<String> suggestions = uid.suggest("foo").joinUninterruptibly();
     final ArrayList<String> expected = new ArrayList<String>(2);
     expected.add("foo.bar");
     expected.add("foo.baz");

@@ -803,8 +803,8 @@ public class TSDB {
    * @param search A prefix to search.
    * @since 2.0
    */
-  public List<String> suggest(final UniqueIdType type,
-                              final String search) {
+  public Deferred<List<String>> suggest(final UniqueIdType type,
+                                        final String search) {
     UniqueId uniqueId = uniqueIdInstanceForType(type);
     return uniqueId.suggest(search);
   }
@@ -817,9 +817,9 @@ public class TSDB {
    * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggest(final UniqueIdType type,
-                              final String search,
-                              final int max_results) {
+  public Deferred<List<String>> suggest(final UniqueIdType type,
+                                        final String search,
+                                        final int max_results) {
     UniqueId uniqueId = uniqueIdInstanceForType(type);
     return uniqueId.suggest(search, max_results);
   }
