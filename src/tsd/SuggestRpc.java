@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 
+import com.google.common.base.Throwables;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
@@ -83,8 +84,15 @@ final class SuggestRpc implements HttpRpc {
       throw new BadRequestException("Invalid 'type' parameter:" + type, e);
     }
 
-    List<String> suggestions = max_results > 0 ? tsdb.suggest(utype, q,
-            max_results) : tsdb.suggest(utype, q);
+    final List<String> suggestions;
+    try {
+      if (max_results > 0)
+        suggestions = tsdb.suggest(utype, q, max_results).joinUninterruptibly();
+      else
+        suggestions = tsdb.suggest(utype, q).joinUninterruptibly();
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
     
     if (query.apiVersion() > 0) {
       query.sendReply(query.serializer().formatSuggestV1(suggestions));

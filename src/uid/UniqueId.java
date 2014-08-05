@@ -26,7 +26,6 @@ import javax.xml.bind.DatatypeConverter;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -180,7 +179,7 @@ public class UniqueId {
    * Finds the name associated with a given ID.
    *
    * @param id The ID associated with that name.
-   * @see #getId(String)
+   * @see #getIdAsync(String)
    * @see #createId(String)
    * @throws NoSuchUniqueId if the given ID is not assigned.
    * @throws HBaseException if there is a problem communicating with HBase.
@@ -324,9 +323,6 @@ public class UniqueId {
 
   /**
    * Attempts to find suggestions of names given a search term.
-   * <p>
-   * <strong>This method is blocking.</strong>  Its use within OpenTSDB itself
-   * is discouraged, please use {@link #suggestAsync} instead.
    * @param search The search term (possibly empty).
    * @return A list of known valid names that have UIDs that sort of match
    * the search term.  If the search term is empty, returns the first few
@@ -334,37 +330,8 @@ public class UniqueId {
    * @throws HBaseException if there was a problem getting suggestions from
    * HBase.
    */
-  public List<String> suggest(final String search) throws HBaseException {
+  public Deferred<List<String>> suggest(final String search) throws HBaseException {
     return suggest(search, MAX_SUGGESTIONS);
-  }
-      
-  /**
-   * Attempts to find suggestions of names given a search term.
-   * @param search The search term (possibly empty).
-   * @param max_results The number of results to return. Must be 1 or greater
-   * @return A list of known valid names that have UIDs that sort of match
-   * the search term.  If the search term is empty, returns the first few
-   * terms.
-   * @throws HBaseException if there was a problem getting suggestions from
-   * HBase.
-   * @throws IllegalArgumentException if the count was less than 1
-   * @since 2.0
-   */
-  public List<String> suggest(final String search, final int max_results) 
-    throws HBaseException {
-    if (max_results < 1) {
-      throw new IllegalArgumentException("Count must be greater than 0");
-    }
-    try {
-      return suggestAsync(search, max_results).joinUninterruptibly();
-    } catch (HBaseException e) {
-      throw e;
-    } catch (Exception e) {  // Should never happen.
-      final String msg = "Unexpected exception caught by "
-        + this + ".suggest(" + search + ')';
-      LOG.error(msg, e);
-      throw new RuntimeException(msg, e);  // Should never happen.
-    }
   }
 
   /**
@@ -377,8 +344,9 @@ public class UniqueId {
    * HBase.
    * @since 1.1
    */
-  public Deferred<List<String>> suggestAsync(final String search, 
-      final int max_results) {
+  public Deferred<List<String>> suggest(final String search,
+                                        final int max_results) {
+    checkArgument(max_results > 0, "Count must be greater than 0 but was %s", max_results);
     return new SuggestCB(search, max_results).search();
   }
 
@@ -386,8 +354,8 @@ public class UniqueId {
    * Helper callback to asynchronously scan TsdbStore for suggestions.
    */
   private final class SuggestCB
-    implements Callback<Object, ArrayList<ArrayList<KeyValue>>> {
-    private final LinkedList<String> suggestions = new LinkedList<String>();
+    implements Callback<Deferred<List<String>>, ArrayList<ArrayList<KeyValue>>> {
+    private final List<String> suggestions = new LinkedList<String>();
     private final Scanner scanner;
     private final int max_results;
 
@@ -396,20 +364,20 @@ public class UniqueId {
       this.scanner = getSuggestScanner(tsdb_store, table, search, kind, max_results);
     }
 
-    @SuppressWarnings("unchecked")
     Deferred<List<String>> search() {
-      return (Deferred) scanner.nextRows().addCallback(this);
+      return scanner.nextRows().addCallbackDeferring(this);
     }
 
-    public Object call(final ArrayList<ArrayList<KeyValue>> rows) {
+    @Override
+    public Deferred<List<String>> call(final ArrayList<ArrayList<KeyValue>> rows) {
       if (rows == null) {  // We're done scanning.
-        return suggestions;
+        return Deferred.fromResult(suggestions);
       }
       
       for (final ArrayList<KeyValue> row : rows) {
         if (row.size() != 1) {
-          LOG.error("WTF shouldn't happen!  Scanner " + scanner + " returned"
-                    + " a row that doesn't have exactly 1 KeyValue: " + row);
+          LOG.error("WTF shouldn't happen!  Scanner {} returned a row that " +
+                  "doesn't have exactly 1 KeyValue: {}", scanner, row);
           if (row.isEmpty()) {
             continue;
           }
@@ -427,7 +395,7 @@ public class UniqueId {
         }
         suggestions.add(name);
         if ((short) suggestions.size() >= max_results) {  // We have enough.
-          return suggestions;
+          return Deferred.fromResult(suggestions);
         }
         row.clear();  // free()
       }
