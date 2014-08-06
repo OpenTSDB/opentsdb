@@ -13,6 +13,7 @@
 package net.opentsdb.core;
 
 import java.util.Arrays;
+import java.util.Map;
 
 import org.hbase.async.Bytes;
 
@@ -39,6 +40,31 @@ final public class RowKey {
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
     }
+  }
+
+  public static byte[] metric(final byte[] row) {
+    return Arrays.copyOfRange(row, 0, Const.METRICS_WIDTH);
+  }
+
+  public static Map<byte[], byte[]> tags(final byte[] row) {
+    final short name_width = Const.TAG_NAME_WIDTH;
+    final short value_width = Const.TAG_VALUE_WIDTH;
+    final short tag_bytes = (short) (name_width + value_width);
+    final short metric_ts_bytes = Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
+
+    final Map<byte[], byte[]> tags = new Bytes.ByteMap<byte[]>();
+
+    for (short pos = metric_ts_bytes; pos < row.length; pos += tag_bytes) {
+      final byte[] tmp_name = new byte[name_width];
+      final byte[] tmp_value = new byte[value_width];
+
+      System.arraycopy(row, pos, tmp_name, 0, name_width);
+      System.arraycopy(row, pos + name_width, tmp_value, 0, value_width);
+
+      tags.put(tmp_name, tmp_value);
+    }
+
+    return tags;
   }
 
   /**
