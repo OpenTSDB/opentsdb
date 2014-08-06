@@ -597,7 +597,7 @@ public class MemoryStore implements TsdbStore {
   public Deferred<byte[]> allocateUID(String name, byte[] uid, UniqueIdType type) {
 
     uid_max.get(type).set(Math.max(uid_max.get(type).get(),
-            UniqueId.uidToLong(uid, (short) uid.length)));
+            (UniqueId.uidToLong(uid, (short) uid.length) + 1 )));
 
     String str_uid = new String(uid, Const.CHARSET_ASCII);
 
