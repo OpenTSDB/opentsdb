@@ -565,6 +565,10 @@ public class MemoryStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  public Deferred<byte[]> allocateUID(String name, UniqueIdType type, short id_width) {
+    return allocateUID(name.getBytes(ASCII), type, id_width);
+  }
+
   @Override
   public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
     final byte[] row = Bytes.fromLong(uid_max.get(type).getAndIncrement());
