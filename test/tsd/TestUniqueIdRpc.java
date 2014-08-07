@@ -128,7 +128,7 @@ public final class TestUniqueIdRpc {
             .asText();
 
     assertEquals("Name already exists with UID: 000001", s);
-    assertEquals("", jsonNode.findValue("metric").asText());
+    assertFalse(jsonNode.findValue("metric").elements().hasNext());
 
     assertTrue(hasNoTagK(jsonNode));
     assertTrue(hasNoTagV(jsonNode));
@@ -202,10 +202,9 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     JsonNode jsonNode = RpcJSONUtils.parseResponse(query.response());
 
-    String s = jsonNode.findValue("tagk").asText();
-    assertEquals("", s);
+    assertFalse(jsonNode.findValue("tagk").elements().hasNext());
 
-    s = jsonNode.findValue("tagk_errors").findValue("datacenter").asText();
+    String s = jsonNode.findValue("tagk_errors").findValue("datacenter").asText();
 
     assertEquals("Name already exists with UID: 000001", s);
 
@@ -510,10 +509,9 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     JsonNode jsonNode = RpcJSONUtils.parseResponse(query.response());
 
-    String s = jsonNode.findPath("tagk").asText();
-    assertEquals("", s);
+    assertFalse(jsonNode.findValue("tagk").elements().hasNext());
 
-    s = jsonNode.findPath("tagk_errors").findPath("datacenter").asText();
+    String s = jsonNode.findPath("tagk_errors").findPath("datacenter").asText();
     assertEquals("Name already exists with UID: 000001", s);
 
     assertTrue(hasNoTagV(jsonNode));
@@ -582,7 +580,7 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     JsonNode jsonNode = RpcJSONUtils.parseResponse(query.response());
 
-    assertEquals("", jsonNode.findPath("tagv").asText());
+    assertFalse(jsonNode.findValue("tagv").elements().hasNext());
 
     assertEquals("Name already exists with UID: 000001",
             jsonNode.findPath("tagv_errors").findPath("myserver").asText());
@@ -1113,9 +1111,9 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupAssign() throws Exception {
-    tsdb_store.allocateUID("sys.cpu.0".getBytes(Charset.forName("UTF-8")), UniqueIdType.METRIC, UniqueIdType.METRIC.width);
-    tsdb_store.allocateUID("myserver".getBytes(Charset.forName("UTF-8")), UniqueIdType.TAGV, UniqueIdType.TAGV.width);
-    tsdb_store.allocateUID("datacenter".getBytes(Charset.forName("UTF-8")), UniqueIdType.TAGK, UniqueIdType.TAGK.width);
+    tsdb_store.allocateUID("sys.cpu.0", UniqueIdType.METRIC, UniqueIdType.METRIC.width);
+    tsdb_store.allocateUID("myserver", UniqueIdType.TAGV, UniqueIdType.TAGV.width);
+    tsdb_store.allocateUID("datacenter", UniqueIdType.TAGK, UniqueIdType.TAGK.width);
   }
   
   /**
