@@ -464,36 +464,35 @@ public class TSDB {
    * @param collector The collector to use.
    */
   public void collectStats(final StatsCollector collector) {
-    final byte[][] kinds = { 
-        Const.METRICS_QUAL.getBytes(CHARSET),
-        Const.TAG_NAME_QUAL.getBytes(CHARSET),
-        Const.TAG_VALUE_QUAL.getBytes(CHARSET)
-      };
+    final byte[][] kinds = {
+            Const.METRICS_QUAL.getBytes(CHARSET),
+            Const.TAG_NAME_QUAL.getBytes(CHARSET),
+            Const.TAG_VALUE_QUAL.getBytes(CHARSET)
+    };
     try {
       final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)
-        .joinUninterruptibly();
-      
+              .joinUninterruptibly();
+
       collectUidStats(metrics, collector);
       collector.record("uid.ids-used", used_uids.get(Const.METRICS_QUAL),
-          "kind=" + Const.METRICS_QUAL);
-      collector.record("uid.ids-available", 
-          (metrics.maxPossibleId() - used_uids.get(Const.METRICS_QUAL)),
-          "kind=" + Const.METRICS_QUAL);
-      
+              "kind=" + Const.METRICS_QUAL);
+      collector.record("uid.ids-available",
+              (metrics.maxPossibleId() - used_uids.get(Const.METRICS_QUAL)),
+              "kind=" + Const.METRICS_QUAL);
+
       collectUidStats(tag_names, collector);
       collector.record("uid.ids-used", used_uids.get(Const.TAG_NAME_QUAL),
-          "kind=" + Const.TAG_NAME_QUAL);
-      collector.record("uid.ids-available", 
-          (tag_names.maxPossibleId() - used_uids.get(Const.TAG_NAME_QUAL)),
-          "kind=" + Const.TAG_NAME_QUAL);
-      
+              "kind=" + Const.TAG_NAME_QUAL);
+      collector.record("uid.ids-available",
+              (tag_names.maxPossibleId() - used_uids.get(Const.TAG_NAME_QUAL)),
+              "kind=" + Const.TAG_NAME_QUAL);
+
       collectUidStats(tag_values, collector);
       collector.record("uid.ids-used", used_uids.get(Const.TAG_VALUE_QUAL),
-          "kind=" + Const.TAG_VALUE_QUAL);
-      collector.record("uid.ids-available", 
-          (tag_values.maxPossibleId() - used_uids.get(Const.TAG_VALUE_QUAL)),
-          "kind=" + Const.TAG_VALUE_QUAL);
-      
+              "kind=" + Const.TAG_VALUE_QUAL);
+      collector.record("uid.ids-available",
+              (tag_values.maxPossibleId() - used_uids.get(Const.TAG_VALUE_QUAL)),
+              "kind=" + Const.TAG_VALUE_QUAL);
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
     }
@@ -523,30 +522,30 @@ public class TSDB {
     // Collect Stats from Plugins
     if (rt_publisher != null) {
       try {
-	collector.addExtraTag("plugin", "publish");
+        collector.addExtraTag("plugin", "publish");
         rt_publisher.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
-      }                        
+        collector.clearExtraTag("plugin");
+      }
     }
     if (search != null) {
       try {
-	collector.addExtraTag("plugin", "search");
-	search.collectStats(collector);
+        collector.addExtraTag("plugin", "search");
+        search.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
-      }                        
+        collector.clearExtraTag("plugin");
+      }
     }
     if (rpc_plugins != null) {
       try {
-	collector.addExtraTag("plugin", "rpc");
-	for(RpcPlugin rpc: rpc_plugins) {
-		rpc.collectStats(collector);
-	}                                
+        collector.addExtraTag("plugin", "rpc");
+        for (RpcPlugin rpc : rpc_plugins) {
+          rpc.collectStats(collector);
+        }
       } finally {
-	collector.clearExtraTag("plugin");
-      }                        
-    }        
+        collector.clearExtraTag("plugin");
+      }
+    }
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
