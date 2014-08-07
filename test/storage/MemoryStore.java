@@ -565,12 +565,9 @@ public class MemoryStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
-  public Deferred<byte[]> allocateUID(String name, UniqueIdType type) {
-    return allocateUID(name.getBytes(ASCII), type);
-  }
-
   @Override
-  public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type) {
+  public Deferred<byte[]> allocateUID(final String name,
+                                      final UniqueIdType type) {
     final byte[] row = Bytes.fromLong(uid_max.get(type).getAndIncrement());
 
     // row.length should actually be 8.
@@ -598,8 +595,10 @@ public class MemoryStore implements TsdbStore {
     return allocateUID(name, uid, type);
   }
 
-  public Deferred<byte[]> allocateUID(String name, byte[] uid, UniqueIdType type) {
-
+  @Override
+  public Deferred<byte[]> allocateUID(final String name,
+                                      final byte[] uid,
+                                      final UniqueIdType type) {
     uid_max.get(type).set(Math.max(uid_max.get(type).get(),
             (UniqueId.uidToLong(uid, (short) uid.length) + 1 )));
 
@@ -618,12 +617,6 @@ public class MemoryStore implements TsdbStore {
     uid_forward_mapping.put(name, type, uid);
 
     return Deferred.fromResult(uid);
-  }
-
-  @Override
-  public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type) {
-    String str_name = new String(name, Const.CHARSET_ASCII);
-    return allocateUID(str_name, uid, type);
   }
 
   @Override

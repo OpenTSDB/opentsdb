@@ -686,7 +686,7 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(final byte[] name,
+  public Deferred<byte[]> allocateUID(final String name,
                                       final UniqueIdType type) {
     class IdCB implements Callback<Deferred<byte[]>, Long> {
       @Override
@@ -745,7 +745,7 @@ public class HBaseStore implements TsdbStore {
    * @param type The type of the UID.
    */
   @Override
-  public Deferred<byte[]> allocateUID(final byte[] name,
+  public Deferred<byte[]> allocateUID(final String name,
                                       final byte[] uid,
                                       final UniqueIdType type) {
     // Create the reverse mapping first, so that if we die before updating
@@ -817,9 +817,10 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
+    final byte[] b_name = toBytes(name);
     final byte[] qualifier = type.qualifier.getBytes(CHARSET);
-    final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, qualifier, name);
-    final PutRequest forward_mapping = new PutRequest(uid_table_name, name, ID_FAMILY, qualifier, uid);
+    final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, qualifier, b_name);
+    final PutRequest forward_mapping = new PutRequest(uid_table_name, b_name, ID_FAMILY, qualifier, uid);
 
     return client.compareAndSet(reverse_mapping, HBaseClient.EMPTY_ARRAY)
             .addCallbackDeferring(new ReverseCB(reverse_mapping, forward_mapping))

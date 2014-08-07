@@ -31,6 +31,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
 
@@ -52,24 +53,13 @@ public final class TestUIDMeta {
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, new Config(false));
 
-    tsdb_store.allocateUID(
-            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
 
-    tsdb_store.allocateUID(
-            "sys.cpu.2".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 3},
-            UniqueIdType.METRIC);
-
-    UIDMeta uidMeta = new UIDMeta(
-            UniqueIdType.METRIC,
-            new byte[] {0, 0, 1},
-            "sys.cpu.0");
-
+    UIDMeta uidMeta = new UIDMeta(METRIC, new byte[] {0, 0, 1}, "sys.cpu.0");
     uidMeta.setDescription("Description");
     uidMeta.setNotes("MyNotes");
-    uidMeta.setCreated(1328140801);;
+    uidMeta.setCreated(1328140801);
     uidMeta.setDisplayName("System CPU");
 
     tsdb_store.add(uidMeta);
@@ -82,17 +72,17 @@ public final class TestUIDMeta {
   
   @Test
   public void constructor2() {
-    meta = new UIDMeta(UniqueIdType.METRIC, "000005");
+    meta = new UIDMeta(METRIC, "000005");
     assertNotNull(meta);
-    assertEquals(UniqueIdType.METRIC, meta.getType());
+    assertEquals(METRIC, meta.getType());
     assertEquals("000005", meta.getUID());
   }
   
   @Test
   public void constructor3() {
-    meta = new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 5}, "sys.cpu.5");
+    meta = new UIDMeta(METRIC, new byte[] {0, 0, 5}, "sys.cpu.5");
     assertNotNull(meta);
-    assertEquals(UniqueIdType.METRIC, meta.getType());
+    assertEquals(METRIC, meta.getType());
     assertEquals("000005", meta.getUID());
     assertEquals("sys.cpu.5", meta.getName());
     assertEquals(System.currentTimeMillis() / 1000, meta.getCreated());
@@ -102,7 +92,7 @@ public final class TestUIDMeta {
   public void createConstructor() {
     PowerMockito.mockStatic(System.class);
     when(System.currentTimeMillis()).thenReturn(1357300800000L); 
-    meta = new UIDMeta(UniqueIdType.TAGK, new byte[] { 1, 0, 0 }, "host");
+    meta = new UIDMeta(TAGK, new byte[] { 1, 0, 0 }, "host");
     assertEquals(1357300800000L / 1000, meta.getCreated());
     assertEquals(UniqueId.uidToString(new byte[] { 1, 0, 0 }), meta.getUID());
     assertEquals("host", meta.getName());
@@ -126,34 +116,34 @@ public final class TestUIDMeta {
     meta = JSON.parseToObject(json, UIDMeta.class);
     assertNotNull(meta);
     assertEquals(meta.getUID(), "ABCD");
-    assertEquals(UniqueIdType.METRIC, meta.getType());
+    assertEquals(METRIC, meta.getType());
     assertEquals("MyNotes", meta.getNotes());
     assertEquals("Empty", meta.getDisplayName());
   }
 
   @Test
   public void getUIDMeta() throws Exception {
-    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, "000003")
+    meta = tsdb.getUIDMeta(METRIC, "000003")
       .joinUninterruptibly();
-    assertEquals(UniqueIdType.METRIC, meta.getType());
+    assertEquals(METRIC, meta.getType());
     assertEquals("sys.cpu.2", meta.getName());
     assertEquals("000003", meta.getUID());
   }
   
   @Test
   public void getUIDMetaByte() throws Exception {
-    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 3 })
+    meta = tsdb.getUIDMeta(METRIC, new byte[] { 0, 0, 3 })
       .joinUninterruptibly();
-    assertEquals(UniqueIdType.METRIC, meta.getType());
+    assertEquals(METRIC, meta.getType());
     assertEquals("sys.cpu.2", meta.getName());
     assertEquals("000003", meta.getUID());
   }
   
   @Test
   public void getUIDMetaExists() throws Exception {
-    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, "000001")
+    meta = tsdb.getUIDMeta(METRIC, "000001")
       .joinUninterruptibly();
-    assertEquals(UniqueIdType.METRIC, meta.getType());
+    assertEquals(METRIC, meta.getType());
     assertEquals("sys.cpu.0", meta.getName());
     assertEquals("000001", meta.getUID());
     assertEquals("MyNotes", meta.getNotes());
@@ -161,13 +151,13 @@ public final class TestUIDMeta {
 
   @Test (expected = NoSuchUniqueId.class)
   public void getUIDMetaNoSuch() throws Exception {
-    tsdb.getUIDMeta(UniqueIdType.METRIC, "000002")
+    tsdb.getUIDMeta(METRIC, "000002")
       .joinUninterruptibly();
   }
   
   @Test
   public void delete() throws Exception {
-    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, "000001")
+    meta = tsdb.getUIDMeta(METRIC, "000001")
       .joinUninterruptibly();
     tsdb.delete(meta);
   }
@@ -180,19 +170,19 @@ public final class TestUIDMeta {
   
   @Test (expected = IllegalArgumentException.class)
   public void deleteNullUID() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, null);
+    meta = new UIDMeta(METRIC, null);
     tsdb.delete(meta);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void deleteEmptyUID() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, "");
+    meta = new UIDMeta(METRIC, "");
     tsdb.delete(meta);
   }
   
   @Test
   public void syncToStorage() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, "000001");
+    meta = new UIDMeta(METRIC, "000001");
     meta.setDisplayName("New Display Name");
     tsdb.syncUIDMetaToStorage(meta, false).joinUninterruptibly();
     assertEquals("New Display Name", meta.getDisplayName());
@@ -202,7 +192,7 @@ public final class TestUIDMeta {
   
   @Test
   public void syncToStorageOverwrite() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, "000001");
+    meta = new UIDMeta(METRIC, "000001");
     meta.setDisplayName("New Display Name");
     tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
     assertEquals("New Display Name", meta.getDisplayName());
@@ -211,7 +201,7 @@ public final class TestUIDMeta {
   
   @Test (expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
-    meta = tsdb.getUIDMeta(UniqueIdType.METRIC, "000001")
+    meta = tsdb.getUIDMeta(METRIC, "000001")
       .joinUninterruptibly();
     tsdb.syncUIDMetaToStorage(meta, false).joinUninterruptibly();
   }
@@ -224,26 +214,26 @@ public final class TestUIDMeta {
   
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageNullUID() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, null);
+    meta = new UIDMeta(METRIC, null);
     tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageEmptyUID() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, "");
+    meta = new UIDMeta(METRIC, "");
     tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueId.class)
   public void syncToStorageNoSuch() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, "000002");
+    meta = new UIDMeta(METRIC, "000002");
     meta.setDisplayName("Testing");
     tsdb.syncUIDMetaToStorage(meta, true).joinUninterruptibly();
   }
 
   @Test
   public void storeNew() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
+    meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
     meta.setDisplayName("System CPU");
     tsdb_store.add(meta).joinUninterruptibly();
     meta = JSON.parseToObject(tsdb_store.getColumn(new byte[] { 0, 0, 1 },
@@ -254,7 +244,7 @@ public final class TestUIDMeta {
   
   @Test (expected = IllegalArgumentException.class)
   public void storeNewNoName() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, "");
+    meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "");
     tsdb_store.add(meta).joinUninterruptibly();
   }
   
@@ -266,7 +256,7 @@ public final class TestUIDMeta {
   
   @Test (expected = IllegalArgumentException.class)
   public void storeNewEmptyUID() throws Exception {
-    meta = new UIDMeta(UniqueIdType.METRIC, "");
+    meta = new UIDMeta(METRIC, "");
     tsdb_store.add(meta).joinUninterruptibly();
   }
 }

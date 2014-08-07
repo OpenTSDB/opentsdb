@@ -85,10 +85,12 @@ public interface TsdbStore {
 
   Deferred<Object> deleteUID(byte[] name, byte[] kind);
 
-  public Deferred<byte[]> allocateUID(final byte[] name,
+  public Deferred<byte[]> allocateUID(final String name,
                                       final UniqueIdType type);
 
-  Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type);
+  Deferred<byte[]> allocateUID(final String name,
+                               final byte[] uid,
+                               final UniqueIdType type);
 
   // ------------------ //
   // Compaction helpers //

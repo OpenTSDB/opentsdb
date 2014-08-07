@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -269,30 +270,12 @@ public final class TestBranch {
   public void fetchBranch() throws Exception {
     setupStorage();
 
-    tsdb_store.allocateUID(
-            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.METRIC);
-    tsdb_store.allocateUID(
-            "sys.cpu.1".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 2},
-            UniqueId.UniqueIdType.METRIC);
-    tsdb_store.allocateUID(
-            "host".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.TAGK);
-    tsdb_store.allocateUID(
-            "owner".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 2},
-            UniqueId.UniqueIdType.TAGK);
-    tsdb_store.allocateUID(
-            "web01".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.TAGV);
-    tsdb_store.allocateUID(
-            "ops".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 2},
-            UniqueId.UniqueIdType.TAGV);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("sys.cpu.1", new byte[]{0, 0, 2}, METRIC);
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
+    tsdb_store.allocateUID("owner", new byte[]{0, 0, 2}, TAGK);
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
+    tsdb_store.allocateUID("ops", new byte[]{0, 0, 2}, TAGV);
     
     final Branch branch = Branch.fetchBranch(tsdb,
         Branch.stringToId("00010001BECD000181A8"), true).joinUninterruptibly();
@@ -308,18 +291,9 @@ public final class TestBranch {
   public void fetchBranchNSU() throws Exception {
     setupStorage();
 
-    tsdb_store.allocateUID(
-            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.METRIC);
-    tsdb_store.allocateUID(
-            "host".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.TAGK);
-    tsdb_store.allocateUID(
-            "web01".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.TAGV);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
     
     final Branch branch = Branch.fetchBranch(tsdb,
         Branch.stringToId("00010001BECD000181A8"), true).joinUninterruptibly();
