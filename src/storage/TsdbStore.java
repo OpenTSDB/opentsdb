@@ -113,5 +113,5 @@ public interface TsdbStore {
 
   Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time);
 
-  Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time, TSDB tsdb);
+  Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time);
 }

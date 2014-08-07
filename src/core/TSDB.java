@@ -172,7 +172,7 @@ public class TSDB {
           "The end timestamp cannot be less than the start timestamp");
     }
 
-    return tsdb_store.deleteAnnotationRange(tsuid, start_time, end_time, this);
+    return tsdb_store.deleteAnnotationRange(tsuid, start_time, end_time);
   }
 
   /**

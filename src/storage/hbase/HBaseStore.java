@@ -895,7 +895,9 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time, TSDB tsdb) {
+  public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid,
+                                                 final long start_time,
+                                                 final long end_time) {
     final List<Deferred<Object>> delete_requests = new ArrayList<Deferred<Object>>();
     int width = tsuid != null ? tsuid.length + Const.TIMESTAMP_BYTES :
       Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;

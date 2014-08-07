@@ -14,6 +14,7 @@ package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
@@ -21,7 +22,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.StringCoder;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -42,6 +42,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import static net.opentsdb.storage.hbase.HBaseStore.getAnnotationQualifier;
+import static net.opentsdb.storage.hbase.HBaseStore.getAnnotationRowKey;
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
 /**
@@ -70,8 +72,10 @@ public class MemoryStore implements TsdbStore {
   //      KEY           Column Family Qualifier     Timestamp     Value
   private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
     storage = new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>();
+
   private final Table<String, String, byte[]> data_table;
   private final Table<String, String, byte[]> uid_table;
+  private final Table<String, String, byte[]> annotation_table;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
@@ -94,19 +98,9 @@ public class MemoryStore implements TsdbStore {
   public MemoryStore() {
     data_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
+    annotation_table = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
-  }
-
-  /**
-   * Attempts to fetch a global or local annotation from storage
-   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
-   * annotation
-   * @param start_time The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
-   */
-  public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long start_time) {
-    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   /**
@@ -565,6 +559,10 @@ public class MemoryStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  public Deferred<byte[]> allocateUID(String name, UniqueIdType type, short id_width) {
+    return allocateUID(name.getBytes(ASCII), type, id_width);
+  }
+
   @Override
   public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
     final byte[] row = Bytes.fromLong(uid_max.get(type).getAndIncrement());
@@ -987,22 +985,137 @@ public class MemoryStore implements TsdbStore {
    */
   @Override
   public Deferred<Object> delete(Annotation annotation) {
-    throw new UnsupportedOperationException("Not implemented yet");
+
+    final byte[] tsuid_byte = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
+            UniqueId.stringToUid(annotation.getTSUID()) : null;
+    final String key =
+            new String(
+            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), ASCII);
+    final String qual =
+            new String(
+            getAnnotationQualifier(annotation.getStartTime()), ASCII);
+
+    return Deferred.fromResult((Object)annotation_table.remove(key, qual));
   }
 
   @Override
   public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    final byte[] original_note = original == null ? null :
+            original.getStorageJSON();
+
+    final byte[] tsuid_byte = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
+            UniqueId.stringToUid(annotation.getTSUID()) : null;
+
+    final String key =
+            new String(
+            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), ASCII);
+    final String qual =
+            new String(
+            getAnnotationQualifier(annotation.getStartTime()), ASCII);
+
+    final byte[] storage_note = annotation_table.get(key, qual);
+
+    if ( Arrays.equals(storage_note, original_note) ) {
+      annotation_table.remove(key, qual);
+      annotation_table.put(key, qual, annotation.getStorageJSON());
+      return Deferred.fromResult(true);
+    }
+
+    // A deferred boolean, if true the CAS succeeded, otherwise the CAS failed
+    // because the value in HBase didn't match the expected value of the CAS
+    // request.
+    return Deferred.fromResult(false);
+
   }
 
   @Override
-  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time) {
-    throw new UnsupportedOperationException("Not implemented yet");
+  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time,
+                                                         final long end_time) {
+    //the sanity check should happen before this is called actually.
+
+    List<Annotation> annotations =
+            new ArrayList<Annotation>((int)(end_time - start_time));
+
+    for (long time = start_time;time <= end_time; ++time) {
+
+      final String key =
+              new String(getAnnotationRowKey(time, null), ASCII);
+      final String qual =
+              new String(getAnnotationQualifier(time), ASCII);
+
+      final byte[] storage_note = annotation_table.get(key, qual);
+
+      if (storage_note != null) {
+        Annotation note = JSON.parseToObject(storage_note,
+                Annotation.class);
+
+        annotations.add(note);
+      }
+    }
+    return Deferred.fromResult(annotations);
   }
 
   @Override
-  public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time, TSDB tsdb) {
-    throw new UnsupportedOperationException("Not implemented yet");
+  public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid,
+                                                 final long start_time,
+                                                 final long end_time) {
+
+    //the sanity check should happen before this is called actually.
+    //however we might need to modify the start_time and end_time
+
+    final long start = start_time / 1000;
+    final long end = end_time / 1000;
+
+    ArrayList<Annotation> del_list =
+            new ArrayList<Annotation>((int)(end_time - start_time));
+
+    for (long time = start;time <= end; ++time) {
+
+      final String key =
+              new String(getAnnotationRowKey(time, tsuid), ASCII);
+      final String qual =
+              new String(getAnnotationQualifier(time), ASCII);
+
+      final byte[] storage_note = annotation_table.get(key, qual);
+
+      if (storage_note != null) {
+        Annotation note = JSON.parseToObject(storage_note,
+                Annotation.class);
+
+        del_list.add(note);
+      }
+    }
+
+    for (Annotation annotation : del_list) {
+      delete(annotation);
+    }
+
+    return Deferred.fromResult(del_list.size());
+  }
+
+  /**
+   * Attempts to fetch a global or local annotation from storage
+   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
+   * annotation
+   * @param start_time The start time as a Unix epoch timestamp
+   * @return A valid annotation object if found, null if not
+   */
+  public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long start_time) {
+
+    final String key =
+            new String(
+                    getAnnotationRowKey(start_time, tsuid), ASCII);
+    final String qual =
+            new String(
+                    getAnnotationQualifier(start_time), ASCII);
+
+    final byte[] storage_note = annotation_table.get(key, qual);
+    if (storage_note != null) {
+      Annotation note = JSON.parseToObject(storage_note,
+              Annotation.class);
+      return Deferred.fromResult(note);
+    }
+    return Deferred.fromResult(null);
   }
 
   /**
