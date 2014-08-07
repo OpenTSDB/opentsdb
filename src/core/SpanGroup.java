@@ -251,7 +251,7 @@ final class SpanGroup implements DataPoints {
 
   @Override
   public byte[] metric() {
-    // TODO Should not return a 0 byte like this. An optional would be better
+    // TODO(luuse): Should not return a 0 byte like this. An optional would be better
     return spans.isEmpty() ? new byte[] {0} : spans.get(0).metric();
   }
 
