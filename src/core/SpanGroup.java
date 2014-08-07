@@ -249,18 +249,27 @@ final class SpanGroup implements DataPoints {
     aggregated_tags = ImmutableList.copyOf(discarded_tags);
   }
 
+  /**
+   * @see DataPoints#metric()
+   */
   @Override
   public byte[] metric() {
     // TODO(luuse): Should not return a 0 byte like this. An optional would be better
     return spans.isEmpty() ? new byte[] {0} : spans.get(0).metric();
   }
 
+  /**
+   * @see DataPoints#tags()
+   */
   @Override
   public Map<byte[], byte[]> tags() {
     computeTags();
     return tags;
   }
 
+  /**
+   * @see DataPoints#aggregatedTags()
+   */
   @Override
   public List<byte[]> aggregatedTags() {
     computeTags();

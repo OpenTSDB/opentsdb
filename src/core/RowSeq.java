@@ -257,16 +257,25 @@ final class RowSeq implements DataPoints {
                                    + Arrays.toString(values));
   }
 
+  /**
+   * @see DataPoints#metric()
+   */
   @Override
   public byte[] metric() {
     return RowKey.metric(key);
   }
 
+  /**
+   * @see DataPoints#tags()
+   */
   @Override
   public Map<byte[],byte[]> tags() {
     return RowKey.tags(key);
   }
 
+  /**
+   * @see DataPoints#aggregatedTags()
+   */
   @Override
   public List<byte[]> aggregatedTags() {
     return Collections.emptyList();

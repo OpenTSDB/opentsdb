@@ -60,6 +60,7 @@ final class Span implements DataPoints {
   /**
    * @return the id of the metric associated with the rows in this span
    * @throws IllegalStateException if the span was empty
+   * @see DataPoints#metric()
    */
   @Override
   public byte[] metric() {
@@ -69,6 +70,7 @@ final class Span implements DataPoints {
   /**
    * @return the list of tag id pairs for the rows in this span
    * @throws IllegalStateException if the span was empty
+   * @see DataPoints#tags()
    */
   @Override
   public Map<byte[],byte[]> tags() {
@@ -76,6 +78,9 @@ final class Span implements DataPoints {
     return rows.get(0).tags();
   }
 
+  /**
+   * @see DataPoints#aggregatedTags()
+   */
   @Override
   public List<byte[]> aggregatedTags() {
     return Collections.emptyList();

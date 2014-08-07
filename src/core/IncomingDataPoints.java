@@ -285,18 +285,27 @@ class IncomingDataPoints implements WritableDataPoints {
     }
   }
 
+  /**
+   * @see DataPoints#metric()
+   */
   @Override
   public byte[] metric() {
     checkNotNull(row, "setSeries never called before!");
     return RowKey.metric(row);
   }
 
+  /**
+   * @see DataPoints#tags()
+   */
   @Override
   public Map<byte[], byte[]> tags() {
     checkNotNull(row, "setSeries never called before!");
     return RowKey.tags(row);
   }
 
+  /**
+   * @see DataPoints#aggregatedTags()
+   */
   @Override
   public List<byte[]> aggregatedTags() {
     return Collections.emptyList();
