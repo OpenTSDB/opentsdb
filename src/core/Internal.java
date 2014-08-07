@@ -89,26 +89,6 @@ public final class Internal {
     return ((TsdbQuery) query).getScanner();
   }
 
-  /** @see RowKey#metricName */
-  public static String metricName(final TSDB tsdb, final byte[] id) {
-    return RowKey.metricName(tsdb, id);
-  }
-
-  /** Extracts the timestamp from a row key.  */
-  public static long baseTime(final byte[] row) {
-    return Bytes.getUnsignedInt(row, Const.METRICS_WIDTH);
-  }
-
-  /** @see Tags#getTagsAsync(TSDB, byte[])  */
-  public static Map<String, String> getTags(final TSDB tsdb, final byte[] row) {
-    try {
-      Map<byte[], byte[]> tag_ids = RowKey.tags(row);
-      return new UidFormatter(tsdb).formatTags(tag_ids).joinUninterruptibly();
-    } catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
   /** @see RowSeq#extractIntegerValue */
   public static long extractIntegerValue(final byte[] values,
                                          final int value_idx,
@@ -417,7 +397,7 @@ public final class Internal {
       }
       final Cell cell = cells.get(cells.size() - 1);
       final IncomingDataPoint dp = new IncomingDataPoint();
-      final long base_time = baseTime(row.get(0).key());
+      final long base_time = RowKey.baseTime(row.get(0).key());
       dp.setTimestamp(getTimestampFromQualifier(cell.qualifier(), base_time));
       dp.setValue(cell.parseValue().toString());
       return dp;

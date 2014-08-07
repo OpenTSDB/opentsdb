@@ -515,10 +515,11 @@ final class Fsck {
           Const.TIMESTAMP_BYTES);
       if (!tsuids.contains(tsuid)) {
         try {
-          RowKey.metricNameAsync(tsdb, key).joinUninterruptibly();
+          byte[] metric_id = RowKey.metric(key);
+          tsdb.getUidName(UniqueId.UniqueIdType.METRIC, metric_id).joinUninterruptibly();
         } catch (NoSuchUniqueId nsui) {
-          LOG.error("Unable to resolve the metric from the row key.\n\tKey: "
-              + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());
+          LOG.error("Unable to resolve the metric from the row key.\n\tKey: {}\n\t{}",
+                  UniqueId.uidToString(key), nsui.getMessage());
           orphans.getAndIncrement();
           
           if (options.fix() && options.deleteOrphans()) {

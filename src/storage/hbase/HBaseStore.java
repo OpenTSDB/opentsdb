@@ -20,6 +20,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
+import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -952,7 +953,7 @@ public class HBaseStore implements TsdbStore {
         }
 
         for (final ArrayList<KeyValue> row : rows) {
-          final long base_time = Internal.baseTime(row.get(0).key());
+          final long base_time = RowKey.baseTime(row.get(0).key());
           for (KeyValue column : row) {
             if ((column.qualifier().length == 3 || column.qualifier().length == 5)
                 && column.qualifier()[0] == ANNOTATION_QUAL_PREFIX) {

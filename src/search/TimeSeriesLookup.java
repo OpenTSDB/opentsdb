@@ -24,6 +24,7 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.ByteArrayPair;
@@ -86,6 +87,9 @@ public class TimeSeriesLookup {
   
   /** The TSD to use for lookups */
   private final TSDB tsdb;
+
+  /** Formatter used to convert UIDs into a name */
+  private final UidFormatter formatter;
   
   /**
    * Default ctor
@@ -96,6 +100,8 @@ public class TimeSeriesLookup {
   public TimeSeriesLookup(final TSDB tsdb, final SearchQuery query) {
     this.tsdb = tsdb;
     this.query = query;
+
+    this.formatter = new UidFormatter(tsdb);
   }
   
   /**
@@ -148,8 +154,9 @@ public class TimeSeriesLookup {
             
             try {
               buf.append(UniqueId.uidToString(tsuid)).append(" ");
-              buf.append(RowKey.metricNameAsync(tsdb, tsuid)
-                  .joinUninterruptibly());
+
+              byte[] metric_id = RowKey.metric(tsuid);
+              buf.append(formatter.formatMetric(metric_id).joinUninterruptibly());
               buf.append(" ");
               
               final List<byte[]> tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
