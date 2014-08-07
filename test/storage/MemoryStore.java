@@ -15,11 +15,11 @@ package net.opentsdb.storage;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.Internal;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
@@ -38,12 +38,11 @@ import org.powermock.api.mockito.PowerMockito;
 import javax.xml.bind.DatatypeConverter;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
-import static org.mockito.Matchers.any;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 /**
  * TsdbStore implementation useful in testing calls to and from
@@ -74,7 +73,10 @@ public class MemoryStore implements TsdbStore {
   private final Table<String, String, byte[]> data_table;
   private final Table<String, String, byte[]> uid_table;
 
-  private long uid_max;
+  private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
+          UniqueIdType.METRIC, new AtomicLong(1),
+          UniqueIdType.TAGK, new AtomicLong(1),
+          UniqueIdType.TAGV, new AtomicLong(1));
   private final Table<String, UniqueIdType, byte[]> uid_forward_mapping;
   private final Table<String, UniqueIdType, String> uid_reverse_mapping;
 
@@ -92,7 +94,6 @@ public class MemoryStore implements TsdbStore {
   public MemoryStore() {
     data_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
-
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
   }
@@ -566,7 +567,7 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
-    final byte[] row = Bytes.fromLong(++uid_max);
+    final byte[] row = Bytes.fromLong(uid_max.get(type).getAndIncrement());
 
     // row.length should actually be 8.
     if (row.length < id_width) {
@@ -581,7 +582,7 @@ public class MemoryStore implements TsdbStore {
     // limits.
     for (int i = 0; i < row.length - id_width; i++) {
       if (row[i] != 0) {
-        throw new IllegalStateException("All Unique IDs for " + type.qualifier
+        throw new IllegalArgumentException("All Unique IDs for " + type.qualifier
                 + " on " + id_width + " bytes are already assigned!");
       }
     }
@@ -594,18 +595,20 @@ public class MemoryStore implements TsdbStore {
   }
 
   public Deferred<byte[]> allocateUID(String name, byte[] uid, UniqueIdType type) {
-    uid_max = Math.max(uid_max, UniqueId.uidToLong(uid, (short)uid.length));
+
+    uid_max.get(type).set(Math.max(uid_max.get(type).get(),
+            (UniqueId.uidToLong(uid, (short) uid.length) + 1 )));
 
     String str_uid = new String(uid, Const.CHARSET_ASCII);
 
     if (uid_reverse_mapping.contains(str_uid, type)) {
-      throw new IllegalStateException("A UID with " + str_uid + " already exists");
+      throw new IllegalArgumentException("A UID with " + str_uid + " already exists");
     }
 
     uid_reverse_mapping.put(str_uid, type, name);
 
     if (uid_forward_mapping.contains(name, type)) {
-      throw new IllegalStateException("A UID with name " + name + " already exists");
+      return Deferred.fromResult(uid_forward_mapping.get(name,type));
     }
 
     uid_forward_mapping.put(name, type, uid);
