@@ -515,11 +515,6 @@ public final class TestUniqueId {
     assertEquals(42, UniqueId.uidToLong(new byte[] { 0, 0, 0x2A }, (short)3));
   }
 
-  @Test
-  public void uidToLongFromString() throws Exception {
-    assertEquals(42L, UniqueId.uidToLong("00002A", (short) 3));
-  }
-
   @Test (expected = IllegalArgumentException.class)
   public void uidToLongTooLong() throws Exception {
     UniqueId.uidToLong(new byte[] { 0, 0, 0, 0x2A }, (short)3);
