@@ -21,7 +21,6 @@ import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -86,11 +85,6 @@ public class MemoryStore implements TsdbStore {
 
   private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
   private byte[] default_family = "t".getBytes(ASCII);
-
-  /** The single column family used by this class. */
-  private static final byte[] ID_FAMILY = StringCoder.toBytes("id");
-  /** The single column family used by this class. */
-  private static final byte[] NAME_FAMILY = StringCoder.toBytes("name");
 
   /** Incremented every time a new value is stored (without a timestamp) */
   private long current_timestamp = 1388534400000L;
@@ -701,21 +695,6 @@ public class MemoryStore implements TsdbStore {
     return storage.size();
   }
 
-
-  /**
-   * Return the total number of column families for the row
-   * @param key The row to search for
-   * @return -1 if the row did not exist, otherwise the number of column families.
-   */
-  public int numColumnFamilies(final byte[] key) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return -1;
-    }
-    return row.size();
-  }
-
   /**
    * Total number of columns in the given row on the data table.
    * @param row The row to search for
@@ -746,25 +725,6 @@ public class MemoryStore implements TsdbStore {
       size += entry.getValue().size();
     }
     return size;
-  }
-
-  /**
-   * Return the total number of columns for a specific row and family
-   * @param key The row to search for
-   * @param family The column family to search for
-   * @return -1 if the row did not exist, otherwise the number of columns.
-   */
-  public int numColumnsInFamily(final byte[] key, final byte[] family) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return -1;
-    }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      return -1;
-    }
-    return cf.size();
   }
 
   /**
@@ -816,69 +776,6 @@ public class MemoryStore implements TsdbStore {
   }
 
   /**
-   * Retrieve the full map of timestamps and values of a single column with
-   * the default family
-   * @param key The row key of the column
-   * @param qualifier The column qualifier
-   * @return The byte array of data or null if not found
-   */
-  public TreeMap<Long, byte[]> getFullColumn(final byte[] key,
-                                             final byte[] qualifier) {
-    return getFullColumn(key, default_family, qualifier);
-  }
-
-  /**
-   * Retrieve the full map of timestamps and values of a single column
-   * @param key The row key of the column
-   * @param family The column family
-   * @param qualifier The column qualifier
-   * @return The tree map of timestamps and values or null if not found
-   */
-  public TreeMap<Long, byte[]> getFullColumn(final byte[] key,
-                                             final byte[] family, final byte[] qualifier) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return null;
-    }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      return null;
-    }
-    final TreeMap<Long, byte[]> column = cf.get(qualifier);
-    if (column == null) {
-      return null;
-    }
-    return column;
-  }
-
-  /**
-   * Returns the most recent value from all columns for a given column family
-   * @param key The row key
-   * @param family The column family ID
-   * @return A map of columns if the CF was found, null if no such CF
-   */
-  public Bytes.ByteMap<byte[]> getColumnFamily(final byte[] key,
-                                               final byte[] family) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return null;
-    }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      return null;
-    }
-    // convert to a <qualifier, value> byte map
-    final Bytes.ByteMap<byte[]> columns = new Bytes.ByteMap<byte[]>();
-    for (Map.Entry<byte[], TreeMap<Long, byte[]>> entry : cf.entrySet()) {
-      // the <timestamp, value> map should never be null
-      columns.put(entry.getKey(), entry.getValue().firstEntry().getValue());
-    }
-    return columns;
-  }
-
-  /**
    * Clears the entire hash table. Use it if your unit test needs to start fresh
    */
   public void flushStorage() {
@@ -891,17 +788,6 @@ public class MemoryStore implements TsdbStore {
    */
   public void flushRow(final byte[] key) {
     storage.remove(key);
-  }
-
-  /**
-   * Removes the entire column family from the hash table for ALL rows
-   * @param family The family to remove
-   */
-  public void flushFamily(final byte[] family) {
-    for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> row :
-      storage.entrySet()) {
-      row.getValue().remove(family);
-    }
   }
 
   /**
