@@ -103,9 +103,9 @@ final class SpanGroup implements DataPoints {
    * @param end_time Any data point strictly after this timestamp will be
    * ignored.
    * @param spans A sequence of initial {@link Spans} to add to this group.
- * Ignored if {@code null}.  Additional spans can be added with {@link #add}.
+   * Ignored if {@code null}.  Additional spans can be added with {@link #add}.
    * @param rate If {@code true}, the rate of the series will be used instead
-* of the actual values.
+   * of the actual values.
    * @param aggregator The aggregation function to use.
    * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
