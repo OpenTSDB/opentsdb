@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.storage;
+package net.opentsdb.storage.hbase;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -28,6 +28,7 @@ import net.opentsdb.core.IllegalDataException;
 import org.hbase.async.*;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
 
 import org.junit.Before;

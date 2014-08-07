@@ -1,6 +1,8 @@
-package net.opentsdb.storage;
+package net.opentsdb.storage.hbase;
 
 import com.stumbleupon.async.Deferred;
+
+import net.opentsdb.storage.TestTsdbStore;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import org.hbase.async.*;
