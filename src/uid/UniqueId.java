@@ -736,37 +736,6 @@ public class UniqueId {
     }
     return tags;
   }
-   
-  /**
-   * Extracts a list of tagk/tagv pairs from a tsuid
-   * @param tsuid The tsuid to parse
-   * @return A list of tagk/tagv UID pairs
-   * @throws IllegalArgumentException if the TSUID is malformed
-   * @since 2.0
-   */
-  public static List<byte[]> getTagPairsFromTSUID(final String tsuid) {
-     if (tsuid == null || tsuid.isEmpty()) {
-       throw new IllegalArgumentException("Missing TSUID");
-     }
-    if (tsuid.length() <= Const.METRICS_WIDTH * 2) {
-       throw new IllegalArgumentException(
-           "TSUID is too short, may be missing tags");
-     }
-      
-     final List<byte[]> tags = new ArrayList<byte[]>();
-    final int pair_width = (Const.TAG_NAME_WIDTH * 2) + (Const.TAG_VALUE_WIDTH * 2);
-     
-     // start after the metric then iterate over each tagk/tagv pair
-    for (int i = Const.METRICS_WIDTH * 2; i < tsuid.length(); i+= pair_width) {
-       if (i + pair_width > tsuid.length()){
-         throw new IllegalArgumentException(
-             "The TSUID appears to be malformed, improper tag width");
-       }
-       String tag = tsuid.substring(i, i + pair_width);
-       tags.add(UniqueId.stringToUid(tag));
-     }
-     return tags;
-   }
   
   /**
    * Extracts a list of tagk/tagv pairs from a tsuid
