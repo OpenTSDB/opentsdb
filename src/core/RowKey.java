@@ -15,6 +15,8 @@ package net.opentsdb.core;
 import java.util.Arrays;
 import java.util.Map;
 
+import net.opentsdb.storage.hbase.HBaseStore;
+
 import org.hbase.async.Bytes;
 
 import com.stumbleupon.async.Deferred;
@@ -81,14 +83,7 @@ final public class RowKey {
    */
   public static byte[] rowKeyFromTSUID(final TSDB tsdb, final byte[] tsuid, 
       final long timestamp) {
-    final long base_time;
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((timestamp / 1000) - 
-          ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-    }
+    final long base_time = HBaseStore.buildBaseTime(timestamp);
     final byte[] row = new byte[tsuid.length + Const.TIMESTAMP_BYTES];
     System.arraycopy(tsuid, 0, row, 0, Const.METRICS_WIDTH);
     Bytes.setInt(row, (int) base_time, Const.METRICS_WIDTH);

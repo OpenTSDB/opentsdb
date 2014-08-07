@@ -460,7 +460,7 @@ final class RowSeq implements DataPoints {
 
   /**
    * Used to compare two RowSeq objects when sorting a {@link Span}. Compares
-   * on the {@code RowSeq#baseTime()}
+   * on {@link net.opentsdb.core.RowKey#baseTime(byte[])}.
    * @since 2.0
    */
   public static final class RowSeqComparator implements Comparator<RowSeq> {

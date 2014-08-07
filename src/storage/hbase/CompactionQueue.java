@@ -28,6 +28,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
+import net.opentsdb.core.RowKey;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 import org.hbase.async.*;
@@ -170,7 +171,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       if (seed == row.hashCode() % 3) {
         continue;
       }
-      final long base_time = Bytes.getUnsignedInt(row, Const.METRICS_WIDTH);
+      final long base_time = RowKey.baseTime(row);
       if (base_time > cut_off) {
         break;
       } else if (nflushes == MAX_CONCURRENT_FLUSHES) {
@@ -355,7 +356,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
       if (compacted != null) {  // Caller is interested in the compacted form.
         compacted[0] = compact;
-        final long base_time = Bytes.getUnsignedInt(compact.key(), Const.METRICS_WIDTH);
+        final long base_time = RowKey.baseTime(compact.key());
         final long cut_off = System.currentTimeMillis() / 1000
             - Const.MAX_TIMESPAN - 1;
         if (base_time > cut_off) {  // If row is too recent...
