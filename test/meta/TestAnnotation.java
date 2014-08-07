@@ -15,30 +15,18 @@ package net.opentsdb.meta;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.List;
 
-import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({KeyValue.class, Scanner.class})
 public final class TestAnnotation {
   private TSDB tsdb;
   private MemoryStore tsdb_store;
@@ -55,35 +43,37 @@ public final class TestAnnotation {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-    
+
     // add a global
-    tsdb_store.addColumn(global_row_key,
-      new byte[]{1, 0, 0},
-      ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" +
-        "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" +
-        "\"ops\"}}").getBytes(Const.CHARSET_ASCII));
+    String json = "{\"startTime\":1328140800,\"endTime\":1328140801,\"" +
+            "description\":\"Description\",\"notes\":\"Notes\",\"custom\"" +
+            ":{\"owner\":\"ops\"}}";
 
-    tsdb_store.addColumn(global_row_key,
-      new byte[]{1, 0, 1},
-      ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" +
-        "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(Const.CHARSET_ASCII));
-    
+   Annotation note = JSON.parseToObject(json, Annotation.class);
+    tsdb_store.updateAnnotation(null, note);
+
+    // add another global
+    json = "{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" +
+            "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" +
+            "\"ops\"}}";
+    note = JSON.parseToObject(json, Annotation.class);
+    tsdb_store.updateAnnotation(null, note);
+
     // add a local
-    tsdb_store.addColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x02},
-      ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
-        "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" +
-        "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}")
-        .getBytes(Const.CHARSET_ASCII));
+    json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
+            "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" +
+            "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}";
+    note = JSON.parseToObject(json, Annotation.class);
+    tsdb_store.updateAnnotation(null, note);
 
-    tsdb_store.addColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x03},
-      ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
-        "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" +
-        "\"Nothing\"}")
-        .getBytes(Const.CHARSET_ASCII));
-    
-    // add some data points too
+    // add another local
+    json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
+            "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" +
+            "\"Nothing\"}";
+    note = JSON.parseToObject(json, Annotation.class);
+    tsdb_store.updateAnnotation(null, note);
+
+    // add some data points too maybe not relevant any more
     tsdb_store.addColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}, new byte[]{1});
     
@@ -193,9 +183,10 @@ public final class TestAnnotation {
     note.setStartTime(1388450562L);
     note.setDescription("Synced!");
     tsdb.syncToStorage(note, false).joinUninterruptibly();
-    final byte[] col = tsdb_store.getColumn(tsuid_row_key,
-        new byte[] { 1, 0x0A, 0x02 });
-    note = JSON.parseToObject(col, Annotation.class);
+
+    note = tsdb_store.getAnnotation(UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()).joinUninterruptibly();
+
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
     assertEquals("My Notes", note.getNotes());
@@ -207,9 +198,10 @@ public final class TestAnnotation {
     note.setStartTime(1388450562500L);
     note.setDescription("Synced!");
     tsdb.syncToStorage(note, false).joinUninterruptibly();
-    final byte[] col = tsdb_store.getColumn(tsuid_row_key,
-        new byte[] { 1, 0x00, 0x27, 0x19, (byte) 0xC4 });
-    note = JSON.parseToObject(col, Annotation.class);
+
+    note = tsdb_store.getAnnotation(UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()).joinUninterruptibly();
+
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
     assertEquals("", note.getNotes());
@@ -221,9 +213,10 @@ public final class TestAnnotation {
     note.setStartTime(1328140800L);
     note.setDescription("Synced!");
     tsdb.syncToStorage(note, false).joinUninterruptibly();
-    final byte[] col = tsdb_store.getColumn(global_row_key,
-        new byte[] { 1, 0, 0 });
-    note = JSON.parseToObject(col, Annotation.class);
+
+    note = tsdb_store.getAnnotation(null,
+            note.getStartTime()).joinUninterruptibly();
+
     assertEquals("", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
     assertEquals("Notes", note.getNotes());
@@ -234,9 +227,10 @@ public final class TestAnnotation {
     note.setStartTime(1328140800500L);
     note.setDescription("Synced!");
     tsdb.syncToStorage(note, false).joinUninterruptibly();
-    final byte[] col = tsdb_store.getColumn(global_row_key,
-        new byte[] { 1, 0, 0, 1, (byte) 0xF4 });
-    note = JSON.parseToObject(col, Annotation.class);
+
+    note = tsdb_store.getAnnotation(null,
+            note.getStartTime()).joinUninterruptibly();
+
     assertEquals("", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
     assertEquals("", note.getNotes());
@@ -258,13 +252,24 @@ public final class TestAnnotation {
   
   @Test
   public void delete() throws Exception {
+    final long start_time = 1388450562;
     note.setTSUID("000001000001000001");
-    note.setStartTime(1388450562);
+    note.setStartTime(start_time);
     tsdb.delete(note).joinUninterruptibly();
-    assertNull(tsdb_store.getColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x02}));
-    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
-        new byte[] { 1, 0x0A, 0x03 }));
+
+    assertNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(start_time + 1);
+
+    assertNotNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
@@ -276,10 +281,19 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562000L);
     tsdb.delete(note).joinUninterruptibly();
-    assertNull(tsdb_store.getColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x02}));
-    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
-        new byte[] { 1, 0x0A, 0x03 }));
+
+    assertNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1388450563000L);
+
+    assertNotNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
@@ -293,10 +307,20 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450561);
     tsdb.delete(note).joinUninterruptibly();
-    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x02}));
-    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
-        new byte[] { 1, 0x0A, 0x03 }));
+
+
+    note.setStartTime(1388450562);
+    assertNotNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1388450563);
+    assertNotNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
@@ -313,32 +337,54 @@ public final class TestAnnotation {
   public void deleteGlobal() throws Exception {
     note.setStartTime(1328140800);
     tsdb.delete(note).joinUninterruptibly();
-    assertNull(tsdb_store.getColumn(global_row_key,
-      new byte[]{1, 0, 0}));
-    assertNotNull(tsdb_store.getColumn(global_row_key,
-        new byte[] { 1, 0, 1 }));
+
+    assertNull(tsdb_store.getAnnotation(null,
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1328140801);
+    assertNotNull(tsdb_store.getAnnotation(null,
+            note.getStartTime()
+    ).joinUninterruptibly());
   }
   
   @Test
   public void deleteGlobalNotFound() throws Exception {
     note.setStartTime(1328140803);
     tsdb.delete(note).joinUninterruptibly();
-    assertNotNull(tsdb_store.getColumn(global_row_key,
-      new byte[]{1, 0, 0}));
-    assertNotNull(tsdb_store.getColumn(global_row_key,
-        new byte[] { 1, 0, 1 }));
+
+    note.setStartTime(1328140800);
+    assertNotNull(tsdb_store.getAnnotation(null,
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1328140801);
+    assertNotNull(tsdb_store.getAnnotation(null,
+            note.getStartTime()
+    ).joinUninterruptibly());
+
   }
   
   @Test
   public void deleteRange() throws Exception {
+    note.setTSUID("000001000001000001");
     final int count = tsdb.deleteRange(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
+            UniqueId.stringToUid(note.getTSUID()), 1388450560000L,
             1388450562000L).joinUninterruptibly();
     assertEquals(1, count);
-    assertNull(tsdb_store.getColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x02}));
-    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
-        new byte[] { 1, 0x0A, 0x03 }));
+
+    note.setStartTime(1388450562);
+    assertNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1388450563);
+    assertNotNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
@@ -347,14 +393,24 @@ public final class TestAnnotation {
   
   @Test
   public void deleteRangeNone() throws Exception {
+    note.setTSUID("000001000001000001");
     final int count = tsdb.deleteRange(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
+            UniqueId.stringToUid(note.getTSUID()), 1388450560000L,
             1388450561000L).joinUninterruptibly();
     assertEquals(0, count);
-    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x02}));
-    assertNotNull(tsdb_store.getColumn(tsuid_row_key,
-        new byte[] { 1, 0x0A, 0x03 }));
+
+    note.setStartTime(1388450562);
+    assertNotNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1388450563);
+    assertNotNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
@@ -363,14 +419,24 @@ public final class TestAnnotation {
   
   @Test
   public void deleteRangeMultiple() throws Exception {
+    note.setTSUID("000001000001000001");
     final int count = tsdb.deleteRange(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
             1388450568000L).joinUninterruptibly();
     assertEquals(2, count);
-    assertNull(tsdb_store.getColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x02}));
-    assertNull(tsdb_store.getColumn(tsuid_row_key,
-        new byte[] { 1, 0x0A, 0x03 }));
+
+    note.setStartTime(1388450562);
+    assertNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1388450563);
+    assertNull(tsdb_store.getAnnotation(
+            UniqueId.stringToUid(note.getTSUID()),
+            note.getStartTime()
+    ).joinUninterruptibly());
+
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
@@ -382,10 +448,17 @@ public final class TestAnnotation {
     final int count = tsdb.deleteRange(null, 1328140799000L,
             1328140800000L).joinUninterruptibly();
     assertEquals(1, count);
-    assertNull(tsdb_store.getColumn(global_row_key,
-      new byte[]{1, 0, 0}));
-    assertNotNull(tsdb_store.getColumn(global_row_key,
-        new byte[] { 1, 0, 1 }));
+
+
+    note.setStartTime(1328140800);
+    assertNull(tsdb_store.getAnnotation(null,
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1328140801);
+    assertNotNull(tsdb_store.getAnnotation( null,
+            note.getStartTime()
+    ).joinUninterruptibly());
   }
   
   @Test
@@ -393,10 +466,15 @@ public final class TestAnnotation {
     final int count = tsdb.deleteRange(null, 1328140798000L,
             1328140799000L).joinUninterruptibly();
     assertEquals(0, count);
-    assertNotNull(tsdb_store.getColumn(global_row_key,
-      new byte[]{1, 0, 0}));
-    assertNotNull(tsdb_store.getColumn(global_row_key,
-        new byte[] { 1, 0, 1 }));
+    note.setStartTime(1328140800);
+    assertNotNull(tsdb_store.getAnnotation(null,
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1328140801);
+    assertNotNull(tsdb_store.getAnnotation( null,
+            note.getStartTime()
+    ).joinUninterruptibly());
   }
   
   @Test
@@ -404,10 +482,15 @@ public final class TestAnnotation {
     final int count = tsdb.deleteRange(null, 1328140799000L,
             1328140900000L).joinUninterruptibly();
     assertEquals(2, count);
-    assertNull(tsdb_store.getColumn(global_row_key,
-      new byte[]{1, 0, 0}));
-    assertNull(tsdb_store.getColumn(global_row_key,
-        new byte[] { 1, 0, 1 }));
+    note.setStartTime(1328140800);
+    assertNull(tsdb_store.getAnnotation(null,
+            note.getStartTime()
+    ).joinUninterruptibly());
+
+    note.setStartTime(1328140801);
+    assertNull(tsdb_store.getAnnotation( null,
+            note.getStartTime()
+    ).joinUninterruptibly());
   }
   
   @Test (expected = IllegalArgumentException.class)
