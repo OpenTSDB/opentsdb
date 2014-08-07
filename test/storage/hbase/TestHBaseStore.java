@@ -75,8 +75,8 @@ public class TestHBaseStore extends TestTsdbStore {
             fromResult(id));
     try {
       Deferred<byte[]> uid = tsdb_store.allocateUID(foo_array,
-              UniqueId.UniqueIdType.METRIC,
-              UniqueId.UniqueIdType.METRIC.width);
+              UniqueId.UniqueIdType.METRIC
+      );
 
       fail("IllegalArgumentException should have been thrown but instead "
               + " this was returned id=" + uid.joinUninterruptibly());
@@ -96,7 +96,7 @@ public class TestHBaseStore extends TestTsdbStore {
     final byte[] row = Bytes.fromLong(id);
     try {
       Deferred<byte[]> uid = tsdb_store.allocateUID(foo_array,
-              UniqueId.UniqueIdType.METRIC, id_width);
+              UniqueId.UniqueIdType.METRIC);
 
       fail("IllegalArgumentException should have been thrown but instead "
               + " this was returned id=" + uid.joinUninterruptibly());
@@ -119,8 +119,8 @@ public class TestHBaseStore extends TestTsdbStore {
             fromResult(16777216L));
     try {
       Deferred<byte[]> uid = tsdb_store.allocateUID(foo_array,
-              UniqueId.UniqueIdType.METRIC,
-              UniqueId.UniqueIdType.METRIC.width);
+              UniqueId.UniqueIdType.METRIC
+      );
 
       fail("IllegalArgumentException should have been thrown but instead "
               + " this was returned id=" + uid.joinUninterruptibly());
@@ -140,8 +140,8 @@ public class TestHBaseStore extends TestTsdbStore {
 
     try {
       Deferred<byte[]> uid = tsdb_store.allocateUID(foo_array,
-              UniqueId.UniqueIdType.METRIC,
-              UniqueId.UniqueIdType.METRIC.width);
+              UniqueId.UniqueIdType.METRIC
+      );
       fail("IllegalArgumentException should have been thrown but instead "
               + " this was returned id=" + uid.joinUninterruptibly());
 
@@ -181,8 +181,8 @@ public class TestHBaseStore extends TestTsdbStore {
     try {
       //need to join to get the exception to be thrown
       byte[] uid = tsdb_store.allocateUID(foo_array,
-              UniqueId.UniqueIdType.METRIC,
-              UniqueId.UniqueIdType.METRIC.width).joinUninterruptibly();
+              UniqueId.UniqueIdType.METRIC
+      ).joinUninterruptibly();
       fail("HBaseException should have been thrown!");
     } catch (HBaseException e) {
       assertSame(hbe,e);
@@ -221,8 +221,8 @@ public class TestHBaseStore extends TestTsdbStore {
           .thenReturn(Deferred.fromResult(al));
 
 
-  byte[] uid = tsdb_store.allocateUID(foo_array, UniqueId.UniqueIdType.METRIC,
-          UniqueId.UniqueIdType.METRIC.width).joinUninterruptibly();
+  byte[] uid = tsdb_store.allocateUID(foo_array, UniqueId.UniqueIdType.METRIC
+  ).joinUninterruptibly();
   assertEquals(value,uid);
 
   // Verify the order of execution too.
@@ -247,7 +247,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
     final byte[] id = { 0, 0, 5 };
     assertArrayEquals(id, tsdb_store.allocateUID(foo_array,
-      UniqueId.UniqueIdType.METRIC, UniqueId.UniqueIdType.METRIC.width)
+      UniqueId.UniqueIdType.METRIC)
       .joinUninterruptibly());
     verify(client, times(1)).atomicIncrement(incrementForRow(MAX_UID));
     // Reverse + forward mappings.

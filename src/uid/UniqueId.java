@@ -295,7 +295,7 @@ public class UniqueId {
     }
 
     // start the assignment dance after stashing the deferred
-    Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type, id_width);
+    Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type);
 
     uid.addCallback(new Callback<Object, byte[]>() {
       @Override

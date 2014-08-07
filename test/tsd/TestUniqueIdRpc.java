@@ -34,9 +34,6 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import sun.rmi.runtime.Log;
 
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
@@ -1111,9 +1108,9 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupAssign() throws Exception {
-    tsdb_store.allocateUID("sys.cpu.0", UniqueIdType.METRIC, UniqueIdType.METRIC.width);
-    tsdb_store.allocateUID("myserver", UniqueIdType.TAGV, UniqueIdType.TAGV.width);
-    tsdb_store.allocateUID("datacenter", UniqueIdType.TAGK, UniqueIdType.TAGK.width);
+    tsdb_store.allocateUID("sys.cpu.0", UniqueIdType.METRIC);
+    tsdb_store.allocateUID("myserver", UniqueIdType.TAGV);
+    tsdb_store.allocateUID("datacenter", UniqueIdType.TAGK);
   }
   
   /**

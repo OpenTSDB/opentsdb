@@ -565,18 +565,18 @@ public class MemoryStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
-  public Deferred<byte[]> allocateUID(String name, UniqueIdType type, short id_width) {
-    return allocateUID(name.getBytes(ASCII), type, id_width);
+  public Deferred<byte[]> allocateUID(String name, UniqueIdType type) {
+    return allocateUID(name.getBytes(ASCII), type);
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
+  public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type) {
     final byte[] row = Bytes.fromLong(uid_max.get(type).getAndIncrement());
 
     // row.length should actually be 8.
-    if (row.length < id_width) {
+    if (row.length < type.width) {
       throw new IllegalStateException("row.length = " + row.length
-              + " which is less than " + id_width
+              + " which is less than " + type.width
               + " for id=" + uid_max
               + " row=" + Arrays.toString(row));
     }
@@ -584,15 +584,15 @@ public class MemoryStore implements TsdbStore {
     // Verify that the indices in the row array that won't be used in the
     // uid with the current length are zero so we haven't reached the upper
     // limits.
-    for (int i = 0; i < row.length - id_width; i++) {
+    for (int i = 0; i < row.length - type.width; i++) {
       if (row[i] != 0) {
         throw new IllegalArgumentException("All Unique IDs for " + type.qualifier
-                + " on " + id_width + " bytes are already assigned!");
+                + " on " + type.width + " bytes are already assigned!");
       }
     }
 
     // Shrink the ID on the requested number of bytes.
-    final byte[] uid = Arrays.copyOfRange(row, row.length - id_width,
+    final byte[] uid = Arrays.copyOfRange(row, row.length - type.width,
             row.length);
 
     return allocateUID(name, uid, type);

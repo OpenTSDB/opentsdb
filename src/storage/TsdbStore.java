@@ -86,8 +86,7 @@ public interface TsdbStore {
   Deferred<Object> deleteUID(byte[] name, byte[] kind);
 
   public Deferred<byte[]> allocateUID(final byte[] name,
-                                      final UniqueIdType type,
-                                      final short id_width);
+                                      final UniqueIdType type);
 
   Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type);
 
