@@ -426,7 +426,7 @@ final class TsdbQuery implements Query {
              }
              Span datapoints = spans.get(key);
              if (datapoints == null) {
-               datapoints = new Span(tsdb);
+               datapoints = new Span();
                spans.put(key, datapoints);
              }
              final KeyValue compacted = 
@@ -473,8 +473,8 @@ final class TsdbQuery implements Query {
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
-        final SpanGroup group = new SpanGroup(tsdb,
-                                              getScanStartTimeSeconds(),
+        final SpanGroup group = new SpanGroup(
+                getScanStartTimeSeconds(),
                                               getScanEndTimeSeconds(),
                                               spans.values(),
                                               rate, rate_options,
@@ -520,7 +520,7 @@ final class TsdbQuery implements Query {
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
         SpanGroup thegroup = groups.get(group);
         if (thegroup == null) {
-          thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
+          thegroup = new SpanGroup(getScanStartTimeSeconds(),
                                    getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
                                    sample_interval_ms, downsampler);

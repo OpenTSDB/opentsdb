@@ -14,7 +14,6 @@ package net.opentsdb.core;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -25,8 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.meta.Annotation;
 
 /**
@@ -100,34 +98,30 @@ final class SpanGroup implements DataPoints {
 
   /**
    * Ctor.
-   * @param tsdb The TSDB we belong to.
    * @param start_time Any data point strictly before this timestamp will be
    * ignored.
    * @param end_time Any data point strictly after this timestamp will be
    * ignored.
    * @param spans A sequence of initial {@link Spans} to add to this group.
-   * Ignored if {@code null}.  Additional spans can be added with {@link #add}.
+ * Ignored if {@code null}.  Additional spans can be added with {@link #add}.
    * @param rate If {@code true}, the rate of the series will be used instead
-   * of the actual values.
+* of the actual values.
    * @param aggregator The aggregation function to use.
    * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
-   * within an interval.
    */
-  SpanGroup(final TSDB tsdb,
-            final long start_time, final long end_time,
+  SpanGroup(final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate,
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
-    this(tsdb, start_time, end_time, spans, rate, new RateOptions(false,
+    this(start_time, end_time, spans, rate, new RateOptions(false,
         Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
         downsampler);
   }
 
   /**
    * Ctor.
-   * @param tsdb The TSDB we belong to.
    * @param start_time Any data point strictly before this timestamp will be
    * ignored.
    * @param end_time Any data point strictly after this timestamp will be
@@ -143,8 +137,7 @@ final class SpanGroup implements DataPoints {
    * within an interval.
    * @since 2.0
    */
-  SpanGroup(final TSDB tsdb,
-            final long start_time, final long end_time,
+  SpanGroup(final long start_time, final long end_time,
             final Iterable<Span> spans,
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,

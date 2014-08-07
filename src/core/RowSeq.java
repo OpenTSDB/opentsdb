@@ -34,10 +34,6 @@ import org.hbase.async.KeyValue;
  * for the values. Access is granted via pointers.
  */
 final class RowSeq implements DataPoints {
-
-  /** The {@link TSDB} instance we belong to. */
-  private final TSDB tsdb;
-
   /** First row key. */
   byte[] key;
 
@@ -56,10 +52,8 @@ final class RowSeq implements DataPoints {
 
   /**
    * Constructor.
-   * @param tsdb The TSDB we belong to.
    */
-  RowSeq(final TSDB tsdb) {
-    this.tsdb = tsdb;
+  RowSeq() {
   }
 
   /**

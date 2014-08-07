@@ -25,18 +25,12 @@ import net.opentsdb.uid.UniqueId;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
-import com.stumbleupon.async.Deferred;
-
 /**
  * Represents a read-only sequence of continuous data points.
  * <p>
  * This class stores a continuous sequence of {@link RowSeq}s in memory.
  */
 final class Span implements DataPoints {
-
-  /** The {@link TSDB} instance we belong to. */
-  private final TSDB tsdb;
-
   /** All the rows in this span. */
   private final ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
 
@@ -52,10 +46,8 @@ final class Span implements DataPoints {
   
   /**
    * Default constructor.
-   * @param tsdb The TSDB to which we belong
    */
-  Span(final TSDB tsdb) {
-    this.tsdb = tsdb;
+  Span() {
   }
 
   /** @throws IllegalStateException if the span doesn't have any rows */
@@ -134,7 +126,7 @@ final class Span implements DataPoints {
       // Verify that we have the same metric id and tags.
       final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
-      final short metric_width = tsdb.metrics.width();
+      final short metric_width = Const.METRICS_WIDTH;
       final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
       final short tags_bytes = (short) (key.length - tags_offset);
       String error = null;
@@ -154,7 +146,7 @@ final class Span implements DataPoints {
       last_ts = last.timestamp(last.size() - 1);  // O(n)
     }
 
-    final RowSeq rowseq = new RowSeq(tsdb);
+    final RowSeq rowseq = new RowSeq();
     rowseq.setRow(row);
     sorted = false;
     if (last_ts >= rowseq.timestamp(0)) {
