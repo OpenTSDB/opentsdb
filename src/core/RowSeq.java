@@ -280,7 +280,8 @@ final class RowSeq implements DataPoints {
     if (key == null) {
       throw new IllegalStateException("the row key is null!");
     }
-    return RowKey.metricNameAsync(tsdb, key);
+    byte[] metric_id = RowKey.metric(key);
+    return new UidFormatter(tsdb).formatMetric(metric_id);
   }
   
   public Map<String, String> getTags() {

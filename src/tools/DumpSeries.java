@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
+import net.opentsdb.core.RowKey;
 import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.storage.TsdbStore;
 import org.hbase.async.DeleteRequest;
@@ -30,6 +31,7 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.utils.Config;
 
 /**
@@ -37,6 +39,7 @@ import net.opentsdb.utils.Config;
  * Useful for debugging data induced problems.
  */
 final class DumpSeries {
+  private static UidFormatter formatter;
 
   /** Prints usage and exits with the given retval. */
   private static void usage(final ArgP argp, final String errmsg,
@@ -73,6 +76,7 @@ final class DumpSeries {
     Config config = CliOptions.getConfig(argp);
     
     final TSDB tsdb = new TSDB(config);
+    formatter = new UidFormatter(tsdb);
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     final byte[] table = config.getString("tsd.storage.hbase.data_table").getBytes();
     final boolean delete = argp.has("--delete");
@@ -102,8 +106,9 @@ final class DumpSeries {
         for (final ArrayList<KeyValue> row : rows) {
           buf.setLength(0);
           final byte[] key = row.get(0).key();
-          final long base_time = Internal.baseTime(key);
-          final String metric = Internal.metricName(tsdb, key);
+          final long base_time = RowKey.baseTime(key);
+          final byte[] metric_id = RowKey.metric(key);
+          final String metric = formatter.formatMetric(metric_id).joinUninterruptibly();
           // Print the row key.
           if (!importformat) {
             buf.append(Arrays.toString(key))
@@ -113,7 +118,9 @@ final class DumpSeries {
               .append(base_time)
               .append(" (").append(date(base_time)).append(") ");
             try {
-              buf.append(Internal.getTags(tsdb, key));
+              Map<byte[], byte[]> tag_ids = RowKey.tags(key);
+              Map<String, String> tag_names = formatter.formatTags(tag_ids).joinUninterruptibly();
+              buf.append(tag_names);
             } catch (RuntimeException e) {
               buf.append(e.getClass().getName() + ": " + e.getMessage());
             }
@@ -148,9 +155,10 @@ final class DumpSeries {
   static void formatKeyValue(final StringBuilder buf,
                              final TSDB tsdb,
                              final KeyValue kv,
-                             final long base_time) {
-    formatKeyValue(buf, tsdb, true, kv, base_time,
-                   Internal.metricName(tsdb, kv.key()));
+                             final long base_time) throws Exception {
+    final byte[] metric_id = RowKey.metric(kv.key());
+    final String metric = formatter.formatMetric(metric_id).joinUninterruptibly();
+    formatKeyValue(buf, tsdb, true, kv, base_time, metric);
   }
 
   private static void formatKeyValue(final StringBuilder buf,
@@ -158,13 +166,16 @@ final class DumpSeries {
       final boolean importformat,
       final KeyValue kv,
       final long base_time,
-      final String metric) {
+      final String metric) throws Exception {
         
     final String tags;
     if (importformat) {
       final StringBuilder tagsbuf = new StringBuilder();
-      for (final Map.Entry<String, String> tag
-           : Internal.getTags(tsdb, kv.key()).entrySet()) {
+
+      Map<byte[], byte[]> tag_ids = RowKey.tags(kv.key());
+      Map<String, String> tag_names = formatter.formatTags(tag_ids).joinUninterruptibly();
+
+      for (final Map.Entry<String, String> tag : tag_names.entrySet()) {
         tagsbuf.append(' ').append(tag.getKey())
           .append('=').append(tag.getValue());
       }

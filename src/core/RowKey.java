@@ -21,7 +21,6 @@ import com.stumbleupon.async.Deferred;
 
 /** Helper functions to deal with the row key. */
 final public class RowKey {
-
   private RowKey() {
     // Can't create instances of this utility class.
   }
@@ -31,21 +30,25 @@ final public class RowKey {
    * @param tsdb The TSDB to use.
    * @param row The actual row key.
    * @return The name of the metric.
+   * @since 1.2
    */
-  static String metricName(final TSDB tsdb, final byte[] row) {
-    try {
-      return metricNameAsync(tsdb, row).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+  public static Deferred<String> metricNameAsync(final TSDB tsdb,
+                                                 final byte[] row) {
+    final byte[] id = Arrays.copyOfRange(row, 0, tsdb.metrics.width());
+    return tsdb.metrics.getNameAsync(id);
   }
 
+  /** Extracts the metric id from a row key */
   public static byte[] metric(final byte[] row) {
     return Arrays.copyOfRange(row, 0, Const.METRICS_WIDTH);
   }
 
+  /** Extracts the timestamp from a row key.  */
+  public static long baseTime(final byte[] row) {
+    return Bytes.getUnsignedInt(row, Const.METRICS_WIDTH);
+  }
+
+  /** Extracts the tag key and value ids from a row key */
   public static Map<byte[], byte[]> tags(final byte[] row) {
     final short name_width = Const.TAG_NAME_WIDTH;
     final short value_width = Const.TAG_VALUE_WIDTH;
@@ -65,19 +68,6 @@ final public class RowKey {
     }
 
     return tags;
-  }
-
-  /**
-   * Extracts the name of the metric ID contained in a row key.
-   * @param tsdb The TSDB to use.
-   * @param row The actual row key.
-   * @return The name of the metric.
-   * @since 1.2
-   */
-  public static Deferred<String> metricNameAsync(final TSDB tsdb, 
-      final byte[] row) {
-    final byte[] id = Arrays.copyOfRange(row, 0, tsdb.metrics.width());
-    return tsdb.metrics.getNameAsync(id);
   }
   
   /**

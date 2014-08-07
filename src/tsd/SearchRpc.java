@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.stumbleupon.async.Deferred;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
@@ -28,6 +29,7 @@ import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Pair;
 
@@ -176,8 +178,10 @@ final class SearchRpc implements HttpRpc {
         series = new HashMap<String, Object>((tsuid.length / 2) + 1);
         try {
           series.put("tsuid", UniqueId.uidToString(tsuid));
-          series.put("metric", RowKey.metricNameAsync(tsdb, tsuid)
-                      .joinUninterruptibly());
+
+          byte[] metric_id = RowKey.metric(tsuid);
+          Deferred<String> metric = new UidFormatter(tsdb).formatMetric(metric_id);
+          series.put("metric", metric.joinUninterruptibly());
           tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
           series.put("tags", Tags.resolveIdsAsync(tsdb, tag_ids)
               .joinUninterruptibly());
