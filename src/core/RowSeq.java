@@ -266,47 +266,19 @@ final class RowSeq implements DataPoints {
                                    + Arrays.toString(values));
   }
 
-  public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+  @Override
+  public byte[] metric() {
+    return RowKey.metric(key);
   }
 
-  public Deferred<String> metricNameAsync() {
-    if (key == null) {
-      throw new IllegalStateException("the row key is null!");
-    }
-    byte[] metric_id = RowKey.metric(key);
-    return new UidFormatter(tsdb).formatMetric(metric_id);
-  }
-  
-  public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<Map<String, String>> getTagsAsync() {
-    Map<byte[], byte[]> tag_ids = RowKey.tags(key);
-    return new UidFormatter(tsdb).formatTags(tag_ids);
+  @Override
+  public Map<byte[],byte[]> tags() {
+    return RowKey.tags(key);
   }
 
-  /** @return an empty list since aggregated tags cannot exist on a single row */
-  public List<String> getAggregatedTags() {
+  @Override
+  public List<byte[]> aggregatedTags() {
     return Collections.emptyList();
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    final List<String> empty = Collections.emptyList();
-    return Deferred.fromResult(empty);
   }
   
   public List<String> getTSUIDs() {
@@ -451,7 +423,7 @@ final class RowSeq implements DataPoints {
   public String toString() {
     // The argument passed to StringBuilder is a pretty good estimate of the
     // length of the final string based on the row key and number of elements.
-    final String metric = metricName();
+    final String metric = Arrays.toString(metric());
     final int size = size();
     final StringBuilder buf = new StringBuilder(80 + metric.length()
                                                 + key.length * 4

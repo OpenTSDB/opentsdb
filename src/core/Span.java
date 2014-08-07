@@ -65,54 +65,28 @@ final class Span implements DataPoints {
     }
   }
 
-  /** 
-   * @return the name of the metric associated with the rows in this span
+  /**
+   * @return the id of the metric associated with the rows in this span
    * @throws IllegalStateException if the span was empty
-   * @throws NoSuchUniqueId if the row key UID did not exist
    */
-  public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<String> metricNameAsync() {
-    checkNotEmpty();
-    return rows.get(0).metricNameAsync();
+  @Override
+  public byte[] metric() {
+    return rows.get(0).metric();
   }
 
   /**
-   * @return the list of tag pairs for the rows in this span
+   * @return the list of tag id pairs for the rows in this span
    * @throws IllegalStateException if the span was empty
-   * @throws NoSuchUniqueId if the any of the tagk/v UIDs did not exist
    */
-  public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+  @Override
+  public Map<byte[],byte[]> tags() {
+    checkNotEmpty();
+    return rows.get(0).tags();
   }
 
-  public Deferred<Map<String, String>> getTagsAsync() {
-    checkNotEmpty();
-    return rows.get(0).getTagsAsync();
-  }
-  
-  /** @return an empty list since aggregated tags cannot exist on a single span */
-  public List<String> getAggregatedTags() {
+  @Override
+  public List<byte[]> aggregatedTags() {
     return Collections.emptyList();
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    final List<String> empty = Collections.emptyList();
-    return Deferred.fromResult(empty);
   }
 
   /** @return the number of data points in this span, O(n)

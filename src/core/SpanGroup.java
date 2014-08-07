@@ -13,12 +13,18 @@
 package net.opentsdb.core;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.meta.Annotation;
@@ -61,7 +67,7 @@ final class SpanGroup implements DataPoints {
    * in this group.
    * @see #computeTags
    */
-  private HashMap<String, String> tags;
+  private Map<byte[], byte[]> tags;
 
   /**
    * The names of the tags that aren't shared by every single data point.
@@ -69,7 +75,7 @@ final class SpanGroup implements DataPoints {
    * in this group.
    * @see #computeTags
    */
-  private ArrayList<String> aggregated_tags;
+  private List<byte[]> aggregated_tags;
 
   /** Spans in this group.  They must all be for the same metric. */
   private final ArrayList<Span> spans = new ArrayList<Span>();
@@ -216,125 +222,56 @@ final class SpanGroup implements DataPoints {
    * @param spans A collection of spans for which to find the common tags.
    * @return A (possibly empty) map of the tags common to all the spans given.
    */
-  private Deferred<Object> computeTags() {
+  private void computeTags() {
     if (spans.isEmpty()) {
-      tags = new HashMap<String, String>(0);
-      aggregated_tags = new ArrayList<String>(0);
-      return Deferred.fromResult(null);
+      tags = Maps.newHashMapWithExpectedSize(0);
+      aggregated_tags = Lists.newArrayListWithCapacity(0);
+      return;
     }
+
+    // TODO Standard HashSets don't support arrays
+    final HashSet<byte[]> discarded_tags = Sets.newHashSet();
 
     final Iterator<Span> it = spans.iterator();
-    
-    /**
-     * This is the last callback that will determine what tags are aggregated in
-     * the results.
-     */
-    class SpanTagsCB implements Callback<Object, ArrayList<Map<String, String>>> {
-      public Object call(final ArrayList<Map<String, String>> lookups) 
-        throws Exception {
-        final HashSet<String> discarded_tags = new HashSet<String>(tags.size());
-        for (Map<String, String> lookup : lookups) {
-          final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
-          while (i.hasNext()) {
-            final Map.Entry<String, String> entry = i.next();
-            final String name = entry.getKey();
-            final String value = lookup.get(name);
-            if (value == null || !value.equals(entry.getValue())) {
-              i.remove();
-              discarded_tags.add(name);
-            }
-          }
+    Map<byte[], byte[]> tags2 = it.next().tags();
+
+    // This algorithm removes tags from the <code>tags</code> instance variable
+    // when that specific tag name doesn't exist in <code>span_tags</code> or
+    // the value of that tag in <code>span_tags</code> isn't equal to the tag
+    // value in tags.
+    while (it.hasNext()) {
+      final Map<byte[], byte[]> span_tags = it.next().tags();
+
+      for (Map.Entry<byte[], byte[]> entry : tags2.entrySet()) {
+        final byte[] value = span_tags.get(entry.getKey());
+
+        if (value == null || !Arrays.equals(value, entry.getValue())) {
+          tags2.remove(entry.getKey());
+          discarded_tags.add(entry.getKey());
         }
-        SpanGroup.this.aggregated_tags = new ArrayList<String>(discarded_tags);
-        return null;
-      }
-    }
-    
-    /**
-     * We have to wait for the first set of tags to be resolved so we can 
-     * create a map with the proper size. Then we iterate through the rest of
-     * the tags for the different spans and work on each set.
-     */
-    class FirstTagSetCB implements Callback<Object, Map<String, String>> {      
-      public Object call(final Map<String, String> first_tags) throws Exception {
-        tags = new HashMap<String, String>(first_tags);
-        final ArrayList<Deferred<Map<String, String>>> deferreds = 
-          new ArrayList<Deferred<Map<String, String>>>(tags.size());
-        
-        while (it.hasNext()) {
-          deferreds.add(it.next().getTagsAsync());
-        }
-        
-        return Deferred.groupInOrder(deferreds).addCallback(new SpanTagsCB());
       }
     }
 
-    return it.next().getTagsAsync().addCallback(new FirstTagSetCB());
+    tags = ImmutableMap.copyOf(tags2);
+    aggregated_tags = ImmutableList.copyOf(discarded_tags);
   }
 
-  public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<String> metricNameAsync() {
-    return spans.isEmpty() ? Deferred.fromResult("") : 
-      spans.get(0).metricNameAsync();
+  @Override
+  public byte[] metric() {
+    // TODO Should not return a 0 byte like this. An optional would be better
+    return spans.isEmpty() ? new byte[] {0} : spans.get(0).metric();
   }
 
-  public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<Map<String, String>> getTagsAsync() {
-    if (tags != null) {
-      final Map<String, String> local_tags = tags;
-      return Deferred.fromResult(local_tags);
-    }
-    
-    class ComputeCB implements Callback<Map<String, String>, Object> {
-      public Map<String, String> call(final Object obj) {
-        return tags;
-      }
-    }
-    
-    return computeTags().addCallback(new ComputeCB());
+  @Override
+  public Map<byte[], byte[]> tags() {
+    computeTags();
+    return tags;
   }
 
-  public List<String> getAggregatedTags() {
-    try {
-      return getAggregatedTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    if (aggregated_tags != null) {
-      final List<String> agg_tags = aggregated_tags;
-      return Deferred.fromResult(agg_tags);
-    }
-    
-    class ComputeCB implements Callback<List<String>, Object> {
-      public List<String> call(final Object obj) {
-        return aggregated_tags;
-      }
-    }
-    
-    return computeTags().addCallback(new ComputeCB());
+  @Override
+  public List<byte[]> aggregatedTags() {
+    computeTags();
+    return aggregated_tags;
   }
 
   public List<String> getTSUIDs() {

@@ -18,6 +18,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Preconditions;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
@@ -26,6 +27,8 @@ import org.hbase.async.PutRequest;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.UidFormatter;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Receives new data points and stores them in HBase.
@@ -282,46 +285,21 @@ class IncomingDataPoints implements WritableDataPoints {
     }
   }
 
-  public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<String> metricNameAsync() {
-    if (row == null) {
-      throw new IllegalStateException("setSeries never called before!");
-    }
-    final byte[] id = Arrays.copyOfRange(row, 0, tsdb.metrics.width());
-    return tsdb.metrics.getNameAsync(id);
+  @Override
+  public byte[] metric() {
+    checkNotNull(row, "setSeries never called before!");
+    return RowKey.metric(row);
   }
 
-  public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<Map<String, String>> getTagsAsync() {
-    Map<byte[], byte[]> tag_ids = RowKey.tags(row);
-    return new UidFormatter(tsdb).formatTags(tag_ids);
+  @Override
+  public Map<byte[], byte[]> tags() {
+    checkNotNull(row, "setSeries never called before!");
+    return RowKey.tags(row);
   }
 
-  public List<String> getAggregatedTags() {
+  @Override
+  public List<byte[]> aggregatedTags() {
     return Collections.emptyList();
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    final List<String> empty = Collections.emptyList();
-    return Deferred.fromResult(empty);
   }
 
   public List<String> getTSUIDs() {
@@ -390,7 +368,7 @@ class IncomingDataPoints implements WritableDataPoints {
   public String toString() {
     // The argument passed to StringBuilder is a pretty good estimate of the
     // length of the final string based on the row key and number of elements.
-    final String metric = metricName();
+    final String metric = Arrays.toString(metric());
     final StringBuilder buf = new StringBuilder(80 + metric.length()
                                                 + row.length * 4 + size * 16);
     final long base_time = baseTime();

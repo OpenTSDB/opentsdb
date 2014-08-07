@@ -42,6 +42,12 @@ public class TestTsdbQueryDownsample {
   private TSDB tsdb = null;
   private TsdbQuery query = null;
 
+  private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
+  private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};
+  private static final byte[] HOST_ID = new byte[]{0, 0, 1};
+  private static final byte[] WEB01_ID = new byte[]{0, 0, 1};
+  private static final byte[] WEB02_ID = new byte[]{0, 0, 2};
+
   @Before
   public void before() throws Exception {
     Config config = new Config(false);
@@ -49,13 +55,13 @@ public class TestTsdbQueryDownsample {
     tsdb = new TSDB(tsdb_store, config);
     query = new TsdbQuery(tsdb);
 
-    tsdb_store.allocateUID("sys.cpu.user", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.nice", new byte[]{0, 0, 2}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.user", SYS_CPU_USER_ID, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.nice", SYS_CPU_NICE_ID, UniqueIdType.METRIC);
 
-    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("host", HOST_ID, UniqueIdType.TAGK);
 
-    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
-    tsdb_store.allocateUID("web02", new byte[]{0, 0, 2}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web01", WEB01_ID, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", WEB02_ID, UniqueIdType.TAGV);
   }
 
   @Test
@@ -105,10 +111,10 @@ public class TestTsdbQueryDownsample {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
+    assertTrue(dps[0].aggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
+    assertArrayEquals(WEB01_ID, dps[0].tags().get(HOST_ID));
 
     // Timeseries in intervals: (1), (2, 3), (4, 5), ... (298, 299), (300)
     int i = 0;
@@ -147,10 +153,10 @@ public class TestTsdbQueryDownsample {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
+    assertTrue(dps[0].aggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
+    assertArrayEquals(WEB01_ID, dps[0].tags().get(HOST_ID));
 
     // Timeseries in intervals: (1), (2, 3), (4, 5), ... (298, 299), (300)
     int i = 0;
@@ -189,10 +195,10 @@ public class TestTsdbQueryDownsample {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
+    assertTrue(dps[0].aggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
+    assertArrayEquals(WEB01_ID, dps[0].tags().get(HOST_ID));
 
     // Timeseries in intervals: (1), (2, 3), (4, 5), ... (298, 299), (300)
     // After downsampling: 1, 2.5, 4.5, ... 298.5, 300
@@ -233,10 +239,10 @@ public class TestTsdbQueryDownsample {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
+    assertTrue(dps[0].aggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
+    assertArrayEquals(WEB01_ID, dps[0].tags().get(HOST_ID));
 
     // Timeseries in intervals: (1), (2, 3), (4, 5), ... (298, 299), (300)
     // After downsampling: 1, 2.5, 4.5, ... 298.5, 300
@@ -274,10 +280,10 @@ public class TestTsdbQueryDownsample {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
+    assertTrue(dps[0].aggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
+    assertArrayEquals(WEB01_ID, dps[0].tags().get(HOST_ID));
 
     // Timeseries in intervals: (1.25), (1.5, 1.75), (2, 2.25), ...
     // (75.5, 75.75), (76).
@@ -316,10 +322,10 @@ public class TestTsdbQueryDownsample {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
+    assertTrue(dps[0].aggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
+    assertArrayEquals(WEB01_ID, dps[0].tags().get(HOST_ID));
 
     // Timeseries in intervals: (1.25), (1.5, 1.75), (2, 2.25), ...
     // (75.5, 75.75), (76).
@@ -358,10 +364,10 @@ public class TestTsdbQueryDownsample {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
+    assertTrue(dps[0].aggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
+    assertArrayEquals(WEB01_ID, dps[0].tags().get(HOST_ID));
 
     // Timeseries in intervals: (1.25), (1.5, 1.75), (2, 2.25), ...
     // (75.5, 75.75), (76).
@@ -403,10 +409,10 @@ public class TestTsdbQueryDownsample {
     query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
-    assertEquals("sys.cpu.user", dps[0].metricName());
-    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
+    assertTrue(dps[0].aggregatedTags().isEmpty());
     assertNull(dps[0].getAnnotations());
-    assertEquals("web01", dps[0].getTags().get("host"));
+    assertArrayEquals(WEB01_ID, dps[0].tags().get(HOST_ID));
 
     // Timeseries in intervals: (1.25), (1.5, 1.75), (2, 2.25), ...
     // (75.5, 75.75), (76).

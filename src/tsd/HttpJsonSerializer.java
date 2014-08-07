@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -22,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import com.google.common.base.Throwables;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -47,8 +49,12 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
+import net.opentsdb.uid.UidFormatter;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
+
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
 /**
  * Implementation of the base serializer class with JSON as the format
@@ -78,6 +84,8 @@ class HttpJsonSerializer extends HttpSerializer {
     new TypeReference<HashMap<String, Object>>() {};
   private static TypeReference<List<Annotation>> TR_ANNOTATIONS = 
       new TypeReference<List<Annotation>>() {};
+
+  private UidFormatter formatter;
     
   /**
    * Default constructor necessary for plugin implementation
@@ -97,7 +105,7 @@ class HttpJsonSerializer extends HttpSerializer {
   /** Initializer, nothing to do for the JSON serializer */
   @Override
   public void initialize(final TSDB tsdb) {
-    // nothing to see here
+    formatter = new UidFormatter(tsdb);
   }
   
   /** Nothing to do on shutdown */
@@ -557,103 +565,116 @@ class HttpJsonSerializer extends HttpSerializer {
       
       for (DataPoints[] separate_dps : results) {
         for (DataPoints dps : separate_dps) {
-          json.writeStartObject();
-          
-          json.writeStringField("metric", dps.metricName());
-          
-          json.writeFieldName("tags");
-          json.writeStartObject();
-          if (dps.getTags() != null) {
-            for (Map.Entry<String, String> tag : dps.getTags().entrySet()) {
-              json.writeStringField(tag.getKey(), tag.getValue());
-            }
-          }
-          json.writeEndObject();
-          
-          json.writeFieldName("aggregateTags");
-          json.writeStartArray();
-          if (dps.getAggregatedTags() != null) {
-            for (String atag : dps.getAggregatedTags()) {
-              json.writeString(atag);
-            }
-          }
-          json.writeEndArray();
-          
-          if (data_query.getShowTSUIDs()) {
-            json.writeFieldName("tsuids");
-            json.writeStartArray();
-            final List<String> tsuids = dps.getTSUIDs();
-            Collections.sort(tsuids);
-            for (String tsuid : tsuids) {
-              json.writeString(tsuid);
-            }
-            json.writeEndArray();
-          }
-          
-          if (!data_query.getNoAnnotations()) {
-            final List<Annotation> annotations = dps.getAnnotations();
-            if (annotations != null) {
-              Collections.sort(annotations);
-              json.writeArrayFieldStart("annotations");
-              for (Annotation note : annotations) {
-                json.writeObject(note);
-              }
-              json.writeEndArray();
-            }
-            
-            if (globals != null && !globals.isEmpty()) {
-              Collections.sort(globals);
-              json.writeArrayFieldStart("globalAnnotations");
-              for (Annotation note : globals) {
-                json.writeObject(note);
-              }
-              json.writeEndArray();
-            }
-          }
-          
-          // now the fun stuff, dump the data
-          json.writeFieldName("dps");
-          
-          // default is to write a map, otherwise write arrays
-          if (as_arrays) {
-            json.writeStartArray();
-            for (final DataPoint dp : dps) {
-              if (dp.timestamp() < data_query.startTime() || 
-                  dp.timestamp() > data_query.endTime()) {
-                continue;
-              }
-              final long timestamp = data_query.getMsResolution() ? 
-                  dp.timestamp() : dp.timestamp() / 1000;
-              json.writeStartArray();
-              json.writeNumber(timestamp);
-              if (dp.isInteger()) {
-                json.writeNumber(dp.longValue());
-              } else { 
-                json.writeNumber(dp.doubleValue());
-              }
-              json.writeEndArray();
-            }
-            json.writeEndArray();
-          } else {
+          try {
             json.writeStartObject();
-            for (final DataPoint dp : dps) {
-              if (dp.timestamp() < (data_query.startTime()) || 
-                  dp.timestamp() > (data_query.endTime())) {
-                continue;
-              }
-              final long timestamp = data_query.getMsResolution() ? 
-                  dp.timestamp() : dp.timestamp() / 1000;
-              if (dp.isInteger()) {
-                json.writeNumberField(Long.toString(timestamp), dp.longValue());
-              } else {
-                json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
+
+            byte[] metric_id = dps.metric();
+            String metric_name = formatter.formatMetric(metric_id).joinUninterruptibly();
+            json.writeStringField("metric", metric_name);
+
+            json.writeFieldName("tags");
+            json.writeStartObject();
+
+            Map<byte[], byte[]> tag_ids = dps.tags();
+            if (tag_ids != null) {
+              Map<String, String> tags = formatter.formatTags(tag_ids).joinUninterruptibly();
+              for (Map.Entry<String, String> tag : tags.entrySet()) {
+                json.writeStringField(tag.getKey(), tag.getValue());
               }
             }
             json.writeEndObject();
-          }
 
-          // close the results for this particular query
-          json.writeEndObject();
+            json.writeFieldName("aggregateTags");
+            json.writeStartArray();
+
+            List<byte[]> aggregated_tag_ids = dps.aggregatedTags();
+            if (aggregated_tag_ids != null) {
+              ArrayList<String> tagks = formatter.formatUids
+                      (aggregated_tag_ids, UniqueIdType.TAGK).joinUninterruptibly();
+              for (String atag : tagks) {
+                json.writeString(atag);
+              }
+            }
+            json.writeEndArray();
+
+            if (data_query.getShowTSUIDs()) {
+              json.writeFieldName("tsuids");
+              json.writeStartArray();
+              final List<String> tsuids = dps.getTSUIDs();
+              Collections.sort(tsuids);
+              for (String tsuid : tsuids) {
+                json.writeString(tsuid);
+              }
+              json.writeEndArray();
+            }
+
+            if (!data_query.getNoAnnotations()) {
+              final List<Annotation> annotations = dps.getAnnotations();
+              if (annotations != null) {
+                Collections.sort(annotations);
+                json.writeArrayFieldStart("annotations");
+                for (Annotation note : annotations) {
+                  json.writeObject(note);
+                }
+                json.writeEndArray();
+              }
+
+              if (globals != null && !globals.isEmpty()) {
+                Collections.sort(globals);
+                json.writeArrayFieldStart("globalAnnotations");
+                for (Annotation note : globals) {
+                  json.writeObject(note);
+                }
+                json.writeEndArray();
+              }
+            }
+
+            // now the fun stuff, dump the data
+            json.writeFieldName("dps");
+
+            // default is to write a map, otherwise write arrays
+            if (as_arrays) {
+              json.writeStartArray();
+              for (final DataPoint dp : dps) {
+                if (dp.timestamp() < data_query.startTime() ||
+                        dp.timestamp() > data_query.endTime()) {
+                  continue;
+                }
+                final long timestamp = data_query.getMsResolution() ?
+                        dp.timestamp() : dp.timestamp() / 1000;
+                json.writeStartArray();
+                json.writeNumber(timestamp);
+                if (dp.isInteger()) {
+                  json.writeNumber(dp.longValue());
+                } else {
+                  json.writeNumber(dp.doubleValue());
+                }
+                json.writeEndArray();
+              }
+              json.writeEndArray();
+            } else {
+              json.writeStartObject();
+              for (final DataPoint dp : dps) {
+                if (dp.timestamp() < (data_query.startTime()) ||
+                        dp.timestamp() > (data_query.endTime())) {
+                  continue;
+                }
+                final long timestamp = data_query.getMsResolution() ?
+                        dp.timestamp() : dp.timestamp() / 1000;
+                if (dp.isInteger()) {
+                  json.writeNumberField(Long.toString(timestamp), dp.longValue());
+                } else {
+                  json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
+                }
+              }
+              json.writeEndObject();
+            }
+
+            // close the results for this particular query
+            json.writeEndObject();
+          } catch (Exception e) {
+            Throwables.propagate(e);
+          }
         }
       }
     
