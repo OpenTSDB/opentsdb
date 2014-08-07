@@ -566,13 +566,14 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(byte[] name, UniqueIdType type, short id_width) {
+  public Deferred<byte[]> allocateUID(final String name,
+                                      final UniqueIdType type) {
     final byte[] row = Bytes.fromLong(uid_max.get(type).getAndIncrement());
 
     // row.length should actually be 8.
-    if (row.length < id_width) {
+    if (row.length < type.width) {
       throw new IllegalStateException("row.length = " + row.length
-              + " which is less than " + id_width
+              + " which is less than " + type.width
               + " for id=" + uid_max
               + " row=" + Arrays.toString(row));
     }
@@ -580,22 +581,24 @@ public class MemoryStore implements TsdbStore {
     // Verify that the indices in the row array that won't be used in the
     // uid with the current length are zero so we haven't reached the upper
     // limits.
-    for (int i = 0; i < row.length - id_width; i++) {
+    for (int i = 0; i < row.length - type.width; i++) {
       if (row[i] != 0) {
         throw new IllegalArgumentException("All Unique IDs for " + type.qualifier
-                + " on " + id_width + " bytes are already assigned!");
+                + " on " + type.width + " bytes are already assigned!");
       }
     }
 
     // Shrink the ID on the requested number of bytes.
-    final byte[] uid = Arrays.copyOfRange(row, row.length - id_width,
+    final byte[] uid = Arrays.copyOfRange(row, row.length - type.width,
             row.length);
 
     return allocateUID(name, uid, type);
   }
 
-  public Deferred<byte[]> allocateUID(String name, byte[] uid, UniqueIdType type) {
-
+  @Override
+  public Deferred<byte[]> allocateUID(final String name,
+                                      final byte[] uid,
+                                      final UniqueIdType type) {
     uid_max.get(type).set(Math.max(uid_max.get(type).get(),
             (UniqueId.uidToLong(uid, (short) uid.length) + 1 )));
 
@@ -614,12 +617,6 @@ public class MemoryStore implements TsdbStore {
     uid_forward_mapping.put(name, type, uid);
 
     return Deferred.fromResult(uid);
-  }
-
-  @Override
-  public Deferred<byte[]> allocateUID(byte[] name, byte[] uid, UniqueIdType type) {
-    String str_name = new String(name, Const.CHARSET_ASCII);
-    return allocateUID(str_name, uid, type);
   }
 
   @Override

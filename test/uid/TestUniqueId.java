@@ -119,10 +119,9 @@ public final class TestUniqueId {
   @Test
   public void getNameSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    final byte[] id = { 0, 'a', 0x42 };
-    final byte[] byte_name = { 'f', 'o', 'o' };
 
-    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
+    final byte[] id = { 0, 'a', 0x42 };
+    client.allocateUID("foo", id, UniqueIdType.METRIC);
 
     assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly());
     // Should be a cache hit ...
@@ -150,8 +149,7 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final byte[] id = { 0, 'a', 0x42 };
-    final byte[] byte_name = { 'f', 'o', 'o' };
-    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
+    client.allocateUID("foo", id, UniqueIdType.METRIC);
 
     assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
     // Should be a cache hit ...
@@ -170,8 +168,7 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final byte[] id = { 'a', 0x42 };
-    final byte[] byte_name = { 'f', 'o', 'o' };
-    client.allocateUID(byte_name, id, UniqueIdType.METRIC);
+    client.allocateUID("foo", id, UniqueIdType.METRIC);
 
     uid.getIdAsync("foo").joinUninterruptibly();
   }

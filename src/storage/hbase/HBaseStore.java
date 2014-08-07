@@ -686,9 +686,8 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(final byte[] name,
-                                      final UniqueIdType type,
-                                      final short id_width) {
+  public Deferred<byte[]> allocateUID(final String name,
+                                      final UniqueIdType type) {
     class IdCB implements Callback<Deferred<byte[]>, Long> {
       @Override
       public Deferred<byte[]> call(Long id) throws Exception {
@@ -701,9 +700,9 @@ public class HBaseStore implements TsdbStore {
         final byte[] row = Bytes.fromLong(id);
 
         // row.length should actually be 8.
-        if (row.length < id_width) {
+        if (row.length < type.width) {
           throw new IllegalStateException("row.length = " + row.length
-                  + " which is less than " + id_width
+                  + " which is less than " + type.width
                   + " for id=" + id
                   + " row=" + Arrays.toString(row));
         }
@@ -711,15 +710,15 @@ public class HBaseStore implements TsdbStore {
         // Verify that the indices in the row array that won't be used in the
         // uid with the current length are zero so we haven't reached the upper
         // limits.
-        for (int i = 0; i < row.length - id_width; i++) {
+        for (int i = 0; i < row.length - type.width; i++) {
           if (row[i] != 0) {
             throw new IllegalStateException("All Unique IDs for " + type.qualifier
-                    + " on " + id_width + " bytes are already assigned!");
+                    + " on " + type.width + " bytes are already assigned!");
           }
         }
 
         // Shrink the ID on the requested number of bytes.
-        final byte[] uid = Arrays.copyOfRange(row, row.length - id_width,
+        final byte[] uid = Arrays.copyOfRange(row, row.length - type.width,
                 row.length);
 
         return allocateUID(name, uid, type);
@@ -746,7 +745,7 @@ public class HBaseStore implements TsdbStore {
    * @param type The type of the UID.
    */
   @Override
-  public Deferred<byte[]> allocateUID(final byte[] name,
+  public Deferred<byte[]> allocateUID(final String name,
                                       final byte[] uid,
                                       final UniqueIdType type) {
     // Create the reverse mapping first, so that if we die before updating
@@ -818,9 +817,10 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
+    final byte[] b_name = toBytes(name);
     final byte[] qualifier = type.qualifier.getBytes(CHARSET);
-    final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, qualifier, name);
-    final PutRequest forward_mapping = new PutRequest(uid_table_name, name, ID_FAMILY, qualifier, uid);
+    final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, qualifier, b_name);
+    final PutRequest forward_mapping = new PutRequest(uid_table_name, b_name, ID_FAMILY, qualifier, uid);
 
     return client.compareAndSet(reverse_mapping, HBaseClient.EMPTY_ARRAY)
             .addCallbackDeferring(new ReverseCB(reverse_mapping, forward_mapping))

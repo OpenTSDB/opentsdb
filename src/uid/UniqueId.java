@@ -295,7 +295,7 @@ public class UniqueId {
     }
 
     // start the assignment dance after stashing the deferred
-    Deferred<byte[]> uid = tsdb_store.allocateUID(toBytes(name), type, id_width);
+    Deferred<byte[]> uid = tsdb_store.allocateUID(name, type);
 
     uid.addCallback(new Callback<Object, byte[]>() {
       @Override
@@ -432,7 +432,7 @@ public class UniqueId {
         return getIdAsync(oldname).addCallbackDeferring(new Callback<Deferred<Object>, byte[]>() {
           @Override
           public Deferred<Object> call(final byte[] old_uid) {
-            tsdb_store.allocateUID(toBytes(newname), old_uid, type);
+            tsdb_store.allocateUID(newname, old_uid, type);
 
             // Update cache.
             addIdToCache(newname, old_uid);            // add     new name -> ID

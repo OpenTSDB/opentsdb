@@ -34,9 +34,6 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import sun.rmi.runtime.Log;
 
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
@@ -1111,9 +1108,9 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupAssign() throws Exception {
-    tsdb_store.allocateUID("sys.cpu.0", UniqueIdType.METRIC, UniqueIdType.METRIC.width);
-    tsdb_store.allocateUID("myserver", UniqueIdType.TAGV, UniqueIdType.TAGV.width);
-    tsdb_store.allocateUID("datacenter", UniqueIdType.TAGK, UniqueIdType.TAGK.width);
+    tsdb_store.allocateUID("sys.cpu.0", UniqueIdType.METRIC);
+    tsdb_store.allocateUID("myserver", UniqueIdType.TAGV);
+    tsdb_store.allocateUID("datacenter", UniqueIdType.TAGK);
   }
   
   /**
@@ -1121,8 +1118,8 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupUID() throws Exception {
-    tsdb_store.allocateUID("sys.cpu.0".getBytes(Charset.forName("UTF-8")), new byte[]{0, 0, 1}, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.2".getBytes(Charset.forName("UTF-8")), new byte[]{0, 0, 3}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, UniqueIdType.METRIC);
 
     UIDMeta meta = new UIDMeta(
             UniqueIdType.METRIC,
@@ -1141,14 +1138,14 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupTSUID() throws Exception {
-    tsdb_store.allocateUID("sys.cpu.0".getBytes(Charset.forName("UTF-8")), new byte[]{0, 0, 1}, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.2".getBytes(Charset.forName("UTF-8")), new byte[] {0, 0, 2}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
 
-    tsdb_store.allocateUID("host".getBytes(Charset.forName("UTF-8")), new byte[]{0, 0, 1}, UniqueIdType.TAGK);
-    tsdb_store.allocateUID("datacenter".getBytes(Charset.forName("UTF-8")), new byte[] {0, 0, 2}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("datacenter", new byte[] {0, 0, 2}, UniqueIdType.TAGK);
 
-    tsdb_store.allocateUID("web01".getBytes(Charset.forName("UTF-8")), new byte[]{0, 0, 1}, UniqueIdType.TAGV);
-    tsdb_store.allocateUID("web02".getBytes(Charset.forName("UTF-8")), new byte[]{0, 0, 3}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[]{0, 0, 3}, UniqueIdType.TAGV);
 
     tsdb_store.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
@@ -1183,7 +1180,7 @@ public final class TestUniqueIdRpc {
         ("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"web02\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}").getBytes(Const.CHARSET_ASCII));
-    tsdb_store.allocateUID("dc01".getBytes(Charset.forName("UTF-8")), new byte[]{0, 0, 2}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("dc01", new byte[]{0, 0, 2}, UniqueIdType.TAGV);
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
         "tagv_meta".getBytes(Const.CHARSET_ASCII),
         ("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"dc01\"," +

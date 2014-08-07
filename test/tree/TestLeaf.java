@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -51,18 +52,9 @@ public final class TestLeaf {
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
-    tsdb_store.allocateUID(
-            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.METRIC);
-    tsdb_store.allocateUID(
-            "host".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.TAGK);
-    tsdb_store.allocateUID(
-            "web01".getBytes(Const.CHARSET_ASCII),
-            new byte[]{0, 0, 1},
-            UniqueId.UniqueIdType.TAGV);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
 
     tsdb_store.addColumn(new byte[]{0, 1}, Tree.TREE_FAMILY(),
       new Leaf("0", "000001000001000001").columnQualifier(),
