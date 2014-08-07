@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
@@ -133,6 +134,7 @@ final class TsdbQuery implements Query {
    * @throws IllegalArgumentException if the timestamp is invalid or greater
    * than the end time (if set)
    */
+  @Override
   public void setStartTime(final long timestamp) {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
@@ -148,6 +150,7 @@ final class TsdbQuery implements Query {
    * @returns the start time for the query
    * @throws IllegalStateException if the start time hasn't been set yet
    */
+  @Override
   public long getStartTime() {
     if (start_time == UNSET) {
       throw new IllegalStateException("setStartTime was never called!");
@@ -162,6 +165,7 @@ final class TsdbQuery implements Query {
    * @throws IllegalArgumentException if the timestamp is invalid or less
    * than the start time (if set)
    */
+  @Override
   public void setEndTime(final long timestamp) {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
@@ -176,6 +180,7 @@ final class TsdbQuery implements Query {
   /** @return the configured end time. If the end time hasn't been set, the
    * current system time will be stored and returned.
    */
+  @Override
   public long getEndTime() {
     if (end_time == UNSET) {
       setEndTime(System.currentTimeMillis());
@@ -183,6 +188,7 @@ final class TsdbQuery implements Query {
     return end_time;
   }
 
+  @Override
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
       final Aggregator function,
@@ -190,6 +196,7 @@ final class TsdbQuery implements Query {
     setTimeSeries(metric, tags, function, rate, new RateOptions());
   }
   
+  @Override
   public void setTimeSeries(final String metric,
         final Map<String, String> tags,
         final Aggregator function,
@@ -197,18 +204,26 @@ final class TsdbQuery implements Query {
         final RateOptions rate_options)
   throws NoSuchUniqueName {
     findGroupBys(tags);
-    this.metric = tsdb.metrics.getId(metric);
-    this.tags = Tags.resolveAll(tsdb, tags);
+
+    try {
+      this.metric = tsdb.metrics.getIdAsync(metric).joinUninterruptibly();
+      this.tags = Tags.resolveAllAsync(tsdb, tags).joinUninterruptibly();
+    } catch (Exception e) {
+      Throwables.propagate(e);
+    }
+
     aggregator = function;
     this.rate = rate;
     this.rate_options = rate_options;
   }
 
+  @Override
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate) {
     setTimeSeries(tsuids, function, rate, new RateOptions());
   }
   
+  @Override
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate, 
       final RateOptions rate_options) {
@@ -220,12 +235,12 @@ final class TsdbQuery implements Query {
     String first_metric = "";
     for (final String tsuid : tsuids) {
       if (first_metric.isEmpty()) {
-        first_metric = tsuid.substring(0, TSDB.metrics_width() * 2)
+        first_metric = tsuid.substring(0, Const.METRICS_WIDTH * 2)
           .toUpperCase();
         continue;
       }
-      
-      final String metric = tsuid.substring(0, TSDB.metrics_width() * 2)
+
+      final String metric = tsuid.substring(0, Const.METRICS_WIDTH * 2)
         .toUpperCase();
       if (!first_metric.equals(metric)) {
         throw new IllegalArgumentException(
@@ -247,6 +262,7 @@ final class TsdbQuery implements Query {
    * @throws NullPointerException if the aggregation function is null
    * @throws IllegalArgumentException if the interval is not greater than 0
    */
+  @Override
   public void downsample(final long interval, final Aggregator downsampler) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
@@ -274,35 +290,39 @@ final class TsdbQuery implements Query {
    * passed in argument.
    */
   private void findGroupBys(final Map<String, String> tags) {
-    final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
-    while (i.hasNext()) {
-      final Map.Entry<String, String> tag = i.next();
-      final String tagvalue = tag.getValue();
-      if (tagvalue.equals("*")  // 'GROUP BY' with any value.
-          || tagvalue.indexOf('|', 1) >= 0) {  // Multiple possible values.
-        if (group_bys == null) {
-          group_bys = new ArrayList<byte[]>();
-        }
-        group_bys.add(tsdb.tag_names.getId(tag.getKey()));
-        i.remove();
-        if (tagvalue.charAt(0) == '*') {
-          continue;  // For a 'GROUP BY' with any value, we're done.
-        }
-        // 'GROUP BY' with specific values.  Need to split the values
-        // to group on and store their IDs in group_by_values.
-        final String[] values = Tags.splitString(tagvalue, '|');
-        if (group_by_values == null) {
-          group_by_values = new ByteMap<byte[][]>();
-        }
-        final short value_width = tsdb.tag_values.width();
-        final byte[][] value_ids = new byte[values.length][value_width];
-        group_by_values.put(tsdb.tag_names.getId(tag.getKey()),
-                            value_ids);
-        for (int j = 0; j < values.length; j++) {
-          final byte[] value_id = tsdb.tag_values.getId(values[j]);
-          System.arraycopy(value_id, 0, value_ids[j], 0, value_width);
+    try {
+      final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
+      while (i.hasNext()) {
+        final Map.Entry<String, String> tag = i.next();
+        final String tagvalue = tag.getValue();
+        if ("*".equals(tagvalue)  // 'GROUP BY' with any value.
+                || tagvalue.indexOf('|', 1) >= 0) {  // Multiple possible values.
+          if (group_bys == null) {
+            group_bys = new ArrayList<byte[]>();
+          }
+          group_bys.add(tsdb.tag_names.getIdAsync(tag.getKey()).joinUninterruptibly());
+          i.remove();
+          if (tagvalue.charAt(0) == '*') {
+            continue;  // For a 'GROUP BY' with any value, we're done.
+          }
+          // 'GROUP BY' with specific values.  Need to split the values
+          // to group on and store their IDs in group_by_values.
+          final String[] values = Tags.splitString(tagvalue, '|');
+          if (group_by_values == null) {
+            group_by_values = new ByteMap<byte[][]>();
+          }
+          final short value_width = tsdb.tag_values.width();
+          final byte[][] value_ids = new byte[values.length][value_width];
+          group_by_values.put(tsdb.tag_names.getIdAsync(tag.getKey()).joinUninterruptibly(),
+                  value_ids);
+          for (int j = 0; j < values.length; j++) {
+            final byte[] value_id = tsdb.tag_values.getIdAsync(values[j]).joinUninterruptibly();
+            System.arraycopy(value_id, 0, value_ids[j], 0, value_width);
+          }
         }
       }
+    } catch (Exception e) {
+      Throwables.propagate(e);
     }
   }
 
@@ -310,6 +330,7 @@ final class TsdbQuery implements Query {
    * Executes the query
    * @return An array of data points with one time series per array value
    */
+  @Override
   public DataPoints[] run() throws HBaseException {
     try {
       return runAsync().joinUninterruptibly();
@@ -320,6 +341,7 @@ final class TsdbQuery implements Query {
     }
   }
   
+  @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
     return findSpans().addCallback(new GroupByAndAggregateCB());
   }
@@ -354,6 +376,7 @@ final class TsdbQuery implements Query {
       ArrayList<ArrayList<KeyValue>>> {
       
       int nrows = 0;
+      boolean seenAnnotation = false;
       int hbase_time = 0; // milliseconds.
       long starttime = System.nanoTime();
       
@@ -383,7 +406,7 @@ final class TsdbQuery implements Query {
              scanlatency.add(hbase_time);
              LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
                  spans.size() + " spans in " + hbase_time + "ms");
-             if (nrows < 1) {
+             if (nrows < 1 && !seenAnnotation) {
                results.callback(null);
              } else {
                results.callback(spans);
@@ -407,13 +430,14 @@ final class TsdbQuery implements Query {
                spans.put(key, datapoints);
              }
              final KeyValue compacted = 
-               tsdb.compact(row, datapoints.getAnnotations());
+               tsdb.getTsdbStore().compact(row, datapoints.getAnnotations());
+             seenAnnotation |= !datapoints.getAnnotations().isEmpty();
              if (compacted != null) { // Can be null if we ignored all KVs.
                datapoints.addRow(compacted);
                nrows++;
              }
            }
-           
+
            return scan();
          } catch (Exception e) {
            scanner.close();
@@ -441,6 +465,7 @@ final class TsdbQuery implements Query {
     * @return A possibly empty array of {@link SpanGroup}s built according to
     * any 'GROUP BY' formulated in this query.
     */
+    @Override
     public DataPoints[] call(final TreeMap<byte[], Span> spans) throws Exception {
       if (spans == null || spans.size() <= 0) {
         return NO_RESULT;
@@ -541,7 +566,7 @@ final class TsdbQuery implements Query {
     // set the metric UID based on the TSUIDs if given, or the metric UID
     if (tsuids != null && !tsuids.isEmpty()) {
       final String tsuid = tsuids.get(0);
-      final String metric_uid = tsuid.substring(0, TSDB.metrics_width() * 2);
+      final String metric_uid = tsuid.substring(0, Const.METRICS_WIDTH * 2);
       metric = UniqueId.stringToUid(metric_uid);
       System.arraycopy(metric, 0, start_row, 0, metric_width);
       System.arraycopy(metric, 0, end_row, 0, metric_width); 
@@ -550,7 +575,7 @@ final class TsdbQuery implements Query {
       System.arraycopy(metric, 0, end_row, 0, metric_width);
     }
 
-    final Scanner scanner = tsdb.client.newScanner(tsdb.table);
+    final Scanner scanner = tsdb.tsdb_store.newScanner(tsdb.table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     if (tsuids != null && !tsuids.isEmpty()) {
@@ -763,6 +788,7 @@ final class TsdbQuery implements Query {
     buf.append("\\E");
   }
 
+  @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("TsdbQuery(start_time=")
@@ -777,12 +803,19 @@ final class TsdbQuery implements Query {
    } else {
       buf.append(", metric=").append(Arrays.toString(metric));
       try {
-        buf.append(" (").append(tsdb.metrics.getName(metric));
+        buf.append(" (").append(tsdb.metrics.getNameAsync(metric).joinUninterruptibly());
       } catch (NoSuchUniqueId e) {
         buf.append(" (<").append(e.getMessage()).append('>');
+      } catch (Exception e) {
+        Throwables.propagate(e);
       }
-      try {
-        buf.append("), tags=").append(Tags.resolveIds(tsdb, tags));
+     try {
+        try {
+          buf.append("), tags=")
+                  .append(Tags.resolveIdsAsync(tsdb, tags).joinUninterruptibly());
+        } catch (Exception e) {
+          Throwables.propagate(e);
+        }
       } catch (NoSuchUniqueId e) {
         buf.append("), tags=<").append(e.getMessage()).append('>');
       }
@@ -793,9 +826,11 @@ final class TsdbQuery implements Query {
     if (group_bys != null) {
       for (final byte[] tag_id : group_bys) {
         try {
-          buf.append(tsdb.tag_names.getName(tag_id));
+          buf.append(tsdb.tag_names.getNameAsync(tag_id).joinUninterruptibly());
         } catch (NoSuchUniqueId e) {
           buf.append('<').append(e.getMessage()).append('>');
+        } catch (Exception e) {
+          Throwables.propagate(e);
         }
         buf.append(' ')
            .append(Arrays.toString(tag_id));
@@ -807,9 +842,11 @@ final class TsdbQuery implements Query {
           buf.append("={");
           for (final byte[] value_id : value_ids) {
             try {
-              buf.append(tsdb.tag_values.getName(value_id));
+              buf.append(tsdb.tag_values.getNameAsync(value_id).joinUninterruptibly());
             } catch (NoSuchUniqueId e) {
               buf.append('<').append(e.getMessage()).append('>');
+            } catch (Exception e) {
+              Throwables.propagate(e);
             }
             buf.append(' ')
                .append(Arrays.toString(value_id))
@@ -835,6 +872,7 @@ final class TsdbQuery implements Query {
       this.metric_width = metric_width;
     }
 
+    @Override
     public int compare(final byte[] a, final byte[] b) {
       final int length = Math.min(a.length, b.length);
       if (a == b) {  // Do this after accessing a.length and b.length

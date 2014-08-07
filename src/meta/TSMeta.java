@@ -20,13 +20,16 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
 
+import com.google.common.collect.Sets;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -137,14 +140,12 @@ public final class TSMeta {
   private long total_dps;
 
   /** Tracks fields that have changed by the user to avoid overwrites */
-  private final HashMap<String, Boolean> changed = 
-    new HashMap<String, Boolean>();
+  private final Set<String> changed = Sets.newHashSetWithExpectedSize(12);
 
   /**
    * Default constructor necessary for POJO de/serialization
    */
   public TSMeta() {
-    initializeChangedMap();
   }
   
   /**
@@ -153,7 +154,6 @@ public final class TSMeta {
    */
   public TSMeta(final String tsuid) {
     this.tsuid = tsuid;
-    initializeChangedMap();
   }
   
   /**
@@ -165,8 +165,7 @@ public final class TSMeta {
     this.tsuid = UniqueId.uidToString(tsuid);
     // downgrade to seconds
     this.created = created > 9999999999L ? created / 1000 : created;
-    initializeChangedMap();
-    changed.put("created", true);
+    changed.add("created");
   }
   
   /** @return a string with details about this object */
@@ -190,7 +189,7 @@ public final class TSMeta {
 
     final DeleteRequest delete = new DeleteRequest(tsdb.metaTable(), 
         UniqueId.stringToUid(tsuid), FAMILY, META_QUALIFIER);
-    return tsdb.getClient().delete(delete);
+    return tsdb.getTsdbStore().delete(delete);
   }
   
   /**
@@ -222,16 +221,9 @@ public final class TSMeta {
     if (tsuid == null || tsuid.isEmpty()) {
       throw new IllegalArgumentException("Missing TSUID");
     }
-    
-    boolean has_changes = false;
-    for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
-      if (entry.getValue()) {
-        has_changes = true;
-        break;
-      }
-    }
-    if (!has_changes) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
+
+    if (!hasChanges()) {
+      LOG.debug("{} does not have changes, skipping sync to storage", this);
       throw new IllegalStateException("No changes detected in TSUID meta data");
     }
 
@@ -251,8 +243,7 @@ public final class TSMeta {
     }
     
     // parse out the tags from the tsuid
-    final List<byte[]> parsed_tags = UniqueId.getTagPairsFromTSUID(tsuid, 
-        TSDB.metrics_width(), TSDB.tagk_width(), TSDB.tagv_width());
+    final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(tsuid);
     
     // Deferred group used to accumulate UidCB callbacks so the next call
     // can wait until all of the UIDs have been verified
@@ -261,7 +252,7 @@ public final class TSMeta {
     
     // calculate the metric UID and fetch it's name mapping
     final byte[] metric_uid = UniqueId.stringToUid(
-        tsuid.substring(0, TSDB.metrics_width() * 2));
+        tsuid.substring(0, Const.METRICS_WIDTH * 2));
     uid_group.add(tsdb.getUidName(UniqueIdType.METRIC, metric_uid)
         .addCallback(new UidCB()));
     
@@ -315,7 +306,7 @@ public final class TSMeta {
               UniqueId.stringToUid(local_meta.tsuid), FAMILY, META_QUALIFIER, 
               local_meta.getStorageJSON());
 
-          return tsdb.getClient().compareAndSet(put, original_meta);
+          return tsdb.getTsdbStore().compareAndSet(put, original_meta);
         }
         
       }
@@ -337,7 +328,11 @@ public final class TSMeta {
     // Begins the callback chain by validating that the UID mappings exist
     return Deferred.group(uid_group).addCallbackDeferring(new ValidateCB(this));
   }
-  
+
+  public boolean hasChanges() {
+    return !changed.isEmpty();
+  }
+
   /**
    * Attempts to store a new, blank timeseries meta object via a CompareAndSet
    * <b>Note:</b> This should not be called by user accessible methods as it will 
@@ -367,7 +362,7 @@ public final class TSMeta {
       }      
     }
     
-    return tsdb.getClient().put(put).addCallbackDeferring(new PutCB());
+    return tsdb.getTsdbStore().put(put).addCallbackDeferring(new PutCB());
   }
   
   /**
@@ -459,7 +454,7 @@ public final class TSMeta {
       
     }
     
-    return tsdb.getClient().get(get).addCallback(new ExistsCB());
+    return tsdb.getTsdbStore().get(get).addCallback(new ExistsCB());
   }
   
   /**
@@ -494,7 +489,7 @@ public final class TSMeta {
       
     }
     
-    return tsdb.getClient().get(get).addCallback(new ExistsCB());
+    return tsdb.getTsdbStore().get(get).addCallback(new ExistsCB());
   }
   
   /**
@@ -612,9 +607,9 @@ public final class TSMeta {
     // if the user has disabled real time TSMeta tracking (due to OOM issues)
     // then we only want to increment the data point count.
     if (!tsdb.getConfig().enable_realtime_ts()) {
-      return tsdb.getClient().bufferAtomicIncrement(inc);
+      return tsdb.getTsdbStore().bufferAtomicIncrement(inc);
     }
-    return tsdb.getClient().bufferAtomicIncrement(inc).addCallbackDeferring(
+    return tsdb.getTsdbStore().bufferAtomicIncrement(inc).addCallbackDeferring(
         new TSMetaCB());
   }
   
@@ -676,7 +671,7 @@ public final class TSMeta {
     final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
     get.family(FAMILY);
     get.qualifiers(new byte[][] { COUNTER_QUALIFIER, META_QUALIFIER });
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   /** @return The configured meta data column qualifier byte array*/
@@ -717,31 +712,31 @@ public final class TSMeta {
     }
     
     // handle user-accessible stuff
-    if (!overwrite && !changed.get("display_name")) {
+    if (!overwrite && !changed.contains("display_name")) {
       display_name = meta.display_name;
     }
-    if (!overwrite && !changed.get("description")) {
+    if (!overwrite && !changed.contains("description")) {
       description = meta.description;
     }
-    if (!overwrite && !changed.get("notes")) {
+    if (!overwrite && !changed.contains("notes")) {
       notes = meta.notes;
     }
-    if (!overwrite && !changed.get("custom")) {
+    if (!overwrite && !changed.contains("custom")) {
       custom = meta.custom;
     }
-    if (!overwrite && !changed.get("units")) {
+    if (!overwrite && !changed.contains("units")) {
       units = meta.units;
     }
-    if (!overwrite && !changed.get("data_type")) {
+    if (!overwrite && !changed.contains("data_type")) {
       data_type = meta.data_type;
     }
-    if (!overwrite && !changed.get("retention")) {
+    if (!overwrite && !changed.contains("retention")) {
       retention = meta.retention;
     }
-    if (!overwrite && !changed.get("max")) {
+    if (!overwrite && !changed.contains("max")) {
       max = meta.max;
     }
-    if (!overwrite && !changed.get("min")) {
+    if (!overwrite && !changed.contains("min")) {
       min = meta.min;
     }
     
@@ -749,26 +744,14 @@ public final class TSMeta {
     total_dps = meta.total_dps;
     
     // reset changed flags
-    initializeChangedMap();
+    resetChangedMap();
   }
   
   /**
    * Sets or resets the changed map flags
    */
-  private void initializeChangedMap() {
-    // set changed flags
-    changed.put("display_name", false);
-    changed.put("description", false);
-    changed.put("notes", false);
-    changed.put("created", false);
-    changed.put("custom", false);
-    changed.put("units", false);
-    changed.put("data_type", false);
-    changed.put("retention", false);
-    changed.put("max", false);
-    changed.put("min", false);
-    changed.put("last_received", false);
-    changed.put("created", false); 
+  private void resetChangedMap() {
+    changed.clear();
   }
   
   /**
@@ -840,8 +823,7 @@ public final class TSMeta {
       }
       
       // split up the tags
-      final List<byte[]> tags = UniqueId.getTagPairsFromTSUID(tsuid, 
-          TSDB.metrics_width(), TSDB.tagk_width(), TSDB.tagv_width());
+      final List<byte[]> tags = UniqueId.getTagsFromTSUID(tsuid);
       meta.tags = new ArrayList<UIDMeta>(tags.size());
       
       // initialize with empty objects, otherwise the "set" operations in 
@@ -889,17 +871,17 @@ public final class TSMeta {
       // getUIDMeta request must be added to the uid_group array so that we
       // can wait for them to complete before returning the TSMeta object, 
       // otherwise the caller may get a TSMeta with missing UIDMetas
-      uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.METRIC, 
-        tsuid.substring(0, TSDB.metrics_width() * 2)).addCallback(
+      uid_group.add(tsdb.getUIDMeta(UniqueIdType.METRIC,
+        tsuid.substring(0, Const.METRICS_WIDTH * 2)).addCallback(
             new UIDMetaCB(-1)));
       
       int idx = 0;
       for (byte[] tag : tags) {
         if (idx % 2 == 0) {
-          uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.TAGK, tag)
+          uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGK, tag)
                 .addCallback(new UIDMetaCB(idx)));
         } else {
-          uid_group.add(UIDMeta.getUIDMeta(tsdb, UniqueIdType.TAGV, tag)
+          uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGV, tag)
               .addCallback(new UIDMetaCB(idx)));
         }          
         idx++;
@@ -1007,7 +989,7 @@ public final class TSMeta {
   /** @param display_name an optional name for the timeseries */
   public final void setDisplayName(final String display_name) {
     if (!this.display_name.equals(display_name)) {
-      changed.put("display_name", true);
+      changed.add("display_name");
       this.display_name = display_name;
     }
   }
@@ -1015,7 +997,7 @@ public final class TSMeta {
   /** @param description an optional description */
   public final void setDescription(final String description) {
     if (!this.description.equals(description)) {
-      changed.put("description", true);
+      changed.add("description");
       this.description = description;
     }
   }
@@ -1023,7 +1005,7 @@ public final class TSMeta {
   /** @param notes optional notes */
   public final void setNotes(final String notes) {
     if (!this.notes.equals(notes)) {
-      changed.put("notes", true);
+      changed.add("notes");
       this.notes = notes;
     }
   }
@@ -1031,9 +1013,14 @@ public final class TSMeta {
   /** @param created the created timestamp Unix epoch in seconds */
   public final void setCreated(final long created) {
     if (this.created != created) {
-      changed.put("created", true);
+      changed.add("created");
       this.created = created;
     }
+  }
+  
+  /** @param tsuid The TSUID of the timeseries. */
+  public final void setTSUID(final String tsuid) {
+    this.tsuid = tsuid;
   }
   
   /** @param custom optional key/value map */
@@ -1042,7 +1029,7 @@ public final class TSMeta {
     // anyway so we'll just mark it as changed every time we have a non-null
     // value
     if (this.custom != null || custom != null) {
-      changed.put("custom", true);
+      changed.add("custom");
       this.custom = new HashMap<String, String>(custom);
     }
   }
@@ -1050,7 +1037,7 @@ public final class TSMeta {
   /** @param units optional units designation */
   public final void setUnits(final String units) {
     if (!this.units.equals(units)) {
-      changed.put("units", true);
+      changed.add("units");
       this.units = units;
     }
   }
@@ -1058,7 +1045,7 @@ public final class TSMeta {
   /** @param data_type optional type of data, e.g. "counter", "gauge" */
   public final void setDataType(final String data_type) {
     if (!this.data_type.equals(data_type)) {
-      changed.put("data_type", true);
+      changed.add("data_type");
       this.data_type = data_type;
     }
   }
@@ -1066,7 +1053,7 @@ public final class TSMeta {
   /** @param retention optional rentention in days, 0 = indefinite */
   public final void setRetention(final int retention) {
     if (this.retention != retention) {
-      changed.put("retention", true);
+      changed.add("retention");
       this.retention = retention;
     }
   }
@@ -1074,7 +1061,7 @@ public final class TSMeta {
   /** @param max optional max value for the timeseries, NaN is the default */
   public final void setMax(final double max) {
     if (this.max != max) {
-      changed.put("max", true);
+      changed.add("max");
       this.max = max;
     }
   }
@@ -1082,7 +1069,7 @@ public final class TSMeta {
   /** @param min optional min value for the timeseries, NaN is the default */
   public final void setMin(final double min) {
     if (this.min != min) {
-      changed.put("min", true);
+      changed.add("min");
       this.min = min;
     }
   }

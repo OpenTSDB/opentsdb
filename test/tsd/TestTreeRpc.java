@@ -15,16 +15,15 @@ package net.opentsdb.tsd;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.anyString;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Method;
 import java.util.TreeMap;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.storage.MockBase;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestTree;
@@ -38,7 +37,6 @@ import net.opentsdb.utils.JSON;
 
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
@@ -50,7 +48,6 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -59,13 +56,11 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ TSDB.class, HBaseClient.class, GetRequest.class, Tree.class,
-  PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class })
+@PrepareForTest({KeyValue.class, Scanner.class})
 public final class TestTreeRpc {
-  private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
+  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
-  private HBaseClient client = mock(HBaseClient.class);
-  private MockBase storage;
+  private MemoryStore tsdb_store;
   private TreeRpc rpc = new TreeRpc();
   
   final static private Method branchToStorageJson;
@@ -121,10 +116,8 @@ public final class TestTreeRpc {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
-    storage = new MockBase(tsdb, client, true, true, true, true);
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, config);
   }
   
   @Test
@@ -153,9 +146,9 @@ public final class TestTreeRpc {
       "/api/tree");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"name\":\"Test Tree\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"name\":\"2nd Tree\""));
   }
   
@@ -166,9 +159,9 @@ public final class TestTreeRpc {
       "/api/tree?treeid=2");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"name\":\"2nd Tree\""));
-    assertFalse(query.response().getContent().toString(MockBase.ASCII())
+    assertFalse(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"name\":\"Test Tree\""));
   }
   
@@ -192,7 +185,7 @@ public final class TestTreeRpc {
       "/api/tree?name=NewTree&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(1, storage.numColumns(new byte[] { 0, 3 }));
+    assertEquals(1, tsdb_store.numColumns(new byte[]{0, 3}));
   }
   
   @Test (expected = BadRequestException.class)
@@ -206,8 +199,8 @@ public final class TestTreeRpc {
   @Test (expected = BadRequestException.class)
   public void handleTreeQSCreateOutOfIDs() throws Exception {
     setupStorage();
-    storage.addColumn(new byte[] { (byte) 0xFF, (byte) 0xFF }, 
-        "tree".getBytes(MockBase.ASCII()), "{}".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(new byte[]{(byte) 0xFF, (byte) 0xFF},
+      "tree".getBytes(Const.CHARSET_ASCII), "{}".getBytes(Const.CHARSET_ASCII));
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/tree?method_override=post");
     rpc.execute(tsdb, query);
@@ -220,7 +213,7 @@ public final class TestTreeRpc {
       "/api/tree", "{\"name\":\"New Tree\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals(1, storage.numColumns(new byte[] { 0, 3 }));
+    assertEquals(1, tsdb_store.numColumns(new byte[]{0, 3}));
   }
 
   @Test
@@ -230,9 +223,9 @@ public final class TestTreeRpc {
       "/api/tree?treeid=1&method_override=post&description=HelloWorld");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"HelloWorld\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"name\":\"Test Tree\""));
   }
   
@@ -260,9 +253,9 @@ public final class TestTreeRpc {
       "/api/tree", "{\"treeId\":1,\"description\":\"Hello World\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"Hello World\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"name\":\"Test Tree\""));
   }
   
@@ -290,9 +283,9 @@ public final class TestTreeRpc {
       "/api/tree?treeid=1&method_override=put&description=HelloWorld");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"HelloWorld\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"name\":\"\""));
   }
   
@@ -303,9 +296,9 @@ public final class TestTreeRpc {
       "/api/tree", "{\"treeId\":1,\"description\":\"Hello World\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"Hello World\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"name\":\"\""));
   }
 
@@ -315,14 +308,14 @@ public final class TestTreeRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/tree?treeid=1&method_override=delete");
     // make sure the root is there BEFORE we delete
-    assertEquals(4, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(4, tsdb_store.numColumns(new byte[]{0, 1}));
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     // make sure the definition is still there but the root is gone
-    assertEquals(3, storage.numColumns(new byte[] { 0, 1 }));
-    assertEquals(-1, storage.numColumns(
-        Branch.stringToId("00010001BECD000181A8")));
-    assertEquals(-1, storage.numColumns(
+    assertEquals(3, tsdb_store.numColumns(new byte[] { 0, 1 }));
+    assertEquals(-1, tsdb_store.numColumns(
+      Branch.stringToId("00010001BECD000181A8")));
+    assertEquals(-1, tsdb_store.numColumns(
         Branch.stringToId("00010001BECD000181A8BF992A99")));
   }
   
@@ -332,14 +325,14 @@ public final class TestTreeRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/tree?treeid=1&method_override=delete&definition=true");
     // make sure the root is there BEFORE we delete
-    assertEquals(4, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(4, tsdb_store.numColumns(new byte[]{0, 1}));
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     // make sure the definition has been deleted too
-    assertEquals(-1, storage.numColumns(new byte[] { 0, 1 }));
-    assertEquals(-1, storage.numColumns(
-        Branch.stringToId("00010001BECD000181A8")));
-    assertEquals(-1, storage.numColumns(
+    assertEquals(-1, tsdb_store.numColumns(new byte[] { 0, 1 }));
+    assertEquals(-1, tsdb_store.numColumns(
+      Branch.stringToId("00010001BECD000181A8")));
+    assertEquals(-1, tsdb_store.numColumns(
         Branch.stringToId("00010001BECD000181A8BF992A99")));
   }
   
@@ -349,14 +342,14 @@ public final class TestTreeRpc {
     HttpQuery query = NettyMocks.deleteQuery(tsdb, 
       "/api/tree", "{\"treeId\":1}");
     // make sure the root is there BEFORE we delete
-    assertEquals(4, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(4, tsdb_store.numColumns(new byte[]{0, 1}));
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     // make sure the definition is still there but the root is gone
-    assertEquals(3, storage.numColumns(new byte[] { 0, 1 }));
-    assertEquals(-1, storage.numColumns(
-        Branch.stringToId("00010001BECD000181A8")));
-    assertEquals(-1, storage.numColumns(
+    assertEquals(3, tsdb_store.numColumns(new byte[] { 0, 1 }));
+    assertEquals(-1, tsdb_store.numColumns(
+      Branch.stringToId("00010001BECD000181A8")));
+    assertEquals(-1, tsdb_store.numColumns(
         Branch.stringToId("00010001BECD000181A8BF992A99")));
   }
   
@@ -366,14 +359,14 @@ public final class TestTreeRpc {
     HttpQuery query = NettyMocks.deleteQuery(tsdb, 
       "/api/tree", "{\"treeId\":1,\"definition\":true}");
     // make sure the root is there BEFORE we delete
-    assertEquals(4, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(4, tsdb_store.numColumns(new byte[]{0, 1}));
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     // make sure the definition has been deleted too
-    assertEquals(-1, storage.numColumns(new byte[] { 0, 1 }));
-    assertEquals(-1, storage.numColumns(
-        Branch.stringToId("00010001BECD000181A8")));
-    assertEquals(-1, storage.numColumns(
+    assertEquals(-1, tsdb_store.numColumns(new byte[] { 0, 1 }));
+    assertEquals(-1, tsdb_store.numColumns(
+      Branch.stringToId("00010001BECD000181A8")));
+    assertEquals(-1, tsdb_store.numColumns(
         Branch.stringToId("00010001BECD000181A8BF992A99")));
   }
   
@@ -391,9 +384,9 @@ public final class TestTreeRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, "/api/tree/branch?treeid=1");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"displayName\":\"ROOT\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"branches\":null"));
   }
   
@@ -405,9 +398,9 @@ public final class TestTreeRpc {
         "/api/tree/branch?branch=00010001BECD000181A8");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"metric\":\"sys.cpu.0\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"branches\":["));
   }
   
@@ -442,9 +435,9 @@ public final class TestTreeRpc {
       "/api/tree/rule?treeid=1&level=1&order=0");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"type\":\"METRIC\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"level\":1"));
   }
   
@@ -496,9 +489,9 @@ public final class TestTreeRpc {
       "&method_override=post&type=metric");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"level\":2"));
   }
   
@@ -535,11 +528,11 @@ public final class TestTreeRpc {
       "/api/tree/rule?treeid=1&level=1&order=0&description=Testing&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"level\":1"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"notes\":\"Metric rule\""));
   }
   
@@ -551,9 +544,9 @@ public final class TestTreeRpc {
       "\"Testing\",\"type\":\"metric\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"level\":2"));
   }
 
@@ -565,11 +558,11 @@ public final class TestTreeRpc {
       "\"Testing\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"level\":1"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"notes\":\"Metric rule\""));
   }
   
@@ -589,11 +582,11 @@ public final class TestTreeRpc {
       "&method_override=put&type=metric");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"level\":1"));
-    assertFalse(query.response().getContent().toString(MockBase.ASCII())
+    assertFalse(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"notes\":\"Metric rule\""));
   }
   
@@ -613,11 +606,11 @@ public final class TestTreeRpc {
       "\"Testing\",\"type\":\"metric\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"level\":1"));
-    assertFalse(query.response().getContent().toString(MockBase.ASCII())
+    assertFalse(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"notes\":\"Metric rule\""));
   }
   
@@ -628,7 +621,7 @@ public final class TestTreeRpc {
       "/api/tree/rule?treeid=1&level=1&order=0&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(3, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
   }
   
   @Test (expected = BadRequestException.class)
@@ -646,7 +639,7 @@ public final class TestTreeRpc {
       "/api/tree/rule", "{\"treeId\":1,\"level\":1,\"order\":0}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(3, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
   }
   
   @Test (expected = BadRequestException.class)
@@ -675,9 +668,9 @@ public final class TestTreeRpc {
       "\"tagk\",\"field\":\"host\"}]");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(5, storage.numColumns(new byte[] { 0, 1 }));
-    final String rule = new String(storage.getColumn(new byte[] { 0, 1 }, 
-        "tree_rule:0:0".getBytes(MockBase.ASCII())), MockBase.ASCII());
+    assertEquals(5, tsdb_store.numColumns(new byte[]{0, 1}));
+    final String rule = new String(tsdb_store.getColumn(new byte[] { 0, 1 },
+        "tree_rule:0:0".getBytes(Const.CHARSET_ASCII)), Const.CHARSET_ASCII);
     assertTrue(rule.contains("\"type\":\"METRIC\""));
     assertTrue(rule.contains("description\":\"Host Name\""));
   }
@@ -700,9 +693,9 @@ public final class TestTreeRpc {
       "\"tagk\",\"field\":\"host\"}]");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(5, storage.numColumns(new byte[] { 0, 1 }));
-    final String rule = new String(storage.getColumn(new byte[] { 0, 1 }, 
-        "tree_rule:0:0".getBytes(MockBase.ASCII())), MockBase.ASCII());
+    assertEquals(5, tsdb_store.numColumns(new byte[]{0, 1}));
+    final String rule = new String(tsdb_store.getColumn(new byte[] { 0, 1 },
+        "tree_rule:0:0".getBytes(Const.CHARSET_ASCII)), Const.CHARSET_ASCII);
     assertTrue(rule.contains("\"type\":\"METRIC\""));
     assertFalse(rule.contains("\"description\":\"Host Name\""));
   }
@@ -725,7 +718,7 @@ public final class TestTreeRpc {
       "/api/tree/rules?treeid=1&method_override=delete");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(2, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(2, tsdb_store.numColumns(new byte[]{0, 1}));
   }
   
   @Test
@@ -735,7 +728,7 @@ public final class TestTreeRpc {
       "/api/tree/rules?treeid=1", "");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(2, storage.numColumns(new byte[] { 0, 1 }));
+    assertEquals(2, tsdb_store.numColumns(new byte[]{0, 1}));
   }
   
   @Test (expected = BadRequestException.class)
@@ -755,9 +748,9 @@ public final class TestTreeRpc {
         "/api/tree/test?treeid=1&tsuids=000001000001000001000002000002");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000002"));
   }
   
@@ -771,13 +764,13 @@ public final class TestTreeRpc {
         "000001000001000001000002000003");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000002"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000003"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("Unable to locate TSUID meta data"));
   }
   
@@ -791,9 +784,9 @@ public final class TestTreeRpc {
         "\"000001000001000001000002000002\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000002"));
   }
   
@@ -807,9 +800,9 @@ public final class TestTreeRpc {
         "\"000001000001000001000002000002\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000002"));
   }
   
@@ -824,13 +817,13 @@ public final class TestTreeRpc {
         "\"000001000001000001000002000003\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000002"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000003"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("Unable to locate TSUID meta data"));
   }
   
@@ -843,9 +836,9 @@ public final class TestTreeRpc {
         "/api/tree/test?treeid=1&tsuids=000001000001000001000002000003");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("Unable to locate TSUID meta data"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000003"));
     
   }
@@ -855,14 +848,14 @@ public final class TestTreeRpc {
     setupStorage();
     setupBranch();
     setupTSMeta();
-    storage.flushRow(new byte[] { 0, 0, 2 });
+    tsdb_store.flushRow(new byte[]{0, 0, 2});
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/tree/test?treeid=1&tsuids=000001000001000001000002000002");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("TSUID was missing a UID name"));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("000001000001000001000002000002"));
   }
   
@@ -923,9 +916,9 @@ public final class TestTreeRpc {
         "/api/tree/collisions?treeid=1");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"010101\":\"AAAAAA\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"020202\":\"BBBBBB\""));
   }
   
@@ -936,8 +929,8 @@ public final class TestTreeRpc {
         "/api/tree/collisions?treeid=1&tsuids=010101");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"010101\":\"AAAAAA\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertEquals("{\"010101\":\"AAAAAA\"}",
+        query.response().getContent().toString(Const.CHARSET_ASCII));
   }
   
   @Test
@@ -947,9 +940,9 @@ public final class TestTreeRpc {
         "/api/tree/collisions?treeid=1&tsuids=010101,020202");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"010101\":\"AAAAAA\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"020202\":\"BBBBBB\""));
   }
   
@@ -960,8 +953,8 @@ public final class TestTreeRpc {
         "/api/tree/collisions?treeid=1&tsuids=030101");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertEquals("{}",
+        query.response().getContent().toString(Const.CHARSET_ASCII));
   }
   
   @Test
@@ -971,9 +964,9 @@ public final class TestTreeRpc {
         "/api/tree/collisions", "{\"treeId\":1}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"010101\":\"AAAAAA\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"020202\":\"BBBBBB\""));
   }
   
@@ -984,8 +977,8 @@ public final class TestTreeRpc {
         "/api/tree/collisions", "{\"treeId\":1,\"tsuids\":[\"020202\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"020202\":\"BBBBBB\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertEquals("{\"020202\":\"BBBBBB\"}",
+        query.response().getContent().toString(Const.CHARSET_ASCII));
   }
   
   @Test
@@ -996,9 +989,9 @@ public final class TestTreeRpc {
         "[\"010101\",\"020202\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"010101\":\"AAAAAA\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"020202\":\"BBBBBB\""));
   }
   
@@ -1033,9 +1026,9 @@ public final class TestTreeRpc {
         "/api/tree/notmatched?treeid=1");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"010101\":\"Failed rule 0:0\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
@@ -1046,8 +1039,8 @@ public final class TestTreeRpc {
         "/api/tree/notmatched?treeid=1&tsuids=010101");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"010101\":\"Failed rule 0:0\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertEquals("{\"010101\":\"Failed rule 0:0\"}",
+        query.response().getContent().toString(Const.CHARSET_ASCII));
   }
   
   @Test
@@ -1057,9 +1050,9 @@ public final class TestTreeRpc {
         "/api/tree/notmatched?treeid=1&tsuids=010101,020202");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"010101\":\"Failed rule 0:0\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
@@ -1070,8 +1063,8 @@ public final class TestTreeRpc {
         "/api/tree/notmatched?treeid=1&tsuids=030101");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertEquals("{}",
+        query.response().getContent().toString(Const.CHARSET_ASCII));
   }
   
   @Test
@@ -1081,9 +1074,9 @@ public final class TestTreeRpc {
         "/api/tree/notmatched", "{\"treeId\":1}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"010101\":\"Failed rule 0:0\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
@@ -1094,8 +1087,8 @@ public final class TestTreeRpc {
         "/api/tree/notmatched", "{\"treeId\":1,\"tsuids\":[\"020202\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertEquals("{\"020202\":\"Failed rule 1:1\"}", 
-        query.response().getContent().toString(MockBase.ASCII()));
+    assertEquals("{\"020202\":\"Failed rule 1:1\"}",
+        query.response().getContent().toString(Const.CHARSET_ASCII));
   }
   
   @Test
@@ -1106,9 +1099,9 @@ public final class TestTreeRpc {
         "[\"010101\",\"020202\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"010101\":\"Failed rule 0:0\""));
-    assertTrue(query.response().getContent().toString(MockBase.ASCII())
+    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
         .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
@@ -1152,41 +1145,41 @@ public final class TestTreeRpc {
     root.setDisplayName("ROOT");
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(root.compileBranchId(), Tree.TREE_FAMILY(),
-        "branch".getBytes(MockBase.ASCII()), 
-        (byte[])branchToStorageJson.invoke(root));
+    tsdb_store.addColumn(root.compileBranchId(), Tree.TREE_FAMILY(),
+      "branch".getBytes(Const.CHARSET_ASCII),
+      (byte[]) branchToStorageJson.invoke(root));
     
     // store the first tree
     byte[] key = new byte[] { 0, 1 };
-    storage.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(MockBase.ASCII()), 
-        (byte[])TreetoStorageJson.invoke(TestTree.buildTestTree()));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(Const.CHARSET_ASCII),
+      (byte[]) TreetoStorageJson.invoke(TestTree.buildTestTree()));
     
     TreeRule rule = new TreeRule(1);
     rule.setField("host");
     rule.setDescription("Hostname rule");
     rule.setType(TreeRuleType.TAGK);
     rule.setDescription("Host Name");
-    storage.addColumn(key, Tree.TREE_FAMILY(), 
-        "tree_rule:0:0".getBytes(MockBase.ASCII()), 
-        JSON.serializeToBytes(rule));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+      "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
+      JSON.serializeToBytes(rule));
 
     rule = new TreeRule(1);
     rule.setField("");
     rule.setLevel(1);
     rule.setNotes("Metric rule");
     rule.setType(TreeRuleType.METRIC);
-    storage.addColumn(key, Tree.TREE_FAMILY(),
-        "tree_rule:1:0".getBytes(MockBase.ASCII()), 
-        JSON.serializeToBytes(rule));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+      "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
+      JSON.serializeToBytes(rule));
     
     root = new Branch(1);
     root.setDisplayName("ROOT");
     root_path = new TreeMap<Integer, String>();
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(key, Tree.TREE_FAMILY(), 
-        "branch".getBytes(MockBase.ASCII()), 
-        (byte[])branchToStorageJson.invoke(root));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+      "branch".getBytes(Const.CHARSET_ASCII),
+      (byte[]) branchToStorageJson.invoke(root));
     
     // tree 2
     key = new byte[] { 0, 2 };
@@ -1195,32 +1188,32 @@ public final class TestTreeRpc {
     tree2.setTreeId(2);
     tree2.setName("2nd Tree");
     tree2.setDescription("Other Tree");
-    storage.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(MockBase.ASCII()), 
-        (byte[])TreetoStorageJson.invoke(tree2));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(Const.CHARSET_ASCII),
+      (byte[]) TreetoStorageJson.invoke(tree2));
     
     rule = new TreeRule(2);
     rule.setField("host");
     rule.setType(TreeRuleType.TAGK);
-    storage.addColumn(key, Tree.TREE_FAMILY(), 
-        "tree_rule:0:0".getBytes(MockBase.ASCII()), 
-        JSON.serializeToBytes(rule));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+      "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
+      JSON.serializeToBytes(rule));
     
     rule = new TreeRule(2);
     rule.setField("");
     rule.setLevel(1);
     rule.setType(TreeRuleType.METRIC);
-    storage.addColumn(key, Tree.TREE_FAMILY(), 
-        "tree_rule:1:0".getBytes(MockBase.ASCII()), 
-        JSON.serializeToBytes(rule));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+      "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
+      JSON.serializeToBytes(rule));
     
     root = new Branch(2);
     root.setDisplayName("ROOT");
     root_path = new TreeMap<Integer, String>();
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    storage.addColumn(key, Tree.TREE_FAMILY(), 
-        "branch".getBytes(MockBase.ASCII()), 
-        (byte[])branchToStorageJson.invoke(root));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+      "branch".getBytes(Const.CHARSET_ASCII),
+      (byte[]) branchToStorageJson.invoke(root));
     
     // sprinkle in some collisions and no matches for fun
     // collisions
@@ -1233,8 +1226,8 @@ public final class TestTreeRpc {
     byte[] tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length, 
         tsuid_bytes.length);
-    storage.addColumn(key, Tree.TREE_FAMILY(), qualifier, 
-        "AAAAAA".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
+      "AAAAAA".getBytes(Const.CHARSET_ASCII));
     
     tsuid = "020202";
     qualifier = new byte[Tree.COLLISION_PREFIX().length + 
@@ -1244,8 +1237,8 @@ public final class TestTreeRpc {
     tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length, 
         tsuid_bytes.length);
-    storage.addColumn(key, Tree.TREE_FAMILY(), qualifier, 
-        "BBBBBB".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
+      "BBBBBB".getBytes(Const.CHARSET_ASCII));
     
     // not matched
     key = new byte[] { 0, 1, 2 };
@@ -1257,8 +1250,8 @@ public final class TestTreeRpc {
     tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
     tsuid_bytes.length);
-    storage.addColumn(key, Tree.TREE_FAMILY(), qualifier, 
-        "Failed rule 0:0".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
+      "Failed rule 0:0".getBytes(Const.CHARSET_ASCII));
     
     tsuid = "020202";
     qualifier = new byte[Tree.NOT_MATCHED_PREFIX().length + 
@@ -1268,8 +1261,8 @@ public final class TestTreeRpc {
     tsuid_bytes = UniqueId.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
     tsuid_bytes.length);
-    storage.addColumn(key, Tree.TREE_FAMILY(), qualifier, 
-        "Failed rule 1:1".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
+      "Failed rule 1:1".getBytes(Const.CHARSET_ASCII));
     
     // drop some branches in for tree 1
     Branch branch = new Branch(1);
@@ -1279,33 +1272,33 @@ public final class TestTreeRpc {
     path.put(2, "cpu");
     branch.prependParentPath(path);
     branch.setDisplayName("cpu");
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-        "branch".getBytes(MockBase.ASCII()), 
-        (byte[])branchToStorageJson.invoke(branch));
+    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+      "branch".getBytes(Const.CHARSET_ASCII),
+      (byte[]) branchToStorageJson.invoke(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-        qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
+    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+      qualifier, (byte[]) LeaftoStorageJson.invoke(leaf));
     
     leaf = new Leaf("nice", "000002000002000002");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-        qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
+    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+      qualifier, (byte[]) LeaftoStorageJson.invoke(leaf));
     
     // child branch
     branch = new Branch(1);
     path.put(3, "mboard");
     branch.prependParentPath(path);
     branch.setDisplayName("mboard");
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-        "branch".getBytes(MockBase.ASCII()), 
-        (byte[])branchToStorageJson.invoke(branch));
+    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+      "branch".getBytes(Const.CHARSET_ASCII),
+      (byte[]) branchToStorageJson.invoke(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");
     qualifier = leaf.columnQualifier();
-    storage.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-        qualifier, (byte[])LeaftoStorageJson.invoke(leaf));
+    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+      qualifier, (byte[]) LeaftoStorageJson.invoke(leaf));
   }
   
   /**
@@ -1314,15 +1307,15 @@ public final class TestTreeRpc {
    * find their name maps.
    */
   private void setupBranch() {
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "metrics".getBytes(MockBase.ASCII()),
-        "sys.cpu.0".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "tagk".getBytes(MockBase.ASCII()),
-        "host".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "tagv".getBytes(MockBase.ASCII()),
-        "web01".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "metrics".getBytes(Const.CHARSET_ASCII),
+      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "host".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "web01".getBytes(Const.CHARSET_ASCII));
   }
   
   /**
@@ -1332,41 +1325,41 @@ public final class TestTreeRpc {
    */
   private void setupTSMeta() throws Exception {
     final TSMeta meta = new TSMeta("000001000001000001000002000002");
-    storage.addColumn(UniqueId.stringToUid("000001000001000001000002000002"), 
-        NAME_FAMILY, "ts_meta".getBytes(MockBase.ASCII()), 
-        (byte[])TSMetagetStorageJSON.invoke(meta));
+    tsdb_store.addColumn(UniqueId.stringToUid("000001000001000001000002000002"),
+      NAME_FAMILY, "ts_meta".getBytes(Const.CHARSET_ASCII),
+      (byte[]) TSMetagetStorageJSON.invoke(meta));
     
     final UIDMeta metric = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, 
         "sys.cpu.0");
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "metric_meta".getBytes(MockBase.ASCII()), 
-        (byte[])UIDMetagetStorageJSON.invoke(metric));
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "metric_meta".getBytes(Const.CHARSET_ASCII),
+      (byte[]) UIDMetagetStorageJSON.invoke(metric));
     final UIDMeta tagk1 = new UIDMeta(UniqueIdType.TAGK, new byte[] { 0, 0, 1 }, 
         "host");
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "tagk_meta".getBytes(MockBase.ASCII()), 
-        (byte[])UIDMetagetStorageJSON.invoke(tagk1));
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "tagk_meta".getBytes(Const.CHARSET_ASCII),
+      (byte[]) UIDMetagetStorageJSON.invoke(tagk1));
     final UIDMeta tagv1 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 0, 0, 1 }, 
         "web-01.lga.mysite.com");
-    storage.addColumn(new byte[] { 0, 0, 1 }, NAME_FAMILY,
-        "tagv_meta".getBytes(MockBase.ASCII()), 
-        (byte[])UIDMetagetStorageJSON.invoke(tagv1));
+    tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
+      "tagv_meta".getBytes(Const.CHARSET_ASCII),
+      (byte[]) UIDMetagetStorageJSON.invoke(tagv1));
     final UIDMeta tagk2 = new UIDMeta(UniqueIdType.TAGK, new byte[] { 0, 0, 2 }, 
         "type");
-    storage.addColumn(new byte[] { 0, 0, 2 }, NAME_FAMILY,
-        "tagk_meta".getBytes(MockBase.ASCII()), 
-        (byte[])UIDMetagetStorageJSON.invoke(tagk2));
+    tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
+      "tagk_meta".getBytes(Const.CHARSET_ASCII),
+      (byte[]) UIDMetagetStorageJSON.invoke(tagk2));
     final UIDMeta tagv2 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 0, 0, 2 }, 
         "user");
-    storage.addColumn(new byte[] { 0, 0, 2 }, NAME_FAMILY,
-        "tagv_meta".getBytes(MockBase.ASCII()), 
-        (byte[])UIDMetagetStorageJSON.invoke(tagv2));
-    
-    storage.addColumn(new byte[] { 0, 0, 2 }, NAME_FAMILY,
-        "tagk".getBytes(MockBase.ASCII()),
-        "type".getBytes(MockBase.ASCII()));
-    storage.addColumn(new byte[] { 0, 0, 2 }, NAME_FAMILY,
-        "tagv".getBytes(MockBase.ASCII()),
-        "user".getBytes(MockBase.ASCII()));
+    tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
+      "tagv_meta".getBytes(Const.CHARSET_ASCII),
+      (byte[]) UIDMetagetStorageJSON.invoke(tagv2));
+
+    tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
+      "tagk".getBytes(Const.CHARSET_ASCII),
+      "type".getBytes(Const.CHARSET_ASCII));
+    tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
+      "tagv".getBytes(Const.CHARSET_ASCII),
+      "user".getBytes(Const.CHARSET_ASCII));
   }
 }

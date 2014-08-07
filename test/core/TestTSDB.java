@@ -15,80 +15,32 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.Map;
 
-import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 
-import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
-import org.hbase.async.Scanner;
+
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.stumbleupon.async.Deferred;
-
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
-  Scanner.class, AtomicIncrementRequest.class, IncomingDataPoints.class})
 public final class TestTSDB {
   private Config config;
   private TSDB tsdb;
-  private HBaseClient client = mock(HBaseClient.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
-  private CompactionQueue compactionq = mock(CompactionQueue.class);
-  private MockBase storage;
+  private MemoryStore tsdb_store;
   
   @Before
   public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
-    tsdb = new TSDB(config);
-
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
-    
-    Field cq = tsdb.getClass().getDeclaredField("compactionq");
-    cq.setAccessible(true);
-    cq.set(tsdb, compactionq);
+    config.setFixDuplicates(true); // TODO(jat): test both ways
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, config);
   }
   
   @Test
@@ -152,7 +104,7 @@ public final class TestTSDB {
   
   @Test
   public void getClient() {
-    assertNotNull(tsdb.getClient());
+    assertNotNull(tsdb.getTsdbStore());
   }
   
   @Test
@@ -163,7 +115,7 @@ public final class TestTSDB {
   @Test
   public void getUidNameMetric() throws Exception {
     setGetUidName();
-    assertEquals("sys.cpu.0", tsdb.getUidName(UniqueIdType.METRIC, 
+    assertEquals("sys.cpu.0", tsdb.getUidName(UniqueIdType.METRIC,
         new byte[] { 0, 0, 1 }).joinUninterruptibly());
   }
   
@@ -215,42 +167,42 @@ public final class TestTSDB {
   }
   
   @Test
-  public void getUIDMetric() {
+  public void getUIDMetric() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.0"));
+        tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.0").joinUninterruptibly());
   }
   
   @Test
-  public void getUIDTagk() {
+  public void getUIDTagk() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.TAGK, "host"));
+        tsdb.getUID(UniqueIdType.TAGK, "host").joinUninterruptibly());
   }
   
   @Test
-  public void getUIDTagv() {
+  public void getUIDTagv() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.TAGV, "localhost"));
+        tsdb.getUID(UniqueIdType.TAGV, "localhost").joinUninterruptibly());
   }
   
   @Test (expected = NoSuchUniqueName.class)
-  public void getUIDMetricNSU() {
+  public void getUIDMetricNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.1");
+    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.2").joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueName.class)
-  public void getUIDTagkNSU() {
+  public void getUIDTagkNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGK, "datacenter");
+    tsdb.getUID(UniqueIdType.TAGK, "region").joinUninterruptibly();
   }
   
   @Test (expected = NoSuchUniqueName.class)
-  public void getUIDTagvNSU() {
+  public void getUIDTagvNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGV, "myserver");
+    tsdb.getUID(UniqueIdType.TAGV, "yourserver").joinUninterruptibly();
   }
   
   @Test (expected = NullPointerException.class)
@@ -274,46 +226,40 @@ public final class TestTSDB {
   @Test
   public void assignUidMetric() {
     setupAssignUid();
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        tsdb.assignUid("metric", "sys.cpu.1"));
+    assertArrayEquals(new byte[] { 0, 0, 3 },
+        tsdb.assignUid(UniqueIdType.METRIC, "sys.cpu.2"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidMetricExists() {
     setupAssignUid();
-    tsdb.assignUid("metric", "sys.cpu.0");
+    tsdb.assignUid(UniqueIdType.METRIC, "sys.cpu.0");
   }
   
   @Test
   public void assignUidTagk() {
     setupAssignUid();
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        tsdb.assignUid("tagk", "datacenter"));
+    assertArrayEquals(new byte[] {0, 0, 3},
+        tsdb.assignUid(UniqueIdType.TAGK, "region"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidTagkExists() {
     setupAssignUid();
-    tsdb.assignUid("tagk", "host");
+    tsdb.assignUid(UniqueIdType.TAGK, "host");
   }
   
   @Test
   public void assignUidTagv() {
     setupAssignUid();
-    assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        tsdb.assignUid("tagv", "myserver"));
+    assertArrayEquals(new byte[] {0, 0, 3},
+        tsdb.assignUid(UniqueIdType.TAGV, "yourserver"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidTagvExists() {
     setupAssignUid();
-    tsdb.assignUid("tagv", "localhost");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void assignUidBadType() {
-    setupAssignUid();
-    tsdb.assignUid("nothere", "localhost");
+    tsdb.assignUid(UniqueIdType.TAGV, "localhost");
   }
   
   @Test (expected = NullPointerException.class)
@@ -325,13 +271,13 @@ public final class TestTSDB {
   @Test (expected = IllegalArgumentException.class)
   public void assignUidNullName() {
     setupAssignUid();
-    tsdb.assignUid("metric", null);
+    tsdb.assignUid(UniqueIdType.METRIC, null);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidInvalidCharacter() {
     setupAssignUid();
-    tsdb.assignUid("metric", "Not!A:Valid@Name");
+    tsdb.assignUid(UniqueIdType.METRIC, "Not!A:Valid@Name");
   }
   
   @Test
@@ -348,7 +294,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -361,7 +307,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(-42, value[0]);
   }
@@ -374,7 +320,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 257, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(257, Bytes.getShort(value));
   }
@@ -387,7 +333,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -257, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 1 });
     assertNotNull(value);
     assertEquals(-257, Bytes.getShort(value));
   }
@@ -400,7 +346,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 65537, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(65537, Bytes.getInt(value));
   }
@@ -413,7 +359,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -65537, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 3 });
     assertNotNull(value);
     assertEquals(-65537, Bytes.getInt(value));
   }
@@ -426,7 +372,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 4294967296L, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(4294967296L, Bytes.getLong(value));
   }
@@ -439,7 +385,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -4294967296L, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 7 });
     assertNotNull(value);
     assertEquals(-4294967296L, Bytes.getLong(value));
   }
@@ -452,7 +398,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, 
+    final byte[] value = tsdb_store.getColumnDataTable(row,
         new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -469,10 +415,10 @@ public final class TestTSDB {
     }
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(1, value[0]);
-    assertEquals(50, storage.numColumns(row));
+    assertEquals(50, tsdb_store.numColumnsDataTable(row));
   }
   
   @Test
@@ -486,11 +432,11 @@ public final class TestTSDB {
     }
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, 
+    final byte[] value = tsdb_store.getColumnDataTable(row,
         new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
     assertNotNull(value);
     assertEquals(1, value[0]);
-    assertEquals(50, storage.numColumns(row));
+    assertEquals(50, tsdb_store.numColumnsDataTable(row));
   }
   
   @Test
@@ -501,7 +447,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1357001999, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xE0, 
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xE0,
         (byte) 0xF0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -516,7 +462,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 24, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(24, value[0]);
   }
@@ -525,12 +471,9 @@ public final class TestTSDB {
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
-    when(IncomingDataPoints.rowKeyTemplate((TSDB)any(), anyString(), 
-        (Map<String, String>)any()))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.user", "metric"));
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user.0", 1356998400, 42, tags).joinUninterruptibly();
   }
 
   @Test
@@ -541,7 +484,7 @@ public final class TestTSDB {
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 0, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -554,7 +497,7 @@ public final class TestTSDB {
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 16 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 16 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -568,7 +511,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 4294967295L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0x69, (byte) 0xF0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
   }
@@ -595,7 +538,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 4294967296L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, 
         (byte) 0x90, 0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0,
         (byte) 0xA3, 0x60, 0});
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -610,7 +553,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 4294967295000L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF6, 
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF6,
         (byte) 0x77, 0x46, 0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -625,7 +568,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 9999999999999L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9, 
         0x10, 0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xFA, 
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xFA,
         (byte) 0xAE, 0x5F, (byte) 0xC0 });
     assertNotNull(value);
     assertEquals(42, value[0]);
@@ -658,7 +601,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -672,7 +615,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, -42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(-42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -686,7 +629,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, 
+    final byte[] value = tsdb_store.getColumnDataTable(row,
         new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -701,7 +644,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1357001999, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xE0, 
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xE0,
         (byte) 0xFB });
     assertNotNull(value);
     // should have 7 digits of precision
@@ -717,7 +660,7 @@ public final class TestTSDB {
       .joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.512345F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -732,7 +675,7 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 25.4F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
+    final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(25.4F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -750,11 +693,11 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
-    assertEquals(2, storage.numColumns(row));
+    byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
+    assertEquals(2, tsdb_store.numColumnsDataTable(row));
     assertNotNull(value);
     assertEquals(42, value[0]);
-    value = storage.getColumn(row, new byte[] { 0, 11 });
+    value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -772,11 +715,11 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
-    assertEquals(2, storage.numColumns(row));
+    byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
+    assertEquals(2, tsdb_store.numColumnsDataTable(row));
     assertNotNull(value);
     assertEquals(42, value[0]);
-    value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
+    value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
@@ -793,11 +736,11 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", 1356998400000L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
-    byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
-    assertEquals(2, storage.numColumns(row));
+    byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
+    assertEquals(2, tsdb_store.numColumnsDataTable(row));
     assertNotNull(value);
     assertEquals(42, value[0]);
-    value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0, 0 });
+    value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0, 0, 0, 0 });
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42, value[0]);
@@ -807,64 +750,72 @@ public final class TestTSDB {
    * Helper to mock the UID caches with valid responses
    */
   private void setupAssignUid() {
-    when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getId("sys.cpu.1")).thenThrow(
-        new NoSuchUniqueName("metric", "sys.cpu.1"));
-    when(metrics.getOrCreateId("sys.cpu.1")).thenReturn(new byte[] { 0, 0, 2 });
-    
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getId("datacenter")).thenThrow(
-        new NoSuchUniqueName("tagk", "datacenter"));
-    when(tag_names.getOrCreateId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
-    
-    when(tag_values.getId("localhost")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getId("myserver")).thenThrow(
-        new NoSuchUniqueName("tagv", "myserver"));
-    when(tag_values.getOrCreateId("myserver")).thenReturn(new byte[] { 0, 0, 2 });
+    tsdb_store.allocateUID(
+            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.METRIC);
+    tsdb_store.allocateUID(
+            "sys.cpu.1".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 2},
+            UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.TAGK);
+    tsdb_store.allocateUID(
+            "datacenter".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 2},
+            UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID(
+            "localhost".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.TAGV);
+    tsdb_store.allocateUID(
+            "myserver".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 2},
+            UniqueIdType.TAGV);
   }
   
   /**
    * Helper to mock the UID caches with valid responses
    */
   private void setGetUidName() {
-    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("sys.cpu.0"));
-    when(metrics.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
-        new NoSuchUniqueId("metric", new byte[] { 0, 0, 2}));
-    
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("host"));
-    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
-        new NoSuchUniqueId("tagk", new byte[] { 0, 0, 2}));
-    
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
-      .thenReturn(Deferred.fromResult("web01"));
-    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
-        new NoSuchUniqueId("tag_values", new byte[] { 0, 0, 2}));
+    tsdb_store.allocateUID(
+            "sys.cpu.0".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID(
+            "web01".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.TAGV);
   }
 
   /**
    * Configures storage for the addPoint() tests to validate that we're storing
    * data points correctly.
    */
-  @SuppressWarnings("unchecked")
   private void setupAddPointStorage() throws Exception {
-    storage = new MockBase(tsdb, client, true, true, true, true);
-    
-    PowerMockito.mockStatic(IncomingDataPoints.class);   
-    final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 
-    PowerMockito.doAnswer(
-        new Answer<byte[]>() {
-          public byte[] answer(final InvocationOnMock unused) 
-            throws Exception {
-            return row;
-          }
-        }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", (TSDB)any(), anyString(), 
-        (Map<String, String>)any());
-        
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
+    tsdb_store.allocateUID(
+            "sys.cpu.user".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.METRIC);
+
+    tsdb_store.allocateUID(
+            "host".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID(
+            "web01".getBytes(Const.CHARSET_ASCII),
+            new byte[]{0, 0, 1},
+            UniqueIdType.TAGV);
   }
 }

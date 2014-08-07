@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
@@ -242,7 +243,7 @@ public final class Leaf implements Comparable<Leaf> {
     // execute the CAS call to start the callback chain
     final PutRequest put = new PutRequest(tsdb.treeTable(), branch_id, 
         Tree.TREE_FAMILY(), columnQualifier(), toStorageJson());
-    return tsdb.getClient().compareAndSet(put, new byte[0])
+    return tsdb.getTsdbStore().compareAndSet(put, new byte[0])
       .addCallbackDeferring(new LeafStoreCB(this));
   }
   
@@ -282,8 +283,7 @@ public final class Leaf implements Comparable<Leaf> {
     }
   
     // split the TSUID to get the tags
-    final List<byte[]> parsed_tags = UniqueId.getTagPairsFromTSUID(leaf.tsuid, 
-        TSDB.metrics_width(), TSDB.tagk_width(), TSDB.tagv_width());
+    final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(leaf.tsuid);
     
     // initialize the with empty objects, otherwise the "set" operations in 
     // the callback won't work.
@@ -323,7 +323,7 @@ public final class Leaf implements Comparable<Leaf> {
     
     // fetch the metric name first
     final byte[] metric_uid = UniqueId.stringToUid(
-        leaf.tsuid.substring(0, TSDB.metrics_width() * 2));
+        leaf.tsuid.substring(0, Const.METRICS_WIDTH * 2));
     uid_group.add(tsdb.getUidName(UniqueIdType.METRIC, metric_uid).addCallback(
             new UIDNameCB(-1)));
     
@@ -448,7 +448,7 @@ public final class Leaf implements Comparable<Leaf> {
       
     }
     
-    return tsdb.getClient().get(get).addCallbackDeferring(new GetCB());
+    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new GetCB());
   }
   
   // GETTERS AND SETTERS ----------------------------

@@ -18,22 +18,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.storage.TsdbStore;
+import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.hbase.async.Bytes.ByteMap;
 
-import org.hbase.async.Bytes;
-import org.hbase.async.ClientStats;
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.HBaseException;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
-
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.RpcPlugin;
@@ -51,28 +48,24 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Thread-safe implementation of the TSDB client.
  * <p>
  * This class is the central class of OpenTSDB.  You use it to add new data
  * points or query the database.
  */
-public final class TSDB {
+public class TSDB {
   private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
   
   static final byte[] FAMILY = { 't' };
 
   /** Charset used to convert Strings to byte arrays and back. */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  private static final String METRICS_QUAL = "metrics";
-  private static final short METRICS_WIDTH = 3;
-  private static final String TAG_NAME_QUAL = "tagk";
-  private static final short TAG_NAME_WIDTH = 3;
-  private static final String TAG_VALUE_QUAL = "tagv";
-  private static final short TAG_VALUE_WIDTH = 3;
 
-  /** Client for the HBase cluster to use.  */
-  final HBaseClient client;
+  /** TsdbStore, the database cluster to use for storage.  */
+  final TsdbStore tsdb_store;
 
   /** Name of the table in which timeseries are stored.  */
   final byte[] table;
@@ -93,14 +86,6 @@ public final class TSDB {
   /** Configuration object for all TSDB components */
   final Config config;
 
-  /**
-   * Row keys that need to be compacted.
-   * Whenever we write a new data point to a row, we add the row key to this
-   * set.  Every once in a while, the compaction thread will go through old
-   * row keys and will read re-compact them.
-   */
-  private final CompactionQueue compactionq;
-
   /** Search indexer to use if configure */
   private SearchPlugin search = null;
   
@@ -109,27 +94,25 @@ public final class TSDB {
   
   /** List of activated RPC plugins */
   private List<RpcPlugin> rpc_plugins = null;
-  
+
   /**
    * Constructor
+   * @param client An initialized TsdbStore object
    * @param config An initialized configuration object
-   * @since 2.0
+   * @since 2.1
    */
-  public TSDB(final Config config) {
-    this.config = config;
-    this.client = new HBaseClient(
-        config.getString("tsd.storage.hbase.zk_quorum"),
-        config.getString("tsd.storage.hbase.zk_basedir"));
-    this.client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
+  public TSDB(final TsdbStore client, final Config config) {
+    this.config = checkNotNull(config);
+    this.tsdb_store = checkNotNull(client);
+
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
-    tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
-    tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
-    compactionq = new CompactionQueue(this);
+    metrics = new UniqueId(client, uidtable, UniqueIdType.METRIC);
+    tag_names = new UniqueId(client, uidtable, UniqueIdType.TAGK);
+    tag_values = new UniqueId(client, uidtable, UniqueIdType.TAGV);
 
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
@@ -141,9 +124,168 @@ public final class TSDB {
       tag_names.setTSDB(this);
       tag_values.setTSDB(this);
     }
+    
+    if (config.getBoolean("tsd.core.preload_uid_cache")) {
+      final ByteMap<UniqueId> uid_cache_map = new ByteMap<UniqueId>();
+      uid_cache_map.put(Const.METRICS_QUAL.getBytes(CHARSET), metrics);
+      uid_cache_map.put(Const.TAG_NAME_QUAL.getBytes(CHARSET), tag_names);
+      uid_cache_map.put(Const.TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
+      UniqueId.preloadUidCache(this, uid_cache_map);
+    }
     LOG.debug(config.dumpConfiguration());
   }
+
+  /**
+   * Constructor
+   * @param config An initialized configuration object
+   * @since 2.0
+   */
+  public TSDB(final Config config) {
+    this(new HBaseStore(
+      new HBaseClient(
+        config.getString("tsd.storage.hbase.zk_quorum"),
+        config.getString("tsd.storage.hbase.zk_basedir")), config),
+         config);
+  }
   
+  /** @return The data point column family name */
+  public static byte[] FAMILY() {
+    return FAMILY;
+  }
+
+  /**
+   * Deletes global or TSUID associated annotiations for the given time range.
+   * @param tsuid An optional TSUID. If set to null, then global annotations for
+   * the given range will be deleted
+   * @param start_time A start timestamp in milliseconds
+   * @param end_time An end timestamp in millseconds
+   * @return The number of annotations deleted
+   * @throws IllegalArgumentException if the timestamps are invalid
+   * @since 2.1
+   */
+  public Deferred<Integer> deleteRange(final byte[] tsuid, final long start_time, final long end_time) {
+    if (end_time < 1) {
+      throw new IllegalArgumentException("The end timestamp has not been set");
+    }
+    if (end_time < start_time) {
+      throw new IllegalArgumentException(
+          "The end timestamp cannot be less than the start timestamp");
+    }
+
+    return tsdb_store.deleteAnnotationRange(tsuid, start_time, end_time);
+  }
+
+  /**
+   * Scans through the global annotation storage rows and returns a list of
+   * parsed annotation objects. If no annotations were found for the given
+   * timespan, the resulting list will be empty.
+   * @param start_time Start time to scan from. May be 0
+   * @param end_time End time to scan to. Must be greater than 0
+   * @return A list with detected annotations. May be empty.
+   * @throws IllegalArgumentException if the end timestamp has not been set or
+   * the end time is less than the start time
+   */
+  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time) {
+    if (end_time < 1) {
+      throw new IllegalArgumentException("The end timestamp has not been set");
+    }
+    if (end_time < start_time) {
+      throw new IllegalArgumentException(
+          "The end timestamp cannot be less than the start timestamp");
+    }
+
+    return tsdb_store.getGlobalAnnotations(start_time, end_time);
+  }
+
+  /**
+   * Attempts to fetch a global or local annotation from storage
+   * @param tsuid The TSUID as a string. May be empty if retrieving a global
+   * annotation
+   * @param start_time The start time as a Unix epoch timestamp
+   * @return A valid annotation object if found, null if not
+   */
+  public Deferred<Annotation> getAnnotation(final String tsuid, final long start_time) {
+    if (Strings.isNullOrEmpty(tsuid)) {
+      return tsdb_store.getAnnotation(null, start_time);
+    }
+
+    return tsdb_store.getAnnotation(UniqueId.stringToUid(tsuid), start_time);
+  }
+
+  /**
+   * Returns a partially initialized row key for this metric and these tags.
+   * The only thing left to fill in is the base timestamp.
+   * @since 2.0
+   */
+  Deferred<byte[]> rowKeyTemplateAsync(final String metric,
+                                       final Map<String, String> tags) {
+    final short metric_width = metrics.width();
+    final short tag_name_width = tag_names.width();
+    final short tag_value_width = tag_values.width();
+    final short num_tags = (short) tags.size();
+
+    int row_size = (metric_width + Const.TIMESTAMP_BYTES
+                    + tag_name_width * num_tags
+                    + tag_value_width * num_tags);
+    final byte[] row = new byte[row_size];
+
+    final boolean auto_create_metrics =
+            config.getBoolean("tsd.core.auto_create_metrics");
+
+    // Lookup or create the metric ID.
+    final Deferred<byte[]> metric_id = metrics.getIdAsync(metric);
+
+    // Copy the metric ID at the beginning of the row key.
+    class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
+      public byte[] call(final byte[] metricid) {
+        copyInRowKey(row, (short) 0, metricid);
+        return row;
+      }
+    }
+
+    class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
+      public Object call(final Exception e) {
+        if (e instanceof NoSuchUniqueName && auto_create_metrics) {
+          return metrics.createId(metric);
+        }
+
+        return e; // Other unexpected exception, let it bubble up.
+      }
+    }
+
+    // Copy the tag IDs in the row key.
+    class CopyTagsInRowKeyCB
+      implements Callback<Deferred<byte[]>, ArrayList<byte[]>> {
+      public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
+        short pos = metric_width;
+        pos += Const.TIMESTAMP_BYTES;
+        for (final byte[] tag : tags) {
+          copyInRowKey(row, pos, tag);
+          pos += tag.length;
+        }
+        // Once we've resolved all the tags, schedule the copy of the metric
+        // ID and return the row key we produced.
+        return metric_id
+                .addErrback(new HandleNoSuchUniqueNameCB())
+                .addCallback(new CopyMetricInRowKeyCB());
+      }
+    }
+
+    // Kick off the resolution of all tags.
+    return Tags.resolveOrCreateAllAsync(this, tags)
+      .addCallbackDeferring(new CopyTagsInRowKeyCB());
+  }
+
+  /**
+   * Copies the specified byte array at the specified offset in the row key.
+   * @param row The row key into which to copy the bytes.
+   * @param offset The offset in the row key to start writing at.
+   * @param bytes The bytes to copy.
+   */
+  private void copyInRowKey(final byte[] row, final short offset, final byte[] bytes) {
+    System.arraycopy(bytes, 0, row, offset, bytes.length);
+  }
+
   /**
    * Should be called immediately after construction to initialize plugins and
    * objects that rely on such. It also moves most of the potential exception
@@ -236,12 +378,12 @@ public final class TSDB {
   }
   
   /** 
-   * Returns the configured HBase client 
-   * @return The HBase client
+   * Returns the configured TsdbStore
+   * @return The TsdbStore
    * @since 2.0 
    */
-  public final HBaseClient getClient() {
-    return this.client;
+  public final TsdbStore getTsdbStore() {
+    return this.tsdb_store;
   }
   
   /** 
@@ -267,16 +409,8 @@ public final class TSDB {
       throw new IllegalArgumentException("Missing UID");
     }
 
-    switch (type) {
-      case METRIC:
-        return this.metrics.getNameAsync(uid);
-      case TAGK:
-        return this.tag_names.getNameAsync(uid);
-      case TAGV:
-        return this.tag_values.getNameAsync(uid);
-      default:
-        throw new IllegalArgumentException("Unrecognized UID type");
-    }
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.getNameAsync(uid);
   }
   
   /**
@@ -284,27 +418,19 @@ public final class TSDB {
    * @param type The type of UID
    * @param name The name to search for
    * @throws IllegalArgumentException if the type is not valid
-   * @throws NoSuchUniqueName if the name was not found
    * @since 2.0
    */
-  public byte[] getUID(final UniqueIdType type, final String name) {
+  public Deferred<byte[]> getUID(final UniqueIdType type, final String name) {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException("Missing UID name");
     }
-    switch (type) {
-      case METRIC:
-        return this.metrics.getId(name);
-      case TAGK:
-        return this.tag_names.getId(name);
-      case TAGV:
-        return this.tag_values.getId(name);
-      default:
-        throw new IllegalArgumentException("Unrecognized UID type");
-    }
+
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.getIdAsync(name);
   }
   
   /**
-   * Verifies that the data and UID tables exist in HBase and optionally the
+   * Verifies that the data and UID tables exist in TsdbStore and optionally the
    * tree and meta data tables if the user has enabled meta tracking or tree
    * building
    * @return An ArrayList of objects to wait for
@@ -312,22 +438,7 @@ public final class TSDB {
    * @since 2.0
    */
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    final ArrayList<Deferred<Object>> checks = 
-      new ArrayList<Deferred<Object>>(2);
-    checks.add(client.ensureTableExists(
-        config.getString("tsd.storage.hbase.data_table")));
-    checks.add(client.ensureTableExists(
-        config.getString("tsd.storage.hbase.uid_table")));
-    if (config.enable_tree_processing()) {
-      checks.add(client.ensureTableExists(
-          config.getString("tsd.storage.hbase.tree_table")));
-    }
-    if (config.enable_realtime_ts() || config.enable_realtime_uid() || 
-        config.enable_tsuid_incrementing()) {
-      checks.add(client.ensureTableExists(
-          config.getString("tsd.storage.hbase.meta_table")));
-    }
-    return Deferred.group(checks);
+    return tsdb_store.checkNecessaryTablesExist();
   }
   
   /** Number of cache hits during lookups involving UIDs. */
@@ -354,34 +465,34 @@ public final class TSDB {
    */
   public void collectStats(final StatsCollector collector) {
     final byte[][] kinds = { 
-        METRICS_QUAL.getBytes(CHARSET), 
-        TAG_NAME_QUAL.getBytes(CHARSET), 
-        TAG_VALUE_QUAL.getBytes(CHARSET) 
+        Const.METRICS_QUAL.getBytes(CHARSET),
+        Const.TAG_NAME_QUAL.getBytes(CHARSET),
+        Const.TAG_VALUE_QUAL.getBytes(CHARSET)
       };
     try {
       final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)
         .joinUninterruptibly();
       
       collectUidStats(metrics, collector);
-      collector.record("uid.ids-used", used_uids.get(METRICS_QUAL), 
-          "kind=" + METRICS_QUAL);
+      collector.record("uid.ids-used", used_uids.get(Const.METRICS_QUAL),
+          "kind=" + Const.METRICS_QUAL);
       collector.record("uid.ids-available", 
-          (metrics.maxPossibleId() - used_uids.get(METRICS_QUAL)), 
-          "kind=" + METRICS_QUAL);
+          (metrics.maxPossibleId() - used_uids.get(Const.METRICS_QUAL)),
+          "kind=" + Const.METRICS_QUAL);
       
       collectUidStats(tag_names, collector);
-      collector.record("uid.ids-used", used_uids.get(TAG_NAME_QUAL), 
-          "kind=" + TAG_NAME_QUAL);
+      collector.record("uid.ids-used", used_uids.get(Const.TAG_NAME_QUAL),
+          "kind=" + Const.TAG_NAME_QUAL);
       collector.record("uid.ids-available", 
-          (tag_names.maxPossibleId() - used_uids.get(TAG_NAME_QUAL)), 
-          "kind=" + TAG_NAME_QUAL);
+          (tag_names.maxPossibleId() - used_uids.get(Const.TAG_NAME_QUAL)),
+          "kind=" + Const.TAG_NAME_QUAL);
       
       collectUidStats(tag_values, collector);
-      collector.record("uid.ids-used", used_uids.get(TAG_VALUE_QUAL), 
-          "kind=" + TAG_VALUE_QUAL);
+      collector.record("uid.ids-used", used_uids.get(Const.TAG_VALUE_QUAL),
+          "kind=" + Const.TAG_VALUE_QUAL);
       collector.record("uid.ids-available", 
-          (tag_values.maxPossibleId() - used_uids.get(TAG_VALUE_QUAL)), 
-          "kind=" + TAG_VALUE_QUAL);
+          (tag_values.maxPossibleId() - used_uids.get(Const.TAG_VALUE_QUAL)),
+          "kind=" + Const.TAG_VALUE_QUAL);
       
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
@@ -406,28 +517,9 @@ public final class TSDB {
     } finally {
       collector.clearExtraTag("class");
     }
-    final ClientStats stats = client.stats();
-    collector.record("hbase.root_lookups", stats.rootLookups());
-    collector.record("hbase.meta_lookups",
-                     stats.uncontendedMetaLookups(), "type=uncontended");
-    collector.record("hbase.meta_lookups",
-                     stats.contendedMetaLookups(), "type=contended");
-    collector.record("hbase.rpcs",
-                     stats.atomicIncrements(), "type=increment");
-    collector.record("hbase.rpcs", stats.deletes(), "type=delete");
-    collector.record("hbase.rpcs", stats.gets(), "type=get");
-    collector.record("hbase.rpcs", stats.puts(), "type=put");
-    collector.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
-    collector.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
-    collector.record("hbase.rpcs", stats.scans(), "type=scan");
-    collector.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
-    collector.record("hbase.flushes", stats.flushes());
-    collector.record("hbase.connections.created", stats.connectionsCreated());
-    collector.record("hbase.nsre", stats.noSuchRegionExceptions());
-    collector.record("hbase.nsre.rpcs_delayed",
-                     stats.numRpcDelayedDueToNSRE());
 
-    compactionq.collectStats(collector);
+    tsdb_store.recordStats(collector);
+
     // Collect Stats from Plugins
     if (rt_publisher != null) {
       try {
@@ -479,21 +571,6 @@ public final class TSDB {
     collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
   }
 
-  /** @return the width, in bytes, of metric UIDs */
-  public static short metrics_width() {
-    return METRICS_WIDTH;
-  }
-  
-  /** @return the width, in bytes, of tagk UIDs */
-  public static short tagk_width() {
-    return TAG_NAME_WIDTH;
-  }
-  
-  /** @return the width, in bytes, of tagv UIDs */
-  public static short tagv_width() {
-    return TAG_VALUE_WIDTH;
-  }
-  
   /**
    * Returns a new {@link Query} instance suitable for this TSDB.
    */
@@ -637,55 +714,62 @@ public final class TSDB {
     }
 
     IncomingDataPoints.checkMetricAndTags(metric, tags);
-    final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
-    final long base_time;
-    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
-    
-    if ((timestamp & Const.SECOND_MASK) != 0) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      base_time = ((timestamp / 1000) - 
-          ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+
+    class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
+      @Override
+      public Deferred<Object> call(byte[] row) throws Exception {
+        final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
+
+        final long base_time;
+        if ((timestamp & Const.SECOND_MASK) != 0) {
+          // drop the ms timestamp to seconds to calculate the base timestamp
+          base_time = ((timestamp / 1000) -
+                  ((timestamp / 1000) % Const.MAX_TIMESPAN));
+        } else {
+          base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
+        }
+
+        Bytes.setInt(row, (int) base_time, metrics.width());
+
+        // TODO(tsuna): Add a callback to time the latency of HBase and store the
+        // timing in a moving Histogram (once we have a class for this).
+        Deferred<Object> result = tsdb_store.addPoint(row, qualifier, value);
+
+        if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() &&
+                !config.enable_tsuid_tracking() && rt_publisher == null) {
+          return result;
+        }
+
+        final byte[] tsuid = UniqueId.getTSUIDFromKey(row, Const.METRICS_WIDTH,
+                Const.TIMESTAMP_BYTES);
+
+        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
+        // counter field for a TSUID with the proper timestamp. If the user would
+        // rather have TSUID incrementing enabled, that will trump the PUT
+        if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
+          final PutRequest tracking = new PutRequest(meta_table, tsuid,
+                  TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
+          tsdb_store.put(tracking);
+        } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
+          TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+        }
+
+        if (rt_publisher != null) {
+          rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
+        }
+        return result;
+      }
     }
-    
-    Bytes.setInt(row, (int) base_time, metrics.width());
-    scheduleForCompaction(row, (int) base_time);
-    final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
-    
-    // TODO(tsuna): Add a callback to time the latency of HBase and store the
-    // timing in a moving Histogram (once we have a class for this).
-    Deferred<Object> result = client.put(point);
-    if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
-        !config.enable_tsuid_tracking() && rt_publisher == null) {
-      return result;
-    }
-    
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(row, METRICS_WIDTH, 
-        Const.TIMESTAMP_BYTES);
-    
-    // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-    // counter field for a TSUID with the proper timestamp. If the user would
-    // rather have TSUID incrementing enabled, that will trump the PUT
-    if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
-      final PutRequest tracking = new PutRequest(meta_table, tsuid, 
-          TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
-      client.put(tracking);
-    } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
-      TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
-    }
-    
-    if (rt_publisher != null) {
-      rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
-    }
-    return result;
+
+    return this.rowKeyTemplateAsync(metric, tags)
+            .addCallbackDeferring(new RowKeyCB());
   }
 
   /**
    * Forces a flush of any un-committed in memory data including left over 
    * compactions.
    * <p>
-   * For instance, any data point not persisted will be sent to HBase.
+   * For instance, any data point not persisted will be sent to the TsdbStore.
    * @return A {@link Deferred} that will be called once all the un-committed
    * data has been successfully and durably stored.  The value of the deferred
    * object return is meaningless and unspecified, and can be {@code null}.
@@ -695,18 +779,7 @@ public final class TSDB {
    * recoverable by retrying, some are not.
    */
   public Deferred<Object> flush() throws HBaseException {
-    final class HClientFlush implements Callback<Object, ArrayList<Object>> {
-      public Object call(final ArrayList<Object> args) {
-        return client.flush();
-      }
-      public String toString() {
-        return "flush HBase client";
-      }
-    }
-
-    return config.enable_compactions() && compactionq != null
-      ? compactionq.flush().addCallback(new HClientFlush())
-      : client.flush();
+    return tsdb_store.flush();
   }
 
   /**
@@ -727,12 +800,12 @@ public final class TSDB {
     final ArrayList<Deferred<Object>> deferreds = 
       new ArrayList<Deferred<Object>>();
     
-    final class HClientShutdown implements Callback<Object, ArrayList<Object>> {
+    final class StoreShutdown implements Callback<Object, ArrayList<Object>> {
       public Object call(final ArrayList<Object> args) {
-        return client.shutdown();
+        return tsdb_store.shutdown();
       }
       public String toString() {
-        return "shutdown HBase client";
+        return "shutdown TsdbStore";
       }
     }
     
@@ -749,23 +822,13 @@ public final class TSDB {
         } else {
           LOG.error("Failed to shutdown the TSD", e);
         }
-        return client.shutdown();
+        return tsdb_store.shutdown();
       }
       public String toString() {
-        return "shutdown HBase client after error";
+        return "shutdown TsdbStore after error";
       }
     }
-    
-    final class CompactCB implements Callback<Object, ArrayList<Object>> {
-      public Object call(ArrayList<Object> compactions) throws Exception {
-        return null;
-      }
-    }
-    
-    if (config.enable_compactions()) {
-      LOG.info("Flushing compaction queue");
-      deferreds.add(compactionq.flush().addCallback(new CompactCB()));
-    }
+
     if (search != null) {
       LOG.info("Shutting down search plugin: " + 
           search.getClass().getCanonicalName());
@@ -785,68 +848,39 @@ public final class TSDB {
       }
     }
     
-    // wait for plugins to shutdown before we close the client
+    // wait for plugins to shutdown before we close the TsdbStore
     return deferreds.size() > 0
-      ? Deferred.group(deferreds).addCallbacks(new HClientShutdown(),
+      ? Deferred.group(deferreds).addCallbacks(new StoreShutdown(),
                                                new ShutdownErrback())
-      : client.shutdown();
+      : tsdb_store.shutdown();
   }
 
   /**
-   * Given a prefix search, returns a few matching metric names.
+   * Given a prefix search, returns matching names from the specified id
+   * type.
+   * @param type The type of ids to search
    * @param search A prefix to search.
+   * @since 2.0
    */
-  public List<String> suggestMetrics(final String search) {
-    return metrics.suggest(search);
+  public Deferred<List<String>> suggest(final UniqueIdType type,
+                                        final String search) {
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.suggest(search);
   }
-  
+
   /**
-   * Given a prefix search, returns matching metric names.
+   * Given a prefix search, returns matching names from the specified id
+   * type.
+   * @param type The type of ids to search
    * @param search A prefix to search.
    * @param max_results Maximum number of results to return.
    * @since 2.0
    */
-  public List<String> suggestMetrics(final String search, 
-      final int max_results) {
-    return metrics.suggest(search, max_results);
-  }
-
-  /**
-   * Given a prefix search, returns a few matching tag names.
-   * @param search A prefix to search.
-   */
-  public List<String> suggestTagNames(final String search) {
-    return tag_names.suggest(search);
-  }
-  
-  /**
-   * Given a prefix search, returns matching tagk names.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @since 2.0
-   */
-  public List<String> suggestTagNames(final String search, 
-      final int max_results) {
-    return tag_names.suggest(search, max_results);
-  }
-
-  /**
-   * Given a prefix search, returns a few matching tag values.
-   * @param search A prefix to search.
-   */
-  public List<String> suggestTagValues(final String search) {
-    return tag_values.suggest(search);
-  }
-  
-  /**
-   * Given a prefix search, returns matching tag values.
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @since 2.0
-   */
-  public List<String> suggestTagValues(final String search, 
-      final int max_results) {
-    return tag_values.suggest(search, max_results);
+  public Deferred<List<String>> suggest(final UniqueIdType type,
+                                        final String search,
+                                        final int max_results) {
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.suggest(search, max_results);
   }
 
   /**
@@ -872,54 +906,52 @@ public final class TSDB {
    * exists
    * @since 2.0
    */
-  public byte[] assignUid(final String type, final String name) {
-    Tags.validateString(type, name);
-    if (type.toLowerCase().equals("metric")) {
+  public byte[] assignUid(final UniqueIdType type, final String name) {
+    Tags.validateString(type.toString(), name);
+    UniqueId instance = uniqueIdInstanceForType(type);
+
+    try {
       try {
-        final byte[] uid = this.metrics.getId(name);
+        final byte[] uid = instance.getIdAsync(name).joinUninterruptibly();
         throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
+                UniqueId.uidToString(uid));
       } catch (NoSuchUniqueName nsue) {
-        return this.metrics.getOrCreateId(name);
+        return instance.createId(name).joinUninterruptibly();
       }
-    } else if (type.toLowerCase().equals("tagk")) {
-      try {
-        final byte[] uid = this.tag_names.getId(name);
-        throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return this.tag_names.getOrCreateId(name);
-      }
-    } else if (type.toLowerCase().equals("tagv")) {
-      try {
-        final byte[] uid = this.tag_values.getId(name);
-        throw new IllegalArgumentException("Name already exists with UID: " +
-            UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return this.tag_values.getOrCreateId(name);
-      }
-    } else {
-      LOG.warn("Unknown type name: " + type);
-      throw new IllegalArgumentException("Unknown type name");
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private UniqueId uniqueIdInstanceForType(UniqueIdType type) {
+    switch (type) {
+      case METRIC:
+        return metrics;
+      case TAGK:
+        return tag_names;
+      case TAGV:
+        return tag_values;
+      default:
+        throw new IllegalArgumentException(type + " is unknown");
     }
   }
   
-  /** @return the name of the UID table as a byte array for client requests */
+  /** @return the name of the UID table as a byte array for TsdbStore requests */
   public byte[] uidTable() {
     return this.uidtable;
   }
   
-  /** @return the name of the data table as a byte array for client requests */
+  /** @return the name of the data table as a byte array for TsdbStore requests */
   public byte[] dataTable() {
     return this.table;
   }
   
-  /** @return the name of the tree table as a byte array for client requests */
+  /** @return the name of the tree table as a byte array for TsdbStore requests */
   public byte[] treeTable() {
     return this.treetable;
   }
   
-  /** @return the name of the meta table as a byte array for client requests */
+  /** @return the name of the meta table as a byte array for TsdbStore requests */
   public byte[] metaTable() {
     return this.meta_table;
   }
@@ -1021,7 +1053,75 @@ public final class TSDB {
     
     return search.executeQuery(query);
   }
-  
+
+  /**
+   * Attempts a CompareAndSet storage call, loading the object from storage,
+   * synchronizing changes, and attempting a put.
+   * <b>Note:</b> If the local object didn't have any fields set by the caller
+   * or there weren't any changes, then the data will not be written and an
+   * exception will be thrown.
+   * @param annotation
+   * @param overwrite When the RPC method is PUT, will overwrite all user
+   * accessible fields
+   * True if the storage call was successful, false if the object was
+   * modified in storage during the CAS call. If false, retry the call. Other
+   * failures will result in an exception being thrown.
+   * @throws org.hbase.async.HBaseException if there was an issue
+   * @throws IllegalArgumentException if required data was missing such as the
+   * {@code #start_time}
+   * @throws IllegalStateException if the data hasn't changed. This is OK!
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   */
+  public Deferred<Boolean> syncToStorage(final Annotation annotation,
+                                         final boolean overwrite) {
+    if (annotation.getStartTime() < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    if (!annotation.hasChanges()) {
+      LOG.debug("{} does not have changes, skipping sync to storage", annotation);
+      throw new IllegalStateException("No changes detected in Annotation data");
+    }
+
+    final class StoreCB implements Callback<Deferred<Boolean>, Annotation> {
+      @Override
+      public Deferred<Boolean> call(final Annotation stored_note)
+        throws Exception {
+        if (stored_note != null) {
+          annotation.syncNote(stored_note, overwrite);
+        }
+
+        return tsdb_store.updateAnnotation(stored_note, annotation);
+      }
+    }
+
+    final byte[] tsuid;
+    if (Strings.isNullOrEmpty(annotation.getTSUID())) {
+      tsuid = null;
+    } else {
+      tsuid = UniqueId.stringToUid(annotation.getTSUID());
+    }
+
+    return tsdb_store.getAnnotation(tsuid, annotation.getStartTime()).addCallbackDeferring(new StoreCB());
+  }
+
+  /**
+   * Attempts to mark an Annotation object for deletion. Note that if the
+   * annoation does not exist in storage, this delete call will not throw an
+   * error.
+   *
+   * @param annotation
+   * @return A meaningless Deferred for the caller to wait on until the call is
+   * complete. The value may be null.
+   */
+  public Deferred<Object> delete(Annotation annotation) {
+    if (annotation.getStartTime() < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    return tsdb_store.delete(annotation);
+  }
+
   /**
    * Simply logs plugin errors when they're thrown by attaching as an errorback. 
    * Without this, exceptions will just disappear (unless logged by the plugin) 
@@ -1034,49 +1134,151 @@ public final class TSDB {
       return null;
     }
   }
-  
-  // ------------------ //
-  // Compaction helpers //
-  // ------------------ //
 
-  final KeyValue compact(final ArrayList<KeyValue> row, 
-      List<Annotation> annotations) {
-    return compactionq.compact(row, annotations);
+  /**
+   * Attempts a CompareAndSet storage call, loading the object from storage,
+   * synchronizing changes, and attempting a put.
+   * <b>Note:</b> If the local object didn't have any fields set by the caller
+   * then the data will not be written.
+   *
+   * @param tsdb      The TSDB to use for storage access
+   * @param overwrite When the RPC method is PUT, will overwrite all user
+   *                  accessible fields
+   * @return True if the storage call was successful, false if the object
+   * was
+   * modified in storage during the CAS call. If false, retry the call. Other
+   * failures will result in an exception being thrown.
+   * @throws org.hbase.async.HBaseException           if there was an issue fetching
+   * @throws IllegalArgumentException if parsing failed
+   * @throws NoSuchUniqueId           If the UID does not exist
+   * @throws IllegalStateException    if the data hasn't changed. This is OK!
+   * @throws net.opentsdb.utils.JSONException            if the object could not be serialized
+   */
+  public Deferred<Boolean> syncUIDMetaToStorage(final UIDMeta meta,
+                                                final boolean overwrite) {
+    if (Strings.isNullOrEmpty(meta.getUID())) {
+      throw new IllegalArgumentException("Missing UID");
+    }
+    if (meta.getType() == null) {
+      throw new IllegalArgumentException("Missing type");
+    }
+
+    if (!meta.hasChanges()) {
+      LOG.debug("{} does not have changes, skipping sync to storage", meta);
+      throw new IllegalStateException("No changes detected in UID meta data");
+    }
+
+    return this.getUidName(meta.getType(),
+      UniqueId.stringToUid(meta.getUID())).addCallbackDeferring(
+
+      new Callback<Deferred<Boolean>, String>() {
+        @Override
+        public Deferred<Boolean> call(String arg) {
+          return tsdb_store.updateMeta(meta, overwrite);
+        }
+      }
+    );
   }
 
   /**
-   * Schedules the given row key for later re-compaction.
-   * Once this row key has become "old enough", we'll read back all the data
-   * points in that row, write them back to HBase in a more compact fashion,
-   * and delete the individual data points.
-   * @param row The row key to re-compact later.  Will not be modified.
-   * @param base_time The 32-bit unsigned UNIX timestamp.
+   * Attempts to delete the meta object from storage
+   *
+   * @param meta The meta object to delete
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws org.hbase.async.HBaseException           if there was an issue
+   * @throws IllegalArgumentException if data was missing (uid and type)
    */
-  final void scheduleForCompaction(final byte[] row, final int base_time) {
-    if (config.enable_compactions()) {
-      compactionq.add(row);
+  public Deferred<Object> delete(final UIDMeta meta) {
+    if (Strings.isNullOrEmpty(meta.getUID())) {
+      throw new IllegalArgumentException("Missing UID");
     }
+    if (meta.getType() == null) {
+      throw new IllegalArgumentException("Missing type");
+    }
+
+    return tsdb_store.delete(meta);
   }
 
-  // ------------------------ //
-  // HBase operations helpers //
-  // ------------------------ //
+  /**
+   * Attempts to store a blank, new UID meta object in the proper location.
+   * <b>Warning:</b> This should not be called by user accessible methods as it
+   * will overwrite any data already in the column. This method does not use
+   * a CAS, instead it uses a PUT to overwrite anything in the column.
+   * @param meta The meta object to store
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws org.hbase.async.HBaseException if there was an issue writing to storage
+   * @throws IllegalArgumentException if data was missing
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   */
+  public Deferred<Object> add(final UIDMeta meta) {
+    if (Strings.isNullOrEmpty(meta.getUID())) {
+      throw new IllegalArgumentException("Missing UID");
+    }
+    if (meta.getType() == null) {
+      throw new IllegalArgumentException("Missing type");
+    }
+    if (Strings.isNullOrEmpty(meta.getName())) {
+      throw new IllegalArgumentException("Missing name");
+    }
 
-  /** Gets the entire given row from the data table. */
-  final Deferred<ArrayList<KeyValue>> get(final byte[] key) {
-    return client.get(new GetRequest(table, key));
+    return tsdb_store.add(meta);
   }
 
-  /** Puts the given value into the data table. */
-  final Deferred<Object> put(final byte[] key,
-                             final byte[] qualifier,
-                             final byte[] value) {
-    return client.put(new PutRequest(table, key, FAMILY, qualifier, value));
+  /**
+   * Convenience overload of {@code getUIDMeta(TSDB, UniqueIdType, byte[])}
+   * @param tsdb The TSDB to use for storage access
+   * @param type The type of UID to fetch
+   * @param uid The ID of the meta to fetch
+   * @return A UIDMeta from storage or a default
+   * @throws HBaseException if there was an issue fetching
+   * @throws NoSuchUniqueId If the UID does not exist
+   */
+  public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
+                                             final String uid) {
+    return getUIDMeta(type, UniqueId.stringToUid(uid));
   }
 
-  /** Deletes the given cells from the data table. */
-  final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
-    return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
-  }
+  /**
+   * Verifies the UID object exists, then attempts to fetch the meta from
+   * storage and if not found, returns a default object.
+   * <p>
+   * The reason for returning a default object (with the type, uid and name set)
+   * is due to users who may have just enabled meta data or have upgraded; we
+   * want to return valid data. If they modify the entry, it will write to
+   * storage. You can tell it's a default if the {@code created} value is 0. If
+   * the meta was generated at UID assignment or updated by the meta sync CLI
+   * command, it will have a valid created timestamp.
+   * @param tsdb The TSDB to use for storage access
+   * @param type The type of UID to fetch
+   * @param uid The ID of the meta to fetch
+   * @return A UIDMeta from storage or a default
+   * @throws HBaseException if there was an issue fetching
+   * @throws NoSuchUniqueId If the UID does not exist
+   */
+  public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
+                                       final byte[] uid) {
+    /**
+     * Callback used to verify that the UID to name mapping exists. Uses the TSD
+     * for verification so the name may be cached. If the name does not exist
+     * it will throw a NoSuchUniqueId and the meta data will not be returned.
+     * This helps in case the user deletes a UID but the meta data is still
+     * stored. The fsck utility can be used later to cleanup orphaned objects.
+     */
+    class NameCB implements Callback<Deferred<UIDMeta>, String> {
 
+      /**
+       * Called after verifying that the name mapping exists
+       * @return The results of {@link #FetchMetaCB}
+       */
+      @Override
+      public Deferred<UIDMeta> call(final String name) throws Exception {
+        return tsdb_store.getMeta(uid, name, type);
+      }
+    }
+
+    // verify that the UID is still in the map before fetching from storage
+    return getUidName(type, uid).addCallbackDeferring(new NameCB());
+  }
 }

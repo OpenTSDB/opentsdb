@@ -34,7 +34,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import com.stumbleupon.async.Deferred;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
+@PrepareForTest({TSDB.class, HttpQuery.class})
 public final class TestPutRpc {
   private TSDB tsdb = null;
   

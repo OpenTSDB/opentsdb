@@ -25,12 +25,7 @@ import net.opentsdb.storage.MockBase;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ Internal.class })
 public final class TestInternal {
   private static final byte[] KEY = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
@@ -107,7 +102,7 @@ public final class TestInternal {
     final byte[] qual1 = { 0x00, 0x27 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x01, 0x00, 0x02 };
-    final byte[] val2 = "Annotation".getBytes(MockBase.ASCII());
+    final byte[] val2 = "Annotation".getBytes(Const.CHARSET_ASCII);
     final byte[] qual3 = { 0x00, 0x47 };
     final byte[] val3 = Bytes.fromLong(6L);
     

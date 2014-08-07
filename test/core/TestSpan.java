@@ -14,37 +14,23 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
+import static org.mockito.Mockito.mock;
+
+import java.util.List;
+
+import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.powermock.reflect.Whitebox;
 
-import com.stumbleupon.async.Deferred;
+import com.google.common.collect.Lists;
 
-@RunWith(PowerMockRunner.class)
-//"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
-//because they fiddle with the class loader.  We don't test them anyway.
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-             "ch.qos.*", "org.slf4j.*",
-             "com.sum.*", "org.xml.*"})
-@PrepareForTest({ RowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
-Config.class, RowKey.class })
 public final class TestSpan {
   private TSDB tsdb = mock(TSDB.class);
-  private Config config = mock(Config.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  private static final byte[] TABLE = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] HOUR1 = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
   private static final byte[] HOUR2 = 
@@ -56,14 +42,7 @@ public final class TestSpan {
   
   @Before
   public void before() throws Exception {
-    // Inject the attributes we need into the "tsdb" object.
-    Whitebox.setInternalState(tsdb, "metrics", metrics);
-    Whitebox.setInternalState(tsdb, "table", TABLE);
-    Whitebox.setInternalState(tsdb, "config", config);
-    when(tsdb.getConfig()).thenReturn(config);
-    when(tsdb.metrics.width()).thenReturn((short)3);
-    when(RowKey.metricNameAsync(tsdb, HOUR1))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
+    tsdb = new TSDB(new MemoryStore(), new Config(false));
   }
   
   @Test
@@ -299,6 +278,55 @@ public final class TestSpan {
     assertFalse(it.hasNext());
  
     
+  }
+
+  @Test
+  public void downsampler() throws Exception {
+    final byte[] val40 = Bytes.fromLong(40L);
+    final byte[] val50 = Bytes.fromLong(50L);
+    // For a value at the offset 0 seconds from a base timestamp.
+    final byte[] qual0 = { 0x00, 0x07 };
+    // For a value at the offset 5 seconds from a base timestamp.
+    final byte[] qual5 = { 0x00, 0x57 };
+    // For a value at the offset 2000 (0x7D0) seconds from a base timestamp.
+    final byte[] qual2000 = { 0x7D, 0x07 };
+    // For values at the offsets 0 and 2000 seconds from a base timestamp.
+    final byte[] qual02000 = MockBase.concatByteArrays(qual0, qual2000);
+    // For values at the offsets 0 and 5 seconds from a base timestamp.
+    final byte[] qual05 = MockBase.concatByteArrays(qual0, qual5);
+
+    final Span span = new Span(tsdb);
+    span.addRow(new KeyValue(HOUR1, FAMILY, qual02000,
+        MockBase.concatByteArrays(val40, val50, ZERO)));
+    span.addRow(new KeyValue(HOUR2, FAMILY, qual05,
+        MockBase.concatByteArrays(val40, val50, ZERO)));
+    span.addRow(new KeyValue(HOUR3, FAMILY, qual02000,
+        MockBase.concatByteArrays(val40, val50, ZERO)));
+
+    assertEquals(6, span.size());
+    long interval_ms = 1000000;
+    Aggregator downsampler = Aggregators.get("avg");
+    final SeekableView it = span.downsampler(interval_ms, downsampler);
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (it.hasNext()) {
+      DataPoint dp = it.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+
+    assertEquals(5, values.size());
+    assertEquals(40, values.get(0).longValue());
+    assertEquals(1356998000000L, timestamps_in_millis.get(0).longValue());
+    assertEquals(50, values.get(1).longValue());
+    assertEquals(1357000000000L, timestamps_in_millis.get(1).longValue());
+    assertEquals(45, values.get(2).longValue());
+    assertEquals(1357002000000L, timestamps_in_millis.get(2).longValue());
+    assertEquals(40, values.get(3).longValue());
+    assertEquals(1357005000000L, timestamps_in_millis.get(3).longValue());
+    assertEquals(50, values.get(4).longValue());
+    assertEquals(1357007000000L, timestamps_in_millis.get(4).longValue());
   }
 
   @Test

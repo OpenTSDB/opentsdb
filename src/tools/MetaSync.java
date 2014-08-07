@@ -151,7 +151,7 @@ final class MetaSync extends Thread {
           LOG.info("Replacing corrupt UID [" + UniqueId.uidToString(uid) + 
             "] of type [" + type + "]");
           
-          return new_meta.syncToStorage(tsdb, true);
+          return tsdb.syncUIDMetaToStorage(new_meta, true);
         }
         
       }
@@ -179,7 +179,7 @@ final class MetaSync extends Thread {
             tsdb.indexUIDMeta(meta);
             LOG.info("Syncing valid UID [" + UniqueId.uidToString(uid) + 
               "] of type [" + type + "]");
-            return meta.syncToStorage(tsdb, false);
+            return tsdb.syncUIDMetaToStorage(meta, false);
           }
         } else {
           LOG.debug("UID [" + UniqueId.uidToString(uid) + 
@@ -334,8 +334,8 @@ final class MetaSync extends Thread {
         
         for (final ArrayList<KeyValue> row : rows) {
 
-          final byte[] tsuid = UniqueId.getTSUIDFromKey(row.get(0).key(), 
-              TSDB.metrics_width(), Const.TIMESTAMP_BYTES);
+          final byte[] tsuid = UniqueId.getTSUIDFromKey(row.get(0).key(),
+                  Const.METRICS_WIDTH, Const.TIMESTAMP_BYTES);
           
           // if the current tsuid is the same as the last, just continue
           // so we save time
@@ -356,15 +356,15 @@ final class MetaSync extends Thread {
           // we may have a new TSUID or UIDs, so fetch the timestamp of the 
           // row for use as the "created" time. Depending on speed we could 
           // parse datapoints, but for now the hourly row time is enough
-          final long timestamp = Bytes.getUnsignedInt(row.get(0).key(), 
-              TSDB.metrics_width());
+          final long timestamp = Bytes.getUnsignedInt(row.get(0).key(),
+                  Const.METRICS_WIDTH);
           
           LOG.debug("[" + thread_id + "] Processing TSUID: " + tsuid_string + 
               "  row timestamp: " + timestamp);
           
           // now process the UID metric meta data
-          final byte[] metric_uid_bytes = 
-            Arrays.copyOfRange(tsuid, 0, TSDB.metrics_width()); 
+          final byte[] metric_uid_bytes =
+            Arrays.copyOfRange(tsuid, 0, Const.METRICS_WIDTH);
           final String metric_uid = UniqueId.uidToString(metric_uid_bytes);
           Long last_get = metric_uids.get(metric_uid);
           
@@ -374,16 +374,14 @@ final class MetaSync extends Thread {
             // entry
             final UidCB cb = new UidCB(UniqueIdType.METRIC, 
                 metric_uid_bytes, timestamp);
-            final Deferred<Boolean> process_uid = UIDMeta.getUIDMeta(tsdb, 
-                UniqueIdType.METRIC, metric_uid_bytes).addCallbackDeferring(cb);
+            final Deferred<Boolean> process_uid = tsdb.getUIDMeta
+              (UniqueIdType.METRIC, metric_uid_bytes).addCallbackDeferring(cb);
             storage_calls.add(process_uid);
             metric_uids.put(metric_uid, timestamp);
           }
           
           // loop through the tags and process their meta
-          final List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
-              tsuid_string, TSDB.metrics_width(), TSDB.tagk_width(), 
-              TSDB.tagv_width());
+          final List<byte[]> tags = UniqueId.getTagsFromTSUID(tsuid_string);
           int idx = 0;
           for (byte[] tag : tags) {
             final UniqueIdType type = (idx % 2 == 0) ? UniqueIdType.TAGK : 
@@ -405,7 +403,7 @@ final class MetaSync extends Thread {
             // exist, so we can just call sync on this to create a missing
             // entry
             final UidCB cb = new UidCB(type, tag, timestamp);
-            final Deferred<Boolean> process_uid = UIDMeta.getUIDMeta(tsdb, type, tag)
+            final Deferred<Boolean> process_uid = tsdb.getUIDMeta(type, tag)
               .addCallbackDeferring(cb);
             storage_calls.add(process_uid);
             if (type == UniqueIdType.TAGK) {
@@ -528,7 +526,7 @@ final class MetaSync extends Thread {
    * @throws HBaseException if something goes boom
    */
   private Scanner getScanner() throws HBaseException {
-    final short metric_width = TSDB.metrics_width();
+    final short metric_width = Const.METRICS_WIDTH;
     final byte[] start_row = 
       Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
     final byte[] end_row = 
@@ -536,7 +534,7 @@ final class MetaSync extends Thread {
 
     LOG.debug("[" + thread_id + "] Start row: " + UniqueId.uidToString(start_row));
     LOG.debug("[" + thread_id + "] End row: " + UniqueId.uidToString(end_row));
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily("t".getBytes(Charset.forName("ISO-8859-1")));

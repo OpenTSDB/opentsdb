@@ -18,9 +18,11 @@ import java.util.List;
 
 import net.opentsdb.core.TSDB;
 
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
+import com.stumbleupon.async.Deferred;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -45,16 +47,16 @@ public final class TestSuggestRpc {
     final List<String> metrics = new ArrayList<String>();
     metrics.add("sys.cpu.0.system"); 
     metrics.add("sys.mem.free");
-    when(tsdb.suggestMetrics("s")).thenReturn(metrics);
+    when(tsdb.suggest(UniqueIdType.METRIC, "s")).thenReturn(Deferred.fromResult(metrics));
     final List<String> metrics_one = new ArrayList<String>();
     metrics_one.add("sys.cpu.0.system"); 
-    when(tsdb.suggestMetrics("s", 1)).thenReturn(metrics_one);
+    when(tsdb.suggest(UniqueIdType.METRIC, "s", 1)).thenReturn(Deferred.fromResult(metrics_one));
     final List<String> tagks = new ArrayList<String>();
     tagks.add("host");
-    when(tsdb.suggestTagNames("h")).thenReturn(tagks);
+    when(tsdb.suggest(UniqueIdType.TAGK, "h")).thenReturn(Deferred.fromResult(tagks));
     final List<String> tagvs = new ArrayList<String>();
     tagvs.add("web01.mysite.com");
-    when(tsdb.suggestTagValues("w")).thenReturn(tagvs);
+    when(tsdb.suggest(UniqueIdType.TAGV, "w")).thenReturn(Deferred.fromResult(tagvs));
   }
   
   @Test

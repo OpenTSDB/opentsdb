@@ -16,10 +16,8 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -28,12 +26,10 @@ import org.hbase.async.Bytes;
 
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.utils.Pair;
 
 /** Helper functions to deal with tags. */
 public final class Tags {
-
-  private static final Logger LOG = LoggerFactory.getLogger(Tags.class);
-
   private Tags() {
     // Can't create instances of this utility class.
   }
@@ -94,6 +90,34 @@ public final class Tags {
   }
 
   /**
+   * Parses a tag into a list of key/value pairs, allowing nulls for either
+   * value.
+   * @param tags The list into which the parsed tag should be stored
+   * @param tag A string of the form "tag=value" or "=value" or "tag="
+   * @throws IllegalArgumentException if the tag is malformed.
+   * @since 2.1
+   */
+  public static void parse(final List<Pair<String, String>> tags,
+      final String tag) {
+    if (tag == null || tag.isEmpty() || tag.length() < 2) {
+      throw new IllegalArgumentException("Missing tag pair");
+    }
+    if (tag.charAt(0) == '=') {
+      tags.add(new Pair<String, String>(null, tag.substring(1)));
+      return;
+    } else if (tag.charAt(tag.length() - 1) == '=') {
+      tags.add(new Pair<String, String>(tag.substring(0, tag.length() - 1), null));
+      return;
+    }
+    
+    final String[] kv = splitString(tag, '=');
+    if (kv.length != 2 || kv[0].length() <= 0 || kv[1].length() <= 0) {
+      throw new IllegalArgumentException("invalid tag: " + tag);
+    }
+    tags.add(new Pair<String, String>(kv[0], kv[1]));
+  }
+    
+  /**
    * Parses the metric and tags out of the given string.
    * @param metric A string of the form "metric" or "metric{tag=value,...}".
    * @param tags The map to populate with the tags parsed out of the first
@@ -127,6 +151,51 @@ public final class Tags {
     return metric.substring(0, curly);
   }
 
+  /**
+   * Parses an optional metric and tags out of the given string, any of
+   * which may be null. Requires at least one metric, tagk or tagv.
+   * @param metric A string of the form "metric" or "metric{tag=value,...}"
+   * or even "{tag=value,...}" where the metric may be missing.
+   * @param tags The list to populate with parsed tag pairs
+   * @return The name of the metric if it exists, null otherwise
+   * @throws IllegalArgumentException if the metric is malformed.
+   * @since 2.1
+   */
+  public static String parseWithMetric(final String metric,
+      final List<Pair<String, String>> tags) {
+    final int curly = metric.indexOf('{');
+    if (curly < 0) {
+      if (metric.isEmpty()) {
+        throw new IllegalArgumentException("Metric string was empty");
+      }
+      return metric;
+    }
+    final int len = metric.length();
+    if (metric.charAt(len - 1) != '}') {  // "foo{"
+      throw new IllegalArgumentException("Missing '}' at the end of: " + metric);
+    } else if (curly == len - 2) {  // "foo{}"
+      if (metric.charAt(0) == '{') {
+        throw new IllegalArgumentException("Missing metric and tags: " + metric);
+      }
+      return metric.substring(0, len - 2);
+    }
+    // substring the tags out of "foo{a=b,...,x=y}" and parse them.
+    for (final String tag : splitString(metric.substring(curly + 1, len - 1),
+           ',')) {
+    try {
+      parse(tags, tag);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException("When parsing tag '" + tag
+                + "': " + e.getMessage());
+      }
+    }
+    // Return the "foo" part of "foo{a=b,...,x=y}"
+    if (metric.charAt(0) == '{') {
+      return null;
+    }
+    return metric.substring(0, curly);
+  }
+  
   /**
    * Parses an integer value as a long from the given character sequence.
    * <p>
@@ -181,31 +250,6 @@ public final class Tags {
   }
 
   /**
-   * Extracts the value of the given tag name from the given row key.
-   * @param tsdb The TSDB instance to use for UniqueId lookups.
-   * @param row The row key in which to search the tag name.
-   * @param name The name of the tag to search in the row key.
-   * @return The value associated with the given tag name, or null if this tag
-   * isn't present in this row key.
-   */
-  static String getValue(final TSDB tsdb, final byte[] row,
-                         final String name) throws NoSuchUniqueName {
-    validateString("tag name", name);
-    final byte[] id = tsdb.tag_names.getId(name);
-    final byte[] value_id = getValueId(tsdb, row, id);
-    if (value_id == null) {
-      return null;
-    }
-    // This shouldn't throw a NoSuchUniqueId.
-    try {
-      return tsdb.tag_values.getName(value_id);
-    } catch (NoSuchUniqueId e) {
-      LOG.error("Internal error, NoSuchUniqueId unexpected here!", e);
-      throw e;
-    }
-  }
-
-  /**
    * Extracts the value ID of the given tag UD name from the given row key.
    * @param tsdb The TSDB instance to use for UniqueId lookups.
    * @param row The row key in which to search the tag name.
@@ -246,24 +290,6 @@ public final class Tags {
       }
     }
     return true;
-  }
-
-  /**
-   * Returns the tags stored in the given row key.
-   * @param tsdb The TSDB instance to use for Unique ID lookups.
-   * @param row The row key from which to extract the tags.
-   * @return A map of tag names (keys), tag values (values).
-   * @throws NoSuchUniqueId if the row key contained an invalid ID (unlikely).
-   */
-  static Map<String, String> getTags(final TSDB tsdb,
-                                     final byte[] row) throws NoSuchUniqueId {
-    try {
-      return getTagsAsync(tsdb, row).joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
   }
   
   /**
@@ -341,61 +367,17 @@ public final class Tags {
 
   /**
    * Resolves all the tags (name=value) into the a sorted byte arrays.
-   * This function is the opposite of {@link #resolveIds}.
+   * This function is the opposite of {@link #resolveIdsAsync(TSDB, java.util.List)}.
    * @param tsdb The TSDB to use for UniqueId lookups.
    * @param tags The tags to resolve.
    * @return an array of sorted tags (tag id, tag name).
    * @throws NoSuchUniqueName if one of the elements in the map contained an
    * unknown tag name or tag value.
    */
-  static ArrayList<byte[]> resolveAll(final TSDB tsdb,
-                                      final Map<String, String> tags)
-    throws NoSuchUniqueName {
-    try {
-      return resolveAllInternal(tsdb, tags, false);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never happen!", e);
-    }
+  public static Deferred<ArrayList<byte[]>> resolveAllAsync(final TSDB tsdb,
+                                                            final Map<String, String> tags) {
+      return resolveAllInternalAsync(tsdb, tags, false);
   }
-
-  /**
-  * Resolves (and creates, if necessary) all the tags (name=value) into the a
-  * sorted byte arrays.
-  * @param tsdb The TSDB to use for UniqueId lookups.
-  * @param tags The tags to resolve. If a new tag name or tag value is
-  * seen, it will be assigned an ID.
-  * @return an array of sorted tags (tag id, tag name).
-  */
-  static ArrayList<byte[]> resolveOrCreateAll(final TSDB tsdb,
-                                              final Map<String, String> tags) {
-    return resolveAllInternal(tsdb, tags, true);
-  }
-  
-  private
-  static ArrayList<byte[]> resolveAllInternal(final TSDB tsdb,
-                                              final Map<String, String> tags,
-                                              final boolean create)
-    throws NoSuchUniqueName {
-    final ArrayList<byte[]> tag_ids = new ArrayList<byte[]>(tags.size());
-    for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      final byte[] tag_id = (create
-                             ? tsdb.tag_names.getOrCreateId(entry.getKey())
-                             : tsdb.tag_names.getId(entry.getKey()));
-      final byte[] value_id = (create
-                               ? tsdb.tag_values.getOrCreateId(entry.getValue())
-                               : tsdb.tag_values.getId(entry.getValue()));
-      final byte[] thistag = new byte[tag_id.length + value_id.length];
-      System.arraycopy(tag_id, 0, thistag, 0, tag_id.length);
-      System.arraycopy(value_id, 0, thistag, tag_id.length, value_id.length);
-      tag_ids.add(thistag);
-    }
-    // Now sort the tags.
-    Collections.sort(tag_ids, Bytes.MEMCMP);
-    return tag_ids;
-  }
-
 
   /**
    * Resolves (and creates, if necessary) all the tags (name=value) into the a
@@ -418,14 +400,33 @@ public final class Tags {
     final ArrayList<Deferred<byte[]>> tag_ids =
       new ArrayList<Deferred<byte[]>>(tags.size());
 
+    final boolean create_tagks = tsdb.getConfig().getBoolean("tsd.core.auto_create_tagks");
+    final boolean create_tagvs = tsdb.getConfig().getBoolean("tsd.core.auto_create_tagvs");
+
     // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      final Deferred<byte[]> name_id = create
-        ? tsdb.tag_names.getOrCreateIdAsync(entry.getKey())
-        : tsdb.tag_names.getIdAsync(entry.getKey());
-      final Deferred<byte[]> value_id = create
-        ? tsdb.tag_values.getOrCreateIdAsync(entry.getValue())
-        : tsdb.tag_values.getIdAsync(entry.getValue());
+      final Deferred<byte[]> name_id = tsdb.tag_names.getIdAsync(entry.getKey());
+      final Deferred<byte[]> value_id = tsdb.tag_values.getIdAsync(entry.getValue());
+
+      class NoSuchTagNameCB implements Callback<Object, Exception> {
+        public Object call(final Exception e) {
+          if (e instanceof NoSuchUniqueName && create && create_tagks) {
+            return tsdb.tag_names.createId(entry.getKey());
+          }
+
+          return e; // Other unexpected exception, let it bubble up.
+        }
+      }
+
+      class NoSuchTagValueCB implements Callback<Object, Exception> {
+        public Object call(final Exception e) {
+          if (e instanceof NoSuchUniqueName && create && create_tagvs) {
+            return tsdb.tag_values.createId(entry.getValue());
+          }
+
+          return e; // Other unexpected exception, let it bubble up.
+        }
+      }
 
       // Then once the tag name is resolved, get the resolved tag value.
       class TagNameResolvedCB implements Callback<Deferred<byte[]>, byte[]> {
@@ -440,13 +441,17 @@ public final class Tags {
             }
           }
 
-          return value_id.addCallback(new TagValueResolvedCB());
+          return value_id
+                  .addErrback(new NoSuchTagValueCB())
+                  .addCallback(new TagValueResolvedCB());
         }
       }
 
       // Put all the deferred tag resolutions in this list.
-      final Deferred<byte[]> resolve = 
-        name_id.addCallbackDeferring(new TagNameResolvedCB());
+      final Deferred<byte[]> resolve = name_id
+              .addErrback(new NoSuchTagNameCB())
+              .addCallbackDeferring(new TagNameResolvedCB());
+
       tag_ids.add(resolve);
     }
 
@@ -470,8 +475,8 @@ public final class Tags {
   private static final SortResolvedTagsCB SORT_CB = new SortResolvedTagsCB();
 
   /**
-   * Resolves all the tags IDs (name followed by value) into the a map.
-   * This function is the opposite of {@link #resolveAll}.
+   * Resolves all the tags IDs asynchronously (name followed by value) into a map.
+   * This function is the opposite of {@link #resolveAllAsync(TSDB, java.util.Map)}.
    * @param tsdb The TSDB to use for UniqueId lookups.
    * @param tags The tag IDs to resolve.
    * @return A map mapping tag names to tag values.
@@ -479,31 +484,47 @@ public final class Tags {
    * invalid ID.
    * @throws IllegalArgumentException if one of the elements in the array had
    * the wrong number of bytes.
+   * @since 2.0
    */
-  static HashMap<String, String> resolveIds(final TSDB tsdb,
-                                            final ArrayList<byte[]> tags)
+  public static Deferred<HashMap<String, String>> resolveIdsAsync(final TSDB tsdb,
+                                            final List<byte[]> tags)
     throws NoSuchUniqueId {
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
     final short tag_bytes = (short) (name_width + value_width);
-    final byte[] tmp_name = new byte[name_width];
-    final byte[] tmp_value = new byte[value_width];
     final HashMap<String, String> result
       = new HashMap<String, String>(tags.size());
+    final ArrayList<Deferred<String>> deferreds 
+      = new ArrayList<Deferred<String>>(tags.size());
+    
     for (final byte[] tag : tags) {
+      final byte[] tmp_name = new byte[name_width];
+      final byte[] tmp_value = new byte[value_width];
       if (tag.length != tag_bytes) {
         throw new IllegalArgumentException("invalid length: " + tag.length
             + " (expected " + tag_bytes + "): " + Arrays.toString(tag));
       }
       System.arraycopy(tag, 0, tmp_name, 0, name_width);
-      final String name = tsdb.tag_names.getName(tmp_name);
+      deferreds.add(tsdb.tag_names.getNameAsync(tmp_name));
       System.arraycopy(tag, name_width, tmp_value, 0, value_width);
-      final String value = tsdb.tag_values.getName(tmp_value);
-      result.put(name, value);
+      deferreds.add(tsdb.tag_values.getNameAsync(tmp_value));
     }
-    return result;
+    
+    class GroupCB implements Callback<HashMap<String, String>, ArrayList<String>> {
+      public HashMap<String, String> call(final ArrayList<String> names)
+          throws Exception {
+        for (int i = 0; i < names.size(); i++) {
+          if (i % 2 != 0) {
+            result.put(names.get(i - 1), names.get(i));
+          }
+        }
+        return result;
+      }
+    }
+    
+    return Deferred.groupInOrder(deferreds).addCallback(new GroupCB());
   }
-
+  
   /**
    * Returns true if the given string looks like an integer.
    * <p>
@@ -522,5 +543,4 @@ public final class Tags {
     }
     return true;
   }
-
 }

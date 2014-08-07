@@ -36,7 +36,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * class
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
+@PrepareForTest({TSDB.class, HttpQuery.class})
 public final class TestHttpJsonSerializer {
   private TSDB tsdb = null;
 
