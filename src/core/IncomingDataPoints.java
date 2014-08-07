@@ -30,6 +30,7 @@ import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.UidFormatter;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.core.TSDB.checkTimestamp;
 
 /**
  * Receives new data points and stores them in HBase.
@@ -154,13 +155,8 @@ class IncomingDataPoints implements WritableDataPoints {
       throw new IllegalStateException("setSeries() never called!");
     }
     final boolean ms_timestamp = (timestamp & Const.SECOND_MASK) != 0;
-    
-    // we only accept unix epoch timestamps in seconds or milliseconds
-    if (timestamp < 0 || (ms_timestamp && timestamp > 9999999999999L)) {
-      throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
-          + " timestamp=" + timestamp
-          + " when trying to add value=" + Arrays.toString(value) + " to " + this);
-    }
+
+    checkTimestamp(timestamp);
 
     // always maintain last_ts in milliseconds
     if ((ms_timestamp ? timestamp : timestamp * 1000) <= last_ts) {

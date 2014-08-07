@@ -34,6 +34,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import static net.opentsdb.core.TSDB.checkTimestamp;
 import static org.hbase.async.Bytes.ByteMap;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -136,13 +137,13 @@ final class TsdbQuery implements Query {
    */
   @Override
   public void setStartTime(final long timestamp) {
-    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
-        timestamp > 9999999999999L)) {
-      throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
-    } else if (end_time != UNSET && timestamp >= getEndTime()) {
+    checkTimestamp(timestamp);
+
+    if (end_time != UNSET && timestamp >= getEndTime()) {
       throw new IllegalArgumentException("new start time (" + timestamp
           + ") is greater than or equal to end time: " + getEndTime());
     }
+
     start_time = timestamp;
   }
 
@@ -167,13 +168,13 @@ final class TsdbQuery implements Query {
    */
   @Override
   public void setEndTime(final long timestamp) {
-    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
-        timestamp > 9999999999999L)) {
-      throw new IllegalArgumentException("Invalid timestamp: " + timestamp);
-    } else if (start_time != UNSET && timestamp <= getStartTime()) {
+    checkTimestamp(timestamp);
+
+    if (start_time != UNSET && timestamp <= getStartTime()) {
       throw new IllegalArgumentException("new end time (" + timestamp
           + ") is less than or equal to start time: " + getStartTime());
     }
+
     end_time = timestamp;
   }
 
