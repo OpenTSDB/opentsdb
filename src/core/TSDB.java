@@ -24,13 +24,13 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
-import net.opentsdb.storage.HBaseStore;
 import net.opentsdb.storage.TsdbStore;
 import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes.ByteMap;
 
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.RpcPlugin;
