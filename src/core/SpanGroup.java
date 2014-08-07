@@ -14,16 +14,17 @@ package net.opentsdb.core;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import org.hbase.async.Bytes;
 
 import net.opentsdb.meta.Annotation;
 
@@ -222,8 +223,7 @@ final class SpanGroup implements DataPoints {
       return;
     }
 
-    // TODO Standard HashSets don't support arrays
-    final HashSet<byte[]> discarded_tags = Sets.newHashSet();
+    final Set<byte[]> discarded_tags = Sets.newTreeSet(Bytes.MEMCMP);
 
     final Iterator<Span> it = spans.iterator();
     Map<byte[], byte[]> tags2 = it.next().tags();
