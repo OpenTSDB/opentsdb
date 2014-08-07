@@ -121,22 +121,20 @@ class IncomingDataPoints implements WritableDataPoints {
 
   /**
    * Updates the base time in the row key.
-   * @param timestamp The timestamp from which to derive the new base time.
+   * @param base_time The new base time
    * @return The updated base time.
    */
-  private long updateBaseTime(final long timestamp) {
+  private void updateBaseTime(final long base_time) {
     // We force the starting timestamp to be on a MAX_TIMESPAN boundary
     // so that all TSDs create rows with the same base time.  Otherwise
     // we'd need to coordinate TSDs to avoid creating rows that cover
     // overlapping time periods.
-    final long base_time = timestamp - (timestamp % Const.MAX_TIMESPAN);
     // Clone the row key since we're going to change it.  We must clone it
     // because the TsdbStore may still hold a reference to it in its
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
     Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
     tsdb.getTsdbStore().scheduleForCompaction(row);
-    return base_time;
   }
 
   /**
@@ -171,18 +169,11 @@ class IncomingDataPoints implements WritableDataPoints {
     last_ts = (ms_timestamp ? timestamp : timestamp * 1000);
 
     long base_time = RowKey.baseTime(row);
-    long incoming_base_time;
-    if (ms_timestamp) {
-      // drop the ms timestamp to seconds to calculate the base timestamp
-      incoming_base_time = ((timestamp / 1000) - 
-          ((timestamp / 1000) % Const.MAX_TIMESPAN));
-    } else {
-      incoming_base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-    }
-    
+    long incoming_base_time = HBaseStore.buildBaseTime(timestamp);
+
     if (incoming_base_time - base_time >= Const.MAX_TIMESPAN) {
       // Need to start a new row as we've exceeded Const.MAX_TIMESPAN.
-      base_time = updateBaseTime((ms_timestamp ? timestamp / 1000: timestamp));
+      updateBaseTime(incoming_base_time);
     }
 
     // Java is so stupid with its auto-promotion of int to float.

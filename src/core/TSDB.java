@@ -720,15 +720,7 @@ public class TSDB {
       public Deferred<Object> call(byte[] row) throws Exception {
         final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
 
-        final long base_time;
-        if ((timestamp & Const.SECOND_MASK) != 0) {
-          // drop the ms timestamp to seconds to calculate the base timestamp
-          base_time = ((timestamp / 1000) -
-                  ((timestamp / 1000) % Const.MAX_TIMESPAN));
-        } else {
-          base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
-        }
-
+        final long base_time = HBaseStore.buildBaseTime(timestamp);
         Bytes.setInt(row, (int) base_time, metrics.width());
 
         // TODO(tsuna): Add a callback to time the latency of HBase and store the
