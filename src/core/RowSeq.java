@@ -357,11 +357,6 @@ final class RowSeq implements DataPoints {
     return new Iterator();
   }
 
-  /** Extracts the base timestamp from the row key. */
-  long baseTime() {
-    return Bytes.getUnsignedInt(key, tsdb.metrics.width());
-  }
-
   /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */
   private void checkIndex(final int i) {
     if (i >= size()) {
@@ -384,7 +379,7 @@ final class RowSeq implements DataPoints {
       int index = 0;
       for (int idx = 0; idx < qualifiers.length; idx += 2) {
         if (i == index) {
-          return Internal.getTimestampFromQualifier(qualifiers, baseTime(), idx);
+          return Internal.getTimestampFromQualifier(qualifiers, RowKey.baseTime(key), idx);
         }
         if (Internal.inMilliseconds(qualifiers[idx])) {
           idx += 2;
@@ -392,9 +387,9 @@ final class RowSeq implements DataPoints {
         index++;
       }
     } else if ((qualifiers[0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 4);
+      return Internal.getTimestampFromQualifier(qualifiers, RowKey.baseTime(key), i * 4);
     } else {
-      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 2);
+      return Internal.getTimestampFromQualifier(qualifiers, RowKey.baseTime(key), i * 2);
     }
     
     throw new RuntimeException(
@@ -456,7 +451,7 @@ final class RowSeq implements DataPoints {
     final StringBuilder buf = new StringBuilder(80 + metric.length()
                                                 + key.length * 4
                                                 + size * 16);
-    final long base_time = baseTime();
+    final long base_time = RowKey.baseTime(key);
     buf.append("RowSeq(")
        .append(key == null ? "<null>" : Arrays.toString(key))
        .append(" (metric=")
@@ -493,15 +488,15 @@ final class RowSeq implements DataPoints {
 
   /**
    * Used to compare two RowSeq objects when sorting a {@link Span}. Compares
-   * on the {@code RowSeq#baseTime()}
+   * on {@link net.opentsdb.core.RowKey#baseTime(byte[])}.
    * @since 2.0
    */
   public static final class RowSeqComparator implements Comparator<RowSeq> {
     public int compare(final RowSeq a, final RowSeq b) {
-      if (a.baseTime() == b.baseTime()) {
+      if (RowKey.baseTime(a.key) == RowKey.baseTime(b.key)) {
         return 0;
       }
-      return a.baseTime() < b.baseTime() ? -1 : 1;
+      return RowKey.baseTime(a.key) < RowKey.baseTime(b.key) ? -1 : 1;
     }
   }
   
@@ -518,7 +513,7 @@ final class RowSeq implements DataPoints {
     private int value_index;
 
     /** Pre-extracted base time of this row sequence.  */
-    private final long base_time = baseTime();
+    private final long base_time = RowKey.baseTime(key);
 
     Iterator() {
     }

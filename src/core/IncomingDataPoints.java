@@ -25,6 +25,7 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.UidFormatter;
 
 /**
@@ -167,9 +168,9 @@ class IncomingDataPoints implements WritableDataPoints {
           + " when trying to add value=" + Arrays.toString(value)
           + " to " + this);
     }
-    last_ts = (ms_timestamp ? timestamp : timestamp * 1000);   
-    
-    long base_time = baseTime();
+    last_ts = (ms_timestamp ? timestamp : timestamp * 1000);
+
+    long base_time = RowKey.baseTime(row);
     long incoming_base_time;
     if (ms_timestamp) {
       // drop the ms timestamp to seconds to calculate the base timestamp
@@ -221,11 +222,6 @@ class IncomingDataPoints implements WritableDataPoints {
     }
     values = Arrays.copyOf(values, new_size);
     qualifiers = Arrays.copyOf(qualifiers, new_size);
-  }
-
-  /** Extracts the base timestamp from the row key. */
-  private long baseTime() {
-    return Bytes.getUnsignedInt(row, tsdb.metrics.width());
   }
 
   public Deferred<Object> addPoint(final long timestamp, final long value) {
@@ -362,7 +358,7 @@ class IncomingDataPoints implements WritableDataPoints {
 
   public long timestamp(final int i) {
     checkIndex(i);
-    return baseTime() + (delta(qualifiers[i]) & 0xFFFF);
+    return RowKey.baseTime(row) + (delta(qualifiers[i]) & 0xFFFF);
   }
 
   public boolean isInteger(final int i) {
@@ -393,7 +389,7 @@ class IncomingDataPoints implements WritableDataPoints {
     final String metric = metricName();
     final StringBuilder buf = new StringBuilder(80 + metric.length()
                                                 + row.length * 4 + size * 16);
-    final long base_time = baseTime();
+    final long base_time = RowKey.baseTime(row);
     buf.append("IncomingDataPoints(")
        .append(row == null ? "<null>" : Arrays.toString(row))
        .append(" (metric=")
