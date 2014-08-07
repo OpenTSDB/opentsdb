@@ -191,7 +191,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
 
   @Test  // Test the creation of an ID with a race condition.
-  public void getOrCreateIdAssignIdWithRaceCondition() {
+  public void getOrCreateIdAssignIdWithRaceCondition() throws Exception{
   // Simulate a race between client A and client B.
   // A does a Get and sees that there's no ID for this name.
   // B does a Get and sees that there's no ID too, and B actually goes
@@ -213,17 +213,18 @@ public class TestHBaseStore extends TestTsdbStore {
           .thenReturn(Deferred.fromResult(false));
   // For simplicity return an empty ArrayList, then the call back should return
   // null
+  final byte[] value = {'1','2','3'};
+  ArrayList<KeyValue> al = new ArrayList<KeyValue>();
+  al.add(new KeyValue(new byte[] {'h', 'o', 's', 't'}, new byte[] {},
+          new byte[] {}, value));
   when(client.get(any(GetRequest.class)))
-          .thenReturn(Deferred.fromResult(new ArrayList<KeyValue>()));
+          .thenReturn(Deferred.fromResult(al));
 
-  try {
-    byte[] uid = tsdb_store.allocateUID(foo_array, UniqueId.UniqueIdType.METRIC,
-            UniqueId.UniqueIdType.METRIC.width).joinUninterruptibly();
-    if (null != uid)
-      fail("Should have received null but received uid = " + uid);
-    } catch (Exception e) {
-      fail("Received unexpected exception = " + e);
-  }
+
+  byte[] uid = tsdb_store.allocateUID(foo_array, UniqueId.UniqueIdType.METRIC,
+          UniqueId.UniqueIdType.METRIC.width).joinUninterruptibly();
+  assertEquals(value,uid);
+
   // Verify the order of execution too.
   final InOrder order = inOrder(client);
   order.verify(client, times(1)).atomicIncrement(incrementForRow(MAX_UID));
