@@ -367,62 +367,6 @@ public final class TestUniqueId {
   }
   
   @Test
-  public void getTagPairsFromTSUIDString() {
-    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
-        "000000000001000002000003000004");
-    assertNotNull(tags);
-    assertEquals(2, tags.size());
-    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2 }, tags.get(0));
-    assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 4 }, tags.get(1));
-  }
-  
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDStringNonStandardWidth() {
-    //PowerMockito.mockStatic(TSDB.class);
-    //when(Const.METRICS_WIDTH).thenReturn((short)3);
-    //when(Const.TAG_NAME_WIDTH).thenReturn((short)4);
-    //when(Const.TAG_VALUE_WIDTH).thenReturn((short)3);
-    
-    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
-        "0000000000000100000200000003000004");
-    assertNotNull(tags);
-    assertEquals(2, tags.size());
-    assertArrayEquals(new byte[] { 0, 0, 0, 1, 0, 0, 2 }, tags.get(0));
-    assertArrayEquals(new byte[] { 0, 0, 0, 3, 0, 0, 4 }, tags.get(1));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDStringMissingTags() {
-    UniqueId.getTagPairsFromTSUID("123456");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDStringMissingMetric() {
-    UniqueId.getTagPairsFromTSUID("000001000002");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDStringOddNumberOfCharacters() {
-    UniqueId.getTagPairsFromTSUID("0000080000010000020");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDStringMissingTagv() {
-    UniqueId.getTagPairsFromTSUID("000008000001");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDStringNull() {
-    UniqueId.getTagPairsFromTSUID((String)null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDStringEmpty() {
-    UniqueId.getTagPairsFromTSUID("");
-  }
-  
-  @Test
   public void getTagPairsFromTSUIDBytes() {
     List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
         new byte[] { 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4 });
@@ -569,11 +513,6 @@ public final class TestUniqueId {
   @Test
   public void uidToLong() throws Exception {
     assertEquals(42, UniqueId.uidToLong(new byte[] { 0, 0, 0x2A }, (short)3));
-  }
-
-  @Test
-  public void uidToLongFromString() throws Exception {
-    assertEquals(42L, UniqueId.uidToLong("00002A", (short) 3));
   }
 
   @Test (expected = IllegalArgumentException.class)
