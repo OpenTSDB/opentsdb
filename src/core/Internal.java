@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Throwables;
+
+import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -100,7 +102,8 @@ public final class Internal {
   /** @see Tags#getTagsAsync(TSDB, byte[])  */
   public static Map<String, String> getTags(final TSDB tsdb, final byte[] row) {
     try {
-      return Tags.getTagsAsync(tsdb, row).joinUninterruptibly();
+      Map<byte[], byte[]> tag_ids = RowKey.tags(row);
+      return new UidFormatter(tsdb).formatTags(tag_ids).joinUninterruptibly();
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }

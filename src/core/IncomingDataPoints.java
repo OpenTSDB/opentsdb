@@ -25,6 +25,7 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
+import net.opentsdb.uid.UidFormatter;
 
 /**
  * Receives new data points and stores them in HBase.
@@ -310,7 +311,8 @@ class IncomingDataPoints implements WritableDataPoints {
   }
   
   public Deferred<Map<String, String>> getTagsAsync() {
-    return Tags.getTagsAsync(tsdb, row);
+    Map<byte[], byte[]> tag_ids = RowKey.tags(row);
+    return new UidFormatter(tsdb).formatTags(tag_ids);
   }
 
   public List<String> getAggregatedTags() {

@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.UidFormatter;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -293,7 +294,8 @@ final class RowSeq implements DataPoints {
   }
   
   public Deferred<Map<String, String>> getTagsAsync() {
-    return Tags.getTagsAsync(tsdb, key);
+    Map<byte[], byte[]> tag_ids = RowKey.tags(key);
+    return new UidFormatter(tsdb).formatTags(tag_ids);
   }
 
   /** @return an empty list since aggregated tags cannot exist on a single row */
