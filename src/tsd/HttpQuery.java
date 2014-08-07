@@ -853,7 +853,7 @@ final class HttpQuery {
                         final int max_age) {
     try {
       final long now = System.currentTimeMillis() / 1000;
-      Plot plot = new Plot(now - 1, now);
+      Plot plot = new Plot(tsdb, now - 1, now);
       HashMap<String, String> params = new HashMap<String, String>(1);
       StringBuilder buf = new StringBuilder(1 + msg.length() + 18);
 

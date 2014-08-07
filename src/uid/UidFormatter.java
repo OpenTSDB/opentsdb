@@ -2,6 +2,7 @@ package net.opentsdb.uid;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.core.TSDB;
@@ -12,6 +13,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
 
 /**
@@ -73,5 +75,19 @@ public class UidFormatter {
     }
 
     return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
+  }
+
+  public Deferred<ArrayList<String>> formatUids(final List<byte[]> uids,
+                                                final UniqueIdType type) {
+    checkNotNull(uids);
+
+    final ArrayList<Deferred<String>> deferreds =
+            Lists.newArrayListWithCapacity(uids.size());
+
+    for (byte[] uid : uids) {
+      deferreds.add(tsdb.getUidName(type, uid));
+    }
+
+    return Deferred.groupInOrder(deferreds);
   }
 }

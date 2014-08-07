@@ -20,12 +20,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.UidFormatter;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Produces files to generate graphs with Gnuplot.
@@ -71,6 +77,8 @@ public final class Plot {
   /** Height of the graph to generate, in pixels. */
   private short height = (short) 768;
 
+  private final UidFormatter formatter;
+
   /**
    * Number of seconds of difference to apply in order to get local time.
    * Gnuplot always renders timestamps in UTC, so we simply apply a delta
@@ -85,8 +93,8 @@ public final class Plot {
    * @throws IllegalArgumentException if either timestamp is 0 or negative.
    * @throws IllegalArgumentException if {@code start_time >= end_time}.
    */
-  public Plot(final long start_time, final long end_time) {
-    this(start_time, end_time, DEFAULT_TZ);
+  public Plot(final TSDB tsdb, final long start_time, final long end_time) {
+    this(tsdb, start_time, end_time, DEFAULT_TZ);
   }
 
   /**
@@ -99,7 +107,8 @@ public final class Plot {
    * @throws IllegalArgumentException if {@code start_time >= end_time}.
    * @since 1.1
    */
-   public Plot(final long start_time, final long end_time, TimeZone tz) {
+   public Plot(final TSDB tsdb, final long start_time, final long end_time,
+               TimeZone tz) {
     if ((start_time & 0xFFFFFFFF00000000L) != 0) {
       throw new IllegalArgumentException("Invalid start time: " + start_time);
     } else if ((end_time & 0xFFFFFFFF00000000L) != 0) {
@@ -108,6 +117,7 @@ public final class Plot {
       throw new IllegalArgumentException("start time (" + start_time
         + ") is greater than or equal to end time: " + end_time);
     }
+     this.formatter = new UidFormatter(checkNotNull(tsdb));
     this.start_time = (int) start_time;
     this.end_time = (int) end_time;
     if (tz == null) {
@@ -348,7 +358,11 @@ public final class Plot {
       gp.write("plot ");
       for (int i = 0; i < nseries; i++) {
         final DataPoints dp = datapoints.get(i);
-        final String title = dp.metricName() + dp.getTags();
+
+        final String metric = formatter.formatMetric(dp.metric())
+                .joinUninterruptibly();
+        final Map<String,String> tags = formatter.formatTags(dp.tags()).joinUninterruptibly();
+        final String title = metric + tags;
         gp.append(" \"").append(datafiles[i]).append("\" using 1:2");
         if (smooth != null) {
           gp.append(" smooth ").append(smooth);
@@ -367,9 +381,11 @@ public final class Plot {
       if (nseries == 0) {
         gp.write('0');
       }
+    } catch (Exception e) {
+      Throwables.propagate(e);
     } finally {
       gp.close();
-      LOG.info("Wrote Gnuplot script to " + script_path);
+      LOG.info("Wrote Gnuplot script to {}", script_path);
     }
   }
 

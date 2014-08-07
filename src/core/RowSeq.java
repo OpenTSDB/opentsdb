@@ -21,12 +21,9 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.UidFormatter;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
-
-import com.stumbleupon.async.Deferred;
 
 /**
  * Represents a read-only sequence of continuous HBase rows.
@@ -37,10 +34,6 @@ import com.stumbleupon.async.Deferred;
  * for the values. Access is granted via pointers.
  */
 final class RowSeq implements DataPoints {
-
-  /** The {@link TSDB} instance we belong to. */
-  private final TSDB tsdb;
-
   /** First row key. */
   byte[] key;
 
@@ -59,10 +52,8 @@ final class RowSeq implements DataPoints {
 
   /**
    * Constructor.
-   * @param tsdb The TSDB we belong to.
    */
-  RowSeq(final TSDB tsdb) {
-    this.tsdb = tsdb;
+  RowSeq() {
   }
 
   /**
@@ -266,47 +257,28 @@ final class RowSeq implements DataPoints {
                                    + Arrays.toString(values));
   }
 
-  public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+  /**
+   * @see DataPoints#metric()
+   */
+  @Override
+  public byte[] metric() {
+    return RowKey.metric(key);
   }
 
-  public Deferred<String> metricNameAsync() {
-    if (key == null) {
-      throw new IllegalStateException("the row key is null!");
-    }
-    byte[] metric_id = RowKey.metric(key);
-    return new UidFormatter(tsdb).formatMetric(metric_id);
-  }
-  
-  public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<Map<String, String>> getTagsAsync() {
-    Map<byte[], byte[]> tag_ids = RowKey.tags(key);
-    return new UidFormatter(tsdb).formatTags(tag_ids);
+  /**
+   * @see DataPoints#tags()
+   */
+  @Override
+  public Map<byte[],byte[]> tags() {
+    return RowKey.tags(key);
   }
 
-  /** @return an empty list since aggregated tags cannot exist on a single row */
-  public List<String> getAggregatedTags() {
+  /**
+   * @see DataPoints#aggregatedTags()
+   */
+  @Override
+  public List<byte[]> aggregatedTags() {
     return Collections.emptyList();
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    final List<String> empty = Collections.emptyList();
-    return Deferred.fromResult(empty);
   }
   
   public List<String> getTSUIDs() {
@@ -357,11 +329,6 @@ final class RowSeq implements DataPoints {
     return new Iterator();
   }
 
-  /** Extracts the base timestamp from the row key. */
-  long baseTime() {
-    return Bytes.getUnsignedInt(key, tsdb.metrics.width());
-  }
-
   /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */
   private void checkIndex(final int i) {
     if (i >= size()) {
@@ -384,7 +351,7 @@ final class RowSeq implements DataPoints {
       int index = 0;
       for (int idx = 0; idx < qualifiers.length; idx += 2) {
         if (i == index) {
-          return Internal.getTimestampFromQualifier(qualifiers, baseTime(), idx);
+          return Internal.getTimestampFromQualifier(qualifiers, RowKey.baseTime(key), idx);
         }
         if (Internal.inMilliseconds(qualifiers[idx])) {
           idx += 2;
@@ -392,9 +359,9 @@ final class RowSeq implements DataPoints {
         index++;
       }
     } else if ((qualifiers[0] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
-      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 4);
+      return Internal.getTimestampFromQualifier(qualifiers, RowKey.baseTime(key), i * 4);
     } else {
-      return Internal.getTimestampFromQualifier(qualifiers, baseTime(), i * 2);
+      return Internal.getTimestampFromQualifier(qualifiers, RowKey.baseTime(key), i * 2);
     }
     
     throw new RuntimeException(
@@ -451,12 +418,12 @@ final class RowSeq implements DataPoints {
   public String toString() {
     // The argument passed to StringBuilder is a pretty good estimate of the
     // length of the final string based on the row key and number of elements.
-    final String metric = metricName();
+    final String metric = Arrays.toString(metric());
     final int size = size();
     final StringBuilder buf = new StringBuilder(80 + metric.length()
                                                 + key.length * 4
                                                 + size * 16);
-    final long base_time = baseTime();
+    final long base_time = RowKey.baseTime(key);
     buf.append("RowSeq(")
        .append(key == null ? "<null>" : Arrays.toString(key))
        .append(" (metric=")
@@ -498,10 +465,10 @@ final class RowSeq implements DataPoints {
    */
   public static final class RowSeqComparator implements Comparator<RowSeq> {
     public int compare(final RowSeq a, final RowSeq b) {
-      if (a.baseTime() == b.baseTime()) {
+      if (RowKey.baseTime(a.key) == RowKey.baseTime(b.key)) {
         return 0;
       }
-      return a.baseTime() < b.baseTime() ? -1 : 1;
+      return RowKey.baseTime(a.key) < RowKey.baseTime(b.key) ? -1 : 1;
     }
   }
   
@@ -518,7 +485,7 @@ final class RowSeq implements DataPoints {
     private int value_index;
 
     /** Pre-extracted base time of this row sequence.  */
-    private final long base_time = baseTime();
+    private final long base_time = RowKey.baseTime(key);
 
     Iterator() {
     }

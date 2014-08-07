@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import com.google.common.base.Throwables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,7 @@ import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
+import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 
@@ -108,12 +110,16 @@ final class CliQuery {
     final ArrayList<String> plotparams = new ArrayList<String>();
     final ArrayList<Query> queries = new ArrayList<Query>();
     final ArrayList<String> plotoptions = new ArrayList<String>();
+
+    final UidFormatter formatter = new UidFormatter(tsdb);
+
     parseCommandLineQuery(args, tsdb, queries, plotparams, plotoptions);
     if (queries.isEmpty()) {
       usage(null, "Not enough arguments, need at least one query.", 2);
     }
 
-    final Plot plot = (want_plot ? new Plot(queries.get(0).getStartTime(),
+    final Plot plot = (want_plot ? new Plot(tsdb,
+                                            queries.get(0).getStartTime(),
                                             queries.get(0).getEndTime())
                        : null);
     if (want_plot) {
@@ -127,21 +133,25 @@ final class CliQuery {
         if (want_plot) {
           plot.add(datapoints, plotoptions.get(i));
         } else {
-          final String metric = datapoints.metricName();
-          final String tagz = datapoints.getTags().toString();
-          for (final DataPoint datapoint : datapoints) {
-            buf.append(metric)
-               .append(' ')
-               .append(datapoint.timestamp())
-               .append(' ');
-            if (datapoint.isInteger()) {
-              buf.append(datapoint.longValue());
-            } else {
-              buf.append(String.format("%f", datapoint.doubleValue()));
+          try {
+            final String metric = formatter.formatMetric(datapoints.metric()).joinUninterruptibly();
+            final String tagz = formatter.formatTags(datapoints.tags()).joinUninterruptibly().toString();
+            for (final DataPoint datapoint : datapoints) {
+              buf.append(metric)
+                      .append(' ')
+                      .append(datapoint.timestamp())
+                      .append(' ');
+              if (datapoint.isInteger()) {
+                buf.append(datapoint.longValue());
+              } else {
+                buf.append(String.format("%f", datapoint.doubleValue()));
+              }
+              buf.append(' ').append(tagz).append('\n');
+              System.out.print(buf);
+              buf.delete(0, buf.length());
             }
-            buf.append(' ').append(tagz).append('\n');
-            System.out.print(buf);
-            buf.delete(0, buf.length());
+          } catch (Exception e) {
+            Throwables.propagate(e);
           }
         }
       }
