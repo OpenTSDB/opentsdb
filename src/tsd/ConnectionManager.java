@@ -24,15 +24,18 @@ import org.jboss.netty.channel.ChannelEvent;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
+import org.jboss.netty.handler.timeout.IdleState;
+import org.jboss.netty.handler.timeout.IdleStateAwareChannelHandler;
+import org.jboss.netty.handler.timeout.IdleStateEvent;
+import org.jboss.netty.handler.timeout.ReadTimeoutException;
 
 import net.opentsdb.stats.StatsCollector;
 
 /**
  * Keeps track of all existing connections.
  */
-final class ConnectionManager extends SimpleChannelHandler {
+final class ConnectionManager extends IdleStateAwareChannelHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConnectionManager.class);
 
@@ -116,4 +119,12 @@ final class ConnectionManager extends SimpleChannelHandler {
     e.getChannel().close();
   }
 
+  @Override
+  public void channelIdle(ChannelHandlerContext ctx, IdleStateEvent e) {
+    if (e.getState() == IdleState.ALL_IDLE) {
+      LOG.debug("Closed idle socket.");
+      e.getChannel().close();
+    }
+  }
+  
 }
