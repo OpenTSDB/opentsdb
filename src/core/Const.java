@@ -88,5 +88,9 @@ public final class Const {
   public static final String TAG_VALUE_QUAL = "tagv";
 
   public static final Charset CHARSET_ASCII = Charsets.ISO_8859_1;
+
+  /**
+   * The maximum number of milliseconds allowed in a timestamp.
+   */
   public static final long MAX_MS_TIMESTAMP = 9999999999999L;
 }
