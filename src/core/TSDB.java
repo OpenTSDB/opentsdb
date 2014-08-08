@@ -14,7 +14,6 @@ package net.opentsdb.core;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -48,6 +47,7 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -694,8 +694,8 @@ public class TSDB {
     }
     final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
     return addPointInternal(metric, timestamp,
-                            Bytes.fromInt(Float.floatToRawIntBits(value)),
-                            tags, flags);
+            Bytes.fromInt(Float.floatToRawIntBits(value)),
+            tags, flags);
   }
 
   private Deferred<Object> addPointInternal(final String metric,
@@ -703,15 +703,7 @@ public class TSDB {
                                             final byte[] value,
                                             final Map<String, String> tags,
                                             final short flags) {
-    // we only accept positive unix epoch timestamps in seconds or milliseconds
-    if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
-        timestamp > 9999999999999L)) {
-      throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
-          + " timestamp=" + timestamp
-          + " when trying to add value=" + Arrays.toString(value) + '/' + flags
-          + " to metric=" + metric + ", tags=" + tags);
-    }
-
+    checkTimestamp(timestamp);
     IncomingDataPoints.checkMetricAndTags(metric, tags);
 
     class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
@@ -754,6 +746,19 @@ public class TSDB {
 
     return this.rowKeyTemplateAsync(metric, tags)
             .addCallbackDeferring(new RowKeyCB());
+  }
+
+  /**
+   * Validates that the timestamp is within valid bounds.
+   * @throws java.lang.IllegalArgumentException if the timestamp isn't within
+   * bounds.
+   */
+  static long checkTimestamp(long timestamp) {
+    checkArgument(timestamp >= 0, "The timestamp must be positive but was %s", timestamp);
+    checkArgument((timestamp & Const.SECOND_MASK) == 0 || timestamp <= Const.MAX_MS_TIMESTAMP,
+            "The timestamp was too large (%s)", timestamp);
+
+    return timestamp;
   }
 
   /**
