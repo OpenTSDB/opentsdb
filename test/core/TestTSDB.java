@@ -565,7 +565,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 9999999999999L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9, 
         0x10, 0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xFA,
@@ -580,7 +580,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 10000000000000L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP+1, 42, tags).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)

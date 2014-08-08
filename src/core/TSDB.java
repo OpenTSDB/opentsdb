@@ -750,7 +750,7 @@ public class TSDB {
 
   static long checkTimestamp(long timestamp) {
     checkArgument(timestamp >= 0, "The timestamp must be positive but was %s", timestamp);
-    checkArgument((timestamp & Const.SECOND_MASK) == 0 || timestamp <= 9999999999999L,
+    checkArgument((timestamp & Const.SECOND_MASK) == 0 || timestamp <= Const.MAX_MS_TIMESTAMP,
             "The timestamp was too large (%s)", timestamp);
 
     return timestamp;
