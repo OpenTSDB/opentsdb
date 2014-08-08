@@ -14,7 +14,9 @@ package net.opentsdb.storage;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Span;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -24,6 +26,7 @@ import org.hbase.async.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeMap;
 
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
@@ -115,4 +118,19 @@ public interface TsdbStore {
   Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time);
 
   Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time);
+
+  /**
+   * Finds all the {@link net.opentsdb.core.Span}s that match this query.
+   * This is what actually scans the HBase table and loads the data into
+   * {@link net.opentsdb.core.Span}s.
+   * @return A map from HBase row key to the {@link net.opentsdb.core.Span} for that row key.
+   * Since a {@link net.opentsdb.core.Span} actually contains multiple HBase rows, the row key
+   * stored in the map has its timestamp zero'ed out.
+   * @throws org.hbase.async.HBaseException if there was a problem communicating with HBase to
+   * perform the search.
+   * @throws IllegalArgumentException if bad data was retreived from HBase.
+   * @param tsdbQuery
+   * @param tsdb
+   */
+  Deferred<TreeMap<byte[], Span>> executeQuery(final TsdbQuery tsdbQuery);
 }

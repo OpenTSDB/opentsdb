@@ -154,29 +154,4 @@ public interface Query {
    * within an interval.
    */
   void downsample(long interval, Aggregator downsampler);
-
-  /**
-   * Runs this query.
-   * @return The data points matched by this query.
-   * <p>
-   * Each element in the non-{@code null} but possibly empty array returned
-   * corresponds to one time series for which some data points have been
-   * matched by the query.
-   * @throws HBaseException if there was a problem communicating with HBase to
-   * perform the search.
-   */
-  DataPoints[] run() throws HBaseException;
-
-  /**
-   * Executes the query asynchronously
-   * @return The data points matched by this query.
-   * <p>
-   * Each element in the non-{@code null} but possibly empty array returned
-   * corresponds to one time series for which some data points have been
-   * matched by the query.
-   * @throws HBaseException if there was a problem communicating with HBase to
-   * perform the search.
-   * @since 1.2
-   */
-  public Deferred<DataPoints[]> runAsync() throws HBaseException;
 }

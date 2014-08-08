@@ -122,7 +122,7 @@ final class QueryRpc implements HttpRpc {
       new ArrayList<Deferred<DataPoints[]>>(nqueries);
     
     for (int i = 0; i < nqueries; i++) {
-      deferreds.add(tsdbqueries[i].runAsync());
+      deferreds.add(tsdbqueries[i].executeQuery());
     }
 
     /**

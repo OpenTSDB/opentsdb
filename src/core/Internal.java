@@ -18,11 +18,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
-import com.google.common.base.Throwables;
-
-import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -84,9 +80,9 @@ public final class Internal {
     // Can't instantiate.
   }
 
-  /** @see TsdbQuery#getScanner */
+  /** @see TSDB#getScanner */
   public static Scanner getScanner(final Query query) {
-    return ((TsdbQuery) query).getScanner();
+    return ((TsdbQuery) query).tsdb.getScanner(((TsdbQuery) query));
   }
 
   /** @see RowSeq#extractIntegerValue */

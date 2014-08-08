@@ -14,6 +14,7 @@ package net.opentsdb.core;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -1116,6 +1117,20 @@ public class TSDB {
     }
 
     return tsdb_store.delete(annotation);
+  }
+
+  /**
+   * Executes the query asynchronously
+   * @return The data points matched by this query.
+   * <p>
+   * Each element in the non-{@code null} but possibly empty array returned
+   * corresponds to one time series for which some data points have been
+   * matched by the query.
+   * @since 1.2
+   * @param tsdbQuery
+   */
+  public Deferred<DataPoints[]> executeQuery(TsdbQuery tsdbQuery) {
+    return tsdb_store.executeQuery(tsdbQuery).addCallback(tsdbQuery.new GroupByAndAggregateCB());
   }
 
   /**
