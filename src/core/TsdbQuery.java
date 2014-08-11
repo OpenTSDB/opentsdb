@@ -20,14 +20,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Objects;
 import com.google.common.base.Throwables;
+import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.stumbleupon.async.Callback;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.TSDB.checkTimestamp;
 import static org.hbase.async.Bytes.ByteMap;
+
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -36,10 +41,11 @@ import net.opentsdb.uid.NoSuchUniqueName;
  * Non-synchronized implementation of {@link Query}.
  */
 public final class TsdbQuery implements Query {
-
   private static final Logger LOG = LoggerFactory.getLogger(TsdbQuery.class);
 
-  /** Used whenever there are no results. */
+  /**
+   * Used whenever there are no results.
+   */
   private static final DataPoints[] NO_RESULT = new DataPoints[0];
 
   /**
@@ -50,25 +56,14 @@ public final class TsdbQuery implements Query {
   static final Histogram scanlatency = new Histogram(16000, (short) 2, 100);
 
   /**
-   * Charset to use with our server-side row-filter.
-   * We use this one because it preserves every possible byte unchanged.
+   * ID of the metric being looked up.
    */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private final byte[] metric;
 
-  /** The TSDB we belong to. */
-  public final TSDB tsdb;
-
-  /** Value used for timestamps that are uninitialized.  */
-  private static final int UNSET = -1;
-
-  /** Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private long start_time = UNSET;
-
-  /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
-  private long end_time = UNSET;
-
-  /** ID of the metric being looked up. */
-  private byte[] metric;
+  /**
+   * Optional list of TSUIDs to fetch and aggregate instead of a metric
+   */
+  private final List<String> tsuids;
 
   /**
    * Tags of the metrics being looked up.
@@ -76,14 +71,24 @@ public final class TsdbQuery implements Query {
    * of the tag.
    * Invariant: an element cannot be both in this array and in group_bys.
    */
-  private ArrayList<byte[]> tags;
+  private final ArrayList<byte[]> tags;
+
+  /**
+   * Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
+   */
+  private final long start_time;
+
+  /**
+   * End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
+   */
+  private final long end_time;
 
   /**
    * Tags by which we must group the results.
    * Each element is a tag ID.
    * Invariant: an element cannot be both in this array and in {@code tags}.
    */
-  private ArrayList<byte[]> group_bys;
+  private final List<byte[]> group_bys;
 
   /**
    * Values we may be grouping on.
@@ -92,177 +97,134 @@ public final class TsdbQuery implements Query {
    * is an element of {@code group_bys} (so a tag name ID) and the values are
    * tag value IDs (at least two).
    */
-  private ByteMap<byte[][]> group_by_values;
+  private final Map<byte[], ArrayList<byte[]>> group_by_values;
 
-  /** If true, use rate of change instead of actual values. */
-  private boolean rate;
+  /**
+   * If true, use rate of change instead of actual values.
+   */
+  private final boolean rate;
 
-  /** Specifies the various options for rate calculations */
-  private RateOptions rate_options;
-  
-  /** Aggregator function to use. */
-  private Aggregator aggregator;
+  /**
+   * Specifies the various options for rate calculations
+   */
+  private final RateOptions rate_options;
+
+  /**
+   * Aggregator function to use.
+   */
+  private final Aggregator aggregator;
 
   /**
    * Downsampling function to use, if any (can be {@code null}).
    * If this is non-null, {@code sample_interval_ms} must be strictly positive.
    */
-  private Aggregator downsampler;
-
-  /** Minimum time interval (in milliseconds) wanted between each data point. */
-  private long sample_interval_ms;
-
-  /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
-  private List<String> tsuids;
-  
-  /** Constructor. */
-  public TsdbQuery(final TSDB tsdb) {
-    this.tsdb = tsdb;
-  }
+  private final Aggregator downsampler;
 
   /**
-   * Sets the start time for the query
-   * @param timestamp Unix epoch timestamp in seconds or milliseconds
-   * @throws IllegalArgumentException if the timestamp is invalid or greater
-   * than the end time (if set)
+   * Minimum time interval (in milliseconds) wanted between each data point.
    */
-  @Override
-  public void setStartTime(final long timestamp) {
-    checkTimestamp(timestamp);
+  private final long sample_interval_ms;
 
-    if (end_time != UNSET && timestamp >= getEndTime()) {
-      throw new IllegalArgumentException("new start time (" + timestamp
-          + ") is greater than or equal to end time: " + getEndTime());
-    }
+  /**
+   * Constructor.
+   */
+  TsdbQuery(final byte[] metric_id,
+            final ArrayList<byte[]> tags,
+            final long start_time,
+            final long end_time,
+            final Aggregator aggregator,
+            final Aggregator downsampler,
+            final long interval,
+            final boolean rate,
+            final RateOptions rate_options,
+            final List<byte[]> group_bys,
+            final Map<byte[], ArrayList<byte[]>> group_by_values) {
+    this.metric = checkNotNull(metric_id);
+    this.tags = checkNotNull(tags);
+    this.start_time = checkTimestamp(start_time);
+    this.end_time = checkTimestamp(end_time);
 
-    start_time = timestamp;
+    this.aggregator = aggregator;
+    this.downsampler = downsampler;
+    this.sample_interval_ms = interval;
+
+    this.rate = rate;
+    this.rate_options = rate_options;
+
+    this.group_bys = group_bys;
+    this.group_by_values = group_by_values;
+
+    this.tsuids = null;
+  }
+
+  TsdbQuery(final byte[] metric_id,
+            final List<String> tsuids,
+            final long start_time,
+            final long end_time,
+            final Aggregator aggregator,
+            final Aggregator downsampler,
+            final long interval,
+            final boolean rate,
+            final RateOptions rate_options) {
+    this.metric = checkNotNull(metric_id);
+    this.tsuids = checkNotNull(tsuids);
+    this.start_time = checkTimestamp(start_time);
+    this.end_time = checkTimestamp(end_time);
+
+    this.aggregator = aggregator;
+    this.downsampler = downsampler;
+    this.sample_interval_ms = interval;
+
+    this.rate = rate;
+    this.rate_options = rate_options;
+
+    this.group_bys = null;
+    this.group_by_values = null;
+
+    this.tags = null;
   }
 
   /**
-   * @returns the start time for the query
+   * @return the start time for the query
    * @throws IllegalStateException if the start time hasn't been set yet
    */
   @Override
   public long getStartTime() {
-    if (start_time == UNSET) {
-      throw new IllegalStateException("setStartTime was never called!");
-    }
     return start_time;
   }
 
   /**
-   * Sets the end time for the query. If this isn't set, the system time will be
-   * used when the query is executed or {@link #getEndTime} is called
-   * @param timestamp Unix epoch timestamp in seconds or milliseconds
-   * @throws IllegalArgumentException if the timestamp is invalid or less
-   * than the start time (if set)
+   * Converts the start time to seconds if needed and then returns it.
    */
-  @Override
-  public void setEndTime(final long timestamp) {
-    checkTimestamp(timestamp);
-
-    if (start_time != UNSET && timestamp <= getStartTime()) {
-      throw new IllegalArgumentException("new end time (" + timestamp
-          + ") is less than or equal to start time: " + getStartTime());
+  public long getStartTimeSeconds() {
+    long start = getStartTime();
+    // down cast to seconds if we have a query in ms
+    if ((start & Const.SECOND_MASK) != 0) {
+      start /= 1000;
     }
 
-    end_time = timestamp;
+    return start;
   }
 
-  /** @return the configured end time. If the end time hasn't been set, the
+  /**
+   * @return the configured end time. If the end time hasn't been set, the
    * current system time will be stored and returned.
    */
   @Override
   public long getEndTime() {
-    if (end_time == UNSET) {
-      setEndTime(System.currentTimeMillis());
-    }
     return end_time;
   }
 
-  @Override
-  public void setTimeSeries(final String metric,
-      final Map<String, String> tags,
-      final Aggregator function,
-      final boolean rate) throws NoSuchUniqueName {
-    setTimeSeries(metric, tags, function, rate, new RateOptions());
-  }
-  
-  @Override
-  public void setTimeSeries(final String metric,
-        final Map<String, String> tags,
-        final Aggregator function,
-        final boolean rate,
-        final RateOptions rate_options)
-  throws NoSuchUniqueName {
-    findGroupBys(tags);
-
-    try {
-      this.metric = tsdb.metrics.getIdAsync(metric).joinUninterruptibly();
-      this.tags = Tags.resolveAllAsync(tsdb, tags).joinUninterruptibly();
-    } catch (Exception e) {
-      Throwables.propagate(e);
-    }
-
-    aggregator = function;
-    this.rate = rate;
-    this.rate_options = rate_options;
-  }
-
-  @Override
-  public void setTimeSeries(final List<String> tsuids,
-      final Aggregator function, final boolean rate) {
-    setTimeSeries(tsuids, function, rate, new RateOptions());
-  }
-  
-  @Override
-  public void setTimeSeries(final List<String> tsuids,
-      final Aggregator function, final boolean rate, 
-      final RateOptions rate_options) {
-    if (tsuids == null || tsuids.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Empty or missing TSUID list not allowed");
-    }
-    
-    String first_metric = "";
-    for (final String tsuid : tsuids) {
-      if (first_metric.isEmpty()) {
-        first_metric = tsuid.substring(0, Const.METRICS_WIDTH * 2)
-          .toUpperCase();
-        continue;
-      }
-
-      final String metric = tsuid.substring(0, Const.METRICS_WIDTH * 2)
-        .toUpperCase();
-      if (!first_metric.equals(metric)) {
-        throw new IllegalArgumentException(
-          "One or more TSUIDs did not share the same metric");
-      }
-    }
-    
-    // the metric will be set with the scanner is configured 
-    this.tsuids = tsuids;
-    aggregator = function;
-    this.rate = rate;
-    this.rate_options = rate_options;
-  }
-  
   /**
-   * Sets an optional downsampling function on this query
-   * @param interval The interval, in milliseconds to rollup data points
-   * @param downsampler An aggregation function to use when rolling up data points
-   * @throws NullPointerException if the aggregation function is null
-   * @throws IllegalArgumentException if the interval is not greater than 0
+   * Converts the end time to seconds if needed and then returns it.
    */
-  @Override
-  public void downsample(final long interval, final Aggregator downsampler) {
-    if (downsampler == null) {
-      throw new NullPointerException("downsampler");
-    } else if (interval <= 0) {
-      throw new IllegalArgumentException("interval not > 0: " + interval);
+  public long getEndTimeSeconds() {
+    long end = getEndTime();
+    if ((end & Const.SECOND_MASK) != 0) {
+      end /= 1000;
     }
-    this.downsampler = downsampler;
-    this.sample_interval_ms = interval;
+
+    return end;
   }
 
   public long getSampleInterval() {
@@ -270,72 +232,20 @@ public final class TsdbQuery implements Query {
   }
 
   /**
-   * Extracts all the tags we must use to group results.
-   * <ul>
-   * <li>If a tag has the form {@code name=*} then we'll create one
-   *     group per value we find for that tag.</li>
-   * <li>If a tag has the form {@code name={v1,v2,..,vN}} then we'll
-   *     create {@code N} groups.</li>
-   * </ul>
-   * In the both cases above, {@code name} will be stored in the
-   * {@code group_bys} attribute.  In the second case specifically,
-   * the {@code N} values would be stored in {@code group_by_values},
-   * the key in this map being {@code name}.
-   * @param tags The tags from which to extract the 'GROUP BY's.
-   * Each tag that represents a 'GROUP BY' will be removed from the map
-   * passed in argument.
+   * Callback that should be attached the the output of
+   * {@link net.opentsdb.storage.TsdbStore#executeQuery} to group and sort the results.
    */
-  private void findGroupBys(final Map<String, String> tags) {
-    try {
-      final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
-      while (i.hasNext()) {
-        final Map.Entry<String, String> tag = i.next();
-        final String tagvalue = tag.getValue();
-        if ("*".equals(tagvalue)  // 'GROUP BY' with any value.
-                || tagvalue.indexOf('|', 1) >= 0) {  // Multiple possible values.
-          if (group_bys == null) {
-            group_bys = new ArrayList<byte[]>();
-          }
-          group_bys.add(tsdb.tag_names.getIdAsync(tag.getKey()).joinUninterruptibly());
-          i.remove();
-          if (tagvalue.charAt(0) == '*') {
-            continue;  // For a 'GROUP BY' with any value, we're done.
-          }
-          // 'GROUP BY' with specific values.  Need to split the values
-          // to group on and store their IDs in group_by_values.
-          final String[] values = Tags.splitString(tagvalue, '|');
-          if (group_by_values == null) {
-            group_by_values = new ByteMap<byte[][]>();
-          }
-          final short value_width = tsdb.tag_values.width();
-          final byte[][] value_ids = new byte[values.length][value_width];
-          group_by_values.put(tsdb.tag_names.getIdAsync(tag.getKey()).joinUninterruptibly(),
-                  value_ids);
-          for (int j = 0; j < values.length; j++) {
-            final byte[] value_id = tsdb.tag_values.getIdAsync(values[j]).joinUninterruptibly();
-            System.arraycopy(value_id, 0, value_ids[j], 0, value_width);
-          }
-        }
-      }
-    } catch (Exception e) {
-      Throwables.propagate(e);
-    }
-  }
+  private class GroupByAndAggregateCB implements
+          Callback<DataPoints[], TreeMap<byte[], Span>> {
 
-  /**
-  * Callback that should be attached the the output of
-  * {@link net.opentsdb.storage.TsdbStore#executeQuery} to group and sort the results.
-  */
-  private class GroupByAndAggregateCB implements 
-    Callback<DataPoints[], TreeMap<byte[], Span>>{
-    
     /**
-    * Creates the {@link SpanGroup}s to form the final results of this query.
-    * @param spans The {@link Span}s found for this query ({@link TSDB#findSpans}).
-    * Can be {@code null}, in which case the array returned will be empty.
-    * @return A possibly empty array of {@link SpanGroup}s built according to
-    * any 'GROUP BY' formulated in this query.
-    */
+     * Creates the {@link SpanGroup}s to form the final results of this query.
+     *
+     * @param spans The {@link Span}s found for this query ({@link TSDB#findSpans}).
+     *              Can be {@code null}, in which case the array returned will be empty.
+     * @return A possibly empty array of {@link SpanGroup}s built according to
+     * any 'GROUP BY' formulated in this query.
+     */
     @Override
     public DataPoints[] call(final TreeMap<byte[], Span> spans) throws Exception {
       if (spans == null || spans.size() <= 0) {
@@ -346,14 +256,14 @@ public final class TsdbQuery implements Query {
         // together in the same group.
         final SpanGroup group = new SpanGroup(
                 tsdb.getScanStartTimeSeconds(this),
-                                              tsdb.getScanEndTimeSeconds(this),
-                                              spans.values(),
-                                              rate, rate_options,
-                                              aggregator,
-                                              sample_interval_ms, downsampler);
-        return new SpanGroup[] { group };
+                tsdb.getScanEndTimeSeconds(this),
+                spans.values(),
+                rate, rate_options,
+                aggregator,
+                sample_interval_ms, downsampler);
+        return new SpanGroup[]{group};
       }
-  
+
       // Maps group value IDs to the SpanGroup for those values. Say we've
       // been asked to group by two things: foo=* bar=* Then the keys in this
       // map will contain all the value IDs combinations we've seen. If the
@@ -384,17 +294,17 @@ public final class TsdbQuery implements Query {
         }
         if (value_id == null) {
           LOG.error("WTF? Dropping span for row " + Arrays.toString(row)
-                   + " as it had no matching tag from the requested groups,"
-                   + " which is unexpected. Query=" + this);
+                  + " as it had no matching tag from the requested groups,"
+                  + " which is unexpected. Query=" + this);
           continue;
         }
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
         SpanGroup thegroup = groups.get(group);
         if (thegroup == null) {
           thegroup = new SpanGroup(tsdb.getScanStartTimeSeconds(this),
-                                   tsdb.getScanEndTimeSeconds(this),
-                                   null, rate, rate_options, aggregator,
-                                   sample_interval_ms, downsampler);
+                  tsdb.getScanEndTimeSeconds(this),
+                  null, rate, rate_options, aggregator,
+                  sample_interval_ms, downsampler);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -410,98 +320,39 @@ public final class TsdbQuery implements Query {
     }
   }
 
-  /**
-   * Converts the start time to seconds if needed and then returns it.
-   */
-  public long getStartTimeSeconds() {
-    long start = getStartTime();
-    // down cast to seconds if we have a query in ms
-    if ((start & Const.SECOND_MASK) != 0) {
-      start /= 1000;
-    }
-
-    return start;
-  }
-
-  public long getEndTimeSeconds() {
-    long end = getEndTime();
-    if ((end & Const.SECOND_MASK) != 0) {
-      end /= 1000;
-    }
-
-    return end;
-  }
-
   @Override
   public String toString() {
-    final StringBuilder buf = new StringBuilder();
-    buf.append("TsdbQuery(start_time=")
-       .append(getStartTime())
-       .append(", end_time=")
-       .append(getEndTime());
-   if (tsuids != null && !tsuids.isEmpty()) {
-     buf.append(", tsuids=");
-     for (final String tsuid : tsuids) {
-       buf.append(tsuid).append(",");
-     }
-   } else {
-      buf.append(", metric=").append(Arrays.toString(metric));
-      try {
-        buf.append(" (").append(tsdb.metrics.getNameAsync(metric).joinUninterruptibly());
-      } catch (NoSuchUniqueId e) {
-        buf.append(" (<").append(e.getMessage()).append('>');
-      } catch (Exception e) {
-        Throwables.propagate(e);
-      }
-     try {
-        try {
-          buf.append("), tags=")
-                  .append(Tags.resolveIdsAsync(tsdb, tags).joinUninterruptibly());
-        } catch (Exception e) {
-          Throwables.propagate(e);
-        }
-      } catch (NoSuchUniqueId e) {
-        buf.append("), tags=<").append(e.getMessage()).append('>');
-      }
+    Objects.ToStringHelper str_helper = Objects.toStringHelper(this);
+
+    str_helper.add("start_time", start_time)
+            .add("end_time", end_time);
+
+    if (tsuids != null && !tsuids.isEmpty()) {
+      str_helper.add("tsuids", Joiner.on(", ")
+              .skipNulls()
+              .join(tsuids));
+    } else {
+      str_helper.add("metric", Arrays.toString(metric));
+      str_helper.add("tags", Joiner.on(", ")
+              .skipNulls()
+              .join(tags));
     }
-    buf.append(", rate=").append(rate)
-       .append(", aggregator=").append(aggregator)
-       .append(", group_bys=(");
+
+    str_helper.add("rate", rate)
+            .add("aggregator", aggregator);
+
     if (group_bys != null) {
-      for (final byte[] tag_id : group_bys) {
-        try {
-          buf.append(tsdb.tag_names.getNameAsync(tag_id).joinUninterruptibly());
-        } catch (NoSuchUniqueId e) {
-          buf.append('<').append(e.getMessage()).append('>');
-        } catch (Exception e) {
-          Throwables.propagate(e);
-        }
-        buf.append(' ')
-           .append(Arrays.toString(tag_id));
-        if (group_by_values != null) {
-          final byte[][] value_ids = group_by_values.get(tag_id);
-          if (value_ids == null) {
-            continue;
-          }
-          buf.append("={");
-          for (final byte[] value_id : value_ids) {
-            try {
-              buf.append(tsdb.tag_values.getNameAsync(value_id).joinUninterruptibly());
-            } catch (NoSuchUniqueId e) {
-              buf.append('<').append(e.getMessage()).append('>');
-            } catch (Exception e) {
-              Throwables.propagate(e);
-            }
-            buf.append(' ')
-               .append(Arrays.toString(value_id))
-               .append(", ");
-          }
-          buf.append('}');
-        }
-        buf.append(", ");
-      }
+      str_helper.add("group_bys", Joiner.on(", ")
+              .skipNulls()
+              .join(group_bys));
     }
-    buf.append("))");
-    return buf.toString();
+
+    if (group_by_values != null) {
+      str_helper.add("group_by_values", Joiner.on(", ")
+              .skipNulls()
+              .join(group_by_values));
+    }
+
+    return str_helper.toString();
   }
 }

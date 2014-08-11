@@ -72,7 +72,7 @@ public final class TestTsdbQuery {
     config.setFixDuplicates(true);  // TODO(jat): test both ways
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
-    query = new TsdbQuery(tsdb);
+    query = new QueryBuilder(tsdb).createQuery();
 
     tsdb_store.allocateUID("sys.cpu.user", SYS_CPU_USER_ID, UniqueIdType.METRIC);
     tsdb_store.allocateUID("sys.cpu.nice", SYS_CPU_NICE_ID, UniqueIdType.METRIC);

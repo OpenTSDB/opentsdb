@@ -14,7 +14,6 @@ package net.opentsdb.core;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -575,7 +574,7 @@ public class TSDB {
    * Returns a new {@link Query} instance suitable for this TSDB.
    */
   public Query newQuery() {
-    return new TsdbQuery(this);
+    return new TsdbQueryBuilder().setTsdb(this).createTsdbQuery();
   }
 
   /**
