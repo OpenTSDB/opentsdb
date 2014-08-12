@@ -1054,28 +1054,31 @@ public class MemoryStore implements TsdbStore {
                                                  final long end_time) {
 
     //the sanity check should happen before this is called actually.
-    //however we might need to modify the start_time and end_time
+    //however we need to modify the start_time and end_time
 
     final long start = start_time / 1000;
     final long end = end_time / 1000;
 
     ArrayList<Annotation> del_list =
-            new ArrayList<Annotation>((int)(end_time - start_time));
+            new ArrayList<Annotation>();
 
+    // this is very time consuming when (end - time) is large
     for (long time = start;time <= end; ++time) {
 
       final String key =
               new String(getAnnotationRowKey(time, tsuid), ASCII);
       final String qual =
               new String(getAnnotationQualifier(time), ASCII);
+      if (annotation_table.contains(key, qual)) {
 
-      final byte[] storage_note = annotation_table.get(key, qual);
+        final byte[] storage_note = annotation_table.get(key, qual);
 
-      if (storage_note != null) {
-        Annotation note = JSON.parseToObject(storage_note,
-                Annotation.class);
+        if (storage_note != null) {
+          Annotation note = JSON.parseToObject(storage_note,
+                  Annotation.class);
 
-        del_list.add(note);
+          del_list.add(note);
+        }
       }
     }
 

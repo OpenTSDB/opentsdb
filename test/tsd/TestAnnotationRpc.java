@@ -12,13 +12,18 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static junit.framework.TestCase.assertNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.nio.charset.Charset;
+import java.util.Map;
 
-import net.opentsdb.core.Const;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Table;
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
@@ -53,40 +58,83 @@ public final class TestAnnotationRpc {
   final private byte[] tsuid_row_key = 
       new byte[] { 0, 0, 1, (byte) 0x52, (byte) 0xC2, (byte) 0x09, 0, 0, 0, 
         1, 0, 0, 1 };
-  
+
+  private static final String TSUID_GLOBAL_ANNOTATION = null;
+  private static final String TSUID_ANNOTATION = "000001000001000001";
+  private static final long GLOBAL_ONE_START_TIME = 1328140800;
+  private static final long GLOBAL_ONE_END_TIME = 1328140801;
+
+  private static final long GLOBAL_TWO_START_TIME = 1328140801;
+  private static final long GLOBAL_TWO_END_TIME = 1328140803;
+
+  private static final long LOCAL_ONE_START_TIME = 1388450562;
+  private static final long LOCAL_ONE_END_TIME = 1419984000;
+
+  private static final long LOCAL_TWO_START_TIME = 1388450563;
+  private static final long LOCAL_TWO_END_TIME = 1419984000;
+
+  private static final Map<String,String> custom = ImmutableMap.of("owner", "ops");
+
+  private final Annotation global_one = new Annotation();
+  private final Annotation global_two = new Annotation();
+  private final Annotation local_one = new Annotation();
+  private final Annotation local_two = new Annotation();
+
+  private final Table<String, Long, Annotation> annotations;
+
+  public TestAnnotationRpc() {
+    annotations = HashBasedTable.create();
+    global_one.setTSUID(TSUID_GLOBAL_ANNOTATION);
+    global_one.setStartTime(GLOBAL_ONE_START_TIME);
+    global_one.setEndTime(GLOBAL_ONE_END_TIME);
+    global_one.setDescription("Description");
+    global_one.setNotes("Notes");
+    global_one.setCustom(custom);
+
+    global_two.setTSUID(TSUID_GLOBAL_ANNOTATION);
+    global_two.setStartTime(GLOBAL_TWO_START_TIME);
+    global_two.setEndTime(GLOBAL_TWO_END_TIME);
+    global_two.setDescription("Global 2");
+    global_two.setNotes("Nothing");
+
+    local_one.setTSUID(TSUID_ANNOTATION);
+    local_one.setStartTime(LOCAL_ONE_START_TIME);
+    local_one.setEndTime(LOCAL_ONE_END_TIME);
+    local_one.setDescription("Hello!");
+    local_one.setNotes("My Notes");
+    local_one.setCustom(custom);
+
+    local_two.setTSUID(TSUID_ANNOTATION);
+    local_two.setStartTime(LOCAL_TWO_START_TIME);
+    local_two.setEndTime(LOCAL_TWO_END_TIME);
+    local_two.setDescription("Note2");
+    local_two.setNotes("Nothing");
+
+    annotations.put("", GLOBAL_ONE_START_TIME, global_one);
+    annotations.put("", GLOBAL_TWO_START_TIME, global_two);
+
+    annotations.put(TSUID_ANNOTATION, LOCAL_ONE_START_TIME, local_one);
+    annotations.put(TSUID_ANNOTATION, LOCAL_TWO_START_TIME, local_two);
+  }
+
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
- // add a global
-    tsdb_store.addColumn(global_row_key,
-      new byte[]{1, 0, 0},
-      ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" +
-        "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" +
-        "\"ops\"}}").getBytes(Const.CHARSET_ASCII));
+    // add a global
+    tsdb_store.updateAnnotation(null, global_one);
 
-    tsdb_store.addColumn(global_row_key,
-      new byte[]{1, 0, 1},
-      ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" +
-        "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(Const.CHARSET_ASCII));
-    
+    // add another global
+    tsdb_store.updateAnnotation(null, global_two);
+
     // add a local
-    tsdb_store.addColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x02},
-      ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
-        "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" +
-        "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}")
-        .getBytes(Const.CHARSET_ASCII));
+    tsdb_store.updateAnnotation(null, local_one);
 
-    tsdb_store.addColumn(tsuid_row_key,
-      new byte[]{1, 0x0A, 0x03},
-      ("{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
-        "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" +
-        "\"Nothing\"}")
-        .getBytes(Const.CHARSET_ASCII));
-    
+    // add another local
+    tsdb_store.updateAnnotation(null, local_two);
+
     // add some data points too
     tsdb_store.addColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}, new byte[]{1});
@@ -115,6 +163,11 @@ public final class TestAnnotationRpc {
     "/api/annotation?tsuid=000001000001000001&start_time=1388450562");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION,GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION,GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
   }
   
   @Test
@@ -123,6 +176,11 @@ public final class TestAnnotationRpc {
     "/api/annotation?start_time=1328140800");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
   }
   
   @Test (expected = BadRequestException.class)
@@ -130,6 +188,12 @@ public final class TestAnnotationRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?tsuid=000001000001000001&start_time=1388450568");
     rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
   }
   
   @Test (expected = BadRequestException.class)
@@ -157,7 +221,15 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"\""));
-    assertEquals(5, tsdb_store.numColumns(tsuid_row_key));
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+
+    Annotation a = tsdb.getAnnotation("000001000001000001",1388450564)
+            .joinUninterruptibly();
+    assertEquals("Boo", a.getDescription());
   }
   
   @Test
@@ -171,7 +243,15 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"\""));
-    assertEquals(3, tsdb_store.numColumns(global_row_key));
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+
+    Annotation a = tsdb.getAnnotation(TSUID_GLOBAL_ANNOTATION, 1328140802)
+            .joinUninterruptibly();
+    assertEquals("Boo",a.getDescription());
   }
   
   @Test (expected = BadRequestException.class)
@@ -193,6 +273,17 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"My Notes\""));
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+
+    Annotation local = tsdb.
+            getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(local);
+
+    assertTrue(local.getDescription().equals("Boo"));
   }
   
   @Test
@@ -206,6 +297,17 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"Notes\""));
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+
+    Annotation global = tsdb.
+            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(global);
+
+    assertEquals("Boo", global.getDescription());
   }
   
   @Test
@@ -219,6 +321,17 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"My Notes\""));
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    Annotation local = tsdb.
+            getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(local);
+
+    assertEquals("Boo",local.getDescription());
+    assertEquals("My Notes", local.getNotes());
   }
   
   @Test
@@ -232,6 +345,17 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"Notes\""));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+
+    Annotation global = tsdb.
+            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(global);
+
+    assertEquals("Boo",global.getDescription());
+    assertEquals("Notes", global.getNotes());
   }
 
   @Test
@@ -246,6 +370,16 @@ public final class TestAnnotationRpc {
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"\""));
     assertTrue(data.contains("\"startTime\":1388450562"));
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+
+    Annotation local = tsdb.
+            getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(local);
+    assertEquals("Boo", local.getDescription());
   }
   
   @Test
@@ -260,6 +394,16 @@ public final class TestAnnotationRpc {
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"\""));
     assertTrue(data.contains("\"startTime\":1328140800"));
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+
+    Annotation global = tsdb.
+            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(global);
+    assertEquals("Boo",global.getDescription());
   }
 
   @Test
@@ -269,6 +413,11 @@ public final class TestAnnotationRpc {
       "&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NOT_MODIFIED, query.response().getStatus());
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
   }
   
   @Test
@@ -277,8 +426,16 @@ public final class TestAnnotationRpc {
       "/api/annotation?tsuid=000001000001000001&start_time=1388450562" + 
       "&method_override=delete");
     rpc.execute(tsdb, query);
+    //check right resonse
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(3, tsdb_store.numColumns(tsuid_row_key));
+    //check that tsuid is gone
+    assertNull(tsdb.getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+            .joinUninterruptibly());
+    //verify others
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+
   }
   
   @Test
@@ -287,8 +444,15 @@ public final class TestAnnotationRpc {
       "/api/annotation?start_time=1328140800" + 
       "&method_override=delete");
     rpc.execute(tsdb, query);
+    //check right resonse
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
-    assertEquals(1, tsdb_store.numColumns(global_row_key));
+    //check that tsuid is gone
+    assertNull(tsdb.getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+            .joinUninterruptibly());
+    //verify others
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
   }
 
   @Test (expected = BadRequestException.class)
@@ -331,6 +495,22 @@ public final class TestAnnotationRpc {
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"My Notes\""));
     assertTrue(data.contains("\"description\":\"Gum\""));
+    //verify unchanged
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+
+    Annotation local = tsdb.
+            getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(local);
+    assertEquals("Boo", local.getDescription());
+
+    Annotation new_local = tsdb.
+            getAnnotation("000001000001000002", LOCAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(new_local);
+    assertEquals("Gum", new_local.getDescription());
   }
   
   @Test
@@ -346,6 +526,21 @@ public final class TestAnnotationRpc {
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"Notes\""));
     assertTrue(data.contains("\"description\":\"Gum\""));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+
+    Annotation global = tsdb.
+            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(global);
+    assertEquals("Boo", global.getDescription());
+
+    Annotation new_local = tsdb.
+            getAnnotation(TSUID_GLOBAL_ANNOTATION, LOCAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(new_local);
+    assertEquals("Gum", new_local.getDescription());
   }
 
   @Test (expected = BadRequestException.class)
@@ -370,13 +565,29 @@ public final class TestAnnotationRpc {
     assertTrue(data.contains("\"description\":\"Boo\""));
     assertTrue(data.contains("\"notes\":\"\""));
     assertTrue(data.contains("\"description\":\"Gum\""));
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+
+    Annotation local = tsdb.
+            getAnnotation(TSUID_ANNOTATION, GLOBAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(local);
+    assertEquals("Boo", local.getDescription());
+
+    Annotation new_local = tsdb.
+            getAnnotation("000001000001000002", GLOBAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(new_local);
+    assertEquals("Gum", new_local.getDescription());
   }
   
   @Test
   public void bulkModifyPutGlobal() throws Exception {
     HttpQuery query = NettyMocks.putQuery(tsdb, "/api/annotation/bulk",
     "[{\"startTime\":1328140800,\"description\":\"Boo\"},{" + 
-    "\"startTime\":1328140800,\"description\":\"Gum\"}]");
+    "\"startTime\":1328140801,\"description\":\"Gum\"}]");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String data = query.response().getContent()
@@ -385,6 +596,21 @@ public final class TestAnnotationRpc {
     assertTrue(data.contains("\"notes\":\"\""));
     assertTrue(data.contains("\"startTime\":1328140800"));
     assertTrue(data.contains("\"description\":\"Gum\""));
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+
+    Annotation global = tsdb.
+            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(global);
+    assertEquals("Boo", global.getDescription());
+
+    Annotation global2 = tsdb.
+            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME)
+            .joinUninterruptibly();
+    checkNotNull(global2);
+    assertEquals("Gum", global2.getDescription());
   }
 
   @Test
@@ -397,7 +623,14 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
-    assertEquals(3, tsdb_store.numColumns(tsuid_row_key));
+
+    assertNull(tsdb.getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+      .joinUninterruptibly());
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+
   }
   
   @Test
@@ -410,7 +643,11 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":0"));
-    assertEquals(4, tsdb_store.numColumns(tsuid_row_key));
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
   }
   
   @Test
@@ -423,7 +660,15 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":2"));
-    assertEquals(2, tsdb_store.numColumns(tsuid_row_key));
+
+    assertNull(tsdb.getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+            .joinUninterruptibly());
+
+    assertNull(tsdb.getAnnotation(TSUID_ANNOTATION, LOCAL_TWO_START_TIME)
+            .joinUninterruptibly());
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
   }
 
   @Test
@@ -436,7 +681,10 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
-    assertEquals(1, tsdb_store.numColumns(global_row_key));
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
   }
   
   @Test
@@ -449,7 +697,11 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":0"));
-    assertEquals(2, tsdb_store.numColumns(global_row_key));
+
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
   }
   
   @Test
@@ -462,7 +714,9 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":2"));
-    assertEquals(-1, tsdb_store.numColumns(global_row_key));
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
   }
   
   @Test (expected = BadRequestException.class)
@@ -498,7 +752,10 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
-    assertEquals(3, tsdb_store.numColumns(tsuid_row_key));
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
   }
   
   @Test
@@ -511,7 +768,10 @@ public final class TestAnnotationRpc {
     final String data = query.response().getContent()
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
-    assertEquals(1, tsdb_store.numColumns(global_row_key));
+
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME));
+    assertTrue(isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME));
+    assertTrue(isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME));
   }
   
   @Test (expected = BadRequestException.class)
@@ -544,4 +804,26 @@ public final class TestAnnotationRpc {
     "/api/annotation/bulk", "{thisisnotjson}");
     rpc.execute(tsdb, query);
   }
+
+  private boolean isUnchanged(final String TSUID, final long timestamp)
+          throws Exception {
+    String tsuid = TSUID;
+    if (null == TSUID) tsuid = "";
+
+    Annotation a = tsdb.
+            getAnnotation(TSUID, timestamp)
+            .joinUninterruptibly();
+    checkNotNull(a);
+    Annotation original = annotations.get(tsuid, timestamp);
+    checkNotNull(original);
+
+    try {
+      return original.getDescription().equals(a.getDescription()) &&
+              original.getNotes().equals(a.getNotes());
+    } catch (NullPointerException e) {
+      return false;
+    }
+
+  }
+
 }
