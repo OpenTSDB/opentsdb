@@ -76,6 +76,7 @@ public class MemoryStore implements TsdbStore {
   private final Table<String, String, byte[]> data_table;
   private final Table<String, String, byte[]> uid_table;
   private final Table<String, String, byte[]> annotation_table;
+  private final Table<String, Long, Annotation> annotation_table2;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
@@ -87,18 +88,17 @@ public class MemoryStore implements TsdbStore {
   private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
   private byte[] default_family = "t".getBytes(ASCII);
 
-  /** The single column family used by this class. */
-  private static final byte[] ID_FAMILY = StringCoder.toBytes("id");
-  /** The single column family used by this class. */
-  private static final byte[] NAME_FAMILY = StringCoder.toBytes("name");
-
   /** Incremented every time a new value is stored (without a timestamp) */
   private long current_timestamp = 1388534400000L;
+
+  private static final String[] tsuid_annotation_help_strings =
+          {"00", "01", "02", "03"};
 
   public MemoryStore() {
     data_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
     annotation_table = HashBasedTable.create();
+    annotation_table2 = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
   }
@@ -701,21 +701,6 @@ public class MemoryStore implements TsdbStore {
     return storage.size();
   }
 
-
-  /**
-   * Return the total number of column families for the row
-   * @param key The row to search for
-   * @return -1 if the row did not exist, otherwise the number of column families.
-   */
-  public int numColumnFamilies(final byte[] key) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return -1;
-    }
-    return row.size();
-  }
-
   /**
    * Total number of columns in the given row on the data table.
    * @param row The row to search for
@@ -746,25 +731,6 @@ public class MemoryStore implements TsdbStore {
       size += entry.getValue().size();
     }
     return size;
-  }
-
-  /**
-   * Return the total number of columns for a specific row and family
-   * @param key The row to search for
-   * @param family The column family to search for
-   * @return -1 if the row did not exist, otherwise the number of columns.
-   */
-  public int numColumnsInFamily(final byte[] key, final byte[] family) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return -1;
-    }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      return -1;
-    }
-    return cf.size();
   }
 
   /**
@@ -816,69 +782,6 @@ public class MemoryStore implements TsdbStore {
   }
 
   /**
-   * Retrieve the full map of timestamps and values of a single column with
-   * the default family
-   * @param key The row key of the column
-   * @param qualifier The column qualifier
-   * @return The byte array of data or null if not found
-   */
-  public TreeMap<Long, byte[]> getFullColumn(final byte[] key,
-                                             final byte[] qualifier) {
-    return getFullColumn(key, default_family, qualifier);
-  }
-
-  /**
-   * Retrieve the full map of timestamps and values of a single column
-   * @param key The row key of the column
-   * @param family The column family
-   * @param qualifier The column qualifier
-   * @return The tree map of timestamps and values or null if not found
-   */
-  public TreeMap<Long, byte[]> getFullColumn(final byte[] key,
-                                             final byte[] family, final byte[] qualifier) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return null;
-    }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      return null;
-    }
-    final TreeMap<Long, byte[]> column = cf.get(qualifier);
-    if (column == null) {
-      return null;
-    }
-    return column;
-  }
-
-  /**
-   * Returns the most recent value from all columns for a given column family
-   * @param key The row key
-   * @param family The column family ID
-   * @return A map of columns if the CF was found, null if no such CF
-   */
-  public Bytes.ByteMap<byte[]> getColumnFamily(final byte[] key,
-                                               final byte[] family) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return null;
-    }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      return null;
-    }
-    // convert to a <qualifier, value> byte map
-    final Bytes.ByteMap<byte[]> columns = new Bytes.ByteMap<byte[]>();
-    for (Map.Entry<byte[], TreeMap<Long, byte[]>> entry : cf.entrySet()) {
-      // the <timestamp, value> map should never be null
-      columns.put(entry.getKey(), entry.getValue().firstEntry().getValue());
-    }
-    return columns;
-  }
-
-  /**
    * Clears the entire hash table. Use it if your unit test needs to start fresh
    */
   public void flushStorage() {
@@ -893,16 +796,6 @@ public class MemoryStore implements TsdbStore {
     storage.remove(key);
   }
 
-  /**
-   * Removes the entire column family from the hash table for ALL rows
-   * @param family The family to remove
-   */
-  public void flushFamily(final byte[] family) {
-    for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> row :
-      storage.entrySet()) {
-      row.getValue().remove(family);
-    }
-  }
 
   /**
    * Removes the given column from the hash map
@@ -979,70 +872,57 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(Annotation annotation) {
 
-    final byte[] tsuid_byte = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
-            UniqueId.stringToUid(annotation.getTSUID()) : null;
-    final String key =
-            new String(
-            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), ASCII);
-    final String qual =
-            new String(
-            getAnnotationQualifier(annotation.getStartTime()), ASCII);
+    final String tsuid = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
+            annotation.getTSUID() : "";
 
-    return Deferred.fromResult((Object)annotation_table.remove(key, qual));
+    final long start = annotation.getStartTime() % 1000 == 0 ?
+            annotation.getStartTime() / 1000 : annotation.getStartTime();
+    if (start < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    return Deferred.fromResult(
+            (Object) annotation_table2.remove(tsuid, start));
   }
 
   @Override
   public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
-    final byte[] original_note = original == null ? null :
-            original.getStorageJSON();
 
-    final byte[] tsuid_byte = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
-            UniqueId.stringToUid(annotation.getTSUID()) : null;
+    String tsuid = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
+            annotation.getTSUID() : "";
 
-    final String key =
-            new String(
-            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), ASCII);
-    final String qual =
-            new String(
-            getAnnotationQualifier(annotation.getStartTime()), ASCII);
-
-    final byte[] storage_note = annotation_table.get(key, qual);
-
-    if ( Arrays.equals(storage_note, original_note) ) {
-      annotation_table.remove(key, qual);
-      annotation_table.put(key, qual, annotation.getStorageJSON());
-      return Deferred.fromResult(true);
+    final long start = annotation.getStartTime() % 1000 == 0 ?
+            annotation.getStartTime() / 1000 : annotation.getStartTime();
+    if (start < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
-    // A deferred boolean, if true the CAS succeeded, otherwise the CAS failed
-    // because the value in HBase didn't match the expected value of the CAS
-    // request.
-    return Deferred.fromResult(false);
+    Annotation note = annotation_table2.get(tsuid, start);
 
+    if ((null == note && null == original) ||
+            (null != note && null != original && note.equals(original))) {
+      annotation_table2.remove(tsuid, start);
+      annotation_table2.put(tsuid, start, annotation);
+      return Deferred.fromResult(true);
+    }
+    return Deferred.fromResult(false);
   }
 
   @Override
   public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time,
                                                          final long end_time) {
-    //the sanity check should happen before this is called actually.
+    //some sanity check should happen before this is called actually.
 
-    List<Annotation> annotations =
-            new ArrayList<Annotation>((int)(end_time - start_time));
+    if (start_time < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
 
-    for (long time = start_time;time <= end_time; ++time) {
+    List<Annotation> annotations = new ArrayList<Annotation>();
+    Collection<Annotation> globals = annotation_table2.row("").values();
 
-      final String key =
-              new String(getAnnotationRowKey(time, null), ASCII);
-      final String qual =
-              new String(getAnnotationQualifier(time), ASCII);
-
-      final byte[] storage_note = annotation_table.get(key, qual);
-
-      if (storage_note != null) {
-        Annotation note = JSON.parseToObject(storage_note,
-                Annotation.class);
-
-        annotations.add(note);
+    for (Annotation global: globals) {
+      if (start_time <= global.getStartTime() && global.getStartTime() <= end_time) {
+        annotations.add(global);
       }
     }
     return Deferred.fromResult(annotations);
@@ -1053,40 +933,39 @@ public class MemoryStore implements TsdbStore {
                                                  final long start_time,
                                                  final long end_time) {
 
-    //the sanity check should happen before this is called actually.
+    //some sanity check should happen before this is called actually.
     //however we need to modify the start_time and end_time
 
-    final long start = start_time / 1000;
-    final long end = end_time / 1000;
+    if (start_time < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
 
-    ArrayList<Annotation> del_list =
-            new ArrayList<Annotation>();
+    final long start = start_time % 1000 == 0 ? start_time / 1000 : start_time;
+    final long end = end_time % 1000 == 0 ? end_time / 1000 : end_time;
+    String key = "";
 
-    // this is very time consuming when (end - time) is large
-    for (long time = start;time <= end; ++time) {
+    ArrayList<Annotation> del_list = new ArrayList<Annotation>();
+    if (tsuid != null) {
+      //convert byte array to string, sloppy but seems to be the best way
+      StringBuilder sb = new StringBuilder();
+      for (byte aTsuid : tsuid) {
+        sb.append(tsuid_annotation_help_strings[aTsuid]);
+      }
+      key = sb.toString();
+    }
 
-      final String key =
-              new String(getAnnotationRowKey(time, tsuid), ASCII);
-      final String qual =
-              new String(getAnnotationQualifier(time), ASCII);
-      if (annotation_table.contains(key, qual)) {
-
-        final byte[] storage_note = annotation_table.get(key, qual);
-
-        if (storage_note != null) {
-          Annotation note = JSON.parseToObject(storage_note,
-                  Annotation.class);
-
-          del_list.add(note);
-        }
+    Collection<Annotation> globals = annotation_table2.row(key).values();
+    for (Annotation global: globals) {
+      if (start <= global.getStartTime() && global.getStartTime() <= end) {
+        del_list.add(global);
       }
     }
 
-    for (Annotation annotation : del_list) {
-      delete(annotation);
+    for (Annotation a : del_list) {
+      delete(a);
     }
-
     return Deferred.fromResult(del_list.size());
+
   }
 
   /**
@@ -1098,20 +977,23 @@ public class MemoryStore implements TsdbStore {
    */
   public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long start_time) {
 
-    final String key =
-            new String(
-                    getAnnotationRowKey(start_time, tsuid), ASCII);
-    final String qual =
-            new String(
-                    getAnnotationQualifier(start_time), ASCII);
-
-    final byte[] storage_note = annotation_table.get(key, qual);
-    if (storage_note != null) {
-      Annotation note = JSON.parseToObject(storage_note,
-              Annotation.class);
-      return Deferred.fromResult(note);
+    if (start_time < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
     }
-    return Deferred.fromResult(null);
+
+    long time = start_time % 1000 == 0 ? start_time / 1000 : start_time;
+
+    String key = "";
+    if (tsuid != null) {
+      //convert byte array to proper string
+      StringBuilder sb = new StringBuilder();
+      for (byte aTsuid : tsuid) {
+        sb.append(tsuid_annotation_help_strings[aTsuid]);
+
+      }
+      key = sb.toString();
+    }
+    return Deferred.fromResult(annotation_table2.get(key, time));
   }
 
   /**
