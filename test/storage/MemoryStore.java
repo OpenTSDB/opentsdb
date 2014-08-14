@@ -21,7 +21,6 @@ import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.StringCoder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -42,9 +41,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import static net.opentsdb.storage.hbase.HBaseStore.getAnnotationQualifier;
-import static net.opentsdb.storage.hbase.HBaseStore.getAnnotationRowKey;
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static net.opentsdb.uid.UniqueId.uidToString;
 
 /**
  * TsdbStore implementation useful in testing calls to and from
@@ -75,8 +73,7 @@ public class MemoryStore implements TsdbStore {
 
   private final Table<String, String, byte[]> data_table;
   private final Table<String, String, byte[]> uid_table;
-  private final Table<String, String, byte[]> annotation_table;
-  private final Table<String, Long, Annotation> annotation_table2;
+  private final Table<String, Long, Annotation> annotation_table;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
@@ -91,14 +88,10 @@ public class MemoryStore implements TsdbStore {
   /** Incremented every time a new value is stored (without a timestamp) */
   private long current_timestamp = 1388534400000L;
 
-  private static final String[] tsuid_annotation_help_strings =
-          {"00", "01", "02", "03"};
-
   public MemoryStore() {
     data_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
     annotation_table = HashBasedTable.create();
-    annotation_table2 = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
   }
@@ -496,7 +489,7 @@ public class MemoryStore implements TsdbStore {
                                    final String name,
                                    final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    final String s_uid = UniqueId.uidToString(uid);
+    final String s_uid = uidToString(uid);
 
     byte[] json_value = uid_table.get(s_uid, qualifier);
 
@@ -882,7 +875,7 @@ public class MemoryStore implements TsdbStore {
     }
 
     return Deferred.fromResult(
-            (Object) annotation_table2.remove(tsuid, start));
+            (Object) annotation_table.remove(tsuid, start));
   }
 
   @Override
@@ -897,12 +890,12 @@ public class MemoryStore implements TsdbStore {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
-    Annotation note = annotation_table2.get(tsuid, start);
+    Annotation note = annotation_table.get(tsuid, start);
 
     if ((null == note && null == original) ||
             (null != note && null != original && note.equals(original))) {
-      annotation_table2.remove(tsuid, start);
-      annotation_table2.put(tsuid, start, annotation);
+      annotation_table.remove(tsuid, start);
+      annotation_table.put(tsuid, start, annotation);
       return Deferred.fromResult(true);
     }
     return Deferred.fromResult(false);
@@ -918,7 +911,7 @@ public class MemoryStore implements TsdbStore {
     }
 
     List<Annotation> annotations = new ArrayList<Annotation>();
-    Collection<Annotation> globals = annotation_table2.row("").values();
+    Collection<Annotation> globals = annotation_table.row("").values();
 
     for (Annotation global: globals) {
       if (start_time <= global.getStartTime() && global.getStartTime() <= end_time) {
@@ -947,14 +940,10 @@ public class MemoryStore implements TsdbStore {
     ArrayList<Annotation> del_list = new ArrayList<Annotation>();
     if (tsuid != null) {
       //convert byte array to string, sloppy but seems to be the best way
-      StringBuilder sb = new StringBuilder();
-      for (byte aTsuid : tsuid) {
-        sb.append(tsuid_annotation_help_strings[aTsuid]);
-      }
-      key = sb.toString();
+      key = uidToString(tsuid);
     }
 
-    Collection<Annotation> globals = annotation_table2.row(key).values();
+    Collection<Annotation> globals = annotation_table.row(key).values();
     for (Annotation global: globals) {
       if (start <= global.getStartTime() && global.getStartTime() <= end) {
         del_list.add(global);
@@ -986,14 +975,9 @@ public class MemoryStore implements TsdbStore {
     String key = "";
     if (tsuid != null) {
       //convert byte array to proper string
-      StringBuilder sb = new StringBuilder();
-      for (byte aTsuid : tsuid) {
-        sb.append(tsuid_annotation_help_strings[aTsuid]);
-
-      }
-      key = sb.toString();
+      key = uidToString(tsuid);
     }
-    return Deferred.fromResult(annotation_table2.get(key, time));
+    return Deferred.fromResult(annotation_table.get(key, time));
   }
 
   /**
