@@ -64,7 +64,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   /** Each value in the row. */
   private long[] values;
-  
+
   /** Track the last timestamp written for this series */
   private long last_ts;
 
@@ -80,7 +80,7 @@ final class IncomingDataPoints implements WritableDataPoints {
    */
   IncomingDataPoints(final TSDB tsdb) {
     this.tsdb = tsdb;
-    // the qualifiers and values were meant for pre-compacting the rows. We 
+    // the qualifiers and values were meant for pre-compacting the rows. We
     // could implement this later, but for now we don't need to track the values
     // as they'll just consume space during an import
     //this.qualifiers = new short[3];
@@ -126,7 +126,7 @@ final class IncomingDataPoints implements WritableDataPoints {
 
     short pos = 0;
 
-    copyInRowKey(row, pos, (tsdb.config.auto_metric() ? 
+    copyInRowKey(row, pos, (tsdb.config.auto_metric() ?
         tsdb.metrics.getOrCreateId(metric) : tsdb.metrics.getId(metric)));
     pos += metric_width;
 
@@ -138,7 +138,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     }
     return row;
   }
-  
+
   /**
    * Returns a partially initialized row key for this metric and these tags.
    * The only thing left to fill in is the base timestamp.
@@ -250,7 +250,7 @@ final class IncomingDataPoints implements WritableDataPoints {
       throw new IllegalStateException("setSeries() never called!");
     }
     final boolean ms_timestamp = (timestamp & Const.SECOND_MASK) != 0;
-    
+
     // we only accept unix epoch timestamps in seconds or milliseconds
     if (timestamp < 0 || (ms_timestamp && timestamp > 9999999999999L)) {
       throw new IllegalArgumentException((timestamp < 0 ? "negative " : "bad")
@@ -265,18 +265,18 @@ final class IncomingDataPoints implements WritableDataPoints {
           + " when trying to add value=" + Arrays.toString(value)
           + " to " + this);
     }
-    last_ts = (ms_timestamp ? timestamp : timestamp * 1000);   
-    
+    last_ts = (ms_timestamp ? timestamp : timestamp * 1000);
+
     long base_time = baseTime();
     long incoming_base_time;
     if (ms_timestamp) {
       // drop the ms timestamp to seconds to calculate the base timestamp
-      incoming_base_time = ((timestamp / 1000) - 
+      incoming_base_time = ((timestamp / 1000) -
           ((timestamp / 1000) % Const.MAX_TIMESPAN));
     } else {
       incoming_base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     }
-    
+
     if (incoming_base_time - base_time >= Const.MAX_TIMESPAN) {
       // Need to start a new row as we've exceeded Const.MAX_TIMESPAN.
       base_time = updateBaseTime((ms_timestamp ? timestamp / 1000: timestamp));
@@ -389,7 +389,7 @@ final class IncomingDataPoints implements WritableDataPoints {
       throw new RuntimeException("Should never be here", e);
     }
   }
-  
+
   public Deferred<String> metricNameAsync() {
     if (row == null) {
       throw new IllegalStateException("setSeries never called before!");
@@ -407,7 +407,7 @@ final class IncomingDataPoints implements WritableDataPoints {
       throw new RuntimeException("Should never be here", e);
     }
   }
-  
+
   public Deferred<Map<String, String>> getTagsAsync() {
     return Tags.getTagsAsync(tsdb, row);
   }
@@ -415,7 +415,7 @@ final class IncomingDataPoints implements WritableDataPoints {
   public List<String> getAggregatedTags() {
     return Collections.emptyList();
   }
-  
+
   public Deferred<List<String>> getAggregatedTagsAsync() {
     final List<String> empty = Collections.emptyList();
     return Deferred.fromResult(empty);
@@ -424,11 +424,11 @@ final class IncomingDataPoints implements WritableDataPoints {
   public List<String> getTSUIDs() {
     return Collections.emptyList();
   }
-  
+
   public List<Annotation> getAnnotations() {
     return null;
   }
-  
+
   public int size() {
     return size;
   }
@@ -514,6 +514,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     }
     buf.append("])");
     return buf.toString();
+  }
+
+  @Override
+  public Deferred<Object> persist() {
+	return Deferred.fromResult((Object)null);
   }
 
 }
