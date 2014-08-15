@@ -28,18 +28,18 @@ import com.google.common.collect.ImmutableMap;
 
 /**
  * OpenTSDB Configuration Class
- * 
+ *
  * This handles all of the user configurable variables for a TSD. On
  * initialization default values are configured for all variables. Then
  * implementations should call the {@link #loadConfig()} methods to search for a
  * default configuration or try to load one provided by the user.
- * 
+ *
  * To add a configuration, simply set a default value in {@link #setDefaults()}.
  * Wherever you need to access the config value, use the proper helper to fetch
  * the value, accounting for exceptions that may be thrown if necessary.
- * 
+ *
  * The get<type> number helpers will return NumberFormatExceptions if the
- * requested property is null or unparseable. The {@link #getString(String)} 
+ * requested property is null or unparseable. The {@link #getString(String)}
  * helper will return a NullPointerException if the property isn't found.
  * <p>
  * Plugins can extend this class and copy the properties from the main
@@ -53,11 +53,11 @@ public class Config {
   private static final Logger LOG = LoggerFactory.getLogger(Config.class);
 
   /** Flag to determine if we're running under Windows or not */
-  public static final boolean IS_WINDOWS = 
+  public static final boolean IS_WINDOWS =
       System.getProperty("os.name", "").contains("Windows");
-  
+
   // These are accessed often so need a set address for fast access (faster
-  // than accessing the map. Their value will be changed when the config is 
+  // than accessing the map. Their value will be changed when the config is
   // loaded
   // NOTE: edit the setDefaults() method if you add a public field
 
@@ -75,16 +75,16 @@ public class Config {
 
   /** tsd.core.meta.enable_realtime_ts */
   private boolean enable_realtime_ts = false;
-  
+
   /** tsd.core.meta.enable_realtime_uid */
   private boolean enable_realtime_uid = false;
-  
+
   /** tsd.core.meta.enable_tsuid_incrementing */
   private boolean enable_tsuid_incrementing = false;
-  
+
   /** tsd.core.meta.enable_tsuid_tracking */
   private boolean enable_tsuid_tracking = false;
-  
+
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
 
@@ -92,21 +92,21 @@ public class Config {
   private boolean fix_duplicates = false;
 
   /** tsd.http.request.max_chunk */
-  private int max_chunked_requests = 4096; 
-  
+  private int max_chunked_requests = 4096;
+
   /** tsd.core.tree.enable_processing */
   private boolean enable_tree_processing = false;
-  
+
   /**
    * The list of properties configured to their defaults or modified by users
    */
-  protected final HashMap<String, String> properties = 
+  protected final HashMap<String, String> properties =
     new HashMap<String, String>();
 
   /** Holds default values for the config */
-  protected static final HashMap<String, String> default_map = 
+  protected static final HashMap<String, String> default_map =
     new HashMap<String, String>();
-  
+
   /** Tracks the location of the file that was actually loaded */
   private String config_location;
 
@@ -138,7 +138,7 @@ public class Config {
   /**
    * Constructor for plugins or overloaders who want a copy of the parent
    * properties but without the ability to modify them
-   * 
+   *
    * This constructor will not re-read the file, but it will copy the location
    * so if a child wants to reload the properties periodically, they may do so
    * @param parent Parent configuration object to load from
@@ -154,7 +154,7 @@ public class Config {
   public boolean auto_metric() {
     return this.auto_metric;
   }
-  
+
   /** @return the auto_tagk value */
   public boolean auto_tagk() {
     return auto_tagk;
@@ -171,37 +171,37 @@ public class Config {
     properties.put("tsd.core.auto_create_metrics", 
         Boolean.toString(auto_metric));
   }
-  
+
   /** @return the enable_compaction value */
   public boolean enable_compactions() {
     return this.enable_compactions;
   }
-  
+
   /** @return whether or not to record new TSMeta objects in real time */
-  public boolean enable_realtime_ts() { 
+  public boolean enable_realtime_ts() {
     return enable_realtime_ts;
   }
-  
+
   /** @return whether or not record new UIDMeta objects in real time */
-  public boolean enable_realtime_uid() { 
+  public boolean enable_realtime_uid() {
     return enable_realtime_uid;
   }
-  
+
   /** @return whether or not to increment TSUID counters */
-  public boolean enable_tsuid_incrementing() { 
+  public boolean enable_tsuid_incrementing() {
     return enable_tsuid_incrementing;
   }
-  
+
   /** @return whether or not to record a 1 for every TSUID */
   public boolean enable_tsuid_tracking() {
     return enable_tsuid_tracking;
   }
-  
+
   /** @return whether or not chunked requests are supported */
   public boolean enable_chunked_requests() {
     return this.enable_chunked_requests;
   }
-  
+
   /** @return max incoming chunk size in bytes */
   public int max_chunked_requests() {
     return this.max_chunked_requests;
@@ -221,14 +221,14 @@ public class Config {
   public boolean enable_tree_processing() {
     return enable_tree_processing;
   }
-  
+
   /**
    * Allows for modifying properties after creation or loading.
-   * 
-   * WARNING: This should only be used on initialization and is meant for 
+   *
+   * WARNING: This should only be used on initialization and is meant for
    * command line overrides. Also note that it will reset all static config 
    * variables when called.
-   * 
+   *
    * @param property The name of the property to override
    * @param value The value to store
    */
@@ -304,12 +304,12 @@ public class Config {
 
   /**
    * Returns the given property as a boolean
-   * 
+   *
    * Property values are case insensitive and the following values will result
    * in a True return value: - 1 - True - Yes
-   * 
+   *
    * Any other values, including an empty string, will result in a False
-   * 
+   *
    * @param property The property to load
    * @return A parsed boolean
    * @throws NullPointerException if the property was not found
@@ -339,7 +339,7 @@ public class Config {
     if (IS_WINDOWS) {
       // Windows swings both ways. If a forward slash was already used, we'll
       // add one at the end if missing. Otherwise use the windows default of \
-      if (directory.charAt(directory.length() - 1) == '\\' || 
+      if (directory.charAt(directory.length() - 1) == '\\' ||
           directory.charAt(directory.length() - 1) == '/') {
         return directory;
       }
@@ -358,7 +358,7 @@ public class Config {
     }
     return directory + "/";
   }
-  
+
   /**
    * Determines if the given propery is in the map
    * @param property The property to search for
@@ -404,10 +404,18 @@ public class Config {
   public final Map<String, String> getMap() {
     return ImmutableMap.copyOf(properties);
   }
-  
+
+  public final void enableCompactions() {
+	  this.enable_compactions = true;
+  }
+
+  public final void disableCompactions() {
+	  this.enable_compactions = false;
+  }
+
   /**
    * Loads default entries that were not provided by a file or command line
-   * 
+   *
    * This should be called in the constructor
    */
   protected void setDefaults() {
@@ -466,14 +474,14 @@ public class Config {
 
   /**
    * Searches a list of locations for a valid opentsdb.conf file
-   * 
+   *
    * The config file must be a standard JAVA properties formatted file. If none
    * of the locations have a config file, then the defaults or command line
    * arguments will be used for the configuration
-   * 
+   *
    * Defaults for Linux based systems are: ./opentsdb.conf /etc/opentsdb.conf
    * /etc/opentsdb/opentdsb.conf /opt/opentsdb/opentsdb.conf
-   * 
+   *
    * @throws IOException Thrown if there was an issue reading a file
    */
   protected void loadConfig() throws IOException {
@@ -502,9 +510,9 @@ public class Config {
         FileInputStream file_stream = new FileInputStream(file);
         Properties props = new Properties();
         props.load(file_stream);
-        
+
         // load the hash map
-        this.loadHashMap(props);        
+        this.loadHashMap(props);
       } catch (Exception e) {
         // don't do anything, the file may be missing and that's fine
         LOG.debug("Unable to find or load " + file, e);
@@ -532,7 +540,7 @@ public class Config {
     file_stream = new FileInputStream(file);
     Properties props = new Properties();
     props.load(file_stream);
-    
+
     // load the hash map
     this.loadHashMap(props);
 
@@ -568,12 +576,12 @@ public class Config {
    * Called from {@link #loadConfig} to copy the properties into the hash map
    * Tsuna points out that the Properties class is much slower than a hash
    * map so if we'll be looking up config values more than once, a hash map
-   * is the way to go 
+   * is the way to go
    * @param props The loaded Properties object to copy
    */
   private void loadHashMap(final Properties props) {
     this.properties.clear();
-    
+
     @SuppressWarnings("rawtypes")
     Enumeration e = props.propertyNames();
     while (e.hasMoreElements()) {
