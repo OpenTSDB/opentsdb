@@ -53,7 +53,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     
@@ -62,7 +62,7 @@ public final class TestSpan {
   
   @Test (expected = NullPointerException.class)
   public void addRowNull() {
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(null);
   }
   
@@ -74,7 +74,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     
@@ -92,7 +92,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     
@@ -110,7 +110,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     
@@ -128,7 +128,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     
@@ -146,7 +146,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR2, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
@@ -171,7 +171,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     span.addRow(new KeyValue(HOUR2, FAMILY, qual12, 
@@ -199,7 +199,7 @@ public final class TestSpan {
       System.arraycopy(Bytes.fromLong(i), 0, values, i * 8, 8);
     }
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qualifiers, values));
     span.addRow(new KeyValue(HOUR2, FAMILY, qualifiers, values));
     span.addRow(new KeyValue(HOUR3, FAMILY, qualifiers, values));
@@ -215,7 +215,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     span.addRow(new KeyValue(HOUR2, FAMILY, qual12, 
@@ -240,7 +240,7 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
     
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
     span.addRow(new KeyValue(HOUR2, FAMILY, qual12, 
@@ -295,7 +295,7 @@ public final class TestSpan {
     // For values at the offsets 0 and 5 seconds from a base timestamp.
     final byte[] qual05 = MockBase.concatByteArrays(qual0, qual5);
 
-    final Span span = new Span(tsdb);
+    final Span span = new Span();
     span.addRow(new KeyValue(HOUR1, FAMILY, qual02000,
         MockBase.concatByteArrays(val40, val50, ZERO)));
     span.addRow(new KeyValue(HOUR2, FAMILY, qual05,

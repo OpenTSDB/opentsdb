@@ -25,36 +25,22 @@ import net.opentsdb.meta.Annotation;
  * Implementations of this interface aren't expected to be synchronized.
  */
 public interface DataPoints extends Iterable<DataPoint> {
+  /**
+   * Returns the metric id of the series.
+   */
+  byte[] metric();
 
   /**
-   * Returns the name of the series.
+   * Returns the tags that are common to all the data points that are
+   * represented by this instance (the intersection set).
    */
-  String metricName();
-  
-  /**
-   * Returns the name of the series.
-   * @since 1.2
-   */
-  Deferred<String> metricNameAsync();
-
-  /**
-   * Returns the tags associated with these data points.
-   * @return A non-{@code null} map of tag names (keys), tag values (values).
-   */
-  Map<String, String> getTags();
-  
-  /**
-   * Returns the tags associated with these data points.
-   * @return A non-{@code null} map of tag names (keys), tag values (values).
-   * @since 1.2
-   */
-  Deferred<Map<String, String>> getTagsAsync();
+  Map<byte[], byte[]> tags();
 
   /**
    * Returns the tags associated with some but not all of the data points.
    * <p>
    * When this instance represents the aggregation of multiple time series
-   * (same metric but different tags), {@link #getTags} returns the tags that
+   * (same metric but different tags), {@link #tags()} returns the tags that
    * are common to all data points (intersection set) whereas this method
    * returns all the tags names that are not common to all data points (union
    * set minus the intersection set, also called the symmetric difference).
@@ -63,23 +49,7 @@ public interface DataPoints extends Iterable<DataPoint> {
    * series, the list returned is empty.
    * @return A non-{@code null} list of tag names.
    */
-  List<String> getAggregatedTags();
-  
-  /**
-   * Returns the tags associated with some but not all of the data points.
-   * <p>
-   * When this instance represents the aggregation of multiple time series
-   * (same metric but different tags), {@link #getTags} returns the tags that
-   * are common to all data points (intersection set) whereas this method
-   * returns all the tags names that are not common to all data points (union
-   * set minus the intersection set, also called the symmetric difference).
-   * <p>
-   * If this instance does not represent an aggregation of multiple time
-   * series, the list returned is empty.
-   * @return A non-{@code null} list of tag names.
-   * @since 1.2
-   */
-  Deferred<List<String>> getAggregatedTagsAsync();
+  List<byte[]> aggregatedTags();
 
   /**
    * Returns a list of unique TSUIDs contained in the results

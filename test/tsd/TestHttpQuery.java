@@ -697,12 +697,12 @@ public final class TestHttpQuery {
   
   @Test
   public void initializeSerializerMaps() throws Exception {
-    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery.initializeSerializerMaps(tsdb);
   }
   
   @Test
   public void setSerializer() throws Exception {
-    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery.initializeSerializerMaps(tsdb);
     HttpQuery query = NettyMocks.getQuery(tsdb, "/aggregators");
     query.setSerializer();
     assertEquals(HttpJsonSerializer.class.getCanonicalName(), 
@@ -711,7 +711,7 @@ public final class TestHttpQuery {
   
   @Test
   public void setFormatterQS() throws Exception {
-    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery.initializeSerializerMaps(tsdb);
     HttpQuery query = NettyMocks.getQuery(tsdb, "/aggregators?formatter=json");
     query.setSerializer();
     assertEquals(HttpJsonSerializer.class.getCanonicalName(), 
@@ -721,7 +721,7 @@ public final class TestHttpQuery {
   @Test
   public void setSerializerDummyQS() throws Exception {
     PluginLoader.loadJAR("plugin_test.jar");
-    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery.initializeSerializerMaps(tsdb);
     HttpQuery query = NettyMocks.getQuery(tsdb, "/aggregators?serializer=dummy");
     query.setSerializer();
     assertEquals("net.opentsdb.tsd.DummyHttpSerializer", 
@@ -730,7 +730,7 @@ public final class TestHttpQuery {
   
   @Test
   public void setSerializerCT() throws Exception {
-    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery.initializeSerializerMaps(tsdb);
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
@@ -744,7 +744,7 @@ public final class TestHttpQuery {
   @Test
   public void setSerializerDummyCT() throws Exception {
     PluginLoader.loadJAR("plugin_test.jar");
-    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery.initializeSerializerMaps(tsdb);
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
@@ -757,7 +757,7 @@ public final class TestHttpQuery {
   
   @Test
   public void setSerializerDefaultCT() throws Exception {
-    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery.initializeSerializerMaps(tsdb);
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
@@ -770,7 +770,7 @@ public final class TestHttpQuery {
   
   @Test (expected = BadRequestException.class)
   public void setSerializerNotFound() throws Exception {
-    HttpQuery.initializeSerializerMaps(null);
+    HttpQuery.initializeSerializerMaps(tsdb);
     HttpQuery query = NettyMocks.getQuery(tsdb, 
         "/api/suggest?serializer=notfound");
     query.setSerializer();

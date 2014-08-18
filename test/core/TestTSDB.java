@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNotNull;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 
+import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -565,7 +566,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 9999999999999L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9, 
         0x10, 0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xFA,
@@ -580,7 +581,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 10000000000000L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP+1, 42, tags).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -744,6 +745,38 @@ public final class TestTSDB {
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42, value[0]);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void storeNewEmptyUID() throws Exception {
+    UIDMeta meta = new UIDMeta(METRIC, "");
+    try {
+      tsdb.add(meta).joinUninterruptibly();
+    } catch (Exception e) {
+      assertEquals("Missing UID", e.getMessage());
+      throw(e);
+    }
+  }
+  @Test (expected = IllegalArgumentException.class)
+  public void storeNewNoName() throws Exception {
+    UIDMeta meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "");
+    try {
+      tsdb.add(meta).joinUninterruptibly();
+    } catch (Exception e) {
+      assertEquals("Missing name", e.getMessage());
+      throw(e);
+    }
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void storeNewNullType() throws Exception {
+    UIDMeta meta = new UIDMeta(null, new byte[] { 0, 0, 1 }, "sys.cpu.1");
+    try {
+      tsdb.add(meta).joinUninterruptibly();
+    } catch (Exception e) {
+      assertEquals("Missing type", e.getMessage());
+      throw(e);
+    }
   }
   
   /**

@@ -789,7 +789,6 @@ public class MemoryStore implements TsdbStore {
     storage.remove(key);
   }
 
-
   /**
    * Removes the given column from the hash map
    * @param key Row key

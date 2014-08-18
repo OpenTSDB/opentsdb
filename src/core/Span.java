@@ -25,18 +25,12 @@ import net.opentsdb.uid.UniqueId;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
-import com.stumbleupon.async.Deferred;
-
 /**
  * Represents a read-only sequence of continuous data points.
  * <p>
  * This class stores a continuous sequence of {@link RowSeq}s in memory.
  */
 final class Span implements DataPoints {
-
-  /** The {@link TSDB} instance we belong to. */
-  private final TSDB tsdb;
-
   /** All the rows in this span. */
   private final ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
 
@@ -52,10 +46,8 @@ final class Span implements DataPoints {
   
   /**
    * Default constructor.
-   * @param tsdb The TSDB to which we belong
    */
-  Span(final TSDB tsdb) {
-    this.tsdb = tsdb;
+  Span() {
   }
 
   /** @throws IllegalStateException if the span doesn't have any rows */
@@ -65,54 +57,33 @@ final class Span implements DataPoints {
     }
   }
 
-  /** 
-   * @return the name of the metric associated with the rows in this span
+  /**
+   * @return the id of the metric associated with the rows in this span
    * @throws IllegalStateException if the span was empty
-   * @throws NoSuchUniqueId if the row key UID did not exist
+   * @see DataPoints#metric()
    */
-  public String metricName() {
-    try {
-      return metricNameAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
-  }
-  
-  public Deferred<String> metricNameAsync() {
-    checkNotEmpty();
-    return rows.get(0).metricNameAsync();
+  @Override
+  public byte[] metric() {
+    return rows.get(0).metric();
   }
 
   /**
-   * @return the list of tag pairs for the rows in this span
+   * @return the list of tag id pairs for the rows in this span
    * @throws IllegalStateException if the span was empty
-   * @throws NoSuchUniqueId if the any of the tagk/v UIDs did not exist
+   * @see DataPoints#tags()
    */
-  public Map<String, String> getTags() {
-    try {
-      return getTagsAsync().joinUninterruptibly();
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Should never be here", e);
-    }
+  @Override
+  public Map<byte[],byte[]> tags() {
+    checkNotEmpty();
+    return rows.get(0).tags();
   }
 
-  public Deferred<Map<String, String>> getTagsAsync() {
-    checkNotEmpty();
-    return rows.get(0).getTagsAsync();
-  }
-  
-  /** @return an empty list since aggregated tags cannot exist on a single span */
-  public List<String> getAggregatedTags() {
+  /**
+   * @see DataPoints#aggregatedTags()
+   */
+  @Override
+  public List<byte[]> aggregatedTags() {
     return Collections.emptyList();
-  }
-  
-  public Deferred<List<String>> getAggregatedTagsAsync() {
-    final List<String> empty = Collections.emptyList();
-    return Deferred.fromResult(empty);
   }
 
   /** @return the number of data points in this span, O(n)
@@ -160,7 +131,7 @@ final class Span implements DataPoints {
       // Verify that we have the same metric id and tags.
       final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
-      final short metric_width = tsdb.metrics.width();
+      final short metric_width = Const.METRICS_WIDTH;
       final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
       final short tags_bytes = (short) (key.length - tags_offset);
       String error = null;
@@ -180,7 +151,7 @@ final class Span implements DataPoints {
       last_ts = last.timestamp(last.size() - 1);  // O(n)
     }
 
-    final RowSeq rowseq = new RowSeq(tsdb);
+    final RowSeq rowseq = new RowSeq();
     rowseq.setRow(row);
     sorted = false;
     if (last_ts >= rowseq.timestamp(0)) {

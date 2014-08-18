@@ -31,9 +31,12 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.google.common.base.Throwables;
+import com.stumbleupon.async.Deferred;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +53,8 @@ import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.uid.UidFormatter;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
@@ -157,6 +162,7 @@ final class GraphHandler implements HttpRpc {
     if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
       return;
     }
+    UidFormatter formatter = new UidFormatter(tsdb);
     Query[] tsdbqueries;
     List<String> options;
     tsdbqueries = parseQuery(tsdb, query);
@@ -182,7 +188,7 @@ final class GraphHandler implements HttpRpc {
         throw new BadRequestException("end time: " + e.getMessage());
       }
     }
-    final Plot plot = new Plot(start_time, end_time,
+    final Plot plot = new Plot(tsdb, start_time, end_time,
           DateTime.timezones.get(query.getQueryStringParam("tz")));
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);
@@ -198,20 +204,26 @@ final class GraphHandler implements HttpRpc {
         for (final DataPoints datapoints : series) {
           plot.add(datapoints, options.get(i));
           aggregated_tags[i] = new HashSet<String>();
-          aggregated_tags[i].addAll(datapoints.getAggregatedTags());
+
+          List<byte[]> aggregated_tag_ids = datapoints.aggregatedTags();
+          ArrayList<String> tag_names = formatter.formatUids
+                  (aggregated_tag_ids, UniqueIdType.TAGK).joinUninterruptibly();
+          aggregated_tags[i].addAll(tag_names);
           npoints += datapoints.aggregatedSize();
         }
       } catch (RuntimeException e) {
         logInfo(query, "Query failed (stack trace coming): "
                 + tsdbqueries[i]);
         throw e;
+      } catch (Exception e) {
+        Throwables.propagate(e);
       }
       tsdbqueries[i] = null;  // free()
     }
     tsdbqueries = null;  // free()
 
     if (query.hasQueryStringParam("ascii")) {
-      respondAsciiQuery(query, max_age, basepath, plot);
+      respondAsciiQuery(formatter, query, max_age, basepath, plot);
       return;
     }
 
@@ -765,13 +777,15 @@ final class GraphHandler implements HttpRpc {
    * <p>
    * When a query specifies the "ascii" query string parameter, we send the
    * data points back to the client in plain text instead of sending a PNG.
+   * @param formatter
    * @param query The query we're currently serving.
    * @param max_age The maximum time (in seconds) we wanna allow clients to
-   * cache the result in case of a cache hit.
+ * cache the result in case of a cache hit.
    * @param basepath The base path used for the Gnuplot files.
    * @param plot The plot object to generate Gnuplot's input files.
    */
-  private static void respondAsciiQuery(final HttpQuery query,
+  private static void respondAsciiQuery(final UidFormatter formatter,
+                                        final HttpQuery query,
                                         final int max_age,
                                         final String basepath,
                                         final Plot plot) {
@@ -786,9 +800,13 @@ final class GraphHandler implements HttpRpc {
     try {
       final StringBuilder tagbuf = new StringBuilder();
       for (final DataPoints dp : plot.getDataPoints()) {
-        final String metric = dp.metricName();
+        final String metric = formatter.formatMetric(dp.metric())
+                .joinUninterruptibly();
+        final Map<String, String> tags = formatter.formatTags(dp.tags())
+                .joinUninterruptibly();
+
         tagbuf.setLength(0);
-        for (final Map.Entry<String, String> tag : dp.getTags().entrySet()) {
+        for (final Map.Entry<String, String> tag : tags.entrySet()) {
           tagbuf.append(' ').append(tag.getKey())
             .append('=').append(tag.getValue());
         }
@@ -811,6 +829,8 @@ final class GraphHandler implements HttpRpc {
           asciifile.print('\n');
         }
       }
+    } catch (Exception e) {
+      Throwables.propagate(e);
     } finally {
       asciifile.close();
     }

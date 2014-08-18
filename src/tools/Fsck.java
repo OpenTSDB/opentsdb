@@ -345,8 +345,7 @@ final class Fsck {
         return;
       }
 
-      final long base_time = Bytes.getUnsignedInt(row.get(0).key(),
-              Const.METRICS_WIDTH);
+      final long base_time = RowKey.baseTime(row.get(0).key());
       
       for (final KeyValue kv : row) {
         kvs_processed.getAndIncrement();
