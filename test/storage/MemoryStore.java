@@ -468,12 +468,6 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
-    if (meta.getUID() == null || meta.getUID().isEmpty()) {
-      throw new IllegalArgumentException("Missing UID");
-    }
-    if (meta.getType() == null) {
-      throw new IllegalArgumentException("Missing type");
-    }
     uid_table.put(
             meta.getUID(),
             meta.getType().toString().toLowerCase() + "_meta",
