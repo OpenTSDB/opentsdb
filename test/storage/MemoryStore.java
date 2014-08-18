@@ -41,9 +41,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-import static net.opentsdb.storage.hbase.HBaseStore.getAnnotationQualifier;
-import static net.opentsdb.storage.hbase.HBaseStore.getAnnotationRowKey;
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static net.opentsdb.uid.UniqueId.uidToString;
 
 /**
  * TsdbStore implementation useful in testing calls to and from
@@ -74,7 +73,7 @@ public class MemoryStore implements TsdbStore {
 
   private final Table<String, String, byte[]> data_table;
   private final Table<String, String, byte[]> uid_table;
-  private final Table<String, String, byte[]> annotation_table;
+  private final Table<String, Long, Annotation> annotation_table;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
@@ -490,7 +489,7 @@ public class MemoryStore implements TsdbStore {
                                    final String name,
                                    final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    final String s_uid = UniqueId.uidToString(uid);
+    final String s_uid = uidToString(uid);
 
     byte[] json_value = uid_table.get(s_uid, qualifier);
 
@@ -865,70 +864,57 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(Annotation annotation) {
 
-    final byte[] tsuid_byte = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
-            UniqueId.stringToUid(annotation.getTSUID()) : null;
-    final String key =
-            new String(
-            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), ASCII);
-    final String qual =
-            new String(
-            getAnnotationQualifier(annotation.getStartTime()), ASCII);
+    final String tsuid = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
+            annotation.getTSUID() : "";
 
-    return Deferred.fromResult((Object)annotation_table.remove(key, qual));
+    final long start = annotation.getStartTime() % 1000 == 0 ?
+            annotation.getStartTime() / 1000 : annotation.getStartTime();
+    if (start < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
+
+    return Deferred.fromResult(
+            (Object) annotation_table.remove(tsuid, start));
   }
 
   @Override
   public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
-    final byte[] original_note = original == null ? null :
-            original.getStorageJSON();
 
-    final byte[] tsuid_byte = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
-            UniqueId.stringToUid(annotation.getTSUID()) : null;
+    String tsuid = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
+            annotation.getTSUID() : "";
 
-    final String key =
-            new String(
-            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), ASCII);
-    final String qual =
-            new String(
-            getAnnotationQualifier(annotation.getStartTime()), ASCII);
-
-    final byte[] storage_note = annotation_table.get(key, qual);
-
-    if ( Arrays.equals(storage_note, original_note) ) {
-      annotation_table.remove(key, qual);
-      annotation_table.put(key, qual, annotation.getStorageJSON());
-      return Deferred.fromResult(true);
+    final long start = annotation.getStartTime() % 1000 == 0 ?
+            annotation.getStartTime() / 1000 : annotation.getStartTime();
+    if (start < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
-    // A deferred boolean, if true the CAS succeeded, otherwise the CAS failed
-    // because the value in HBase didn't match the expected value of the CAS
-    // request.
-    return Deferred.fromResult(false);
+    Annotation note = annotation_table.get(tsuid, start);
 
+    if ((null == note && null == original) ||
+            (null != note && null != original && note.equals(original))) {
+      annotation_table.remove(tsuid, start);
+      annotation_table.put(tsuid, start, annotation);
+      return Deferred.fromResult(true);
+    }
+    return Deferred.fromResult(false);
   }
 
   @Override
   public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time,
                                                          final long end_time) {
-    //the sanity check should happen before this is called actually.
+    //some sanity check should happen before this is called actually.
 
-    List<Annotation> annotations =
-            new ArrayList<Annotation>((int)(end_time - start_time));
+    if (start_time < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
 
-    for (long time = start_time;time <= end_time; ++time) {
+    List<Annotation> annotations = new ArrayList<Annotation>();
+    Collection<Annotation> globals = annotation_table.row("").values();
 
-      final String key =
-              new String(getAnnotationRowKey(time, null), ASCII);
-      final String qual =
-              new String(getAnnotationQualifier(time), ASCII);
-
-      final byte[] storage_note = annotation_table.get(key, qual);
-
-      if (storage_note != null) {
-        Annotation note = JSON.parseToObject(storage_note,
-                Annotation.class);
-
-        annotations.add(note);
+    for (Annotation global: globals) {
+      if (start_time <= global.getStartTime() && global.getStartTime() <= end_time) {
+        annotations.add(global);
       }
     }
     return Deferred.fromResult(annotations);
@@ -939,37 +925,35 @@ public class MemoryStore implements TsdbStore {
                                                  final long start_time,
                                                  final long end_time) {
 
-    //the sanity check should happen before this is called actually.
-    //however we might need to modify the start_time and end_time
+    //some sanity check should happen before this is called actually.
+    //however we need to modify the start_time and end_time
 
-    final long start = start_time / 1000;
-    final long end = end_time / 1000;
+    if (start_time < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
+    }
 
-    ArrayList<Annotation> del_list =
-            new ArrayList<Annotation>((int)(end_time - start_time));
+    final long start = start_time % 1000 == 0 ? start_time / 1000 : start_time;
+    final long end = end_time % 1000 == 0 ? end_time / 1000 : end_time;
+    String key = "";
 
-    for (long time = start;time <= end; ++time) {
+    ArrayList<Annotation> del_list = new ArrayList<Annotation>();
+    if (tsuid != null) {
+      //convert byte array to string, sloppy but seems to be the best way
+      key = uidToString(tsuid);
+    }
 
-      final String key =
-              new String(getAnnotationRowKey(time, tsuid), ASCII);
-      final String qual =
-              new String(getAnnotationQualifier(time), ASCII);
-
-      final byte[] storage_note = annotation_table.get(key, qual);
-
-      if (storage_note != null) {
-        Annotation note = JSON.parseToObject(storage_note,
-                Annotation.class);
-
-        del_list.add(note);
+    Collection<Annotation> globals = annotation_table.row(key).values();
+    for (Annotation global: globals) {
+      if (start <= global.getStartTime() && global.getStartTime() <= end) {
+        del_list.add(global);
       }
     }
 
-    for (Annotation annotation : del_list) {
-      delete(annotation);
+    for (Annotation a : del_list) {
+      delete(a);
     }
-
     return Deferred.fromResult(del_list.size());
+
   }
 
   /**
@@ -981,20 +965,18 @@ public class MemoryStore implements TsdbStore {
    */
   public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long start_time) {
 
-    final String key =
-            new String(
-                    getAnnotationRowKey(start_time, tsuid), ASCII);
-    final String qual =
-            new String(
-                    getAnnotationQualifier(start_time), ASCII);
-
-    final byte[] storage_note = annotation_table.get(key, qual);
-    if (storage_note != null) {
-      Annotation note = JSON.parseToObject(storage_note,
-              Annotation.class);
-      return Deferred.fromResult(note);
+    if (start_time < 1) {
+      throw new IllegalArgumentException("The start timestamp has not been set");
     }
-    return Deferred.fromResult(null);
+
+    long time = start_time % 1000 == 0 ? start_time / 1000 : start_time;
+
+    String key = "";
+    if (tsuid != null) {
+      //convert byte array to proper string
+      key = uidToString(tsuid);
+    }
+    return Deferred.fromResult(annotation_table.get(key, time));
   }
 
   /**
