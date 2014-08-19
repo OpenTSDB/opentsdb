@@ -25,6 +25,7 @@ import org.hbase.async.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
@@ -124,4 +125,14 @@ public interface TsdbStore {
   public Deferred<Integer> createNewTree(final Tree tree);
 
   public Deferred<List<Tree>> fetchAllTrees();
+
+  Deferred<Boolean> deleteTree(final int tree_id, final boolean delete_definition);
+
+  Deferred<Map<String,String>> fetchCollisions(final int tree_id, final List<String> tsuids);
+
+  Deferred<Map<String,String>> fetchNotMatched(final int tree_id,final  List<String> tsuids);
+
+  Deferred<Boolean> flushTreeCollisions(final Tree tree);
+
+  Deferred<Boolean> flushTreeNotMatched(final Tree tree);
 }

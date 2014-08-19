@@ -13,9 +13,7 @@
 package net.opentsdb.core;
 
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -24,14 +22,13 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.*;
 import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes.ByteMap;
 
 import net.opentsdb.storage.hbase.HBaseStore;
-import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.RpcPlugin;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -1267,7 +1264,8 @@ public class TSDB {
 
       /**
        * Called after verifying that the name mapping exists
-       * @return The results of TsdbStore.getMeta(byte[], String, UniqueIdType)
+       * @return The results of {@link TsdbStore#getMeta(
+       *      byte[], String, net.opentsdb.uid.UniqueId.UniqueIdType)}
        */
       @Override
       public Deferred<UIDMeta> call(final String name) throws Exception {
@@ -1320,7 +1318,7 @@ public class TSDB {
    * This method will scan the UID table for the maximum tree ID, increment it,
    * store the new tree, and return the new ID. If no trees have been created,
    * the returned ID will be "1". If we have reached the limit of trees for the
-   * system, as determined by Const.MAX_TREE_ID_EXCLUSIVE, we will throw an
+   * system, as determined by {@link Const#MAX_TREE_ID_EXCLUSIVE}, we will throw an
    * exception.
    *
    * @param tree The Tree to store
@@ -1335,6 +1333,106 @@ public class TSDB {
       throw new IllegalArgumentException("Tree was missing the name");
     }
     return tsdb_store.createNewTree(tree);
+  }
+  /**
+   * Attempts to delete all branches, leaves, collisions and not-matched entries
+   * for the given tree. Optionally can delete the tree definition and rules as
+   * well.
+   * <b>Warning:</b> This call can take a long time to complete so it should
+   * only be done from a command line or issues once via RPC and allowed to
+   * process. Multiple deletes running at the same time on the same tree
+   * shouldn't be an issue but it's a waste of resources.
+   * @param tree_id ID of the tree to delete
+   * @param delete_definition Whether or not the tree definition and rule set
+   * should be deleted as well
+   * @return True if the deletion completed successfully, false if there was an
+   * issue.
+   * @throws HBaseException if there was an issue
+   * @throws IllegalArgumentException if the tree ID was invalid
+   */
+  public Deferred<Boolean> deleteTree(final int tree_id, final boolean delete_definition) {
+
+    Tree.validateTreeID(tree_id);
+
+    return tsdb_store.deleteTree(tree_id, delete_definition);
+  }
+  /**
+   * Returns the collision set from storage for the given tree, optionally for
+   * only the list of TSUIDs provided.
+   * <b>Note:</b> This can potentially be a large list if the rule set was
+   * written poorly and there were many timeseries so only call this
+   * without a list of TSUIDs if you feel confident the number is small.
+   *
+   * @param tree_id ID of the tree to fetch collisions for
+   * @param tsuids An optional list of TSUIDs to fetch collisions for. This may
+   * be empty or null, in which case all collisions for the tree will be
+   * returned.
+   * @return A list of collisions or null if nothing was found
+   * @throws HBaseException if there was an issue
+   * @throws IllegalArgumentException if the tree ID was invalid
+   */
+  public Deferred<Map<String, String>> fetchCollisions(final int tree_id,
+                                                              final List<String> tsuids) {
+    Tree.validateTreeID(tree_id);
+    return tsdb_store.fetchCollisions(tree_id, tsuids);
+  }
+
+  /**
+   * Returns the not-matched set from storage for the given tree, optionally for
+   * only the list of TSUIDs provided.
+   * <b>Note:</b> This can potentially be a large list if the rule set was
+   * written poorly and there were many timeseries so only call this
+   * without a list of TSUIDs if you feel confident the number is small.
+   *
+   * @param tree_id ID of the tree to fetch non matches for
+   * @param tsuids An optional list of TSUIDs to fetch non-matches for. This may
+   * be empty or null, in which case all non-matches for the tree will be
+   * returned.
+   * @return A list of not-matched mappings or null if nothing was found
+   * @throws HBaseException if there was an issue
+   * @throws IllegalArgumentException if the tree ID was invalid
+   */
+  public Deferred<Map<String, String>> fetchNotMatched(final int tree_id,
+                                                       final List<String> tsuids) {
+    Tree.validateTreeID(tree_id);
+    return tsdb_store.fetchNotMatched(tree_id, tsuids);
+  }
+
+  /**
+   * Attempts to flush the collisions to storage. The storage call is a PUT so
+   * it will overwrite any existing columns, but since each column is the TSUID
+   * it should only exist once and the data shouldn't change.
+   * <b>Note:</b> This will also clear the {@link Tree#collisions} map
+   *
+   * @param tree The Tree to flush to storage.
+   * @return A meaningless deferred (will always be true since we need to group
+   * it with tree store calls) for the caller to wait on
+   * @throws HBaseException if there was an issue
+   */
+  public Deferred<Boolean> flushTreeCollisions(final Tree tree) {
+    if (!tree.getStoreFailures()) {
+      tree.getCollisions().clear();
+      return Deferred.fromResult(true);
+    }
+
+    return tsdb_store.flushTreeCollisions(tree);
+  }
+  /**
+   * Attempts to flush the non-matches to storage. The storage call is a PUT so
+   * it will overwrite any existing columns, but since each column is the TSUID
+   * it should only exist once and the data shouldn't change.
+   * <b>Note:</b> This will also clear the local {@link Tree#not_matched} map
+   * @param tree The Tree to flush to storage.
+   * @return A meaningless deferred (will always be true since we need to group
+   * it with tree store calls) for the caller to wait on
+   * @throws HBaseException if there was an issue
+   */
+  public Deferred<Boolean> flushTreeNotMatched(final Tree tree) {
+    if (!tree.getStoreFailures()) {
+      tree.getNotMatched().clear();
+      return Deferred.fromResult(true);
+    }
+    return tsdb_store.flushTreeNotMatched(tree);
   }
 
 }

@@ -180,7 +180,7 @@ final class TreeRpc implements HttpRpc {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
               "Unable to locate tree: " + tree.getTreeId());
         }
-        Tree.deleteTree(tsdb, tree.getTreeId(), delete_definition)
+        tsdb.deleteTree(tree.getTreeId(), delete_definition)
           .joinUninterruptibly(); 
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
         
@@ -541,9 +541,9 @@ final class TreeRpc implements HttpRpc {
         // convert one field.
         @SuppressWarnings("unchecked")
         final List<String> tsuids = (List<String>)map.get("tsuids");
-        final Map<String, String> results = for_collisions ? 
-            Tree.fetchCollisions(tsdb, tree_id, tsuids).joinUninterruptibly() :
-              Tree.fetchNotMatched(tsdb, tree_id, tsuids).joinUninterruptibly();
+        final Map<String, String> results = for_collisions ?
+                tsdb.fetchCollisions(tree_id, tsuids).joinUninterruptibly() :
+                tsdb.fetchNotMatched(tree_id, tsuids).joinUninterruptibly();
         query.sendReply(query.serializer().formatTreeCollisionNotMatchedV1(
             results, for_collisions));
   

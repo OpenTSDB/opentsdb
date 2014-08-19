@@ -219,7 +219,7 @@ public final class TreeBuilder {
           if (!is_testing && tree.getNotMatched() != null && 
               !tree.getNotMatched().isEmpty()) {
             tree.addNotMatched(meta.getTSUID(), not_matched);
-            storage_calls.add(tree.flushNotMatched(tsdb));
+            storage_calls.add(tsdb.flushTreeNotMatched(tree));
           }
           
         } else if (current_branch == null) {
@@ -286,7 +286,7 @@ public final class TreeBuilder {
           
           // if we have collisions, flush em
           if (tree.getCollisions() != null && !tree.getCollisions().isEmpty()) {
-            storage_calls.add(tree.flushCollisions(tsdb));
+            storage_calls.add(tsdb.flushTreeCollisions(tree));
           }
           
         } else {
