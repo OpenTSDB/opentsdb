@@ -571,13 +571,6 @@ public class TSDB {
   }
 
   /**
-   * Returns a new {@link Query} instance suitable for this TSDB.
-   */
-  public Query newQuery() {
-    return new TsdbQueryBuilder().setTsdb(this).createTsdbQuery();
-  }
-
-  /**
    * Returns a new {@link WritableDataPoints} instance suitable for this TSDB.
    * <p>
    * If you want to add a single data-point, consider using {@link #addPoint}

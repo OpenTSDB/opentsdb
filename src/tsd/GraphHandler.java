@@ -40,15 +40,7 @@ import com.stumbleupon.async.Deferred;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.Aggregator;
-import net.opentsdb.core.Aggregators;
-import net.opentsdb.core.Const;
-import net.opentsdb.core.DataPoint;
-import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Query;
-import net.opentsdb.core.RateOptions;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
+import net.opentsdb.core.*;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
@@ -876,12 +868,13 @@ final class GraphHandler implements HttpRpc {
       if (rate) {
         i--;  // Move to the next part.
       }
-      final Query tsdbquery = tsdb.newQuery();
-      try {
-        tsdbquery.setTimeSeries(metric, parsedtags, agg, rate, rate_options);
-      } catch (NoSuchUniqueName e) {
-        throw new BadRequestException(e.getMessage());
-      }
+
+      final QueryBuilder builder = new QueryBuilder(tsdb)
+              .withMetric(metric)
+              .withTags(parsedtags)
+              .withAggregator(agg)
+              .shouldCalculateRate(rate, rate_options);
+
       // downsampling function & interval.
       if (i > 0) {
         final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
@@ -897,11 +890,16 @@ final class GraphHandler implements HttpRpc {
                                         + parts[1].substring(dash + 1));
         }
         final long interval = DateTime.parseDuration(parts[1].substring(0, dash));
-        tsdbquery.downsample(interval, downsampler);
+        builder.downsample(interval, downsampler);
       } else {
-        tsdbquery.downsample(1000, agg);
+        builder.downsample(1000, agg);
       }
-      tsdbqueries[nqueries++] = tsdbquery;
+
+      try {
+        tsdbqueries[nqueries++] = builder.createQuery().joinUninterruptibly();
+      } catch (Exception e) {
+        Throwables.propagate(e);
+      }
     }
     return tsdbqueries;
   }

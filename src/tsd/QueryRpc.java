@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Throwables;
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -38,6 +39,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
+import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSUIDQuery;
 import net.opentsdb.uid.UniqueId;
@@ -113,16 +115,20 @@ final class QueryRpc implements HttpRpc {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
           e.getMessage(), data_query.toString(), e);
     }
-    
-    Query[] tsdbqueries = data_query.buildQueries(tsdb);
-    final int nqueries = tsdbqueries.length;
-    final ArrayList<DataPoints[]> results = 
-      new ArrayList<DataPoints[]>(nqueries);
+
+    List<Deferred<TsdbQuery>> tsdbqueries = data_query.buildQueries(tsdb);
+    final int nqueries = tsdbqueries.size();
+    final ArrayList<DataPoints[]> results =
+            new ArrayList<DataPoints[]>(nqueries);
     final ArrayList<Deferred<DataPoints[]>> deferreds =
-      new ArrayList<Deferred<DataPoints[]>>(nqueries);
-    
-    for (int i = 0; i < nqueries; i++) {
-      deferreds.add(tsdbqueries[i].executeQuery());
+            new ArrayList<Deferred<DataPoints[]>>(nqueries);
+
+    try {
+      for (Deferred<TsdbQuery> tsdbquery : tsdbqueries) {
+        deferreds.add(tsdb.executeQuery(tsdbquery.joinUninterruptibly()));
+      }
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
     }
 
     /**
