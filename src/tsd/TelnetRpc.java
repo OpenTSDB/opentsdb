@@ -19,7 +19,7 @@ import org.jboss.netty.channel.Channel;
 import net.opentsdb.core.TSDB;
 
 /** Base interface for all telnet-style RPC handlers. */
-interface TelnetRpc {
+public interface TelnetRpc {
 
   /**
    * Executes this RPC.

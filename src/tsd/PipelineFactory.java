@@ -57,7 +57,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    */
   public PipelineFactory(final TSDB tsdb) {
     this.tsdb = tsdb;
-    this.rpchandler = new RpcHandler(tsdb);
+    this.rpchandler = RpcHandler.getInstance(tsdb);
     try {
       HttpQuery.initializeSerializerMaps(tsdb);
     } catch (RuntimeException e) {

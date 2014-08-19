@@ -16,14 +16,15 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.google.common.net.HttpHeaders;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.BuildData;
+import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.JSON;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -32,12 +33,13 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.websocketx.WebSocketFrame;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import net.opentsdb.BuildData;
-import net.opentsdb.core.Aggregators;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.utils.JSON;
+import com.google.common.net.HttpHeaders;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
@@ -45,17 +47,23 @@ import net.opentsdb.utils.JSON;
 final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(RpcHandler.class);
+  
+  /** The singleton instance */
+  private static volatile RpcHandler instance = null;
+  /** The singleton instance ctor lock */
+  private static final Object lock = new Object();
+  
 
   private static final AtomicLong telnet_rpcs_received = new AtomicLong();
   private static final AtomicLong http_rpcs_received = new AtomicLong();
   private static final AtomicLong exceptions_caught = new AtomicLong();
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
-  private final HashMap<String, TelnetRpc> telnet_commands;
+  private final Map<String, TelnetRpc> telnet_commands = new ConcurrentHashMap<String, TelnetRpc>(64);;
   /** RPC executed when there's an unknown telnet-style command. */
   private final TelnetRpc unknown_cmd = new Unknown();
   /** Commands we serve on the HTTP interface. */
-  private final HashMap<String, HttpRpc> http_commands;
+  private final Map<String, HttpRpc> http_commands = new ConcurrentHashMap<String, HttpRpc>(64);;
   /** List of domains to allow access to HTTP. By default this will be empty and
    * all CORS headers will be ignored. */
   private final HashSet<String> cors_domains;
@@ -63,6 +71,22 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   /** The TSDB to use. */
   private final TSDB tsdb;
 
+	/**
+	 * Acquires the RpcHandler singleton instance.
+	 * @param tsdb The TSDB to use.
+	 * @return the RpcHandler singleton instance
+	 */
+	static RpcHandler getInstance(final TSDB tsdb) {
+		if(instance == null) {
+			synchronized(lock) {
+				if(instance == null) {
+					instance = new RpcHandler(tsdb);
+				}
+			}
+		}
+		return instance;
+	}  
+  
   /**
    * Constructor that loads the CORS domain list and configures the route maps 
    * for telnet and HTTP requests
@@ -70,7 +94,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
    * @throws IllegalArgumentException if there was an error with the CORS domain
    * list
    */
-  public RpcHandler(final TSDB tsdb) {
+  private RpcHandler(final TSDB tsdb) {
     this.tsdb = tsdb;
 
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
@@ -91,8 +115,6 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
     }
     
-    telnet_commands = new HashMap<String, TelnetRpc>(7);
-    http_commands = new HashMap<String, HttpRpc>(11);
     {
       final DieDieDie diediedie = new DieDieDie();
       telnet_commands.put("diediedie", diediedie);
@@ -150,6 +172,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     http_commands.put("api/annotation", new AnnotationRpc());
     http_commands.put("api/search", new SearchRpc());
     http_commands.put("api/config", new ShowConfig());
+    HandlerRegistrar.getInstance(telnet_commands, http_commands);
   }
 
   @Override
@@ -161,6 +184,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         handleTelnetRpc(msgevent.getChannel(), (String[]) message);
       } else if (message instanceof HttpRequest) {
         handleHttpQuery(tsdb, msgevent.getChannel(), (HttpRequest) message);
+      } else if (message instanceof WebSocketFrame) {
+    	 ctx.sendUpstream(msgevent);
       } else {
         logError(msgevent.getChannel(), "Unexpected message type "
                  + message.getClass() + ": " + message);

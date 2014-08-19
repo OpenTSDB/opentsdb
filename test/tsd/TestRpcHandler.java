@@ -68,14 +68,14 @@ public final class TestRpcHandler {
   
   @Test
   public void ctorDefaults() {
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     assertNotNull(rpc);
   }
   
   @Test
   public void ctorCORSPublic() {
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     assertNotNull(rpc);
   }
   
@@ -83,7 +83,7 @@ public final class TestRpcHandler {
   public void ctorCORSSeparated() {
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
         "aurther.com,dent.net,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     assertNotNull(rpc);
   }
   
@@ -91,7 +91,7 @@ public final class TestRpcHandler {
   public void ctorCORSPublicAndDomains() {
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
         "*,aurther.com,dent.net,beeblebrox.org");
-    new RpcHandler(tsdb);
+    RpcHandler.getInstance(tsdb);
   }
   
   @Test
@@ -113,7 +113,7 @@ public final class TestRpcHandler {
       }
     );
     
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   
@@ -138,7 +138,7 @@ public final class TestRpcHandler {
     );
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   
@@ -164,7 +164,7 @@ public final class TestRpcHandler {
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
         "aurther.com,dent.net,42.com,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   
@@ -189,7 +189,7 @@ public final class TestRpcHandler {
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
         "aurther.com,dent.net,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   
@@ -211,7 +211,7 @@ public final class TestRpcHandler {
       }
     );
     
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   
@@ -234,7 +234,7 @@ public final class TestRpcHandler {
       }
     );
     
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   
@@ -259,7 +259,7 @@ public final class TestRpcHandler {
     );
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   
@@ -285,7 +285,7 @@ public final class TestRpcHandler {
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
       "aurther.com,dent.net,42.com,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   
@@ -310,7 +310,7 @@ public final class TestRpcHandler {
     
     tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
       "aurther.com,dent.net,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb);
+    final RpcHandler rpc = RpcHandler.getInstance(tsdb);
     rpc.messageReceived(ctx, message);
   }
   

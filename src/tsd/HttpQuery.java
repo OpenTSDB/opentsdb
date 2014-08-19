@@ -64,7 +64,7 @@ import net.opentsdb.utils.PluginLoader;
  * It makes it easier to provide a few utility methods to respond to the
  * requests.
  */
-final class HttpQuery {
+public final class HttpQuery {
 
   private static final Logger LOG = LoggerFactory.getLogger(HttpQuery.class);
 
