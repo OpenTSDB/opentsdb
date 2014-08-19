@@ -24,6 +24,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.tree.Tree;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
 import org.hbase.async.*;
@@ -954,6 +955,16 @@ public class MemoryStore implements TsdbStore {
     }
     return Deferred.fromResult(del_list.size());
 
+  }
+
+  @Override
+  public Deferred<Tree> fetchTree(int tree_id) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> storeTree(Tree tree, boolean overwrite) {
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   /**

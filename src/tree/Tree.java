@@ -21,7 +21,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.PatternSyntaxException;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
@@ -301,79 +303,6 @@ public final class Tree {
   }
   
   /**
-   * Attempts to store the tree definition via a CompareAndSet call.
-   * @param tsdb The TSDB to use for access
-   * @param overwrite Whether or not tree data should be overwritten
-   * @return True if the write was successful, false if an error occurred
-   * @throws IllegalArgumentException if the tree ID is missing or invalid
-   * @throws HBaseException if a storage exception occurred
-   */
-  public Deferred<Boolean> storeTree(final TSDB tsdb, final boolean overwrite) {
-    if (tree_id < 1 || tree_id > 65535) {
-      throw new IllegalArgumentException("Invalid Tree ID");
-    }
-    
-    // if there aren't any changes, save time and bandwidth by not writing to
-    // storage
-    boolean has_changes = false;
-    for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
-      if (entry.getValue()) {
-        has_changes = true;
-        break;
-      }
-    }
-    if (!has_changes) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
-      throw new IllegalStateException("No changes detected in the tree");
-    }
-
-    /**
-     * Callback executed after loading a tree from storage so that we can
-     * synchronize changes to the meta data and write them back to storage.
-     */
-    final class StoreTreeCB implements Callback<Deferred<Boolean>, Tree> {
-      
-      final private Tree local_tree;
-      
-      public StoreTreeCB(final Tree local_tree) {
-        this.local_tree = local_tree;
-      }
-      
-      /**
-       * Synchronizes the stored tree object (if found) with the local tree 
-       * and issues a CAS call to write the update to storage.
-       * @return True if the CAS was successful, false if something changed 
-       * in flight
-       */
-      @Override
-      public Deferred<Boolean> call(final Tree fetched_tree) throws Exception {
-        
-        Tree stored_tree = fetched_tree;
-        final byte[] original_tree = stored_tree == null ? new byte[0] : 
-          stored_tree.toStorageJson();
-
-        // now copy changes
-        if (stored_tree == null) {
-          stored_tree = local_tree;
-        } else {
-          stored_tree.copyChanges(local_tree, overwrite);
-        }
-        
-        // reset the change map so we don't keep writing
-        initializeChangedMap();
-        
-        final PutRequest put = new PutRequest(tsdb.treeTable(), 
-            Tree.idToBytes(tree_id), TREE_FAMILY, TREE_QUALIFIER, 
-            stored_tree.toStorageJson());
-        return tsdb.getTsdbStore().compareAndSet(put, original_tree);
-      }
-    }
-    
-    // initiate the sync by attempting to fetch an existing tree from storage
-    return fetchTree(tsdb, tree_id).addCallbackDeferring(new StoreTreeCB(this));
-  }
-  
-  /**
    * Retrieves a single rule from the rule set given a level and order
    * @param level The level where the rule resides
    * @param order The order in the level where the rule resides
@@ -431,6 +360,12 @@ public final class Tree {
      */
     final class CreateNewCB implements Callback<Deferred<Integer>, List<Tree>> {
 
+      private final Tree local_tree;
+
+      public CreateNewCB(Tree tree) {
+        local_tree = tree;
+      }
+
       @Override
       public Deferred<Integer> call(List<Tree> trees) throws Exception {
         int max_id = 0;
@@ -447,82 +382,13 @@ public final class Tree {
           throw new IllegalStateException("Exhausted all Tree IDs");
         }
         
-        return storeTree(tsdb, true).addCallbackDeferring(new CreatedCB());
+        return tsdb.storeTree(local_tree, true).addCallbackDeferring(new CreatedCB());
       }
       
     }
     
     // starts the process by fetching all tree definitions from storage
-    return fetchAllTrees(tsdb).addCallbackDeferring(new CreateNewCB());
-  }
-  
-  /**
-   * Attempts to fetch the given tree from storage, loading the rule set at
-   * the same time.
-   * @param tsdb The TSDB to use for access
-   * @param tree_id The Tree to fetch
-   * @return A tree object if found, null if the tree did not exist
-   * @throws IllegalArgumentException if the tree ID was invalid
-   * @throws HBaseException if a storage exception occurred
-   * @throws JSONException if the object could not be deserialized
-   */
-  public static Deferred<Tree> fetchTree(final TSDB tsdb, final int tree_id) {
-    if (tree_id < 1 || tree_id > 65535) {
-      throw new IllegalArgumentException("Invalid Tree ID");
-    }
-
-    // fetch the whole row
-    final GetRequest get = new GetRequest(tsdb.treeTable(), idToBytes(tree_id));
-    get.family(TREE_FAMILY);
-    
-    /**
-     * Called from the GetRequest with results from storage. Loops through the
-     * columns and loads the tree definition and rules
-     */
-    final class FetchTreeCB implements Callback<Deferred<Tree>, 
-      ArrayList<KeyValue>> {
-  
-      @Override
-      public Deferred<Tree> call(ArrayList<KeyValue> row) throws Exception {
-        if (row == null || row.isEmpty()) {
-          return Deferred.fromResult(null);
-        }
-        
-        final Tree tree = new Tree();
-        
-        // WARNING: Since the JSON in storage doesn't store the tree ID, we need
-        // to loadi t from the row key.
-        tree.setTreeId(bytesToId(row.get(0).key()));
-        
-        for (KeyValue column : row) {
-          if (Bytes.memcmp(TREE_QUALIFIER, column.qualifier()) == 0) {
-            // it's *this* tree. We deserialize to a new object and copy
-            // since the columns could be in any order and we may get a rule 
-            // before the tree object
-            final Tree local_tree = JSON.parseToObject(column.value(), Tree.class);
-            tree.created = local_tree.created;
-            tree.description = local_tree.description;
-            tree.name = local_tree.name;
-            tree.notes = local_tree.notes;
-            tree.strict_match = local_tree.strict_match;
-            tree.enabled = local_tree.enabled;
-            tree.store_failures = local_tree.store_failures;
-            
-          // Tree rule
-          } else if (Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0, 
-              TreeRule.RULE_PREFIX().length) == 0) {
-            final TreeRule rule = TreeRule.parseFromStorage(column);
-            tree.addRule(rule);
-          }
-        }
-        
-        return Deferred.fromResult(tree);
-      }
-      
-    }
-    
-    // issue the get request
-    return tsdb.getTsdbStore().get(get).addCallbackDeferring(new FetchTreeCB());
+    return fetchAllTrees(tsdb).addCallbackDeferring(new CreateNewCB(this));
   }
 
   /**
@@ -939,9 +805,7 @@ public final class Tree {
    * @throws IllegalArgumentException if the Tree ID is invalid
    */
   public static byte[] idToBytes(final int tree_id) {
-    if (tree_id < 1 || tree_id > 65535) {
-      throw new IllegalArgumentException("Missing or invalid tree ID");
-    }
+    validateTreeID(tree_id);
     final byte[] id = Bytes.fromInt(tree_id);
     return Arrays.copyOfRange(id, id.length - TREE_ID_WIDTH, id.length);
   }
@@ -985,7 +849,7 @@ public final class Tree {
   /**
    * Sets or resets the changed map flags
    */
-  private void initializeChangedMap() {
+  public void initializeChangedMap() {
     // set changed flags
     // tree_id can't change
     changed.put("name", false);
@@ -1009,7 +873,7 @@ public final class Tree {
    * keep redundant data down
    * @return A byte array with the serialized tree
    */
-  private byte[] toStorageJson() {
+  public byte[] toStorageJson() {
     // TODO - precalc how much memory to grab
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try {
@@ -1213,12 +1077,12 @@ public final class Tree {
   public boolean getEnabled() { 
     return enabled;
   }
-  
+
   /** @return Whether or not to store not matched and collisions */
   public boolean getStoreFailures() {
     return store_failures;
   }
-  
+
   /** @return The tree's rule set */
   public Map<Integer, TreeMap<Integer, TreeRule>> getRules() {
     return rules;
@@ -1295,4 +1159,20 @@ public final class Tree {
     this.created = created;
   }
 
+  public boolean hasChanged () {
+    //check if anything has changed
+    for (Map.Entry<String, Boolean> entry : changed.entrySet()) {
+      if (entry.getValue()) {
+        return true;
+      }
+    }
+  return false;
+  }
+
+  public static void validateTreeID(int id) {
+    //magic numbers? maybe moved to constant?
+    if (id < Const.MIN_TREE_ID_EXCLUSIVE || id > Const.MAX_TREE_ID_EXCLUSIVE) {
+      throw new IllegalArgumentException("Invalid Tree ID");
+    }
+  }
 }

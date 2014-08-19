@@ -21,14 +21,16 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.JSONException;
 import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,10 +72,12 @@ public class HBaseStore implements TsdbStore {
    */
   private static final byte[] NAME_FAMILY = toBytes("name");
 
-  /**
-   * The single column family used by this class.
-   */
+  /** The single column family used by this class. */
   private static final byte[] UID_FAMILY = toBytes("name");
+  /** Name of the CF where trees and branches are stored. */
+  private static final byte[] TREE_FAMILY = toBytes("t");
+  /** The tree qualifier */
+  private static final byte[] TREE_QUALIFIER = toBytes("tree");
 
   final org.hbase.async.HBaseClient client;
 
@@ -1013,5 +1017,132 @@ public class HBaseStore implements TsdbStore {
         return Optional.of(cells.get(0));
       }
     }
+  }
+
+   //TREE_STUFF TODO remove just here so all tree stuff will be grouped
+
+  /**
+   * Attempts to fetch the given tree from storage, loading the rule set at
+   * the same time.
+   * Do not use this methods directly but call by using TSDB.
+   *
+   * @param tree_id The Tree id to fetch
+   * @return A tree object if found, null if the tree did not exist
+   * @throws IllegalArgumentException if the tree ID was invalid
+   * @throws HBaseException if a storage exception occurred
+   * @throws JSONException if the object could not be deserialized
+   */
+  @Override
+  public Deferred<Tree> fetchTree(int tree_id) {
+
+    /**
+     * Called from the GetRequest with results from storage. Loops through the
+     * columns and loads the tree definition and rules
+     */
+    final class FetchTreeCB implements Callback<Deferred<Tree>,
+            ArrayList<KeyValue>> {
+
+      @Override
+      public Deferred<Tree> call(ArrayList<KeyValue> row) throws Exception {
+        if (row == null || row.isEmpty()) {
+          return Deferred.fromResult(null);
+        }
+
+        final Tree tree = new Tree();
+
+        // WARNING: Since the JSON in storage doesn't store the tree ID, we need
+        // to loadi t from the row key.
+        tree.setTreeId(Tree.bytesToId(row.get(0).key()));
+
+        for (KeyValue column : row) {
+          if (Bytes.memcmp(TREE_QUALIFIER, column.qualifier()) == 0) {
+            // it's *this* tree. We deserialize to a new object and copy
+            // since the columns could be in any order and we may get a rule
+            // before the tree object
+            final Tree local_tree = JSON.parseToObject(column.value(), Tree.class);
+            tree.setCreated(local_tree.getCreated());
+            tree.setDescription(local_tree.getDescription());
+            tree.setName(local_tree.getName());
+            tree.setNotes(local_tree.getNotes());
+            tree.setStrictMatch(local_tree.getStrictMatch());
+            tree.setEnabled(local_tree.getEnabled());
+            tree.setStoreFailures(local_tree.getStoreFailures());
+            // Tree rule
+          } else if (Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0,
+                  TreeRule.RULE_PREFIX().length) == 0) {
+            final TreeRule rule = TreeRule.parseFromStorage(column);
+            tree.addRule(rule);
+          }
+        }
+
+        return Deferred.fromResult(tree);
+      }
+
+    }
+    // fetch the whole row
+    final GetRequest get = new GetRequest(tree_table_name, Tree.idToBytes(tree_id));
+    get.family(TREE_FAMILY);
+
+    // issue the get request
+    return get(get).addCallbackDeferring(new FetchTreeCB());
+  }
+
+  /**
+   * Attempts to store the tree definition via a CompareAndSet call.
+   * Do not use this methods directly but call by using TSDB.
+   *
+   * @param tree The Tree to be stored.
+   * @param overwrite Whether or not tree data should be overwritten
+   * @return True if the write was successful, false if an error occurred
+   * @throws IllegalArgumentException if the tree ID is missing or invalid
+   * @throws HBaseException if a storage exception occurred
+   */
+  @Override
+  public Deferred<Boolean> storeTree(final Tree tree, final boolean overwrite) {
+
+    /**
+     * Callback executed after loading a tree from storage so that we can
+     * synchronize changes to the meta data and write them back to storage.
+     */
+    final class StoreTreeCB implements Callback<Deferred<Boolean>, Tree> {
+
+      final private Tree local_tree;
+
+      public StoreTreeCB(final Tree local_tree) {
+        this.local_tree = local_tree;
+      }
+
+      /**
+       * Synchronizes the stored tree object (if found) with the local tree
+       * and issues a CAS call to write the update to storage.
+       * @return True if the CAS was successful, false if something changed
+       * in flight
+       */
+      @Override
+      public Deferred<Boolean> call(final Tree fetched_tree) throws Exception {
+
+        Tree stored_tree = fetched_tree;
+        final byte[] original_tree = stored_tree == null ? new byte[0] :
+                stored_tree.toStorageJson();
+
+        // now copy changes
+        if (stored_tree == null) {
+          stored_tree = local_tree;
+        } else {
+          stored_tree.copyChanges(local_tree, overwrite);
+        }
+
+        // reset the change map so we don't keep writing
+        tree.initializeChangedMap();
+
+        final PutRequest put = new PutRequest(tree_table_name,
+                Tree.idToBytes(tree.getTreeId()), TREE_FAMILY, TREE_QUALIFIER,
+                stored_tree.toStorageJson());
+        return compareAndSet(put, original_tree);
+      }
+    }
+
+    return fetchTree(tree.getTreeId()).addCallbackDeferring(new StoreTreeCB(tree));
+
   }
 }

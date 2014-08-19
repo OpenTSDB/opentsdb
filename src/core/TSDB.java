@@ -24,6 +24,9 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.TreeRule;
+import net.opentsdb.utils.JSON;
 import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +49,7 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.uid.NoSuchUniqueId;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -1103,10 +1107,10 @@ public class TSDB {
 
   /**
    * Attempts to mark an Annotation object for deletion. Note that if the
-   * annoation does not exist in storage, this delete call will not throw an
+   * annotation does not exist in storage, this delete call will not throw an
    * error.
    *
-   * @param annotation
+   * @param annotation The Annotation we want to store.
    * @return A meaningless Deferred for the caller to wait on until the call is
    * complete. The value may be null.
    */
@@ -1137,7 +1141,7 @@ public class TSDB {
    * <b>Note:</b> If the local object didn't have any fields set by the caller
    * then the data will not be written.
    *
-   * @param tsdb      The TSDB to use for storage access
+   * @param meta      The UIDMeta to store.
    * @param overwrite When the RPC method is PUT, will overwrite all user
    *                  accessible fields
    * @return True if the storage call was successful, false if the object
@@ -1223,8 +1227,7 @@ public class TSDB {
   }
 
   /**
-   * Convenience overload of {@code getUIDMeta(TSDB, UniqueIdType, byte[])}
-   * @param tsdb The TSDB to use for storage access
+   * Convenience overload of {@code getUIDMeta(UniqueIdType, byte[])}
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
@@ -1246,7 +1249,6 @@ public class TSDB {
    * storage. You can tell it's a default if the {@code created} value is 0. If
    * the meta was generated at UID assignment or updated by the meta sync CLI
    * command, it will have a valid created timestamp.
-   * @param tsdb The TSDB to use for storage access
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
@@ -1266,7 +1268,7 @@ public class TSDB {
 
       /**
        * Called after verifying that the name mapping exists
-       * @return The results of {@link #FetchMetaCB}
+       * @return The results of {@link #tsdb_store.getMeta}
        */
       @Override
       public Deferred<UIDMeta> call(final String name) throws Exception {
@@ -1276,5 +1278,42 @@ public class TSDB {
 
     // verify that the UID is still in the map before fetching from storage
     return getUidName(type, uid).addCallbackDeferring(new NameCB());
+  }
+
+  /**
+   * Attempts to store the tree definition via a CompareAndSet call.
+   *
+   * @param tree The Tree to be stored.
+   * @param overwrite Whether or not tree data should be overwritten
+   * @return True if the write was successful, false if an error occurred
+   * @throws IllegalArgumentException if the tree ID is missing or invalid
+   * @throws HBaseException if a storage exception occurred
+   */
+  public Deferred<Boolean> storeTree(final Tree tree, final boolean overwrite) {
+    Tree.validateTreeID(tree.getTreeId());
+    // if there aren't any changes, save time and bandwidth by not writing to
+    // storage
+    if (!tree.hasChanged()) {
+      LOG.debug(this + " does not have changes, skipping sync to storage");
+      throw new IllegalStateException("No changes detected in the tree");
+    }
+    return tsdb_store.storeTree(tree, overwrite);
+  }
+
+
+  /**
+   * Attempts to fetch the given tree from storage, loading the rule set at
+   * the same time.
+   * @param tree_id The Tree to fetch
+   * @return A tree object if found, null if the tree did not exist
+   * @throws IllegalArgumentException if the tree ID was invalid
+   * @throws HBaseException if a storage exception occurred
+   * @throws net.opentsdb.utils.JSONException if the object could not be
+   * deserialized
+   */
+  public Deferred<Tree> fetchTree(final int tree_id) {
+    Tree.validateTreeID(tree_id);
+
+    return tsdb_store.fetchTree(tree_id);
   }
 }

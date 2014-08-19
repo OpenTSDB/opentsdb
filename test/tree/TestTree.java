@@ -204,7 +204,7 @@ public final class TestTree {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
     tree.setName("New Name");
-    assertNotNull(tree.storeTree(tsdb, false)
+    assertNotNull(tsdb.storeTree(tree, false)
       .joinUninterruptibly());
   }
   
@@ -212,8 +212,8 @@ public final class TestTree {
   public void storeTreeNoChanges() throws Exception {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
-    tree.storeTree(tsdb, false);
-    tree.storeTree(tsdb, false);
+    tsdb.storeTree(tree, false);
+    tsdb.storeTree(tree, false);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -221,7 +221,7 @@ public final class TestTree {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
     tree.setTreeId(0);
-    tree.storeTree(tsdb, false);
+    tsdb.storeTree(tree, false);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -229,7 +229,7 @@ public final class TestTree {
     setupStorage(true, true);
     final Tree tree = buildTestTree();
     tree.setTreeId(655536);
-    tree.storeTree(tsdb, false);
+    tsdb.storeTree(tree, false);
   }
   
   @Test
@@ -377,7 +377,7 @@ public final class TestTree {
   @Test
   public void fetchTree() throws Exception {
     setupStorage(true, true);
-    final Tree tree = Tree.fetchTree(tsdb, 1)
+    final Tree tree = tsdb.fetchTree(1)
     .joinUninterruptibly();
     assertNotNull(tree);
     assertEquals("Test Tree", tree.getName());
@@ -388,19 +388,19 @@ public final class TestTree {
   @Test
   public void fetchTreeDoesNotExist() throws Exception {
     setupStorage(true, true);
-    assertNull(Tree.fetchTree(tsdb, 3).joinUninterruptibly());
+    assertNull(tsdb.fetchTree(3).joinUninterruptibly());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchTreeID0() throws Exception {
     setupStorage(true, true);
-    Tree.fetchTree(tsdb, 0);
+    tsdb.fetchTree(0);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchTreeID65536() throws Exception {
     setupStorage(true, true);
-    Tree.fetchTree(tsdb, 65536);
+    tsdb.fetchTree(65536);
   }
   
   @Test
