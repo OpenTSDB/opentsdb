@@ -92,6 +92,7 @@ public final class PluginLoader {
    */
   public static <T> T loadSpecificPlugin(final String name, 
       final Class<T> type) {
+    LOG.info("Loading plugin [{}] of type [{}]", name, type.getName());
     if (name.isEmpty()) {
       throw new IllegalArgumentException("Missing plugin name");
     }

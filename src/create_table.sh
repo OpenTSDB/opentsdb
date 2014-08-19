@@ -1,6 +1,8 @@
 #!/bin/sh
 # Small script to setup the HBase tables used by OpenTSDB.
 
+export HBASE_HOME=/home/nwhitehead/services/hbase/hbase-0.96.2-hadoop1
+
 test -n "$HBASE_HOME" || {
   echo >&2 'The environment variable HBASE_HOME must be set'
   exit 1

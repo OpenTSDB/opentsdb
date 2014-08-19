@@ -42,7 +42,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
+  "com.sum.*", "org.xml.*", "com.sun.org.apache.xerces.internal.jaxp.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 

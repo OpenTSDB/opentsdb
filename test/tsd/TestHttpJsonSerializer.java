@@ -22,9 +22,12 @@ import java.util.List;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.PluginJARFactory;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -39,6 +42,29 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
 public final class TestHttpJsonSerializer {
   private TSDB tsdb = null;
+  
+  /**
+   * Creates the plugin jar
+   */
+  @BeforeClass
+  public static void initPluginJar() {
+	  PluginJARFactory.newBuilder("plugin_test.jar")
+	  	.service("net.opentsdb.plugin.DummyPlugin", "net.opentsdb.plugin.DummyPluginA", "net.opentsdb.plugin.DummyPluginB")
+	  	.service("net.opentsdb.search.SearchPlugin", "net.opentsdb.search.DummySearchPlugin")
+	  	.service("net.opentsdb.tsd.HttpSerializer", "net.opentsdb.tsd.DummyHttpSerializer")
+	  	.service("net.opentsdb.tsd.RpcPlugin", "net.opentsdb.tsd.DummyRpcPlugin")
+	  	.service("net.opentsdb.tsd.RTPublisher", "net.opentsdb.tsd.DummyRTPublisher")
+	  	.build();
+  }
+  
+  /**
+   * Clears the created plugin jar
+   */
+  @AfterClass
+  public static void clearPluginJar() {
+	  PluginJARFactory.purge();
+  }
+  
 
   @Before
   public void before() throws Exception {

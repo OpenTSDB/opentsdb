@@ -17,6 +17,9 @@ pom.xml
 *.orig
 *.log
 
+.bak
+*.bak
+
 #for Intellij
 \.idea
 *.iml
@@ -38,3 +41,4 @@ guava-rpm-maker/\.project
 src-main
 src-test
 plugin_test.jar
+mavenview

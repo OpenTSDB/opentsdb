@@ -29,6 +29,7 @@ import java.util.Map;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.PluginJARFactory;
 import net.opentsdb.utils.PluginLoader;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -40,7 +41,9 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.jboss.netty.util.CharsetUtil;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -51,6 +54,30 @@ import org.powermock.modules.junit4.PowerMockRunner;
 public final class TestHttpQuery {
   private TSDB tsdb = null;
   final static private Method guessMimeTypeFromUri;
+  
+  /**
+   * Creates the plugin jar
+   */
+  @BeforeClass
+  public static void initPluginJar() {
+	  PluginJARFactory.newBuilder("plugin_test.jar")
+	  	.service("net.opentsdb.plugin.DummyPlugin", "net.opentsdb.plugin.DummyPluginA", "net.opentsdb.plugin.DummyPluginB")
+	  	.service("net.opentsdb.search.SearchPlugin", "net.opentsdb.search.DummySearchPlugin")
+	  	.service("net.opentsdb.tsd.HttpSerializer", "net.opentsdb.tsd.DummyHttpSerializer")
+	  	.service("net.opentsdb.tsd.RpcPlugin", "net.opentsdb.tsd.DummyRpcPlugin")
+	  	.service("net.opentsdb.tsd.RTPublisher", "net.opentsdb.tsd.DummyRTPublisher")
+	  	.build();
+  }
+  
+  /**
+   * Clears the created plugin jar
+   */
+  @AfterClass
+  public static void clearPluginJar() {
+	  PluginJARFactory.purge();
+  }
+  
+  
   static {
     try {
       guessMimeTypeFromUri = HttpQuery.class.getDeclaredMethod(
@@ -80,6 +107,7 @@ public final class TestHttpQuery {
       throw new RuntimeException("Failed in static initializer", e);
     }
   }
+  
   
   @Before
   public void before() throws Exception {

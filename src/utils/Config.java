@@ -123,6 +123,13 @@ public class Config {
       this.loadConfig();
     this.setDefaults();
   }
+  
+  /**
+   * Creates a new empty Config
+   */
+  public Config() {
+	  
+  }
 
   /**
    * Constructor that initializes default values and attempts to load the given
@@ -459,6 +466,23 @@ public class Config {
     loadStaticVariables();
   }
 
+  public void setStatics() {
+	    // set statics
+	    auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
+	    enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
+	    enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
+	    enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
+	    enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
+	    enable_tsuid_incrementing = 
+	      this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
+	    enable_tsuid_tracking = 
+	      this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
+	    if (this.hasProperty("tsd.http.request.max_chunk")) {
+	      max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
+	    }
+	    enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
+	  
+  }
   /**
    * Searches a list of locations for a valid opentsdb.conf file
    * 
