@@ -103,7 +103,7 @@ final class TreeRpc implements HttpRpc {
   
         if (tree.getTreeId() == 0) {
           query.sendReply(query.serializer().formatTreesV1(
-              Tree.fetchAllTrees(tsdb).joinUninterruptibly()));
+              tsdb.getTsdbStore().fetchAllTrees().joinUninterruptibly()));
         } else {
           final Tree single_tree = tsdb.fetchTree(tree.getTreeId())
             .joinUninterruptibly();
@@ -140,7 +140,7 @@ final class TreeRpc implements HttpRpc {
           }
         } else {
           // create a new tree
-          final int tree_id = tree.createNewTree(tsdb).joinUninterruptibly(); 
+          final int tree_id = tsdb.createNewTree(tree).joinUninterruptibly();
           if (tree_id > 0) {
             final Tree stored_tree = tsdb.fetchTree(tree_id)
               .joinUninterruptibly();

@@ -120,4 +120,8 @@ public interface TsdbStore {
   Deferred<Tree> fetchTree(final int tree_id);
 
   Deferred<Boolean> storeTree(final Tree tree, final boolean overwrite);
+
+  public Deferred<Integer> createNewTree(final Tree tree);
+
+  public Deferred<List<Tree>> fetchAllTrees();
 }

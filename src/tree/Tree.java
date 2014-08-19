@@ -27,7 +27,6 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.JSONException;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -321,166 +320,7 @@ public final class Tree {
     return rule_level.get(order);
   }
   
-  /**
-   * Attempts to store the local tree in a new row, automatically assigning a
-   * new tree ID and returning the value.
-   * This method will scan the UID table for the maximum tree ID, increment it,
-   * store the new tree, and return the new ID. If no trees have been created,
-   * the returned ID will be "1". If we have reached the limit of trees for the
-   * system, as determined by {@link #TREE_ID_WIDTH}, we will throw an exception.
-   * @param tsdb The TSDB to use for storage access
-   * @return A positive ID, greater than 0 if successful, 0 if there was
-   * an error
-   */
-  public Deferred<Integer> createNewTree(final TSDB tsdb) {
-    if (tree_id > 0) {
-      throw new IllegalArgumentException("Tree ID has already been set");
-    }
-    if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException("Tree was missing the name");
-    }
-    
-    /**
-     * Called after a successful CAS to store the new tree with the new ID.
-     * Returns the new ID if successful, 0 if there was an error
-     */
-    final class CreatedCB implements Callback<Deferred<Integer>, Boolean> {
-      
-      @Override
-      public Deferred<Integer> call(final Boolean cas_success) 
-        throws Exception {
-        return Deferred.fromResult(tree_id);
-      }
-      
-    }
-    
-    /**
-     * Called after fetching all trees. Loops through the tree definitions and
-     * determines the max ID so we can increment and write a new one
-     */
-    final class CreateNewCB implements Callback<Deferred<Integer>, List<Tree>> {
 
-      private final Tree local_tree;
-
-      public CreateNewCB(Tree tree) {
-        local_tree = tree;
-      }
-
-      @Override
-      public Deferred<Integer> call(List<Tree> trees) throws Exception {
-        int max_id = 0;
-        if (trees != null) {
-          for (Tree tree : trees) {
-            if (tree.tree_id > max_id) {
-              max_id = tree.tree_id;
-            }
-          }
-        }
-        
-        tree_id = max_id + 1;
-        if (tree_id > 65535) {
-          throw new IllegalStateException("Exhausted all Tree IDs");
-        }
-        
-        return tsdb.storeTree(local_tree, true).addCallbackDeferring(new CreatedCB());
-      }
-      
-    }
-    
-    // starts the process by fetching all tree definitions from storage
-    return fetchAllTrees(tsdb).addCallbackDeferring(new CreateNewCB(this));
-  }
-
-  /**
-   * Attempts to retrieve all trees from the UID table, including their rules.
-   * If no trees were found, the result will be an empty list
-   * @param tsdb The TSDB to use for storage
-   * @return A list of tree objects. May be empty if none were found
-   */
-  public static Deferred<List<Tree>> fetchAllTrees(final TSDB tsdb) {
-    
-    final Deferred<List<Tree>> result = new Deferred<List<Tree>>();
-    
-    /**
-     * Scanner callback that recursively calls itself to load the next set of
-     * rows from storage. When the scanner returns a null, the callback will
-     * return with the list of trees discovered.
-     */
-    final class AllTreeScanner implements Callback<Object, 
-      ArrayList<ArrayList<KeyValue>>> {
-  
-      private final List<Tree> trees = new ArrayList<Tree>();
-      private final Scanner scanner;
-      
-      public AllTreeScanner() {
-        scanner = setupAllTreeScanner(tsdb);
-      }
-      
-      /**
-       * Fetches the next set of results from the scanner and adds this class
-       * as a callback.
-       * @return A list of trees if the scanner has reached the end
-       */
-      public Object fetchTrees() {
-        return scanner.nextRows().addCallback(this);
-      }
-      
-      @Override
-      public Object call(ArrayList<ArrayList<KeyValue>> rows)
-          throws Exception {
-        if (rows == null) {
-          result.callback(trees);
-          return null;
-        }
-        
-        for (ArrayList<KeyValue> row : rows) {
-          final Tree tree = new Tree();
-          for (KeyValue column : row) {
-            if (column.qualifier().length >= TREE_QUALIFIER.length && 
-                Bytes.memcmp(TREE_QUALIFIER, column.qualifier()) == 0) {
-              // it's *this* tree. We deserialize to a new object and copy
-              // since the columns could be in any order and we may get a rule 
-              // before the tree object
-              final Tree local_tree = JSON.parseToObject(column.value(), 
-                  Tree.class);
-              tree.created = local_tree.created;
-              tree.description = local_tree.description;
-              tree.name = local_tree.name;
-              tree.notes = local_tree.notes;
-              tree.strict_match = local_tree.strict_match;
-              tree.enabled = local_tree.enabled;
-              tree.store_failures = local_tree.store_failures;
-              
-              // WARNING: Since the JSON data in storage doesn't contain the tree
-              // ID, we need to parse it from the row key
-              tree.setTreeId(bytesToId(row.get(0).key()));
-              
-            // tree rule
-            } else if (column.qualifier().length > TreeRule.RULE_PREFIX().length &&
-                Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 
-                0, TreeRule.RULE_PREFIX().length) == 0) {
-              final TreeRule rule = TreeRule.parseFromStorage(column);
-              tree.addRule(rule);
-            }
-          }
-          
-          // only add the tree if we parsed a valid ID
-          if (tree.tree_id > 0) {
-            trees.add(tree);
-          }
-        }
-        
-        // recurse to get the next set of rows from the scanner
-        return fetchTrees();
-      }
-      
-    }
-    
-    // start the scanning process
-    new AllTreeScanner().fetchTrees();
-    return result;
-  }
-  
   /**
    * Returns the collision set from storage for the given tree, optionally for
    * only the list of TSUIDs provided.
@@ -900,32 +740,7 @@ public final class Tree {
     }
   }
   
-  /**
-   * Configures a scanner to run through all rows in the UID table that are
-   * {@link #TREE_ID_WIDTH} bytes wide using a row key regex filter 
-   * @param tsdb The TSDB to use for storage access
-   * @return The configured HBase scanner
-   */
-  private static Scanner setupAllTreeScanner(final TSDB tsdb) {
-    final byte[] start = new byte[TREE_ID_WIDTH];
-    final byte[] end = new byte[TREE_ID_WIDTH];
-    Arrays.fill(end, (byte)0xFF);
-    
-    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.treeTable());
-    scanner.setStartKey(start);
-    scanner.setStopKey(end);   
-    scanner.setFamily(TREE_FAMILY);
-    
-    // set the filter to match only on TREE_ID_WIDTH row keys
-    final StringBuilder buf = new StringBuilder(20);
-    buf.append("(?s)"  // Ensure we use the DOTALL flag.
-        + "^\\Q");
-    buf.append("\\E(?:.{").append(TREE_ID_WIDTH).append("})$");
-    scanner.setKeyRegexp(buf.toString(), CHARSET);
-    return scanner;
-  }
-
-  /**
+   /**
    * Attempts to flush the collisions to storage. The storage call is a PUT so
    * it will overwrite any existing columns, but since each column is the TSUID
    * it should only exist once and the data shouldn't change.

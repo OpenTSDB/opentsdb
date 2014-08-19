@@ -536,7 +536,7 @@ public final class TreeBuilder {
     
     // if we haven't loaded our trees in a while or we've just started, load
     if (((System.currentTimeMillis() / 1000) - last_tree_load) > 300) {
-      final Deferred<List<Tree>> load_deferred = Tree.fetchAllTrees(tsdb)
+      final Deferred<List<Tree>> load_deferred = tsdb.getTsdbStore().fetchAllTrees()
         .addCallback(new FetchedTreesCB()).addErrback(new ErrorCB());
       last_tree_load = (System.currentTimeMillis() / 1000);
       return load_deferred.addCallbackDeferring(new ProcessTreesCB());

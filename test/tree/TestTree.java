@@ -334,7 +334,7 @@ public final class TestTree {
     setupStorage(true, true);
     final Tree tree = new Tree();
     tree.setName("New Tree");
-    final int tree_id = tree.createNewTree(tsdb)
+    final int tree_id = tsdb.createNewTree(tree)
     .joinUninterruptibly();
     assertEquals(3, tree_id);
     assertEquals(5, tsdb_store.numRows());
@@ -347,7 +347,7 @@ public final class TestTree {
     tsdb_store.flushStorage();
     final Tree tree = new Tree();
     tree.setName("New Tree");
-    final int tree_id = tree.createNewTree(tsdb)
+    final int tree_id = tsdb.createNewTree(tree)
     .joinUninterruptibly();
     assertEquals(1, tree_id);
     assertEquals(1, tsdb_store.numRows());
@@ -358,7 +358,7 @@ public final class TestTree {
   public void createNewTreeNoChanges() throws Exception {
     setupStorage(true, true);
     final Tree tree = new Tree();
-    tree.createNewTree(tsdb).joinUninterruptibly();
+    tsdb.createNewTree(tree).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -371,7 +371,7 @@ public final class TestTree {
       "tree".getBytes(Const.CHARSET_ASCII), JSON.serializeToBytes(max_tree));
     
     final Tree tree = new Tree();
-    tree.createNewTree(tsdb).joinUninterruptibly();
+    tsdb.createNewTree(tree).joinUninterruptibly();
   }
 
   @Test
@@ -406,7 +406,7 @@ public final class TestTree {
   @Test
   public void fetchAllTrees() throws Exception {
     setupStorage(true, true);
-    final List<Tree> trees = Tree.fetchAllTrees(tsdb)
+    final List<Tree> trees = tsdb_store.fetchAllTrees()
     .joinUninterruptibly();
     assertNotNull(trees);
     assertEquals(2, trees.size());
@@ -416,7 +416,7 @@ public final class TestTree {
   public void fetchAllTreesNone() throws Exception {
     setupStorage(true, true);
     tsdb_store.flushStorage();
-    final List<Tree> trees = Tree.fetchAllTrees(tsdb)
+    final List<Tree> trees = tsdb_store.fetchAllTrees()
     .joinUninterruptibly();
     assertNotNull(trees);
     assertEquals(0, trees.size());

@@ -21,6 +21,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -78,6 +79,8 @@ public class HBaseStore implements TsdbStore {
   private static final byte[] TREE_FAMILY = toBytes("t");
   /** The tree qualifier */
   private static final byte[] TREE_QUALIFIER = toBytes("tree");
+  /** Width of tree IDs in bytes */
+  private static final short TREE_ID_WIDTH = 2;
 
   final org.hbase.async.HBaseClient client;
 
@@ -1111,7 +1114,6 @@ public class HBaseStore implements TsdbStore {
       public StoreTreeCB(final Tree local_tree) {
         this.local_tree = local_tree;
       }
-
       /**
        * Synchronizes the stored tree object (if found) with the local tree
        * and issues a CAS call to write the update to storage.
@@ -1124,14 +1126,12 @@ public class HBaseStore implements TsdbStore {
         Tree stored_tree = fetched_tree;
         final byte[] original_tree = stored_tree == null ? new byte[0] :
                 stored_tree.toStorageJson();
-
         // now copy changes
         if (stored_tree == null) {
           stored_tree = local_tree;
         } else {
           stored_tree.copyChanges(local_tree, overwrite);
         }
-
         // reset the change map so we don't keep writing
         tree.initializeChangedMap();
 
@@ -1141,8 +1141,186 @@ public class HBaseStore implements TsdbStore {
         return compareAndSet(put, original_tree);
       }
     }
-
     return fetchTree(tree.getTreeId()).addCallbackDeferring(new StoreTreeCB(tree));
+  }
+  /**
+   * Attempts to store the local tree in a new row, automatically assigning a
+   * new tree ID and returning the value.
+   * This method will scan the UID table for the maximum tree ID, increment it,
+   * store the new tree, and return the new ID. If no trees have been created,
+   * the returned ID will be "1". If we have reached the limit of trees for the
+   * system, as determined by {@link #TREE_ID_WIDTH}, we will throw an exception.
+   * @param tree The Tree to store.
+   * @return A positive ID, greater than 0 if successful, 0 if there was
+   * an error
+   */
+  @Override
+  public Deferred<Integer> createNewTree(final Tree tree) {
 
+
+    /**
+     * Called after a successful CAS to store the new tree with the new ID.
+     * Returns the new ID if successful, 0 if there was an error
+     */
+    final class CreatedCB implements Callback<Deferred<Integer>, Boolean> {
+
+      @Override
+      public Deferred<Integer> call(final Boolean cas_success)
+              throws Exception {
+        return Deferred.fromResult(tree.getTreeId());
+      }
+
+    }
+
+    /**
+     * Called after fetching all trees. Loops through the tree definitions and
+     * determines the max ID so we can increment and write a new one
+     */
+    final class CreateNewCB implements Callback<Deferred<Integer>, List<Tree>> {
+
+      private final Tree local_tree;
+
+      public CreateNewCB(Tree tree) {
+        local_tree = tree;
+      }
+
+      @Override
+      public Deferred<Integer> call(List<Tree> trees) throws Exception {
+        int max_id = 0;
+        if (trees != null) {
+          for (Tree tree : trees) {
+            if (tree.getTreeId() > max_id) {
+              max_id = tree.getTreeId();
+            }
+          }
+        }
+
+        local_tree.setTreeId(max_id + 1);
+        if (local_tree.getTreeId() > Const.MAX_TREE_ID_EXCLUSIVE) {
+          throw new IllegalStateException("Exhausted all Tree IDs");
+        }
+
+        return storeTree(local_tree, true).addCallbackDeferring(new CreatedCB());
+      }
+
+    }
+
+    // starts the process by fetching all tree definitions from storage
+    return fetchAllTrees().addCallbackDeferring(new CreateNewCB(tree));
+  }
+
+  /**
+   * Attempts to retrieve all trees from the UID table, including their rules.
+   * If no trees were found, the result will be an empty list
+   * @return A list of tree objects. May be empty if none were found
+   */
+  @Override
+  public Deferred<List<Tree>> fetchAllTrees() {
+
+    final Deferred<List<Tree>> result = new Deferred<List<Tree>>();
+
+    /**
+     * Scanner callback that recursively calls itself to load the next set of
+     * rows from storage. When the scanner returns a null, the callback will
+     * return with the list of trees discovered.
+     */
+    final class AllTreeScanner implements Callback<Object,
+            ArrayList<ArrayList<KeyValue>>> {
+
+      private final List<Tree> trees = new ArrayList<Tree>();
+      private final Scanner scanner;
+
+      public AllTreeScanner() {
+        scanner = setupAllTreeScanner();
+      }
+
+      /**
+       * Fetches the next set of results from the scanner and adds this class
+       * as a callback.
+       * @return A list of trees if the scanner has reached the end
+       */
+      public Object fetchTrees() {
+        return scanner.nextRows().addCallback(this);
+      }
+
+      @Override
+      public Object call(ArrayList<ArrayList<KeyValue>> rows)
+              throws Exception {
+        if (rows == null) {
+          result.callback(trees);
+          return null;
+        }
+
+        for (ArrayList<KeyValue> row : rows) {
+          final Tree tree = new Tree();
+          for (KeyValue column : row) {
+            if (column.qualifier().length >= TREE_QUALIFIER.length &&
+                    Bytes.memcmp(TREE_QUALIFIER, column.qualifier()) == 0) {
+              // it's *this* tree. We deserialize to a new object and copy
+              // since the columns could be in any order and we may get a rule
+              // before the tree object
+              final Tree local_tree = JSON.parseToObject(column.value(),
+                      Tree.class);
+
+              tree.setCreated(local_tree.getCreated());
+              tree.setDescription(local_tree.getDescription());
+              tree.setName(local_tree.getName());
+              tree.setNotes(local_tree.getNotes());
+              tree.setStrictMatch(local_tree.getStrictMatch());
+              tree.setEnabled(local_tree.getEnabled());
+              tree.setStoreFailures(local_tree.getStoreFailures());
+
+              // WARNING: Since the JSON data in storage doesn't contain the tree
+              // ID, we need to parse it from the row key
+              tree.setTreeId(Tree.bytesToId(row.get(0).key()));
+
+              // tree rule
+            } else if (column.qualifier().length > TreeRule.RULE_PREFIX().length &&
+                    Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(),
+                            0, TreeRule.RULE_PREFIX().length) == 0) {
+              final TreeRule rule = TreeRule.parseFromStorage(column);
+              tree.addRule(rule);
+            }
+          }
+
+          // only add the tree if we parsed a valid ID
+          if (tree.getTreeId() > 0) {
+            trees.add(tree);
+          }
+        }
+
+        // recurse to get the next set of rows from the scanner
+        return fetchTrees();
+      }
+
+    }
+
+    // start the scanning process
+    new AllTreeScanner().fetchTrees();
+    return result;
+  }
+
+  /**
+   * Configures a scanner to run through all rows in the UID table that are
+   * {@link #TREE_ID_WIDTH} bytes wide using a row key regex filter
+   * @return The configured HBase scanner
+   */
+  private Scanner setupAllTreeScanner() {
+    final byte[] start = new byte[TREE_ID_WIDTH];
+    final byte[] end = new byte[TREE_ID_WIDTH];
+    Arrays.fill(end, (byte)0xFF);
+
+    final Scanner scanner = newScanner(tree_table_name);
+    scanner.setStartKey(start);
+    scanner.setStopKey(end);
+    scanner.setFamily(TREE_FAMILY);
+
+    // set the filter to match only on TREE_ID_WIDTH row keys
+    final StringBuilder buf = new StringBuilder(20);
+    buf.append("(?s)"  // Ensure we use the DOTALL flag.
+            + "^\\Q");
+    buf.append("\\E(?:.{").append(TREE_ID_WIDTH).append("})$");
+    scanner.setKeyRegexp(buf.toString(), CHARSET);
+    return scanner;
   }
 }

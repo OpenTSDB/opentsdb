@@ -25,8 +25,6 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Tree;
-import net.opentsdb.tree.TreeRule;
-import net.opentsdb.utils.JSON;
 import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +40,7 @@ import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
+import net.opentsdb.utils.JSONException;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -1060,7 +1059,7 @@ public class TSDB {
    * <b>Note:</b> If the local object didn't have any fields set by the caller
    * or there weren't any changes, then the data will not be written and an
    * exception will be thrown.
-   * @param annotation
+   * @param annotation The The Annotation we want to store.
    * @param overwrite When the RPC method is PUT, will overwrite all user
    * accessible fields
    * True if the storage call was successful, false if the object was
@@ -1268,7 +1267,7 @@ public class TSDB {
 
       /**
        * Called after verifying that the name mapping exists
-       * @return The results of {@link #tsdb_store.getMeta}
+       * @return The results of TsdbStore.getMeta(byte[], String, UniqueIdType)
        */
       @Override
       public Deferred<UIDMeta> call(final String name) throws Exception {
@@ -1308,12 +1307,34 @@ public class TSDB {
    * @return A tree object if found, null if the tree did not exist
    * @throws IllegalArgumentException if the tree ID was invalid
    * @throws HBaseException if a storage exception occurred
-   * @throws net.opentsdb.utils.JSONException if the object could not be
-   * deserialized
+   * @throws JSONException if the object could not be deserialized
    */
   public Deferred<Tree> fetchTree(final int tree_id) {
     Tree.validateTreeID(tree_id);
 
     return tsdb_store.fetchTree(tree_id);
   }
+  /**
+   * Attempts to store the local tree in a new row, automatically assigning a
+   * new tree ID and returning the value.
+   * This method will scan the UID table for the maximum tree ID, increment it,
+   * store the new tree, and return the new ID. If no trees have been created,
+   * the returned ID will be "1". If we have reached the limit of trees for the
+   * system, as determined by Const.MAX_TREE_ID_EXCLUSIVE, we will throw an
+   * exception.
+   *
+   * @param tree The Tree to store
+   * @return A positive ID, greater than 0 if successful, 0 if there was
+   * an error
+   */
+  public Deferred<Integer> createNewTree(final Tree tree) {
+    if (tree.getTreeId() > 0) {
+      throw new IllegalArgumentException("Tree ID has already been set");
+    }
+    if (tree.getName() == null || tree.getName().isEmpty()) {
+      throw new IllegalArgumentException("Tree was missing the name");
+    }
+    return tsdb_store.createNewTree(tree);
+  }
+
 }

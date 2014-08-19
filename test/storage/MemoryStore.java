@@ -967,6 +967,16 @@ public class MemoryStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Override
+  public Deferred<Integer> createNewTree(Tree tree) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<List<Tree>> fetchAllTrees() {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
   /**
    * Attempts to fetch a global or local annotation from storage
    * @param tsuid The TSUID as a byte array. May be null if retrieving a global
