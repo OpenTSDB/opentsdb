@@ -10,5 +10,3 @@ config.status
 configure
 pom.xml
 mavenview
-src-main
-src-test
