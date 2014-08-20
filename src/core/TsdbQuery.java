@@ -44,6 +44,11 @@ public final class TsdbQuery implements Query {
   private static final Logger LOG = LoggerFactory.getLogger(TsdbQuery.class);
 
   /**
+   * Value used for timestamps that are uninitialized.
+   */
+  static final int UNSET = -1;
+
+  /**
    * Used whenever there are no results.
    */
   private static final DataPoints[] NO_RESULT = new DataPoints[0];

@@ -24,11 +24,6 @@ import static org.hbase.async.Bytes.ByteMap;
 
 public class QueryBuilder {
   /**
-   * Value used for timestamps that are uninitialized.
-   */
-  private static final int UNSET = -1;
-
-  /**
    * The TSDB we belong to.
    */
   private final TSDB tsdb;
@@ -36,12 +31,12 @@ public class QueryBuilder {
   /**
    * Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
    */
-  private long start_time = UNSET;
+  private long start_time = TsdbQuery.UNSET;
 
   /**
    * End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
    */
-  private long end_time = UNSET;
+  private long end_time = TsdbQuery.UNSET;
 
   /**
    * ID of the metric being looked up.
@@ -114,8 +109,7 @@ public class QueryBuilder {
    * the current time in milliseconds.
    */
   public QueryBuilder withStartTime(final long start_time) {
-    withStartAndEndTime(start_time, System.currentTimeMillis());
-    return this;
+    return withStartAndEndTime(start_time, TsdbQuery.UNSET);
   }
 
   /**
@@ -123,11 +117,14 @@ public class QueryBuilder {
    */
   public QueryBuilder withStartAndEndTime(final long start_time, final long end_time) {
     checkTimestamp(start_time);
-    checkTimestamp(end_time);
 
-    if (start_time >= end_time) {
-      throw new IllegalArgumentException("new start time (" + start_time
-              + ") is greater than or equal to end time: " + end_time);
+    if (end_time != TsdbQuery.UNSET) {
+      checkTimestamp(end_time);
+
+      if (start_time >= end_time) {
+        throw new IllegalArgumentException("new start time (" + start_time
+                + ") is greater than or equal to end time: " + end_time);
+      }
     }
 
     this.start_time = start_time;
@@ -323,8 +320,7 @@ public class QueryBuilder {
    * @return
    */
   public Deferred<TsdbQuery> createQuery() {
-    checkState(start_time != UNSET);
-    checkState(end_time != UNSET);
+    checkState(start_time != TsdbQuery.UNSET);
 
     if (tsuids != null) {
       return Deferred.fromResult(createFromTSUIDS());
