@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import net.opentsdb.core.AsyncIterator;
 import net.opentsdb.core.Const;
@@ -16,15 +18,26 @@ import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
+import org.hbase.async.KeyRegexpFilter;
+import org.hbase.async.ScanFilter;
 import org.hbase.async.Scanner;
 
 public class QueryRunner implements AsyncIterator<DataPoints> {
   private final TsdbQuery tsdb_query;
   private final HBaseClient client;
 
-  public QueryRunner(TsdbQuery tsdb_query, HBaseClient client) {
+  private final byte[] table;
+  private final byte[] family;
+
+  public QueryRunner(final TsdbQuery tsdb_query,
+                     final HBaseClient client,
+                     final byte[] data_table_name,
+                     final byte[] family) {
     this.tsdb_query = tsdb_query;
     this.client = client;
+
+    this.table = data_table_name;
+    this.family = family;
   }
 
   @Override
@@ -50,9 +63,9 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
   /**
    * Returns a scanner set for the given metric (from {@link #metric} or from
    * the first TSUID in the {@link #tsuids}s list. If one or more tags are
-   * provided, it calls into {@link #createAndSetFilter} to setup a row key
+   * provided, it calls into {@link #buildMetricFilter} to setup a row key
    * filter. If one or more TSUIDs have been provided, it calls into
-   * {@link #createAndSetTSUIDFilter} to setup a row key filter.
+   * {@link #buildTSUIDFilter} to setup a row key filter.
    * @return A scanner to use for fetching data points
    * @param tsdbQuery
    */
@@ -67,13 +80,8 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     final Scanner scanner = client.newScanner(table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
-    scanner.setFamily(FAMILY);
-
-    if (tsdbQuery.tsuids != null && !tsdbQuery.tsuids.isEmpty()) {
-      tsdbQuery.createAndSetTSUIDFilter(scanner);
-    } else if (tsdbQuery.tags.size() > 0 || tsdbQuery.group_bys != null) {
-      tsdbQuery.createAndSetFilter(scanner);
-    }
+    scanner.setFamily(family);
+    scanner.setFilter(buildRowKeyFilter(tsdbQuery));
 
     return scanner;
   }
@@ -129,27 +137,42 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     return -1;
   }
 
+  private ScanFilter buildRowKeyFilter(final TsdbQuery tsdbQuery) {
+    if (tsdbQuery.getTSUIDS() != null && !tsdbQuery.getTSUIDS().isEmpty()) {
+      return buildTSUIDFilter(tsdbQuery);
+    } else if (!tsdbQuery.getTags().isEmpty() || tsdbQuery.getGroupBys() != null) {
+      return buildMetricFilter(tsdbQuery);
+    }
+
+    // TODO(luuse): Is it even possible to get here, not how can we rewrite
+    // the above conditional so we don't have to throw this?
+    throw new IllegalStateException("Missing both metric and tsuids " +
+            "information so unable to build a row key filter. How the hell " +
+            "did we get here?!");
+  }
+
   /**
    * Sets the server-side regexp filter on the scanner.
    * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
    * storage from returning irrelevant rows.
-   * @param scanner The scanner on which to add the filter.
-   * @param tsdbQuery
-   * @since 2.0
+   * @param tsdbQuery The query that describes what parameters to build a
+   *                  filter for
    */
-  private void createAndSetTSUIDFilter(final Scanner scanner, TsdbQuery tsdbQuery) {
-    Collections.sort(tsdbQuery.tsuids);
+  private KeyRegexpFilter buildTSUIDFilter(final TsdbQuery tsdbQuery) {
+    List<String> tsuids = tsdbQuery.getTSUIDS();
+    Collections.sort(tsuids);
 
     // first, convert the tags to byte arrays and count up the total length
     // so we can allocate the string builder
-    final short metric_width = metrics.width();
+    final short metric_width = Const.METRICS_WIDTH;
     int tags_length = 0;
-    final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsdbQuery.tsuids.size());
-    for (final String tsuid : tsdbQuery.tsuids) {
+
+    final ArrayList<byte[]> tag_uids = new ArrayList<byte[]>(tsuids.size());
+    for (final String tsuid : tsuids) {
       final String tags = tsuid.substring(metric_width * 2);
       final byte[] tag_bytes = UniqueId.stringToUid(tags);
       tags_length += tag_bytes.length;
-      uids.add(tag_bytes);
+      tag_uids.add(tag_bytes);
     }
 
     // Generate a regexp for our tags based on any metric and timestamp (since
@@ -158,7 +181,7 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     // where each "tags" is similar to \\Q\000\000\001\000\000\002\\E
     final StringBuilder buf = new StringBuilder(
             13  // "(?s)^.{N}(" + ")$"
-                    + (tsdbQuery.tsuids.size() * 11) // "\\Q" + "\\E|"
+                    + (tsuids.size() * 11) // "\\Q" + "\\E|"
                     + tags_length); // total # of bytes in tsuids tagk/v pairs
 
     // Alright, let's build this regexp.  From the beginning...
@@ -168,31 +191,38 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
        .append(Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES)
        .append("}(");
 
-    for (final byte[] tags : uids) {
+    for (final byte[] tags : tag_uids) {
       // quote the bytes
       buf.append("\\Q");
-      HBaseStore.addId(buf, tags);
+      addId(buf, tags);
       buf.append('|');
     }
 
     // Replace the pipe of the last iteration, close and set
     buf.setCharAt(buf.length() - 1, ')');
     buf.append("$");
-    scanner.setKeyRegexp(buf.toString(), HBaseConst.CHARSET);
+
+    return new KeyRegexpFilter(buf.toString(), HBaseConst.CHARSET);
   }
 
   /**
    * Sets the server-side regexp filter on the scanner.
    * In order to find the rows with the relevant tags, we use a
    * server-side filter that matches a regular expression on the row key.
-   * @param scanner The scanner on which to add the filter.
+   * @param tsdbQuery The query that describes what parameters to build a
+   *                  filter for
    */
-  private void createAndSetFilter(final Scanner scanner) {
-    if (group_bys != null) {
-      Collections.sort(group_bys, Bytes.MEMCMP);
+  private KeyRegexpFilter buildMetricFilter(final TsdbQuery tsdbQuery) {
+    List<byte[]> group_bys1 = tsdbQuery.getGroupBys();
+    ArrayList<byte[]> tags1 = tsdbQuery.getTags();
+    Map<byte[], ArrayList<byte[]>> groupByValues = tsdbQuery.getGroupByValues();
+
+    if (group_bys1 != null) {
+      Collections.sort(group_bys1, Bytes.MEMCMP);
     }
-    final short name_width = tsdb.tag_names.width();
-    final short value_width = tsdb.tag_values.width();
+
+    final short name_width = Const.TAG_NAME_WIDTH;
+    final short value_width = Const.TAG_VALUE_WIDTH;
     final short tagsize = (short) (name_width + value_width);
     // Generate a regexp for our tags.  Say we have 2 tags: { 0 0 1 0 0 2 }
     // and { 4 5 6 9 8 7 }, the regexp will be:
@@ -200,42 +230,45 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     final StringBuilder buf = new StringBuilder(
             15  // "^.{N}" + "(?:.{M})*" + "$"
                     + ((13 + tagsize) // "(?:.{M})*\\Q" + tagsize bytes + "\\E"
-                    * (tags.size() + (group_bys == null ? 0 : group_bys.size() * 3))));
+                    * (tags1.size() + (group_bys1 == null ? 0 : group_bys1.size() * 3))));
     // In order to avoid re-allocations, reserve a bit more w/ groups ^^^
 
     // Alright, let's build this regexp.  From the beginning...
     buf.append("(?s)")  // Ensure we use the DOTALL flag.
        .append("^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append(Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES)
        .append("}");
 
-    final Iterator<byte[]> tags = this.tags.iterator();
-    final Iterator<byte[]> group_bys = (this.group_bys == null
+    final Iterator<byte[]> tags = tags1.iterator();
+    final Iterator<byte[]> group_bys = (group_bys1 == null
             ? new ArrayList<byte[]>(0).iterator()
-            : this.group_bys.iterator());
+            : group_bys1.iterator());
     byte[] tag = tags.hasNext() ? tags.next() : null;
     byte[] group_by = group_bys.hasNext() ? group_bys.next() : null;
     // Tags and group_bys are already sorted.  We need to put them in the
     // regexp in order by ID, which means we just merge two sorted lists.
     do {
       // Skip any number of tags.
-      buf.append("(?:.{").append(tagsize).append("})*\\Q");
+      buf.append("(?:.{")
+         .append(tagsize)
+         .append("})*\\Q");
+
       if (isTagNext(name_width, tag, group_by)) {
-        HBaseStore.addId(buf, tag);
+        addId(buf, tag);
         tag = tags.hasNext() ? tags.next() : null;
       } else {  // Add a group_by.
-        HBaseStore.addId(buf, group_by);
-        final byte[][] value_ids = (group_by_values == null
+        addId(buf, group_by);
+        final ArrayList<byte[]> value_ids = (groupByValues == null
                 ? null
-                : group_by_values.get(group_by));
+                : groupByValues.get(group_by));
         if (value_ids == null) {  // We don't want any specific ID...
           buf.append(".{").append(value_width).append('}');  // Any value ID.
         } else {  // We want specific IDs.  List them: /(AAA|BBB|CCC|..)/
           buf.append("(?:");
           for (final byte[] value_id : value_ids) {
             buf.append("\\Q");
-            HBaseStore.addId(buf, value_id);
+            addId(buf, value_id);
             buf.append('|');
           }
           // Replace the pipe of the last iteration.
@@ -244,9 +277,29 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
         group_by = group_bys.hasNext() ? group_bys.next() : null;
       }
     } while (tag != group_by);  // Stop when they both become null.
+
     // Skip any number of tags before the end.
     buf.append("(?:.{").append(tagsize).append("})*$");
-    scanner.setKeyRegexp(buf.toString(), CHARSET);
+
+    return new KeyRegexpFilter(buf.toString(), HBaseConst.CHARSET);
+  }
+
+  /**
+   * Appends the given ID to the given buffer, followed by "\\E".
+   */
+  private static void addId(final StringBuilder buf, final byte[] id) {
+    boolean backslash = false;
+    for (final byte b : id) {
+      buf.append((char) (b & 0xFF));
+      if (b == 'E' && backslash) {  // If we saw a `\' and now we have a `E'.
+        // So we just terminated the quoted section because we just added \E
+        // to `buf'.  So let's put a litteral \E now and start quoting again.
+        buf.append("\\\\E\\Q");
+      } else {
+        backslash = b == '\\';
+      }
+    }
+    buf.append("\\E");
   }
 
   /**

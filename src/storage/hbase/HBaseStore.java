@@ -227,24 +227,6 @@ public class HBaseStore implements TsdbStore {
   }
 
   /**
-   * Appends the given ID to the given buffer, followed by "\\E".
-   */
-  public static void addId(final StringBuilder buf, final byte[] id) {
-    boolean backslash = false;
-    for (final byte b : id) {
-      buf.append((char) (b & 0xFF));
-      if (b == 'E' && backslash) {  // If we saw a `\' and now we have a `E'.
-        // So we just terminated the quoted section because we just added \E
-        // to `buf'.  So let's put a litteral \E now and start quoting again.
-        buf.append("\\\\E\\Q");
-      } else {
-        backslash = b == '\\';
-      }
-    }
-    buf.append("\\E");
-  }
-
-  /**
    * Attempts to fetch a global or local annotation from storage
    * @param tsuid The TSUID as a byte array. May be null if retrieving a global
    * annotation
@@ -1028,7 +1010,7 @@ public class HBaseStore implements TsdbStore {
    */
   @Override
   public AsyncIterator<DataPoints> executeQuery(final TsdbQuery tsdbQuery) throws HBaseException {
-    return new QueryRunner(tsdbQuery, client);
+    return new QueryRunner(tsdbQuery, client, data_table_name, TS_FAMILY);
 
 
 
