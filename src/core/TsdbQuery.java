@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
@@ -238,6 +239,22 @@ public final class TsdbQuery implements Query {
 
   public byte[] getMetric() {
     return metric;
+  }
+
+  public List<String> getTSUIDS() {
+    return tsuids;
+  }
+
+  public ArrayList<byte[]> getTags() {
+    return tags;
+  }
+
+  public List<byte[]> getGroupBys() {
+    return group_bys;
+  }
+
+  public Map<byte[], ArrayList<byte[]>> getGroupByValues() {
+    return group_by_values;
   }
 
   /**
