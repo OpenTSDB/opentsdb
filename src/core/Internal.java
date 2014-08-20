@@ -80,11 +80,6 @@ public final class Internal {
     // Can't instantiate.
   }
 
-  /** @see TSDB#getScanner */
-  public static Scanner getScanner(final Query query) {
-    return ((TsdbQuery) query).tsdb.getScanner(((TsdbQuery) query));
-  }
-
   /** @see RowSeq#extractIntegerValue */
   public static long extractIntegerValue(final byte[] values,
                                          final int value_idx,
