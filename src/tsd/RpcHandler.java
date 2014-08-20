@@ -44,7 +44,7 @@ import com.stumbleupon.async.Deferred;
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
  */
-final class RpcHandler extends SimpleChannelUpstreamHandler {
+public final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(RpcHandler.class);
   
@@ -59,14 +59,16 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   private static final AtomicLong exceptions_caught = new AtomicLong();
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
-  private final Map<String, TelnetRpc> telnet_commands = new ConcurrentHashMap<String, TelnetRpc>(64);;
+  private final Map<String, TelnetRpc> telnet_commands = new ConcurrentHashMap<String, TelnetRpc>(64);
   /** RPC executed when there's an unknown telnet-style command. */
   private final TelnetRpc unknown_cmd = new Unknown();
   /** Commands we serve on the HTTP interface. */
-  private final Map<String, HttpRpc> http_commands = new ConcurrentHashMap<String, HttpRpc>(64);;
+  private final Map<String, HttpRpc> http_commands = new ConcurrentHashMap<String, HttpRpc>(64);
   /** List of domains to allow access to HTTP. By default this will be empty and
    * all CORS headers will be ignored. */
   private final HashSet<String> cors_domains;
+  
+  private final HandlerRegistrarImpl handlerRegistrar;
 
   /** The TSDB to use. */
   private final TSDB tsdb;
@@ -86,6 +88,20 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 		}
 		return instance;
 	}  
+	
+	
+	private static final HandlerRegistrarImpl standby = new HandlerRegistrarImpl(new ConcurrentHashMap<String, TelnetRpc>(64), new ConcurrentHashMap<String, HttpRpc>(64));
+	
+	public static HandlerRegistrar getInstance() {
+		if(instance == null) {
+			synchronized(lock) {
+				if(instance == null) {
+					return standby;
+				}
+			}
+		}
+		return instance.handlerRegistrar;
+	}
   
   /**
    * Constructor that loads the CORS domain list and configures the route maps 
@@ -172,8 +188,93 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     http_commands.put("api/annotation", new AnnotationRpc());
     http_commands.put("api/search", new SearchRpc());
     http_commands.put("api/config", new ShowConfig());
-    HandlerRegistrar.getInstance(telnet_commands, http_commands);
+    handlerRegistrar = new HandlerRegistrarImpl(telnet_commands, http_commands).ingest(standby);
+    //HandlerRegistrar.getInstance(telnet_commands, http_commands);
   }
+  
+  private static class HandlerRegistrarImpl implements HandlerRegistrar {
+	  private final Map<String, TelnetRpc> telnet_commands;
+	  private final Map<String, HttpRpc> http_commands;
+	  private boolean logNotThrow;
+	  
+	/**
+	 * Creates a new HandlerRegistrarImpl
+	 * @param telnet_commands
+	 * @param http_commands
+	 */
+	public HandlerRegistrarImpl(Map<String, TelnetRpc> telnet_commands,
+			Map<String, HttpRpc> http_commands) {
+		super();
+		this.telnet_commands = telnet_commands;
+		this.http_commands = http_commands;
+		this.logNotThrow = false;
+	}
+	
+	HandlerRegistrarImpl ingest(HandlerRegistrarImpl reg) {
+		logNotThrow = true;
+		try {
+			for(Map.Entry<String, TelnetRpc> handler: reg.telnet_commands.entrySet()) {
+				registerHandler(handler.getKey(), handler.getValue());
+			}
+			for(Map.Entry<String, HttpRpc> handler: reg.http_commands.entrySet()) {
+				registerHandler(handler.getKey(), handler.getValue());
+			}
+			
+		} finally {
+			logNotThrow = false;
+		}
+		return this;
+	}
+
+	/**
+	 * Registers a telnet rpc handler
+	 * @param key The invocation key
+	 * @param rpc The telnet rpc instance
+	 */
+	public void registerHandler(final String key, final TelnetRpc rpc) {
+		if(key==null) throw new IllegalArgumentException("The handler key was null");
+		if(rpc==null) throw new IllegalArgumentException("The handler was null");
+		if(!telnet_commands.containsKey(key)) {
+			synchronized(telnet_commands) {
+				if(!telnet_commands.containsKey(key)) {
+					telnet_commands.put(key, rpc);
+					return;
+				}
+			}
+		}
+		final TelnetRpc registeredRpc = telnet_commands.get(key);
+		if(logNotThrow) {
+			LOG.error("The requested Telnet RPC key [" + key + "] has already been registered for [" + registeredRpc.getClass().getName() + "]");
+		} else {
+			throw new IllegalStateException("The requested Telnet RPC key [" + key + "] has already been registered for [" + registeredRpc.getClass().getName() + "]");
+		}
+	}
+	
+	/**
+	 * Registers a http rpc handler
+	 * @param key The invocation key
+	 * @param rpc The http rpc instance
+	 */
+	public void registerHandler(final String key, final HttpRpc rpc) {
+		if(key==null) throw new IllegalArgumentException("The handler key was null");
+		if(rpc==null) throw new IllegalArgumentException("The handler was null");
+		if(!http_commands.containsKey(key)) {
+			synchronized(http_commands) {
+				if(!http_commands.containsKey(key)) {
+					http_commands.put(key, rpc);
+					return;
+				}
+			}
+		}
+		final HttpRpc registeredRpc = http_commands.get(key);
+		if(logNotThrow) {
+			LOG.error("The requested Http RPC key [" + key + "] has already been registered for [" + registeredRpc.getClass().getName() + "]");
+		} else {
+			throw new IllegalStateException("The requested Http RPC key [" + key + "] has already been registered for [" + registeredRpc.getClass().getName() + "]");
+		}
+	}
+  }
+  
 
   @Override
   public void messageReceived(final ChannelHandlerContext ctx,
