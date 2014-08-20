@@ -40,7 +40,16 @@ import com.stumbleupon.async.Deferred;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.*;
+import net.opentsdb.core.Aggregator;
+import net.opentsdb.core.Aggregators;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.DataPoint;
+import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.Query;
+import net.opentsdb.core.QueryBuilder;
+import net.opentsdb.core.RateOptions;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.core.Tags;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
