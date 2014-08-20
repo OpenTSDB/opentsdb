@@ -6,38 +6,56 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import net.opentsdb.core.AsyncIterator;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Span;
 import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Queues;
+import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
-import org.hbase.async.HBaseException;
 import org.hbase.async.KeyRegexpFilter;
+import org.hbase.async.KeyValue;
 import org.hbase.async.ScanFilter;
 import org.hbase.async.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 public class QueryRunner implements AsyncIterator<DataPoints> {
+  private static final Logger LOG = LoggerFactory.getLogger(QueryRunner.class);
+
   private final TsdbQuery tsdb_query;
   private final HBaseClient client;
 
-  private final byte[] table;
-  private final byte[] family;
+  private final Scanner scanner;
+
+  private final ConcurrentLinkedQueue<DataPoints> result_rows;
+  private final Iterator<DataPoints> result_iterator;
 
   public QueryRunner(final TsdbQuery tsdb_query,
                      final HBaseClient client,
-                     final byte[] data_table_name,
+                     final byte[] table,
                      final byte[] family) {
-    this.tsdb_query = tsdb_query;
-    this.client = client;
+    this.tsdb_query = checkNotNull(tsdb_query);
+    this.client = checkNotNull(client);
 
-    this.table = data_table_name;
-    this.family = family;
+    this.result_rows = Queues.newConcurrentLinkedQueue();
+    this.result_iterator = result_rows.iterator();
+
+    scanner = getScannerForQuery(tsdb_query, checkNotNull(table),
+            checkNotNull(family));
+
+    scanner.nextRows().addCallback(new ScannerCB());
   }
 
   @Override
@@ -52,7 +70,7 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
 
   @Override
   public DataPoints next() {
-    return null;
+    return result_iterator.next();
   }
 
   @Override
@@ -68,10 +86,12 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
    * {@link #buildTSUIDFilter} to setup a row key filter.
    * @return A scanner to use for fetching data points
    * @param tsdbQuery
+   * @param table
+   * @param family
    */
-  private Scanner getScannerForQuery(final TsdbQuery tsdbQuery) throws
-          HBaseException {
-
+  private Scanner getScannerForQuery(final TsdbQuery tsdbQuery,
+                                     final byte[] table,
+                                     final byte[] family) {
     final byte[] start_row = buildRowKey(tsdbQuery.getMetric(),
             getScanStartTimeSeconds(tsdbQuery));
     final byte[] end_row = buildRowKey(tsdbQuery.getMetric(),
@@ -325,5 +345,65 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
               + " 'group_bys' in " + this);
     }
     return cmp < 0;
+  }
+
+  private class ScannerCB implements Callback<Object, ArrayList<ArrayList<KeyValue>>> {
+    int nrows = 0;
+    boolean seenAnnotation = false;
+    int hbase_time = 0; // milliseconds.
+    long starttime = System.nanoTime();
+
+    @Override
+    public Object call(final ArrayList<ArrayList<KeyValue>> rows) {
+      hbase_time += (System.nanoTime() - starttime) / 1000000;
+      try {
+        if (rows == null) {
+          hbase_time += (System.nanoTime() - starttime) / 1000000;
+          TsdbQuery.scanlatency.add(hbase_time);
+          LOG.info("{} matched {} rows in {} spans in {}ms",
+                  tsdbQuery, nrows, spans.size(), hbase_time);
+          if (nrows < 1 && !seenAnnotation) {
+            results.callback(null);
+          } else {
+            results.callback(spans);
+          }
+          scanner.close();
+          return null;
+        }
+
+        final byte[] metric = tsdb_query.getMetric();
+
+        for (final ArrayList<KeyValue> row : rows) {
+          final byte[] key = row.get(0).key();
+
+          if (Bytes.memcmp(metric, key, 0, Const.METRICS_WIDTH) != 0) {
+            scanner.close();
+            throw new IllegalDataException(
+                    "HBase returned a row that doesn't match"
+                            + " our scanner (" + scanner + ")! " + row + " does not start"
+                            + " with " + Arrays.toString(metric));
+          }
+
+          Span datapoints = spans.get(key);
+          if (datapoints == null) {
+            datapoints = new Span();
+            spans.put(key, datapoints);
+          }
+
+          final KeyValue compacted = compact(row, datapoints.getAnnotations());
+          seenAnnotation |= !datapoints.getAnnotations().isEmpty();
+          if (compacted != null) { // Can be null if we ignored all KVs.
+            datapoints.addRow(compacted);
+            nrows++;
+          }
+        }
+
+        return scan();
+      } catch (Exception e) {
+        scanner.close();
+        results.callback(e);
+        return null;
+      }
+    }
   }
 }

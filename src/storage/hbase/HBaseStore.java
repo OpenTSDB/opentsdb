@@ -20,10 +20,8 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.AsyncIterator;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
-import net.opentsdb.core.Span;
 import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -39,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.TreeMap;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.fromBytes;
@@ -52,6 +49,7 @@ import static net.opentsdb.uid.UniqueId.UniqueIdType;
 public class HBaseStore implements TsdbStore {
   /** Byte used for the qualifier prefix to indicate this is an annotation */
   public static final byte ANNOTATION_QUAL_PREFIX = 0x01;
+
   private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
 
   /** Row key of the special row used to track the max ID already assigned. */
@@ -1011,101 +1009,6 @@ public class HBaseStore implements TsdbStore {
   @Override
   public AsyncIterator<DataPoints> executeQuery(final TsdbQuery tsdbQuery) throws HBaseException {
     return new QueryRunner(tsdbQuery, client, data_table_name, TS_FAMILY);
-
-
-
-
-    final short metric_width = Const.METRICS_WIDTH;
-    final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
-      new TreeMap<byte[], Span>(new SpanCmp(metric_width));
-    final Scanner scanner = getScannerForQuery(tsdbQuery);
-    final Deferred<TreeMap<byte[], Span>> results =
-      new Deferred<TreeMap<byte[], Span>>();
-
-    /**
-    * Scanner callback executed recursively each time we get a set of data
-    * from storage. This is responsible for determining what columns are
-    * returned and issuing requests to load leaf objects.
-    * When the scanner returns a null set of rows, the method initiates the
-    * final callback.
-    */
-    final class ScannerCB implements Callback<Object,
-      ArrayList<ArrayList<KeyValue>>> {
-
-      int nrows = 0;
-      boolean seenAnnotation = false;
-      int hbase_time = 0; // milliseconds.
-      long starttime = System.nanoTime();
-
-      /**
-      * Starts the scanner and is called recursively to fetch the next set of
-      * rows from the scanner.
-      * @return The map of spans if loaded successfully, null if no data was
-      * found
-      */
-       public Object scan() {
-         starttime = System.nanoTime();
-         return scanner.nextRows().addCallback(this);
-       }
-
-      /**
-      * Loops through each row of the scanner results and parses out data
-      * points and optional meta data
-      * @return null if no rows were found, otherwise the TreeMap with spans
-      */
-       @Override
-       public Object call(final ArrayList<ArrayList<KeyValue>> rows)
-         throws Exception {
-         hbase_time += (System.nanoTime() - starttime) / 1000000;
-         try {
-           if (rows == null) {
-             hbase_time += (System.nanoTime() - starttime) / 1000000;
-             TsdbQuery.scanlatency.add(hbase_time);
-             LOG.info("{} matched {} rows in {} spans in {}ms",
-                     tsdbQuery, nrows, spans.size(), hbase_time);
-             if (nrows < 1 && !seenAnnotation) {
-               results.callback(null);
-             } else {
-               results.callback(spans);
-             }
-             scanner.close();
-             return null;
-           }
-
-           for (final ArrayList<KeyValue> row : rows) {
-             final byte[] key = row.get(0).key();
-             if (Bytes.memcmp(tsdbQuery.metric, key, 0, metric_width) != 0) {
-               scanner.close();
-               throw new IllegalDataException(
-                   "HBase returned a row that doesn't match"
-                   + " our scanner (" + scanner + ")! " + row + " does not start"
-                   + " with " + Arrays.toString(tsdbQuery.metric));
-             }
-             Span datapoints = spans.get(key);
-             if (datapoints == null) {
-               datapoints = new Span();
-               spans.put(key, datapoints);
-             }
-             final KeyValue compacted =
-               compact(row, datapoints.getAnnotations());
-             seenAnnotation |= !datapoints.getAnnotations().isEmpty();
-             if (compacted != null) { // Can be null if we ignored all KVs.
-               datapoints.addRow(compacted);
-               nrows++;
-             }
-           }
-
-           return scan();
-         } catch (Exception e) {
-           scanner.close();
-           results.callback(e);
-           return null;
-         }
-       }
-     }
-
-     new ScannerCB().scan();
-     return results;
   }
 
   /**
