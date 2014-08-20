@@ -35,6 +35,7 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -75,46 +76,17 @@ public class TestUID {
     config = new Config(false);
     tsdb = new TSDB(config);
     
-    // replace the "real" field objects with mocks
-//    Field cl = tsdb.getClass().getDeclaredField("client");
-//    cl.setAccessible(true);
-//    cl.set(tsdb, client);
-//    
-//    Field met = tsdb.getClass().getDeclaredField("metrics");
-//    met.setAccessible(true);
-//    met.set(tsdb, metrics);
-//    
-//    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-//    tagk.setAccessible(true);
-//    tagk.set(tsdb, tag_names);
-//    
-//    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-//    tagv.setAccessible(true);
-//    tagv.set(tsdb, tag_values);
-//    
-//    // mock UniqueId
-//    when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] {0, 0, 1 });
-//    when(metrics.getName(new byte[] {0, 0, 1 })).thenReturn("sys.cpu.user");
-//    when(metrics.getId("sys.cpu.system"))
-//      .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
-//    when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] {0, 0, 2 });
-//    when(metrics.getName(new byte[] {0, 0, 2 })).thenReturn("sys.cpu.nice");
-//    when(tag_names.getId("host")).thenReturn(new byte[] {0, 0, 1 });
-//    when(tag_names.getName(new byte[] {0, 0, 1 })).thenReturn("host");
-//    when(tag_names.getOrCreateId("host")).thenReturn(new byte[] {0, 0, 1 });
-//    when(tag_names.getId("dc")).thenThrow(new NoSuchUniqueName("dc", "metric"));
-//    when(tag_values.getId("web01")).thenReturn(new byte[] {0, 0, 1 });
-//    when(tag_values.getName(new byte[] {0, 0, 1 })).thenReturn("web01");
-//    when(tag_values.getOrCreateId("web01")).thenReturn(new byte[] {0, 0, 1 });
-//    when(tag_values.getId("web02")).thenReturn(new byte[] {0, 0, 2 });
-//    when(tag_values.getName(new byte[] {0, 0, 2 })).thenReturn("web02");
-//    when(tag_values.getOrCreateId("web02")).thenReturn(new byte[] {0, 0, 2 });
-//    when(tag_values.getId("web03"))
-//      .thenThrow(new NoSuchUniqueName("web03", "metric"));
-//    
-//    when(metrics.width()).thenReturn((short)3);
-//    when(tag_names.width()).thenReturn((short)3);
-//    when(tag_values.width()).thenReturn((short)3);
+    PowerMockito.spy(System.class);
+    PowerMockito.when(System.nanoTime())
+      .thenReturn(1357300800000000L)
+      .thenReturn(1357300801000000L)
+      .thenReturn(1357300802000000L)
+      .thenReturn(1357300803000000L);
+    PowerMockito.when(System.currentTimeMillis())
+      .thenReturn(1357300800000L)
+      .thenReturn(1357300801000L)
+      .thenReturn(1357300802000L)
+      .thenReturn(1357300803000L);
   }
   
   /* FSCK --------------------------------------------
