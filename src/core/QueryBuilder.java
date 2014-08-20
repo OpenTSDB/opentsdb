@@ -325,8 +325,10 @@ public class QueryBuilder {
   }
 
   /**
-   * Build the query with the options given to this builder.
-   * @return
+   * Build the query with the options given to this builder. If {@link
+   * #tsuids} has been set using {@link #withTSUIDS(java.util.List)} then
+   * TSUIDS will be used for this query. Otherwise the {@link #metric} and
+   * {@link #tags} will be used.
    */
   public Deferred<TsdbQuery> createQuery() {
     checkState(start_time.isPresent());
