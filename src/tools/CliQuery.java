@@ -25,6 +25,7 @@ import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.QueryBuilder;
 import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
@@ -243,16 +244,28 @@ final class CliQuery {
       if (i < args.length && args[i].indexOf(' ', 1) > 0) {
         plotoptions.add(args[i++]);
       }
-      final Query query = tsdb.newQuery();
-      query.setStartTime(start_ts);
+
+      final QueryBuilder builder = new QueryBuilder(tsdb)
+              .withMetric(metric)
+              .withTags(tags)
+              .withAggregator(agg)
+              .shouldCalculateRate(rate, rate_options);
+
       if (end_ts > 0) {
-        query.setEndTime(end_ts);
+        builder.withStartAndEndTime(start_ts, end_ts);
+      } else {
+        builder.withStartTime(start_ts);
       }
-      query.setTimeSeries(metric, tags, agg, rate, rate_options);
+
       if (downsample) {
-        query.downsample(interval, sampler);
+        builder.downsample(interval, sampler);
       }
-      queries.add(query);
+
+      try {
+        queries.add(builder.createQuery().joinUninterruptibly());
+      } catch (Exception e) {
+        Throwables.propagate(e);
+      }
     }
   }
 

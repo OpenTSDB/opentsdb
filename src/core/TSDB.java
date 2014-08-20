@@ -14,7 +14,6 @@ package net.opentsdb.core;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -569,13 +568,6 @@ public class TSDB {
     collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.kind());
     collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.kind());
     collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
-  }
-
-  /**
-   * Returns a new {@link Query} instance suitable for this TSDB.
-   */
-  public Query newQuery() {
-    return new TsdbQuery(this);
   }
 
   /**
