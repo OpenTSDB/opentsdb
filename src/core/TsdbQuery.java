@@ -22,6 +22,7 @@ import java.util.TreeMap;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
@@ -42,11 +43,6 @@ import net.opentsdb.uid.NoSuchUniqueName;
  */
 public final class TsdbQuery implements Query {
   private static final Logger LOG = LoggerFactory.getLogger(TsdbQuery.class);
-
-  /**
-   * Value used for timestamps that are uninitialized.
-   */
-  static final int UNSET = -1;
 
   /**
    * Used whenever there are no results.
@@ -86,7 +82,7 @@ public final class TsdbQuery implements Query {
   /**
    * End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
    */
-  private final long end_time;
+  private final Optional<Long> end_time;
 
   /**
    * Tags by which we must group the results.
@@ -136,7 +132,7 @@ public final class TsdbQuery implements Query {
   TsdbQuery(final byte[] metric_id,
             final ArrayList<byte[]> tags,
             final long start_time,
-            final long end_time,
+            final Optional<Long> end_time,
             final Aggregator aggregator,
             final Aggregator downsampler,
             final long interval,
@@ -165,7 +161,7 @@ public final class TsdbQuery implements Query {
   TsdbQuery(final byte[] metric_id,
             final List<String> tsuids,
             final long start_time,
-            final long end_time,
+            final Optional<Long> end_time,
             final Aggregator aggregator,
             final Aggregator downsampler,
             final long interval,
@@ -216,24 +212,32 @@ public final class TsdbQuery implements Query {
    * current system time will be stored and returned.
    */
   @Override
-  public long getEndTime() {
+  public Optional<Long> getEndTime() {
     return end_time;
   }
 
   /**
    * Converts the end time to seconds if needed and then returns it.
    */
-  public long getEndTimeSeconds() {
-    long end = getEndTime();
-    if ((end & Const.SECOND_MASK) != 0) {
-      end /= 1000;
+  public Optional<Long> getEndTimeSeconds() {
+    if (end_time.isPresent()) {
+      long end = end_time.get();
+      if ((end & Const.SECOND_MASK) != 0) {
+        end /= 1000;
+      }
+
+      return Optional.of(end);
     }
 
-    return end;
+    return end_time;
   }
 
   public long getSampleInterval() {
     return sample_interval_ms;
+  }
+
+  public byte[] getMetric() {
+    return metric;
   }
 
   /**

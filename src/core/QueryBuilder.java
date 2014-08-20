@@ -8,6 +8,7 @@ import java.util.Map;
 import net.opentsdb.uid.UidResolver;
 import net.opentsdb.uid.UniqueId;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -31,12 +32,12 @@ public class QueryBuilder {
   /**
    * Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
    */
-  private long start_time = TsdbQuery.UNSET;
+  private Optional<Long> start_time = Optional.absent();
 
   /**
    * End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
    */
-  private long end_time = TsdbQuery.UNSET;
+  private Optional<Long> end_time = Optional.absent();
 
   /**
    * ID of the metric being looked up.
@@ -109,25 +110,33 @@ public class QueryBuilder {
    * the current time in milliseconds.
    */
   public QueryBuilder withStartTime(final long start_time) {
-    return withStartAndEndTime(start_time, TsdbQuery.UNSET);
+    return withStartAndEndTime(start_time, Optional.<Long>absent());
   }
 
   /**
    * Set the start and end time of this query builder.
    */
   public QueryBuilder withStartAndEndTime(final long start_time, final long end_time) {
+    return withStartAndEndTime(start_time, Optional.of(end_time));
+  }
+
+  /**
+   * Set the start and end time of this query builder.
+   */
+  public QueryBuilder withStartAndEndTime(final long start_time,
+                                          final Optional<Long> end_time) {
     checkTimestamp(start_time);
 
-    if (end_time != TsdbQuery.UNSET) {
-      checkTimestamp(end_time);
+    if (end_time.isPresent()) {
+      checkTimestamp(end_time.get());
 
-      if (start_time >= end_time) {
+      if (start_time >= end_time.get()) {
         throw new IllegalArgumentException("new start time (" + start_time
-                + ") is greater than or equal to end time: " + end_time);
+                + ") is greater than or equal to end time: " + end_time.get());
       }
     }
 
-    this.start_time = start_time;
+    this.start_time = Optional.of(start_time);
     this.end_time = end_time;
 
     return this;
@@ -320,7 +329,7 @@ public class QueryBuilder {
    * @return
    */
   public Deferred<TsdbQuery> createQuery() {
-    checkState(start_time != TsdbQuery.UNSET);
+    checkState(start_time.isPresent());
 
     if (tsuids != null) {
       return Deferred.fromResult(createFromTSUIDS());
@@ -334,7 +343,7 @@ public class QueryBuilder {
     final String metric_uid = tsuid.substring(0, Const.METRICS_WIDTH * 2);
     final byte[] metric_id = UniqueId.stringToUid(metric_uid);
 
-    return new TsdbQuery(metric_id, tsuids, start_time, end_time,
+    return new TsdbQuery(metric_id, tsuids, start_time.get(), end_time,
             aggregator, downsampler, sample_interval_ms, rate,
             rate_options);
   }
@@ -361,7 +370,7 @@ public class QueryBuilder {
           group_by_vals.put(tagk_id, group_by_val_entry.getValue());
         }
 
-        return new TsdbQuery(metric_id, tag_ids, start_time, end_time,
+        return new TsdbQuery(metric_id, tag_ids, start_time.get(), end_time,
                 aggregator, downsampler, sample_interval_ms, rate,
                 rate_options, group_by, group_by_vals);
       }

@@ -11,6 +11,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.uid.UniqueId;
 
+import com.google.common.base.Optional;
 import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
@@ -58,51 +59,30 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
   private Scanner getScannerForQuery(final TsdbQuery tsdbQuery) throws
           HBaseException {
 
-    final byte[] start_row = buildRowKey(getScanStartTimeSeconds(tsdbQuery));
-    final byte[] end_row = buildRowKey();
-    // We search at least one row before and one row after the start & end
-    // time we've been given as it's quite likely that the exact timestamp
-    // we're looking for is in the middle of a row.  Plus, a number of things
-    // rely on having a few extra data points before & after the exact start
-    // & end dates in order to do proper rate calculation or downsampling near
-    // the "edges" of the graph.
-    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(tsdbQuery), metric_width);
-    Bytes.setInt(end_row, (tsdbQuery.end_time == TsdbQuery.UNSET
-                    ? -1  // Will scan until the end (0xFFF...).
-                    : (int) getScanEndTimeSeconds(tsdbQuery)),
-            metric_width);
-
-    // set the metric UID based on the TSUIDs if given, or the metric UID
-    if (tsdbQuery.tsuids != null && !tsdbQuery.tsuids.isEmpty()) {
-      final String tsuid = tsdbQuery.tsuids.get(0);
-      final String metric_uid = tsuid.substring(0, Const.METRICS_WIDTH * 2);
-      tsdbQuery.metric = UniqueId.stringToUid(metric_uid);
-
-
-      System.arraycopy(tsdbQuery.metric, 0, start_row, 0, metric_width);
-      System.arraycopy(tsdbQuery.metric, 0, end_row, 0, metric_width);
-    } else {
-      System.arraycopy(tsdbQuery.metric, 0, start_row, 0, metric_width);
-      System.arraycopy(tsdbQuery.metric, 0, end_row, 0, metric_width);
-    }
+    final byte[] start_row = buildRowKey(tsdbQuery.getMetric(),
+            getScanStartTimeSeconds(tsdbQuery));
+    final byte[] end_row = buildRowKey(tsdbQuery.getMetric(),
+            getScanEndTimeSeconds(tsdbQuery));
 
     final Scanner scanner = client.newScanner(table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
+    scanner.setFamily(FAMILY);
+
     if (tsdbQuery.tsuids != null && !tsdbQuery.tsuids.isEmpty()) {
       tsdbQuery.createAndSetTSUIDFilter(scanner);
     } else if (tsdbQuery.tags.size() > 0 || tsdbQuery.group_bys != null) {
       tsdbQuery.createAndSetFilter(scanner);
     }
-    scanner.setFamily(FAMILY);
+
     return scanner;
   }
 
-  private byte[] buildRowKey(int timestamp) {
-    final short metric_width = Const.METRICS_WIDTH;
-    final byte[] row = new byte[metric_width + Const.TIMESTAMP_BYTES];
+  private byte[] buildRowKey(final byte[] metric_id, final int timestamp) {
+    final byte[] row = new byte[Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES];
 
-    Bytes.setInt(row, timestamp, metric_width);
+    Bytes.setInt(row, timestamp, Const.METRICS_WIDTH);
+    System.arraycopy(metric_id, 0, row, 0, Const.METRICS_WIDTH);
 
     return row;
   }
@@ -138,9 +118,15 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     // again that doesn't really matter.
     // Additionally, in case our sample_interval_ms is large, we need to look
     // even further before/after, so use that too.
-    long end = tsdbQuery.getEndTimeSeconds();
-    return (int) (end + Const.MAX_TIMESPAN + 1 + tsdbQuery.getSampleInterval
-            () / 1000);
+    Optional<Long> end = tsdbQuery.getEndTimeSeconds();
+
+    if (end.isPresent()) {
+      return (int) (end.get() + Const.MAX_TIMESPAN + 1 +
+              tsdbQuery.getSampleInterval() / 1000);
+    }
+
+    // Returning -1 will make us scan to the end (0xFFF...)
+    return -1;
   }
 
   /**
