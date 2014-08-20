@@ -162,11 +162,11 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
                     + tags_length); // total # of bytes in tsuids tagk/v pairs
 
     // Alright, let's build this regexp.  From the beginning...
-    buf.append("(?s)"  // Ensure we use the DOTALL flag.
-            + "^.{")
-            // ... start by skipping the metric ID and timestamp.
-            .append(metrics.width() + Const.TIMESTAMP_BYTES)
-            .append("}(");
+    buf.append("(?s)")  // Ensure we use the DOTALL flag.
+       .append("^.{")
+       // ... start by skipping the metric ID and timestamp.
+       .append(Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES)
+       .append("}(");
 
     for (final byte[] tags : uids) {
       // quote the bytes
@@ -204,11 +204,12 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     // In order to avoid re-allocations, reserve a bit more w/ groups ^^^
 
     // Alright, let's build this regexp.  From the beginning...
-    buf.append("(?s)"  // Ensure we use the DOTALL flag.
-            + "^.{")
-            // ... start by skipping the metric ID and timestamp.
-            .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
-            .append("}");
+    buf.append("(?s)")  // Ensure we use the DOTALL flag.
+       .append("^.{")
+       // ... start by skipping the metric ID and timestamp.
+       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append("}");
+
     final Iterator<byte[]> tags = this.tags.iterator();
     final Iterator<byte[]> group_bys = (this.group_bys == null
             ? new ArrayList<byte[]>(0).iterator()
