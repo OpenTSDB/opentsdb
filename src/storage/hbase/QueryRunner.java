@@ -17,6 +17,7 @@ import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -239,6 +240,12 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
 
     if (group_bys1 != null) {
       Collections.sort(group_bys1, Bytes.MEMCMP);
+    } else {
+      group_bys1 = Collections.emptyList();
+    }
+
+    if (groupByValues == null) {
+      groupByValues = Maps.newHashMap();
     }
 
     final short name_width = Const.TAG_NAME_WIDTH;
@@ -250,7 +257,7 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     final StringBuilder buf = new StringBuilder(
             15  // "^.{N}" + "(?:.{M})*" + "$"
                     + ((13 + tagsize) // "(?:.{M})*\\Q" + tagsize bytes + "\\E"
-                    * (tags1.size() + (group_bys1 == null ? 0 : group_bys1.size() * 3))));
+                    * (tags1.size() + group_bys1.size() * 3)));
     // In order to avoid re-allocations, reserve a bit more w/ groups ^^^
 
     // Alright, let's build this regexp.  From the beginning...
@@ -261,9 +268,8 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
        .append("}");
 
     final Iterator<byte[]> tags = tags1.iterator();
-    final Iterator<byte[]> group_bys = (group_bys1 == null
-            ? new ArrayList<byte[]>(0).iterator()
-            : group_bys1.iterator());
+    final Iterator<byte[]> group_bys = group_bys1.iterator();
+
     byte[] tag = tags.hasNext() ? tags.next() : null;
     byte[] group_by = group_bys.hasNext() ? group_bys.next() : null;
     // Tags and group_bys are already sorted.  We need to put them in the
@@ -279,11 +285,11 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
         tag = tags.hasNext() ? tags.next() : null;
       } else {  // Add a group_by.
         addId(buf, group_by);
-        final ArrayList<byte[]> value_ids = (groupByValues == null
-                ? null
-                : groupByValues.get(group_by));
+        final ArrayList<byte[]> value_ids = groupByValues.get(group_by);
         if (value_ids == null) {  // We don't want any specific ID...
-          buf.append(".{").append(value_width).append('}');  // Any value ID.
+          buf.append(".{")
+             .append(value_width)
+             .append('}');  // Any value ID.
         } else {  // We want specific IDs.  List them: /(AAA|BBB|CCC|..)/
           buf.append("(?:");
           for (final byte[] value_id : value_ids) {
@@ -299,7 +305,9 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     } while (tag != group_by);  // Stop when they both become null.
 
     // Skip any number of tags before the end.
-    buf.append("(?:.{").append(tagsize).append("})*$");
+    buf.append("(?:.{")
+       .append(tagsize)
+       .append("})*$");
 
     return new KeyRegexpFilter(buf.toString(), HBaseConst.CHARSET);
   }
@@ -357,6 +365,8 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     public Object call(final ArrayList<ArrayList<KeyValue>> rows) {
       hbase_time += (System.nanoTime() - starttime) / 1000000;
       try {
+        // If we're done `rows` will be null and we should finally do
+        // something with the result spans.
         if (rows == null) {
           hbase_time += (System.nanoTime() - starttime) / 1000000;
           TsdbQuery.scanlatency.add(hbase_time);
@@ -373,6 +383,8 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
 
         final byte[] metric = tsdb_query.getMetric();
 
+        // We've gotten a bunch of new rows so now we need to to some basic
+        // preprocessing.
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] key = row.get(0).key();
 
