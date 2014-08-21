@@ -32,6 +32,13 @@
 	<logger name="net.opentsdb.utils" level="${utils-level:-INFO}"/>  
   
   
+<!-- 
+  	<logger name="net.opentsdb.tools.MetaSync" level="${tools-level:-DEBUG}"/>
+  	<logger name="net.opentsdb.tools.UidManager" level="${tools-level:-DEBUG}"/>
+
+ -->
+
+  
   <root level="info">
     <appender-ref ref="STDOUT"/>
     <appender-ref ref="CYCLIC"/>
