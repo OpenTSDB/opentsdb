@@ -19,8 +19,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -326,21 +328,7 @@ final class SpanGroup implements DataPoints {
    * Where {@code n} is the number of data points in this group.
    */
   private DataPoint getDataPoint(int i) {
-    if (i < 0) {
-      throw new IndexOutOfBoundsException("negative index: " + i);
-    }
-    final int saved_i = i;
-    final SeekableView it = iterator();
-    DataPoint dp = null;
-    while (it.hasNext() && i >= 0) {
-      dp = it.next();
-      i--;
-    }
-    if (i != -1 || dp == null) {
-      throw new IndexOutOfBoundsException("index " + saved_i
-          + " too large (it's >= " + size() + ") for " + this);
-    }
-    return dp;
+    return Iterators.get(iterator(), i);
   }
 
   public long timestamp(final int i) {
@@ -361,21 +349,16 @@ final class SpanGroup implements DataPoints {
 
   @Override
   public String toString() {
-    return "SpanGroup(" + toStringSharedAttributes()
-      + ", spans=" + spans
-      + ')';
+    return Objects.toStringHelper(this)
+            .add("start_time", start_time)
+            .add("end_time", end_time)
+            .add("tags", tags)
+            .add("aggregated_tags", aggregated_tags)
+            .add("rate", rate)
+            .add("aggregator", aggregator)
+            .add("downsampler", downsampler)
+            .add("sample_interval", sample_interval)
+            .add("spans", spans)
+            .toString();
   }
-
-  private String toStringSharedAttributes() {
-    return "start_time=" + start_time
-      + ", end_time=" + end_time
-      + ", tags=" + tags
-      + ", aggregated_tags=" + aggregated_tags
-      + ", rate=" + rate
-      + ", aggregator=" + aggregator
-      + ", downsampler=" + downsampler
-      + ", sample_interval=" + sample_interval
-      + ')';
-  }
-
 }
