@@ -19,6 +19,7 @@ import net.opentsdb.uid.UniqueId;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
+import com.google.common.primitives.Ints;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
@@ -133,7 +134,7 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     // even further before/after, so use that too.
     long start = tsdbQuery.getStartTimeSeconds();
     final long ts = start - Const.MAX_TIMESPAN * 2 - tsdbQuery.getSampleInterval() / 1000;
-    return ts > 0 ? (int) ts : 0;
+    return ts > 0 ? Ints.checkedCast(ts) : 0;
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.
@@ -150,7 +151,7 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     Optional<Long> end = tsdbQuery.getEndTimeSeconds();
 
     if (end.isPresent()) {
-      return (int) (end.get() + Const.MAX_TIMESPAN + 1 +
+      return Ints.checkedCast(end.get() + Const.MAX_TIMESPAN + 1 +
               tsdbQuery.getSampleInterval() / 1000);
     }
 
