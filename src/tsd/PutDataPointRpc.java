@@ -15,11 +15,15 @@ package net.opentsdb.tsd;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.IncomingDataPoint;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.core.Tags;
+import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.uid.NoSuchUniqueName;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -27,11 +31,8 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.IncomingDataPoint;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
-import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.uid.NoSuchUniqueName;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 /** Implements the "put" telnet-style command. */
 final class PutDataPointRpc implements TelnetRpc, HttpRpc {
@@ -241,7 +242,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     if (value.length() <= 0) {
       throw new IllegalArgumentException("empty value");
     }
-    final HashMap<String, String> tags = new HashMap<String, String>();
+    final HashMap<String, String> tags = new LinkedHashMap<String, String>();
     for (int i = 4; i < words.length; i++) {
       if (!words[i].isEmpty()) {
         Tags.parse(tags, words[i]);
