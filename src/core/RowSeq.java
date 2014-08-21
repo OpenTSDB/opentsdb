@@ -22,8 +22,13 @@ import java.util.NoSuchElementException;
 
 import net.opentsdb.meta.Annotation;
 
+import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
+
+import static com.google.common.base.Preconditions.checkElementIndex;
 
 /**
  * Represents a read-only sequence of continuous HBase rows.
@@ -329,20 +334,8 @@ final class RowSeq implements DataPoints {
     return new Iterator();
   }
 
-  /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */
-  private void checkIndex(final int i) {
-    if (i >= size()) {
-      throw new IndexOutOfBoundsException("index " + i + " >= " + size()
-          + " for this=" + this);
-    }
-    if (i < 0) {
-      throw new IndexOutOfBoundsException("negative index " + i
-          + " for this=" + this);
-    }
-  }
-
   public long timestamp(final int i) {
-    checkIndex(i);
+    checkElementIndex(i, size(), "i");
     // if we don't have a mix of second and millisecond qualifiers we can run
     // this in O(1), otherwise we have to run O(n)
     // Important: Span.addRow assumes this method to work in O(1).
@@ -369,31 +362,17 @@ final class RowSeq implements DataPoints {
   }
 
   public boolean isInteger(final int i) {
-    checkIndex(i);
+    checkElementIndex(i, size(), "i");
     return (Internal.getFlagsFromQualifier(qualifiers, i) & 
         Const.FLAG_FLOAT) == 0x0;
   }
 
   public long longValue(int i) {
-    if (!isInteger(i)) {
-      throw new ClassCastException("value #" + i + " is not a long in " + this);
-    }
-    final Iterator it = new Iterator();
-    while (i-- >= 0) {
-      it.next();
-    }
-    return it.longValue();
+    return Iterators.get(new Iterator(), i).longValue();
   }
 
   public double doubleValue(int i) {
-    if (isInteger(i)) {
-      throw new ClassCastException("value #" + i + " is not a float in " + this);
-    }
-    final Iterator it = new Iterator();
-    while (i-- >= 0) {
-      it.next();
-    }
-    return it.doubleValue();
+    return Iterators.get(new Iterator(), i).doubleValue();
   }
 
   /**
@@ -616,14 +595,12 @@ final class RowSeq implements DataPoints {
       return Internal.getTimestampFromQualifier(qualifiers, base_time, qual_index);
     }
 
-    /** Only returns internal state for the iterator itself.  */
-    String toStringSummary() {
-      return "RowSeq.Iterator(qual_index=" + qual_index
-        + ", value_index=" + value_index;
-    }
-
     public String toString() {
-      return toStringSummary() + ", seq=" + RowSeq.this + ')';
+      return Objects.toStringHelper(this)
+              .add("qual_index", qual_index)
+              .add("value_index", value_index)
+              .add("seq", RowSeq.this)
+              .toString();
     }
 
   }

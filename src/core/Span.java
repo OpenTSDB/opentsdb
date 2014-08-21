@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 
+import com.google.common.base.Objects;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
@@ -52,7 +53,7 @@ final class Span implements DataPoints {
 
   /** @throws IllegalStateException if the span doesn't have any rows */
   private void checkNotEmpty() {
-    if (rows.size() == 0) {
+    if (rows.isEmpty()) {
       throw new IllegalStateException("empty Span");
     }
   }
@@ -127,7 +128,7 @@ final class Span implements DataPoints {
    */
   void addRow(final KeyValue row) {
     long last_ts = 0;
-    if (rows.size() != 0) {
+    if (!rows.isEmpty()) {
       // Verify that we have the same metric id and tags.
       final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
@@ -388,8 +389,11 @@ final class Span implements DataPoints {
     }
 
     public String toString() {
-      return "Span.Iterator(row_index=" + row_index
-        + ", current_row=" + current_row + ", span=" + Span.this + ')';
+      return Objects.toStringHelper(this)
+              .add("row_index", row_index)
+              .add("current_row", current_row)
+              .add("span", Span.this)
+              .toString();
     }
 
   }
