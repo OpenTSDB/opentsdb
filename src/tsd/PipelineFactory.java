@@ -13,6 +13,7 @@
 package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
@@ -22,6 +23,7 @@ import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
 import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
+import org.jboss.netty.handler.codec.http.HttpContentDecompressor;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.timeout.IdleStateHandler;
@@ -114,6 +116,8 @@ public final class PipelineFactory implements ChannelPipelineFactory {
           pipeline.addLast("aggregator", new HttpChunkAggregator(
               tsdb.getConfig().max_chunked_requests()));
         }
+        // allow client to encode the payload (ie : with gziped json)
+        pipeline.addLast("deflater", new HttpContentDecompressor());
         pipeline.addLast("encoder", new HttpResponseEncoder());
       } else {
         pipeline.addLast("framer", new LineBasedFrameDecoder(1024));
