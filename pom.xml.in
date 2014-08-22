@@ -76,6 +76,9 @@
           <excludes>
             <exclude>**/client/*.java</exclude>
           </excludes>
+		  <testExcludes>
+		    <exclude>**/TestGraphHandler.java</exclude>
+		  </testExcludes>
         </configuration>
       </plugin>
 
