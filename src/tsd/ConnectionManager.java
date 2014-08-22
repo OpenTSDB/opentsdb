@@ -18,13 +18,13 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelEvent;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
+import org.jboss.netty.handler.codec.embedder.CodecEmbedderException;
 import org.jboss.netty.handler.timeout.IdleState;
 import org.jboss.netty.handler.timeout.IdleStateAwareChannelHandler;
 import org.jboss.netty.handler.timeout.IdleStateEvent;
@@ -113,6 +113,12 @@ final class ConnectionManager extends IdleStateAwareChannelHandler {
         // and Java managed to do something *far* worse.  That's quite a feat.
         return;
       }
+    }
+    if (cause instanceof CodecEmbedderException) {
+    	// payload was not compressed as it was announced to be
+    	LOG.warn("Http codec error : " + cause.getMessage());
+    	e.getChannel().close();
+    	return;
     }
     exceptions_unknown.incrementAndGet();
     LOG.error("Unexpected exception from downstream for " + chan, cause);
