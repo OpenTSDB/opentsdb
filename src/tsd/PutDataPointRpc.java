@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.core.IncomingDataPoint;
@@ -242,7 +243,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     if (value.length() <= 0) {
       throw new IllegalArgumentException("empty value");
     }
-    final HashMap<String, String> tags = new LinkedHashMap<String, String>();
+    final Map<String, String> tags = new LinkedHashMap<String, String>();
     for (int i = 4; i < words.length; i++) {
       if (!words[i].isEmpty()) {
         Tags.parse(tags, words[i]);

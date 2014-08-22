@@ -77,7 +77,7 @@ public final class Tags {
    * @throws IllegalArgumentException if the tag was already in tags with a
    * different value.
    */
-  public static void parse(final HashMap<String, String> tags,
+  public static void parse(final Map<String, String> tags,
                            final String tag) {
     final String[] kv = splitString(tag, '=');
     if (kv.length != 2 || kv[0].length() <= 0 || kv[1].length() <= 0) {
