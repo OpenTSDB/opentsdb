@@ -597,6 +597,8 @@ final class Fsck {
         buf.append("More than one column had a value for the same timestamp: ")
            .append("(")
            .append(time_map.getKey())
+           .append(" - ")
+           .append(new java.util.Date(time_map.getKey()))
            .append(")\n    row key: (")
            .append(UniqueId.uidToString(key))
            .append(")\n");
@@ -606,11 +608,19 @@ final class Fsck {
           buf.append("    ")
              .append("write time: (")
              .append(dp.kv.timestamp())
+             .append(" - ")
+             .append(new java.util.Date(dp.kv.timestamp()))
              .append(") ")
              .append(" compacted: (")
              .append(dp.compacted)
              .append(")  qualifier: ")
-             .append(Arrays.toString(dp.kv.qualifier()));
+             .append(Arrays.toString(dp.kv.qualifier()))
+             .append(" value: ")
+             .append(Internal.isFloat(dp.kv.qualifier()) ?
+                Internal.extractFloatingPointValue(
+                   dp.value(), 0, (byte)Internal.getFlagsFromQualifier(dp.kv.qualifier())) :
+                Internal.extractIntegerValue(
+                   dp.value(), 0, (byte)Internal.getFlagsFromQualifier(dp.kv.qualifier())));
           unique_columns.put(dp.kv.qualifier(), dp.kv.value());
           if (options.lastWriteWins()) { 
             if (index == time_map.getValue().size() - 1) {
