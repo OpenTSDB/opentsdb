@@ -173,10 +173,34 @@ abstract class AbstractHttpQuery {
    * is to simply log the request info.  Can be overridden by subclasses.
    */
   public void done() {
-    if (LOG.isInfoEnabled()) {
-      final int processing_time = processingTimeMillis();
-      LOG.info(chan.toString() + " HTTP " + request.getUri() + " done in " + processing_time + "ms");
-    }
+    final int processing_time = processingTimeMillis();
+    logInfo("HTTP " + request.getUri() + " done in " + processing_time + "ms");
+  }
+  
+  /**
+   * Sends <code>500/Internal Server Error</code> to the client.
+   * @param cause The unexpected exception that caused this error.
+   */
+  public void internalError(final Exception cause) {
+    logError("Internal Server Error on " + request().getUri(), cause);
+    sendStatusOnly(HttpResponseStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  /**
+   * Sends <code>400/Bad Request</code> status to the client.
+   * @param exception The exception that was thrown
+   */
+  public void badRequest(final BadRequestException exception) {
+    logWarn("Bad Request on " + request().getUri() + ": " + exception.getMessage());
+    sendStatusOnly(HttpResponseStatus.BAD_REQUEST);
+  }
+
+  /**
+   * Sends <code>404/Not Found</code> to the client.
+   */
+  public void notFound() {
+    logWarn("Not Found: " + request().getUri());
+    sendStatusOnly(HttpResponseStatus.NOT_FOUND);
   }
   
   /**
@@ -241,4 +265,31 @@ abstract class AbstractHttpQuery {
         .add("querystring", querystring)
         .toString();
   }
+  
+  // ---------------- //
+  // Logging helpers. //
+  // ---------------- //
+  
+  protected Logger logger() {
+    return LOG;
+  }
+
+  protected final void logInfo(final String msg) {
+    if (logger().isInfoEnabled()) {
+      logger().info(chan.toString() + ' ' + msg);
+    }
+  }
+
+  protected final void logWarn(final String msg) {
+    if (logger().isWarnEnabled()) {
+      logger().warn(chan.toString() + ' ' + msg);
+    }
+  }
+
+  protected final void logError(final String msg, final Exception e) {
+    if (logger().isErrorEnabled()) {
+      logger().error(chan.toString() + ' ' + msg, e);
+    }
+  }
+
 }

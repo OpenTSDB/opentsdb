@@ -437,6 +437,7 @@ final class HttpQuery extends AbstractHttpQuery {
    * API calls
    * @param cause The unexpected exception that caused this error.
    */
+  @Override
   public void internalError(final Exception cause) {
     logError("Internal Server Error on " + request().getUri(), cause);
 
@@ -488,10 +489,11 @@ final class HttpQuery extends AbstractHttpQuery {
   }
 
   /**
-   * Sends an error message to the client with the proeper status code and
-   * optional details stored in the exception
+   * Sends an error message to the client. Handles responses from 
+   * deprecated API calls.
    * @param exception The exception that was thrown
    */
+  @Override
   public void badRequest(final BadRequestException exception) {
     logWarn("Bad Request on " + request().getUri() + ": " + exception.getMessage());
     if (this.api_version > 0) {
@@ -526,7 +528,11 @@ final class HttpQuery extends AbstractHttpQuery {
     }
   }
 
-  /** Sends a 404 error page to the client. */
+  /**
+   * Sends a 404 error page to the client.
+   * Handles responses from deprecated API calls
+   */
+  @Override
   public void notFound() {
     logWarn("Not Found: " + request().getUri());
     if (this.api_version > 0) {
@@ -691,29 +697,6 @@ final class HttpQuery extends AbstractHttpQuery {
   }
 
   /**
-   * Send just the status code without a body, used for 204 or 304
-   * @param status The response code to reply with
-   * @since 2.0
-   */
-  public void sendStatusOnly(final HttpResponseStatus status) {
-    if (!channel().isConnected()) {
-      done();
-      return;
-    }
-
-    response().setStatus(status);
-    final boolean keepalive = HttpHeaders.isKeepAlive(request());
-    if (keepalive) {
-      HttpHeaders.setContentLength(response(), 0);
-    }
-    final ChannelFuture future = channel().write(response());
-    if (!keepalive) {
-      future.addListener(ChannelFutureListener.CLOSE);
-    }
-    done();
-  }
-
-  /**
    * Sends the given message as a PNG image.
    * <strong>This method will block</strong> while image is being generated.
    * It's only recommended for cases where we want to report an error back to
@@ -782,6 +765,8 @@ final class HttpQuery extends AbstractHttpQuery {
    * cache.  See RFC 2616 section 14.9 for more information.  Use 0 to disable
    * caching.
    */
+  @SuppressWarnings("resource") // Clears warning about RandomAccessFile not
+      // being closed. It is closed in operationComplete().
   public void sendFile(final HttpResponseStatus status,
                        final String path,
                        final int max_age) throws IOException {
@@ -1102,23 +1087,12 @@ final class HttpQuery extends AbstractHttpQuery {
       .append(PAGE_FOOTER);
     return buf;
   }
-
-  // ---------------- //
-  // Logging helpers. //
-  // ---------------- //
-
-  private void logInfo(final String msg) {
-    LOG.info(channel().toString() + ' ' + msg);
+  
+  @Override
+  protected Logger logger() {
+    return LOG;
   }
-
-  private void logWarn(final String msg) {
-    LOG.warn(channel().toString() + ' ' + msg);
-  }
-
-  private void logError(final String msg, final Exception e) {
-    LOG.error(channel().toString() + ' ' + msg, e);
-  }
-
+  
   // -------------------------------------------- //
   // Boilerplate (shamelessly stolen from Google) //
   // -------------------------------------------- //
