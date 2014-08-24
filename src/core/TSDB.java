@@ -36,7 +36,6 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.tsd.RpcPlugin;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -107,8 +106,6 @@ public final class TSDB {
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
   
-  /** List of activated RPC plugins */
-  private List<RpcPlugin> rpc_plugins = null;
   
   /**
    * Constructor
@@ -230,32 +227,6 @@ public final class TSDB {
           + rt_publisher.version());
     } else {
       rt_publisher = null;
-    }
-    
-    if (init_rpcs && config.hasProperty("tsd.rpc.plugins")) {
-      final String[] plugins = config.getString("tsd.rpc.plugins").split(",");
-      for (final String plugin : plugins) {
-        final RpcPlugin rpc = PluginLoader.loadSpecificPlugin(plugin.trim(), 
-            RpcPlugin.class);
-        if (rpc == null) {
-          throw new IllegalArgumentException(
-              "Unable to locate RPC plugin: " + plugin.trim());
-        }
-        try {
-          rpc.initialize(this);
-        } catch (Exception e) {
-          throw new RuntimeException(
-              "Failed to initialize RPC plugin", e);
-        }
-        
-        if (rpc_plugins == null) {
-          rpc_plugins = new ArrayList<RpcPlugin>(1);
-        }
-        rpc_plugins.add(rpc);
-        LOG.info("Successfully initialized RPC plugin [" + 
-            rpc.getClass().getCanonicalName() + "] version: " 
-            + rpc.version());
-      }
     }
   }
   
@@ -455,30 +426,20 @@ public final class TSDB {
     // Collect Stats from Plugins
     if (rt_publisher != null) {
       try {
-	collector.addExtraTag("plugin", "publish");
+        collector.addExtraTag("plugin", "publish");
         rt_publisher.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
+        collector.clearExtraTag("plugin");
       }                        
     }
     if (search != null) {
       try {
-	collector.addExtraTag("plugin", "search");
-	search.collectStats(collector);
+        collector.addExtraTag("plugin", "search");
+        search.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
+        collector.clearExtraTag("plugin");
       }                        
     }
-    if (rpc_plugins != null) {
-      try {
-	collector.addExtraTag("plugin", "rpc");
-	for(RpcPlugin rpc: rpc_plugins) {
-		rpc.collectStats(collector);
-	}                                
-      } finally {
-	collector.clearExtraTag("plugin");
-      }                        
-    }        
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
@@ -809,14 +770,6 @@ public final class TSDB {
       LOG.info("Shutting down RT plugin: " + 
           rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
-    }
-    
-    if (rpc_plugins != null && !rpc_plugins.isEmpty()) {
-      for (final RpcPlugin rpc : rpc_plugins) {
-        LOG.info("Shutting down RPC plugin: " + 
-            rpc.getClass().getCanonicalName());
-        deferreds.add(rpc.shutdown());
-      }
     }
     
     // wait for plugins to shutdown before we close the client

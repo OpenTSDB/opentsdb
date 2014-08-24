@@ -20,6 +20,7 @@ import java.io.FileNotFoundException;
 import java.util.List;
 
 import net.opentsdb.plugin.DummyPlugin;
+import net.opentsdb.tsd.HttpRpcPlugin;
 import net.opentsdb.utils.PluginLoader;
 
 import org.junit.Test;
@@ -107,6 +108,14 @@ public final class TestPluginLoader {
         DummyPlugin.class);
     assertNotNull(plugins);
     assertEquals(2, plugins.size());
+  }
+  
+  @Test
+  public void loadHttpRpcPlugin() throws Exception {
+    PluginLoader.loadJAR("plugin_test.jar");
+    HttpRpcPlugin plugin = PluginLoader.loadSpecificPlugin("net.opentsdb.tsd.DummyHttpRpcPlugin", HttpRpcPlugin.class);
+    assertNotNull(plugin);
+    assertEquals("/dummy/test", plugin.getPath());
   }
   
   @Test

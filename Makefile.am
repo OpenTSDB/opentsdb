@@ -90,6 +90,7 @@ tsdb_SRC := \
 	src/tree/Tree.java	\
 	src/tree/TreeBuilder.java	\
 	src/tree/TreeRule.java	\
+	src/tsd/AbstractHttpQuery.java	\
 	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
 	src/tsd/ConnectionManager.java	\
@@ -99,6 +100,8 @@ tsdb_SRC := \
 	src/tsd/HttpSerializer.java	\
 	src/tsd/HttpQuery.java	\
 	src/tsd/HttpRpc.java	\
+	src/tsd/HttpRpcPlugin.java	\
+	src/tsd/HttpRpcPluginQuery.java	\
 	src/tsd/LineBasedFrameDecoder.java	\
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
@@ -106,6 +109,7 @@ tsdb_SRC := \
 	src/tsd/QueryRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
+	src/tsd/RpcManager.java	\
 	src/tsd/RTPublisher.java	\
 	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
@@ -185,10 +189,12 @@ test_SRC := \
 	test/tsd/TestGraphHandler.java	\
 	test/tsd/TestHttpJsonSerializer.java	\
 	test/tsd/TestHttpQuery.java	\
+	test/tsd/TestHttpRpcPluginQuery.java	\
 	test/tsd/TestPutRpc.java	\
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestRpcHandler.java	\
 	test/tsd/TestRpcPlugin.java	\
+	test/tsd/TestRpcManager.java	\
 	test/tsd/TestRTPublisher.java	\
 	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestSuggestRpc.java	\
@@ -208,6 +214,7 @@ test_plugin_SRC := \
   test/plugin/DummyPluginB.java \
   test/search/DummySearchPlugin.java \
   test/tsd/DummyHttpSerializer.java \
+  test/tsd/DummyHttpRpcPlugin.java \
   test/tsd/DummyRpcPlugin.java \
   test/tsd/DummyRTPublisher.java
 
@@ -216,6 +223,7 @@ test_plugin_SVCS := \
   META-INF/services/net.opentsdb.plugin.DummyPlugin \
   META-INF/services/net.opentsdb.search.SearchPlugin \
   META-INF/services/net.opentsdb.tsd.HttpSerializer \
+  META-INF/services/net.opentsdb.tsd.HttpRpcPlugin \
   META-INF/services/net.opentsdb.tsd.RpcPlugin \
   META-INF/services/net.opentsdb.tsd.RTPublisher
   
