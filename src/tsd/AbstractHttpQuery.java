@@ -1,0 +1,244 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2010-2012  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
+package net.opentsdb.tsd;
+
+import java.nio.charset.Charset;
+import java.nio.charset.UnsupportedCharsetException;
+import java.util.List;
+import java.util.Map;
+
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.HttpVersion;
+import org.jboss.netty.handler.codec.http.QueryStringDecoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Objects;
+
+/**
+ * Abstract base class for HTTP queries.
+ * 
+ * @since 2.1
+ */
+abstract class AbstractHttpQuery {
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractHttpQuery.class);
+
+  /** When the query was started (useful for timing). */
+  private final long start_time = System.nanoTime();
+
+  /** The request in this HTTP query. */
+  private final HttpRequest request;
+
+  /** The channel on which the request was received. */
+  private final Channel chan;
+
+  /** Shortcut to the request method */
+  private final HttpMethod method;
+
+  /** Parsed query string (lazily built on first access). */
+  private Map<String, List<String>> querystring;
+  
+  /** The response object we'll fill with data */
+  private final DefaultHttpResponse response =
+    new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+
+  protected AbstractHttpQuery(final HttpRequest request, final Channel chan) {
+    this.request = request;
+    this.chan = chan;
+    this.method = request.getMethod();
+  }
+  
+  /**
+   * Returns the underlying Netty {@link HttpRequest} of this query.
+   */
+  public HttpRequest request() {
+    return request;
+  }
+
+  /** Returns the HTTP method/verb for the request */
+  public HttpMethod method() {
+    return this.method;
+  }
+
+  /** Returns the response object, allowing serializers to set headers */
+  public DefaultHttpResponse response() {
+    return this.response;
+  }
+
+  /**
+   * Returns the underlying Netty {@link Channel} of this query.
+   */
+  public Channel channel() {
+    return chan;
+  }
+  
+  /** Return the time in nanoseconds that this query object was 
+   * created.
+   */
+  public long startTimeNanos() {
+    return start_time;
+  }
+
+  /** Returns how many ms have elapsed since this query was created. */
+  public int processingTimeMillis() {
+    return (int) ((System.nanoTime() - start_time) / 1000000);
+  }
+  
+  /**
+   * Returns the query string parameters passed in the URI.
+   */
+  public Map<String, List<String>> getQueryString() {
+    if (querystring == null) {
+      try {
+        querystring = new QueryStringDecoder(request.getUri()).getParameters();
+      } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Bad query string: " + e.getMessage());
+      }
+    }
+    return querystring;
+  }
+  
+  /**
+   * Returns only the path component of the URI as a string
+   * This call strips the protocol, host, port and query string parameters
+   * leaving only the path e.g. "/path/starts/here"
+   * <p>
+   * Note that for slightly quicker performance you can call request().getUri()
+   * to get the full path as a string but you'll have to strip query string
+   * parameters manually.
+   * @return The path component of the URI
+   * @throws NullPointerException if the URI is null
+   * @since 2.0
+   */
+  public String getQueryPath() {
+    return new QueryStringDecoder(request.getUri()).getPath();
+  }
+  
+  /**
+   * Attempts to parse the character set from the request header. If not set
+   * defaults to UTF-8
+   * @return A Charset object
+   * @throws UnsupportedCharsetException if the parsed character set is invalid
+   * @since 2.0
+   */
+  public Charset getCharset() {
+    // RFC2616 3.7
+    for (String type : this.request.headers().getAll("Content-Type")) {
+      int idx = type.toUpperCase().indexOf("CHARSET=");
+      if (idx > 1) {
+        String charset = type.substring(idx+8);
+        return Charset.forName(charset);
+      }
+    }
+    return Charset.forName("UTF-8");
+  }
+  
+  /** @return True if the request has content, false if not @since 2.0 */
+  public boolean hasContent() {
+    return this.request.getContent() != null &&
+      this.request.getContent().readable();
+  }
+
+  /**
+   * Decodes the request content to a string using the appropriate character set
+   * @return Decoded content or an empty string if the request did not include
+   * content
+   * @throws UnsupportedCharsetException if the parsed character set is invalid
+   * @since 2.0
+   */
+  public String getContent() {
+    return this.request.getContent().toString(this.getCharset());
+  }
+  
+  /**
+   * Method to call after writing the HTTP response to the wire.  The default 
+   * is to simply log the request info.  Can be overridden by subclasses.
+   */
+  public void done() {
+    if (LOG.isInfoEnabled()) {
+      final int processing_time = processingTimeMillis();
+      LOG.info(chan.toString() + " HTTP " + request.getUri() + " done in " + processing_time + "ms");
+    }
+  }
+  
+  /**
+   * Send just the status code without a body, used for 204 or 304
+   * @param status The response code to reply with
+   * @since 2.0
+   */
+  public void sendStatusOnly(final HttpResponseStatus status) {
+    if (!chan.isConnected()) {
+      done();
+      return;
+    }
+
+    response.setStatus(status);
+    final boolean keepalive = HttpHeaders.isKeepAlive(request);
+    if (keepalive) {
+      HttpHeaders.setContentLength(response, 0);
+    }
+    final ChannelFuture future = chan.write(response);
+    if (!keepalive) {
+      future.addListener(ChannelFutureListener.CLOSE);
+    }
+    done();
+  }
+
+  /**
+   * Sends an HTTP reply to the client.
+   * @param status The status of the request (e.g. 200 OK or 404 Not Found).
+   * @param buf The content of the reply to send.
+   */
+  public void sendBuffer(final HttpResponseStatus status,
+                          final ChannelBuffer buf,
+                          final String contentType) {
+    if (!chan.isConnected()) {
+      done();
+      return;
+    }
+    response.headers().set(HttpHeaders.Names.CONTENT_TYPE, contentType);
+
+    // TODO(tsuna): Server, X-Backend, etc. headers.
+    // only reset the status if we have the default status, otherwise the user
+    // already set it
+    response.setStatus(status);
+    response.setContent(buf);
+    final boolean keepalive = HttpHeaders.isKeepAlive(request);
+    if (keepalive) {
+      HttpHeaders.setContentLength(response, buf.readableBytes());
+    }
+    final ChannelFuture future = chan.write(response);
+    if (!keepalive) {
+      future.addListener(ChannelFutureListener.CLOSE);
+    }
+    done();
+  }
+  
+  /** @return Information about the query */
+  public String toString() {
+    return Objects.toStringHelper(this)
+        .add("start_time", start_time)
+        .add("request", request)
+        .add("chan", chan)
+        .add("querystring", querystring)
+        .toString();
+  }
+}

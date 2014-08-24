@@ -20,20 +20,17 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 
-import ch.qos.logback.classic.spi.ThrowableProxy;
-import ch.qos.logback.classic.spi.ThrowableProxyUtil;
-
-import com.stumbleupon.async.Deferred;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.graph.Plot;
+import net.opentsdb.stats.Histogram;
+import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.PluginLoader;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -41,22 +38,18 @@ import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.DefaultFileRegion;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.jboss.netty.handler.codec.http.HttpVersion;
-import org.jboss.netty.handler.codec.http.QueryStringDecoder;
 import org.jboss.netty.util.CharsetUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.graph.Plot;
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.tsd.HttpSerializer;
-import net.opentsdb.utils.PluginLoader;
+import ch.qos.logback.classic.spi.ThrowableProxy;
+import ch.qos.logback.classic.spi.ThrowableProxyUtil;
+
+import com.stumbleupon.async.Deferred;
 
 /**
  * Binds together an HTTP request and the channel on which it was received.
@@ -64,7 +57,7 @@ import net.opentsdb.utils.PluginLoader;
  * It makes it easier to provide a few utility methods to respond to the
  * requests.
  */
-final class HttpQuery {
+final class HttpQuery extends AbstractHttpQuery {
 
   private static final Logger LOG = LoggerFactory.getLogger(HttpQuery.class);
 
@@ -90,21 +83,6 @@ final class HttpQuery {
   /** Caches serializer implementation information for user access */
   private static ArrayList<HashMap<String, Object>> serializer_status = null;
 
-  /** When the query was started (useful for timing). */
-  private final long start_time = System.nanoTime();
-
-  /** The request in this HTTP query. */
-  private final HttpRequest request;
-
-  /** The channel on which the request was received. */
-  private final Channel chan;
-
-  /** Shortcut to the request method */
-  private final HttpMethod method;
-
-  /** Parsed query string (lazily built on first access). */
-  private Map<String, List<String>> querystring;
-
   /** API version parsed from the incoming request */
   private int api_version = 0;
 
@@ -113,10 +91,6 @@ final class HttpQuery {
 
   /** Deferred result of this query, to allow asynchronous processing.  */
   private final Deferred<Object> deferred = new Deferred<Object>();
-
-  /** The response object we'll fill with data */
-  private final DefaultHttpResponse response =
-    new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
   /** The {@code TSDB} instance we belong to */
   private final TSDB tsdb;
@@ -130,12 +104,10 @@ final class HttpQuery {
    * @param chan The channel on which the request was received.
    */
   public HttpQuery(final TSDB tsdb, final HttpRequest request, final Channel chan) {
+    super(request, chan);
     this.tsdb = tsdb;
-    this.request = request;
-    this.chan = chan;
     this.show_stack_trace =
       tsdb.getConfig().getBoolean("tsd.http.show_stack_trace");
-    this.method = request.getMethod();
     this.serializer = new HttpJsonSerializer(this);
   }
 
@@ -145,30 +117,6 @@ final class HttpQuery {
    */
   public static void collectStats(final StatsCollector collector) {
     collector.record("http.latency", httplatency, "type=all");
-  }
-
-  /**
-   * Returns the underlying Netty {@link HttpRequest} of this query.
-   */
-  public HttpRequest request() {
-    return request;
-  }
-
-  /** Returns the HTTP method/verb for the request */
-  public HttpMethod method() {
-    return this.method;
-  }
-
-  /** Returns the response object, allowing serializers to set headers */
-  public DefaultHttpResponse response() {
-    return this.response;
-  }
-
-  /**
-   * Returns the underlying Netty {@link Channel} of this query.
-   */
-  public Channel channel() {
-    return chan;
   }
 
   /**
@@ -194,29 +142,10 @@ final class HttpQuery {
     return deferred;
   }
 
-  /** Returns how many ms have elapsed since this query was created. */
-  public int processingTimeMillis() {
-    return (int) ((System.nanoTime() - start_time) / 1000000);
-  }
-
   /** @return The selected seralizer. Will return null if {@link #setSerializer}
    * hasn't been called yet @since 2.0  */
   public HttpSerializer serializer() {
     return this.serializer;
-  }
-
-  /**
-   * Returns the query string parameters passed in the URI.
-   */
-  public Map<String, List<String>> getQueryString() {
-    if (querystring == null) {
-      try {
-        querystring = new QueryStringDecoder(request.getUri()).getParameters();
-      } catch (IllegalArgumentException e) {
-        throw new BadRequestException("Bad query string: " + e.getMessage());
-      }
-    }
-    return querystring;
   }
 
   /**
@@ -272,22 +201,6 @@ final class HttpQuery {
    */
   public List<String> getQueryStringParams(final String paramname) {
     return getQueryString().get(paramname);
-  }
-
-  /**
-   * Returns only the path component of the URI as a string
-   * This call strips the protocol, host, port and query string parameters
-   * leaving only the path e.g. "/path/starts/here"
-   * <p>
-   * Note that for slightly quicker performance you can call request().getUri()
-   * to get the full path as a string but you'll have to strip query string
-   * parameters manually.
-   * @return The path component of the URI
-   * @throws NullPointerException if the URI is null
-   * @since 2.0
-   */
-  public String getQueryPath() {
-    return new QueryStringDecoder(request.getUri()).getPath();
   }
 
   /**
@@ -424,42 +337,6 @@ final class HttpQuery {
   }
 
   /**
-   * Attempts to parse the character set from the request header. If not set
-   * defaults to UTF-8
-   * @return A Charset object
-   * @throws UnsupportedCharsetException if the parsed character set is invalid
-   * @since 2.0
-   */
-  public Charset getCharset() {
-    // RFC2616 3.7
-    for (String type : this.request.headers().getAll("Content-Type")) {
-      int idx = type.toUpperCase().indexOf("CHARSET=");
-      if (idx > 1) {
-        String charset = type.substring(idx+8);
-        return Charset.forName(charset);
-      }
-    }
-    return Charset.forName("UTF-8");
-  }
-
-  /** @return True if the request has content, false if not @since 2.0 */
-  public boolean hasContent() {
-    return this.request.getContent() != null &&
-      this.request.getContent().readable();
-  }
-
-  /**
-   * Decodes the request content to a string using the appropriate character set
-   * @return Decoded content or an empty string if the request did not include
-   * content
-   * @throws UnsupportedCharsetException if the parsed character set is invalid
-   * @since 2.0
-   */
-  public String getContent() {
-    return this.request.getContent().toString(this.getCharset());
-  }
-
-  /**
    * Determines the requested HttpMethod via VERB and QS override.
    * If the request is a {@code GET} and the user provides a valid override
    * method in the {@code method=&lt;method&gt;} query string parameter, then
@@ -538,7 +415,7 @@ final class HttpQuery {
     // attempt to parse the Content-Type string. We only want the first part,
     // not the character set. And if the CT is missing, we'll use the default
     // serializer
-    String content_type = this.request.headers().get("Content-Type");
+    String content_type = request().headers().get("Content-Type");
     if (content_type == null || content_type.isEmpty()) {
       return;
     }
@@ -561,7 +438,7 @@ final class HttpQuery {
    * @param cause The unexpected exception that caused this error.
    */
   public void internalError(final Exception cause) {
-    logError("Internal Server Error on " + request.getUri(), cause);
+    logError("Internal Server Error on " + request().getUri(), cause);
 
     if (this.api_version > 0) {
       // always default to the latest version of the error formatter since we
@@ -616,7 +493,7 @@ final class HttpQuery {
    * @param exception The exception that was thrown
    */
   public void badRequest(final BadRequestException exception) {
-    logWarn("Bad Request on " + request.getUri() + ": " + exception.getMessage());
+    logWarn("Bad Request on " + request().getUri() + ": " + exception.getMessage());
     if (this.api_version > 0) {
       // always default to the latest version of the error formatter since we
       // need to return something
@@ -651,7 +528,7 @@ final class HttpQuery {
 
   /** Sends a 404 error page to the client. */
   public void notFound() {
-    logWarn("Not Found: " + request.getUri());
+    logWarn("Not Found: " + request().getUri());
     if (this.api_version > 0) {
       // always default to the latest version of the error formatter since we
       // need to return something
@@ -675,7 +552,7 @@ final class HttpQuery {
   /** Redirects the client's browser to the given location.  */
   public void redirect(final String location) {
     // set the header AND a meta refresh just in case
-    response.headers().set("Location", location);
+    response().headers().set("Location", location);
     sendReply(HttpResponseStatus.OK,
       new StringBuilder(
           "<html></head><meta http-equiv=\"refresh\" content=\"0; url="
@@ -819,17 +696,17 @@ final class HttpQuery {
    * @since 2.0
    */
   public void sendStatusOnly(final HttpResponseStatus status) {
-    if (!chan.isConnected()) {
+    if (!channel().isConnected()) {
       done();
       return;
     }
 
-    response.setStatus(status);
-    final boolean keepalive = HttpHeaders.isKeepAlive(request);
+    response().setStatus(status);
+    final boolean keepalive = HttpHeaders.isKeepAlive(request());
     if (keepalive) {
-      HttpHeaders.setContentLength(response, 0);
+      HttpHeaders.setContentLength(response(), 0);
     }
-    final ChannelFuture future = chan.write(response);
+    final ChannelFuture future = channel().write(response());
     if (!keepalive) {
       future.addListener(ChannelFutureListener.CLOSE);
     }
@@ -912,7 +789,7 @@ final class HttpQuery {
       throw new IllegalArgumentException("Negative max_age=" + max_age
                                          + " for path=" + path);
     }
-    if (!chan.isConnected()) {
+    if (!channel().isConnected()) {
       done();
       return;
     }
@@ -921,8 +798,8 @@ final class HttpQuery {
       file = new RandomAccessFile(path, "r");
     } catch (FileNotFoundException e) {
       logWarn("File not found: " + e.getMessage());
-      if (querystring != null) {
-        querystring.remove("png");  // Avoid potential recursion.
+      if (getQueryString() != null && !getQueryString().isEmpty()) {
+        getQueryString().remove("png");  // Avoid potential recursion.
       }
       this.sendReply(HttpResponseStatus.NOT_FOUND, serializer.formatNotFoundV1());
       return;
@@ -930,30 +807,30 @@ final class HttpQuery {
     final long length = file.length();
     {
       final String mimetype = guessMimeTypeFromUri(path);
-      response.headers().set(HttpHeaders.Names.CONTENT_TYPE,
+      response().headers().set(HttpHeaders.Names.CONTENT_TYPE,
                          mimetype == null ? "text/plain" : mimetype);
       final long mtime = new File(path).lastModified();
       if (mtime > 0) {
-        response.headers().set(HttpHeaders.Names.AGE,
+        response().headers().set(HttpHeaders.Names.AGE,
                            (System.currentTimeMillis() - mtime) / 1000);
       } else {
         logWarn("Found a file with mtime=" + mtime + ": " + path);
       }
-      response.headers().set(HttpHeaders.Names.CACHE_CONTROL,
+      response().headers().set(HttpHeaders.Names.CACHE_CONTROL,
                          "max-age=" + max_age);
-      HttpHeaders.setContentLength(response, length);
-      chan.write(response);
+      HttpHeaders.setContentLength(response(), length);
+      channel().write(response());
     }
     final DefaultFileRegion region = new DefaultFileRegion(file.getChannel(),
                                                            0, length);
-    final ChannelFuture future = chan.write(region);
+    final ChannelFuture future = channel().write(region);
     future.addListener(new ChannelFutureListener() {
       public void operationComplete(final ChannelFuture future) {
         region.releaseExternalResources();
         done();
       }
     });
-    if (!HttpHeaders.isKeepAlive(request)) {
+    if (!HttpHeaders.isKeepAlive(request())) {
       future.addListener(ChannelFutureListener.CLOSE);
     }
   }
@@ -961,10 +838,11 @@ final class HttpQuery {
   /**
    * Method to call after writing the HTTP response to the wire.
    */
-  private void done() {
+  @Override
+  public void done() {
     final int processing_time = processingTimeMillis();
     httplatency.add(processing_time);
-    logInfo("HTTP " + request.getUri() + " done in " + processing_time + "ms");
+    logInfo("HTTP " + request().getUri() + " done in " + processing_time + "ms");
     deferred.callback(null);
   }
 
@@ -975,28 +853,9 @@ final class HttpQuery {
    */
   private void sendBuffer(final HttpResponseStatus status,
                           final ChannelBuffer buf) {
-    if (!chan.isConnected()) {
-      done();
-      return;
-    }
-    response.headers().set(HttpHeaders.Names.CONTENT_TYPE,
-        (api_version < 1 ? guessMimeType(buf) :
-          serializer.responseContentType()));
-
-    // TODO(tsuna): Server, X-Backend, etc. headers.
-    // only reset the status if we have the default status, otherwise the user
-    // already set it
-    response.setStatus(status);
-    response.setContent(buf);
-    final boolean keepalive = HttpHeaders.isKeepAlive(request);
-    if (keepalive) {
-      HttpHeaders.setContentLength(response, buf.readableBytes());
-    }
-    final ChannelFuture future = chan.write(response);
-    if (!keepalive) {
-      future.addListener(ChannelFutureListener.CLOSE);
-    }
-    done();
+    final String contentType = (api_version < 1 ? guessMimeType(buf) :
+      serializer.responseContentType());
+    sendBuffer(status, buf, contentType);
   }
 
   /**
@@ -1004,7 +863,7 @@ final class HttpQuery {
    * @param buf The content of the reply to send.
    */
   private String guessMimeType(final ChannelBuffer buf) {
-    final String mimetype = guessMimeTypeFromUri(request.getUri());
+    final String mimetype = guessMimeTypeFromUri(request().getUri());
     return mimetype == null ? guessMimeTypeFromContents(buf) : mimetype;
   }
 
@@ -1244,30 +1103,20 @@ final class HttpQuery {
     return buf;
   }
 
-  /** @return Information about the query */
-  public String toString() {
-    return "HttpQuery"
-      + "(start_time=" + start_time
-      + ", request=" + request
-      + ", chan=" + chan
-      + ", querystring=" + querystring
-      + ')';
-  }
-
   // ---------------- //
   // Logging helpers. //
   // ---------------- //
 
   private void logInfo(final String msg) {
-    LOG.info(chan.toString() + ' ' + msg);
+    LOG.info(channel().toString() + ' ' + msg);
   }
 
   private void logWarn(final String msg) {
-    LOG.warn(chan.toString() + ' ' + msg);
+    LOG.warn(channel().toString() + ' ' + msg);
   }
 
   private void logError(final String msg, final Exception e) {
-    LOG.error(chan.toString() + ' ' + msg, e);
+    LOG.error(channel().toString() + ' ' + msg, e);
   }
 
   // -------------------------------------------- //
