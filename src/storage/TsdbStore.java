@@ -96,9 +96,6 @@ public interface TsdbStore {
   // ------------------ //
   // Compaction helpers //
   // ------------------ //
-  KeyValue compact(ArrayList<KeyValue> row,
-                   List<Annotation> annotations);
-
   void scheduleForCompaction(byte[] row);
 
   /**

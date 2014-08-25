@@ -639,12 +639,6 @@ public class HBaseStore implements TsdbStore {
   // ------------------ //
   // Compaction helpers //
   // ------------------ //
-  @Override
-  public final KeyValue compact(final ArrayList<KeyValue> row,
-                                List<Annotation> annotations) {
-    return compactionq.compact(row, annotations);
-  }
-
   /**
    * Schedules the given row key for later re-compaction.
    * Once this row key has become "old enough", we'll read back all the data
@@ -1008,7 +1002,8 @@ public class HBaseStore implements TsdbStore {
    */
   @Override
   public AsyncIterator<DataPoints> executeQuery(final TsdbQuery tsdbQuery) throws HBaseException {
-    return new QueryRunner(tsdbQuery, client, data_table_name, TS_FAMILY);
+    return new QueryRunner(tsdbQuery, client, compactionq, data_table_name,
+            TS_FAMILY);
   }
 
   /**
