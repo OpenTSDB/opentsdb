@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage.hbase;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,15 +20,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.core.DataPoint;
+import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Internal;
+import net.opentsdb.core.RowKey;
+import net.opentsdb.core.SeekableView;
 import net.opentsdb.meta.Annotation;
 
 import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.SignedBytes;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 
 import static com.google.common.base.Preconditions.checkElementIndex;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Represents a read-only sequence of continuous HBase rows.
@@ -38,196 +47,44 @@ import static com.google.common.base.Preconditions.checkElementIndex;
  * are stored in two byte arrays: one for the time offsets/flags and another
  * for the values. Access is granted via pointers.
  */
-final class RowSeq implements DataPoints {
+public final class CompactedRow implements DataPoints {
   /** First row key. */
-  byte[] key;
+  private final byte[] key;
 
   /**
    * Qualifiers for individual data points.
    * <p>
-   * Each qualifier is on 2 or 4 bytes.  The last {@link Const#FLAG_BITS} bits 
+   * Each qualifier is on 2 or 4 bytes.  The last {@link net.opentsdb.core.Const#FLAG_BITS} bits
    * are used to store flags (the type of the data point - integer or floating
    * point - and the size of the data point in bytes).  The remaining MSBs
    * store a delta in seconds from the base timestamp stored in the row key.
    */
-  private byte[] qualifiers;
+  private final byte[] qualifiers;
 
   /** Values in the row.  */
-  private byte[] values;
+  private final byte[] values;
 
-  /**
-   * Constructor.
-   */
-  RowSeq() {
-  }
+  /** The annotations contained within this row */
+  private final List<Annotation> annotations;
 
-  /**
-   * Sets the row this instance holds in RAM using a row from a scanner.
-   * @param row The compacted HBase row to set.
-   * @throws IllegalStateException if this method was already called.
-   */
-  void setRow(final KeyValue row) {
-    if (this.key != null) {
-      throw new IllegalStateException("setRow was already called on " + this);
-    }
+  public CompactedRow(final KeyValue kv, final List<Annotation> annotations) {
+    this.key = checkNotNull(kv.key());
+    this.qualifiers = checkNotNull(kv.qualifier());
+    this.values = checkNotNull(kv.value());
 
-    this.key = row.key();
-    this.qualifiers = row.qualifier();
-    this.values = row.value();
-  }
-
-  /**
-   * Merges data points for the same HBase row into the local object.
-   * When executing multiple async queries simultaneously, they may call into 
-   * this method with data sets that are out of order. This may ONLY be called 
-   * after setRow() has initiated the rowseq.
-   * @param row The compacted HBase row to merge into this instance.
-   * @throws IllegalStateException if {@link #setRow} wasn't called first.
-   * @throws IllegalArgumentException if the data points in the argument
-   * do not belong to the same row as this RowSeq
-   */
-  void addRow(final KeyValue row) {
-    if (this.key == null) {
-      throw new IllegalStateException("setRow was never called on " + this);
-    }
-
-    final byte[] key = row.key();
-    if (!Bytes.equals(this.key, key)) {
-      throw new IllegalDataException("Attempt to add a different row="
-          + row + ", this=" + this);
-    }
-
-    final byte[] remote_qual = row.qualifier();
-    final byte[] remote_val = row.value();
-    final byte[] merged_qualifiers = new byte[qualifiers.length + remote_qual.length];
-    final byte[] merged_values = new byte[values.length + remote_val.length]; 
-
-    int remote_q_index = 0;
-    int local_q_index = 0;
-    int merged_q_index = 0;
-    
-    int remote_v_index = 0;
-    int local_v_index = 0;
-    int merged_v_index = 0;
-    short v_length;
-    short q_length;
-    while (remote_q_index < remote_qual.length || 
-        local_q_index < qualifiers.length) {
-      // if the remote q has finished, we just need to handle left over locals
-      if (remote_q_index >= remote_qual.length) {
-        v_length = Internal.getValueLengthFromQualifier(qualifiers, 
-            local_q_index);
-        System.arraycopy(values, local_v_index, merged_values, 
-            merged_v_index, v_length);
-        local_v_index += v_length;
-        merged_v_index += v_length;
-        
-        q_length = Internal.getQualifierLength(qualifiers, 
-            local_q_index);
-        System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        local_q_index += q_length;
-        merged_q_index += q_length;
-        
-        continue;
-      }
-      
-      // if the local q has finished, we need to handle the left over remotes
-      if (local_q_index >= qualifiers.length) {
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
-            remote_q_index);
-        System.arraycopy(remote_val, remote_v_index, merged_values, 
-            merged_v_index, v_length);
-        remote_v_index += v_length;
-        merged_v_index += v_length;
-        
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
-        System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        remote_q_index += q_length;
-        merged_q_index += q_length;
-        
-        continue;
-      }
-      
-      // for dupes, we just need to skip and continue
-      final int sort = Internal.compareQualifiers(remote_qual, remote_q_index, 
-          qualifiers, local_q_index);
-      if (sort == 0) {
-        //LOG.debug("Discarding duplicate timestamp: " + 
-        //    Internal.getOffsetFromQualifier(remote_qual, remote_q_index));
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
-            remote_q_index);
-        remote_v_index += v_length;
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
-        remote_q_index += q_length;
-        continue;
-      }
-      
-      if (sort < 0) {
-        v_length = Internal.getValueLengthFromQualifier(remote_qual, 
-            remote_q_index);
-        System.arraycopy(remote_val, remote_v_index, merged_values, 
-            merged_v_index, v_length);
-        remote_v_index += v_length;
-        merged_v_index += v_length;
-        
-        q_length = Internal.getQualifierLength(remote_qual, 
-            remote_q_index);
-        System.arraycopy(remote_qual, remote_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        remote_q_index += q_length;
-        merged_q_index += q_length;
-      } else {
-        v_length = Internal.getValueLengthFromQualifier(qualifiers, 
-            local_q_index);
-        System.arraycopy(values, local_v_index, merged_values, 
-            merged_v_index, v_length);
-        local_v_index += v_length;
-        merged_v_index += v_length;
-        
-        q_length = Internal.getQualifierLength(qualifiers, 
-            local_q_index);
-        System.arraycopy(qualifiers, local_q_index, merged_qualifiers, 
-            merged_q_index, q_length);
-        local_q_index += q_length;
-        merged_q_index += q_length;
-      }
-    }
-    
-    // we may have skipped some columns if we were given duplicates. Since we
-    // had allocated enough bytes to hold the incoming row, we need to shrink
-    // the final results
-    if (merged_q_index == merged_qualifiers.length) {
-      qualifiers = merged_qualifiers;
-    } else {
-      qualifiers = Arrays.copyOfRange(merged_qualifiers, 0, merged_q_index);
-    }
-    
-    // set the meta bit based on the local and remote metas
-    byte meta = 0;
-    if ((values[values.length - 1] & Const.MS_MIXED_COMPACT) == 
-                                     Const.MS_MIXED_COMPACT || 
-        (remote_val[remote_val.length - 1] & Const.MS_MIXED_COMPACT) == 
-                                             Const.MS_MIXED_COMPACT) {
-      meta = Const.MS_MIXED_COMPACT;
-    }
-    values = Arrays.copyOfRange(merged_values, 0, merged_v_index + 1);
-    values[values.length - 1] = meta;
+    this.annotations = checkNotNull(annotations);
   }
 
   /**
    * Extracts the value of a cell containing a data point.
-   * @param value The contents of a cell in HBase.
+   * @param values The contents of a cell in HBase.
    * @param value_idx The offset inside {@code values} at which the value
    * starts.
    * @param flags The flags for this value.
    * @return The value of the cell.
-   * @throws IllegalDataException if the data is malformed
+   * @throws net.opentsdb.core.IllegalDataException if the data is malformed
    */
-  static long extractIntegerValue(final byte[] values,
+  private static long extractIntegerValue(final byte[] values,
                                   final int value_idx,
                                   final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
@@ -243,14 +100,14 @@ final class RowSeq implements DataPoints {
 
   /**
    * Extracts the value of a cell containing a data point.
-   * @param value The contents of a cell in HBase.
+   * @param values The contents of a cell in HBase.
    * @param value_idx The offset inside {@code values} at which the value
    * starts.
    * @param flags The flags for this value.
    * @return The value of the cell.
    * @throws IllegalDataException if the data is malformed
    */
-  static double extractFloatingPointValue(final byte[] values,
+  private static double extractFloatingPointValue(final byte[] values,
                                           final int value_idx,
                                           final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
@@ -286,19 +143,23 @@ final class RowSeq implements DataPoints {
     return Collections.emptyList();
   }
   
+  @Override
   public List<String> getTSUIDs() {
     return Collections.emptyList();
   }
-  
-  /** @return null since annotations are stored at the SpanGroup level. They
-   * are filtered when a row is compacted */ 
+
+  /**
+   * @see DataPoints#getAnnotations()
+   */
+  @Override
   public List<Annotation> getAnnotations() {
-    return Collections.emptyList();
+    return annotations;
   }
 
   /** @return the number of data points in this row 
    * Unfortunately we must walk the entire array as there may be a mix of
    * second and millisecond timestamps */
+  @Override
   public int size() {
     // if we don't have a mix of second and millisecond qualifiers we can run
     // this in O(1), otherwise we have to run O(n)
@@ -320,20 +181,17 @@ final class RowSeq implements DataPoints {
   }
 
   /** @return 0 since aggregation cannot happen at the row level */
+  @Override
   public int aggregatedSize() {
     return 0;
   }
 
+  @Override
   public SeekableView iterator() {
-    return internalIterator();
-  }
-
-  /** Package private iterator method to access it as a {@link Iterator}. */
-  Iterator internalIterator() {
-    // XXX this is now grossly inefficient, need to walk the arrays once.
     return new Iterator();
   }
 
+  @Override
   public long timestamp(final int i) {
     checkElementIndex(i, size(), "i");
     // if we don't have a mix of second and millisecond qualifiers we can run
@@ -361,16 +219,19 @@ final class RowSeq implements DataPoints {
         "WTF timestamp for index: " + i + " on " + this);
   }
 
+  @Override
   public boolean isInteger(final int i) {
     checkElementIndex(i, size(), "i");
     return (Internal.getFlagsFromQualifier(qualifiers, i) & 
         Const.FLAG_FLOAT) == 0x0;
   }
 
+  @Override
   public long longValue(int i) {
     return Iterators.get(new Iterator(), i).longValue();
   }
 
+  @Override
   public double doubleValue(int i) {
     return Iterators.get(new Iterator(), i).doubleValue();
   }
@@ -403,8 +264,8 @@ final class RowSeq implements DataPoints {
                                                 + key.length * 4
                                                 + size * 16);
     final long base_time = RowKey.baseTime(key);
-    buf.append("RowSeq(")
-       .append(key == null ? "<null>" : Arrays.toString(key))
+    buf.append("CompactedRow(")
+       .append(Arrays.toString(key))
        .append(" (metric=")
        .append(metric)
        .append("), base_time=")
@@ -438,20 +299,17 @@ final class RowSeq implements DataPoints {
   }
 
   /**
-   * Used to compare two RowSeq objects when sorting a {@link Span}. Compares
-   * on {@link net.opentsdb.core.RowKey#baseTime(byte[])}.
-   * @since 2.0
+   * Used to compare two {@link net.opentsdb.storage.hbase.CompactedRow} objects
+   * when sorting a {@link net.opentsdb.core.Span}.
    */
-  public static final class RowSeqComparator implements Comparator<RowSeq> {
-    public int compare(final RowSeq a, final RowSeq b) {
-      if (RowKey.baseTime(a.key) == RowKey.baseTime(b.key)) {
-        return 0;
-      }
-      return RowKey.baseTime(a.key) < RowKey.baseTime(b.key) ? -1 : 1;
+  public static final class CompactedRowComparator implements Comparator<CompactedRow> {
+    @Override
+    public int compare(final CompactedRow a, final CompactedRow b) {
+      return SignedBytes.lexicographicalComparator().compare(a.key, b.key);
     }
   }
   
-  /** Iterator for {@link RowSeq}s.  */
+  /** Iterator for {@link CompactedRow}s.  */
   final class Iterator implements SeekableView, DataPoint {
 
     /** Current qualifier.  */
@@ -473,10 +331,12 @@ final class RowSeq implements DataPoints {
     // Iterator interface //
     // ------------------ //
 
+    @Override
     public boolean hasNext() {
       return qual_index < qualifiers.length;
     }
 
+    @Override
     public DataPoint next() {
       if (!hasNext()) {
         throw new NoSuchElementException("no more elements");
@@ -495,6 +355,7 @@ final class RowSeq implements DataPoints {
       return this;
     }
 
+    @Override
     public void remove() {
       throw new UnsupportedOperationException();
     }
@@ -503,6 +364,7 @@ final class RowSeq implements DataPoints {
     // SeekableView interface //
     // ---------------------- //
 
+    @Override
     public void seek(final long timestamp) {
       if ((timestamp & Const.MILLISECOND_MASK) != 0) {  // negative or not 48 bits
         throw new IllegalArgumentException("invalid timestamp: " + timestamp);
@@ -530,6 +392,7 @@ final class RowSeq implements DataPoints {
     // DataPoint interface //
     // ------------------- //
 
+    @Override
     public long timestamp() {
       assert qual_index > 0: "not initialized: " + this;
       if ((qualifier & Const.MS_FLAG) == Const.MS_FLAG) {
@@ -541,11 +404,13 @@ final class RowSeq implements DataPoints {
       }
     }
 
+    @Override
     public boolean isInteger() {
       assert qual_index > 0: "not initialized: " + this;
       return (qualifier & Const.FLAG_FLOAT) == 0x0;
     }
 
+    @Override
     public long longValue() {
       if (!isInteger()) {
         throw new ClassCastException("value @"
@@ -556,6 +421,7 @@ final class RowSeq implements DataPoints {
       return extractIntegerValue(values, value_index - vlen, flags);
     }
 
+    @Override
     public double doubleValue() {
       if (isInteger()) {
         throw new ClassCastException("value @"
@@ -566,25 +432,9 @@ final class RowSeq implements DataPoints {
       return extractFloatingPointValue(values, value_index - vlen, flags);
     }
 
+    @Override
     public double toDouble() {
       return isInteger() ? longValue() : doubleValue();
-    }
-
-    // ---------------- //
-    // Helpers for Span //
-    // ---------------- //
-
-    /** Helper to take a snapshot of the state of this iterator.  */
-    long saveState() {
-      return ((long)qual_index << 32) | ((long)value_index & 0xFFFFFFFF);
-    }
-
-    /** Helper to restore a snapshot of the state of this iterator.  */
-    void restoreState(long state) {
-      value_index = (int) state & 0xFFFFFFFF;
-      state >>>= 32;
-      qual_index = (int) state;
-      qualifier = 0;
     }
 
     /**
@@ -599,9 +449,8 @@ final class RowSeq implements DataPoints {
       return Objects.toStringHelper(this)
               .add("qual_index", qual_index)
               .add("value_index", value_index)
-              .add("seq", RowSeq.this)
+              .add("seq", CompactedRow.this)
               .toString();
     }
-
   }
 }

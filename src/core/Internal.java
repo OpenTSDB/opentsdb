@@ -19,6 +19,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import net.opentsdb.storage.hbase.CompactedRow;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -80,18 +81,18 @@ public final class Internal {
     // Can't instantiate.
   }
 
-  /** @see RowSeq#extractIntegerValue */
+  /** @see net.opentsdb.storage.hbase.CompactedRow#extractIntegerValue */
   public static long extractIntegerValue(final byte[] values,
                                          final int value_idx,
                                          final byte flags) {
-    return RowSeq.extractIntegerValue(values, value_idx, flags);
+    return CompactedRow.extractIntegerValue(values, value_idx, flags);
   }
 
-  /** @see RowSeq#extractFloatingPointValue */
+  /** @see CompactedRow#extractFloatingPointValue */
   public static double extractFloatingPointValue(final byte[] values,
                                                  final int value_idx,
                                                  final byte flags) {
-    return RowSeq.extractFloatingPointValue(values, value_idx, flags);
+    return CompactedRow.extractFloatingPointValue(values, value_idx, flags);
   }
 
   /**

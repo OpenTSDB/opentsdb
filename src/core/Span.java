@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.storage.hbase.CompactedRow;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Objects;
@@ -29,11 +30,11 @@ import org.hbase.async.KeyValue;
 /**
  * Represents a read-only sequence of continuous data points.
  * <p>
- * This class stores a continuous sequence of {@link RowSeq}s in memory.
+ * This class stores a continuous sequence of {@link net.opentsdb.storage.hbase.CompactedRow}s in memory.
  */
 final class Span implements DataPoints {
   /** All the rows in this span. */
-  private final ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
+  private final ArrayList<CompactedRow> rows = new ArrayList<CompactedRow>();
 
   /** A list of annotations for this span. We can't lazily initialize since we
    * have to pass a collection to the compaction queue */
@@ -92,7 +93,7 @@ final class Span implements DataPoints {
    * mix of second and millisecond timestamps */
   public int size() {
     int size = 0;
-    for (final RowSeq row : rows) {
+    for (final CompactedRow row : rows) {
       size += row.size();
     }
     return size;
@@ -131,7 +132,7 @@ final class Span implements DataPoints {
     if (!rows.isEmpty()) {
       // Verify that we have the same metric id and tags.
       final byte[] key = row.key();
-      final RowSeq last = rows.get(rows.size() - 1);
+      final CompactedRow last = rows.get(rows.size() - 1);
       final short metric_width = Const.METRICS_WIDTH;
       final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
       final short tags_bytes = (short) (key.length - tags_offset);
@@ -152,12 +153,12 @@ final class Span implements DataPoints {
       last_ts = last.timestamp(last.size() - 1);  // O(n)
     }
 
-    final RowSeq rowseq = new RowSeq();
+    final CompactedRow rowseq = new CompactedRow();
     rowseq.setRow(row);
     sorted = false;
     if (last_ts >= rowseq.timestamp(0)) {
       // scan to see if we need to merge into an existing row
-      for (final RowSeq rs : rows) {
+      for (final CompactedRow rs : rows) {
         if (Bytes.memcmp(rs.key, row.key()) == 0) {
           rs.addRow(row);
           return;
@@ -198,13 +199,13 @@ final class Span implements DataPoints {
    * Finds the index of the row of the ith data point and the offset in the row.
    * @param i The index of the data point to find.
    * @return two ints packed in a long.  The first int is the index of the row
-   * in {@code rows} and the second is offset in that {@link RowSeq} instance.
+   * in {@code rows} and the second is offset in that {@link CompactedRow} instance.
    */
   private long getIdxOffsetFor(final int i) {
     checkRowOrder();
     int idx = 0;
     int offset = 0;
-    for (final RowSeq row : rows) {
+    for (final CompactedRow row : rows) {
       final int sz = row.size();
       if (offset + sz > i) {
         break;
@@ -308,7 +309,7 @@ final class Span implements DataPoints {
   private int seekRow(final long timestamp) {
     checkRowOrder();
     int row_index = 0;
-    RowSeq row = null;
+    CompactedRow row = null;
     final int nrows = rows.size();
     for (int i = 0; i < nrows; i++) {
       row = rows.get(i);
@@ -332,7 +333,7 @@ final class Span implements DataPoints {
    */
   private void checkRowOrder() {
     if (!sorted) {
-      Collections.sort(rows, new RowSeq.RowSeqComparator());
+      Collections.sort(rows, new CompactedRow.CompactedRowComparator());
       sorted = true;
     }
   }
@@ -340,7 +341,7 @@ final class Span implements DataPoints {
   /** Package private iterator method to access it as a Span.Iterator. */
   Span.Iterator spanIterator() {
     if (!sorted) {
-      Collections.sort(rows, new RowSeq.RowSeqComparator());
+      Collections.sort(rows, new CompactedRow.CompactedRowComparator());
       sorted = true;
     }
     return new Span.Iterator();
@@ -349,14 +350,14 @@ final class Span implements DataPoints {
   /** Iterator for {@link Span}s. */
   final class Iterator implements SeekableView {
 
-    /** Index of the {@link RowSeq} we're currently at, in {@code rows}. */
+    /** Index of the {@link CompactedRow} we're currently at, in {@code rows}. */
     private int row_index;
 
     /** Iterator on the current row. */
-    private RowSeq.Iterator current_row;
+    private SeekableView current_row;
 
     Iterator() {
-      current_row = rows.get(0).internalIterator();
+      current_row = rows.get(0).iterator();
     }
 
     public boolean hasNext() {
@@ -369,7 +370,7 @@ final class Span implements DataPoints {
         return current_row.next();
       } else if (row_index < rows.size() - 1) {
         row_index++;
-        current_row = rows.get(row_index).internalIterator();
+        current_row = rows.get(row_index).iterator();
         return current_row.next();
       }
       throw new NoSuchElementException("no more elements");
@@ -383,7 +384,7 @@ final class Span implements DataPoints {
       int row_index = seekRow(timestamp);
       if (row_index != this.row_index) {
         this.row_index = row_index;
-        current_row = rows.get(row_index).internalIterator();
+        current_row = rows.get(row_index).iterator();
       }
       current_row.seek(timestamp);
     }
