@@ -350,7 +350,7 @@ public final class Branch implements Comparable<Branch> {
     
     // compile the row key by making sure the display_name is in the path set
     // row ID = <treeID>[<parent.display_name.hashCode()>...]
-    final byte[] row = this.compileBranchId(); 
+    final byte[] row = this.compileBranchId();
     
     // compile the object for storage, this will toss exceptions if we are
     // missing anything important
@@ -364,7 +364,7 @@ public final class Branch implements Comparable<Branch> {
     // store leaves if told to and put the storage calls in our deferred group
     if (store_leaves && leaves != null && !leaves.isEmpty()) {
       for (final Leaf leaf : leaves.values()) {
-        storage_results.add(leaf.storeLeaf(tsdb, row, tree));
+        storage_results.add(tsdb.storeLeaf(leaf, this, tree));
       } 
     }
     
@@ -555,7 +555,7 @@ public final class Branch implements Comparable<Branch> {
               if (Bytes.equals(branch_id, column.key())) {
                 // process a leaf and skip if the UIDs for the TSUID can't be 
                 // found. Add an errback to catch NoSuchUniqueId exceptions
-                leaf_group.add(Leaf.parseFromStorage(tsdb, column, 
+                leaf_group.add(tsdb.getLeaf(column,
                     load_leaf_uids)
                     .addCallbacks(new LeafCB(), 
                         new LeafErrBack(column.qualifier())));

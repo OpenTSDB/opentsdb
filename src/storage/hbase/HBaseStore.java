@@ -1656,6 +1656,121 @@ public class HBaseStore implements TsdbStore {
   }
 
   /**
+   * Attempts to fetch the requested leaf from storage.
+   * <b>Note:</b> This method will not load the UID names from a TSDB. This is
+   * only used to fetch a particular leaf from storage for collision detection
+   * @param branch The branch this leaf belongs to
+   * @param display_name Name of the leaf
+   * @return A valid leaf if found, null if the leaf did not exist
+   * @throws HBaseException if there was an issue
+   * @throws JSONException if the object could not be serialized
+   */
+  private Deferred<Leaf> fetchLeaf(final Branch branch, final String display_name) {
+    final Leaf leaf = new Leaf();
+    leaf.setDisplayName(display_name);
+
+    final GetRequest get = new GetRequest(tree_table_name, branch.compileBranchId());
+    get.family(Tree.TREE_FAMILY());
+    get.qualifier(leaf.columnQualifier());
+
+    /**
+     * Called with the results of the fetch from storage
+     */
+    final class GetCB implements Callback<Deferred<Leaf>, ArrayList<KeyValue>> {
+
+      /**
+       * @return null if the row was empty, a valid Leaf if parsing was
+       * successful
+       */
+      @Override
+      public Deferred<Leaf> call(ArrayList<KeyValue> row) throws Exception {
+        if (row == null || row.isEmpty()) {
+          return Deferred.fromResult(null);
+        }
+
+        final Leaf leaf = JSON.parseToObject(row.get(0).value(), Leaf.class);
+        return Deferred.fromResult(leaf);
+      }
+
+    }
+
+    return client.get(get).addCallbackDeferring(new GetCB());
+  }
+
+  @Override
+  public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch, final Tree tree) {
+    final byte[] branch_id = branch.compileBranchId();
+    /**
+     * Callback executed with the results of our CAS operation. If the put was
+     * successful, we just return. Otherwise we load the existing leaf to
+     * determine if there was a collision.
+     */
+    final class LeafStoreCB implements Callback<Deferred<Boolean>, Boolean> {
+
+      final Leaf local_leaf;
+
+      public LeafStoreCB(final Leaf local_leaf) {
+        this.local_leaf = local_leaf;
+      }
+
+      /**
+       * @return True if the put was successful or the leaf existed, false if
+       * there was a collision
+       */
+      @Override
+      public Deferred<Boolean> call(final Boolean success) throws Exception {
+        if (success) {
+          return Deferred.fromResult(success);
+        }
+
+        /**
+         * Called after fetching the existing leaf from storage
+         */
+        final class LeafFetchCB implements Callback<Deferred<Boolean>, Leaf> {
+
+          /**
+           * @return True if the put was successful or the leaf existed, false if
+           * there was a collision
+           */
+          @Override
+          public Deferred<Boolean> call(final Leaf existing_leaf)
+                  throws Exception {
+            if (existing_leaf == null) {
+              LOG.error(
+                      "Returned leaf was null, stored data may be corrupt for leaf: "
+                              + Branch.idToString(leaf.columnQualifier()) + " on branch: "
+                              + Branch.idToString(branch_id));
+              return Deferred.fromResult(false);
+            }
+
+            if (existing_leaf.getTsuid().equals(leaf.getTsuid())) {
+              LOG.debug("Leaf already exists: " + local_leaf);
+              return Deferred.fromResult(true);
+            }
+
+            tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());
+            LOG.warn("Branch ID: [" + Branch.idToString(branch_id)
+                    + "] Leaf collision with [" + leaf.getTsuid() +
+                    "] on existing leaf [" + existing_leaf.getTsuid() +
+                    "] named [" + leaf.getDisplayName() + "]");
+            return Deferred.fromResult(false);
+          }
+        }
+        // fetch the existing leaf so we can compare it to determine if we have
+        // a collision or an existing leaf
+        return fetchLeaf(branch, leaf.getDisplayName())
+                .addCallbackDeferring(new LeafFetchCB());
+      }
+    }
+
+    // execute the CAS call to start the callback chain
+    final PutRequest put = new PutRequest(tree_table_name, branch_id,
+            Tree.TREE_FAMILY(), leaf.columnQualifier(), leaf.toStorageJson());
+    return client.compareAndSet(put, new byte[0])
+            .addCallbackDeferring(new LeafStoreCB(leaf));
+  }
+
+  /**
    * Configures a scanner to run through all rows in the UID table that are
    * {@link #TREE_ID_WIDTH} bytes wide using a row key regex filter
    * @return The configured HBase scanner

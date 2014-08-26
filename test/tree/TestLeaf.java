@@ -45,12 +45,14 @@ import com.stumbleupon.async.DeferredGroupException;
 public final class TestLeaf {
   private TSDB tsdb;
   private MemoryStore tsdb_store;
+  private Branch branch;
   
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
+    branch = new Branch(1);
 
     tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
@@ -134,7 +136,7 @@ public final class TestLeaf {
   public void storeLeaf() throws Exception {
     final Leaf leaf = new Leaf("Leaf", "000002000002000002");
     final Tree tree = TestTree.buildTestTree();
-    assertTrue(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
+    assertTrue(tsdb.storeLeaf(leaf, branch, tree)
         .joinUninterruptibly());
     assertEquals(2, tsdb_store.numColumns(new byte[]{0, 1}));
   }
@@ -143,7 +145,7 @@ public final class TestLeaf {
   public void storeLeafExistingSame() throws Exception {
     final Leaf leaf = new Leaf("0", "000001000001000001");
     final Tree tree = TestTree.buildTestTree();
-    assertTrue(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
+    assertTrue(tsdb.storeLeaf(leaf, branch, tree)
         .joinUninterruptibly());
     assertEquals(1, tsdb_store.numColumns(new byte[]{0, 1}));
   }
@@ -152,7 +154,7 @@ public final class TestLeaf {
   public void storeLeafCollision() throws Exception {
     final Leaf leaf = new Leaf("0", "000002000001000001");
     final Tree tree = TestTree.buildTestTree();
-    assertFalse(leaf.storeLeaf(tsdb, new byte[] { 0, 1 }, tree)
+    assertFalse(tsdb.storeLeaf(leaf, branch, tree)
         .joinUninterruptibly());
     assertEquals(1, tsdb_store.numColumns(new byte[]{0, 1}));
     assertEquals(1, tree.getCollisions().size());
@@ -166,7 +168,7 @@ public final class TestLeaf {
     when(column.value()).thenReturn(
         ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
         .getBytes(Const.CHARSET_ASCII));
-    final Leaf leaf = Leaf.parseFromStorage(tsdb, column, true).joinUninterruptibly();
+    final Leaf leaf = tsdb.getLeaf( column, true).joinUninterruptibly();
     assertNotNull(leaf);
     assertEquals("0", leaf.getDisplayName());
     assertEquals("000001000001000001", leaf.getTsuid());
@@ -184,7 +186,7 @@ public final class TestLeaf {
         ("{\"displayName\":\"0\",\"tsuid\":\"000002000001000001\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      Leaf.parseFromStorage(tsdb, column, true).joinUninterruptibly();
+      tsdb.getLeaf(column, true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -199,7 +201,7 @@ public final class TestLeaf {
         ("{\"displayName\":\"0\",\"tsuid\":\"000001000002000001\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      Leaf.parseFromStorage(tsdb, column, true).joinUninterruptibly();
+      tsdb.getLeaf(column, true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -214,7 +216,7 @@ public final class TestLeaf {
         ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000002\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      Leaf.parseFromStorage(tsdb, column, true).joinUninterruptibly();
+      tsdb.getLeaf(column, true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
