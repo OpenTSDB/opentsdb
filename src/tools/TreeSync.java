@@ -101,7 +101,7 @@ final class TreeSync extends Thread {
     // start the process by loading all of the trees in the system
     final List<Tree> trees;
     try {
-      trees = Tree.fetchAllTrees(tsdb).joinUninterruptibly();
+      trees = tsdb.getTsdbStore().fetchAllTrees().joinUninterruptibly();
       LOG.info("[" + thread_id + "] Complete");
     } catch (Exception e) {
       LOG.error("[" + thread_id + "] Unexpected Exception", e);
@@ -329,7 +329,7 @@ final class TreeSync extends Thread {
     } else {
       LOG.info("Deleting tree branches for: " + tree_id);
     }
-    Tree.deleteTree(tsdb, tree_id, delete_definition).joinUninterruptibly();
+    tsdb.deleteTree(tree_id, delete_definition).joinUninterruptibly();
     LOG.info("Completed tree deletion for: " + tree_id);
     return 0;
   }

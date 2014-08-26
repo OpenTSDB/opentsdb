@@ -103,9 +103,9 @@ final class TreeRpc implements HttpRpc {
   
         if (tree.getTreeId() == 0) {
           query.sendReply(query.serializer().formatTreesV1(
-              Tree.fetchAllTrees(tsdb).joinUninterruptibly()));
+              tsdb.getTsdbStore().fetchAllTrees().joinUninterruptibly()));
         } else {
-          final Tree single_tree = Tree.fetchTree(tsdb, tree.getTreeId())
+          final Tree single_tree = tsdb.fetchTree(tree.getTreeId())
             .joinUninterruptibly();
           if (single_tree == null) {
             throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
@@ -121,14 +121,14 @@ final class TreeRpc implements HttpRpc {
         
         // if the tree ID is set, fetch, copy, save
         if (tree.getTreeId() > 0) {
-          if (Tree.fetchTree(tsdb, tree.getTreeId())
+          if (tsdb.fetchTree(tree.getTreeId())
               .joinUninterruptibly() == null) {
             throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
                 "Unable to locate tree: " + tree.getTreeId());
           } else {
-            if (tree.storeTree(tsdb, (query.getAPIMethod() == HttpMethod.PUT))
+            if (tsdb.storeTree(tree, (query.getAPIMethod() == HttpMethod.PUT))
                 .joinUninterruptibly() != null) {
-              final Tree stored_tree = Tree.fetchTree(tsdb, tree.getTreeId())
+              final Tree stored_tree = tsdb.fetchTree(tree.getTreeId())
                 .joinUninterruptibly();
               query.sendReply(query.serializer().formatTreeV1(stored_tree));
             } else {
@@ -140,9 +140,9 @@ final class TreeRpc implements HttpRpc {
           }
         } else {
           // create a new tree
-          final int tree_id = tree.createNewTree(tsdb).joinUninterruptibly(); 
+          final int tree_id = tsdb.createNewTree(tree).joinUninterruptibly();
           if (tree_id > 0) {
-            final Tree stored_tree = Tree.fetchTree(tsdb, tree_id)
+            final Tree stored_tree = tsdb.fetchTree(tree_id)
               .joinUninterruptibly();
             query.sendReply(query.serializer().formatTreeV1(stored_tree));
           } else {
@@ -175,12 +175,12 @@ final class TreeRpc implements HttpRpc {
           }
         }
         
-        if (Tree.fetchTree(tsdb, tree.getTreeId()).joinUninterruptibly() == 
+        if (tsdb.fetchTree(tree.getTreeId()).joinUninterruptibly() ==
           null) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
               "Unable to locate tree: " + tree.getTreeId());
         }
-        Tree.deleteTree(tsdb, tree.getTreeId(), delete_definition)
+        tsdb.deleteTree(tree.getTreeId(), delete_definition)
           .joinUninterruptibly(); 
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
         
@@ -270,7 +270,7 @@ final class TreeRpc implements HttpRpc {
       
       // no matter what, we'll need a tree to work with, so make sure it exists
       Tree tree = null;
-        tree = Tree.fetchTree(tsdb, rule.getTreeId())
+        tree = tsdb.fetchTree(rule.getTreeId())
           .joinUninterruptibly();
   
       if (tree == null) {
@@ -359,7 +359,7 @@ final class TreeRpc implements HttpRpc {
     
     // make sure the tree exists
     try {
-      if (Tree.fetchTree(tsdb, tree_id).joinUninterruptibly() == null) {
+      if (tsdb.fetchTree(tree_id).joinUninterruptibly() == null) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Unable to locate tree: " + tree_id);
       }
@@ -425,7 +425,7 @@ final class TreeRpc implements HttpRpc {
     Tree tree = null;
     try {
       
-      tree = Tree.fetchTree(tsdb, tree_id).joinUninterruptibly();
+      tree = tsdb.fetchTree(tree_id).joinUninterruptibly();
       if (tree == null) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Unable to locate tree: " + tree_id);
@@ -529,7 +529,7 @@ final class TreeRpc implements HttpRpc {
     // make sure the tree exists
     try {
       
-      if (Tree.fetchTree(tsdb, tree_id).joinUninterruptibly() == null) {
+      if (tsdb.fetchTree(tree_id).joinUninterruptibly() == null) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
             "Unable to locate tree: " + tree_id);
       }
@@ -541,9 +541,9 @@ final class TreeRpc implements HttpRpc {
         // convert one field.
         @SuppressWarnings("unchecked")
         final List<String> tsuids = (List<String>)map.get("tsuids");
-        final Map<String, String> results = for_collisions ? 
-            Tree.fetchCollisions(tsdb, tree_id, tsuids).joinUninterruptibly() :
-              Tree.fetchNotMatched(tsdb, tree_id, tsuids).joinUninterruptibly();
+        final Map<String, String> results = for_collisions ?
+                tsdb.fetchCollisions(tree_id, tsuids).joinUninterruptibly() :
+                tsdb.fetchNotMatched(tree_id, tsuids).joinUninterruptibly();
         query.sendReply(query.serializer().formatTreeCollisionNotMatchedV1(
             results, for_collisions));
   

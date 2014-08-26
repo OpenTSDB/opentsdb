@@ -24,6 +24,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.tree.Tree;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
 import org.hbase.async.*;
@@ -954,6 +955,51 @@ public class MemoryStore implements TsdbStore {
     }
     return Deferred.fromResult(del_list.size());
 
+  }
+
+  @Override
+  public Deferred<Tree> fetchTree(int tree_id) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> storeTree(Tree tree, boolean overwrite) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Integer> createNewTree(Tree tree) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<List<Tree>> fetchAllTrees() {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> deleteTree(int tree_id, boolean delete_definition) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Map<String, String>> fetchCollisions(int tree_id, List<String> tsuids) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Map<String, String>> fetchNotMatched(int tree_id, List<String> tsuids) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> flushTreeCollisions(Tree tree) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> flushTreeNotMatched(Tree tree) {
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   /**
