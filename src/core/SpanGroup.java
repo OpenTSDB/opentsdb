@@ -175,17 +175,13 @@ final class SpanGroup implements DataPoints {
                                + ", you can't add more Spans to " + this);
     }
 
-    // normalize timestamps to milliseconds for proper comparison
-    final long start = inMilliseconds(start_time);
-    final long end = inMilliseconds(end_time);
-
     if (span.size() == 0) {
       // copy annotations that are in the time range
       for (Annotation annot : span.getAnnotations()) {
         long annot_start = inMilliseconds(annot.getStartTime());
         long annot_end = inMilliseconds(annot.getStartTime());
 
-        if (annot_end >= start && annot_start <= end) {
+        if (annot_end >= start_time && annot_start <= end_time) {
           annotations.add(annot);
         }
       }
@@ -197,7 +193,7 @@ final class SpanGroup implements DataPoints {
       // be a programming error.
       long last_dp = inMilliseconds(span.timestamp(span.size() - 1));
 
-      if (first_dp <= end && last_dp >= start) {
+      if (first_dp <= end_time && last_dp >= start_time) {
         this.spans.add(span);
         annotations.addAll(span.getAnnotations());
       }
