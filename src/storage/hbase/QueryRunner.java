@@ -6,11 +6,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.SortedSet;
 
-import net.opentsdb.core.AsyncIterator;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.meta.Annotation;
@@ -19,7 +17,7 @@ import net.opentsdb.uid.UniqueId;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -34,7 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class QueryRunner implements AsyncIterator<DataPoints> {
+public class QueryRunner {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRunner.class);
 
   private final TsdbQuery tsdb_query;
@@ -42,8 +40,7 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
 
   private final Scanner scanner;
 
-  private final ConcurrentLinkedQueue<DataPoints> result_rows;
-  private final Iterator<DataPoints> result_iterator;
+  private final SortedSet<CompactedRow> result_rows;
   private final CompactionQueue compactionq;
 
   public QueryRunner(final TsdbQuery tsdb_query,
@@ -55,33 +52,16 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     this.client = checkNotNull(client);
     this.compactionq = checkNotNull(compactionq);
 
-    this.result_rows = Queues.newConcurrentLinkedQueue();
-    this.result_iterator = result_rows.iterator();
+    this.result_rows = Sets.newTreeSet(new CompactedRow.CompactedRowComparator());
 
     scanner = getScannerForQuery(tsdb_query, checkNotNull(table),
             checkNotNull(family));
-
-    scanner.nextRows().addCallback(new ScannerCB());
   }
 
-  @Override
-  public Deferred<Boolean> hasMore() {
-    return null;
-  }
-
-  @Override
-  public boolean hasNext() {
-    return false;
-  }
-
-  @Override
-  public DataPoints next() {
-    return result_iterator.next();
-  }
-
-  @Override
-  public void remove() {
-    throw new UnsupportedOperationException("#remove() is not supported by QueryRunner");
+  public Deferred<SortedSet<CompactedRow>> run() {
+    return scanner.nextRows()
+            .addErrback(new ScannerEB())
+            .addCallbackDeferring(new ScannerCB());
   }
 
   /**
@@ -360,45 +340,51 @@ public class QueryRunner implements AsyncIterator<DataPoints> {
     return cmp < 0;
   }
 
-  private class ScannerCB implements Callback<Object, ArrayList<ArrayList<KeyValue>>> {
+  private class ScannerCB implements Callback<Deferred<SortedSet<CompactedRow>>, ArrayList<ArrayList<KeyValue>>> {
     int nrows = 0;
     boolean seenAnnotation = false;
     int hbase_time = 0; // milliseconds.
     long starttime = System.nanoTime();
 
     @Override
-    public Object call(final ArrayList<ArrayList<KeyValue>> rows) {
+    public Deferred<SortedSet<CompactedRow>> call(final
+                                                ArrayList<ArrayList<KeyValue>> rows) {
       hbase_time += (System.nanoTime() - starttime) / 1000000;
-      try {
-        // If we're done `rows` will be null and we should finally do
-        // something with the result spans.
-        if (rows == null) {
-          LOG.info("{} matched {} rows in in {}ms",
-                  tsdb_query, nrows, hbase_time);
-          scanner.close();
-          return null;
-        }
 
-        final byte[] metric = tsdb_query.getMetric();
-
-        // We've gotten a bunch of new rows so now we need to to some basic
-        // preprocessing.
-        for (final ArrayList<KeyValue> row : rows) {
-          RowKey.checkMetric(row.get(0).key(), metric);
-
-          List<Annotation> annotations = Lists.newArrayList();
-          final KeyValue compacted = compactionq.compact(row, annotations);
-          seenAnnotation |= !annotations.isEmpty();
-          if (compacted != null) { // Can be null if we ignored all KVs.
-            result_rows.offer(new CompactedRow(compacted, annotations));
-            nrows++;
-          }
-        }
-      } catch (Exception e) {
+      // If we're done `rows` will be null and we should finally return the
+      // result as a deferred.
+      if (rows == null) {
+        LOG.info("{} matched {} rows in in {}ms",
+                tsdb_query, nrows, hbase_time);
         scanner.close();
+        return Deferred.fromResult(result_rows);
       }
 
-      return null;
+      final byte[] metric = tsdb_query.getMetric();
+
+      // We've gotten a bunch of new rows so now we need to to some basic
+      // preprocessing.
+      for (final ArrayList<KeyValue> row : rows) {
+        RowKey.checkMetric(row.get(0).key(), metric);
+
+        List<Annotation> annotations = Lists.newArrayList();
+        final KeyValue compacted = compactionq.compact(row, annotations);
+        seenAnnotation |= !annotations.isEmpty();
+        if (compacted != null) { // Can be null if we ignored all KVs.
+          result_rows.add(new CompactedRow(compacted, annotations));
+          nrows++;
+        }
+      }
+
+      return scanner.nextRows().addCallbackDeferring(this);
+    }
+  }
+
+  private class ScannerEB implements Callback<Exception, Exception> {
+    @Override
+    public Exception call(final Exception e) throws Exception {
+      scanner.close();
+      return e;
     }
   }
 }
