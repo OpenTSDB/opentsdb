@@ -28,9 +28,11 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.SignedBytes;
 import org.hbase.async.Bytes;
@@ -142,10 +144,14 @@ public final class CompactedRow implements DataPoints {
   public List<byte[]> aggregatedTags() {
     return Collections.emptyList();
   }
-  
+
+  /**
+   * @see DataPoints#getTSUIDs()
+   */
   @Override
   public List<String> getTSUIDs() {
-    return Collections.emptyList();
+    byte[] str_tsuid = UniqueId.getTSUIDFromKey(key, Const.METRICS_WIDTH, Const.TIMESTAMP_BYTES);
+    return Lists.newArrayList(UniqueId.uidToString(str_tsuid));
   }
 
   /**

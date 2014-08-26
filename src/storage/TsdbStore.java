@@ -15,7 +15,6 @@ package net.opentsdb.storage;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.AsyncIterator;
 import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -25,6 +24,7 @@ import org.hbase.async.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.SortedSet;
 
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
@@ -116,11 +116,11 @@ public interface TsdbStore {
 
   /**
    * Should execute the provided {@link net.opentsdb.core.TsdbQuery} and
-   * return an {@link net.opentsdb.core.AsyncIterator}. Every single item in
+   * return a deferred. Every single item in
    * the returned iterator may contain multiple datapoints but every single
    * instance must only contain the datapoints for a single TSUID. The
    * iterator may return multiple items for the same TSUID.
    * @param tsdbQuery The query to execute
    */
-  AsyncIterator<DataPoints> executeQuery(final TsdbQuery tsdbQuery);
+  Deferred<SortedSet<DataPoints>> executeQuery(final TsdbQuery tsdbQuery);
 }
