@@ -15,12 +15,19 @@ package net.opentsdb.core;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
+import java.util.TreeMap;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Sets;
+import com.google.common.collect.TreeMultimap;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -1150,13 +1157,28 @@ public class TSDB {
         return NO_RESULT;
       }
 
+      TreeMultimap<String, DataPoints> spans2 = TreeMultimap.create();
+
+      for (DataPoints dp : dps) {
+        List<String> tsuids = dp.getTSUIDs();
+        spans2.put(tsuids.get(0), dp);
+      }
+
+      Set<Span> spans = Sets.newHashSet();
+      for (String tsuid : spans2.keySet()) {
+        spans.add(new Span(ImmutableSortedSet.copyOf(spans2.get(tsuid))));
+      }
+
+
+
+
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
         final SpanGroup group = new SpanGroup(
                 tsdb.getScanStartTimeSeconds(this),
                 tsdb.getScanEndTimeSeconds(this),
-                dps,
+                spans,
                 rate, rate_options,
                 aggregator,
                 sample_interval_ms, downsampler);
@@ -1177,8 +1199,8 @@ public class TSDB {
       final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
       final byte[] group = new byte[group_bys.size() * Const.TAG_VALUE_WIDTH];
 
-      for (final DataPoints dp : dps) {
-        final Map<byte[], byte[]> dp_tags = dp.tags();
+      for (final Span span : spans) {
+        final Map<byte[], byte[]> dp_tags = span.tags();
 
         int i = 0;
         // TODO(tsuna): The following loop has a quadratic behavior. We can
@@ -1187,7 +1209,7 @@ public class TSDB {
           final byte[] value_id = dp_tags.get(tag_id);
 
           if (value_id == null) {
-            throw new IllegalDataException("The " + dp + " did not contain a " +
+            throw new IllegalDataException("The " + span + " did not contain a " +
                     "value for the tag key " + Arrays.toString(tag_id));
           }
 
@@ -1208,8 +1230,9 @@ public class TSDB {
           System.arraycopy(group, 0, group_copy, 0, group.length);
           groups.put(group_copy, thegroup);
         }
-        thegroup.add(dp);
+        thegroup.add(span);
       }
+
       //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
       // LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
       //}

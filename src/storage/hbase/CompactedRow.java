@@ -49,7 +49,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * are stored in two byte arrays: one for the time offsets/flags and another
  * for the values. Access is granted via pointers.
  */
-public final class CompactedRow implements DataPoints {
+public final class CompactedRow implements DataPoints<CompactedRow> {
   /** First row key. */
   private final byte[] key;
 
@@ -302,6 +302,17 @@ public final class CompactedRow implements DataPoints {
     buf.append("]), (values=[").append(Arrays.toString(values));
     buf.append("])");
     return buf.toString();
+  }
+
+  @Override
+  public int compareTo(final CompactedRow other) {
+    int result = SignedBytes.lexicographicalComparator().compare(this.key, other.key);
+
+    if (result == 0) {
+      return Ints.saturatedCast(timestamp(0) - other.timestamp(0));
+    }
+
+    return result;
   }
 
   /**
