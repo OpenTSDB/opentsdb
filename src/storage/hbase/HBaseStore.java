@@ -17,7 +17,6 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.AsyncIterator;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Internal;
@@ -37,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.SortedSet;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.fromBytes;
@@ -1001,9 +1001,8 @@ public class HBaseStore implements TsdbStore {
    * @param tsdbQuery
    */
   @Override
-  public AsyncIterator<DataPoints> executeQuery(final TsdbQuery tsdbQuery) throws HBaseException {
-    return new QueryRunner(tsdbQuery, client, compactionq, data_table_name,
-            TS_FAMILY);
+  public Deferred<SortedSet<DataPoints>> executeQuery(final TsdbQuery tsdbQuery) {
+    return new QueryRunner(tsdbQuery, client, compactionq, data_table_name,TS_FAMILY).run();
   }
 
   /**

@@ -14,8 +14,10 @@ package net.opentsdb.core;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -49,6 +51,7 @@ import net.opentsdb.stats.StatsCollector;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Thread-safe implementation of the TSDB client.
@@ -1122,7 +1125,104 @@ public class TSDB {
    * @param tsdbQuery
    */
   public Deferred<DataPoints[]> executeQuery(TsdbQuery tsdbQuery) {
-    return tsdb_store.executeQuery(tsdbQuery).addCallback(tsdbQuery.new GroupByAndAggregateCB());
+    return tsdb_store.executeQuery(tsdbQuery)
+            .addCallback(new GroupByAndAggregateCB());
+  }
+
+  /**
+   * Callback that should be attached the the output of
+   * {@link net.opentsdb.storage.TsdbStore#executeQuery} to group and sort the results.
+   */
+  private class GroupByAndAggregateCB implements
+          Callback<DataPoints[], SortedSet<DataPoints>> {
+
+    /**
+     * Creates the {@link SpanGroup}s to form the final results of this query.
+     *
+     * @param dps The {@link Span}s found for this query ({@link TSDB#findSpans}).
+     *              Can be {@code null}, in which case the array returned will be empty.
+     * @return A possibly empty array of {@link SpanGroup}s built according to
+     * any 'GROUP BY' formulated in this query.
+     */
+    @Override
+    public DataPoints[] call(final SortedSet<DataPoints> dps) {
+      if (dps.isEmpty()) {
+        return NO_RESULT;
+      }
+
+      if (group_bys == null) {
+        // We haven't been asked to find groups, so let's put all the spans
+        // together in the same group.
+        final SpanGroup group = new SpanGroup(
+                tsdb.getScanStartTimeSeconds(this),
+                tsdb.getScanEndTimeSeconds(this),
+                dps,
+                rate, rate_options,
+                aggregator,
+                sample_interval_ms, downsampler);
+        return new SpanGroup[]{group};
+      }
+
+      // Maps group value IDs to the SpanGroup for those values. Say we've
+      // been asked to group by two things: foo=* bar=* Then the keys in this
+      // map will contain all the value IDs combinations we've seen. If the
+      // name IDs for `foo' and `bar' are respectively [0, 0, 7] and [0, 0, 2]
+      // then we'll have group_bys=[[0, 0, 2], [0, 0, 7]] (notice it's sorted
+      // by ID, so bar is first) and say we find foo=LOL bar=OMG as well as
+      // foo=LOL bar=WTF and that the IDs of the tag values are:
+      // LOL=[0, 0, 1] OMG=[0, 0, 4] WTF=[0, 0, 3]
+      // then the map will have two keys:
+      // - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
+      // - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
+      final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
+      final byte[] group = new byte[group_bys.size() * Const.TAG_VALUE_WIDTH];
+
+      for (final DataPoints dp : dps) {
+        final Map<byte[], byte[]> dp_tags = dp.tags();
+
+        int i = 0;
+        // TODO(tsuna): The following loop has a quadratic behavior. We can
+        // make it much better since both the row key and group_bys are sorted.
+        for (final byte[] tag_id : group_bys) {
+          final byte[] value_id = dp_tags.get(tag_id);
+
+          if (value_id == null) {
+            throw new IllegalDataException("The " + dp + " did not contain a " +
+                    "value for the tag key " + Arrays.toString(tag_id));
+          }
+
+          System.arraycopy(value_id, 0, group, i, Const.TAG_VALUE_WIDTH);
+          i += Const.TAG_VALUE_WIDTH;
+        }
+
+        //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
+        SpanGroup thegroup = groups.get(group);
+        if (thegroup == null) {
+          thegroup = new SpanGroup(tsdb.getScanStartTimeSeconds(this),
+                  tsdb.getScanEndTimeSeconds(this),
+                  null, rate, rate_options, aggregator,
+                  sample_interval_ms, downsampler);
+          // Copy the array because we're going to keep `group' and overwrite
+          // its contents. So we want the collection to have an immutable copy.
+          final byte[] group_copy = new byte[group.length];
+          System.arraycopy(group, 0, group_copy, 0, group.length);
+          groups.put(group_copy, thegroup);
+        }
+        thegroup.add(dp);
+      }
+      //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
+      // LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
+      //}
+      return groups.values().toArray(new SpanGroup[groups.size()]);
+    }
+
+    private byte[] tsuid_for_row(final DataPoints dp) {
+      final List<String> tsuids = dp.getTSUIDs();
+      checkState(tsuids.size() == 1, "The datapoint must only contain 1 " +
+              "element but contains %s", tsuids.size());
+
+      return UniqueId.stringToUid(tsuids.get(0));
+    }
   }
 
   /**
