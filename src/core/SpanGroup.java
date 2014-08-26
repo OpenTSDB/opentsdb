@@ -30,6 +30,8 @@ import org.hbase.async.Bytes;
 
 import net.opentsdb.meta.Annotation;
 
+import static net.opentsdb.core.Timestamp.inMilliseconds;
+
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
  * <p>
@@ -146,8 +148,8 @@ final class SpanGroup implements DataPoints {
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
     annotations = new ArrayList<Annotation>();
-    this.start_time = (start_time & Const.SECOND_MASK) == 0 ? start_time * 1000 : start_time;
-    this.end_time = (end_time & Const.SECOND_MASK) == 0 ? end_time * 1000 : end_time;
+    this.start_time = inMilliseconds(start_time);
+    this.end_time = inMilliseconds(end_time);
     if (spans != null) {
       for (final Span span : spans) {
         add(span);
@@ -174,38 +176,27 @@ final class SpanGroup implements DataPoints {
     }
 
     // normalize timestamps to milliseconds for proper comparison
-    final long start = (start_time & Const.SECOND_MASK) == 0 ? 
-        start_time * 1000 : start_time;
-    final long end = (end_time & Const.SECOND_MASK) == 0 ? 
-        end_time * 1000 : end_time;
+    final long start = inMilliseconds(start_time);
+    final long end = inMilliseconds(end_time);
 
     if (span.size() == 0) {
       // copy annotations that are in the time range
       for (Annotation annot : span.getAnnotations()) {
-        long annot_start = annot.getStartTime();
-        if ((annot_start & Const.SECOND_MASK) == 0) {
-          annot_start *= 1000;
-        }
-        long annot_end = annot.getStartTime();
-        if ((annot_end & Const.SECOND_MASK) == 0) {
-          annot_end *= 1000;
-        }
+        long annot_start = inMilliseconds(annot.getStartTime());
+        long annot_end = inMilliseconds(annot.getStartTime());
+
         if (annot_end >= start && annot_start <= end) {
           annotations.add(annot);
         }
       }
     } else {
-      long first_dp = span.timestamp(0);
-      if ((first_dp & Const.SECOND_MASK) == 0) {
-        first_dp *= 1000;
-      }
+      long first_dp = inMilliseconds(span.timestamp(0));
+
       // The following call to timestamp() will throw an
       // IndexOutOfBoundsException if size == 0, which is OK since it would
       // be a programming error.
-      long last_dp = span.timestamp(span.size() - 1);
-      if ((last_dp & Const.SECOND_MASK) == 0) {
-        last_dp *= 1000;
-      }
+      long last_dp = inMilliseconds(span.timestamp(span.size() - 1));
+
       if (first_dp <= end && last_dp >= start) {
         this.spans.add(span);
         annotations.addAll(span.getAnnotations());
