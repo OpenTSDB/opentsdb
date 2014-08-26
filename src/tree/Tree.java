@@ -531,7 +531,6 @@ public final class Tree {
   }
 
   public static void validateTreeID(int id) {
-    //magic numbers? maybe moved to constant?
     if (id < Const.MIN_TREE_ID_EXCLUSIVE || id > Const.MAX_TREE_ID_EXCLUSIVE) {
       throw new IllegalArgumentException("Invalid Tree ID");
     }

@@ -13,7 +13,9 @@
 package net.opentsdb.core;
 
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -22,7 +24,9 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tree.*;
+
+import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.TreeBuilder;
 import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
