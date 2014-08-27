@@ -49,7 +49,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * are stored in two byte arrays: one for the time offsets/flags and another
  * for the values. Access is granted via pointers.
  */
-public final class CompactedRow implements DataPoints<CompactedRow> {
+public final class CompactedRow implements DataPoints {
   /** First row key. */
   private final byte[] key;
 
@@ -304,26 +304,31 @@ public final class CompactedRow implements DataPoints<CompactedRow> {
     return buf.toString();
   }
 
+  /**
+   * Used to compare two {@link net.opentsdb.storage.hbase.CompactedRow}
+   */
   @Override
-  public int compareTo(final CompactedRow other) {
-    int result = SignedBytes.lexicographicalComparator().compare(this.key, other.key);
+  public int compareTo(final DataPoints that) {
+    if (this == checkNotNull(that))
+      return 0;
+
+    if (that instanceof CompactedRow) {
+      return compareTo((CompactedRow) that);
+    }
+
+    // TODO This does so we can't compare different types of DataPoints but
+    // that is ok for now at least.
+    return 1;
+  }
+
+  public int compareTo(final CompactedRow that) {
+    int result = SignedBytes.lexicographicalComparator().compare(this.key, that.key);
 
     if (result == 0) {
-      return Ints.saturatedCast(timestamp(0) - other.timestamp(0));
+      return Ints.saturatedCast(timestamp(0) - that.timestamp(0));
     }
 
     return result;
-  }
-
-  /**
-   * Used to compare two {@link net.opentsdb.storage.hbase.CompactedRow} objects
-   * when sorting a {@link net.opentsdb.core.Span}.
-   */
-  public static final class CompactedRowComparator implements Comparator<CompactedRow> {
-    @Override
-    public int compare(final CompactedRow a, final CompactedRow b) {
-      return SignedBytes.lexicographicalComparator().compare(a.key, b.key);
-    }
   }
   
   /** Iterator for {@link CompactedRow}s.  */

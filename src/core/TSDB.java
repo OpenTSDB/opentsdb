@@ -1238,14 +1238,6 @@ public class TSDB {
       //}
       return groups.values().toArray(new SpanGroup[groups.size()]);
     }
-
-    private byte[] tsuid_for_row(final DataPoints dp) {
-      final List<String> tsuids = dp.getTSUIDs();
-      checkState(tsuids.size() == 1, "The datapoint must only contain 1 " +
-              "element but contains %s", tsuids.size());
-
-      return UniqueId.stringToUid(tsuids.get(0));
-    }
   }
 
   /**

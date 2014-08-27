@@ -52,7 +52,7 @@ public class QueryRunner {
     this.client = checkNotNull(client);
     this.compactionq = checkNotNull(compactionq);
 
-    this.result_rows = Sets.newTreeSet(new CompactedRow.CompactedRowComparator());
+    this.result_rows = Sets.newTreeSet();
 
     scanner = getScannerForQuery(tsdb_query, checkNotNull(table),
             checkNotNull(family));
