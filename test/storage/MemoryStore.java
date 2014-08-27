@@ -21,10 +21,8 @@ import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Span;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbQuery;
+import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -1011,11 +1009,11 @@ public class MemoryStore implements TsdbStore {
    * @throws org.hbase.async.HBaseException if there was a problem communicating with HBase to
    * perform the search.
    * @throws IllegalArgumentException if bad data was retreived from HBase.
-   * @param tsdbQuery
+   * @param query
    * @param tsdb
    */
   @Override
-  public Deferred<TreeMap<byte[], Span>> executeQuery(final TsdbQuery tsdbQuery) {
+  public Deferred<TreeMap<byte[], Span>> executeQuery(final Query query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

@@ -31,7 +31,6 @@ import org.hbase.async.Bytes;
 import net.opentsdb.meta.Annotation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.core.Timestamp.inMilliseconds;
 
 /**
  * Groups multiple spans together and offers a dynamic "view" on them.
@@ -290,15 +289,15 @@ final class SpanGroup implements DataPoints {
             .toString();
   }
 
-  public static SpanGroup create(final TsdbQuery tsdbQuery,
+  public static SpanGroup create(final Query query,
                                  final Set<Span> spans) {
     return new SpanGroup(
             spans,
-            tsdbQuery.getRate(),
-            tsdbQuery.getRateOptions(),
-            tsdbQuery.getAggregator(),
-            tsdbQuery.getSampleInterval(),
-            tsdbQuery.getDownsampler());
+            query.getRate(),
+            query.getRateOptions(),
+            query.getAggregator(),
+            query.getSampleInterval(),
+            query.getDownsampler());
   }
 
   @Override

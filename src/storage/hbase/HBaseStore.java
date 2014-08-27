@@ -22,7 +22,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
-import net.opentsdb.core.TsdbQuery;
+import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -998,10 +998,10 @@ public class HBaseStore implements TsdbStore {
    * @throws org.hbase.async.HBaseException if there was a problem communicating with HBase to
    * perform the search.
    * @throws IllegalArgumentException if bad data was retreived from HBase.
-   * @param tsdbQuery
+   * @param query
    */
   @Override
-  public Deferred<ImmutableList<DataPoints>> executeQuery(final TsdbQuery tsdbQuery) {
+  public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
     class QueryCB implements Callback<ImmutableList<DataPoints>, ImmutableList<CompactedRow>> {
       @Override
       public ImmutableList<DataPoints> call(final ImmutableList<CompactedRow>row_parts) {
@@ -1010,7 +1010,7 @@ public class HBaseStore implements TsdbStore {
     }
 
     QueryRunner r = new QueryRunner(
-            tsdbQuery,
+            query,
             client,
             compactionq,
             data_table_name,

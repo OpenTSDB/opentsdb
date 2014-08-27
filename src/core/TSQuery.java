@@ -131,8 +131,8 @@ public final class TSQuery {
    * @param tsdb The tsdb to use for creating a the new query
    * @return An array of queries
    */
-  public List<Deferred<TsdbQuery>> buildQueries(final TSDB tsdb) {
-    final List<Deferred<TsdbQuery>> queries = Lists.newArrayListWithCapacity(this.queries.size());
+  public List<Deferred<Query>> buildQueries(final TSDB tsdb) {
+    final List<Deferred<Query>> queries = Lists.newArrayListWithCapacity(this.queries.size());
 
     for (TSSubQuery sub : this.queries) {
       final QueryBuilder builder = new QueryBuilder(tsdb)

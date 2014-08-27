@@ -15,16 +15,12 @@ package net.opentsdb.core;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeMap;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
@@ -523,7 +519,7 @@ public class TSDB {
 
     collector.addExtraTag("class", "TsdbQuery");
     try {
-      collector.record("hbase.latency", TsdbQuery.scanlatency, "method=scan");
+      collector.record("hbase.latency", Query.scanlatency, "method=scan");
     } finally {
       collector.clearExtraTag("class");
     }
@@ -566,7 +562,7 @@ public class TSDB {
 
   /** Returns a latency histogram for Scan RPCs used to fetch data points.  */
   public Histogram getScanLatencyHistogram() {
-    return TsdbQuery.scanlatency;
+    return Query.scanlatency;
   }
 
   /**
@@ -1130,11 +1126,11 @@ public class TSDB {
    * corresponds to one time series for which some data points have been
    * matched by the query.
    * @since 1.2
-   * @param tsdbQuery
+   * @param query
    */
-  public Deferred<DataPoints[]> executeQuery(TsdbQuery tsdbQuery) {
-    return tsdb_store.executeQuery(tsdbQuery)
-            .addCallback(new GroupByAndAggregateCB(tsdbQuery));
+  public Deferred<DataPoints[]> executeQuery(Query query) {
+    return tsdb_store.executeQuery(query)
+            .addCallback(new GroupByAndAggregateCB(query));
   }
 
   /**
@@ -1144,10 +1140,10 @@ public class TSDB {
   private class GroupByAndAggregateCB implements
           Callback<DataPoints[], ImmutableList<DataPoints>> {
 
-    private final TsdbQuery tsdbQuery;
+    private final Query query;
 
-    public GroupByAndAggregateCB(final TsdbQuery tsdbQuery) {
-      this.tsdbQuery = tsdbQuery;
+    public GroupByAndAggregateCB(final Query query) {
+      this.query = query;
     }
 
     /**
@@ -1177,11 +1173,11 @@ public class TSDB {
         spans.add(new Span(ImmutableSortedSet.copyOf(spans2.get(tsuid))));
       }
 
-      final List<byte[]> group_bys = tsdbQuery.getGroupBys();
+      final List<byte[]> group_bys = query.getGroupBys();
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
-        final SpanGroup group = SpanGroup.create(tsdbQuery, spans);
+        final SpanGroup group = SpanGroup.create(query, spans);
         return new SpanGroup[]{group};
       }
 
@@ -1224,7 +1220,7 @@ public class TSDB {
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = Arrays.copyOf(group, group.length);
 
-          thegroup = SpanGroup.create(tsdbQuery, null);
+          thegroup = SpanGroup.create(query, null);
           groups.put(group_copy, thegroup);
         }
         thegroup.add(span);

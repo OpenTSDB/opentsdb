@@ -16,7 +16,7 @@ import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.TsdbQuery;
+import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -115,12 +115,12 @@ public interface TsdbStore {
   Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time);
 
   /**
-   * Should execute the provided {@link net.opentsdb.core.TsdbQuery} and
+   * Should execute the provided {@link net.opentsdb.core.Query} and
    * return a deferred. Every single item in
    * the returned iterator may contain multiple datapoints but every single
    * instance must only contain the datapoints for a single TSUID. The
    * iterator may return multiple items for the same TSUID.
-   * @param tsdbQuery The query to execute
+   * @param query The query to execute
    */
-  Deferred<ImmutableList<DataPoints>> executeQuery(final TsdbQuery tsdbQuery);
+  Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
 }
