@@ -1168,7 +1168,7 @@ public class TSDB {
         spans2.put(tsuids.get(0), dp);
       }
 
-      Set<Span> spans = Sets.newHashSet();
+      Set<Span> spans = Sets.newTreeSet();
       for (String tsuid : spans2.keySet()) {
         spans.add(new Span(ImmutableSortedSet.copyOf(spans2.get(tsuid))));
       }
