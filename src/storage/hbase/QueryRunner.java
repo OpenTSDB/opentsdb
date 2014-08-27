@@ -15,6 +15,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -40,7 +41,7 @@ public class QueryRunner {
 
   private final Scanner scanner;
 
-  private final SortedSet<CompactedRow> result_rows;
+  private final ImmutableList.Builder<CompactedRow> result_rows;
   private final CompactionQueue compactionq;
 
   public QueryRunner(final TsdbQuery tsdb_query,
@@ -52,13 +53,13 @@ public class QueryRunner {
     this.client = checkNotNull(client);
     this.compactionq = checkNotNull(compactionq);
 
-    this.result_rows = Sets.newTreeSet();
+    this.result_rows = ImmutableList.builder();
 
     scanner = getScannerForQuery(tsdb_query, checkNotNull(table),
             checkNotNull(family));
   }
 
-  public Deferred<SortedSet<CompactedRow>> run() {
+  public Deferred<ImmutableList<CompactedRow>> run() {
     return scanner.nextRows()
             .addErrback(new ScannerEB())
             .addCallbackDeferring(new ScannerCB());
@@ -340,14 +341,14 @@ public class QueryRunner {
     return cmp < 0;
   }
 
-  private class ScannerCB implements Callback<Deferred<SortedSet<CompactedRow>>, ArrayList<ArrayList<KeyValue>>> {
+  private class ScannerCB implements Callback<Deferred<ImmutableList<CompactedRow>>, ArrayList<ArrayList<KeyValue>>> {
     int nrows = 0;
     boolean seenAnnotation = false;
     int hbase_time = 0; // milliseconds.
     long starttime = System.nanoTime();
 
     @Override
-    public Deferred<SortedSet<CompactedRow>> call(final
+    public Deferred<ImmutableList<CompactedRow>> call(final
                                                 ArrayList<ArrayList<KeyValue>> rows) {
       hbase_time += (System.nanoTime() - starttime) / 1000000;
 
@@ -357,7 +358,7 @@ public class QueryRunner {
         LOG.info("{} matched {} rows in in {}ms",
                 tsdb_query, nrows, hbase_time);
         scanner.close();
-        return Deferred.fromResult(result_rows);
+        return Deferred.fromResult(result_rows.build());
       }
 
       final byte[] metric = tsdb_query.getMetric();

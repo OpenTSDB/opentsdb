@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
+import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
@@ -24,7 +25,6 @@ import org.hbase.async.*;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.SortedSet;
 
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
 
@@ -122,5 +122,5 @@ public interface TsdbStore {
    * iterator may return multiple items for the same TSUID.
    * @param tsdbQuery The query to execute
    */
-  Deferred<SortedSet<DataPoints>> executeQuery(final TsdbQuery tsdbQuery);
+  Deferred<ImmutableList<DataPoints>> executeQuery(final TsdbQuery tsdbQuery);
 }

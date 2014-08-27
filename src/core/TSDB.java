@@ -25,6 +25,7 @@ import java.util.TreeMap;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
@@ -1141,7 +1142,7 @@ public class TSDB {
    * {@link net.opentsdb.storage.TsdbStore#executeQuery} to group and sort the results.
    */
   private class GroupByAndAggregateCB implements
-          Callback<DataPoints[], SortedSet<DataPoints>> {
+          Callback<DataPoints[], ImmutableList<DataPoints>> {
 
     private final TsdbQuery tsdbQuery;
 
@@ -1158,7 +1159,7 @@ public class TSDB {
      * any 'GROUP BY' formulated in this query.
      */
     @Override
-    public DataPoints[] call(final SortedSet<DataPoints> dps) {
+    public DataPoints[] call(final ImmutableList<DataPoints> dps) {
       if (dps.isEmpty()) {
         // Result is empty so return an empty array
         return new DataPoints[0];
