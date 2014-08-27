@@ -85,7 +85,7 @@ public final class CompactedRow implements DataPoints {
    * @return The value of the cell.
    * @throws net.opentsdb.core.IllegalDataException if the data is malformed
    */
-  private static long extractIntegerValue(final byte[] values,
+  public static long extractIntegerValue(final byte[] values,
                                   final int value_idx,
                                   final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
@@ -108,7 +108,7 @@ public final class CompactedRow implements DataPoints {
    * @return The value of the cell.
    * @throws IllegalDataException if the data is malformed
    */
-  private static double extractFloatingPointValue(final byte[] values,
+  public static double extractFloatingPointValue(final byte[] values,
                                           final int value_idx,
                                           final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
