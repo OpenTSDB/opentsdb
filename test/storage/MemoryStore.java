@@ -16,12 +16,13 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.Span;
+import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
@@ -610,11 +611,6 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public KeyValue compact(ArrayList<KeyValue> row, List<Annotation> annotations) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
   public void scheduleForCompaction(byte[] row) {
   }
 
@@ -1010,10 +1006,9 @@ public class MemoryStore implements TsdbStore {
    * perform the search.
    * @throws IllegalArgumentException if bad data was retreived from HBase.
    * @param query
-   * @param tsdb
    */
   @Override
-  public Deferred<TreeMap<byte[], Span>> executeQuery(final Query query) {
+  public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

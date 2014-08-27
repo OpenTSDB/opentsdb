@@ -76,7 +76,7 @@ public class TestAggregationIterator {
         SeekableViewsForTest.fromArray(DATA_POINTS_1)
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        start_time_ms, end_time_ms, aggregator, interpolation,rate);
+        aggregator, interpolation,rate);
     // Aggregating a single span should repeat the single span.
     for (DataPoint expected: DATA_POINTS_1) {
       assertTrue(sgai.hasNext());
@@ -94,7 +94,7 @@ public class TestAggregationIterator {
         SeekableViewsForTest.fromArray(DATA_POINTS_2),
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        start_time_ms, end_time_ms, aggregator, interpolation, rate);
+        aggregator, interpolation, rate);
     // Checks if all the distinct timestamps of both spans appear and missing
     // data point of one span for a timestamp of one span was interpolated.
     DataPoint[] expected_data_points = new DataPoint[] {
@@ -129,7 +129,7 @@ public class TestAggregationIterator {
     start_time_ms = BASE_TIME + 1000L;
     end_time_ms = BASE_TIME + 100000;
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        start_time_ms, end_time_ms, aggregator, interpolation,
+        aggregator, interpolation,
         rate);
     DataPoint[] expected_data_points = new DataPoint[] {
         MutableDataPoint.ofDoubleValue(BASE_TIME + 10000L, 7),
@@ -161,7 +161,7 @@ public class TestAggregationIterator {
     start_time_ms = BASE_TIME + 01000L;
     end_time_ms = BASE_TIME + 100000;
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        start_time_ms, end_time_ms, aggregator, interpolation,
+        aggregator, interpolation,
         rate);
     Downsampler downsampler = new Downsampler(sgai, 15000, SUM);
     // Tests the case: downsamples by 10 seconds. Then, aggregates across spans.
@@ -193,7 +193,7 @@ public class TestAggregationIterator {
         iterator
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        start_time_ms, end_time_ms, aggregator, interpolation,rate);
+        aggregator, interpolation,rate);
     // The seek method should be called just once at the beginning.
     verify(iterator).seek(start_time_ms);
     for (DataPoint expected: DATA_POINTS_1) {
@@ -217,8 +217,7 @@ public class TestAggregationIterator {
         SeekableViewsForTest.fromArray(DATA_POINTS_1),
     };
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        BASE_TIME + 00000L, end_time_ms, aggregator, interpolation,
-        rate);
+        aggregator, interpolation, rate);
     for (DataPoint expected: DATA_POINTS_1) {
       assertTrue(sgai.hasNext());
       DataPoint dp = sgai.next();
@@ -253,8 +252,7 @@ public class TestAggregationIterator {
     iterators = createSeekableViews(num_views, 1356990000000L, 1356993600000L,
                                     100);
     AggregationIterator sgai = AggregationIterator.createForTesting(iterators,
-        1356990000000L, 1356993600000L, aggregator, interpolation,
-        rate);
+        aggregator, interpolation, rate);
     final long start_time_nano = System.nanoTime();
     long total_data_points = 0;
     long timestamp_checksum = 0;
