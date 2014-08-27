@@ -375,7 +375,7 @@ public class QueryRunner {
         // them to guarantee to not do that. This also makes sense if you
         // consider that only happens when we read so it will never trash any
         // data perf
-        RowKey.checkBaseTime(row.get(0).key(), start, end);
+        // RowKey.checkBaseTime(row.get(0).key(), start, end);
 
         List<Annotation> annotations = Lists.newArrayList();
         final KeyValue compacted = compactionq.compact(row, annotations);

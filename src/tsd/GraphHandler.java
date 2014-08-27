@@ -166,7 +166,7 @@ final class GraphHandler implements HttpRpc {
     UidFormatter formatter = new UidFormatter(tsdb);
     Query[] tsdbqueries;
     List<String> options;
-    tsdbqueries = parseQuery(tsdb, query);
+    tsdbqueries = parseQuery(tsdb, query, start_time, end_time);
     options = query.getQueryStringParams("o");
     if (options == null) {
       options = new ArrayList<String>(tsdbqueries.length);
@@ -177,18 +177,7 @@ final class GraphHandler implements HttpRpc {
       throw new BadRequestException(options.size() + " `o' parameters, but "
         + tsdbqueries.length + " `m' parameters.");
     }
-    for (final Query tsdbquery : tsdbqueries) {
-      try {
-        tsdbquery.setStartTime(start_time);
-      } catch (IllegalArgumentException e) {
-        throw new BadRequestException("start time: " + e.getMessage());
-      }
-      try {
-        tsdbquery.setEndTime(end_time);
-      } catch (IllegalArgumentException e) {
-        throw new BadRequestException("end time: " + e.getMessage());
-      }
-    }
+
     final Plot plot = new Plot(tsdb, start_time, end_time,
           DateTime.timezones.get(query.getQueryStringParam("tz")));
     setPlotDimensions(query, plot);
@@ -201,7 +190,8 @@ final class GraphHandler implements HttpRpc {
       try {  // execute the TSDB query!
         // XXX This is slow and will block Netty.  TODO(tsuna): Don't block.
         // TODO(tsuna): Optimization: run each query in parallel.
-        final DataPoints[] series = tsdbqueries[i].run();
+
+        final DataPoints[] series = tsdb.executeQuery(tsdbqueries[i]).joinUninterruptibly();
         for (final DataPoints datapoints : series) {
           plot.add(datapoints, options.get(i));
           aggregated_tags[i] = new HashSet<String>();
@@ -846,11 +836,12 @@ final class GraphHandler implements HttpRpc {
    * Parses the {@code /q} query in a list of {@link Query} objects.
    * @param tsdb The TSDB to use.
    * @param query The HTTP query for {@code /q}.
-   * @return The corresponding {@link Query} objects.
+   * @param start_time
+   *@param end_time @return The corresponding {@link Query} objects.
    * @throws BadRequestException if the query was malformed.
    * @throws IllegalArgumentException if the metric or tags were malformed.
    */
-  private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query) {
+  private static Query[] parseQuery(final TSDB tsdb, final HttpQuery query, final long start_time, final long end_time) {
     final List<String> ms = query.getQueryStringParams("m");
     if (ms == null) {
       throw BadRequestException.missingParameter("m");
@@ -881,6 +872,7 @@ final class GraphHandler implements HttpRpc {
       final QueryBuilder builder = new QueryBuilder(tsdb)
               .withMetric(metric)
               .withTags(parsedtags)
+              .withStartAndEndTime(start_time, end_time)
               .withAggregator(agg)
               .shouldCalculateRate(rate, rate_options);
 
