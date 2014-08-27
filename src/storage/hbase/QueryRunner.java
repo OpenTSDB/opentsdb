@@ -367,6 +367,17 @@ public class QueryRunner {
       for (final ArrayList<KeyValue> row : rows) {
         RowKey.checkMetric(row.get(0).key(), metric);
 
+        // TODO(luuse): Previously AggregationIterator checked so that every
+        // datapoint was within the time bounds however we saw no use in that
+        // and removed that since we can check it easier here. It might be
+        // possible that the aggregation and interpolation does some funky
+        // stuff that creates datapoints outside the bounds though but
+        // wouldn't it be better to consider that a programmer error and ask
+        // them to guarantee to not do that. This also makes sense if you
+        // consider that only happens when we read so it will never trash any
+        // data perf
+        RowKey.checkBaseTime(row.get(0).key(), start, end);
+
         List<Annotation> annotations = Lists.newArrayList();
         final KeyValue compacted = compactionq.compact(row, annotations);
         seenAnnotation |= !annotations.isEmpty();

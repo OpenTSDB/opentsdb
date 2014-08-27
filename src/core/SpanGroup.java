@@ -59,12 +59,6 @@ final class SpanGroup implements DataPoints {
   /** Annotations */
   private final ArrayList<Annotation> annotations;
 
-  /** Start time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
-  private final long start_time;
-
-  /** End time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
-  private final long end_time;
-
   /**
    * The tags of this group.
    * This is the intersection set between the tags of all the Spans
@@ -104,34 +98,6 @@ final class SpanGroup implements DataPoints {
 
   /**
    * Ctor.
-   * @param start_time Any data point strictly before this timestamp will be
-   * ignored.
-   * @param end_time Any data point strictly after this timestamp will be
-   * ignored.
-   * @param spans A sequence of initial {@link Spans} to add to this group.
-   * Ignored if {@code null}.  Additional spans can be added with {@link #add}.
-   * @param rate If {@code true}, the rate of the series will be used instead
-   * of the actual values.
-   * @param aggregator The aggregation function to use.
-   * @param interval Number of milliseconds wanted between each data point.
-   * @param downsampler Aggregation function to use to group data points
-   */
-  SpanGroup(final long start_time, final long end_time,
-            final Iterable<Span> spans,
-            final boolean rate,
-            final Aggregator aggregator,
-            final long interval, final Aggregator downsampler) {
-    this(start_time, end_time, spans, rate, new RateOptions(false,
-        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
-        downsampler);
-  }
-
-  /**
-   * Ctor.
-   * @param start_time Any data point strictly before this timestamp will be
-   * ignored.
-   * @param end_time Any data point strictly after this timestamp will be
-   * ignored.
    * @param spans A sequence of initial {@link Spans} to add to this group.
    * Ignored if {@code null}. Additional spans can be added with {@link #add}.
    * @param rate If {@code true}, the rate of the series will be used instead
@@ -143,14 +109,11 @@ final class SpanGroup implements DataPoints {
    * within an interval.
    * @since 2.0
    */
-  SpanGroup(final long start_time, final long end_time,
-            final Iterable<Span> spans,
+  SpanGroup(final Iterable<Span> spans,
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
     annotations = new ArrayList<Annotation>();
-    this.start_time = inMilliseconds(start_time);
-    this.end_time = inMilliseconds(end_time);
     if (spans != null) {
       for (final Span span : spans) {
         add(span);
@@ -176,29 +139,8 @@ final class SpanGroup implements DataPoints {
                                + ", you can't add more Spans to " + this);
     }
 
-    if (span.size() == 0) {
-      // copy annotations that are in the time range
-      for (Annotation annot : span.getAnnotations()) {
-        long annot_start = inMilliseconds(annot.getStartTime());
-        long annot_end = inMilliseconds(annot.getStartTime());
-
-        if (annot_end >= start_time && annot_start <= end_time) {
-          annotations.add(annot);
-        }
-      }
-    } else {
-      long first_dp = inMilliseconds(span.timestamp(0));
-
-      // The following call to timestamp() will throw an
-      // IndexOutOfBoundsException if size == 0, which is OK since it would
-      // be a programming error.
-      long last_dp = inMilliseconds(span.timestamp(span.size() - 1));
-
-      if (first_dp <= end_time && last_dp >= start_time) {
-        this.spans.add(span);
-        annotations.addAll(span.getAnnotations());
-      }
-    }
+    spans.add(checkNotNull(span));
+    annotations.addAll(span.getAnnotations());
   }
 
   /**
@@ -305,7 +247,7 @@ final class SpanGroup implements DataPoints {
   }
 
   public SeekableView iterator() {
-    return AggregationIterator.create(spans, start_time, end_time, aggregator,
+    return AggregationIterator.create(spans, aggregator,
             aggregator.interpolationMethod(),
             downsampler, sample_interval,
             rate, rate_options);
@@ -338,8 +280,6 @@ final class SpanGroup implements DataPoints {
   @Override
   public String toString() {
     return Objects.toStringHelper(this)
-            .add("start_time", start_time)
-            .add("end_time", end_time)
             .add("tags", tags)
             .add("aggregated_tags", aggregated_tags)
             .add("rate", rate)
@@ -353,13 +293,17 @@ final class SpanGroup implements DataPoints {
   public static SpanGroup create(final TsdbQuery tsdbQuery,
                                  final Set<Span> spans) {
     return new SpanGroup(
-            tsdb.getScanStartTimeSeconds(this),
-            tsdb.getScanEndTimeSeconds(this),
             spans,
             tsdbQuery.getRate(),
             tsdbQuery.getRateOptions(),
             tsdbQuery.getAggregator(),
             tsdbQuery.getSampleInterval(),
             tsdbQuery.getDownsampler());
+  }
+
+  @Override
+  public int compareTo(final DataPoints o) {
+    // TODO(luuse): FIX ME!
+    throw new UnsupportedOperationException("Not implemented yet!");
   }
 }

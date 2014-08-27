@@ -150,12 +150,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
    */
   private final SeekableView[] iterators;
 
-  /** Start time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
-  private final long start_time;
-
-  /** End time (UNIX timestamp in seconds or ms) on 32 bits ("unsigned" int). */
-  private final long end_time;
-
   /**
    * The current and previous timestamps for the data points being used.
    * <p>
@@ -197,10 +191,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
   /**
    * Creates a new iterator for a {@link SpanGroup}.
    * @param spans Spans in a group.
-   * @param start_time Any data point strictly before this timestamp will be
-   * ignored.
-   * @param end_time Any data point strictly after this timestamp will be
-   * ignored.
    * @param aggregator The aggregation function to use.
    * @param method Interpolation method to use when aggregating time series
    * @param downsampler Aggregation function to use to group data points
@@ -214,8 +204,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
    * @return An {@link AggregationIterator} object.
    */
   public static AggregationIterator create(final List<Span> spans,
-                                           final long start_time,
-                                           final long end_time,
                                            final Aggregator aggregator,
                                            final Interpolation method,
                                            final Aggregator downsampler,
@@ -236,7 +224,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
       }
       iterators[i] = it;
     }
-    return new AggregationIterator(iterators, start_time, end_time, aggregator,
+    return new AggregationIterator(iterators, aggregator,
                                    method, rate);
   }
 
@@ -244,25 +232,17 @@ final class AggregationIterator implements SeekableView, DataPoint,
    * Creates an aggregation iterator for a group of data point iterators.
    * @param iterators An array of Seekable views of spans in a group. Ignored
    * if {@code null}. We modify the array while processing data points.
-   * @param start_time Any data point strictly before this timestamp will be
-   * ignored.
-   * @param end_time Any data point strictly after this timestamp will be
-   * ignored.
    * @param aggregator The aggregation function to use.
    * @param method Interpolation method to use when aggregating time series
    * @param rate If {@code true}, the rate of the series will be used instead
    * of the actual values.
    */
   private AggregationIterator(final SeekableView[] iterators,
-                              final long start_time,
-                              final long end_time,
                               final Aggregator aggregator,
                               final Interpolation method,
                               final boolean rate) {
     LOG.debug("Aggregating {} iterators", iterators.length);
     this.iterators = iterators;
-    this.start_time = start_time;
-    this.end_time = end_time;
     this.aggregator = aggregator;
     this.method = method;
     this.rate = rate;
@@ -274,7 +254,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     int num_empty_spans = 0;
     for (int i = 0; i < size; i++) {
       SeekableView it = iterators[i];
-      it.seek(start_time);
+
       final DataPoint dp;
       try {
         dp = it.next();
@@ -287,19 +267,11 @@ final class AggregationIterator implements SeekableView, DataPoint,
         endReached(i);
         continue;
       }
-      //LOG.debug("Creating iterator #" + i);
-      if (dp.timestamp() >= start_time) {
-        //LOG.debug("First DP in range for #" + i + ": "
-        //          + dp.timestamp() + " >= " + start_time);
-        putDataPoint(size + i, dp);
-      } else {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug(String.format("No DP in range for #%d: %d < %d", i,
-                                  dp.timestamp(), start_time));
-        }
-        endReached(i);
-        continue;
-      }
+
+      //LOG.debug("First DP in range for #" + i + ": "
+      //          + dp.timestamp() + " >= " + start_time);
+      putDataPoint(size + i, dp);
+
       if (rate) {
         // The first rate against the time zero should be populated
         // for the backward compatibility that uses the previous rate
@@ -357,7 +329,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     for (int i = 0; i < size; i++) {
       // As long as any of the iterators has a data point with a timestamp
       // that falls within our interval, we know we have at least one next.
-      if ((timestamps[size + i] & TIME_MASK) <= end_time) {
+      if (timestamps[size + i] != TIME_MASK) {
         //LOG.debug("hasNext #" + (size + i));
         return true;
       }
@@ -390,16 +362,14 @@ final class AggregationIterator implements SeekableView, DataPoint,
     boolean multiple = false;
     for (int i = 0; i < size; i++) {
       final long timestamp = timestamps[size + i] & TIME_MASK;
-      if (timestamp <= end_time) {
-        if (timestamp < min_ts) {
-          min_ts = timestamp;
-          current = i;
-          // We just found a new minimum so right now we can't possibly have
-          // multiple Spans with the same minimum.
-          multiple = false;
-        } else if (timestamp == min_ts) {
-          multiple = true;
-        }
+      if (timestamp < min_ts) {
+        min_ts = timestamp;
+        current = i;
+        // We just found a new minimum so right now we can't possibly have
+        // multiple Spans with the same minimum.
+        multiple = false;
+      } else if (timestamp == min_ts) {
+        multiple = true;
       }
     }
     if (current < 0) {
@@ -656,9 +626,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   }
 
   private String toStringSharedAttributes() {
-    return "start_time=" + start_time
-      + ", end_time=" + end_time
-      + ", rate=" + rate
+    return ", rate=" + rate
       + ", aggregator=" + aggregator
       + ')';
   }
@@ -667,10 +635,6 @@ final class AggregationIterator implements SeekableView, DataPoint,
    * Creates an aggregation iterator for unit tests.
    * @param iterators An array of Seekable views of spans in a group. Ignored
    * if {@code null}. We modify the array while processing data points.
-   * @param start_time Any data point strictly before this timestamp will be
-   * ignored.
-   * @param end_time Any data point strictly after this timestamp will be
-   * ignored.
    * @param aggregator The aggregation function to use.
    * @param method Interpolation method to use when aggregating time series
    * @param rate If {@code true}, the rate of the series will be used instead
@@ -678,12 +642,9 @@ final class AggregationIterator implements SeekableView, DataPoint,
    */
   @VisibleForTesting
   static AggregationIterator createForTesting(final SeekableView[] iterators,
-                                              final long start_time,
-                                              final long end_time,
                                               final Aggregator aggregator,
                                               final Interpolation method,
                                               final boolean rate) {
-    return new AggregationIterator(iterators, start_time, end_time,
-                                   aggregator, method, rate);
+    return new AggregationIterator(iterators, aggregator, method, rate);
   }
 }
