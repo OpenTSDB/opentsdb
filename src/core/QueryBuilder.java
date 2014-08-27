@@ -191,10 +191,7 @@ public class QueryBuilder {
    * . You should call this or {@link #withMetric(String)}, not both.
    */
   public QueryBuilder withTSUIDS(final List<String> tsuids) {
-    if (tsuids == null || tsuids.isEmpty()) {
-      throw new IllegalArgumentException(
-              "Empty or missing TSUID list not allowed");
-    }
+    checkArgument(!tsuids.isEmpty(), "Empty or missing TSUID list not allowed");
 
     String first_metric = "";
     for (final String tsuid : tsuids) {
@@ -338,7 +335,9 @@ public class QueryBuilder {
    * {@link #tags} will be used.
    */
   public Deferred<Query> createQuery() {
-    checkState(start_time.isPresent());
+    checkState(start_time.isPresent(), "A start time must be provided");
+    checkState(metric != null || tsuids != null,
+            "Either a metric or TSUIDS must be privoded");
 
     if (tsuids != null) {
       return Deferred.fromResult(createFromTSUIDS());

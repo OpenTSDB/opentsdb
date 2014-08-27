@@ -60,8 +60,9 @@ public class TestQueryBuilder {
 
   @Test
   public void downsample() throws Exception {
-    builder.withStartAndEndTime(GOOD_START, GOOD_END)
-            .downsample(SAMPLE_INTERVAL, Aggregators.SUM);
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withStartAndEndTime(GOOD_START, GOOD_END)
+           .downsample(SAMPLE_INTERVAL, Aggregators.SUM);
 
     final Query query = builder.createQuery().joinUninterruptibly();
 
@@ -72,8 +73,9 @@ public class TestQueryBuilder {
 
   @Test
   public void downsampleMilliseconds() throws Exception {
-    builder.withStartAndEndTime(GOOD_START, GOOD_END)
-            .downsample(SAMPLE_INTERVAL, Aggregators.SUM);
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withStartAndEndTime(GOOD_START, GOOD_END)
+           .downsample(SAMPLE_INTERVAL, Aggregators.SUM);
 
     final Query query = builder.createQuery().joinUninterruptibly();
 
@@ -98,7 +100,8 @@ public class TestQueryBuilder {
 
   @Test
   public void withStartAndEndTime() throws Exception {
-    builder.withStartAndEndTime(GOOD_START, GOOD_END);
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withStartAndEndTime(GOOD_START, GOOD_END);
     final Query query = builder.createQuery().joinUninterruptibly();
     assertEquals(GOOD_START, query.getStartTime());
     assertEquals(GOOD_END, (long) query.getEndTime().get());
@@ -106,7 +109,8 @@ public class TestQueryBuilder {
 
   @Test
   public void withEndTimeAbsent() throws Exception {
-    builder.withStartAndEndTime(GOOD_START, Optional.<Long>absent());
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withStartAndEndTime(GOOD_START, Optional.<Long>absent());
     final Query query = builder.createQuery().joinUninterruptibly();
     assertEquals(GOOD_START, query.getStartTime());
     assertFalse(query.getEndTime().isPresent());
@@ -119,7 +123,8 @@ public class TestQueryBuilder {
 
   @Test
   public void withStartTimeZero() throws Exception {
-    builder.withStartTime(0);
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withStartTime(0);
     final Query query = builder.createQuery().joinUninterruptibly();
     assertEquals(0, query.getStartTime());
   }
@@ -165,14 +170,16 @@ public class TestQueryBuilder {
 
   @Test
   public void withGoodMetric() throws Exception {
-    builder.withMetric(SYS_CPU_USER_NAME);
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withStartTime(GOOD_START);
     Query query = builder.createQuery().joinUninterruptibly();
     assertArrayEquals(SYS_CPU_USER_ID, query.getMetric());
   }
 
   @Test (expected = NoSuchUniqueName.class)
   public void withMetricNosuchMetric() throws Exception {
-    builder.withMetric("nometric");
+    builder.withMetric("nometric")
+           .withStartTime(GOOD_START);
     builder.createQuery().joinUninterruptibly();
   }
 
@@ -183,7 +190,9 @@ public class TestQueryBuilder {
 
   @Test
   public void withEmptyTags() throws Exception {
-    builder.withTags(Maps.<String, String>newHashMap());
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withTags(Maps.<String, String>newHashMap())
+           .withStartTime(GOOD_START);
     Query query = builder.createQuery().joinUninterruptibly();
 
     ArrayList<byte[]> tag_ids = query.getTags();
@@ -192,7 +201,9 @@ public class TestQueryBuilder {
 
   @Test
   public void withGoodTags() throws Exception {
-    builder.withTags(good_tags);
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withTags(good_tags)
+           .withStartTime(GOOD_START);
     Query query = builder.createQuery().joinUninterruptibly();
 
     ArrayList<byte[]> tag_ids = query.getTags();
@@ -206,15 +217,19 @@ public class TestQueryBuilder {
   public void withTagsNosuchTagk() throws Exception {
     good_tags.clear();
     good_tags.put("dc", WEB01_NAME);
-    builder.withTags(good_tags);
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withTags(good_tags)
+           .withStartTime(GOOD_START);
     builder.createQuery().joinUninterruptibly();
   }
 
   @Test (expected = NoSuchUniqueName.class)
-  public void setTimeSeriesNosuchTagv() throws Exception {
+  public void withTagsNosuchTagv() throws Exception {
     good_tags.clear();
     good_tags.put(HOST_NAME, "noweb");
-    builder.withTags(good_tags);
+    builder.withMetric(SYS_CPU_USER_NAME)
+           .withTags(good_tags)
+           .withStartTime(GOOD_START);
     builder.createQuery().joinUninterruptibly();
   }
 
@@ -237,8 +252,9 @@ public class TestQueryBuilder {
   }
 
   @Test
-  public void setTimeSeriesTS() throws Exception {
-    builder.withTSUIDS(Lists.newArrayList(TSUID1));
+  public void withTSUIDS() throws Exception {
+    builder.withTSUIDS(Lists.newArrayList(TSUID1))
+           .withStartTime(GOOD_START);
     Query query = builder.createQuery().joinUninterruptibly();
     assertEquals(TSUID1, query.getTSUIDS().get(0));
   }
