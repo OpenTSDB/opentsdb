@@ -108,7 +108,9 @@ public final class Query {
   private final long sample_interval_ms;
 
   /**
-   * Constructor.
+   * Create a new {@code Query} object with the provided parameters. When
+   * this constructor is used the query will be based on the provided {@link
+   * #metric} and {@link #tags} in contrast to {@link #tsuids}.
    */
   Query(final byte[] metric_id,
         final ArrayList<byte[]> tags,
@@ -139,6 +141,11 @@ public final class Query {
     this.tsuids = null;
   }
 
+  /**
+   * Create a new {@code Query} object with the provided parameters. When
+   * this constructor is used the query will be based on the provided {@link
+   * #tsuids} in contrast to {@link #metric} and {@link #tags}.
+   */
   Query(final byte[] metric_id,
         final List<String> tsuids,
         final long start_time,
