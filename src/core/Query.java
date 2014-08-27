@@ -124,7 +124,7 @@ public final class Query {
     this.metric = checkNotNull(metric_id);
     this.tags = checkNotNull(tags);
     this.start_time = checkTimestamp(start_time);
-    this.end_time = checkTimestamp(end_time);
+    this.end_time = checkEndTime(end_time);
 
     this.aggregator = aggregator;
     this.downsampler = downsampler;
@@ -151,7 +151,7 @@ public final class Query {
     this.metric = checkNotNull(metric_id);
     this.tsuids = checkNotNull(tsuids);
     this.start_time = checkTimestamp(start_time);
-    this.end_time = checkTimestamp(end_time);
+    this.end_time = checkEndTime(end_time);
 
     this.aggregator = aggregator;
     this.downsampler = downsampler;
@@ -164,6 +164,14 @@ public final class Query {
     this.group_by_values = null;
 
     this.tags = null;
+  }
+
+  private Optional<Long> checkEndTime(final Optional<Long> end_time) {
+    if (end_time.isPresent()) {
+      checkTimestamp(end_time.get());
+    }
+
+    return end_time;
   }
 
   /**
@@ -263,9 +271,8 @@ public final class Query {
     }
 
     if (group_by_values != null) {
-      str_helper.add("group_by_values", Joiner.on(", ")
-              .skipNulls()
-              .join(group_by_values));
+      String gbv_str = Joiner.on(',').withKeyValueSeparator("=").join(group_by_values);
+      str_helper.add("group_by_values", gbv_str);
     }
 
     return str_helper.toString();
