@@ -51,7 +51,6 @@ import com.stumbleupon.async.Deferred;
 public final class TestQueryRpc {
   private TSDB tsdb = null;
   final private QueryRpc rpc = new QueryRpc();
-  final private Query empty_query = mock(Query.class);
   
   private static final Method parseQuery;
   static {
@@ -67,8 +66,6 @@ public final class TestQueryRpc {
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
-    when(tsdb.newQuery()).thenReturn(empty_query);
-    when(empty_query.run()).thenReturn(new DataPoints[0]);
   }
   
   @Test
