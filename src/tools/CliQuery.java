@@ -121,8 +121,8 @@ final class CliQuery {
 
     final Plot plot = (want_plot ? new Plot(tsdb,
                                             queries.get(0).getStartTime(),
-                                            queries.get(0).getEndTime())
-                       : null);
+                                            queries.get(0).getEndTime()
+                                                    .or(System.currentTimeMillis())) : null);
     if (want_plot) {
       plot.setParams(parsePlotParams(plotparams));
     }
@@ -130,11 +130,14 @@ final class CliQuery {
     for (int i = 0; i < nqueries; i++) {
       // TODO(tsuna): Optimization: run each query in parallel.
       final StringBuilder buf = want_plot ? null : new StringBuilder();
-      for (final DataPoints datapoints : queries.get(i).run()) {
-        if (want_plot) {
-          plot.add(datapoints, plotoptions.get(i));
-        } else {
-          try {
+
+      try {
+        DataPoints[] dps = tsdb.executeQuery(queries.get(i)).joinUninterruptibly();
+
+        for (final DataPoints datapoints : dps) {
+          if (want_plot) {
+            plot.add(datapoints, plotoptions.get(i));
+          } else {
             final String metric = formatter.formatMetric(datapoints.metric()).joinUninterruptibly();
             final String tagz = formatter.formatTags(datapoints.tags()).joinUninterruptibly().toString();
             for (final DataPoint datapoint : datapoints) {
@@ -151,10 +154,10 @@ final class CliQuery {
               System.out.print(buf);
               buf.delete(0, buf.length());
             }
-          } catch (Exception e) {
-            Throwables.propagate(e);
           }
         }
+      } catch (Exception e) {
+        Throwables.propagate(e);
       }
     }
     return plot;

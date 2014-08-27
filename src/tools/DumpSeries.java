@@ -101,7 +101,8 @@ final class DumpSeries {
 
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
-      final Scanner scanner = Internal.getScanner(query);
+      //final Scanner scanner = Internal.getScanner(query);
+      final Scanner scanner = null;
       ArrayList<ArrayList<KeyValue>> rows;
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {

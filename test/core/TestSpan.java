@@ -328,32 +328,4 @@ public final class TestSpan {
     assertEquals(50, values.get(4).longValue());
     assertEquals(1357007000000L, timestamps_in_millis.get(4).longValue());
   }
-
-  @Test
-  public void lastTimestampInRow() throws Exception {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final KeyValue kv = new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    assertEquals(1356998402L, Span.lastTimestampInRow((short) 3, kv));
-  }
-  
-  @Test
-  public void lastTimestampInRowMs() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    
-    final KeyValue kv = new KeyValue(HOUR1, FAMILY, qual12, 
-        MockBase.concatByteArrays(val1, val2, ZERO));
-    
-    assertEquals(1356998400008L, Span.lastTimestampInRow((short) 3, kv));
-  }
 }

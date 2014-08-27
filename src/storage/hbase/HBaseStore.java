@@ -14,6 +14,7 @@ package net.opentsdb.storage.hbase;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -21,7 +22,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
-import net.opentsdb.core.TsdbQuery;
+import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -36,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.SortedSet;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.fromBytes;
@@ -998,11 +998,25 @@ public class HBaseStore implements TsdbStore {
    * @throws org.hbase.async.HBaseException if there was a problem communicating with HBase to
    * perform the search.
    * @throws IllegalArgumentException if bad data was retreived from HBase.
-   * @param tsdbQuery
+   * @param query
    */
   @Override
-  public Deferred<SortedSet<DataPoints>> executeQuery(final TsdbQuery tsdbQuery) {
-    return new QueryRunner(tsdbQuery, client, compactionq, data_table_name,TS_FAMILY).run();
+  public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
+    class QueryCB implements Callback<ImmutableList<DataPoints>, ImmutableList<CompactedRow>> {
+      @Override
+      public ImmutableList<DataPoints> call(final ImmutableList<CompactedRow>row_parts) {
+        return ImmutableList.<DataPoints>copyOf(row_parts);
+      }
+    }
+
+    QueryRunner r = new QueryRunner(
+            query,
+            client,
+            compactionq,
+            data_table_name,
+            TS_FAMILY);
+
+    return r.run().addCallback(new QueryCB());
   }
 
   /**

@@ -17,10 +17,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedSet;
+import java.util.Set;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Sets;
+import com.google.common.collect.TreeMultimap;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -515,7 +519,7 @@ public class TSDB {
 
     collector.addExtraTag("class", "TsdbQuery");
     try {
-      collector.record("hbase.latency", TsdbQuery.scanlatency, "method=scan");
+      collector.record("hbase.latency", Query.scanlatency, "method=scan");
     } finally {
       collector.clearExtraTag("class");
     }
@@ -558,7 +562,7 @@ public class TSDB {
 
   /** Returns a latency histogram for Scan RPCs used to fetch data points.  */
   public Histogram getScanLatencyHistogram() {
-    return TsdbQuery.scanlatency;
+    return Query.scanlatency;
   }
 
   /**
@@ -1122,11 +1126,11 @@ public class TSDB {
    * corresponds to one time series for which some data points have been
    * matched by the query.
    * @since 1.2
-   * @param tsdbQuery
+   * @param query
    */
-  public Deferred<DataPoints[]> executeQuery(TsdbQuery tsdbQuery) {
-    return tsdb_store.executeQuery(tsdbQuery)
-            .addCallback(new GroupByAndAggregateCB());
+  public Deferred<DataPoints[]> executeQuery(Query query) {
+    return tsdb_store.executeQuery(query)
+            .addCallback(new GroupByAndAggregateCB(query));
   }
 
   /**
@@ -1134,7 +1138,13 @@ public class TSDB {
    * {@link net.opentsdb.storage.TsdbStore#executeQuery} to group and sort the results.
    */
   private class GroupByAndAggregateCB implements
-          Callback<DataPoints[], SortedSet<DataPoints>> {
+          Callback<DataPoints[], ImmutableList<DataPoints>> {
+
+    private final Query query;
+
+    public GroupByAndAggregateCB(final Query query) {
+      this.query = query;
+    }
 
     /**
      * Creates the {@link SpanGroup}s to form the final results of this query.
@@ -1145,21 +1155,29 @@ public class TSDB {
      * any 'GROUP BY' formulated in this query.
      */
     @Override
-    public DataPoints[] call(final SortedSet<DataPoints> dps) {
+    public DataPoints[] call(final ImmutableList<DataPoints> dps) {
       if (dps.isEmpty()) {
-        return NO_RESULT;
+        // Result is empty so return an empty array
+        return new DataPoints[0];
       }
 
+      TreeMultimap<String, DataPoints> spans2 = TreeMultimap.create();
+
+      for (DataPoints dp : dps) {
+        List<String> tsuids = dp.getTSUIDs();
+        spans2.put(tsuids.get(0), dp);
+      }
+
+      Set<Span> spans = Sets.newTreeSet();
+      for (String tsuid : spans2.keySet()) {
+        spans.add(new Span(ImmutableSortedSet.copyOf(spans2.get(tsuid))));
+      }
+
+      final List<byte[]> group_bys = query.getGroupBys();
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
-        final SpanGroup group = new SpanGroup(
-                tsdb.getScanStartTimeSeconds(this),
-                tsdb.getScanEndTimeSeconds(this),
-                dps,
-                rate, rate_options,
-                aggregator,
-                sample_interval_ms, downsampler);
+        final SpanGroup group = SpanGroup.create(query, spans);
         return new SpanGroup[]{group};
       }
 
@@ -1177,8 +1195,8 @@ public class TSDB {
       final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
       final byte[] group = new byte[group_bys.size() * Const.TAG_VALUE_WIDTH];
 
-      for (final DataPoints dp : dps) {
-        final Map<byte[], byte[]> dp_tags = dp.tags();
+      for (final Span span : spans) {
+        final Map<byte[], byte[]> dp_tags = span.tags();
 
         int i = 0;
         // TODO(tsuna): The following loop has a quadratic behavior. We can
@@ -1187,7 +1205,7 @@ public class TSDB {
           final byte[] value_id = dp_tags.get(tag_id);
 
           if (value_id == null) {
-            throw new IllegalDataException("The " + dp + " did not contain a " +
+            throw new IllegalDataException("The " + span + " did not contain a " +
                     "value for the tag key " + Arrays.toString(tag_id));
           }
 
@@ -1198,30 +1216,20 @@ public class TSDB {
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
         SpanGroup thegroup = groups.get(group);
         if (thegroup == null) {
-          thegroup = new SpanGroup(tsdb.getScanStartTimeSeconds(this),
-                  tsdb.getScanEndTimeSeconds(this),
-                  null, rate, rate_options, aggregator,
-                  sample_interval_ms, downsampler);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
-          final byte[] group_copy = new byte[group.length];
-          System.arraycopy(group, 0, group_copy, 0, group.length);
+          final byte[] group_copy = Arrays.copyOf(group, group.length);
+
+          thegroup = SpanGroup.create(query, null);
           groups.put(group_copy, thegroup);
         }
-        thegroup.add(dp);
+        thegroup.add(span);
       }
+
       //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
       // LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
       //}
       return groups.values().toArray(new SpanGroup[groups.size()]);
-    }
-
-    private byte[] tsuid_for_row(final DataPoints dp) {
-      final List<String> tsuids = dp.getTSUIDs();
-      checkState(tsuids.size() == 1, "The datapoint must only contain 1 " +
-              "element but contains %s", tsuids.size());
-
-      return UniqueId.stringToUid(tsuids.get(0));
     }
   }
 

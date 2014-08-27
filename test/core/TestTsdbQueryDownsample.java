@@ -40,7 +40,7 @@ import static org.junit.Assert.*;
 @PrepareForTest({KeyValue.class, Scanner.class})
 public class TestTsdbQueryDownsample {
   private TSDB tsdb = null;
-  private TsdbQuery query = null;
+  private Query query = null;
 
   private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
   private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};
@@ -70,11 +70,11 @@ public class TestTsdbQueryDownsample {
     query.downsample(downsampleInterval, Aggregators.SUM);
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
-    assertEquals(60000, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
+    assertEquals(60000, Query.ForTesting.getDownsampleIntervalMs(query));
     long scanStartTime = 1356998400 - Const.MAX_TIMESPAN * 2 - 60;
-    assertEquals(scanStartTime, TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
+    assertEquals(scanStartTime, Query.ForTesting.getScanStartTimeSeconds(query));
     long scanEndTime = 1357041600 + Const.MAX_TIMESPAN + 1 + 60;
-    assertEquals(scanEndTime, TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+    assertEquals(scanEndTime, Query.ForTesting.getScanEndTimeSeconds(query));
   }
 
   @Test
@@ -83,11 +83,11 @@ public class TestTsdbQueryDownsample {
     query.downsample(downsampleInterval, Aggregators.SUM);
     query.setStartTime(1356998400000L);
     query.setEndTime(1357041600000L);
-    assertEquals(60000, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
+    assertEquals(60000, Query.ForTesting.getDownsampleIntervalMs(query));
     long scanStartTime = 1356998400 - Const.MAX_TIMESPAN * 2 - 60;
-    assertEquals(scanStartTime, TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
+    assertEquals(scanStartTime, Query.ForTesting.getScanStartTimeSeconds(query));
     long scanEndTime = 1357041600 + Const.MAX_TIMESPAN + 1 + 60;
-    assertEquals(scanEndTime, TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+    assertEquals(scanEndTime, Query.ForTesting.getScanEndTimeSeconds(query));
   }
 
   @Test (expected = NullPointerException.class)

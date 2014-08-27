@@ -53,12 +53,12 @@ import static org.mockito.Mockito.when;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({KeyValue.class, Scanner.class, TsdbQuery.class})
+@PrepareForTest({KeyValue.class, Scanner.class, Query.class})
 public final class TestTsdbQuery {
   private Config config;
   private TSDB tsdb;
   private MemoryStore tsdb_store;
-  private TsdbQuery query = null;
+  private Query query = null;
 
   private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
   private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};

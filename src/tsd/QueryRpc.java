@@ -39,7 +39,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
-import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSUIDQuery;
 import net.opentsdb.uid.UniqueId;
@@ -116,7 +115,7 @@ final class QueryRpc implements HttpRpc {
           e.getMessage(), data_query.toString(), e);
     }
 
-    List<Deferred<TsdbQuery>> tsdbqueries = data_query.buildQueries(tsdb);
+    List<Deferred<Query>> tsdbqueries = data_query.buildQueries(tsdb);
     final int nqueries = tsdbqueries.size();
     final ArrayList<DataPoints[]> results =
             new ArrayList<DataPoints[]>(nqueries);
@@ -124,7 +123,7 @@ final class QueryRpc implements HttpRpc {
             new ArrayList<Deferred<DataPoints[]>>(nqueries);
 
     try {
-      for (Deferred<TsdbQuery> tsdbquery : tsdbqueries) {
+      for (Deferred<Query> tsdbquery : tsdbqueries) {
         deferreds.add(tsdb.executeQuery(tsdbquery.joinUninterruptibly()));
       }
     } catch (Exception e) {

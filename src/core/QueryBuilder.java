@@ -219,12 +219,19 @@ public class QueryBuilder {
   }
 
   /**
-   * Sets an optional downsampling function on this query
-   *
-   * @param interval    The interval, in milliseconds to rollup data points
-   * @param downsampler An aggregation function to use when rolling up data points
-   * @throws NullPointerException     if the aggregation function is null
+   * Downsamples the results by specifying a fixed interval between points.
+   * <p>
+   * Technically, downsampling means reducing the sampling interval.  Here
+   * the idea is similar.  Instead of returning every single data point that
+   * matched the query, we want one data point per fixed time interval.  The
+   * way we get this one data point is by aggregating all the data points of
+   * that interval together using an {@link Aggregator}.  This enables you
+   * to compute things like the 5-minute average or 10 minute 99th percentile.
+   * @param interval Number of seconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
    * @throws IllegalArgumentException if the interval is not greater than 0
+   * @throws NullPointerException     if the aggregation function is null
    */
   public QueryBuilder downsample(final long interval, final Aggregator downsampler) {
     checkArgument(interval > 0, "interval must be greater than zero but was %s",
@@ -330,7 +337,7 @@ public class QueryBuilder {
    * TSUIDS will be used for this query. Otherwise the {@link #metric} and
    * {@link #tags} will be used.
    */
-  public Deferred<TsdbQuery> createQuery() {
+  public Deferred<Query> createQuery() {
     checkState(start_time.isPresent());
 
     if (tsuids != null) {
@@ -340,18 +347,18 @@ public class QueryBuilder {
     }
   }
 
-  private TsdbQuery createFromTSUIDS() {
+  private Query createFromTSUIDS() {
     final String tsuid = tsuids.get(0);
     final String metric_uid = tsuid.substring(0, Const.METRICS_WIDTH * 2);
     final byte[] metric_id = UniqueId.stringToUid(metric_uid);
 
-    return new TsdbQuery(metric_id, tsuids, start_time.get(), end_time,
+    return new Query(metric_id, tsuids, start_time.get(), end_time,
             aggregator, downsampler, sample_interval_ms, rate,
             rate_options);
   }
 
-  private Deferred<TsdbQuery> createFromMetricsAndTags() {
-    class GroupByValuesCB implements Callback<TsdbQuery,ArrayList<ArrayList<byte[]>>> {
+  private Deferred<Query> createFromMetricsAndTags() {
+    class GroupByValuesCB implements Callback<Query,ArrayList<ArrayList<byte[]>>> {
       private final byte[] metric_id;
       private final ArrayList<byte[]> tag_ids;
 
@@ -362,7 +369,7 @@ public class QueryBuilder {
       }
 
       @Override
-      public TsdbQuery call(ArrayList<ArrayList<byte[]>> arg) throws Exception {
+      public Query call(ArrayList<ArrayList<byte[]>> arg) throws Exception {
         List<byte[]> group_by = Lists.newArrayList();
         group_by.addAll(group_bys.values());
 
@@ -372,13 +379,13 @@ public class QueryBuilder {
           group_by_vals.put(tagk_id, group_by_val_entry.getValue());
         }
 
-        return new TsdbQuery(metric_id, tag_ids, start_time.get(), end_time,
+        return new Query(metric_id, tag_ids, start_time.get(), end_time,
                 aggregator, downsampler, sample_interval_ms, rate,
                 rate_options, group_by, group_by_vals);
       }
     }
 
-    class GroupBysCB implements Callback<Deferred<TsdbQuery>, ArrayList<byte[]>> {
+    class GroupBysCB implements Callback<Deferred<Query>, ArrayList<byte[]>> {
       private final byte[] metric_id;
       private final ArrayList<byte[]> tag_ids;
 
@@ -389,13 +396,13 @@ public class QueryBuilder {
       }
 
       @Override
-      public Deferred<TsdbQuery> call(ArrayList<byte[]> group_bys_tagk_ids) {
+      public Deferred<Query> call(ArrayList<byte[]> group_bys_tagk_ids) {
         return Deferred.group(group_by_values_deferreds)
                 .addCallback(new GroupByValuesCB(metric_id, tag_ids));
       }
     }
 
-    class TagsCB implements Callback<Deferred<TsdbQuery>, ArrayList<byte[]>> {
+    class TagsCB implements Callback<Deferred<Query>, ArrayList<byte[]>> {
       private final byte[] metric_id;
 
       public TagsCB(byte[] metric_id) {
@@ -403,15 +410,15 @@ public class QueryBuilder {
       }
 
       @Override
-      public Deferred<TsdbQuery> call(ArrayList<byte[]> tag_ids) {
+      public Deferred<Query> call(ArrayList<byte[]> tag_ids) {
         return Deferred.group(group_bys_deferreds)
                 .addCallbackDeferring(new GroupBysCB(metric_id, tag_ids));
       }
     }
 
-    class MetricCB implements Callback<Deferred<TsdbQuery>, byte[]> {
+    class MetricCB implements Callback<Deferred<Query>, byte[]> {
       @Override
-      public Deferred<TsdbQuery> call(byte[] metric_id) {
+      public Deferred<Query> call(byte[] metric_id) {
         return tags.addCallbackDeferring(new TagsCB(metric_id));
       }
     }

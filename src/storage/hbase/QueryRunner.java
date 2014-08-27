@@ -6,18 +6,17 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedSet;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
-import net.opentsdb.core.TsdbQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -35,15 +34,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class QueryRunner {
   private static final Logger LOG = LoggerFactory.getLogger(QueryRunner.class);
 
-  private final TsdbQuery tsdb_query;
+  private final Query tsdb_query;
   private final HBaseClient client;
 
   private final Scanner scanner;
 
-  private final SortedSet<CompactedRow> result_rows;
+  private final ImmutableList.Builder<CompactedRow> result_rows;
   private final CompactionQueue compactionq;
 
-  public QueryRunner(final TsdbQuery tsdb_query,
+  public QueryRunner(final Query tsdb_query,
                      final HBaseClient client,
                      final CompactionQueue compactionq,
                      final byte[] table,
@@ -52,13 +51,13 @@ public class QueryRunner {
     this.client = checkNotNull(client);
     this.compactionq = checkNotNull(compactionq);
 
-    this.result_rows = Sets.newTreeSet(new CompactedRow.CompactedRowComparator());
+    this.result_rows = ImmutableList.builder();
 
     scanner = getScannerForQuery(tsdb_query, checkNotNull(table),
             checkNotNull(family));
   }
 
-  public Deferred<SortedSet<CompactedRow>> run() {
+  public Deferred<ImmutableList<CompactedRow>> run() {
     return scanner.nextRows()
             .addErrback(new ScannerEB())
             .addCallbackDeferring(new ScannerCB());
@@ -71,23 +70,23 @@ public class QueryRunner {
    * filter. If one or more TSUIDs have been provided, it calls into
    * {@link #buildTSUIDFilter} to setup a row key filter.
    * @return A scanner to use for fetching data points
-   * @param tsdbQuery
+   * @param query
    * @param table
    * @param family
    */
-  private Scanner getScannerForQuery(final TsdbQuery tsdbQuery,
+  private Scanner getScannerForQuery(final Query query,
                                      final byte[] table,
                                      final byte[] family) {
-    final byte[] start_row = buildRowKey(tsdbQuery.getMetric(),
-            getScanStartTimeSeconds(tsdbQuery));
-    final byte[] end_row = buildRowKey(tsdbQuery.getMetric(),
-            getScanEndTimeSeconds(tsdbQuery));
+    final byte[] start_row = buildRowKey(query.getMetric(),
+            getScanStartTimeSeconds(query));
+    final byte[] end_row = buildRowKey(query.getMetric(),
+            getScanEndTimeSeconds(query));
 
     final Scanner scanner = client.newScanner(table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(family);
-    scanner.setFilter(buildRowKeyFilter(tsdbQuery));
+    scanner.setFilter(buildRowKeyFilter(query));
 
     return scanner;
   }
@@ -102,8 +101,8 @@ public class QueryRunner {
   }
 
   /** Returns the UNIX timestamp from which we must start scanning.
-   * @param tsdbQuery*/
-  private int getScanStartTimeSeconds(TsdbQuery tsdbQuery) {
+   * @param query*/
+  private int getScanStartTimeSeconds(Query query) {
     // The reason we look before by `MAX_TIMESPAN * 2' seconds is because of
     // the following.  Let's assume MAX_TIMESPAN = 600 (10 minutes) and the
     // start_time = ... 12:31:00.  If we initialize the scanner to look
@@ -116,14 +115,14 @@ public class QueryRunner {
     // but this doesn't really matter.
     // Additionally, in case our sample_interval_ms is large, we need to look
     // even further before/after, so use that too.
-    long start = tsdbQuery.getStartTimeSeconds();
-    final long ts = start - Const.MAX_TIMESPAN * 2 - tsdbQuery.getSampleInterval() / 1000;
+    long start = query.getStartTimeSeconds();
+    final long ts = start - Const.MAX_TIMESPAN * 2 - query.getSampleInterval() / 1000;
     return ts > 0 ? Ints.checkedCast(ts) : 0;
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.
-   * @param tsdbQuery*/
-  private int getScanEndTimeSeconds(TsdbQuery tsdbQuery) {
+   * @param query*/
+  private int getScanEndTimeSeconds(Query query) {
     // For the end_time, we have a different problem.  For instance if our
     // end_time = ... 12:30:00, we'll stop scanning when we get to 12:40, but
     // once again we wanna try to look ahead one more row, so to avoid this
@@ -132,22 +131,22 @@ public class QueryRunner {
     // again that doesn't really matter.
     // Additionally, in case our sample_interval_ms is large, we need to look
     // even further before/after, so use that too.
-    Optional<Long> end = tsdbQuery.getEndTimeSeconds();
+    Optional<Long> end = query.getEndTimeSeconds();
 
     if (end.isPresent()) {
       return Ints.checkedCast(end.get() + Const.MAX_TIMESPAN + 1 +
-              tsdbQuery.getSampleInterval() / 1000);
+              query.getSampleInterval() / 1000);
     }
 
     // Returning -1 will make us scan to the end (0xFFF...)
     return -1;
   }
 
-  private ScanFilter buildRowKeyFilter(final TsdbQuery tsdbQuery) {
-    if (tsdbQuery.getTSUIDS() != null && !tsdbQuery.getTSUIDS().isEmpty()) {
-      return buildTSUIDFilter(tsdbQuery);
-    } else if (!tsdbQuery.getTags().isEmpty() || tsdbQuery.getGroupBys() != null) {
-      return buildMetricFilter(tsdbQuery);
+  private ScanFilter buildRowKeyFilter(final Query query) {
+    if (query.getTSUIDS() != null && !query.getTSUIDS().isEmpty()) {
+      return buildTSUIDFilter(query);
+    } else if (!query.getTags().isEmpty() || query.getGroupBys() != null) {
+      return buildMetricFilter(query);
     }
 
     // TODO(luuse): Is it even possible to get here, not how can we rewrite
@@ -161,11 +160,11 @@ public class QueryRunner {
    * Sets the server-side regexp filter on the scanner.
    * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
    * storage from returning irrelevant rows.
-   * @param tsdbQuery The query that describes what parameters to build a
+   * @param query The query that describes what parameters to build a
    *                  filter for
    */
-  private KeyRegexpFilter buildTSUIDFilter(final TsdbQuery tsdbQuery) {
-    List<String> tsuids = tsdbQuery.getTSUIDS();
+  private KeyRegexpFilter buildTSUIDFilter(final Query query) {
+    List<String> tsuids = query.getTSUIDS();
     Collections.sort(tsuids);
 
     // first, convert the tags to byte arrays and count up the total length
@@ -215,13 +214,13 @@ public class QueryRunner {
    * Sets the server-side regexp filter on the scanner.
    * In order to find the rows with the relevant tags, we use a
    * server-side filter that matches a regular expression on the row key.
-   * @param tsdbQuery The query that describes what parameters to build a
+   * @param query The query that describes what parameters to build a
    *                  filter for
    */
-  private KeyRegexpFilter buildMetricFilter(final TsdbQuery tsdbQuery) {
-    List<byte[]> group_bys1 = tsdbQuery.getGroupBys();
-    ArrayList<byte[]> tags1 = tsdbQuery.getTags();
-    Map<byte[], ArrayList<byte[]>> groupByValues = tsdbQuery.getGroupByValues();
+  private KeyRegexpFilter buildMetricFilter(final Query query) {
+    List<byte[]> group_bys1 = query.getGroupBys();
+    ArrayList<byte[]> tags1 = query.getTags();
+    Map<byte[], ArrayList<byte[]>> groupByValues = query.getGroupByValues();
 
     if (group_bys1 != null) {
       Collections.sort(group_bys1, Bytes.MEMCMP);
@@ -340,14 +339,14 @@ public class QueryRunner {
     return cmp < 0;
   }
 
-  private class ScannerCB implements Callback<Deferred<SortedSet<CompactedRow>>, ArrayList<ArrayList<KeyValue>>> {
+  private class ScannerCB implements Callback<Deferred<ImmutableList<CompactedRow>>, ArrayList<ArrayList<KeyValue>>> {
     int nrows = 0;
     boolean seenAnnotation = false;
     int hbase_time = 0; // milliseconds.
     long starttime = System.nanoTime();
 
     @Override
-    public Deferred<SortedSet<CompactedRow>> call(final
+    public Deferred<ImmutableList<CompactedRow>> call(final
                                                 ArrayList<ArrayList<KeyValue>> rows) {
       hbase_time += (System.nanoTime() - starttime) / 1000000;
 
@@ -357,7 +356,7 @@ public class QueryRunner {
         LOG.info("{} matched {} rows in in {}ms",
                 tsdb_query, nrows, hbase_time);
         scanner.close();
-        return Deferred.fromResult(result_rows);
+        return Deferred.fromResult(result_rows.build());
       }
 
       final byte[] metric = tsdb_query.getMetric();
@@ -366,6 +365,17 @@ public class QueryRunner {
       // preprocessing.
       for (final ArrayList<KeyValue> row : rows) {
         RowKey.checkMetric(row.get(0).key(), metric);
+
+        // TODO(luuse): Previously AggregationIterator checked so that every
+        // datapoint was within the time bounds however we saw no use in that
+        // and removed that since we can check it easier here. It might be
+        // possible that the aggregation and interpolation does some funky
+        // stuff that creates datapoints outside the bounds though but
+        // wouldn't it be better to consider that a programmer error and ask
+        // them to guarantee to not do that. This also makes sense if you
+        // consider that only happens when we read so it will never trash any
+        // data perf
+        // RowKey.checkBaseTime(row.get(0).key(), start, end);
 
         List<Annotation> annotations = Lists.newArrayList();
         final KeyValue compacted = compactionq.compact(row, annotations);

@@ -14,7 +14,6 @@ package net.opentsdb.storage.hbase;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -86,7 +85,7 @@ public final class CompactedRow implements DataPoints {
    * @return The value of the cell.
    * @throws net.opentsdb.core.IllegalDataException if the data is malformed
    */
-  private static long extractIntegerValue(final byte[] values,
+  public static long extractIntegerValue(final byte[] values,
                                   final int value_idx,
                                   final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
@@ -109,7 +108,7 @@ public final class CompactedRow implements DataPoints {
    * @return The value of the cell.
    * @throws IllegalDataException if the data is malformed
    */
-  private static double extractFloatingPointValue(final byte[] values,
+  public static double extractFloatingPointValue(final byte[] values,
                                           final int value_idx,
                                           final byte flags) {
     switch (flags & Const.LENGTH_MASK) {
@@ -305,14 +304,30 @@ public final class CompactedRow implements DataPoints {
   }
 
   /**
-   * Used to compare two {@link net.opentsdb.storage.hbase.CompactedRow} objects
-   * when sorting a {@link net.opentsdb.core.Span}.
+   * Used to compare two {@link net.opentsdb.storage.hbase.CompactedRow}
    */
-  public static final class CompactedRowComparator implements Comparator<CompactedRow> {
-    @Override
-    public int compare(final CompactedRow a, final CompactedRow b) {
-      return SignedBytes.lexicographicalComparator().compare(a.key, b.key);
+  @Override
+  public int compareTo(final DataPoints that) {
+    if (this == checkNotNull(that))
+      return 0;
+
+    if (that instanceof CompactedRow) {
+      return compareTo((CompactedRow) that);
     }
+
+    // TODO This does so we can't compare different types of DataPoints but
+    // that is ok for now at least.
+    return 1;
+  }
+
+  public int compareTo(final CompactedRow that) {
+    int result = SignedBytes.lexicographicalComparator().compare(this.key, that.key);
+
+    if (result == 0) {
+      return Ints.saturatedCast(timestamp(0) - that.timestamp(0));
+    }
+
+    return result;
   }
   
   /** Iterator for {@link CompactedRow}s.  */
