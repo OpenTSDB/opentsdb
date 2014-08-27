@@ -30,6 +30,7 @@ import org.hbase.async.Bytes;
 
 import net.opentsdb.meta.Annotation;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.Timestamp.inMilliseconds;
 
 /**
@@ -305,9 +306,9 @@ final class SpanGroup implements DataPoints {
 
   public SeekableView iterator() {
     return AggregationIterator.create(spans, start_time, end_time, aggregator,
-                                  aggregator.interpolationMethod(),
-                                  downsampler, sample_interval,
-                                  rate, rate_options);
+            aggregator.interpolationMethod(),
+            downsampler, sample_interval,
+            rate, rate_options);
   }
 
   /**
@@ -347,5 +348,18 @@ final class SpanGroup implements DataPoints {
             .add("sample_interval", sample_interval)
             .add("spans", spans)
             .toString();
+  }
+
+  public static SpanGroup create(final TsdbQuery tsdbQuery,
+                                 final Set<Span> spans) {
+    return new SpanGroup(
+            tsdb.getScanStartTimeSeconds(this),
+            tsdb.getScanEndTimeSeconds(this),
+            spans,
+            tsdbQuery.getRate(),
+            tsdbQuery.getRateOptions(),
+            tsdbQuery.getAggregator(),
+            tsdbQuery.getSampleInterval(),
+            tsdbQuery.getDownsampler());
   }
 }

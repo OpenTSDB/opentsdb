@@ -389,4 +389,8 @@ class IncomingDataPoints implements WritableDataPoints {
     return buf.toString();
   }
 
+  @Override
+  public int compareTo(final DataPoints o) {
+    return 0;
+  }
 }

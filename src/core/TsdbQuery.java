@@ -43,13 +43,6 @@ import net.opentsdb.uid.NoSuchUniqueName;
  * Non-synchronized implementation of {@link Query}.
  */
 public final class TsdbQuery implements Query {
-  private static final Logger LOG = LoggerFactory.getLogger(TsdbQuery.class);
-
-  /**
-   * Used whenever there are no results.
-   */
-  private static final DataPoints[] NO_RESULT = new DataPoints[0];
-
   /**
    * Keep track of the latency we perceive when doing Scans on HBase.
    * We want buckets up to 16s, with 2 ms interval between each bucket up to
@@ -291,5 +284,21 @@ public final class TsdbQuery implements Query {
     }
 
     return str_helper.toString();
+  }
+
+  public boolean getRate() {
+    return rate;
+  }
+
+  public RateOptions getRateOptions() {
+    return rate_options;
+  }
+
+  public Aggregator getAggregator() {
+    return aggregator;
+  }
+
+  public Aggregator getDownsampler() {
+    return downsampler;
   }
 }

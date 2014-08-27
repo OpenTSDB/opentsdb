@@ -1133,7 +1133,7 @@ public class TSDB {
    */
   public Deferred<DataPoints[]> executeQuery(TsdbQuery tsdbQuery) {
     return tsdb_store.executeQuery(tsdbQuery)
-            .addCallback(new GroupByAndAggregateCB());
+            .addCallback(new GroupByAndAggregateCB(tsdbQuery));
   }
 
   /**
@@ -1142,6 +1142,12 @@ public class TSDB {
    */
   private class GroupByAndAggregateCB implements
           Callback<DataPoints[], SortedSet<DataPoints>> {
+
+    private final TsdbQuery tsdbQuery;
+
+    public GroupByAndAggregateCB(final TsdbQuery tsdbQuery) {
+      this.tsdbQuery = tsdbQuery;
+    }
 
     /**
      * Creates the {@link SpanGroup}s to form the final results of this query.
@@ -1154,7 +1160,8 @@ public class TSDB {
     @Override
     public DataPoints[] call(final SortedSet<DataPoints> dps) {
       if (dps.isEmpty()) {
-        return NO_RESULT;
+        // Result is empty so return an empty array
+        return new DataPoints[0];
       }
 
       TreeMultimap<String, DataPoints> spans2 = TreeMultimap.create();
@@ -1169,19 +1176,11 @@ public class TSDB {
         spans.add(new Span(ImmutableSortedSet.copyOf(spans2.get(tsuid))));
       }
 
-
-
-
+      final List<byte[]> group_bys = tsdbQuery.getGroupBys();
       if (group_bys == null) {
         // We haven't been asked to find groups, so let's put all the spans
         // together in the same group.
-        final SpanGroup group = new SpanGroup(
-                tsdb.getScanStartTimeSeconds(this),
-                tsdb.getScanEndTimeSeconds(this),
-                spans,
-                rate, rate_options,
-                aggregator,
-                sample_interval_ms, downsampler);
+        final SpanGroup group = SpanGroup.create(tsdbQuery, spans);
         return new SpanGroup[]{group};
       }
 
@@ -1220,14 +1219,11 @@ public class TSDB {
         //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
         SpanGroup thegroup = groups.get(group);
         if (thegroup == null) {
-          thegroup = new SpanGroup(tsdb.getScanStartTimeSeconds(this),
-                  tsdb.getScanEndTimeSeconds(this),
-                  null, rate, rate_options, aggregator,
-                  sample_interval_ms, downsampler);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
-          final byte[] group_copy = new byte[group.length];
-          System.arraycopy(group, 0, group_copy, 0, group.length);
+          final byte[] group_copy = Arrays.copyOf(group, group.length);
+
+          thegroup = SpanGroup.create(tsdbQuery, null);
           groups.put(group_copy, thegroup);
         }
         thegroup.add(span);
