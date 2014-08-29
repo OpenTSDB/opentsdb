@@ -14,16 +14,13 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Mockito.mock;
 
 import java.util.List;
 
 import com.google.common.collect.ImmutableSortedSet;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.hbase.CompactedRow;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -33,7 +30,6 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 
 public final class TestSpan {
-  private TSDB tsdb = mock(TSDB.class);
   private static final byte[] HOUR1 = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
   private static final byte[] HOUR2 = 
@@ -42,16 +38,14 @@ public final class TestSpan {
     { 0, 0, 1, 0x50, (byte)0xE2, 0x43, 0x20, 0, 0, 1, 0, 0, 2 };
   private static final byte[] FAMILY = { 't' };
   private static final byte[] ZERO = { 0 };
-  
+
   @Before
   public void before() throws Exception {
-    tsdb = new TSDB(new MemoryStore(), new Config(false));
   }
-
   
   @Test (expected = IllegalArgumentException.class)
   public void createEmptyRow() {
-    new Span(ImmutableSortedSet.<DataPoints>naturalOrder().build());
+    new Span(ImmutableSortedSet.<DataPoints>of());
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -69,10 +63,7 @@ public final class TestSpan {
     CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-    new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row1)
-            .add(badRow)
-            .build());
+    new Span(ImmutableSortedSet.<DataPoints>of(row1, badRow));
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -91,10 +82,7 @@ public final class TestSpan {
     CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-    new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row1)
-            .add(badRow)
-            .build());
+    new Span(ImmutableSortedSet.<DataPoints>of(row1, badRow));
   }
 
   @Test (expected = IllegalArgumentException.class)
@@ -112,10 +100,7 @@ public final class TestSpan {
     CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-    new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row1)
-            .add(badRow)
-            .build());
+    new Span(ImmutableSortedSet.<DataPoints>of(row1, badRow));
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -148,10 +133,7 @@ public final class TestSpan {
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
     CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
-    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row2)
-            .add(row1)
-            .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row2, row1));
     assertEquals(4, span.size());
     
     assertEquals(1356998400000L, span.timestamp(0));
@@ -179,11 +161,7 @@ public final class TestSpan {
     CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row1)
-            .add(row2)
-            .add(row3)
-            .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row1, row2, row3));
     
     assertEquals(6, span.size());
     assertEquals(1356998400000L, span.timestamp(0));
@@ -209,11 +187,7 @@ public final class TestSpan {
     CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qualifiers, values), Lists.<Annotation>newArrayList());
     CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qualifiers, values), Lists.<Annotation>newArrayList());
 
-    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row1)
-            .add(row2)
-            .add(row3)
-            .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row1, row2, row3));
 
     assertEquals(3600 * 3, span.size());
   }
@@ -233,11 +207,7 @@ public final class TestSpan {
     CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row1)
-            .add(row2)
-            .add(row3)
-            .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row1, row2, row3));
 
     assertEquals(6, span.size());
     assertEquals(1356998400000L, span.timestamp(0));
@@ -263,11 +233,7 @@ public final class TestSpan {
     CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row1)
-            .add(row2)
-            .add(row3)
-            .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row1, row2, row3));
 
     assertEquals(6, span.size());
     final SeekableView it = span.iterator();
@@ -323,11 +289,7 @@ public final class TestSpan {
     CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual02000,
             MockBase.concatByteArrays(val40, val50, ZERO)), Lists.<Annotation>newArrayList());
 
-    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-            .add(row1)
-            .add(row2)
-            .add(row3)
-            .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row1, row2, row3));
 
     assertEquals(6, span.size());
     long interval_ms = 1000000;
