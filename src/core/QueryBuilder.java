@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.ImmutableList;
 import net.opentsdb.uid.UidResolver;
 import net.opentsdb.uid.UniqueId;
 
@@ -338,7 +339,13 @@ public class QueryBuilder {
     checkState(start_time.isPresent(), "A start time must be provided");
     checkState(metric != null || tsuids != null,
             "Either a metric or TSUIDS must be privoded");
-
+    if (tags == null) {
+      tags = Deferred.fromResult(Lists.<byte[]>newArrayList());
+      group_bys = Maps.newTreeMap();
+      group_bys_deferreds = Lists.newArrayList(Deferred.fromResult(new byte[]{}));
+      group_by_values = Maps.newTreeMap();
+      group_by_values_deferreds = Lists.newArrayList(Deferred.fromResult(Lists.<byte[]>newArrayList()));
+    }
     if (tsuids != null) {
       return Deferred.fromResult(createFromTSUIDS());
     } else {
