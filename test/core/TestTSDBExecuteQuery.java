@@ -51,7 +51,7 @@ import static org.junit.Assert.*;
         "ch.qos.*", "org.slf4j.*",
         "com.sum.*", "org.xml.*"})
 @PrepareForTest({KeyValue.class, Scanner.class, Query.class})
-public final class TestTsdbQuery {
+public final class TestTSDBExecuteQuery {
   public static final int START_TIME_1 = 1356998400;
   public static final int END_TIME_1 = 1357041600;
   public static final long START_TIME_1L = 1356998400L;
