@@ -17,8 +17,8 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
@@ -26,14 +26,18 @@ import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginJARFactory;
 import net.opentsdb.utils.PluginLoader;
 
+import org.hbase.async.Bytes;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.stumbleupon.async.Deferred;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -132,6 +136,24 @@ public final class TestRTPublisher {
   }
   
   @Test
+  @Ignore
+  public void sinkDataPoint2() throws Exception {
+    assertNotNull(rt_publisher.sinkDataPoint("sys.cpu.user", 
+        System.currentTimeMillis(), new byte[] { 75 }, 
+        null, null, (short)0x7));
+  }
+  
+  @Test
+  public void publish75() throws Exception {
+	  HashMap<String, String> tags = new HashMap<String, String>(2);
+	  tags.put("host", "myhost");
+	  tags.put("vol", "tmp");
+	  //tsdb.addPoint("sys.fs.free", System.currentTimeMillis(), 75L, tags);
+	  addPoint("sys.fs.free", System.currentTimeMillis(), (long)(Short.MAX_VALUE), tags);
+  }
+  
+  
+  @Test
   public void publishAnnotation() throws Exception {
 	  Annotation ann = new Annotation();
 	  HashMap<String, String> customMap = new HashMap<String, String>(1);
@@ -142,5 +164,27 @@ public final class TestRTPublisher {
 	  ann.setStartTime(System.currentTimeMillis());	  
 	  assertNotNull(rt_publisher.publishAnnotation(ann));
   }
+  
+  
+  public void addPoint(final String metric,
+          final long timestamp,
+          final long value,
+          final Map<String, String> tags) {
+	final byte[] v;
+	if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+	v = new byte[] { (byte) value };
+	} else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
+	v = Bytes.fromShort((short) value);
+	} else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
+	v = Bytes.fromInt((int) value);
+	} else {
+	v = Bytes.fromLong(value);
+	}
+
+	final short flags = (short) (v.length - 1);  // Just the length.
+	//return addPointInternal(metric, timestamp, v, tags, flags);
+	
+	rt_publisher.sinkDataPoint(metric, timestamp, v, tags, null, flags);
+}
   
 }
