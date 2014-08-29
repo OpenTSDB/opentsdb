@@ -49,7 +49,7 @@ public final class TestSpan {
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void addRowBadKeyLength() {
+  public void ctorMissmatchingTSUIDS() {
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };

@@ -44,7 +44,14 @@ final class Span implements DataPoints {
    * Default constructor.
    */
   Span(ImmutableSortedSet<DataPoints> dps) {
-    checkArgument(!dps.isEmpty(), "dps must not be empty but was so");
+    checkArgument(!dps.isEmpty(), "dps must not be empty but was");
+
+    final String first_tsuid = dps.first().getTSUIDs().get(0);
+    final String last_tsuid = dps.last().getTSUIDs().get(0);
+
+    checkArgument(first_tsuid.equals(last_tsuid),
+            "The TSUIDS in the provided DataPoints must match but didn't");
+
     rows = dps;
     first = dps.first();
   }
