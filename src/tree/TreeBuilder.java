@@ -219,7 +219,7 @@ public final class TreeBuilder {
           if (!is_testing && tree.getNotMatched() != null && 
               !tree.getNotMatched().isEmpty()) {
             tree.addNotMatched(meta.getTSUID(), not_matched);
-            storage_calls.add(tree.flushNotMatched(tsdb));
+            storage_calls.add(tsdb.flushTreeNotMatched(tree));
           }
           
         } else if (current_branch == null) {
@@ -286,7 +286,7 @@ public final class TreeBuilder {
           
           // if we have collisions, flush em
           if (tree.getCollisions() != null && !tree.getCollisions().isEmpty()) {
-            storage_calls.add(tree.flushCollisions(tsdb));
+            storage_calls.add(tsdb.flushTreeCollisions(tree));
           }
           
         } else {
@@ -536,7 +536,7 @@ public final class TreeBuilder {
     
     // if we haven't loaded our trees in a while or we've just started, load
     if (((System.currentTimeMillis() / 1000) - last_tree_load) > 300) {
-      final Deferred<List<Tree>> load_deferred = Tree.fetchAllTrees(tsdb)
+      final Deferred<List<Tree>> load_deferred = tsdb.getTsdbStore().fetchAllTrees()
         .addCallback(new FetchedTreesCB()).addErrback(new ErrorCB());
       last_tree_load = (System.currentTimeMillis() / 1000);
       return load_deferred.addCallbackDeferring(new ProcessTreesCB());

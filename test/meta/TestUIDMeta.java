@@ -12,17 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,11 +35,8 @@ import static org.mockito.Mockito.when;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({
-  KeyValue.class,
-  Scanner.class, UIDMeta.class})
+@PrepareForTest(UIDMeta.class)
 public final class TestUIDMeta {
-  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
   private MemoryStore tsdb_store;
   private UIDMeta meta = new UIDMeta();
@@ -91,7 +84,7 @@ public final class TestUIDMeta {
   @Test
   public void createConstructor() {
     PowerMockito.mockStatic(System.class);
-    when(System.currentTimeMillis()).thenReturn(1357300800000L); 
+    when(System.currentTimeMillis()).thenReturn(1357300800000L);
     meta = new UIDMeta(TAGK, new byte[] { 1, 0, 0 }, "host");
     assertEquals(1357300800000L / 1000, meta.getCreated());
     assertEquals(UniqueId.uidToString(new byte[] { 1, 0, 0 }), meta.getUID());
@@ -236,27 +229,9 @@ public final class TestUIDMeta {
     meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
     meta.setDisplayName("System CPU");
     tsdb_store.add(meta).joinUninterruptibly();
-    meta = JSON.parseToObject(tsdb_store.getColumn(new byte[] { 0, 0, 1 },
-        NAME_FAMILY,
-        "metric_meta".getBytes(Const.CHARSET_ASCII)), UIDMeta.class);
+    meta = tsdb_store.getMeta(new byte[] { 0, 0, 1 },meta.getName() ,METRIC)
+            .joinUninterruptibly();
+
     assertEquals("System CPU", meta.getDisplayName());
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void storeNewNoName() throws Exception {
-    meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "");
-    tsdb_store.add(meta).joinUninterruptibly();
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void storeNewNullType() throws Exception {
-    meta = new UIDMeta(null, new byte[] { 0, 0, 1 }, "sys.cpu.1");
-    tsdb_store.add(meta).joinUninterruptibly();
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void storeNewEmptyUID() throws Exception {
-    meta = new UIDMeta(METRIC, "");
-    tsdb_store.add(meta).joinUninterruptibly();
   }
 }
