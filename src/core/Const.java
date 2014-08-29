@@ -93,4 +93,8 @@ public final class Const {
    * The maximum number of milliseconds allowed in a timestamp.
    */
   public static final long MAX_MS_TIMESTAMP = 9999999999999L;
+
+  public static final int MIN_TREE_ID_EXCLUSIVE = 1;
+
+  public static final int MAX_TREE_ID_EXCLUSIVE = 65535;
 }

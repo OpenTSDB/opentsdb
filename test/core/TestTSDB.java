@@ -20,6 +20,7 @@ import static org.junit.Assert.assertNotNull;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 
+import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -744,6 +745,38 @@ public final class TestTSDB {
     assertNotNull(value);
     // should have 7 digits of precision
     assertEquals(42, value[0]);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void storeNewEmptyUID() throws Exception {
+    UIDMeta meta = new UIDMeta(METRIC, "");
+    try {
+      tsdb.add(meta).joinUninterruptibly();
+    } catch (Exception e) {
+      assertEquals("Missing UID", e.getMessage());
+      throw(e);
+    }
+  }
+  @Test (expected = IllegalArgumentException.class)
+  public void storeNewNoName() throws Exception {
+    UIDMeta meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "");
+    try {
+      tsdb.add(meta).joinUninterruptibly();
+    } catch (Exception e) {
+      assertEquals("Missing name", e.getMessage());
+      throw(e);
+    }
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void storeNewNullType() throws Exception {
+    UIDMeta meta = new UIDMeta(null, new byte[] { 0, 0, 1 }, "sys.cpu.1");
+    try {
+      tsdb.add(meta).joinUninterruptibly();
+    } catch (Exception e) {
+      assertEquals("Missing type", e.getMessage());
+      throw(e);
+    }
   }
   
   /**
