@@ -15,6 +15,7 @@ package net.opentsdb.core;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
@@ -43,7 +44,7 @@ final class Span implements DataPoints {
   /**
    * Default constructor.
    */
-  Span(ImmutableSortedSet<DataPoints> dps) {
+  Span(SortedSet<DataPoints> dps) {
     checkArgument(!dps.isEmpty(), "dps must not be empty but was");
 
     final String first_tsuid = dps.first().getTSUIDs().get(0);
@@ -52,7 +53,7 @@ final class Span implements DataPoints {
     checkArgument(first_tsuid.equals(last_tsuid),
             "The TSUIDS in the provided DataPoints must match but didn't");
 
-    rows = dps;
+    rows = ImmutableSortedSet.copyOf(dps);
     first = dps.first();
   }
 
