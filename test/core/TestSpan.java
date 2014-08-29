@@ -47,30 +47,12 @@ public final class TestSpan {
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void createEmptyRow() {
+  public void ctorEmptyDataPoints() {
     new Span(ImmutableSortedSet.<DataPoints>of());
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void ctorMissmatchingTSUIDS() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-
-    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
-            MockBase.concatByteArrays(val1, val2, ZERO)), EMPTY_ANNOTATIONS);
-
-    final byte[] bad_key = new byte[]{0, 0, 1, 0x50, (byte) 0xE2, 0x43, 0x20, 0, 0, 1};
-    CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
-            MockBase.concatByteArrays(val1, val2, ZERO)), EMPTY_ANNOTATIONS);
-
-    new Span(ImmutableSortedSet.<DataPoints>of(row1, badRow));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void addRowMissMatchedMetric() {
+  public void ctorMissMatchedMetric() {
     final byte[] qual1 = {0x00, 0x07};
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = {0x00, 0x27};
@@ -89,7 +71,7 @@ public final class TestSpan {
   }
 
   @Test (expected = IllegalArgumentException.class)
-  public void addRowMissMatchedTagk() {
+  public void ctorMissMatchedTagk() {
     final byte[] qual1 = {0x00, 0x07};
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = {0x00, 0x27};
@@ -107,7 +89,7 @@ public final class TestSpan {
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void addRowMissMatchedTagv() {
+  public void ctorMissMatchedTagv() {
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -121,36 +103,24 @@ public final class TestSpan {
     CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), EMPTY_ANNOTATIONS);
 
-
-  }
-  
-  @Test
-  public void addRowOutOfOrder() {
-    final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-
-    CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qual12,
-            MockBase.concatByteArrays(val1, val2, ZERO)), EMPTY_ANNOTATIONS);
-    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
-            MockBase.concatByteArrays(val1, val2, ZERO)), EMPTY_ANNOTATIONS);
-    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row2, row1));
-    assertEquals(4, span.size());
-    
-    assertEquals(1356998400000L, span.timestamp(0));
-    assertEquals(4, span.longValue(0));
-    assertEquals(1356998402000L, span.timestamp(1));
-    assertEquals(5, span.longValue(1));
-    assertEquals(1357002000000L, span.timestamp(2));
-    assertEquals(4, span.longValue(2));
-    assertEquals(1357002002000L, span.timestamp(3));
-    assertEquals(5, span.longValue(3));
+    new Span(ImmutableSortedSet.<DataPoints>of(row1, badRow));
   }
 
   @Test
-  public void timestampNormalized() throws Exception {
+  public void datapointForIdxZero() {
+    final byte[] qual = { 0x00, 0x07 };
+    final byte[] val = Bytes.fromLong(4L);
+
+    CompactedRow row = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual,
+            MockBase.concatByteArrays(val, ZERO)), EMPTY_ANNOTATIONS);
+
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row));
+
+    assertEquals(1356998400000L, span.dataPointForIndex(0).timestamp());
+  }
+
+  @Test
+  public void datapointForLastIdx() {
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -165,41 +135,16 @@ public final class TestSpan {
             MockBase.concatByteArrays(val1, val2, ZERO)), EMPTY_ANNOTATIONS);
 
     final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row1, row2, row3));
-    
+
     assertEquals(6, span.size());
-    assertEquals(1356998400000L, span.timestamp(0));
-    assertEquals(1356998402000L, span.timestamp(1));
-    assertEquals(1357002000000L, span.timestamp(2));
-    assertEquals(1357002002000L, span.timestamp(3));
-    assertEquals(1357005600000L, span.timestamp(4));
-    assertEquals(1357005602000L, span.timestamp(5));
+    assertEquals(1357005602000L, span.dataPointForIndex(5).timestamp());
   }
-  
+
   @Test
-  public void timestampFullSeconds() throws Exception {
-    
-    final byte[] qualifiers = new byte[3600 * 2];
-    final byte[] values = new byte[3600 * 8];
-    for (int i = 0; i < 3600; i++) {
-      final short qualifier = (short) (i << Const.FLAG_BITS | 0x07);
-      System.arraycopy(Bytes.fromShort(qualifier), 0, qualifiers, i * 2, 2);
-      System.arraycopy(Bytes.fromLong(i), 0, values, i * 8, 8);
-    }
-
-    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qualifiers, values), EMPTY_ANNOTATIONS);
-    CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qualifiers, values), EMPTY_ANNOTATIONS);
-    CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qualifiers, values), EMPTY_ANNOTATIONS);
-
-    final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row1, row2, row3));
-
-    assertEquals(3600 * 3, span.size());
-  }
-  
-  @Test
-  public void timestampMS() throws Exception {
-    final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
+  public void size() {
+    final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
-    final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
+    final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
 
@@ -213,16 +158,10 @@ public final class TestSpan {
     final Span span = new Span(ImmutableSortedSet.<DataPoints>of(row1, row2, row3));
 
     assertEquals(6, span.size());
-    assertEquals(1356998400000L, span.timestamp(0));
-    assertEquals(1356998400008L, span.timestamp(1));
-    assertEquals(1357002000000L, span.timestamp(2));
-    assertEquals(1357002000008L, span.timestamp(3));
-    assertEquals(1357005600000L, span.timestamp(4));
-    assertEquals(1357005600008L, span.timestamp(5));
   }
   
   @Test
-  public void iterateNormalizedMS() throws Exception {
+  public void iterateNormalizedMS() {
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -271,7 +210,7 @@ public final class TestSpan {
   }
 
   @Test
-  public void downsampler() throws Exception {
+  public void downsampler() {
     final byte[] val40 = Bytes.fromLong(40L);
     final byte[] val50 = Bytes.fromLong(50L);
     // For a value at the offset 0 seconds from a base timestamp.

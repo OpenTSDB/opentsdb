@@ -101,10 +101,6 @@ final class Span implements DataPoints {
   }
 
   public List<String> getTSUIDs() {
-    if (rows.size() < 1) {
-      return null;
-    }
-
     List<String> tsuids = first.getTSUIDs();
     return ImmutableList.of(tsuids.get(0));
   }
@@ -124,16 +120,16 @@ final class Span implements DataPoints {
     return spanIterator();
   }
 
-  // TODO Needs a lot of tests. See https://github
-  // .com/hi3g/opentsdb/blob/77e4c239e91a7752764c6723621292d7cc0944ce/src
-  // /core/Span.java#L202-L215 for a reference of what it used to do.
-  private DataPoint getDataPointForIndex(final int i) {
+  /**
+   * Get the {@link net.opentsdb.core.DataPoint} at index {@code i}.
+   */
+  DataPoint dataPointForIndex(final int i) {
     int offset = 0;
     for (final DataPoints row : rows) {
       final int sz = row.size();
 
       if (offset + sz > i) {
-        return Iterables.get(row, i - offset - 1);
+        return Iterables.get(row, i - offset);
       }
 
       offset += sz;
@@ -152,7 +148,7 @@ final class Span implements DataPoints {
    * @throws IndexOutOfBoundsException if the index would be out of bounds
    */
   public long timestamp(final int i) {
-    return getDataPointForIndex(i).timestamp();
+    return dataPointForIndex(i).timestamp();
   }
 
   /**
@@ -163,7 +159,7 @@ final class Span implements DataPoints {
    * @throws IndexOutOfBoundsException if the index would be out of bounds
    */
   public boolean isInteger(final int i) {
-    return getDataPointForIndex(i).isInteger();
+    return dataPointForIndex(i).isInteger();
   }
 
   /**
@@ -177,7 +173,7 @@ final class Span implements DataPoints {
    * @throws IllegalDataException if the data is malformed
    */
   public long longValue(final int i) {
-    return getDataPointForIndex(i).longValue();
+    return dataPointForIndex(i).longValue();
   }
 
   /**
@@ -191,7 +187,7 @@ final class Span implements DataPoints {
    * @throws IllegalDataException if the data is malformed
    */
   public double doubleValue(final int i) {
-    return getDataPointForIndex(i).doubleValue();
+    return dataPointForIndex(i).doubleValue();
   }
 
   /** Returns a human readable string representation of the object. */
