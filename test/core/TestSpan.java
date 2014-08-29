@@ -64,58 +64,58 @@ public final class TestSpan {
 
     CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
             MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
-    
-    final byte[] bad_key = new byte[] { 0, 0, 1, 0x50, (byte)0xE2, 0x43, 0x20, 0, 0, 1 };
-      CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-      new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-              .add(row1)
-              .add(badRow)
-              .build());
+    final byte[] bad_key = new byte[]{0, 0, 1, 0x50, (byte) 0xE2, 0x43, 0x20, 0, 0, 1};
+    CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+
+    new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
+            .add(row1)
+            .add(badRow)
+            .build());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void addRowMissMatchedMetric() {
-      final byte[] qual1 = { 0x00, 0x07 };
-      final byte[] val1 = Bytes.fromLong(4L);
-      final byte[] qual2 = { 0x00, 0x27 };
-      final byte[] val2 = Bytes.fromLong(5L);
-      final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    final byte[] qual1 = {0x00, 0x07};
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = {0x00, 0x27};
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
 
-      CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-      final byte[] bad_key =
-              new byte[] { 0, 0, 2, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 2 };
-      CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)),Lists.<Annotation>newArrayList());
+    final byte[] bad_key =
+            new byte[]{0, 0, 2, 0x50, (byte) 0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 2};
+    CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-      new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-              .add(row1)
-              .add(badRow)
-              .build());
+    new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
+            .add(row1)
+            .add(badRow)
+            .build());
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void addRowMissMatchedTagk() {
-      final byte[] qual1 = { 0x00, 0x07 };
-      final byte[] val1 = Bytes.fromLong(4L);
-      final byte[] qual2 = { 0x00, 0x27 };
-      final byte[] val2 = Bytes.fromLong(5L);
-      final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    final byte[] qual1 = {0x00, 0x07};
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = {0x00, 0x27};
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
 
-      CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-      final byte[] bad_key = new byte[] { 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 2, 0, 0, 2 };
-      CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)),Lists.<Annotation>newArrayList());
+    final byte[] bad_key = new byte[]{0, 0, 1, 0x50, (byte) 0xE2, 0x35, 0x10, 0, 0, 2, 0, 0, 2};
+    CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-      new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-              .add(row1)
-              .add(badRow)
-              .build());
+    new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
+            .add(row1)
+            .add(badRow)
+            .build());
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -126,12 +126,12 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
 
-      CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
-    
-    final byte[] bad_key = new byte[] { 0, 0, 1, 0x50, (byte)0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 3 };
-      CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)),Lists.<Annotation>newArrayList());
+    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+
+    final byte[] bad_key = new byte[]{0, 0, 1, 0x50, (byte) 0xE2, 0x35, 0x10, 0, 0, 1, 0, 0, 3};
+    CompactedRow badRow = new CompactedRow(new KeyValue(bad_key, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
 
   }
@@ -205,15 +205,15 @@ public final class TestSpan {
       System.arraycopy(Bytes.fromLong(i), 0, values, i * 8, 8);
     }
 
-      CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qualifiers, values), Lists.<Annotation>newArrayList());
-      CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qualifiers, values), Lists.<Annotation>newArrayList());
-      CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qualifiers, values), Lists.<Annotation>newArrayList());
+    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qualifiers, values), Lists.<Annotation>newArrayList());
+    CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qualifiers, values), Lists.<Annotation>newArrayList());
+    CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qualifiers, values), Lists.<Annotation>newArrayList());
 
-      final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-              .add(row1)
-              .add(row2)
-              .add(row3)
-              .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
+            .add(row1)
+            .add(row2)
+            .add(row3)
+            .build());
 
     assertEquals(3600 * 3, span.size());
   }
@@ -226,18 +226,18 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
 
-      CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
-      CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
-      CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-      final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-              .add(row1)
-              .add(row2)
-              .add(row3)
-              .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
+            .add(row1)
+            .add(row2)
+            .add(row3)
+            .build());
 
     assertEquals(6, span.size());
     assertEquals(1356998400000L, span.timestamp(0));
@@ -256,18 +256,18 @@ public final class TestSpan {
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
 
-      CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
-      CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
-      CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual12,
-              MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual12,
+            MockBase.concatByteArrays(val1, val2, ZERO)), Lists.<Annotation>newArrayList());
 
-      final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-              .add(row1)
-              .add(row2)
-              .add(row3)
-              .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
+            .add(row1)
+            .add(row2)
+            .add(row3)
+            .build());
 
     assertEquals(6, span.size());
     final SeekableView it = span.iterator();
@@ -316,18 +316,18 @@ public final class TestSpan {
     // For values at the offsets 0 and 5 seconds from a base timestamp.
     final byte[] qual05 = MockBase.concatByteArrays(qual0, qual5);
 
-      CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual02000,
-              MockBase.concatByteArrays(val40, val50, ZERO)), Lists.<Annotation>newArrayList());
-      CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qual05,
-      MockBase.concatByteArrays(val40, val50, ZERO)), Lists.<Annotation>newArrayList());
-      CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual02000,
-              MockBase.concatByteArrays(val40, val50, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row1 = new CompactedRow(new KeyValue(HOUR1, FAMILY, qual02000,
+            MockBase.concatByteArrays(val40, val50, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row2 = new CompactedRow(new KeyValue(HOUR2, FAMILY, qual05,
+            MockBase.concatByteArrays(val40, val50, ZERO)), Lists.<Annotation>newArrayList());
+    CompactedRow row3 = new CompactedRow(new KeyValue(HOUR3, FAMILY, qual02000,
+            MockBase.concatByteArrays(val40, val50, ZERO)), Lists.<Annotation>newArrayList());
 
-      final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
-              .add(row1)
-              .add(row2)
-              .add(row3)
-              .build());
+    final Span span = new Span(ImmutableSortedSet.<DataPoints>naturalOrder()
+            .add(row1)
+            .add(row2)
+            .add(row3)
+            .build());
 
     assertEquals(6, span.size());
     long interval_ms = 1000000;
