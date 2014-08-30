@@ -38,7 +38,7 @@ import com.google.common.base.Objects;
  * 
  * @since 2.1
  */
-abstract class AbstractHttpQuery {
+public abstract class AbstractHttpQuery {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractHttpQuery.class);
 
   /** When the query was started (useful for timing). */
@@ -131,6 +131,45 @@ abstract class AbstractHttpQuery {
   public String getQueryPath() {
     return new QueryStringDecoder(request.getUri()).getPath();
   }
+  
+  /**
+   * Returns the path component of the URI as an array of strings, split on the
+   * forward slash
+   * Similar to the {@link #getQueryPath} call, this returns only the path
+   * without the protocol, host, port or query string params. E.g.
+   * "/path/starts/here" will return an array of {"path", "starts", "here"}
+   * <p>
+   * Note that for maximum speed you may want to parse the query path manually.
+   * @return An array with 1 or more components, note the first item may be
+   * an empty string.
+   * @throws BadRequestException if the URI is empty or does not start with a
+   * slash
+   * @throws NullPointerException if the URI is null
+   * @since 2.0
+   */
+  public String[] explodePath() {
+    final String path = getQueryPath();
+    if (path.isEmpty()) {
+      throw new BadRequestException("Query path is empty");
+    }
+    if (path.charAt(0) != '/') {
+      throw new BadRequestException("Query path doesn't start with a slash");
+    }
+    // split may be a tad slower than other methods, but since the URIs are
+    // usually pretty short and not every request will make this call, we
+    // probably don't need any premature optimization
+    return path.substring(1).split("/");
+  }
+  
+  /**
+   * Parses the query string to determine the base route for handing a query
+   * off to an RPC handler.
+   * @return the base route
+   * @throws BadRequestException if some necessary part of the query cannot
+   * be parsed.
+   * @since 2.0
+   */
+  public abstract String getQueryBaseRoute();
   
   /**
    * Attempts to parse the character set from the request header. If not set
@@ -270,6 +309,9 @@ abstract class AbstractHttpQuery {
   // Logging helpers. //
   // ---------------- //
   
+  /**
+   * Logger for the query instance.
+   */
   protected Logger logger() {
     return LOG;
   }

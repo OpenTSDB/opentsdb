@@ -204,35 +204,6 @@ final class HttpQuery extends AbstractHttpQuery {
   }
 
   /**
-   * Returns the path component of the URI as an array of strings, split on the
-   * forward slash
-   * Similar to the {@link #getQueryPath} call, this returns only the path
-   * without the protocol, host, port or query string params. E.g.
-   * "/path/starts/here" will return an array of {"path", "starts", "here"}
-   * <p>
-   * Note that for maximum speed you may want to parse the query path manually.
-   * @return An array with 1 or more components, note the first item may be
-   * an empty string.
-   * @throws BadRequestException if the URI is empty or does not start with a
-   * slash
-   * @throws NullPointerException if the URI is null
-   * @since 2.0
-   */
-  public String[] explodePath() {
-    final String path = this.getQueryPath();
-    if (path.isEmpty()) {
-      throw new BadRequestException("Query path is empty");
-    }
-    if (path.charAt(0) != '/') {
-      throw new BadRequestException("Query path doesn't start with a slash");
-    }
-    // split may be a tad slower than other methods, but since the URIs are
-    // usually pretty short and not every request will make this call, we
-    // probably don't need any premature optimization
-    return path.substring(1).split("/");
-  }
-
-  /**
    * Helper that strips the api and optional version from the URI array since
    * api calls only care about what comes after.
    * E.g. if the URI is "/api/v1/uid/assign" this method will return the
@@ -277,8 +248,6 @@ final class HttpQuery extends AbstractHttpQuery {
   }
 
   /**
-   * Parses the query string to determine the base route for handing a query
-   * off to an RPC handler.
    * This method splits the query path component and returns a string suitable
    * for routing by {@link RpcHandler}. The resulting route is always lower case
    * and will consist of either an empty string, a deprecated API call or an
@@ -296,8 +265,9 @@ final class HttpQuery extends AbstractHttpQuery {
    * max or the version # can't be parsed
    * @since 2.0
    */
+  @Override
   public String getQueryBaseRoute() {
-    final String[] split = this.explodePath();
+    final String[] split = explodePath();
     if (split.length < 1) {
       return "";
     }
