@@ -89,6 +89,7 @@ tsdb_SRC := \
 	src/tree/Tree.java	\
 	src/tree/TreeBuilder.java	\
 	src/tree/TreeRule.java	\
+	src/tsd/AbstractHttpQuery.java	\
 	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
 	src/tsd/ConnectionManager.java	\
@@ -98,6 +99,8 @@ tsdb_SRC := \
 	src/tsd/HttpSerializer.java	\
 	src/tsd/HttpQuery.java	\
 	src/tsd/HttpRpc.java	\
+	src/tsd/HttpRpcPlugin.java	\
+	src/tsd/HttpRpcPluginQuery.java	\
 	src/tsd/LineBasedFrameDecoder.java	\
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
@@ -105,6 +108,7 @@ tsdb_SRC := \
 	src/tsd/QueryRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
+	src/tsd/RpcPluginsManager.java	\
 	src/tsd/RTPublisher.java	\
 	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
