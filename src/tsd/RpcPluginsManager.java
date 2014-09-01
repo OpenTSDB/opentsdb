@@ -14,10 +14,14 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Pattern;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
@@ -35,8 +39,25 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
 
+/**
+ * @since 2.1
+ */
 final class RpcPluginsManager {
   private static final Logger LOG = LoggerFactory.getLogger(RpcPluginsManager.class);
+  
+  @VisibleForTesting
+  protected static final String PLUGIN_BASE_WEBPATH = "plugin";
+  
+  /** Matches incoming HTTP requests if they are for HTTP RPC plugins. */
+  private static final Pattern PLUGIN_WEBPATH_FOR_REQUESTS = Pattern.compile(
+      "^/?" + PLUGIN_BASE_WEBPATH + "/.+", 
+      Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+  
+  /** Matches paths declared by {@link HttpRpcPlugin}s that are rooted in
+   * the system's plugins path. */
+  private static final Pattern PAT = Pattern.compile(
+      "^/?" + PLUGIN_BASE_WEBPATH + "/?.*", 
+      Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
   private ImmutableMap<String, TelnetRpc> telnet_commands;
@@ -98,6 +119,11 @@ final class RpcPluginsManager {
     return http_plugin_commands.get(queryBaseRoute);
   }
   
+  public boolean isHttpRpcPluginPath(final String uri) {
+    return !Strings.isNullOrEmpty(uri)
+        && PLUGIN_WEBPATH_FOR_REQUESTS.matcher(uri).matches();
+  }
+  
   private void initializeBuiltinRpcs(final String mode, 
         final ImmutableMap.Builder<String, TelnetRpc> telnet,
         final ImmutableMap.Builder<String, HttpRpc> http) {
@@ -157,17 +183,57 @@ final class RpcPluginsManager {
       telnet.put("help", new Help());
     }
   }
-  
-  private void initializeHttpRpcPlugins(final String mode,
+
+  @VisibleForTesting
+  protected void initializeHttpRpcPlugins(final String mode,
         final String[] pluginClassNames,
         final ImmutableMap.Builder<String, HttpRpcPlugin> http) {
     for (final String plugin : pluginClassNames) {
       final HttpRpcPlugin rpc = createAndInitialize(plugin, HttpRpcPlugin.class);
-      LOG.info("Mounting {} at {}", rpc.getClass().getName(), rpc.getPath());
-      http.put(rpc.getPath(), rpc);
+      validateHttpRpcPluginPath(rpc.getPath());
+      final String path = rpc.getPath().trim();
+      final String canonicalizedPath = canonicalizePluginPath(path);
+      http.put(canonicalizedPath, rpc);
+      LOG.info("Mounted HttpRpcPlugin {} at {}", rpc.getClass().getName(), canonicalizedPath);
     }
   }
-  
+
+  @VisibleForTesting
+  protected void validateHttpRpcPluginPath(final String path) {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(path),
+        "Invalid HttpRpcPlugin path. Path is null or empty.");
+    final String testPath = path.trim();
+    Preconditions.checkArgument(!PAT.matcher(path).matches(),
+        "Invalid HttpRpcPlugin path %s. Path contains system's plugin base path.", 
+        testPath);
+    
+    URI uri = URI.create(testPath);
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(uri.getPath()),
+        "Invalid HttpRpcPlugin path %s. Parsed path is null or empty.", testPath);
+    Preconditions.checkArgument(!uri.getPath().equals("/"),
+        "Invalid HttpRpcPlugin path %s. Path is equal to root.", testPath);
+    Preconditions.checkArgument(Strings.isNullOrEmpty(uri.getQuery()),
+        "Invalid HttpRpcPlugin path %s. Path contains query parameters.", testPath);
+  }
+
+  @VisibleForTesting
+  protected String canonicalizePluginPath(final String origPath) {
+    Preconditions.checkArgument(!(Strings.isNullOrEmpty(origPath) || origPath.equals("/")),
+        "Path %s is a root.", origPath);
+    String newPath = origPath;
+    if (newPath.startsWith("/")) {
+      newPath = newPath.substring(1);
+    }
+    if (newPath.endsWith("/")) {
+      newPath = newPath.substring(0, newPath.length()-1);
+    }
+    return new StringBuilder()
+      .append(PLUGIN_BASE_WEBPATH)
+      .append('/')
+      .append(newPath)
+      .toString();
+  }
+
   private void initializeRpcPlugins(final String[] pluginClassNames, 
         final ImmutableList.Builder<RpcPlugin> rpcs) {
     for (final String plugin : pluginClassNames) {
@@ -183,7 +249,8 @@ final class RpcPluginsManager {
    * @param pluginClass class of the plugin
    * @return loaded an initialized instance of {@code pluginClass}
    */
-  private <T> T createAndInitialize(final String pluginClassName, final Class<T> pluginClass) {
+  @VisibleForTesting
+  protected <T> T createAndInitialize(final String pluginClassName, final Class<T> pluginClass) {
     final T instance = PluginLoader.loadSpecificPlugin(pluginClassName, pluginClass);
     Preconditions.checkState(instance != null, 
         "Unable to locate %s using name '%s", pluginClass, pluginClassName);
