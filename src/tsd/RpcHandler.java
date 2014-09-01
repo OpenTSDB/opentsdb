@@ -166,7 +166,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       throw new BadRequestException("Request URI is empty");
     } else if (uri.charAt(0) != '/') {
       throw new BadRequestException("Request URI doesn't start with a slash");
-    } else if (uri.startsWith("/plugin")) {
+    } else if (plugins_manager.isHttpRpcPluginPath(uri)) {
       http_plugin_rpcs_received.incrementAndGet();
       return new HttpRpcPluginQuery(tsdb, request, chan);
     } else {
