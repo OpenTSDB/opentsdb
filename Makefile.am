@@ -190,6 +190,7 @@ test_SRC := \
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestRpcHandler.java	\
 	test/tsd/TestRpcPlugin.java	\
+	test/tsd/TestRpcPluginsManager.java	\
 	test/tsd/TestRTPublisher.java	\
 	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestSuggestRpc.java	\
