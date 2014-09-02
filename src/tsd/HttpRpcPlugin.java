@@ -20,14 +20,32 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 
 /**
+ * A plugin that runs along side TSD's built-in HTTP endpoints (like the 
+ * <code>/api</code> endpoints).  There can be multiple implementations of
+ * such plugins per TSD.  These plugins run on the same Netty server as 
+ * built-in HTTP endpoints and thus are available on the same port as those
+ * endpoints.  However, these plugins are mounted beneath a special base 
+ * path called <code>/plugin</code>.
+ * 
+ * <p>Notes on multi-threaded behavior:
+ * <ul>
+ *  <li>Plugins are created and initialized <strong>once</strong> per instance
+ *    of the TSD.  Therefore, these plugins are effectively singletons.
+ *  <li>Plugins will be executed from multiple threads so the {@link #execute}
+ *    and {@link collectStats} methods <strong>must be thread safe</strong> 
+ *    with respect to the plugin's internal state and external resources.
+ * </ul>
  * @since 2.1
  */
 public abstract class HttpRpcPlugin {
   /**
-   * Called by TSDB to initialize the plugin.
-   * <b>Note:</b> Implementations should throw exceptions if they can't start
+   * Called by TSDB to initialize the plugin. This is called <strong>once</strong>
+   * (and from a single thread) at the time the plugin in loaded.
+   * 
+   * <p><b>Note:</b> Implementations should throw exceptions if they can't start
    * up properly. The TSD will then shutdown so the operator can fix the 
    * problem. Please use IllegalArgumentException for configuration issues.
+   * 
    * @param tsdb The parent TSDB object
    * @throws IllegalArgumentException if required configuration parameters are 
    * missing
@@ -36,7 +54,9 @@ public abstract class HttpRpcPlugin {
   public abstract void initialize(TSDB tsdb);
   
   /**
-   * Called to gracefully shutdown the plugin.
+   * Called to gracefully shutdown the plugin. This is called <strong>once</strong>
+   * (and from a single thread) at the time the owning TSD is shutting down.
+   * 
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null}
    * (think of it as {@code Deferred<Void>}).
@@ -55,18 +75,36 @@ public abstract class HttpRpcPlugin {
    * Called by the TSD when a request for statistics collection has come in. The
    * implementation may provide one or more statistics. If no statistics are
    * available for the implementation, simply stub the method.
+   * 
+   * <p><strong>Note:</strong> Must be thread-safe.
+   * 
    * @param collector The collector used for emitting statistics
    */
   public abstract void collectStats(StatsCollector collector);
   
   /**
-   * @return
+   * The (web) path this plugin should be available at.  This value 
+   * <strong>should</strong> start with a <code>/</code>. However, it 
+   * <strong>must not</strong> contain the system's plugin base path or the
+   * plugin will fail to load. 
+   * 
+   * <p>Here are some examples where <code>path --is available at--> server path</code>
+   * <ul>
+   *  <li><code>/myAwesomePlugin --> /plugin/myAwesomePlugin</code>
+   *  <li><code>/myOtherPlugin/operation --> /plugin/myOtherPlugin/operation</code>
+   * </ul>
+   * 
+   * @return a slash separated path
    */
   public abstract String getPath();
 
   /**
-   * @param tsdb
-   * @param query
+   * Executes the plugin for the given query received on the path derived from
+   * {@link #getPath()}.  This method will be called by multiple threads
+   * simultaneously and <strong>must be</strong> thread-safe.
+   * 
+   * @param tsdb the owning TSDB instance.
+   * @param query the parsed query
    * @throws IOException
    */
   public abstract void execute(TSDB tsdb, HttpRpcPluginQuery query) throws IOException;
