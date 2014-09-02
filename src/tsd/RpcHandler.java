@@ -134,7 +134,7 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
     }
 
-  cors_headers = tsdb.getConfig().getString("tsd.http.request.cors_headers").trim();
+  cors_headers = tsdb.getConfig().getString("tsd.http.request.cors_headers");
     if ((cors_headers == null) || !cors_headers.matches("^([a-zA-Z0-9_.-]+,\\s*)*[a-zA-Z0-9_.-]+$")) {
       throw new IllegalArgumentException(
           "tsd.http.request.cors_headers must be a list of validly-formed "
