@@ -40,7 +40,9 @@ class Span implements DataPoints {
   private final DataPoints first;
   
   /**
-   * Default constructor.
+   * Default constructor. The provided {@code dps} must not be empty
+   * @param dps The {@link DataPoints} this Span should encapsulate,
+   *            it must not be empty.
    */
   Span(ImmutableSortedSet<DataPoints> dps) {
     checkArgument(!dps.isEmpty(), "dps must not be empty but was so");

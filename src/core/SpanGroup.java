@@ -300,9 +300,16 @@ final class SpanGroup implements DataPoints {
             query.getDownsampler());
   }
 
+  /**
+   * This is only here because it is enforced by the {@link DataPoints}
+   * interface. This method should never be used since it does not actually
+   * do anything. Due to this you should never use this class in a sorted
+   * collection either.
+   */
+  @Deprecated
   @Override
   public int compareTo(final DataPoints o) {
-    // TODO(luuse): FIX ME!
-    throw new UnsupportedOperationException("Not implemented yet!");
+    throw new UnsupportedOperationException("SpanGroup#compareTo " +
+            "must never be used in a sorted collection");
   }
 }

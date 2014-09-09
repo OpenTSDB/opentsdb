@@ -304,7 +304,7 @@ public final class CompactedRow implements DataPoints {
   }
 
   /**
-   * Used to compare two {@link net.opentsdb.storage.hbase.CompactedRow}
+   * Used to compare two {@link CompactedRow}s.
    */
   @Override
   public int compareTo(final DataPoints that) {

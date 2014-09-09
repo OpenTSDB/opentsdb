@@ -101,6 +101,8 @@ final class DumpSeries {
 
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
+      // TODO This breaks everything in DumpSeries but we'll need to rewrite
+      // it anyway.
       //final Scanner scanner = Internal.getScanner(query);
       final Scanner scanner = null;
       ArrayList<ArrayList<KeyValue>> rows;

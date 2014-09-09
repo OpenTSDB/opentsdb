@@ -1009,16 +1009,13 @@ public class HBaseStore implements TsdbStore {
   }
 
   /**
-   * Finds all the {@link net.opentsdb.core.Span}s that match this query.
+   * Finds all the {@link net.opentsdb.core.DataPoints} that match this query.
    * This is what actually scans the HBase table and loads the data into
-   * {@link net.opentsdb.core.Span}s.
-   * @return A map from HBase row key to the {@link net.opentsdb.core.Span} for that row key.
-   * Since a {@link net.opentsdb.core.Span} actually contains multiple HBase rows, the row key
-   * stored in the map has its timestamp zero'ed out.
+   * {@link net.opentsdb.core.DataPoints}.
    * @throws org.hbase.async.HBaseException if there was a problem communicating with HBase to
    * perform the search.
    * @throws IllegalArgumentException if bad data was retreived from HBase.
-   * @param query
+   * @param query The query object that specifies the filters
    */
   @Override
   public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {

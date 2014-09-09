@@ -277,6 +277,8 @@ final class Fsck {
      * appropriate.
      */
     public void run() {
+      // TODO This breaks everything in FSCK but we'll need to rewrite
+      // it anyway.
       //final Scanner scanner = query != null ? Internal.getScanner(query) :
       //  CliUtils.getDataTableScanner(tsdb, start_id, end_id);
 
