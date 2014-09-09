@@ -31,12 +31,11 @@ import com.google.common.primitives.SignedBytes;
 import static com.google.common.base.Preconditions.checkArgument;
 
 /**
- * Represents a read-only sequence of continuous data points.
- * <p>
- * This class stores a continuous sequence of {@link net.opentsdb.storage.hbase.CompactedRow}s in memory.
+ * Represents a read-only sequence of continuous data points for a single
+ * TSUID.
  */
-final class Span implements DataPoints {
-  /** All the rows in this span. */
+class Span implements DataPoints {
+  /** All the {@link DataPoints} in this span. */
   private final ImmutableSortedSet<DataPoints> rows;
   private final DataPoints first;
   
@@ -51,7 +50,6 @@ final class Span implements DataPoints {
 
   /**
    * @return the id of the metric associated with the rows in this span
-   * @throws IllegalStateException if the span was empty
    * @see DataPoints#metric()
    */
   @Override
@@ -61,7 +59,6 @@ final class Span implements DataPoints {
 
   /**
    * @return the list of tag id pairs for the rows in this span
-   * @throws IllegalStateException if the span was empty
    * @see DataPoints#tags()
    */
   @Override
@@ -77,9 +74,11 @@ final class Span implements DataPoints {
     return Collections.emptyList();
   }
 
-  /** @return the number of data points in this span, O(n)
+  /**
+   * @return the number of data points in this span, O(n)
    * Unfortunately we must walk the entire array for every row as there may be a 
-   * mix of second and millisecond timestamps */
+   * mix of second and millisecond timestamps
+   */
   public int size() {
     int size = 0;
     for (final DataPoints row : rows) {
@@ -88,11 +87,18 @@ final class Span implements DataPoints {
     return size;
   }
 
-  /** @return 0 since aggregation cannot happen at the span level */
+  /**
+   * @return 0 since aggregation cannot happen at the span level
+   */
+  @Override
   public int aggregatedSize() {
     return 0;
   }
 
+  /**
+   * Returns all TSUIDS associated with this {@link DataPoints} implementation.
+   */
+  @Override
   public List<String> getTSUIDs() {
     if (rows.size() < 1) {
       return null;
@@ -102,7 +108,9 @@ final class Span implements DataPoints {
     return ImmutableList.of(tsuids.get(0));
   }
   
-  /** @return a list of annotations associated with this span. May be empty */
+  /**
+   * @return a list of annotations associated with this span. May be empty
+   */
   public List<Annotation> getAnnotations() {
     ImmutableList.Builder<Annotation> annot_builder = ImmutableList.builder();
     for (DataPoints row : rows) {
@@ -112,7 +120,9 @@ final class Span implements DataPoints {
     return annot_builder.build();
   }
 
-  /** @return an iterator to run over the list of data points */
+  /**
+   * @return an iterator to run over the list of data points
+   */
   public SeekableView iterator() {
     return spanIterator();
   }
