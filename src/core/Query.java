@@ -173,6 +173,11 @@ public final class Query {
     this.tags = null;
   }
 
+  /**
+   * Validates the provided end timestamp if it is present and returns the
+   * provided argument if validation succeeds,
+   * otherwise throws {@link IllegalArgumentException}.
+   */
   private Optional<Long> checkEndTime(final Optional<Long> end_time) {
     if (end_time.isPresent()) {
       checkTimestamp(end_time.get());
@@ -226,28 +231,74 @@ public final class Query {
     return end_time;
   }
 
+  /**
+   * @see #sample_interval_ms
+   */
   public long getSampleInterval() {
     return sample_interval_ms;
   }
 
+  /**
+   * @see #metric
+   */
   public byte[] getMetric() {
     return metric;
   }
 
+  /**
+   * @see #tsuids
+   */
   public List<String> getTSUIDS() {
     return tsuids;
   }
 
+  /**
+   * @see #tags
+   */
   public ArrayList<byte[]> getTags() {
     return tags;
   }
 
+  /**
+   * @see #group_bys
+   */
   public List<byte[]> getGroupBys() {
     return group_bys;
   }
 
+  /**
+   * @see #group_by_values
+   */
   public Map<byte[], ArrayList<byte[]>> getGroupByValues() {
     return group_by_values;
+  }
+
+  /**
+   * @see #rate
+   */
+  public boolean getRate() {
+    return rate;
+  }
+
+  /**
+   * @see #rate_options
+   */
+  public RateOptions getRateOptions() {
+    return rate_options;
+  }
+
+  /**
+   * @see #aggregator
+   */
+  public Aggregator getAggregator() {
+    return aggregator;
+  }
+
+  /**
+   * @see #downsampler
+   */
+  public Aggregator getDownsampler() {
+    return downsampler;
   }
 
   @Override
@@ -283,21 +334,5 @@ public final class Query {
     }
 
     return str_helper.toString();
-  }
-
-  public boolean getRate() {
-    return rate;
-  }
-
-  public RateOptions getRateOptions() {
-    return rate_options;
-  }
-
-  public Aggregator getAggregator() {
-    return aggregator;
-  }
-
-  public Aggregator getDownsampler() {
-    return downsampler;
   }
 }
