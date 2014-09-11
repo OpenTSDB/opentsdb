@@ -12,15 +12,23 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage.hbase;
 
-import com.google.common.base.Charsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
+import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -34,17 +42,14 @@ import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
 import org.hbase.async.*;
-import org.hbase.async.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.nio.charset.Charset;
-import java.util.*;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.core.StringCoder.toBytes;
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import static net.opentsdb.storage.hbase.HBaseConst.CHARSET;
 
 /**
  * The HBaseStore that implements the client interface required by TSDB.
@@ -52,17 +57,13 @@ import static net.opentsdb.uid.UniqueId.UniqueIdType;
 public class HBaseStore implements TsdbStore {
   /** Byte used for the qualifier prefix to indicate this is an annotation */
   public static final byte ANNOTATION_QUAL_PREFIX = 0x01;
+
   private static final Logger LOG = LoggerFactory.getLogger(HBaseStore.class);
 
   /** Row key of the special row used to track the max ID already assigned. */
   private static final byte[] MAXID_ROW = { 0 };
 
   private static final byte[] TS_FAMILY = { 't' };
-
-  /**
-   * Charset used to convert Strings to byte arrays and back.
-   */
-  private static final Charset CHARSET = Charsets.ISO_8859_1;
 
   /**
    * The single column family used by this class.
@@ -121,10 +122,10 @@ public class HBaseStore implements TsdbStore {
     enable_tsuid_incrementing = config.enable_tsuid_incrementing();
     enable_compactions = config.enable_compactions();
 
-    data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
-    uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
-    tree_table_name = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
-    meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
+    data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(HBaseConst.CHARSET);
+    uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(HBaseConst.CHARSET);
+    tree_table_name = config.getString("tsd.storage.hbase.tree_table").getBytes(HBaseConst.CHARSET);
+    meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(HBaseConst.CHARSET);
 
     client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
 
@@ -474,7 +475,7 @@ public class HBaseStore implements TsdbStore {
 
     final GetRequest request = new GetRequest(uid_table_name, id)
             .family(NAME_FAMILY)
-            .qualifier(type.qualifier.getBytes(CHARSET));
+            .qualifier(type.qualifier.getBytes(HBaseConst.CHARSET));
 
     return client.get(request)
             .addCallback(new GetCellNotEmptyCB())
@@ -487,7 +488,7 @@ public class HBaseStore implements TsdbStore {
   }
 
   private Deferred<Optional<byte[]>> getId(final byte[] name, final UniqueIdType type) {
-    final byte[] qualifier = type.qualifier.getBytes(CHARSET);
+    final byte[] qualifier = type.qualifier.getBytes(HBaseConst.CHARSET);
 
     final GetRequest get = new GetRequest(uid_table_name, name)
             .family(ID_FAMILY)
@@ -533,7 +534,7 @@ public class HBaseStore implements TsdbStore {
   public Deferred<Object> add(final UIDMeta meta) {
     final PutRequest put = new PutRequest(uid_table_name,
       UniqueId.stringToUid(meta.getUID()), UID_FAMILY,
-      (meta.getType().toString().toLowerCase() + "_meta").getBytes(CHARSET),
+      (meta.getType().toString().toLowerCase() + "_meta").getBytes(HBaseConst.CHARSET),
       meta.getStorageJSON());
 
     return client.put(put);
@@ -552,14 +553,14 @@ public class HBaseStore implements TsdbStore {
   public Deferred<Object> delete(final UIDMeta meta) {
     final DeleteRequest delete = new DeleteRequest(uid_table_name,
       UniqueId.stringToUid(meta.getUID()), UID_FAMILY,
-      (meta.getType().toString().toLowerCase() + "_meta").getBytes(CHARSET));
+      (meta.getType().toString().toLowerCase() + "_meta").getBytes(HBaseConst.CHARSET));
     return client.delete(delete);
   }
 
   @Override
   public Deferred<Boolean> updateMeta(final UIDMeta meta, final boolean overwrite) {
 
-    return getMeta(meta.getUID().getBytes(CHARSET),
+    return getMeta(meta.getUID().getBytes(HBaseConst.CHARSET),
       meta.getType()).addCallbackDeferring(
 
       /**
@@ -640,7 +641,7 @@ public class HBaseStore implements TsdbStore {
         UniqueIdType effective_type = type;
         if (effective_type == null) {
           final String qualifier =
-            new String(cell.get().qualifier(), CHARSET);
+            new String(cell.get().qualifier(), HBaseConst.CHARSET);
           effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
             qualifier.indexOf("_meta")));
         }
@@ -658,12 +659,6 @@ public class HBaseStore implements TsdbStore {
   // ------------------ //
   // Compaction helpers //
   // ------------------ //
-  @Override
-  public final KeyValue compact(final ArrayList<KeyValue> row,
-                                List<Annotation> annotations) {
-    return compactionq.compact(row, annotations);
-  }
-
   /**
    * Schedules the given row key for later re-compaction.
    * Once this row key has become "old enough", we'll read back all the data
@@ -740,7 +735,7 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
-    final byte[] qualifier = type.qualifier.getBytes(CHARSET);
+    final byte[] qualifier = type.qualifier.getBytes(HBaseConst.CHARSET);
     Deferred<Long> new_id_d = client.atomicIncrement(
             new AtomicIncrementRequest(
                     uid_table_name,
@@ -833,7 +828,7 @@ public class HBaseStore implements TsdbStore {
     }
 
     final byte[] b_name = toBytes(name);
-    final byte[] qualifier = type.qualifier.getBytes(CHARSET);
+    final byte[] qualifier = type.qualifier.getBytes(HBaseConst.CHARSET);
     final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, qualifier, b_name);
     final PutRequest forward_mapping = new PutRequest(uid_table_name, b_name, ID_FAMILY, qualifier, uid);
 
@@ -1011,6 +1006,34 @@ public class HBaseStore implements TsdbStore {
     Deferred<ArrayList<Object>> scanner_done = new ScannerCB().scan()
         .addCallbackDeferring(new ScannerDoneCB());
     return scanner_done.addCallbackDeferring(new GroupCB());
+  }
+
+  /**
+   * Finds all the {@link net.opentsdb.core.DataPoints} that match this query.
+   * This is what actually scans the HBase table and loads the data into
+   * {@link net.opentsdb.core.DataPoints}.
+   * @throws org.hbase.async.HBaseException if there was a problem communicating with HBase to
+   * perform the search.
+   * @throws IllegalArgumentException if bad data was retreived from HBase.
+   * @param query The query object that specifies the filters
+   */
+  @Override
+  public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
+    class QueryCB implements Callback<ImmutableList<DataPoints>, ImmutableList<CompactedRow>> {
+      @Override
+      public ImmutableList<DataPoints> call(final ImmutableList<CompactedRow>row_parts) {
+        return ImmutableList.<DataPoints>copyOf(row_parts);
+      }
+    }
+
+    QueryRunner r = new QueryRunner(
+            query,
+            client,
+            compactionq,
+            data_table_name,
+            TS_FAMILY);
+
+    return r.run().addCallback(new QueryCB());
   }
 
   /**

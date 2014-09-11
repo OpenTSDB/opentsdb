@@ -67,5 +67,4 @@ public interface SeekableView extends Iterator<DataPoint> {
    * or doesn't fit on 32 bits (think "unsigned int" -- yay Java!).
    */
   void seek(long timestamp);
-
 }

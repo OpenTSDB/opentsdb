@@ -16,11 +16,14 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -608,11 +611,6 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public KeyValue compact(ArrayList<KeyValue> row, List<Annotation> annotations) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
   public void scheduleForCompaction(byte[] row) {
   }
 
@@ -1023,6 +1021,23 @@ public class MemoryStore implements TsdbStore {
       key = uidToString(tsuid);
     }
     return Deferred.fromResult(annotation_table.get(key, time));
+  }
+
+  /**
+   * Finds all the {@link net.opentsdb.core.Span}s that match this query.
+   * This is what actually scans the HBase table and loads the data into
+   * {@link net.opentsdb.core.Span}s.
+   * @return A map from HBase row key to the {@link net.opentsdb.core.Span} for that row key.
+   * Since a {@link net.opentsdb.core.Span} actually contains multiple HBase rows, the row key
+   * stored in the map has its timestamp zero'ed out.
+   * @throws org.hbase.async.HBaseException if there was a problem communicating with HBase to
+   * perform the search.
+   * @throws IllegalArgumentException if bad data was retreived from HBase.
+   * @param query
+   */
+  @Override
+  public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   /**

@@ -15,8 +15,6 @@ package net.opentsdb.core;
 import java.util.List;
 import java.util.Map;
 
-import com.stumbleupon.async.Deferred;
-
 import net.opentsdb.meta.Annotation;
 
 /**
@@ -24,7 +22,7 @@ import net.opentsdb.meta.Annotation;
  * <p>
  * Implementations of this interface aren't expected to be synchronized.
  */
-public interface DataPoints extends Iterable<DataPoint> {
+public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> {
   /**
    * Returns the metric id of the series.
    */

@@ -19,6 +19,9 @@ import java.util.Map;
 
 import net.opentsdb.utils.DateTime;
 
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
+
 /**
  * Parameters and state to query the underlying storage system for 
  * timeseries data points. When setting up a query, use the setter methods to
@@ -125,40 +128,41 @@ public final class TSQuery {
    * If the user has not set a down sampler explicitly, and they don't want 
    * millisecond resolution, then we set the down sampler to 1 second to handle
    * situations where storage may have multiple data points per second.
-   * @param tsdb The tsdb to use for {@link TSDB#newQuery}
+   * @param tsdb The tsdb to use for creating a the new query
    * @return An array of queries
    */
-  public Query[] buildQueries(final TSDB tsdb) {
-    final Query[] queries = new Query[this.queries.size()];
-    int i = 0;
+  public List<Deferred<Query>> buildQueries(final TSDB tsdb) {
+    final List<Deferred<Query>> queries = Lists.newArrayListWithCapacity(this.queries.size());
+
     for (TSSubQuery sub : this.queries) {
-      final Query query = tsdb.newQuery();
-      query.setStartTime(start_time);
-      query.setEndTime(end_time);
+      final QueryBuilder builder = new QueryBuilder(tsdb)
+              .withStartAndEndTime(start_time, end_time)
+              .withAggregator(sub.aggregator());
+
       if (sub.downsampler() != null) {
-        query.downsample(sub.downsampleInterval(), sub.downsampler());
+        builder.downsample(sub.downsampleInterval(), sub.downsampler());
       } else if (!ms_resolution) {
         // we *may* have multiple millisecond data points in the set so we have
         // to downsample. use the sub query's aggregator
-        query.downsample(1000, sub.aggregator());
+        builder.downsample(1000, sub.aggregator());
       }
-      if (sub.getTsuids() != null && !sub.getTsuids().isEmpty()) {
-        if (sub.getRateOptions() != null) {
-          query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate(), 
-              sub.getRateOptions());
-        } else {
-          query.setTimeSeries(sub.getTsuids(), sub.aggregator(), sub.getRate());
-        }
-      } else if (sub.getRateOptions() != null) {
-        query.setTimeSeries(sub.getMetric(), sub.getTags(), sub.aggregator(), 
-            sub.getRate(), sub.getRateOptions());
+
+      if (sub.getRateOptions() != null) {
+        builder.shouldCalculateRate(sub.getRate(), sub.getRateOptions());
       } else {
-        query.setTimeSeries(sub.getMetric(), sub.getTags(), sub.aggregator(), 
-            sub.getRate());
+        builder.shouldCalculateRate(sub.getRate());
       }
-      queries[i] = query;
-      i++;
+
+      if (sub.getTsuids() != null && !sub.getTsuids().isEmpty()) {
+        builder.withTSUIDS(sub.getTsuids());
+      } else {
+        builder.withMetric(sub.getMetric())
+               .withTags(sub.getTags());
+      }
+
+      queries.add(builder.createQuery());
     }
+
     return queries;
   }
   

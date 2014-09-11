@@ -92,4 +92,18 @@ final public class RowKey {
         tsuid.length - Const.METRICS_WIDTH);
     return row;
   }
+
+  /**
+   * Checks that the given row key matches the given metric.
+   * @param key
+   * @param metric
+   * @throws net.opentsdb.core.IllegalDataException if the metric doesn't match.
+   */
+  public static void checkMetric(final byte[] key, final byte[] metric) {
+    if (Bytes.memcmp(metric, key, 0, Const.METRICS_WIDTH) != 0) {
+      throw new IllegalDataException(
+              "The HBase row key " + Arrays.toString(key) + " does not match " +
+                      "the required metric " + Arrays.toString(metric));
+    }
+  }
 }

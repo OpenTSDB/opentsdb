@@ -12,16 +12,17 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
+import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 
 import net.opentsdb.tree.Tree;
 import org.hbase.async.*;
-
 
 import java.util.ArrayList;
 import java.util.List;
@@ -97,9 +98,6 @@ public interface TsdbStore {
   // ------------------ //
   // Compaction helpers //
   // ------------------ //
-  KeyValue compact(ArrayList<KeyValue> row,
-                   List<Annotation> annotations);
-
   void scheduleForCompaction(byte[] row);
 
   /**
@@ -117,6 +115,16 @@ public interface TsdbStore {
   Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time);
 
   Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time);
+
+  /**
+   * Should execute the provided {@link net.opentsdb.core.Query} and
+   * return a deferred. Every single item in
+   * the returned iterator may contain multiple datapoints but every single
+   * instance must only contain the datapoints for a single TSUID. The
+   * iterator may return multiple items for the same TSUID.
+   * @param query The query to execute
+   */
+  Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
 
   Deferred<Tree> fetchTree(final int tree_id);
 

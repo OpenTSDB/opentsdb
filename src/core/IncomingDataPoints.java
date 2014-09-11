@@ -389,4 +389,16 @@ class IncomingDataPoints implements WritableDataPoints {
     return buf.toString();
   }
 
+  /**
+   * This is only here because it is enforced by the {@link DataPoints}
+   * interface. This method should never be used since it does not actually
+   * do anything. Due to this you should never use this class in a sorted
+   * collection either.
+   */
+  @Deprecated
+  @Override
+  public int compareTo(final DataPoints o) {
+    throw new UnsupportedOperationException("IncomingDatapoints#compareTo " +
+            "must never be used in a sorted collection");
+  }
 }

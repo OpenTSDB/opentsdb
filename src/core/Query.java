@@ -12,171 +12,327 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.hbase.async.HBaseException;
+import com.google.common.base.Joiner;
+import com.google.common.base.Objects;
+import com.google.common.base.Optional;
 
-import com.stumbleupon.async.Deferred;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.core.TSDB.checkTimestamp;
 
-import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.stats.Histogram;
 
 /**
- * A query to retreive data from the TSDB.
+ * Non-synchronized implementation of {@link Query}.
  */
-public interface Query {
-
+public final class Query {
   /**
-   * Sets the start time of the graph.
-   * @param timestamp The start time, all the data points returned will have a
-   * timestamp greater than or equal to this one.
-   * @throws IllegalArgumentException if timestamp is less than or equal to 0,
-   * or if it can't fit on 32 bits.
-   * @throws IllegalArgumentException if
-   * {@code timestamp >= }{@link #getEndTime getEndTime}.
+   * Keep track of the latency we perceive when doing Scans on HBase.
+   * We want buckets up to 16s, with 2 ms interval between each bucket up to
+   * 100 ms after we which we switch to exponential buckets.
    */
-  void setStartTime(long timestamp);
+  static final Histogram scanlatency = new Histogram(16000, (short) 2, 100);
 
   /**
-   * Returns the start time of the graph.
+   * ID of the metric being looked up.
+   */
+  private final byte[] metric;
+
+  /**
+   * Optional list of TSUIDs to fetch and aggregate instead of a metric
+   */
+  private final List<String> tsuids;
+
+  /**
+   * Tags of the metrics being looked up.
+   * Each tag is a byte array holding the ID of both the name and value
+   * of the tag.
+   * Invariant: an element cannot be both in this array and in group_bys.
+   */
+  private final ArrayList<byte[]> tags;
+
+  /**
+   * Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
+   */
+  private final long start_time;
+
+  /**
+   * End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
+   */
+  private final Optional<Long> end_time;
+
+  /**
+   * Tags by which we must group the results.
+   * Each element is a tag ID.
+   * Invariant: an element cannot be both in this array and in {@code tags}.
+   */
+  private final List<byte[]> group_bys;
+
+  /**
+   * Values we may be grouping on.
+   * For certain elements in {@code group_bys}, we may have a specific list of
+   * values IDs we're looking for.  Those IDs are stored in this map.  The key
+   * is an element of {@code group_bys} (so a tag name ID) and the values are
+   * tag value IDs (at least two).
+   */
+  private final Map<byte[], ArrayList<byte[]>> group_by_values;
+
+  /**
+   * If true, use rate of change instead of actual values.
+   */
+  private final boolean rate;
+
+  /**
+   * Specifies the various options for rate calculations
+   */
+  private final RateOptions rate_options;
+
+  /**
+   * Aggregator function to use.
+   */
+  private final Aggregator aggregator;
+
+  /**
+   * Downsampling function to use, if any (can be {@code null}).
+   * If this is non-null, {@code sample_interval_ms} must be strictly positive.
+   */
+  private final Aggregator downsampler;
+
+  /**
+   * Minimum time interval (in milliseconds) wanted between each data point.
+   */
+  private final long sample_interval_ms;
+
+  /**
+   * Create a new {@code Query} object with the provided parameters. When
+   * this constructor is used the query will be based on the provided {@link
+   * #metric} and {@link #tags} in contrast to {@link #tsuids}.
+   */
+  Query(final byte[] metric_id,
+        final ArrayList<byte[]> tags,
+        final long start_time,
+        final Optional<Long> end_time,
+        final Aggregator aggregator,
+        final Aggregator downsampler,
+        final long interval,
+        final boolean rate,
+        final RateOptions rate_options,
+        final List<byte[]> group_bys,
+        final Map<byte[], ArrayList<byte[]>> group_by_values) {
+    this.metric = checkNotNull(metric_id);
+    this.tags = checkNotNull(tags);
+    this.start_time = checkTimestamp(start_time);
+    this.end_time = checkEndTime(end_time);
+
+    this.aggregator = aggregator;
+    this.downsampler = downsampler;
+    this.sample_interval_ms = interval;
+
+    this.rate = rate;
+    this.rate_options = rate_options;
+
+    this.group_bys = group_bys;
+    this.group_by_values = group_by_values;
+
+    this.tsuids = null;
+  }
+
+  /**
+   * Create a new {@code Query} object with the provided parameters. When
+   * this constructor is used the query will be based on the provided {@link
+   * #tsuids} in contrast to {@link #metric} and {@link #tags}.
+   */
+  Query(final byte[] metric_id,
+        final List<String> tsuids,
+        final long start_time,
+        final Optional<Long> end_time,
+        final Aggregator aggregator,
+        final Aggregator downsampler,
+        final long interval,
+        final boolean rate,
+        final RateOptions rate_options) {
+    this.metric = checkNotNull(metric_id);
+    this.tsuids = checkNotNull(tsuids);
+    this.start_time = checkTimestamp(start_time);
+    this.end_time = checkEndTime(end_time);
+
+    this.aggregator = aggregator;
+    this.downsampler = downsampler;
+    this.sample_interval_ms = interval;
+
+    this.rate = rate;
+    this.rate_options = rate_options;
+
+    this.group_bys = null;
+    this.group_by_values = null;
+
+    this.tags = null;
+  }
+
+  /**
+   * Validates the provided end timestamp if it is present and returns the
+   * provided argument if validation succeeds,
+   * otherwise throws {@link IllegalArgumentException}.
+   */
+  private Optional<Long> checkEndTime(final Optional<Long> end_time) {
+    if (end_time.isPresent()) {
+      checkTimestamp(end_time.get());
+    }
+
+    return end_time;
+  }
+
+  /**
+   * The start time for the query
    * @return A strictly positive integer.
-   * @throws IllegalStateException if {@link #setStartTime} was never called on
-   * this instance before.
    */
-  long getStartTime();
+  public long getStartTime() {
+    return start_time;
+  }
 
   /**
-   * Sets the end time of the graph.
-   * @param timestamp The end time, all the data points returned will have a
-   * timestamp less than or equal to this one.
-   * @throws IllegalArgumentException if timestamp is less than or equal to 0,
-   * or if it can't fit on 32 bits.
-   * @throws IllegalArgumentException if
-   * {@code timestamp <= }{@link #getStartTime getStartTime}.
+   * Converts the start time to seconds if needed and then returns it.
    */
-  void setEndTime(long timestamp);
+  public long getStartTimeSeconds() {
+    long start = getStartTime();
+    // down cast to seconds if we have a query in ms
+    if ((start & Const.SECOND_MASK) != 0) {
+      start /= 1000;
+    }
+
+    return start;
+  }
 
   /**
-   * Returns the end time of the graph.
-   * <p>
-   * If {@link #setEndTime} was never called before, this method will
-   * automatically execute
-   * {@link #setEndTime setEndTime}{@code (System.currentTimeMillis() / 1000)}
-   * to set the end time.
+   * Returns the end time of the query.
    * @return A strictly positive integer.
    */
-  long getEndTime();
+  public Optional<Long> getEndTime() {
+    return end_time;
+  }
 
   /**
-  * Sets the time series to the query.
-  * @param metric The metric to retreive from the TSDB.
-  * @param tags The set of tags of interest.
-  * @param function The aggregation function to use.
-  * @param rate If true, the rate of the series will be used instead of the
-  * actual values.
-  * @param rate_options If included specifies additional options that are used
-  * when calculating and graph rate values
-  * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
-  * does not exist.
-  * @since 2.0
-  */
-  void setTimeSeries(String metric, Map<String, String> tags, 
-                    Aggregator function, boolean rate, RateOptions rate_options) 
-      throws NoSuchUniqueName;
-    
-  /**
-   * Sets the time series to the query.
-   * @param metric The metric to retreive from the TSDB.
-   * @param tags The set of tags of interest.
-   * @param function The aggregation function to use.
-   * @param rate If true, the rate of the series will be used instead of the
-   * actual values.
-   * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
-   * does not exist.
+   * Converts the end time to seconds if needed and then returns it.
    */
-  void setTimeSeries(String metric, Map<String, String> tags,
-                     Aggregator function, boolean rate) throws NoSuchUniqueName;
+  public Optional<Long> getEndTimeSeconds() {
+    if (end_time.isPresent()) {
+      long end = end_time.get();
+      if ((end & Const.SECOND_MASK) != 0) {
+        end /= 1000;
+      }
+
+      return Optional.of(end);
+    }
+
+    return end_time;
+  }
 
   /**
-   * Sets up a query for the given timeseries UIDs. For now, all TSUIDs in the
-   * group must share a common metric. This is to avoid issues where the scanner
-   * may have to traverse the entire data table if one TSUID has a metric of 
-   * 000001 and another has a metric of FFFFFF. After modifying the query code
-   * to run asynchronously and use different scanners, we can allow different 
-   * TSUIDs.
-   * <b>Note:</b> This method will not check to determine if the TSUIDs are 
-   * valid, since that wastes time and we *assume* that the user provides TUSIDs
-   * that are up to date.
-   * @param tsuids A list of one or more TSUIDs to scan for
-   * @param function The aggregation function to use on results
-   * @param rate Whether or not the results should be converted to a rate
-   * @throws IllegalArgumentException if the tsuid list is null, empty or the
-   * TSUIDs do not share a common metric
-   * @since 2.0
+   * @see #sample_interval_ms
    */
-  public void setTimeSeries(final List<String> tsuids,
-      final Aggregator function, final boolean rate);
-  
-  /**
-   * Sets up a query for the given timeseries UIDs. For now, all TSUIDs in the
-   * group must share a common metric. This is to avoid issues where the scanner
-   * may have to traverse the entire data table if one TSUID has a metric of 
-   * 000001 and another has a metric of FFFFFF. After modifying the query code
-   * to run asynchronously and use different scanners, we can allow different 
-   * TSUIDs.
-   * <b>Note:</b> This method will not check to determine if the TSUIDs are 
-   * valid, since that wastes time and we *assume* that the user provides TUSIDs
-   * that are up to date.
-   * @param tsuids A list of one or more TSUIDs to scan for
-   * @param function The aggregation function to use on results
-   * @param rate Whether or not the results should be converted to a rate
-   * @param rate_options If included specifies additional options that are used
-   * when calculating and graph rate values
-   * @throws IllegalArgumentException if the tsuid list is null, empty or the
-   * TSUIDs do not share a common metric
-   * @since 2.0
-   */
-  public void setTimeSeries(final List<String> tsuids,
-      final Aggregator function, final boolean rate, 
-      final RateOptions rate_options);
-  
-  /**
-   * Downsamples the results by specifying a fixed interval between points.
-   * <p>
-   * Technically, downsampling means reducing the sampling interval.  Here
-   * the idea is similar.  Instead of returning every single data point that
-   * matched the query, we want one data point per fixed time interval.  The
-   * way we get this one data point is by aggregating all the data points of
-   * that interval together using an {@link Aggregator}.  This enables you
-   * to compute things like the 5-minute average or 10 minute 99th percentile.
-   * @param interval Number of seconds wanted between each data point.
-   * @param downsampler Aggregation function to use to group data points
-   * within an interval.
-   */
-  void downsample(long interval, Aggregator downsampler);
+  public long getSampleInterval() {
+    return sample_interval_ms;
+  }
 
   /**
-   * Runs this query.
-   * @return The data points matched by this query.
-   * <p>
-   * Each element in the non-{@code null} but possibly empty array returned
-   * corresponds to one time series for which some data points have been
-   * matched by the query.
-   * @throws HBaseException if there was a problem communicating with HBase to
-   * perform the search.
+   * @see #metric
    */
-  DataPoints[] run() throws HBaseException;
+  public byte[] getMetric() {
+    return metric;
+  }
 
   /**
-   * Executes the query asynchronously
-   * @return The data points matched by this query.
-   * <p>
-   * Each element in the non-{@code null} but possibly empty array returned
-   * corresponds to one time series for which some data points have been
-   * matched by the query.
-   * @throws HBaseException if there was a problem communicating with HBase to
-   * perform the search.
-   * @since 1.2
+   * @see #tsuids
    */
-  public Deferred<DataPoints[]> runAsync() throws HBaseException;
+  public List<String> getTSUIDS() {
+    return tsuids;
+  }
+
+  /**
+   * @see #tags
+   */
+  public ArrayList<byte[]> getTags() {
+    return tags;
+  }
+
+  /**
+   * @see #group_bys
+   */
+  public List<byte[]> getGroupBys() {
+    return group_bys;
+  }
+
+  /**
+   * @see #group_by_values
+   */
+  public Map<byte[], ArrayList<byte[]>> getGroupByValues() {
+    return group_by_values;
+  }
+
+  /**
+   * @see #rate
+   */
+  public boolean getRate() {
+    return rate;
+  }
+
+  /**
+   * @see #rate_options
+   */
+  public RateOptions getRateOptions() {
+    return rate_options;
+  }
+
+  /**
+   * @see #aggregator
+   */
+  public Aggregator getAggregator() {
+    return aggregator;
+  }
+
+  /**
+   * @see #downsampler
+   */
+  public Aggregator getDownsampler() {
+    return downsampler;
+  }
+
+  @Override
+  public String toString() {
+    Objects.ToStringHelper str_helper = Objects.toStringHelper(this);
+
+    str_helper.add("start_time", start_time)
+            .add("end_time", end_time);
+
+    if (tsuids != null && !tsuids.isEmpty()) {
+      str_helper.add("tsuids", Joiner.on(", ")
+              .skipNulls()
+              .join(tsuids));
+    } else {
+      str_helper.add("metric", Arrays.toString(metric));
+      str_helper.add("tags", Joiner.on(", ")
+              .skipNulls()
+              .join(tags));
+    }
+
+    str_helper.add("rate", rate)
+            .add("aggregator", aggregator);
+
+    if (group_bys != null) {
+      str_helper.add("group_bys", Joiner.on(", ")
+              .skipNulls()
+              .join(group_bys));
+    }
+
+    if (group_by_values != null) {
+      String gbv_str = Joiner.on(',').withKeyValueSeparator("=").join(group_by_values);
+      str_helper.add("group_by_values", gbv_str);
+    }
+
+    return str_helper.toString();
+  }
 }

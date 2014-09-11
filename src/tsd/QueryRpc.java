@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Throwables;
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -113,16 +114,20 @@ final class QueryRpc implements HttpRpc {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
           e.getMessage(), data_query.toString(), e);
     }
-    
-    Query[] tsdbqueries = data_query.buildQueries(tsdb);
-    final int nqueries = tsdbqueries.length;
-    final ArrayList<DataPoints[]> results = 
-      new ArrayList<DataPoints[]>(nqueries);
+
+    List<Deferred<Query>> tsdbqueries = data_query.buildQueries(tsdb);
+    final int nqueries = tsdbqueries.size();
+    final ArrayList<DataPoints[]> results =
+            new ArrayList<DataPoints[]>(nqueries);
     final ArrayList<Deferred<DataPoints[]>> deferreds =
-      new ArrayList<Deferred<DataPoints[]>>(nqueries);
-    
-    for (int i = 0; i < nqueries; i++) {
-      deferreds.add(tsdbqueries[i].runAsync());
+            new ArrayList<Deferred<DataPoints[]>>(nqueries);
+
+    try {
+      for (Deferred<Query> tsdbquery : tsdbqueries) {
+        deferreds.add(tsdb.executeQuery(tsdbquery.joinUninterruptibly()));
+      }
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
     }
 
     /**

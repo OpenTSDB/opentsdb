@@ -25,6 +25,7 @@ import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.QueryBuilder;
 import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
@@ -120,8 +121,8 @@ final class CliQuery {
 
     final Plot plot = (want_plot ? new Plot(tsdb,
                                             queries.get(0).getStartTime(),
-                                            queries.get(0).getEndTime())
-                       : null);
+                                            queries.get(0).getEndTime()
+                                                    .or(System.currentTimeMillis())) : null);
     if (want_plot) {
       plot.setParams(parsePlotParams(plotparams));
     }
@@ -129,11 +130,14 @@ final class CliQuery {
     for (int i = 0; i < nqueries; i++) {
       // TODO(tsuna): Optimization: run each query in parallel.
       final StringBuilder buf = want_plot ? null : new StringBuilder();
-      for (final DataPoints datapoints : queries.get(i).run()) {
-        if (want_plot) {
-          plot.add(datapoints, plotoptions.get(i));
-        } else {
-          try {
+
+      try {
+        DataPoints[] dps = tsdb.executeQuery(queries.get(i)).joinUninterruptibly();
+
+        for (final DataPoints datapoints : dps) {
+          if (want_plot) {
+            plot.add(datapoints, plotoptions.get(i));
+          } else {
             final String metric = formatter.formatMetric(datapoints.metric()).joinUninterruptibly();
             final String tagz = formatter.formatTags(datapoints.tags()).joinUninterruptibly().toString();
             for (final DataPoint datapoint : datapoints) {
@@ -150,10 +154,10 @@ final class CliQuery {
               System.out.print(buf);
               buf.delete(0, buf.length());
             }
-          } catch (Exception e) {
-            Throwables.propagate(e);
           }
         }
+      } catch (Exception e) {
+        Throwables.propagate(e);
       }
     }
     return plot;
@@ -243,16 +247,28 @@ final class CliQuery {
       if (i < args.length && args[i].indexOf(' ', 1) > 0) {
         plotoptions.add(args[i++]);
       }
-      final Query query = tsdb.newQuery();
-      query.setStartTime(start_ts);
+
+      final QueryBuilder builder = new QueryBuilder(tsdb)
+              .withMetric(metric)
+              .withTags(tags)
+              .withAggregator(agg)
+              .shouldCalculateRate(rate, rate_options);
+
       if (end_ts > 0) {
-        query.setEndTime(end_ts);
+        builder.withStartAndEndTime(start_ts, end_ts);
+      } else {
+        builder.withStartTime(start_ts);
       }
-      query.setTimeSeries(metric, tags, agg, rate, rate_options);
+
       if (downsample) {
-        query.downsample(interval, sampler);
+        builder.downsample(interval, sampler);
       }
-      queries.add(query);
+
+      try {
+        queries.add(builder.createQuery().joinUninterruptibly());
+      } catch (Exception e) {
+        Throwables.propagate(e);
+      }
     }
   }
 

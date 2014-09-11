@@ -10,12 +10,18 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage.hbase;
 
 import java.util.NoSuchElementException;
 
+import net.opentsdb.core.DataPoint;
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.core.Internal;
+import net.opentsdb.core.SeekableView;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.hbase.CompactedRow;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
@@ -26,7 +32,7 @@ import org.junit.Test;
 import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static org.junit.Assert.*;
 
-public final class TestRowSeq {
+public final class TestCompactedRow {
   private TSDB tsdb;
   private static final byte[] KEY = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
@@ -51,7 +57,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
     assertEquals(2, rs.size());
   }
@@ -66,7 +72,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
     assertEquals(2, rs.size());
     rs.setRow(kv);
@@ -80,7 +86,7 @@ public final class TestRowSeq {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
     assertEquals(2, rs.size());
     
@@ -110,7 +116,7 @@ public final class TestRowSeq {
     final byte[] qual2 = { 0x00, 0x47 };
     final byte[] val2 = Bytes.fromLong(7L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
     assertEquals(2, rs.size());
     
@@ -140,7 +146,7 @@ public final class TestRowSeq {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
     assertEquals(2, rs.size());
     
@@ -184,7 +190,7 @@ public final class TestRowSeq {
     final byte[] qual3 = { 0x00, 0x37 };
     final byte[] val3 = Bytes.fromLong(6L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2, qual3);
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, val3, ZERO)));
     assertEquals(3, rs.size());
     
@@ -214,7 +220,7 @@ public final class TestRowSeq {
     final byte[] qual2 = { 0x00, 0x47 };
     final byte[] val2 = Bytes.fromLong(7L);
     final byte[] qual12 = MockBase.concatByteArrays(qual4, qual1, qual2);
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(makekv(qual12, MockBase.concatByteArrays(val4, val1, val2, ZERO)));
     assertEquals(3, rs.size());
     
@@ -241,7 +247,7 @@ public final class TestRowSeq {
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
     assertEquals(2, rs.size());
     
@@ -263,7 +269,7 @@ public final class TestRowSeq {
     final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, ZERO)));
     assertEquals(2, rs.size());
     
@@ -293,7 +299,7 @@ public final class TestRowSeq {
     final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
     final byte[] val2 = Bytes.fromLong(5L);
     final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(makekv(qual12, MockBase.concatByteArrays(val1, val2, 
         new byte[] { 1 })));
     assertEquals(2, rs.size());
@@ -327,7 +333,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.addRow(kv);
   }
   
@@ -341,7 +347,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
     
     assertEquals(1356998400000L, rs.timestamp(0));
@@ -358,7 +364,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
     
     assertEquals(1356998400000L, rs.timestamp(0));
@@ -375,7 +381,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
     
     assertEquals(1356998400000L, rs.timestamp(0));
@@ -392,7 +398,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
     
     assertEquals(1356998400000L, rs.timestamp(0));
@@ -409,7 +415,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
     
     assertEquals(1356998400000L, rs.timestamp(0));
@@ -426,7 +432,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
     
     assertEquals(1356998400000L, rs.timestamp(0));
@@ -444,7 +450,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
 
     assertEquals(2, rs.size());
@@ -472,7 +478,7 @@ public final class TestRowSeq {
     final KeyValue kv = makekv(qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO));
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
 
     final SeekableView it = rs.iterator();
@@ -495,14 +501,14 @@ public final class TestRowSeq {
     final int limit = 64000;
     final byte[] qualifier = new byte[4 * limit];
     for (int i = 0; i < limit; i++) {
-      System.arraycopy(Internal.buildQualifier(ts, (short) 7), 0, 
+      System.arraycopy(Internal.buildQualifier(ts, (short) 7), 0,
           qualifier, i * 4, 4);
       ts += 50;
     }
     final byte[] values = new byte[(4 * limit) + 1];
     final KeyValue kv = makekv(qualifier, values);
     
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(kv);
 
     final SeekableView it = rs.iterator();
@@ -516,7 +522,7 @@ public final class TestRowSeq {
   
   @Test
   public void seekMs() throws Exception {
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(getMs());
 
     final SeekableView it = rs.iterator();
@@ -530,7 +536,7 @@ public final class TestRowSeq {
   
   @Test
   public void seekMsStart() throws Exception {
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(getMs());
 
     final SeekableView it = rs.iterator();
@@ -544,7 +550,7 @@ public final class TestRowSeq {
   
   @Test
   public void seekMsBetween() throws Exception {
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(getMs());
 
     final SeekableView it = rs.iterator();
@@ -558,7 +564,7 @@ public final class TestRowSeq {
   
   @Test
   public void seekMsEnd() throws Exception {
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(getMs());
 
     final SeekableView it = rs.iterator();
@@ -572,7 +578,7 @@ public final class TestRowSeq {
   
   @Test
   public void seekMsTooEarly() throws Exception {
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(getMs());
 
     final SeekableView it = rs.iterator();
@@ -586,7 +592,7 @@ public final class TestRowSeq {
   
   @Test (expected = NoSuchElementException.class)
   public void seekMsPastLastDp() throws Exception {
-    final RowSeq rs = new RowSeq();
+    final CompactedRow rs = new CompactedRow();
     rs.setRow(getMs());
 
     final SeekableView it = rs.iterator();

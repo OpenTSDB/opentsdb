@@ -277,9 +277,13 @@ final class Fsck {
      * appropriate.
      */
     public void run() {
-      final Scanner scanner = query != null ? Internal.getScanner(query) :
-        CliUtils.getDataTableScanner(tsdb, start_id, end_id);
-      
+      // TODO This breaks everything in FSCK but we'll need to rewrite
+      // it anyway.
+      //final Scanner scanner = query != null ? Internal.getScanner(query) :
+      //  CliUtils.getDataTableScanner(tsdb, start_id, end_id);
+
+      final Scanner scanner = null;
+
       // store every data point for the row in here 
       final TreeMap<Long, ArrayList<DP>> datapoints = 
         new TreeMap<Long, ArrayList<DP>>();

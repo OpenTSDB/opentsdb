@@ -12,70 +12,60 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
+import com.google.common.base.Joiner;
+import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
+import com.google.common.primitives.SignedBytes;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
- * Represents a read-only sequence of continuous data points.
- * <p>
- * This class stores a continuous sequence of {@link RowSeq}s in memory.
+ * Represents a read-only sequence of continuous data points for a single
+ * TSUID.
  */
-final class Span implements DataPoints {
-  /** All the rows in this span. */
-  private final ArrayList<RowSeq> rows = new ArrayList<RowSeq>();
-
-  /** A list of annotations for this span. We can't lazily initialize since we
-   * have to pass a collection to the compaction queue */
-  private final ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
-  
-  /** 
-   * Whether or not the rows have been sorted. This should be toggled by the
-   * first call to an iterator method
-   */
-  private boolean sorted;
+class Span implements DataPoints {
+  /** All the {@link DataPoints} in this span. */
+  private final ImmutableSortedSet<DataPoints> rows;
+  private final DataPoints first;
   
   /**
-   * Default constructor.
+   * Default constructor. The provided {@code dps} must not be empty
+   * @param dps The {@link DataPoints} this Span should encapsulate,
+   *            it must not be empty.
    */
-  Span() {
-  }
-
-  /** @throws IllegalStateException if the span doesn't have any rows */
-  private void checkNotEmpty() {
-    if (rows.size() == 0) {
-      throw new IllegalStateException("empty Span");
-    }
+  Span(ImmutableSortedSet<DataPoints> dps) {
+    checkArgument(!dps.isEmpty(), "dps must not be empty but was so");
+    rows = dps;
+    first = dps.first();
   }
 
   /**
    * @return the id of the metric associated with the rows in this span
-   * @throws IllegalStateException if the span was empty
    * @see DataPoints#metric()
    */
   @Override
   public byte[] metric() {
-    return rows.get(0).metric();
+    return first.metric();
   }
 
   /**
    * @return the list of tag id pairs for the rows in this span
-   * @throws IllegalStateException if the span was empty
    * @see DataPoints#tags()
    */
   @Override
   public Map<byte[],byte[]> tags() {
-    checkNotEmpty();
-    return rows.get(0).tags();
+    return first.tags();
   }
 
   /**
@@ -86,132 +76,75 @@ final class Span implements DataPoints {
     return Collections.emptyList();
   }
 
-  /** @return the number of data points in this span, O(n)
+  /**
+   * @return the number of data points in this span, O(n)
    * Unfortunately we must walk the entire array for every row as there may be a 
-   * mix of second and millisecond timestamps */
+   * mix of second and millisecond timestamps
+   */
   public int size() {
     int size = 0;
-    for (final RowSeq row : rows) {
+    for (final DataPoints row : rows) {
       size += row.size();
     }
     return size;
   }
 
-  /** @return 0 since aggregation cannot happen at the span level */
+  /**
+   * @return 0 since aggregation cannot happen at the span level
+   */
+  @Override
   public int aggregatedSize() {
     return 0;
   }
 
+  /**
+   * Returns all TSUIDS associated with this {@link DataPoints} implementation.
+   */
+  @Override
   public List<String> getTSUIDs() {
     if (rows.size() < 1) {
       return null;
     }
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(rows.get(0).key,
-            Const.METRICS_WIDTH, Const.TIMESTAMP_BYTES);
-    final List<String> tsuids = new ArrayList<String>(1);
-    tsuids.add(UniqueId.uidToString(tsuid));
-    return tsuids;
+
+    List<String> tsuids = first.getTSUIDs();
+    return ImmutableList.of(tsuids.get(0));
   }
   
-  /** @return a list of annotations associated with this span. May be empty */
+  /**
+   * @return a list of annotations associated with this span. May be empty
+   */
   public List<Annotation> getAnnotations() {
-    return annotations;
-  }
-  
-  /**
-   * Adds a compacted row to the span, merging with an existing RowSeq or 
-   * creating a new one if necessary. 
-   * @param row The compacted row to add to this span.
-   * @throws IllegalArgumentException if the argument and this span are for
-   * two different time series.
-   */
-  void addRow(final KeyValue row) {
-    long last_ts = 0;
-    if (rows.size() != 0) {
-      // Verify that we have the same metric id and tags.
-      final byte[] key = row.key();
-      final RowSeq last = rows.get(rows.size() - 1);
-      final short metric_width = Const.METRICS_WIDTH;
-      final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
-      final short tags_bytes = (short) (key.length - tags_offset);
-      String error = null;
-      if (key.length != last.key.length) {
-        error = "row key length mismatch";
-      } else if (Bytes.memcmp(key, last.key, 0, metric_width) != 0) {
-        error = "metric ID mismatch";
-      } else if (Bytes.memcmp(key, last.key, tags_offset, tags_bytes) != 0) {
-        error = "tags mismatch";
-      }
-      if (error != null) {
-        throw new IllegalArgumentException(error + ". "
-            + "This Span's last row key is " + Arrays.toString(last.key)
-            + " whereas the row key being added is " + Arrays.toString(key)
-            + " and metric_width=" + metric_width);
-      }
-      last_ts = last.timestamp(last.size() - 1);  // O(n)
+    ImmutableList.Builder<Annotation> annot_builder = ImmutableList.builder();
+    for (DataPoints row : rows) {
+      annot_builder.addAll(row.getAnnotations());
     }
 
-    final RowSeq rowseq = new RowSeq();
-    rowseq.setRow(row);
-    sorted = false;
-    if (last_ts >= rowseq.timestamp(0)) {
-      // scan to see if we need to merge into an existing row
-      for (final RowSeq rs : rows) {
-        if (Bytes.memcmp(rs.key, row.key()) == 0) {
-          rs.addRow(row);
-          return;
-        }
-      }
-    }
-    
-    rows.add(rowseq);
+    return annot_builder.build();
   }
 
   /**
-   * Package private helper to access the last timestamp in an HBase row.
-   * @param metric_width The number of bytes on which metric IDs are stored.
-   * @param row A compacted HBase row.
-   * @return A strictly positive timestamp in seconds or ms.
-   * @throws IllegalArgumentException if {@code row} doesn't contain any cell.
+   * @return an iterator to run over the list of data points
    */
-  static long lastTimestampInRow(final short metric_width,
-                                 final KeyValue row) {
-    final long base_time = Bytes.getUnsignedInt(row.key(), metric_width);
-    final byte[] qual = row.qualifier();
-    if (qual.length >= 4 && Internal.inMilliseconds(qual[qual.length - 4])) {
-      return (base_time * 1000) + ((Bytes.getUnsignedInt(qual, qual.length - 4) & 
-          0x0FFFFFC0) >>> (Const.MS_FLAG_BITS));
-    }
-    final short last_delta = (short)
-      (Bytes.getUnsignedShort(qual, qual.length - 2) >>> Const.FLAG_BITS);
-    return base_time + last_delta;
-  }
-
-  /** @return an iterator to run over the list of data points */
   public SeekableView iterator() {
-    checkRowOrder();
     return spanIterator();
   }
 
-  /**
-   * Finds the index of the row of the ith data point and the offset in the row.
-   * @param i The index of the data point to find.
-   * @return two ints packed in a long.  The first int is the index of the row
-   * in {@code rows} and the second is offset in that {@link RowSeq} instance.
-   */
-  private long getIdxOffsetFor(final int i) {
-    checkRowOrder();
-    int idx = 0;
+  // TODO Needs a lot of tests. See https://github
+  // .com/hi3g/opentsdb/blob/77e4c239e91a7752764c6723621292d7cc0944ce/src
+  // /core/Span.java#L202-L215 for a reference of what it used to do.
+  private DataPoint getDataPointForIndex(final int i) {
     int offset = 0;
-    for (final RowSeq row : rows) {
+    for (final DataPoints row : rows) {
       final int sz = row.size();
+
       if (offset + sz > i) {
-        break;
+        return Iterables.get(row, i - offset - 1);
       }
+
       offset += sz;
-      idx++;
     }
-    return ((long) idx << 32) | (i - offset);
+
+    throw new IllegalArgumentException("i (" + i + ") is outside the range of " + this);
   }
 
   /**
@@ -224,11 +157,7 @@ final class Span implements DataPoints {
    * @throws IndexOutOfBoundsException if the index would be out of bounds
    */
   public long timestamp(final int i) {
-    checkRowOrder();
-    final long idxoffset = getIdxOffsetFor(i);
-    final int idx = (int) (idxoffset >>> 32);
-    final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
-    return rows.get(idx).timestamp(offset);
+    return getDataPointForIndex(i).timestamp();
   }
 
   /**
@@ -239,11 +168,7 @@ final class Span implements DataPoints {
    * @throws IndexOutOfBoundsException if the index would be out of bounds
    */
   public boolean isInteger(final int i) {
-    checkRowOrder();
-    final long idxoffset = getIdxOffsetFor(i);
-    final int idx = (int) (idxoffset >>> 32);
-    final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
-    return rows.get(idx).isInteger(offset);
+    return getDataPointForIndex(i).isInteger();
   }
 
   /**
@@ -257,11 +182,7 @@ final class Span implements DataPoints {
    * @throws IllegalDataException if the data is malformed
    */
   public long longValue(final int i) {
-    checkRowOrder();
-    final long idxoffset = getIdxOffsetFor(i);
-    final int idx = (int) (idxoffset >>> 32);
-    final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
-    return rows.get(idx).longValue(offset);
+    return getDataPointForIndex(i).longValue();
   }
 
   /**
@@ -275,103 +196,45 @@ final class Span implements DataPoints {
    * @throws IllegalDataException if the data is malformed
    */
   public double doubleValue(final int i) {
-    checkRowOrder();
-    final long idxoffset = getIdxOffsetFor(i);
-    final int idx = (int) (idxoffset >>> 32);
-    final int offset = (int) (idxoffset & 0x00000000FFFFFFFF);
-    return rows.get(idx).doubleValue(offset);
+    return getDataPointForIndex(i).doubleValue();
   }
 
   /** Returns a human readable string representation of the object. */
   @Override
   public String toString() {
-    final StringBuilder buf = new StringBuilder();
-    buf.append("Span(")
-       .append(rows.size())
-       .append(" rows, [");
-    for (int i = 0; i < rows.size(); i++) {
-      if (i != 0) {
-        buf.append(", ");
-      }
-      buf.append(rows.get(i).toString());
-    }
-    buf.append("])");
-    return buf.toString();
-  }
-
-  /**
-   * Finds the index of the row in which the given timestamp should be.
-   * @param timestamp A strictly positive 32-bit integer.
-   * @return A strictly positive index in the {@code rows} array.
-   */
-  private int seekRow(final long timestamp) {
-    checkRowOrder();
-    int row_index = 0;
-    RowSeq row = null;
-    final int nrows = rows.size();
-    for (int i = 0; i < nrows; i++) {
-      row = rows.get(i);
-      final int sz = row.size();
-      if (row.timestamp(sz - 1) < timestamp) {
-        row_index++;  // The last DP in this row is before 'timestamp'.
-      } else {
-        break;
-      }
-    }
-    if (row_index == nrows) {  // If this timestamp was too large for the
-      --row_index;             // last row, return the last row.
-    }
-    return row_index;
-  }
-
-  /**
-   * Checks the sorted flag and sorts the rows if necessary. Should be called
-   * by any iteration method.
-   * Since 2.0
-   */
-  private void checkRowOrder() {
-    if (!sorted) {
-      Collections.sort(rows, new RowSeq.RowSeqComparator());
-      sorted = true;
-    }
+    return Objects.toStringHelper(this)
+            .add("size", rows.size())
+            .add("rows", Joiner.on(',').join(rows))
+            .toString();
   }
   
   /** Package private iterator method to access it as a Span.Iterator. */
   Span.Iterator spanIterator() {
-    if (!sorted) {
-      Collections.sort(rows, new RowSeq.RowSeqComparator());
-      sorted = true;
-    }
     return new Span.Iterator();
+  }
+
+  @Override
+  public int compareTo(final DataPoints other) {
+    final byte[] this_tsuid = UniqueId.stringToUid(getTSUIDs().get(0));
+    final byte[] other_tsuid = UniqueId.stringToUid(other.getTSUIDs().get(0));
+
+    return SignedBytes.lexicographicalComparator().compare(this_tsuid, other_tsuid);
   }
 
   /** Iterator for {@link Span}s. */
   final class Iterator implements SeekableView {
-
-    /** Index of the {@link RowSeq} we're currently at, in {@code rows}. */
-    private int row_index;
-
-    /** Iterator on the current row. */
-    private RowSeq.Iterator current_row;
+    private final PeekingIterator<DataPoint> iterator;
 
     Iterator() {
-      current_row = rows.get(0).internalIterator();
+      iterator = Iterators.peekingIterator(Iterables.concat(rows).iterator());
     }
 
     public boolean hasNext() {
-      return (current_row.hasNext()             // more points in this row
-              || row_index < rows.size() - 1);  // or more rows
+      return iterator.hasNext();
     }
 
     public DataPoint next() {
-      if (current_row.hasNext()) {
-        return current_row.next();
-      } else if (row_index < rows.size() - 1) {
-        row_index++;
-        current_row = rows.get(row_index).internalIterator();
-        return current_row.next();
-      }
-      throw new NoSuchElementException("no more elements");
+      return iterator.next();
     }
 
     public void remove() {
@@ -379,19 +242,17 @@ final class Span implements DataPoints {
     }
 
     public void seek(final long timestamp) {
-      int row_index = seekRow(timestamp);
-      if (row_index != this.row_index) {
-        this.row_index = row_index;
-        current_row = rows.get(row_index).internalIterator();
+      while (iterator.hasNext() && iterator.peek().timestamp() < timestamp) {
+        iterator.next();
       }
-      current_row.seek(timestamp);
     }
 
     public String toString() {
-      return "Span.Iterator(row_index=" + row_index
-        + ", current_row=" + current_row + ", span=" + Span.this + ')';
+      return Objects.toStringHelper(this)
+              .add("span", Span.this)
+              .add("iterator", iterator)
+              .toString();
     }
-
   }
 
   /**
