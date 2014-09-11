@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.ImmutableList;
 import net.opentsdb.uid.UidResolver;
 import net.opentsdb.uid.UniqueId;
 
@@ -191,10 +192,7 @@ public class QueryBuilder {
    * . You should call this or {@link #withMetric(String)}, not both.
    */
   public QueryBuilder withTSUIDS(final List<String> tsuids) {
-    if (tsuids == null || tsuids.isEmpty()) {
-      throw new IllegalArgumentException(
-              "Empty or missing TSUID list not allowed");
-    }
+    checkArgument(!tsuids.isEmpty(), "Empty or missing TSUID list not allowed");
 
     String first_metric = "";
     for (final String tsuid : tsuids) {
@@ -338,8 +336,16 @@ public class QueryBuilder {
    * {@link #tags} will be used.
    */
   public Deferred<Query> createQuery() {
-    checkState(start_time.isPresent());
-
+    checkState(start_time.isPresent(), "A start time must be provided");
+    checkState(metric != null || tsuids != null,
+            "Either a metric or TSUIDS must be privoded");
+    if (tags == null) {
+      tags = Deferred.fromResult(Lists.<byte[]>newArrayList());
+      group_bys = Maps.newTreeMap();
+      group_bys_deferreds = Lists.newArrayList(Deferred.fromResult(new byte[]{}));
+      group_by_values = Maps.newTreeMap();
+      group_by_values_deferreds = Lists.newArrayList(Deferred.fromResult(Lists.<byte[]>newArrayList()));
+    }
     if (tsuids != null) {
       return Deferred.fromResult(createFromTSUIDS());
     } else {
