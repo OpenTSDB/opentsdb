@@ -342,9 +342,9 @@ public class QueryBuilder {
     if (tags == null) {
       tags = Deferred.fromResult(Lists.<byte[]>newArrayList());
       group_bys = Maps.newTreeMap();
-      group_bys_deferreds = Lists.newArrayList(Deferred.fromResult(new byte[]{}));
+      group_bys_deferreds = ImmutableList.of(Deferred.fromResult(new byte[]{}));
       group_by_values = Maps.newTreeMap();
-      group_by_values_deferreds = Lists.newArrayList(Deferred.fromResult(Lists.<byte[]>newArrayList()));
+      group_by_values_deferreds = ImmutableList.of(Deferred.fromResult(Lists.<byte[]>newArrayList()));
     }
     if (tsuids != null) {
       return Deferred.fromResult(createFromTSUIDS());
