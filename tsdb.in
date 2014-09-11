@@ -18,7 +18,7 @@ test -d "$pkgdatadir" || test -n "$abs_srcdir$abs_builddir" || {
 }
 
 if test -n "$pkgdatadir"; then
-  localdir="$pkgdatadir"
+  localdir="$pkgdatadir/bin"
   for jar in "$pkgdatadir"/*.jar; do
     CLASSPATH="$CLASSPATH:$jar"
   done
