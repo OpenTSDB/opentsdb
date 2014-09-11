@@ -559,21 +559,17 @@ public class HBaseStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> updateMeta(final UIDMeta meta, final boolean overwrite) {
-
-    return getMeta(meta.getUID().getBytes(HBaseConst.CHARSET),
-      meta.getType()).addCallbackDeferring(
-
+    /**
+     *  Nested callback used to merge and store the meta data after verifying
+     *  that the UID mapping exists. It has to access the {@code local_meta}
+     *  object so that's why it's nested within the NameCB class
+     */
+    class MergeCB implements Callback<Deferred<Boolean>, Optional<KeyValue>> {
       /**
-       *  Nested callback used to merge and store the meta data after verifying
-       *  that the UID mapping exists. It has to access the {@code local_meta}
-       *  object so that's why it's nested within the NameCB class
+       * Executes the CompareAndSet after merging changes
+       * @return True if the CAS was successful, false if the stored data
+       * was modified during flight.
        */
-      new Callback<Deferred<Boolean>, Optional<KeyValue>>() {
-        /**
-         * Executes the CompareAndSet after merging changes
-         * @return True if the CAS was successful, false if the stored data
-         * was modified during flight.
-         */
 
       @Override
       public Deferred<Boolean> call(Optional<KeyValue> cell) throws Exception {
@@ -600,7 +596,12 @@ public class HBaseStore implements TsdbStore {
                 meta.getStorageJSON());
         return client.compareAndSet(put, original_meta);
       }
-    });
+    }
+
+    return getMeta(meta.getUID().getBytes(CHARSET),
+            meta.getType()).addCallbackDeferring(new MergeCB());
+
+
   }
 
 
@@ -1381,46 +1382,40 @@ public class HBaseStore implements TsdbStore {
           for (KeyValue column : row) {
             // tree
             if (delete_definition && Bytes.equals(TREE_QUALIFIER, column.qualifier())) {
-              LOG.trace("Deleting tree defnition in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting tree defnition in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // branches
             } else if (Bytes.equals(Branch.BRANCH_QUALIFIER(), column.qualifier())) {
-              LOG.trace("Deleting branch in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting branch in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // leaves
             } else if (column.qualifier().length > Leaf.LEAF_PREFIX().length &&
                     Bytes.memcmp(Leaf.LEAF_PREFIX(), column.qualifier(), 0,
                             Leaf.LEAF_PREFIX().length) == 0) {
-              LOG.trace("Deleting leaf in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting leaf in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // collisions
             } else if (column.qualifier().length > COLLISION_PREFIX.length &&
                     Bytes.memcmp(COLLISION_PREFIX, column.qualifier(), 0,
                             COLLISION_PREFIX.length) == 0) {
-              LOG.trace("Deleting collision in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting collision in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // not matched
             } else if (column.qualifier().length > NOT_MATCHED_PREFIX.length &&
                     Bytes.memcmp(NOT_MATCHED_PREFIX, column.qualifier(), 0,
                             NOT_MATCHED_PREFIX.length) == 0) {
-              LOG.trace("Deleting not matched in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting not matched in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // tree rule
             } else if (delete_definition && column.qualifier().length > TreeRule.RULE_PREFIX().length &&
                     Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0,
                             TreeRule.RULE_PREFIX().length) == 0) {
-              LOG.trace("Deleting tree rule in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting tree rule in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
             }
           }
@@ -1445,7 +1440,7 @@ public class HBaseStore implements TsdbStore {
                 ArrayList<Object>> {
 
           public Deferred<Boolean> call(ArrayList<Object> objects) {
-            LOG.debug("Purged [" + objects.size() + "] columns, continuing");
+            LOG.debug("Purged [{}] columns, continuing", objects.size());
             delete_deferreds.clear();
             // call ourself again to get the next set of rows from the scanner
             return deleteTree();
@@ -1676,6 +1671,118 @@ public class HBaseStore implements TsdbStore {
     }
 
     return client.put(put).addCallbackDeferring(new PutCB());
+  }
+
+  /**
+   * Attempts to fetch the requested leaf from storage.
+   * <b>Note:</b> This method will not load the UID names from a TSDB. This is
+   * only used to fetch a particular leaf from storage for collision detection
+   * @param branch The branch this leaf belongs to
+   * @param display_name Name of the leaf
+   * @return A valid leaf if found, null if the leaf did not exist
+   * @throws HBaseException if there was an issue
+   * @throws JSONException if the object could not be serialized
+   */
+  private Deferred<Leaf> fetchLeaf(final Branch branch, final String display_name) {
+    final Leaf leaf = new Leaf();
+    leaf.setDisplayName(display_name);
+
+    final GetRequest get = new GetRequest(tree_table_name, branch.compileBranchId());
+    get.family(Tree.TREE_FAMILY());
+    get.qualifier(leaf.columnQualifier());
+
+    /**
+     * Called with the results of the fetch from storage
+     */
+    final class GetCB implements Callback<Deferred<Leaf>, ArrayList<KeyValue>> {
+
+      /**
+       * @return null if the row was empty, a valid Leaf if parsing was
+       * successful
+       */
+      @Override
+      public Deferred<Leaf> call(ArrayList<KeyValue> row) throws Exception {
+        if (row == null || row.isEmpty()) {
+          return Deferred.fromResult(null);
+        }
+
+        final Leaf leaf = JSON.parseToObject(row.get(0).value(), Leaf.class);
+        return Deferred.fromResult(leaf);
+      }
+
+    }
+
+    return client.get(get).addCallbackDeferring(new GetCB());
+  }
+
+  @Override
+  public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch, final Tree tree) {
+    final byte[] branch_id = branch.compileBranchId();
+    /**
+     * Callback executed with the results of our CAS operation. If the put was
+     * successful, we just return. Otherwise we load the existing leaf to
+     * determine if there was a collision.
+     */
+    final class LeafStoreCB implements Callback<Deferred<Boolean>, Boolean> {
+
+      final Leaf local_leaf;
+
+      public LeafStoreCB(final Leaf local_leaf) {
+        this.local_leaf = local_leaf;
+      }
+
+      /**
+       * @return True if the put was successful or the leaf existed, false if
+       * there was a collision
+       */
+      @Override
+      public Deferred<Boolean> call(final Boolean success) throws Exception {
+        if (success) {
+          return Deferred.fromResult(success);
+        }
+
+        /**
+         * Called after fetching the existing leaf from storage
+         */
+        final class LeafFetchCB implements Callback<Deferred<Boolean>, Leaf> {
+
+          /**
+           * @return True if the put was successful or the leaf existed, false if
+           * there was a collision
+           */
+          @Override
+          public Deferred<Boolean> call(final Leaf existing_leaf)
+                  throws Exception {
+            if (existing_leaf == null) {
+              LOG.error("Returned leaf was null, stored data may be corrupt " +
+                      "for leaf: {} on branch: {}",
+                      Branch.idToString(leaf.columnQualifier()),
+                      Branch.idToString(branch_id));
+              return Deferred.fromResult(false);
+            }
+
+            if (existing_leaf.getTsuid().equals(leaf.getTsuid())) {
+              LOG.debug("Leaf already exists: {}", local_leaf);
+              return Deferred.fromResult(true);
+            }
+
+            tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());
+            LOG.warn("Branch ID: [{}] Leaf collision with [{}] on existing leaf [{}] named [{}]", Branch.idToString(branch_id), leaf.getTsuid(), existing_leaf.getTsuid(), leaf.getDisplayName());
+            return Deferred.fromResult(false);
+          }
+        }
+        // fetch the existing leaf so we can compare it to determine if we have
+        // a collision or an existing leaf
+        return fetchLeaf(branch, leaf.getDisplayName())
+                .addCallbackDeferring(new LeafFetchCB());
+      }
+    }
+
+    // execute the CAS call to start the callback chain
+    final PutRequest put = new PutRequest(tree_table_name, branch_id,
+            Tree.TREE_FAMILY(), leaf.columnQualifier(), leaf.toStorageJson());
+    return client.compareAndSet(put, new byte[0])
+            .addCallbackDeferring(new LeafStoreCB(leaf));
   }
 
   /**

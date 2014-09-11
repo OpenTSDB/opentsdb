@@ -25,14 +25,18 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.storage.TsdbStore;
 
+import net.opentsdb.tree.Branch;
+import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeBuilder;
+import net.opentsdb.utils.JSON;
 import org.hbase.async.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1416,7 +1420,6 @@ public class TSDB {
     return tsdb_store.storeTree(tree, overwrite);
   }
 
-
   /**
    * Attempts to fetch the given tree from storage, loading the rule set at
    * the same time.
@@ -1431,6 +1434,7 @@ public class TSDB {
 
     return tsdb_store.fetchTree(tree_id);
   }
+
   /**
    * Attempts to store the local tree in a new row, automatically assigning a
    * new tree ID and returning the value.
@@ -1554,4 +1558,151 @@ public class TSDB {
     return tsdb_store.flushTreeNotMatched(tree);
   }
 
+  /**
+   * Attempts to write the leaf to storage using a CompareAndSet call. We expect
+   * the stored value to be null. If it's not, we fetched the stored leaf. If
+   * the stored value is the TSUID as the local leaf, we return true since the
+   * caller is probably reprocessing a timeseries. If the stored TSUID is
+   * different, we store a collision in the tree and return false.
+   * <b>Note:</b> You MUST write the tree to storage after calling this as there
+   * may be a new collision. Check the tree's collision set.
+   * @param leaf The Leaf to put to storage
+   * @param branch The branch this leaf belongs to
+   * @param tree Tree the leaf and branch belong to
+   * @return True if the leaf was stored successful or already existed, false
+   * if there was a collision
+   * @throws HBaseException if there was an issue
+   * @throws JSONException if the object could not be serialized
+   */
+  public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
+                                     final Tree tree) {
+
+    return tsdb_store.storeLeaf(leaf, branch, tree);
+  }
+
+  /**
+   * Attempts to parse the leaf from the given column, optionally loading the
+   * UID names. This is used by the branch loader when scanning an entire row.
+   * <b>Note:</b> The column better have a qualifier that starts with "leaf:" or
+   * we're likely to throw a parsing exception.
+   * @param column Column to parse a leaf from
+   * @param load_uids Whether or not to load UID names from the TSD
+   * @return The parsed leaf if successful
+   * @throws IllegalArgumentException if the column was missing data
+   * @throws NoSuchUniqueId If any of the UID name mappings do not exist
+   * @throws HBaseException if there was an issue
+   * @throws JSONException if the object could not be serialized
+   */
+  public Deferred<Leaf> getLeaf(final KeyValue column, final boolean load_uids) {
+
+    if (column.value() == null) {
+      throw new IllegalArgumentException("Leaf column value was null");
+    }
+
+    // qualifier has the TSUID in the format  "leaf:<display_name.hashCode()>"
+    // and we should only be here if the qualifier matched on "leaf:"
+    final Leaf leaf = JSON.parseToObject(column.value(), Leaf.class);
+
+    // if there was an error with the data and the tsuid is missing, dump it
+    if (Strings.isNullOrEmpty(leaf.getTsuid())) {
+      LOG.warn("Invalid leaf object in row: {}" , Branch.idToString(column.key()));
+      return Deferred.fromResult(null);
+    }
+
+    // if we don't need to load UIDs, then return now
+    if (!load_uids) {
+      return Deferred.fromResult(leaf);
+    }
+
+    // split the TSUID to get the tags
+    final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(leaf.getTsuid());
+
+    // initialize the with empty objects, otherwise the "set" operations in
+    // the callback won't work.
+    final ArrayList<String> tags = new ArrayList<String>(parsed_tags.size());
+    for (int i = 0; i < parsed_tags.size(); i++) {
+      tags.add("");
+    }
+
+    // setup an array of deferreds to wait on so we can return the leaf only
+    // after all of the name fetches have completed
+    final ArrayList<Deferred<Object>> uid_group =
+            new ArrayList<Deferred<Object>>(parsed_tags.size() + 1);
+
+    /**
+     * Callback executed after the UID name has been retrieved successfully.
+     * The {@code index} determines where the result is stored: -1 means metric,
+     * >= 0 means tag
+     */
+    final class UIDNameCB implements Callback<Object, String> {
+      final int index;
+
+      public UIDNameCB(final int index) {
+        this.index = index;
+      }
+
+      @Override
+      public Object call(final String name) throws Exception {
+        if (index < 0) {
+          leaf.setMetric(name);
+        } else {
+          tags.set(index, name);
+        }
+        return null;
+      }
+
+    }
+
+    // fetch the metric name first
+    final byte[] metric_uid = UniqueId.stringToUid(
+            leaf.getTsuid().substring(0, Const.METRICS_WIDTH * 2));
+    uid_group.add(getUidName(UniqueIdType.METRIC, metric_uid).addCallback(
+            new UIDNameCB(-1)));
+
+    int idx = 0;
+    for (byte[] tag : parsed_tags) {
+      if (idx % 2 == 0) {
+        uid_group.add(getUidName(UniqueIdType.TAGK, tag)
+                .addCallback(new UIDNameCB(idx)));
+      } else {
+        uid_group.add(getUidName(UniqueIdType.TAGV, tag)
+                .addCallback(new UIDNameCB(idx)));
+      }
+      idx++;
+    }
+
+    /**
+     * Called after all of the UID name fetches have completed and parses the
+     * tag name/value list into name/value pairs for proper display
+     */
+    final class CollateUIDsCB implements Callback<Deferred<Leaf>,
+            ArrayList<Object>> {
+
+      /**
+       * @return A valid Leaf object loaded with UID names
+       */
+      @Override
+      public Deferred<Leaf> call(final ArrayList<Object> name_calls)
+              throws Exception {
+        int idx = 0;
+        String tagk = "";
+        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
+        for (String name : tags) {
+          if (idx % 2 == 0) {
+            tagk = name;
+          } else {
+            builder.put(tagk, name);
+          }
+          idx++;
+        }
+        leaf.setTags(builder.build());
+        return Deferred.fromResult(leaf);
+      }
+
+    }
+
+    // wait for all of the UID name fetches in the group to complete before
+    // returning the leaf
+    return Deferred.group(uid_group).addCallbackDeferring(new CollateUIDsCB());
+  }
 }

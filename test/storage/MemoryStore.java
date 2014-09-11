@@ -27,6 +27,8 @@ import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.tree.Branch;
+import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
@@ -997,6 +999,12 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> flushTreeNotMatched(Tree tree) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
+                                     final Tree tree) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

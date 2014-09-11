@@ -21,6 +21,8 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 
+import net.opentsdb.tree.Branch;
+import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import org.hbase.async.*;
 
@@ -143,4 +145,6 @@ public interface TsdbStore {
   Deferred<Boolean> flushTreeCollisions(final Tree tree);
 
   Deferred<Boolean> flushTreeNotMatched(final Tree tree);
+
+  Deferred<Boolean> storeLeaf(final Leaf leaf,final Branch branch,final Tree tree);
 }
