@@ -22,7 +22,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 /**
- * A query to retreive data from the TSDB.
+ * A query to retrieve data from the TSDB.
  */
 public interface Query {
 
@@ -69,7 +69,7 @@ public interface Query {
 
   /**
   * Sets the time series to the query.
-  * @param metric The metric to retreive from the TSDB.
+  * @param metric The metric to retrieve from the TSDB.
   * @param tags The set of tags of interest.
   * @param function The aggregation function to use.
   * @param rate If true, the rate of the series will be used instead of the
@@ -86,7 +86,7 @@ public interface Query {
     
   /**
    * Sets the time series to the query.
-   * @param metric The metric to retreive from the TSDB.
+   * @param metric The metric to retrieve from the TSDB.
    * @param tags The set of tags of interest.
    * @param function The aggregation function to use.
    * @param rate If true, the rate of the series will be used instead of the
