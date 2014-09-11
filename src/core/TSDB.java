@@ -1490,7 +1490,7 @@ public class TSDB {
 
     // if there was an error with the data and the tsuid is missing, dump it
     if (Strings.isNullOrEmpty(leaf.getTsuid())) {
-      LOG.warn("Invalid leaf object in row: " + Branch.idToString(column.key()));
+      LOG.warn("Invalid leaf object in row: {}" , Branch.idToString(column.key()));
       return Deferred.fromResult(null);
     }
 

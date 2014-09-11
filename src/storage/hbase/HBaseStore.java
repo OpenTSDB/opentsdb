@@ -559,20 +559,17 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Boolean> updateMeta(final UIDMeta meta, final boolean overwrite) {
 
-    return getMeta(meta.getUID().getBytes(CHARSET),
-      meta.getType()).addCallbackDeferring(
-
+    /**
+     *  Nested callback used to merge and store the meta data after verifying
+     *  that the UID mapping exists. It has to access the {@code local_meta}
+     *  object so that's why it's nested within the NameCB class
+     */
+    class MergeCB implements Callback<Deferred<Boolean>, Optional<KeyValue>> {
       /**
-       *  Nested callback used to merge and store the meta data after verifying
-       *  that the UID mapping exists. It has to access the {@code local_meta}
-       *  object so that's why it's nested within the NameCB class
+       * Executes the CompareAndSet after merging changes
+       * @return True if the CAS was successful, false if the stored data
+       * was modified during flight.
        */
-      new Callback<Deferred<Boolean>, Optional<KeyValue>>() {
-        /**
-         * Executes the CompareAndSet after merging changes
-         * @return True if the CAS was successful, false if the stored data
-         * was modified during flight.
-         */
 
       @Override
       public Deferred<Boolean> call(Optional<KeyValue> cell) throws Exception {
@@ -599,7 +596,12 @@ public class HBaseStore implements TsdbStore {
                 meta.getStorageJSON());
         return client.compareAndSet(put, original_meta);
       }
-    });
+    }
+
+    return getMeta(meta.getUID().getBytes(CHARSET),
+            meta.getType()).addCallbackDeferring(new MergeCB());
+
+
   }
 
 
@@ -1358,46 +1360,40 @@ public class HBaseStore implements TsdbStore {
           for (KeyValue column : row) {
             // tree
             if (delete_definition && Bytes.equals(TREE_QUALIFIER, column.qualifier())) {
-              LOG.trace("Deleting tree defnition in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting tree defnition in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // branches
             } else if (Bytes.equals(Branch.BRANCH_QUALIFIER(), column.qualifier())) {
-              LOG.trace("Deleting branch in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting branch in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // leaves
             } else if (column.qualifier().length > Leaf.LEAF_PREFIX().length &&
                     Bytes.memcmp(Leaf.LEAF_PREFIX(), column.qualifier(), 0,
                             Leaf.LEAF_PREFIX().length) == 0) {
-              LOG.trace("Deleting leaf in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting leaf in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // collisions
             } else if (column.qualifier().length > COLLISION_PREFIX.length &&
                     Bytes.memcmp(COLLISION_PREFIX, column.qualifier(), 0,
                             COLLISION_PREFIX.length) == 0) {
-              LOG.trace("Deleting collision in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting collision in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // not matched
             } else if (column.qualifier().length > NOT_MATCHED_PREFIX.length &&
                     Bytes.memcmp(NOT_MATCHED_PREFIX, column.qualifier(), 0,
                             NOT_MATCHED_PREFIX.length) == 0) {
-              LOG.trace("Deleting not matched in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting not matched in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
               // tree rule
             } else if (delete_definition && column.qualifier().length > TreeRule.RULE_PREFIX().length &&
                     Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0,
                             TreeRule.RULE_PREFIX().length) == 0) {
-              LOG.trace("Deleting tree rule in row: " +
-                      Branch.idToString(column.key()));
+              LOG.trace("Deleting tree rule in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
             }
           }
@@ -1422,7 +1418,7 @@ public class HBaseStore implements TsdbStore {
                 ArrayList<Object>> {
 
           public Deferred<Boolean> call(ArrayList<Object> objects) {
-            LOG.debug("Purged [" + objects.size() + "] columns, continuing");
+            LOG.debug("Purged [{}] columns, continuing", objects.size());
             delete_deferreds.clear();
             // call ourself again to get the next set of rows from the scanner
             return deleteTree();
@@ -1736,23 +1732,20 @@ public class HBaseStore implements TsdbStore {
           public Deferred<Boolean> call(final Leaf existing_leaf)
                   throws Exception {
             if (existing_leaf == null) {
-              LOG.error(
-                      "Returned leaf was null, stored data may be corrupt for leaf: "
-                              + Branch.idToString(leaf.columnQualifier()) + " on branch: "
-                              + Branch.idToString(branch_id));
+              LOG.error("Returned leaf was null, stored data may be corrupt " +
+                      "for leaf: {} on branch: {}",
+                      Branch.idToString(leaf.columnQualifier()),
+                      Branch.idToString(branch_id));
               return Deferred.fromResult(false);
             }
 
             if (existing_leaf.getTsuid().equals(leaf.getTsuid())) {
-              LOG.debug("Leaf already exists: " + local_leaf);
+              LOG.debug("Leaf already exists: {}", local_leaf);
               return Deferred.fromResult(true);
             }
 
             tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());
-            LOG.warn("Branch ID: [" + Branch.idToString(branch_id)
-                    + "] Leaf collision with [" + leaf.getTsuid() +
-                    "] on existing leaf [" + existing_leaf.getTsuid() +
-                    "] named [" + leaf.getDisplayName() + "]");
+            LOG.warn("Branch ID: [{}] Leaf collision with [{}] on existing leaf [{}] named [{}]", Branch.idToString(branch_id), leaf.getTsuid(), existing_leaf.getTsuid(), leaf.getDisplayName());
             return Deferred.fromResult(false);
           }
         }
