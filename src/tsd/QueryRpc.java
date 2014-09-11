@@ -103,7 +103,7 @@ final class QueryRpc implements HttpRpc {
             query.apiVersion() + " is not implemented");
       }
     } else {
-      data_query = this.parseQuery(tsdb, query);
+      data_query = this.parseQuery(query);
     }
     
     // validate and then compile the queries
@@ -334,12 +334,11 @@ final class QueryRpc implements HttpRpc {
   
   /**
    * Parses a query string legacy style query from the URI
-   * @param tsdb The TSDB we belong to
    * @param query The HTTP Query for parsing
    * @return A TSQuery if parsing was successful
    * @throws BadRequestException if parsing was unsuccessful
    */
-  private TSQuery parseQuery(final TSDB tsdb, final HttpQuery query) {
+  private TSQuery parseQuery(final HttpQuery query) {
     final TSQuery data_query = new TSQuery();
     
     data_query.setStart(query.getRequiredQueryStringParam("start"));

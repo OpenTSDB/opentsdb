@@ -39,8 +39,8 @@ import static org.junit.Assert.*;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({KeyValue.class, Scanner.class})
 public class TestTsdbQueryDownsample {
-  private TSDB tsdb = null;
-  private Query query = null;
+  private TSDB tsdb;
+  private QueryBuilder builder;
 
   private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
   private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};
@@ -50,10 +50,9 @@ public class TestTsdbQueryDownsample {
 
   @Before
   public void before() throws Exception {
-    Config config = new Config(false);
     MemoryStore tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
-    query = new QueryBuilder(tsdb).createQuery();
+    tsdb = new TSDB(tsdb_store, new Config(false));
+    builder = new QueryBuilder(tsdb);
 
     tsdb_store.allocateUID("sys.cpu.user", SYS_CPU_USER_ID, UniqueIdType.METRIC);
     tsdb_store.allocateUID("sys.cpu.nice", SYS_CPU_NICE_ID, UniqueIdType.METRIC);
@@ -65,51 +64,20 @@ public class TestTsdbQueryDownsample {
   }
 
   @Test
-  public void downsample() throws Exception {
-    int downsampleInterval = (int)DateTime.parseDuration("60s");
-    query.downsample(downsampleInterval, Aggregators.SUM);
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    assertEquals(60000, Query.ForTesting.getDownsampleIntervalMs(query));
-    long scanStartTime = 1356998400 - Const.MAX_TIMESPAN * 2 - 60;
-    assertEquals(scanStartTime, Query.ForTesting.getScanStartTimeSeconds(query));
-    long scanEndTime = 1357041600 + Const.MAX_TIMESPAN + 1 + 60;
-    assertEquals(scanEndTime, Query.ForTesting.getScanEndTimeSeconds(query));
-  }
-
-  @Test
-  public void downsampleMilliseconds() throws Exception {
-    int downsampleInterval = (int)DateTime.parseDuration("60s");
-    query.downsample(downsampleInterval, Aggregators.SUM);
-    query.setStartTime(1356998400000L);
-    query.setEndTime(1357041600000L);
-    assertEquals(60000, Query.ForTesting.getDownsampleIntervalMs(query));
-    long scanStartTime = 1356998400 - Const.MAX_TIMESPAN * 2 - 60;
-    assertEquals(scanStartTime, Query.ForTesting.getScanStartTimeSeconds(query));
-    long scanEndTime = 1357041600 + Const.MAX_TIMESPAN + 1 + 60;
-    assertEquals(scanEndTime, Query.ForTesting.getScanEndTimeSeconds(query));
-  }
-
-  @Test (expected = NullPointerException.class)
-  public void downsampleNullAgg() throws Exception {
-    query.downsample(60, null);
-  }
-
-  @Test (expected = IllegalArgumentException.class)
-  public void downsampleInvalidInterval() throws Exception {
-    query.downsample(0, Aggregators.SUM);
-  }
-
-  @Test
   public void runLongSingleTSDownsample() throws Exception {
-    storeLongTimeSeriesSeconds(true, false);;
+    storeLongTimeSeriesSeconds(true, false);
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(60000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
+
+    builder.withStartAndEndTime(1356998400, 1357041600)
+           .downsample(60000, Aggregators.SUM)
+           .withMetric("sys.cpu.user")
+           .withTags(tags);
+
+    final Query query = builder.createQuery().joinUninterruptibly();
+
+    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly();
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -145,13 +113,19 @@ public class TestTsdbQueryDownsample {
   @Test
   public void runLongSingleTSDownsampleMs() throws Exception {
     storeLongTimeSeriesMs();
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
+
+    builder.withStartAndEndTime(1356998400, 1357041600)
+            .downsample(1000, Aggregators.SUM)
+            .withMetric("sys.cpu.user")
+            .withTags(tags);
+
+    final Query query = builder.createQuery().joinUninterruptibly();
+
+    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly();
+
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -187,13 +161,20 @@ public class TestTsdbQueryDownsample {
   @Test
   public void runLongSingleTSDownsampleAndRate() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(60000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    final DataPoints[] dps = query.run();
+
+    builder.withStartAndEndTime(1356998400, 1357041600)
+            .downsample(60000, Aggregators.SUM)
+            .withMetric("sys.cpu.user")
+            .withTags(tags)
+            .shouldCalculateRate(true);
+
+    final Query query = builder.createQuery().joinUninterruptibly();
+
+    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly();
+
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -231,13 +212,20 @@ public class TestTsdbQueryDownsample {
   @Test
   public void runLongSingleTSDownsampleAndRateMs() throws Exception {
     storeLongTimeSeriesMs();
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    final DataPoints[] dps = query.run();
+
+    builder.withStartAndEndTime(1356998400, 1357041600)
+            .downsample(1000, Aggregators.SUM)
+            .withMetric("sys.cpu.user")
+            .withTags(tags)
+            .shouldCalculateRate(true);
+
+    final Query query = builder.createQuery().joinUninterruptibly();
+
+    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly();
+
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -272,13 +260,20 @@ public class TestTsdbQueryDownsample {
   @Test
   public void runFloatSingleTSDownsample() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(60000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
+
+    builder.withStartAndEndTime(1356998400, 1357041600)
+            .downsample(60000, Aggregators.SUM)
+            .withMetric("sys.cpu.user")
+            .withTags(tags)
+            .shouldCalculateRate(false);
+
+    final Query query = builder.createQuery().joinUninterruptibly();
+
+    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly();
+
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -314,13 +309,20 @@ public class TestTsdbQueryDownsample {
   @Test
   public void runFloatSingleTSDownsampleMs() throws Exception {
     storeFloatTimeSeriesMs();
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
-    final DataPoints[] dps = query.run();
+
+    builder.withStartAndEndTime(1356998400, 1357041600)
+            .downsample(1000, Aggregators.SUM)
+            .withMetric("sys.cpu.user")
+            .withTags(tags)
+            .shouldCalculateRate(false);
+
+    final Query query = builder.createQuery().joinUninterruptibly();
+
+    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly();
+
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -356,13 +358,20 @@ public class TestTsdbQueryDownsample {
   @Test
   public void runFloatSingleTSDownsampleAndRate() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(60000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    final DataPoints[] dps = query.run();
+
+    builder.withStartAndEndTime(1356998400, 1357041600)
+            .downsample(60000, Aggregators.SUM)
+            .withMetric("sys.cpu.user")
+            .withTags(tags)
+            .shouldCalculateRate(true);
+
+    final Query query = builder.createQuery().joinUninterruptibly();
+
+    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly();
+
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -401,13 +410,20 @@ public class TestTsdbQueryDownsample {
   @Test
   public void runFloatSingleTSDownsampleAndRateMs() throws Exception {
     storeFloatTimeSeriesMs();
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    query.downsample(1000, Aggregators.AVG);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
-    final DataPoints[] dps = query.run();
+
+    builder.withStartAndEndTime(1356998400, 1357041600)
+            .downsample(1000, Aggregators.SUM)
+            .withMetric("sys.cpu.user")
+            .withTags(tags)
+            .shouldCalculateRate(true);
+
+    final Query query = builder.createQuery().joinUninterruptibly();
+
+    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly();
+
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());

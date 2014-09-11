@@ -1,0 +1,102 @@
+package net.opentsdb.uid;
+
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Maps;
+import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.utils.Config;
+import org.junit.Before;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.util.*;
+import java.util.List;
+
+import static net.opentsdb.uid.UniqueId.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueId.UniqueIdType.TAGK;
+import static net.opentsdb.uid.UniqueId.UniqueIdType.TAGV;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+
+public class TestUidResolver {
+  public static final ImmutableSet<String> METRICS_1 = ImmutableSet.of("sys.cpu.0", "sys.cpu.1", "sys.cpu.2");
+  public static final ImmutableSet<String> METRICS_2 = ImmutableSet.of("sys.cpu.2", "sys.cpu.0", "sys.cpu.1");
+  private MemoryStore client;
+  private UidResolver resolver;
+
+  @Before
+  public void setUp() throws IOException {
+    client = new MemoryStore();
+    TSDB tsdb = new TSDB(client, new Config(false));
+    resolver = new UidResolver(tsdb);
+
+    client.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    client.allocateUID("sys.cpu.1", new byte[]{0, 0, 2}, METRIC);
+    client.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
+    client.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
+    client.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testCtorNullTsdb() {
+    new UidResolver(null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testResolveNullUidNames() {
+    resolver.resolve((Iterator<String>)null, METRIC);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testResolveNullUidType() {
+    resolver.resolve(ImmutableSet.of("test"), null);
+  }
+
+  @Test
+  public void testResolveEmpty() throws Exception {
+    final List<byte[]> resolve = resolver.resolve(Iterators.<String>emptyIterator(), METRIC).joinUninterruptibly();
+    assertEquals(0, resolve.size());
+  }
+
+  @Test
+  public void testResolveOneMetric() throws Exception {
+    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("sys.cpu.0"), METRIC).joinUninterruptibly();
+    assertArrayEquals(new byte[]{0, 0, 1}, resolve.get(0));
+  }
+
+  @Test
+  public void testResolveOneTagk() throws Exception {
+    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("host"), TAGK).joinUninterruptibly();
+    assertArrayEquals(new byte[]{0,0,1},resolve.get(0));
+  }
+
+  @Test
+  public void testResolveOneTagv() throws Exception {
+    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("web01"), TAGV).joinUninterruptibly();
+    assertArrayEquals(new byte[]{0,0,1},resolve.get(0));
+  }
+
+  @Test
+  public void testResolveMultipleMetric() throws Exception {
+    final List<byte[]> resolve = resolver.resolve(METRICS_1, METRIC).joinUninterruptibly();
+    final List<byte[]> bytes = new ArrayList<byte[]>();
+    bytes.add(new byte[]{0,0,1});
+    bytes.add(new byte[]{0,0,2});
+    bytes.add(new byte[]{0,0,3});
+    assertArrayEquals(bytes.toArray(), resolve.toArray());
+  }
+
+  @Test
+  public void testResolveMultipleMetricUnsorted() throws Exception {
+    final List<byte[]> resolve = resolver.resolve(METRICS_2, METRIC).joinUninterruptibly();
+    final List<byte[]> bytes = new ArrayList<byte[]>();
+    bytes.add(new byte[]{0,0,1});
+    bytes.add(new byte[]{0,0,2});
+    bytes.add(new byte[]{0,0,3});
+    assertArrayEquals(bytes.toArray(), resolve.toArray());
+  }
+
+}
