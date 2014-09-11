@@ -343,7 +343,7 @@ final class TsdbQuery implements Query {
    * stored in the map has its timestamp zero'ed out.
    * @throws HBaseException if there was a problem communicating with HBase to
    * perform the search.
-   * @throws IllegalArgumentException if bad data was retreived from HBase.
+   * @throws IllegalArgumentException if bad data was retrieved from HBase.
    */
   private Deferred<TreeMap<byte[], Span>> findSpans() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
