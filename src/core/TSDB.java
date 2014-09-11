@@ -14,7 +14,6 @@ package net.opentsdb.core;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,7 +24,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import net.opentsdb.storage.TsdbStore;
 
 import net.opentsdb.tree.Branch;
@@ -1472,7 +1470,6 @@ public class TSDB {
    * UID names. This is used by the branch loader when scanning an entire row.
    * <b>Note:</b> The column better have a qualifier that starts with "leaf:" or
    * we're likely to throw a parsing exception.
-   * @param tsdb The TSDB to use for storage access
    * @param column Column to parse a leaf from
    * @param load_uids Whether or not to load UID names from the TSD
    * @return The parsed leaf if successful
@@ -1482,6 +1479,7 @@ public class TSDB {
    * @throws JSONException if the object could not be serialized
    */
   public Deferred<Leaf> getLeaf(final KeyValue column, final boolean load_uids) {
+
     if (column.value() == null) {
       throw new IllegalArgumentException("Leaf column value was null");
     }
@@ -1491,7 +1489,7 @@ public class TSDB {
     final Leaf leaf = JSON.parseToObject(column.value(), Leaf.class);
 
     // if there was an error with the data and the tsuid is missing, dump it
-    if (leaf.getTsuid() == null || leaf.getTsuid().isEmpty()) {
+    if (Strings.isNullOrEmpty(leaf.getTsuid())) {
       LOG.warn("Invalid leaf object in row: " + Branch.idToString(column.key()));
       return Deferred.fromResult(null);
     }

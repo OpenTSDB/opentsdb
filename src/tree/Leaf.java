@@ -15,12 +15,9 @@ package net.opentsdb.tree;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import org.hbase.async.Bytes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 
