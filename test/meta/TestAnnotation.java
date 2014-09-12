@@ -153,6 +153,10 @@ public final class TestAnnotation {
         1328141000).joinUninterruptibly();
     assertNotNull(notes);
     assertEquals(2, notes.size());
+    Annotation note0 = notes.get(0);
+    Annotation note1 = notes.get(1);
+    assertEquals("Description", note0.getDescription());
+    assertEquals("Global 2", note1.getDescription());
   }
   
   @Test
