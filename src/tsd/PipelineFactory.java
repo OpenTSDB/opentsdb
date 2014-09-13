@@ -66,11 +66,11 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * @throws Exception if the HttpQuery handler is unable to load 
    * serializers
    */
-  public PipelineFactory(final TSDB tsdb) {
+  public PipelineFactory(final TSDB tsdb, final RpcPluginsManager manager) {
     this.tsdb = tsdb;
     this.socketTimeout = tsdb.getConfig().getInt("tsd.core.socket.timeout");
     this.timeoutHandler = new IdleStateHandler(this.timer, 0, 0, this.socketTimeout);
-    this.rpchandler = new RpcHandler(tsdb);
+    this.rpchandler = new RpcHandler(tsdb, manager);
     try {
       HttpQuery.initializeSerializerMaps(tsdb);
     } catch (RuntimeException e) {
