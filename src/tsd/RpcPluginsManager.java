@@ -15,6 +15,8 @@ package net.opentsdb.tsd;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -24,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -36,13 +39,14 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
 
 /**
  * @since 2.1
  */
-final class RpcPluginsManager {
+public final class RpcPluginsManager {
   private static final Logger LOG = LoggerFactory.getLogger(RpcPluginsManager.class);
   
   @VisibleForTesting
@@ -107,19 +111,19 @@ final class RpcPluginsManager {
     }
   }
   
-  public TelnetRpc lookupTelnetRpc(final String command) {
+  TelnetRpc lookupTelnetRpc(final String command) {
     return telnet_commands.get(command);
   }
   
-  public HttpRpc lookupHttpRpc(final String queryBaseRoute) {
+  HttpRpc lookupHttpRpc(final String queryBaseRoute) {
     return http_commands.get(queryBaseRoute);
   }
   
-  public HttpRpcPlugin lookupHttpRpcPlugin(final String queryBaseRoute) {
+  HttpRpcPlugin lookupHttpRpcPlugin(final String queryBaseRoute) {
     return http_plugin_commands.get(queryBaseRoute);
   }
   
-  public boolean isHttpRpcPluginPath(final String uri) {
+  boolean isHttpRpcPluginPath(final String uri) {
     return !Strings.isNullOrEmpty(uri)
         && PLUGIN_WEBPATH_FOR_REQUESTS.matcher(uri).matches();
   }
@@ -275,22 +279,46 @@ final class RpcPluginsManager {
    * The {@link Object} has not special meaning and can be {@code null}
    * (think of it as {@code Deferred<Void>}).
    */
-  public Deferred<Object> shutdown() {
-    final Deferred<Object> deferred = new Deferred<Object>();
+  public Deferred<ArrayList<Object>> shutdown() {
+    final Collection<Deferred<Object>> deferreds = Lists.newArrayList();
     
     if (http_plugin_commands != null) {
       for (final Map.Entry<String, HttpRpcPlugin> entry : http_plugin_commands.entrySet()) {
-        deferred.chain(entry.getValue().shutdown());
+        deferreds.add(entry.getValue().shutdown());
       }
     }
     
     if (rpc_plugins != null) {
       for (final RpcPlugin rpc : rpc_plugins) {
-        deferred.chain(rpc.shutdown());
+        deferreds.add(rpc.shutdown());
       }
     }
     
-    return deferred;
+    return Deferred.groupInOrder(deferreds);
+  }
+  
+  void collectStats(final StatsCollector collector) {
+    if (rpc_plugins != null) {
+      try {
+        collector.addExtraTag("plugin", "rpc");
+        for (final RpcPlugin rpc : rpc_plugins) {
+          rpc.collectStats(collector);
+        }
+      } finally {
+        collector.clearExtraTag("plugin");
+      }
+    }
+    
+    if (http_plugin_commands != null) {
+      try {
+        collector.addExtraTag("plugin", "httprpc");
+        for (final Map.Entry<String, HttpRpcPlugin> entry : http_plugin_commands.entrySet()) {
+          entry.getValue().collectStats(collector);
+        }
+      } finally {
+        collector.clearExtraTag("plugin");
+      }
+    }
   }
   
   // ---------------------------- //
