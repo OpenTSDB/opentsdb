@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
   <!--<jmxConfigurator/>-->
-  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>
+        System.err
+    </target>
     <encoder>
       <pattern>
         %d{ISO8601} %-5level [%thread] %logger{0}: %msg%n
@@ -38,7 +41,7 @@
   <logger name="org.hbase.async" level="INFO"/>
   <logger name="com.stumbleupon.async" level="INFO"/>
   <root level="INFO">
-    <appender-ref ref="STDOUT"/>
+    <appender-ref ref="STDERR"/>
     <appender-ref ref="CYCLIC"/>
     <appender-ref ref="FILE"/>
   </root>
