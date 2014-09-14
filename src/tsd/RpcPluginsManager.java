@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -27,6 +28,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Atomics;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -44,6 +46,10 @@ import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
 
 /**
+ * Manager for the lifecycle of <code>HttpRpc</code>s, <code>TelnetRpc</code>s,
+ * <code>RpcPlugin</code>s, and <code>HttpRpcPlugin</code>.  This is intended
+ * to be a singleton.
+ * 
  * @since 2.1
  */
 public final class RpcPluginsManager {
@@ -62,6 +68,9 @@ public final class RpcPluginsManager {
   private static final Pattern PAT = Pattern.compile(
       "^/?" + PLUGIN_BASE_WEBPATH + "/?.*", 
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+  
+  /** Reference to our singleton instance.  Set in {@link #initialize}. */
+  private static final AtomicReference<RpcPluginsManager> INSTANCE = Atomics.newReference();
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
   private ImmutableMap<String, TelnetRpc> telnet_commands;
@@ -87,6 +96,9 @@ public final class RpcPluginsManager {
    * @param tsdb The parent TSDB object
    */
   public void initialize(final TSDB tsdb) {
+    if (!INSTANCE.compareAndSet(null, this)) {
+      throw new IllegalStateException("Already initialized!");
+    }
     this.tsdb = tsdb;
     final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
     
@@ -298,7 +310,14 @@ public final class RpcPluginsManager {
     return Deferred.groupInOrder(deferreds);
   }
   
-  void collectStats(final StatsCollector collector) {
+  public static void collectStats(final StatsCollector collector) {
+    RpcPluginsManager mgr = INSTANCE.get();
+    if (mgr != null) {
+      mgr.doCollectStats(collector);
+    }
+  }
+  
+  private void doCollectStats(final StatsCollector collector) {
     if (rpc_plugins != null) {
       try {
         collector.addExtraTag("plugin", "rpc");
