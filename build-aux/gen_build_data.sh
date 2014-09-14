@@ -143,5 +143,10 @@ public final class $CLASS {
 
   // Can't instantiate.
   private $CLASS() {}
+
+  public static void main(String[] args) {
+    System.out.println(revisionString());
+    System.out.println(buildString());
+  }
 }
 EOF

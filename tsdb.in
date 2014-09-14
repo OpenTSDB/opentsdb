@@ -62,7 +62,7 @@ CLASSPATH="${CLASSPATH#:}"
 
 usage() {
   echo >&2 "usage: $me <command> [args]"
-  echo 'Valid commands: fsck, import, mkmetric, query, tsd, scan, uid'
+  echo 'Valid commands: fsck, import, mkmetric, query, tsd, scan, search, uid, version'
   exit 1
 }
 
@@ -92,6 +92,9 @@ case $1 in
     ;;
   (uid)
     MAINCLASS=UidManager
+    ;;
+  (version)
+    MAINCLASS=BuildData
     ;;
   (*)
     echo >&2 "$me: error: unknown command '$1'"
