@@ -93,8 +93,8 @@
               <executable>build-aux/gen_build_data.sh</executable>
               <!-- optional -->
               <arguments>
-                <argument>target/generated-sources/net/opentsdb/BuildData.java</argument>
-                <argument>net.opentsdb</argument>
+                <argument>target/generated-sources/net/opentsdb/tools/BuildData.java</argument>
+                <argument>net.opentsdb.tools</argument>
                 <argument>BuildData</argument>
               </arguments>
             </configuration>

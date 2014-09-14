@@ -18,11 +18,12 @@ ACLOCAL_AMFLAGS = -I build-aux
 all-am: jar staticroot
 
 package = net.opentsdb
+builddata_subpackage = tools
 spec_title = OpenTSDB
 spec_vendor = The OpenTSDB Authors
 jar := tsdb-$(PACKAGE_VERSION).jar
 plugin_test_jar := plugin_test.jar
-builddata_SRC := src/BuildData.java
+builddata_SRC := src/tools/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
 dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
@@ -308,7 +309,7 @@ install-exec-hook:
 	rm -f tsdb.tmp
 
 $(builddata_SRC): .git/HEAD $(tsdb_SRC) $(top_srcdir)/build-aux/gen_build_data.sh
-	$(srcdir)/build-aux/gen_build_data.sh $(builddata_SRC) $(package) $(PACKAGE_VERSION)
+	$(srcdir)/build-aux/gen_build_data.sh $(builddata_SRC) $(package).$(builddata_subpackage) $(PACKAGE_VERSION)
 
 jar: $(jar) .javac-unittests-stamp .gwtc-stamp
 

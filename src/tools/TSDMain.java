@@ -25,7 +25,7 @@ import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.opentsdb.BuildData;
+import net.opentsdb.tools.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.tsd.RpcManager;
