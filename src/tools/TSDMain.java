@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
-import net.opentsdb.BuildData;
+import net.opentsdb.tools.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.utils.Config;
