@@ -12,12 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import net.opentsdb.core.TSDB;
-
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
+import net.opentsdb.core.TSDB;
+
 /**
+ * Query class for {@link HttpRpcPlugin}s.  Binds together a request, its 
+ * owning channel, and reponse helpers.
+ * 
  * @since 2.1
  */
 public final class HttpRpcPluginQuery extends AbstractHttpQuery {
@@ -25,8 +28,26 @@ public final class HttpRpcPluginQuery extends AbstractHttpQuery {
     super(request, chan);
   }
 
+  /**
+   * Return the base route with no plugin prefix in it.  This is matched with
+   * values returned by {@link HttpRpcPlugin#getPath()}.
+   * @return the base route path (no query parameters, etc.)
+   */
   @Override
   public String getQueryBaseRoute() {
-    return "";
+    final String[] parts = explodePath();
+    if (parts.length < 2) { // Must be at least something like: /plugin/blah
+      throw new BadRequestException("Invalid plugin request path: " + getQueryPath());
+    }
+    // Lop off the first element (which is the "plugin" base path).
+    // The remaining elements are the base route.
+    final StringBuilder joined = new StringBuilder();
+    for (int i=1; i<parts.length; i++) {
+      if (i != 1) {
+        joined.append('/');
+      }
+      joined.append(parts[i]);
+    }
+    return joined.toString();
   }
 }

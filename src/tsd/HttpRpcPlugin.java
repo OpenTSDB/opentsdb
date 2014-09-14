@@ -88,7 +88,8 @@ public abstract class HttpRpcPlugin {
    * <strong>must not</strong> contain the system's plugin base path or the
    * plugin will fail to load. 
    * 
-   * <p>Here are some examples where <code>path --is available at--> server path</code>
+   * <p>Here are some examples where 
+   * <code>path --(is available at)--> server path</code>
    * <ul>
    *  <li><code>/myAwesomePlugin --> /plugin/myAwesomePlugin</code>
    *  <li><code>/myOtherPlugin/operation --> /plugin/myOtherPlugin/operation</code>

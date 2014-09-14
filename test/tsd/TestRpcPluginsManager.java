@@ -14,7 +14,10 @@ package net.opentsdb.tsd;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 import org.hbase.async.HBaseClient;
 import org.junit.Test;
@@ -25,6 +28,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.PluginLoader;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -32,6 +36,54 @@ import net.opentsdb.utils.Config;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ TSDB.class, Config.class, HBaseClient.class, RpcPluginsManager.class })
 public class TestRpcPluginsManager {
+  @Test
+  public void loadHttpRpcPlugins() throws Exception {
+    Config config = mock(Config.class);
+    when(config.hasProperty("tsd.http.rpc.plugins"))
+    .thenReturn(true);
+    when(config.getString("tsd.http.rpc.plugins"))
+      .thenReturn("net.opentsdb.tsd.DummyHttpRpcPlugin");
+    
+    TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    
+    PluginLoader.loadJAR("plugin_test.jar");
+    RpcPluginsManager mgr = new RpcPluginsManager();
+    mgr.initialize(tsdb);
+    
+    HttpRpcPlugin plugin = mgr.lookupHttpRpcPlugin("dummy/test");
+    assertNotNull(plugin);
+    
+    mgr.shutdown().join();
+  }
+  
+  @Test
+  public void loadRpcPlugin() throws Exception {
+    Config config = mock(Config.class);
+    when(config.hasProperty("tsd.rpc.plugins"))
+    .thenReturn(true);
+    when(config.getString("tsd.rpc.plugins"))
+      .thenReturn("net.opentsdb.tsd.DummyRpcPlugin");
+    
+    when(config.hasProperty("tsd.rpcplugin.DummyRPCPlugin.hosts"))
+    .thenReturn(true);
+    when(config.getString("tsd.rpcplugin.DummyRPCPlugin.hosts"))
+      .thenReturn("blah");
+    when(config.getInt("tsd.rpcplugin.DummyRPCPlugin.port"))
+      .thenReturn(1000);
+    
+    TSDB tsdb = mock(TSDB.class);
+    when(tsdb.getConfig()).thenReturn(config);
+    
+    PluginLoader.loadJAR("plugin_test.jar");
+    RpcPluginsManager mgr = new RpcPluginsManager();
+    mgr.initialize(tsdb);
+    
+    assertFalse(mgr.getRpcPlugins().isEmpty());
+    
+    mgr.shutdown().join();
+  }
+  
   @Test
   public void isHttpRpcPluginPathValid() {
     RpcPluginsManager mgr = new RpcPluginsManager();
@@ -92,20 +144,20 @@ public class TestRpcPluginsManager {
   @Test
   public void canonicalizePluginPathsValid() throws Exception {
     RpcPluginsManager mgr = new RpcPluginsManager();
-    assertEquals(RpcPluginsManager.PLUGIN_BASE_WEBPATH + "/my/test/path",
+    assertEquals("my/test/path",
         mgr.canonicalizePluginPath("/my/test/path"));
-    assertEquals(RpcPluginsManager.PLUGIN_BASE_WEBPATH + "/my/test/path", 
+    assertEquals("my/test/path", 
         mgr.canonicalizePluginPath("/my/test/path/"));
-    assertEquals(RpcPluginsManager.PLUGIN_BASE_WEBPATH + "/my/test/path",
+    assertEquals("my/test/path",
         mgr.canonicalizePluginPath("my/test/path/"));
-    assertEquals(RpcPluginsManager.PLUGIN_BASE_WEBPATH + "/my/test/path", 
+    assertEquals("my/test/path", 
         mgr.canonicalizePluginPath("my/test/path"));
     
-    assertEquals(RpcPluginsManager.PLUGIN_BASE_WEBPATH + "/my", 
+    assertEquals("my", 
         mgr.canonicalizePluginPath("/my/"));
-    assertEquals(RpcPluginsManager.PLUGIN_BASE_WEBPATH + "/my", 
+    assertEquals("my", 
         mgr.canonicalizePluginPath("my/"));
-    assertEquals(RpcPluginsManager.PLUGIN_BASE_WEBPATH + "/my", 
+    assertEquals("my", 
         mgr.canonicalizePluginPath("my"));
   }
   
@@ -119,13 +171,13 @@ public class TestRpcPluginsManager {
   public void validHttpPathEndToEnd() {
     RpcPluginsManager mgr = new RpcPluginsManager();
     mgr.validateHttpRpcPluginPath("myplugin");
-    assertEquals("plugin/myplugin", mgr.canonicalizePluginPath("myplugin"));
+    assertEquals("myplugin", mgr.canonicalizePluginPath("myplugin"));
     mgr.validateHttpRpcPluginPath("/myplugin");
-    assertEquals("plugin/myplugin", mgr.canonicalizePluginPath("/myplugin"));
+    assertEquals("myplugin", mgr.canonicalizePluginPath("/myplugin"));
     
     mgr.validateHttpRpcPluginPath("myplugin/subcommand");
-    assertEquals("plugin/myplugin/subcommand", mgr.canonicalizePluginPath("myplugin/subcommand"));
+    assertEquals("myplugin/subcommand", mgr.canonicalizePluginPath("myplugin/subcommand"));
     mgr.validateHttpRpcPluginPath("/myplugin/subcommand");
-    assertEquals("plugin/myplugin/subcommand", mgr.canonicalizePluginPath("/myplugin/subcommand"));
+    assertEquals("myplugin/subcommand", mgr.canonicalizePluginPath("/myplugin/subcommand"));
   }
 }

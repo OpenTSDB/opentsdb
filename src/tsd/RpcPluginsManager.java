@@ -88,7 +88,7 @@ public final class RpcPluginsManager {
    */
   public void initialize(final TSDB tsdb) {
     this.tsdb = tsdb;
-    final String mode = tsdb.getConfig().getString("tsd.mode");
+    final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
     
     if (tsdb.getConfig().hasProperty("tsd.rpc.plugins")) {
       final String[] plugins = tsdb.getConfig().getString("tsd.rpc.plugins").split(",");
@@ -103,12 +103,17 @@ public final class RpcPluginsManager {
     telnet_commands = telnetBuilder.build();
     http_commands = httpBuilder.build();
     
-    if (tsdb.getConfig().hasProperty("tsd.httprpc.plugins")) {
-      final String[] plugins = tsdb.getConfig().getString("tsd.httprpc.plugins").split(",");
+    if (tsdb.getConfig().hasProperty("tsd.http.rpc.plugins")) {
+      final String[] plugins = tsdb.getConfig().getString("tsd.http.rpc.plugins").split(",");
       final ImmutableMap.Builder<String, HttpRpcPlugin> httpPluginsBuilder = ImmutableMap.builder();
       initializeHttpRpcPlugins(mode, plugins, httpPluginsBuilder);
       http_plugin_commands = httpPluginsBuilder.build();
     }
+  }
+  
+  @VisibleForTesting
+  protected ImmutableList<RpcPlugin> getRpcPlugins() {
+    return rpc_plugins;
   }
   
   TelnetRpc lookupTelnetRpc(final String command) {
@@ -198,7 +203,7 @@ public final class RpcPluginsManager {
       final String path = rpc.getPath().trim();
       final String canonicalizedPath = canonicalizePluginPath(path);
       http.put(canonicalizedPath, rpc);
-      LOG.info("Mounted HttpRpcPlugin {} at {}", rpc.getClass().getName(), canonicalizedPath);
+      LOG.info("Mounted HttpRpcPlugin [{}] at path \"{}\"", rpc.getClass().getName(), canonicalizedPath);
     }
   }
 
@@ -231,11 +236,7 @@ public final class RpcPluginsManager {
     if (newPath.endsWith("/")) {
       newPath = newPath.substring(0, newPath.length()-1);
     }
-    return new StringBuilder()
-      .append(PLUGIN_BASE_WEBPATH)
-      .append('/')
-      .append(newPath)
-      .toString();
+    return newPath;
   }
 
   private void initializeRpcPlugins(final String[] pluginClassNames, 
@@ -268,7 +269,7 @@ public final class RpcPluginsManager {
           version);
       return instance;
     } catch (Exception e) {
-      throw new RuntimeException("Failed to initialize " + instance.getClass());
+      throw new RuntimeException("Failed to initialize " + instance.getClass(), e);
     }
   }
   
