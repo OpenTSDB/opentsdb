@@ -32,6 +32,7 @@ dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
 tsdb_SRC := \
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/BatchedDataPoints.java \
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\
