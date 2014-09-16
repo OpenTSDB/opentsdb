@@ -293,6 +293,8 @@ public final class RpcPluginsManager {
    * (think of it as {@code Deferred<Void>}).
    */
   public Deferred<ArrayList<Object>> shutdown() {
+    // Clear shared instance.
+    INSTANCE.set(null);
     final Collection<Deferred<Object>> deferreds = Lists.newArrayList();
     
     if (http_plugin_commands != null) {
