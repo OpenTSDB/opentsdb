@@ -87,6 +87,9 @@ case $1 in
   (scan)
     MAINCLASS=DumpSeries
     ;;
+  (search)
+    MAINCLASS=Search
+    ;;
   (uid)
     MAINCLASS=UidManager
     ;;

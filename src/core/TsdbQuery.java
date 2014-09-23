@@ -133,6 +133,7 @@ final class TsdbQuery implements Query {
    * @throws IllegalArgumentException if the timestamp is invalid or greater
    * than the end time (if set)
    */
+  @Override
   public void setStartTime(final long timestamp) {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
@@ -148,6 +149,7 @@ final class TsdbQuery implements Query {
    * @returns the start time for the query
    * @throws IllegalStateException if the start time hasn't been set yet
    */
+  @Override
   public long getStartTime() {
     if (start_time == UNSET) {
       throw new IllegalStateException("setStartTime was never called!");
@@ -162,6 +164,7 @@ final class TsdbQuery implements Query {
    * @throws IllegalArgumentException if the timestamp is invalid or less
    * than the start time (if set)
    */
+  @Override
   public void setEndTime(final long timestamp) {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
@@ -176,6 +179,7 @@ final class TsdbQuery implements Query {
   /** @return the configured end time. If the end time hasn't been set, the
    * current system time will be stored and returned.
    */
+  @Override
   public long getEndTime() {
     if (end_time == UNSET) {
       setEndTime(System.currentTimeMillis());
@@ -183,6 +187,7 @@ final class TsdbQuery implements Query {
     return end_time;
   }
 
+  @Override
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
       final Aggregator function,
@@ -190,6 +195,7 @@ final class TsdbQuery implements Query {
     setTimeSeries(metric, tags, function, rate, new RateOptions());
   }
   
+  @Override
   public void setTimeSeries(final String metric,
         final Map<String, String> tags,
         final Aggregator function,
@@ -204,11 +210,13 @@ final class TsdbQuery implements Query {
     this.rate_options = rate_options;
   }
 
+  @Override
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate) {
     setTimeSeries(tsuids, function, rate, new RateOptions());
   }
   
+  @Override
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate, 
       final RateOptions rate_options) {
@@ -247,6 +255,7 @@ final class TsdbQuery implements Query {
    * @throws NullPointerException if the aggregation function is null
    * @throws IllegalArgumentException if the interval is not greater than 0
    */
+  @Override
   public void downsample(final long interval, final Aggregator downsampler) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
@@ -310,6 +319,7 @@ final class TsdbQuery implements Query {
    * Executes the query
    * @return An array of data points with one time series per array value
    */
+  @Override
   public DataPoints[] run() throws HBaseException {
     try {
       return runAsync().joinUninterruptibly();
@@ -320,6 +330,7 @@ final class TsdbQuery implements Query {
     }
   }
   
+  @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
     return findSpans().addCallback(new GroupByAndAggregateCB());
   }
@@ -354,6 +365,7 @@ final class TsdbQuery implements Query {
       ArrayList<ArrayList<KeyValue>>> {
       
       int nrows = 0;
+      boolean seenAnnotation = false;
       int hbase_time = 0; // milliseconds.
       long starttime = System.nanoTime();
       
@@ -383,7 +395,7 @@ final class TsdbQuery implements Query {
              scanlatency.add(hbase_time);
              LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
                  spans.size() + " spans in " + hbase_time + "ms");
-             if (nrows < 1) {
+             if (nrows < 1 && !seenAnnotation) {
                results.callback(null);
              } else {
                results.callback(spans);
@@ -408,12 +420,13 @@ final class TsdbQuery implements Query {
              }
              final KeyValue compacted = 
                tsdb.compact(row, datapoints.getAnnotations());
+             seenAnnotation |= !datapoints.getAnnotations().isEmpty();
              if (compacted != null) { // Can be null if we ignored all KVs.
                datapoints.addRow(compacted);
                nrows++;
              }
            }
-           
+
            return scan();
          } catch (Exception e) {
            scanner.close();
@@ -441,6 +454,7 @@ final class TsdbQuery implements Query {
     * @return A possibly empty array of {@link SpanGroup}s built according to
     * any 'GROUP BY' formulated in this query.
     */
+    @Override
     public DataPoints[] call(final TreeMap<byte[], Span> spans) throws Exception {
       if (spans == null || spans.size() <= 0) {
         return NO_RESULT;
@@ -763,6 +777,7 @@ final class TsdbQuery implements Query {
     buf.append("\\E");
   }
 
+  @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("TsdbQuery(start_time=")
@@ -835,6 +850,7 @@ final class TsdbQuery implements Query {
       this.metric_width = metric_width;
     }
 
+    @Override
     public int compare(final byte[] a, final byte[] b) {
       final int length = Math.min(a.length, b.length);
       if (a == b) {  // Do this after accessing a.length and b.length

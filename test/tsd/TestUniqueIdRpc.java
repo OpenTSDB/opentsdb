@@ -18,6 +18,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 
 import net.opentsdb.core.TSDB;
@@ -43,17 +44,22 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import com.stumbleupon.async.Deferred;
+
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, TSMeta.class, UIDMeta.class, 
   HBaseClient.class, RowLock.class, UniqueIdRpc.class, KeyValue.class, 
-  GetRequest.class, Scanner.class})
+  GetRequest.class, Scanner.class, UniqueId.class})
 public final class TestUniqueIdRpc {
   private static byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
+  private UniqueId metrics = mock(UniqueId.class);
+  private UniqueId tag_names = mock(UniqueId.class);
+  private UniqueId tag_values = mock(UniqueId.class);
   private MockBase storage;
   private UniqueIdRpc rpc = new UniqueIdRpc();
   
@@ -679,6 +685,66 @@ public final class TestUniqueIdRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
   
+  @Test
+  public void tsuidGetByM() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/uid/tsmeta?m=sys.cpu.0{host=web01}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+  
+  @Test
+  public void tsuidPostByM() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/tsmeta?m=sys.cpu.0{host=web02}&create=true", 
+        "{\"displayName\":\"Hello World\"}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void tsuidPostByMNoCreate() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/uid/tsmeta?m=sys.cpu.0{host=web02}", 
+        "{\"displayName\":\"Hello World\"}");
+    rpc.execute(tsdb, query);
+  }
+  
+  @Test
+  public void tsuidGetByMMultiTagWrongOrder() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/uid/tsmeta?m=sys.cpu.2{datacenter=dc01,host=web01}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+  
+  @Test
+  public void tsuidGetByMMultiTag() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/uid/tsmeta?m=sys.cpu.2{host=web01,datacenter=dc01}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void tsuidGetByMEmpty() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/uid/tsmeta?m=");
+    rpc.execute(tsdb, query);
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void tsuidGetByMBadSyntax() throws Exception {
+    setupTSUID();
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/uid/tsmeta?m=sys.cpu.0{datacenter=dc");
+    rpc.execute(tsdb, query);
+  }
+  
   @Test (expected = BadRequestException.class)
   public void tsuidGetNotFound() throws Exception {
     setupTSUID();
@@ -880,6 +946,18 @@ public final class TestUniqueIdRpc {
       .withArguments(anyString(), anyString()).thenReturn(client);
     tsdb = new TSDB(config);
     
+    Field met = tsdb.getClass().getDeclaredField("metrics");
+    met.setAccessible(true);
+    met.set(tsdb, metrics);
+    
+    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
+    tagk.setAccessible(true);
+    tagk.set(tsdb, tag_names);
+    
+    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
+    tagv.setAccessible(true);
+    tagv.set(tsdb, tag_values);
+    
     storage = new MockBase(tsdb, client, true, true, true, true);
     storage.setFamily(NAME_FAMILY);
     
@@ -892,9 +970,17 @@ public final class TestUniqueIdRpc {
         "metric_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"System CPU\"}").getBytes(MockBase.ASCII()));   
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "metrics".getBytes(MockBase.ASCII()),
+        "sys.cpu.2".getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "metric_meta".getBytes(MockBase.ASCII()), 
+        ("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.2\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"System CPU\"}").getBytes(MockBase.ASCII()));
     
-    storage.addColumn(new byte[] { 0, 0, 1 }, 
+    storage.addColumn(new byte[] { 0, 0, 1 },
         NAME_FAMILY,
         "tagk".getBytes(MockBase.ASCII()),
         "host".getBytes(MockBase.ASCII()));
@@ -902,6 +988,14 @@ public final class TestUniqueIdRpc {
         NAME_FAMILY,
         "tagk_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"Host server name\"}").getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 },
+        "tagk".getBytes(MockBase.ASCII()),
+        "datacenter".getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "tagk_meta".getBytes(MockBase.ASCII()), 
+        ("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Host server name\"}").getBytes(MockBase.ASCII()));
 
@@ -913,6 +1007,22 @@ public final class TestUniqueIdRpc {
         NAME_FAMILY,
         "tagv_meta".getBytes(MockBase.ASCII()), 
         ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 3 }, 
+        "tagv".getBytes(MockBase.ASCII()),
+        "web02".getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 3 }, 
+        "tagv_meta".getBytes(MockBase.ASCII()), 
+        ("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"web02\"," +
+        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
+        "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "tagv".getBytes(MockBase.ASCII()),
+        "dc01".getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2 }, 
+        "tagv_meta".getBytes(MockBase.ASCII()), 
+        ("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}").getBytes(MockBase.ASCII()));
 
@@ -929,5 +1039,61 @@ public final class TestUniqueIdRpc {
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
 
+    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
+        NAME_FAMILY,
+        "ts_meta".getBytes(MockBase.ASCII()),
+        ("{\"tsuid\":\"000002000001000001000002000002\",\"displayName\":\"Display\"," +
+            "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
+            "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
+            "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
+            .getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
+        NAME_FAMILY,
+        "ts_ctr".getBytes(MockBase.ASCII()),
+        Bytes.fromLong(1L));
+    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
+        NAME_FAMILY,
+        "ts_meta".getBytes(MockBase.ASCII()),
+        ("{\"tsuid\":\"000002000001000003000002000002\",\"displayName\":\"Display\"," +
+            "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
+            "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
+            "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}")
+            .getBytes(MockBase.ASCII()));
+    storage.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
+        NAME_FAMILY,
+        "ts_ctr".getBytes(MockBase.ASCII()),
+        Bytes.fromLong(1L));
+
+    when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
+    when(metrics.getIdAsync("sys.cpu.0")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("sys.cpu.0"));
+    when(metrics.getId("sys.cpu.2")).thenReturn(new byte[] { 0, 0, 2 });
+    when(metrics.getIdAsync("sys.cpu.2")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(metrics.getNameAsync(new byte[] { 0, 0, 2 }))
+      .thenReturn(Deferred.fromResult("sys.cpu.2"));
+
+    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getIdAsync("host")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_names.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("host"));
+    when(tag_values.getId("web01")).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getIdAsync("web01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 1 }));
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("web01"));
+    when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 3 });
+    when(tag_values.getIdAsync("web02")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 3 }));
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 3 }))
+      .thenReturn(Deferred.fromResult("web02"));
+
+    when(tag_names.getId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_names.getIdAsync("datacenter")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(tag_names.getNameAsync(new byte[] { 0, 0, 2 }))
+      .thenReturn(Deferred.fromResult("datacenter"));
+    when(tag_values.getId("dc01")).thenReturn(new byte[] { 0, 0, 2 });
+    when(tag_values.getIdAsync("dc01")).thenReturn(Deferred.fromResult(new byte[] { 0, 0, 2 }));
+    when(tag_values.getNameAsync(new byte[] { 0, 0, 2 }))
+      .thenReturn(Deferred.fromResult("dc01"));
+    
   }
 }
