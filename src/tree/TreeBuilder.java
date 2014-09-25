@@ -266,7 +266,7 @@ public final class TreeBuilder {
                 }
                 
               }
-              final Deferred<Boolean> deferred = cb.storeBranch(tsdb, tree, true)
+              final Deferred<Boolean> deferred = tsdb.storeBranch(tree, cb, true)
                 .addCallbackDeferring(new BranchCB());
               storage_calls.add(deferred);
               processed_branches.put(cb.getBranchId(), true);
@@ -407,7 +407,7 @@ public final class TreeBuilder {
           if (is_testing) {
             return Deferred.fromResult(root);
           } else {
-            return root.storeBranch(tsdb, null, true).addCallbackDeferring(
+            return tsdb.storeBranch(null,root, true).addCallbackDeferring(
                 new NewRootCB(root));
           }
         } else {
@@ -425,7 +425,7 @@ public final class TreeBuilder {
     }
     
     LOG.debug("Loading or initializing root for tree: " + tree_id);
-    return Branch.fetchBranchOnly(tsdb, Tree.idToBytes(tree_id))
+    return tsdb.fetchBranchOnly(Tree.idToBytes(tree_id))
       .addCallbackDeferring(new RootCB());
   }
   

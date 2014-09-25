@@ -24,6 +24,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -1005,6 +1006,21 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
                                      final Tree tree) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<ArrayList<Boolean>> storeBranch(Tree tree, Branch branch, boolean store_leaves) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Branch> fetchBranchOnly(byte[] branch_id) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Branch> fetchBranch(final byte[] branch_id, final boolean load_leaf_uids, final TSDB tsdb) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

@@ -233,7 +233,7 @@ final class TreeRpc implements HttpRpc {
       }
       
       // fetch it
-      final Branch branch = Branch.fetchBranch(tsdb, branch_id, true)
+      final Branch branch = tsdb.fetchBranch(branch_id, true)
         .joinUninterruptibly();
       if (branch == null) {
         throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 

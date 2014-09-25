@@ -90,11 +90,17 @@ public final class Const {
   public static final Charset CHARSET_ASCII = Charsets.ISO_8859_1;
 
   /**
-   * The maximum number of milliseconds allowed in a timestamp.
+    * The maximum number of milliseconds allowed in a timestamp.
    */
   public static final long MAX_MS_TIMESTAMP = 9999999999999L;
 
+  /** The lower limit of the tree/branch ID (exclusive) */
   public static final int MIN_TREE_ID_EXCLUSIVE = 1;
 
+  /** The upper limit of the tree/branch ID (exclusive) */
   public static final int MAX_TREE_ID_EXCLUSIVE = 65535;
+
+  /** Integer width in bytes used when setting up the HBase Scanner
+   * Used only when scanning the branch */
+  public static final short INT_WIDTH = 4;
 }
