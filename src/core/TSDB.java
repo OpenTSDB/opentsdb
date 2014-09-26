@@ -30,6 +30,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.tree.TreeRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1632,4 +1633,83 @@ public class TSDB {
                                       final boolean load_leaf_uids) {
     return tsdb_store.fetchBranch(branch_id, load_leaf_uids, this);
   }
+  /**
+   * Attempts to write the rule to storage via CompareAndSet, merging changes
+   * with an existing rule.
+   * <b>Note:</b> If the local object didn't have any fields set by the caller
+   * or there weren't any changes, then the data will not be written and an
+   * exception will be thrown.
+   * <b>Note:</b> This method also validates the rule, making sure that proper
+   * combinations of data exist before writing to storage.
+   * @param rule The TreeRule to be stored
+   * @param overwrite When the RPC method is PUT, will overwrite all user
+   * accessible fields
+   * @return True if the CAS call succeeded, false if the stored data was
+   * modified in flight. This should be retried if that happens.
+   * @throws HBaseException if there was an issue
+   * @throws IllegalArgumentException if parsing failed or the tree ID was
+   * invalid or validation failed
+   * @throws IllegalStateException if the data hasn't changed. This is OK!
+   * @throws JSONException if the object could not be serialized
+   */
+  public Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule,
+                                         final boolean overwrite) {
+    Tree.validateTreeID(rule.getTreeId());
+
+    return tsdb_store.syncTreeRuleToStorage(rule, overwrite);
+  }
+
+  /**
+   * Attempts to retrieve the specified tree rule from storage.
+   * @param tree_id ID of the tree the rule belongs to
+   * @param level Level where the rule resides
+   * @param order Order where the rule resides
+   * @return A TreeRule object if found, null if it does not exist
+   * @throws HBaseException if there was an issue
+   * @throws IllegalArgumentException if the one of the required parameters was
+   * missing
+   * @throws JSONException if the object could not be serialized
+   */
+  public Deferred<TreeRule> fetchTreeRule(final int tree_id, final int level,
+                                          final int order) {
+
+    TreeRule.validateTreeRule(tree_id, level, order);
+
+    return tsdb_store.fetchTreeRule(tree_id, level, order);
+  }
+  /**
+   * Attempts to delete the specified rule from storage
+   * @param tree_id ID of the tree the rule belongs to
+   * @param level Level where the rule resides
+   * @param order Order where the rule resides
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws HBaseException if there was an issue
+   * @throws IllegalArgumentException if the one of the required parameters was
+   * missing
+   */
+  public Deferred<Object> deleteTreeRule(final int tree_id,
+                                                final int level,
+                                                final int order) {
+    TreeRule.validateTreeRule(tree_id, level, order);
+
+    return tsdb_store.deleteTreeRule(tree_id, level, order);
+  }
+
+  /**
+   * Attempts to delete all rules belonging to the given tree.
+   * @param tree_id ID of the tree the rules belongs to
+   * @return A deferred to wait on for completion. The value has no meaning and
+   * may be null.
+   * @throws HBaseException if there was an issue
+   * @throws IllegalArgumentException if the one of the required parameters was
+   * missing
+   */
+  public Deferred<Object> deleteAllTreeRules(final int tree_id) {
+
+    Tree.validateTreeID(tree_id);
+
+    return tsdb_store.deleteAllTreeRule(tree_id);
+  }
+
 }
