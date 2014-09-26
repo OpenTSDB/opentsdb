@@ -1040,6 +1040,11 @@ public class MemoryStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Override
+  public Deferred<Boolean> syncTreeRuleToStorage(TreeRule rule, boolean overwrite) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
   /**
    * Attempts to fetch a global or local annotation from storage
    * @param tsuid The TSUID as a byte array. May be null if retrieving a global
