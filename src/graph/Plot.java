@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -253,6 +254,7 @@ public final class Plot {
         .append(Short.toString(height));
       final String smooth = params.remove("smooth");
       final String fgcolor = params.remove("fgcolor");
+      final String style = params.remove("style");
       String bgcolor = params.remove("bgcolor");
       if (fgcolor != null && bgcolor == null) {
         // We can't specify a fgcolor without specifying a bgcolor.
@@ -287,7 +289,8 @@ public final class Plot {
       final int nseries = datapoints.size();
       if (nseries > 0) {
         gp.write("set grid\n"
-                 + "set style data linespoints\n");
+                 + "set style data ");
+        gp.append(style != null? style : "linespoint").append("\n");
         if (!params.containsKey("key")) {
           gp.write("set key right box\n");
         }
