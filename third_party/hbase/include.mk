@@ -13,11 +13,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-OPENTSDB_VERSION := 1.6.0
-ASYNCHBASE := third_party/hbase/asynchbase-$(OPENTSDB_VERSION).jar
-OPENTSDB_BASE_URL := http://central.maven.org/maven2/org/hbase/asynchbase/$(OPENTSDB_VERSION)
+ASYNCHBASE_VERSION := 1.6.0
+ASYNCHBASE := third_party/hbase/asynchbase-$(ASYNCHBASE_VERSION).jar
+ASYNCHBASE_BASE_URL := http://central.maven.org/maven2/org/hbase/asynchbase/$(ASYNCHBASE_VERSION)
 
 $(ASYNCHBASE): $(ASYNCHBASE).md5
-	set dummy "$(OPENTSDB_BASE_URL)" "$(ASYNCHBASE)"; shift; $(FETCH_DEPENDENCY)
+	set dummy "$(ASYNCHBASE_BASE_URL)" "$(ASYNCHBASE)"; shift; $(FETCH_DEPENDENCY)
 
 THIRD_PARTY += $(ASYNCHBASE)
