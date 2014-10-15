@@ -31,6 +31,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.Deferred;
+import java.util.ArrayList;
+import java.util.List;
 
 @RunWith(PowerMockRunner.class)
 //"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
@@ -77,6 +79,23 @@ public final class TestSpan {
     final Span span = new Span(tsdb);
     span.addRow(new KeyValue(HOUR1, FAMILY, qual12, 
         MockBase.concatByteArrays(val1, val2, ZERO)));
+    
+    assertEquals(2, span.size());
+  }
+  
+  @Test
+  public void appendRow() {
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+
+    qualifiers.add(new byte[]{ 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ 0x00, 0x27 });
+    values.add(Bytes.fromLong(5L));
+    
+    final Span span = new Span(tsdb);
+    span.addRow(TestRowSeq.appendkv(HOUR1, qualifiers, values));
     
     assertEquals(2, span.size());
   }
@@ -184,6 +203,32 @@ public final class TestSpan {
     assertEquals(5, span.longValue(3));
   }
 
+    @Test
+  public void appendRowOutOfOrder() {
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+
+    qualifiers.add(new byte[]{ 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ 0x00, 0x27 });
+    values.add(Bytes.fromLong(5L));
+    
+    final Span span = new Span(tsdb);
+    span.addRow(TestRowSeq.appendkv(HOUR2, qualifiers, values));
+    span.addRow(TestRowSeq.appendkv(HOUR1, qualifiers, values));
+    assertEquals(4, span.size());
+    
+    assertEquals(1356998400000L, span.timestamp(0));
+    assertEquals(4, span.longValue(0));
+    assertEquals(1356998402000L, span.timestamp(1));
+    assertEquals(5, span.longValue(1));
+    assertEquals(1357002000000L, span.timestamp(2));
+    assertEquals(4, span.longValue(2));
+    assertEquals(1357002002000L, span.timestamp(3));
+    assertEquals(5, span.longValue(3));
+  }
+    
   @Test
   public void timestampNormalized() throws Exception {
     final byte[] qual1 = { 0x00, 0x07 };

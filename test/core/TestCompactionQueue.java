@@ -70,6 +70,7 @@ final class TestCompactionQueue {
     Whitebox.setInternalState(tsdb, "table", TABLE);
     Whitebox.setInternalState(config, "enable_compactions", true);
     Whitebox.setInternalState(tsdb, "config", config);
+    Whitebox.setInternalState(tsdb, "followAppendRowLogic", false);
     // Stub out the compaction thread, so it doesn't even start.
     PowerMockito.whenNew(CompactionQueue.Thrd.class).withNoArguments()
       .thenReturn(mock(CompactionQueue.Thrd.class));

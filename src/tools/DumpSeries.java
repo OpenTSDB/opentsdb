@@ -15,8 +15,10 @@ package net.opentsdb.tools;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
+import net.opentsdb.core.AppendKeyValue;
 
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseClient;
@@ -176,15 +178,23 @@ final class DumpSeries {
     final byte[] qualifier = kv.qualifier();
     final byte[] value = kv.value();
     final int q_len = qualifier.length;
-
+    Collection<Cell> cells = null;
+    
     if (q_len % 2 != 0) {
-      if (!importformat) {
-        // custom data object, not a data point
-        if (kv.qualifier()[0] == Annotation.PREFIX()) {
-          appendAnnotation(buf, kv, base_time);
-        } else {
-          buf.append(Arrays.toString(value))
-            .append("\t[Not a data point]");
+      if (Arrays.equals(kv.qualifier(), Const.APPEND_QUALIFIER)) {
+        //Appended data point
+        AppendKeyValue keyValue = new AppendKeyValue();
+        cells = keyValue.parseAndFixKeyValue(kv, tsdb, false);
+      }
+      else { 
+        if (!importformat) {
+          // custom data object, not a data point
+          if (kv.qualifier()[0] == Annotation.PREFIX()) {
+            appendAnnotation(buf, kv, base_time);
+          } else {
+            buf.append(Arrays.toString(value))
+              .append("\t[Not a data point]");
+          }
         }
       }
     } else if (q_len == 2 || q_len == 4 && Internal.inMilliseconds(qualifier)) {
@@ -201,7 +211,10 @@ final class DumpSeries {
       }
     } else {
       // compacted column
-      final ArrayList<Cell> cells = Internal.extractDataPoints(kv);
+      cells = Internal.extractDataPoints(kv);
+    }
+    
+    if (cells != null) {
       if (!importformat) {
         buf.append(Arrays.toString(kv.qualifier()))
            .append('\t')

@@ -27,13 +27,14 @@ import javax.xml.bind.DatatypeConverter;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
-
+import net.opentsdb.stats.StatsCollector;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
+import org.hbase.async.Counter;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
@@ -71,12 +72,16 @@ public final class UniqueId implements UniqueIdInterface {
   private static final byte[] MAXID_ROW = { 0 };
   /** How many time do we try to assign an ID before giving up. */
   private static final short MAX_ATTEMPTS_ASSIGN_ID = 3;
+  /** How many time do we try to assign a random ID before giving up. */
+  private static final short MAX_ATTEMPTS_ASSIGN_RANDOM_ID = 10;
   /** How many time do we try to apply an edit before giving up. */
   private static final short MAX_ATTEMPTS_PUT = 6;
   /** Initial delay in ms for exponential backoff to retry failed RPCs. */
   private static final short INITIAL_EXP_BACKOFF_DELAY = 800;
   /** Maximum number of results to return in suggest(). */
   private static final short MAX_SUGGESTIONS = 25;
+  /** Number of random Metric UID collisions.  */
+  private static final Counter random_metricid_collisions = new Counter();
 
   /** HBase client to use.  */
   private final HBaseClient client;
@@ -107,6 +112,8 @@ public final class UniqueId implements UniqueIdInterface {
 
   /** Whether or not to generate new UIDMetas */
   private TSDB tsdb;
+  //Generate random UID or sequential UID
+  private final boolean randomizeId;
   
   /**
    * Constructor.
@@ -119,6 +126,22 @@ public final class UniqueId implements UniqueIdInterface {
    */
   public UniqueId(final HBaseClient client, final byte[] table, final String kind,
                   final int width) {
+    this(client, table, kind, width, false);
+  }
+  
+  /**
+   * Constructor.
+   * @param client The HBase client to use.
+   * @param table The name of the HBase table to use.
+   * @param kind The kind of Unique ID this instance will deal with.
+   * @param width The number of bytes on which Unique IDs should be encoded.
+   * @param randomizeId generate random UID if true. Change this logic carefully
+   * once the tsdb starts writing into hbase.
+   * @throws IllegalArgumentException if width is negative or too small/large
+   * or if kind is an empty string.
+   */
+  public UniqueId(final HBaseClient client, final byte[] table, final String kind,
+                  final int width, final boolean randomizeId) {
     this.client = client;
     this.table = table;
     if (kind.isEmpty()) {
@@ -130,6 +153,7 @@ public final class UniqueId implements UniqueIdInterface {
       throw new IllegalArgumentException("Invalid width: " + width);
     }
     this.id_width = (short) width;
+    this.randomizeId = randomizeId;
   }
 
   /** The number of times we avoided reading from HBase thanks to the cache. */
@@ -330,7 +354,7 @@ public final class UniqueId implements UniqueIdInterface {
   private final class UniqueIdAllocator implements Callback<Object, Object> {
     private final String name;  // What we're trying to allocate an ID for.
     private final Deferred<byte[]> assignment; // deferred to call back
-    private short attempt = MAX_ATTEMPTS_ASSIGN_ID;  // Give up when zero.
+    private short attempt = randomizeId?MAX_ATTEMPTS_ASSIGN_RANDOM_ID:MAX_ATTEMPTS_ASSIGN_ID;  // Give up when zero.
 
     private HBaseException hbe = null;  // Last exception caught.
 
@@ -367,9 +391,11 @@ public final class UniqueId implements UniqueIdInterface {
       }
 
       if (arg instanceof Exception) {
-        final String msg = ("Failed attempt #" + (MAX_ATTEMPTS_ASSIGN_ID - attempt)
-                            + " to assign an UID for " + kind() + ':' + name
-                            + " at step #" + state);
+        final String msg = ("Failed attempt #" + (randomizeId
+            ? (MAX_ATTEMPTS_ASSIGN_RANDOM_ID - attempt) 
+            : (MAX_ATTEMPTS_ASSIGN_ID - attempt))
+            + " to assign an UID for " + kind() + ':' + name
+            + " at step #" + state);
         if (arg instanceof HBaseException) {
           LOG.error(msg, (Exception) arg);
           hbe = (HBaseException) arg;
@@ -391,7 +417,12 @@ public final class UniqueId implements UniqueIdInterface {
       final Deferred d;
       switch (state) {
         case ALLOCATE_UID:
-          d = allocateUid();
+          if (randomizeId) {
+            d = allocateRandomUid();
+          }
+          else {
+            d = allocateUid();
+          }
           break;
         case CREATE_REVERSE_MAPPING:
           d = createReverseMapping(arg);
@@ -417,6 +448,18 @@ public final class UniqueId implements UniqueIdInterface {
                                                                kind));
     }
 
+   /**
+    * Fetch next random UID
+    * @since 2.0
+    */  
+    private Deferred<Long> allocateRandomUid() {
+      Deferred<Long> newId = new Deferred<Long>();
+      newId.callback((long)RandomUID.getRandomUID());
+      LOG.info("Creating a random ID for kind='" + kind()
+               + "' name='" + name + '\'');
+      state = CREATE_REVERSE_MAPPING;
+      return newId;
+    }
 
     /**
      * Create the reverse mapping.
@@ -476,8 +519,15 @@ public final class UniqueId implements UniqueIdInterface {
         throw new IllegalStateException("Expected a Boolean but got " + arg);
       }
       if (!((Boolean) arg)) {  // Previous CAS failed.  Something is really messed up.
-        LOG.error("WTF!  Failed to CAS reverse mapping: " + reverseMapping()
+        if (randomizeId) {
+          //This random Id is already used by another row
+          LOG.error("Detected random id collision and retrying, " + id);
+          random_metricid_collisions.increment();
+        }
+        else {
+          LOG.error("WTF!  Failed to CAS reverse mapping: " + reverseMapping()
                   + " -- run an fsck against the UID table!");
+        }
         return tryAllocate();  // Try again from the beginning.
       }
 
@@ -505,6 +555,12 @@ public final class UniqueId implements UniqueIdInterface {
         // manage to CAS this KV into existence.  The one that loses the
         // race will retry and discover the UID assigned by the winner TSD,
         // and a UID will have been wasted in the process.  No big deal.
+        if (randomizeId) {
+          //This random Id is already used by another row
+          LOG.error("Detected random id collision between two tsdb servers "
+                + "and retrying, " + id);
+          random_metricid_collisions.increment();
+        }
         class GetIdCB implements Callback<Object, byte[]> {
           public Object call(final byte[] row) throws Exception {
             assignment.callback(row);
@@ -1152,5 +1208,14 @@ public final class UniqueId implements UniqueIdInterface {
     get.family(ID_FAMILY);
     get.qualifiers(kinds);
     return tsdb.getClient().get(get).addCallback(new GetCB());
+  }
+ 
+  /**
+   * Collects random uid collisions
+   * @param collector StatsCollector object to collect stats/metrics
+   * @since 2.0
+   */  
+  public static void collectStats(final StatsCollector collector) {
+    collector.record("uid.collisions", random_metricid_collisions, "type=metrics");
   }
 }

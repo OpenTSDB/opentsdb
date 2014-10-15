@@ -35,6 +35,9 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.Deferred;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Assert;
 
 @RunWith(PowerMockRunner.class)
 //"Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
@@ -81,6 +84,24 @@ public final class TestRowSeq {
     assertEquals(2, rs.size());
   }
   
+  @Test
+  public void appendRow() throws Exception {
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+    
+    qualifiers.add(new byte[]{ 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ 0x00, 0x27 });
+    values.add(Bytes.fromLong(5L));
+
+    final KeyValue kv = appendkv(qualifiers, values);
+    
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(kv);
+    assertEquals(2, rs.size());
+  }
+   
   @Test (expected = IllegalStateException.class)
   public void setRowAlreadySet() throws Exception {
     final byte[] qual1 = { 0x00, 0x07 };
@@ -230,6 +251,38 @@ public final class TestRowSeq {
   }
   
   @Test
+  public void appendRowMergeDuplicate() throws Exception {
+    // this happens if the same row key is used for the addRow call
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+    qualifiers.add(new byte[]{ 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ 0x00, 0x27 });
+    values.add(Bytes.fromLong(5L));
+    qualifiers.add(new byte[]{ 0x00, 0x37 });
+    values.add(Bytes.fromLong(6L));
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(appendkv(qualifiers, values));
+    assertEquals(3, rs.size());
+    
+    when(tsdb.followAppendRowLogic()).thenReturn(false);
+    final byte[] qual4 = { 0x00, 0x47 };
+    final byte[] val4 = Bytes.fromLong(7L);
+    rs.addRow(makekv(qual4, val4));
+    
+    assertEquals(4, rs.size());
+    assertEquals(1356998400000L, rs.timestamp(0));
+    assertEquals(4, rs.longValue(0));
+    assertEquals(1356998402000L, rs.timestamp(1));
+    assertEquals(5, rs.longValue(1));
+    assertEquals(1356998403000L, rs.timestamp(2));
+    assertEquals(6, rs.longValue(2));
+    assertEquals(1356998404000L, rs.timestamp(3));
+    assertEquals(7, rs.longValue(3));
+  }
+
+  @Test
   public void addRowMergeDuplicateEarlier() throws Exception {
     // this happens if the same row key is used for the addRow call
     final byte[] qual4 = { 0x00, 0x27 };
@@ -342,6 +395,42 @@ public final class TestRowSeq {
     assertEquals(7, rs.longValue(3));
   }
   
+  @Test
+  public void appendRowMergeSecAndMs() throws Exception {
+    // this happens if the same row key is used for the addRow call
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+    qualifiers.add(new byte[]{ 0x00, 0x07 });
+    values.add(Bytes.fromLong(4L));
+    qualifiers.add(new byte[]{ (byte) 0xF0, 0x00, 0x02, 0x07 });
+    values.add(Bytes.fromLong(5L));
+    
+    qualifiers.add(new byte[]{ 0x00, 0x37 });
+    values.add(Bytes.fromLong(6L));
+    qualifiers.add(new byte[]{ (byte) 0xF0, 0x01, 0x09, 0x07 });
+    values.add(Bytes.fromLong(7L));
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(appendkv(qualifiers, values));
+    
+    assertEquals(4, rs.size());
+    assertEquals(1356998400000L, rs.timestamp(0));
+    assertEquals(4, rs.longValue(0));
+    assertEquals(1356998400008L, rs.timestamp(1));
+    assertEquals(5, rs.longValue(1));
+    
+    //It is sorted, so this cell has been replaced with next
+    Assert.assertNotEquals(1356998403000L, rs.timestamp(2));
+    Assert.assertNotEquals(6, rs.longValue(2));
+    Assert.assertNotEquals(1356998401060L, rs.timestamp(3));
+    Assert.assertNotEquals(7, rs.longValue(3));
+
+    assertEquals(1356998401060L, rs.timestamp(2));
+    assertEquals(7, rs.longValue(2));
+    assertEquals(1356998403000L, rs.timestamp(3));
+    assertEquals(6, rs.longValue(3));
+  }
+
   @Test (expected = IllegalStateException.class)
   public void addRowNotSet() throws Exception {
     final byte[] qual1 = { 0x00, 0x07 };
@@ -540,6 +629,33 @@ public final class TestRowSeq {
   }
   
   @Test
+  public void iterateAppendMsLarge() throws Exception {
+    when(tsdb.followAppendRowLogic()).thenReturn(true);
+    List<byte[]> qualifiers = new ArrayList<byte[]>();
+    List<byte[]> values = new ArrayList<byte[]>();
+    long ts = 1356998400500L;
+    // mimicks having 64K data points in a row
+    final int limit = 64000;
+    for (int i = 0; i < limit; i++) {
+      qualifiers.add(Internal.buildQualifier(ts, (short) 3));
+      values.add(new byte[4]);
+      ts += 50;
+    }
+    final KeyValue kv = appendkv(qualifiers, values);
+    
+    final RowSeq rs = new RowSeq(tsdb);
+    rs.setRow(kv);
+
+    final SeekableView it = rs.iterator();
+    ts = 1356998400500L;
+    while (it.hasNext()) {
+      assertEquals(ts, it.next().timestamp());
+      ts += 50;
+    }
+    assertFalse(it.hasNext());
+  }
+  
+  @Test
   public void seekMs() throws Exception {
     final RowSeq rs = new RowSeq(tsdb);
     rs.setRow(getMs());
@@ -622,6 +738,33 @@ public final class TestRowSeq {
   /** Shorthand to create a {@link KeyValue}.  */
   private static KeyValue makekv(final byte[] qualifier, final byte[] value) {
     return new KeyValue(KEY, FAMILY, qualifier, value);
+  }
+  
+  /** Shorthand to create a {@link KeyValue}.  */
+  static KeyValue appendkv(final List<byte[]>qualifier, final List<byte[]> value) {
+      return appendkv(KEY, qualifier, value);
+  }
+  
+  /** Shorthand to create a {@link KeyValue}.  */
+  static KeyValue appendkv(final byte[] rowKey, final List<byte[]>qualifier, final List<byte[]> value) {
+    int toal = 0;
+      
+    for (int i = 0; i<qualifier.size();i++) {
+      toal += qualifier.get(i).length;
+      toal += value.get(i).length;
+    }
+      
+    byte[] val = new byte[toal];
+    int val_idx = 0;
+      
+    for (int i = 0; i<qualifier.size();i++) {
+      System.arraycopy(qualifier.get(i), 0, val, val_idx, qualifier.get(i).length);
+      val_idx += qualifier.get(i).length;
+      System.arraycopy(value.get(i), 0, val, val_idx, value.get(i).length);
+      val_idx += value.get(i).length;
+    }
+
+    return new KeyValue(rowKey, FAMILY, Const.APPEND_QUALIFIER, val);
   }
   
   private static KeyValue getMs() {

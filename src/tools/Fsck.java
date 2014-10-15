@@ -19,6 +19,7 @@ import java.util.TreeMap;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.AppendKeyValue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,8 +183,18 @@ final class Fsck {
                        + "ms (" + (100000 * 1000 / ping_start_time) + " KVs/s)");
               ping_start_time = now;
             }
-            byte[] value = kv.value();
             final byte[] qual = kv.qualifier();
+            
+            if (Arrays.equals(qual, Const.APPEND_QUALIFIER)) {
+              //Rows written via append logic
+              //Append logic is introduced in 2.0, so don't expect any 
+              //currepted values caused by sign extension bug
+              AppendKeyValue keyVal = new AppendKeyValue();
+              keyVal.parseAndFixKeyValue(kv, tsdb, false);
+              continue;
+            }
+            
+            byte[] value = kv.value();
             if (qual.length < 2) {
               errors++;
               LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t"

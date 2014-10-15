@@ -568,7 +568,7 @@ public final class TestBranch {
     PowerMockito.whenNew(HBaseClient.class)
       .withArguments(anyString(), anyString()).thenReturn(client);
     
-    storage = new MockBase(new TSDB(config), client, true, true, true, true);
+    storage = new MockBase(new TSDB(config), client, true, true, false, true, true);
     
     Branch branch = new Branch(1);
     TreeMap<Integer, String> path = new TreeMap<Integer, String>();

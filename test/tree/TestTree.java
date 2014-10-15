@@ -720,7 +720,7 @@ public final class TestTree {
    */
   private void setupStorage(final boolean default_get, 
       final boolean default_put) throws Exception {
-    storage = new MockBase(default_get, default_put, true, true);
+    storage = new MockBase(default_get, default_put, true, true, true);
     
     byte[] key = new byte[] { 0, 1 };
     // set pre-test values

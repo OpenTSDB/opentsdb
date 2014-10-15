@@ -194,9 +194,9 @@ public final class TestConfig {
     assertFalse(config.getBoolean("tsd.unitest"));
   }
   
-  @Test (expected = NullPointerException.class)
+  @Test
   public void getBoolFalseNull() throws Exception {
-    config.getBoolean("tsd.unitest");
+    assertFalse(config.getBoolean("tsd.unitest"));
   }
   
   @Test

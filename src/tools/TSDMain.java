@@ -83,6 +83,7 @@ final class TSDMain {
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
     CliOptions.addAutoMetricFlag(argp);
+    CliOptions.addAutoHealFlag(argp);
     args = CliOptions.parse(argp, args);
     args = null; // free().
 

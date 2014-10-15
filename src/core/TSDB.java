@@ -50,6 +50,7 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
+import org.hbase.async.AppendRequest;
 
 /**
  * Thread-safe implementation of the TSDB client.
@@ -109,6 +110,26 @@ public final class TSDB {
   
   /** List of activated RPC plugins */
   private List<RpcPlugin> rpc_plugins = null;
+  private boolean followAppendRowLogic = true;
+  private boolean returnAppendedResult = false;
+  //Auto heal out of order data and duplicate data per row during read or not
+  private boolean autoHealOnRead = false;
+
+  public boolean isAutoHealOnRead() {
+    return autoHealOnRead;
+  }
+
+  public boolean followAppendRowLogic() {
+    return followAppendRowLogic;
+  }
+
+  public boolean returnAppendedResult() {
+    return returnAppendedResult;
+  }
+
+  public void setReturnAppendedResult(boolean returnAppendedResult) {
+    this.returnAppendedResult = returnAppendedResult;
+  }
   
   /**
    * Constructor
@@ -126,9 +147,16 @@ public final class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH,
+            config.getBoolean("tsd.core.random_metric_id"));
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
+    followAppendRowLogic = config.getBoolean("tsd.core.enable_append");
+    
+    if (followAppendRowLogic()) {
+      config.setEnable_compactions(false);
+    }
+
     compactionq = new CompactionQueue(this);
 
     if (config.hasProperty("tsd.core.timezone")) {
@@ -141,6 +169,7 @@ public final class TSDB {
       tag_names.setTSDB(this);
       tag_values.setTSDB(this);
     }
+    autoHealOnRead = System.getProperty("tsd.core.auto_heal_metrics") != null;
     LOG.debug(config.dumpConfiguration());
   }
   
@@ -417,6 +446,7 @@ public final class TSDB {
     collector.record("hbase.rpcs", stats.deletes(), "type=delete");
     collector.record("hbase.rpcs", stats.gets(), "type=get");
     collector.record("hbase.rpcs", stats.puts(), "type=put");
+    collector.record("hbase.rpcs", stats.appends(), "type=append");
     collector.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
     collector.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
     collector.record("hbase.rpcs", stats.scans(), "type=scan");
@@ -428,6 +458,7 @@ public final class TSDB {
                      stats.numRpcDelayedDueToNSRE());
 
     compactionq.collectStats(collector);
+    UniqueId.collectStats(collector);
     // Collect Stats from Plugins
     if (rt_publisher != null) {
       try {
@@ -650,12 +681,24 @@ public final class TSDB {
     }
     
     Bytes.setInt(row, (int) base_time, metrics.width());
-    scheduleForCompaction(row, (int) base_time);
-    final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
+        Deferred<Object> result;
+
+    if (followAppendRowLogic()) {
+      AppendKeyValue kv = new AppendKeyValue(qualifier, value);
+      final AppendRequest point = new AppendRequest(table, row, FAMILY, 
+                Const.APPEND_QUALIFIER, kv.toByteArray());
+      point.setReturnResult(returnAppendedResult);        
+      result = client.append(point);
+    }
+    else {
+      scheduleForCompaction(row, (int) base_time);
+      final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
     
-    // TODO(tsuna): Add a callback to time the latency of HBase and store the
-    // timing in a moving Histogram (once we have a class for this).
-    Deferred<Object> result = client.put(point);
+      // TODO(tsuna): Add a callback to time the latency of HBase and store the
+      // timing in a moving Histogram (once we have a class for this).
+      result = client.put(point);
+    }
+        
     if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() && 
         !config.enable_tsuid_tracking() && rt_publisher == null) {
       return result;

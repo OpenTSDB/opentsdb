@@ -141,7 +141,7 @@ final class UidManager {
     }   
     final short idwidth = (argp.has("--idwidth")
                            ? Short.parseShort(argp.get("--idwidth"))
-                           : 3);
+                           : TSDB.metrics_width());
     if (idwidth <= 0) {
       usage(argp, "Negative or 0 --idwidth");
       System.exit(3);

@@ -59,6 +59,7 @@ final class CliQuery {
   public static void main(String[] args) throws Exception {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
+    CliOptions.addAutoHealFlag(argp);
     CliOptions.addVerbose(argp);
     argp.addOption("--graph", "BASEPATH",
                    "Output data points to a set of files for gnuplot."

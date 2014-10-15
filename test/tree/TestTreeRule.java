@@ -405,7 +405,7 @@ public final class TestTreeRule {
    * Mocks classes for testing the storage calls
    */
   private void setupStorage() throws Exception {
-    storage = new MockBase(true, true, true, true);
+    storage = new MockBase(true, true, true, true, true);
 
     final TreeRule stored_rule = new TreeRule(1);
     stored_rule.setLevel(2);
