@@ -12,15 +12,21 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+
+import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+
+import com.stumbleupon.async.Callback;
 
 /**
  * <strong>This class is not part of the public API.</strong>
@@ -114,13 +120,6 @@ public final class Internal {
     return tsdb.metrics.width();
   }
 
-  /** @see CompactionQueue#complexCompact  */
-  public static KeyValue complexCompact(final KeyValue kv) {
-    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    kvs.add(kv);
-    return CompactionQueue.complexCompact(kvs, kv.qualifier().length / 2, false);
-  }
-  
   /**
    * Extracts a Cell from a single data point, fixing potential errors with
    * the qualifier flags
@@ -218,18 +217,25 @@ public final class Internal {
       
       // Now break it down into Cells.
       int val_idx = 0;
-      for (int i = 0; i < len; i += 2) {
-        final byte[] q = extractQualifier(qual, i);
-        final int vlen = getValueLengthFromQualifier(qual, i);
-        if (inMilliseconds(qual[i])) {
-          i += 2;
+      try {
+        for (int i = 0; i < len; i += 2) {
+          final byte[] q = extractQualifier(qual, i);
+          final int vlen = getValueLengthFromQualifier(qual, i);
+          if (inMilliseconds(qual[i])) {
+            i += 2;
+          }
+          
+          final byte[] v = new byte[vlen];
+          System.arraycopy(val, val_idx, v, 0, vlen);
+          val_idx += vlen;
+          final Cell cell = new Cell(q, v);
+          cells.add(cell);
         }
-        
-        final byte[] v = new byte[vlen];
-        System.arraycopy(val, val_idx, v, 0, vlen);
-        val_idx += vlen;
-        final Cell cell = new Cell(q, v);
-        cells.add(cell);
+      } catch (ArrayIndexOutOfBoundsException e) {
+        throw new IllegalDataException("Corrupted value: couldn't break down"
+            + " into individual values (consumed " + val_idx + " bytes, but was"
+            + " expecting to consume " + (val.length - 1) + "): " + kv
+            + ", cells so far: " + cells);
       }
       
       // Check we consumed all the bytes of the value.  Remember the last byte
@@ -375,6 +381,47 @@ public final class Internal {
   }
 
   /**
+   * Callback used to fetch only the last data point from a row returned as the
+   * result of a GetRequest. Non data points will be parsed out and the
+   * resulting time and value stored in an IncomingDataPoint if found. If no 
+   * valid data was found, a null is returned.
+   * @since 2.0
+   */
+  public static class GetLastDataPointCB implements Callback<IncomingDataPoint, 
+    ArrayList<KeyValue>> {
+    final TSDB tsdb;
+    
+    public GetLastDataPointCB(final TSDB tsdb) {
+      this.tsdb = tsdb;
+    }
+    
+    /**
+     * Returns the last data point from a data row in the TSDB table.
+     * @param row The row from HBase
+     * @return null if no data was found, a data point if one was
+     */
+    public IncomingDataPoint call(final ArrayList<KeyValue> row) 
+      throws Exception {
+      if (row == null || row.size() < 1) {
+        return null;
+      }
+      
+      // check to see if the cells array is empty as it will flush out all
+      // non-data points.
+      final ArrayList<Cell> cells = extractDataPoints(row, row.size());
+      if (cells.isEmpty()) {
+        return null;
+      }
+      final Cell cell = cells.get(cells.size() - 1);
+      final IncomingDataPoint dp = new IncomingDataPoint();
+      final long base_time = baseTime(tsdb, row.get(0).key());
+      dp.setTimestamp(getTimestampFromQualifier(cell.qualifier(), base_time));
+      dp.setValue(cell.parseValue().toString());
+      return dp;
+    }
+  }
+  
+  /**
    * Compares two data point byte arrays with offsets.
    * Can be used on:
    * <ul><li>Single data point columns</li>
@@ -507,7 +554,7 @@ public final class Internal {
    * point qualifier
    * @param qualifier The qualifier to parse
    * @return The offset in milliseconds from the base time
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static int getOffsetFromQualifier(final byte[] qualifier) {
@@ -541,7 +588,7 @@ public final class Internal {
    * Returns the length of the value, in bytes, parsed from the qualifier
    * @param qualifier The qualifier to parse
    * @return The length of the value in bytes, from 1 to 8.
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static byte getValueLengthFromQualifier(final byte[] qualifier) {
@@ -553,7 +600,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
    * @return The length of the value in bytes, from 1 to 8.
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -573,7 +620,7 @@ public final class Internal {
    * Returns the length, in bytes, of the qualifier: 2 or 4 bytes
    * @param qualifier The qualifier to parse
    * @return The length of the qualifier in bytes
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static short getQualifierLength(final byte[] qualifier) {
@@ -585,7 +632,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
    * @return The length of the qualifier in bytes
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -611,7 +658,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param base_time The base time, in seconds, from the row key
    * @return The absolute timestamp in milliseconds
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static long getTimestampFromQualifier(final byte[] qualifier, 
@@ -625,7 +672,7 @@ public final class Internal {
    * @param base_time The base time, in seconds, from the row key
    * @param offset An offset within the byte array
    * @return The absolute timestamp in milliseconds
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -638,7 +685,7 @@ public final class Internal {
    * Parses the flag bits from the qualifier
    * @param qualifier The qualifier to parse
    * @return A short representing the last 4 bits of the qualifier
-   * @throws IllegalArgument if the qualifier is null or empty
+   * @throws IllegalArgumentException if the qualifier is null or empty
    * @since 2.0
    */
   public static short getFlagsFromQualifier(final byte[] qualifier) {
@@ -650,7 +697,7 @@ public final class Internal {
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
    * @return A short representing the last 4 bits of the qualifier
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -665,11 +712,43 @@ public final class Internal {
   }
 
   /**
+   * Parses the qualifier to determine if the data is a floating point value.
+   * 4 bytes == Float, 8 bytes == Double
+   * @param qualifier The qualifier to parse
+   * @return True if the encoded data is a floating point value
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
+   * outside of the qualifier array
+   * @since 2.1
+   */
+  public static boolean isFloat(final byte[] qualifier) {
+    return isFloat(qualifier, 0);
+  }
+
+  /**
+   * Parses the qualifier to determine if the data is a floating point value.
+   * 4 bytes == Float, 8 bytes == Double
+   * @param qualifier The qualifier to parse
+   * @param offset An offset within the byte array
+   * @return True if the encoded data is a floating point value
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
+   * outside of the qualifier array
+   * @since 2.1
+   */
+  public static boolean isFloat(final byte[] qualifier, final int offset) {
+    validateQualifier(qualifier, offset);
+    if ((qualifier[offset] & Const.MS_BYTE_FLAG) == Const.MS_BYTE_FLAG) {
+      return (qualifier[offset + 3] & Const.FLAG_FLOAT) == Const.FLAG_FLOAT; 
+    } else {
+      return (qualifier[offset + 1] & Const.FLAG_FLOAT) == Const.FLAG_FLOAT;
+    }
+  }
+  
+  /**
    * Extracts the 2 or 4 byte qualifier from a compacted byte array
    * @param qualifier The qualifier to parse
    * @param offset An offset within the byte array
    * @return A byte array with only the requested qualifier
-   * @throws IllegalArgument if the qualifier is null or the offset falls 
+   * @throws IllegalArgumentException if the qualifier is null or the offset falls
    * outside of the qualifier array
    * @since 2.0
    */
@@ -726,5 +805,58 @@ public final class Internal {
           "] is out of bounds for the qualifier length of [" + 
           qualifier.length + "]");
     }
+  }
+
+  /**
+   * Sets the server-side regexp filter on the scanner.
+   * This will compile a list of the tagk/v pairs for the TSUIDs to prevent
+   * storage from returning irrelevant rows.
+   * @param scanner The scanner on which to add the filter.
+   * @param tsuids The list of TSUIDs to filter on 
+   * @since 2.1
+   */
+  public static void createAndSetTSUIDFilter(final Scanner scanner, 
+      final List<String> tsuids) {
+    Collections.sort(tsuids);
+    
+    // first, convert the tags to byte arrays and count up the total length
+    // so we can allocate the string builder
+    final short metric_width = TSDB.metrics_width();
+    int tags_length = 0;
+    final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
+    for (final String tsuid : tsuids) {
+      final String tags = tsuid.substring(metric_width * 2);
+      final byte[] tag_bytes = UniqueId.stringToUid(tags);
+      tags_length += tag_bytes.length;
+      uids.add(tag_bytes);
+    }
+    
+    // Generate a regexp for our tags based on any metric and timestamp (since
+    // those are handled by the row start/stop) and the list of TSUID tagk/v
+    // pairs. The generated regex will look like: ^.{7}(tags|tags|tags)$
+    // where each "tags" is similar to \\Q\000\000\001\000\000\002\\E
+    final StringBuilder buf = new StringBuilder(
+        13  // "(?s)^.{N}(" + ")$"
+        + (tsuids.size() * 11) // "\\Q" + "\\E|"
+        + tags_length); // total # of bytes in tsuids tagk/v pairs
+    
+    // Alright, let's build this regexp.  From the beginning...
+    buf.append("(?s)"  // Ensure we use the DOTALL flag.
+               + "^.{")
+       // ... start by skipping the metric ID and timestamp.
+       .append(TSDB.metrics_width() + Const.TIMESTAMP_BYTES)
+       .append("}(");
+    
+    for (final byte[] tags : uids) {
+       // quote the bytes
+      buf.append("\\Q");
+      UniqueId.addIdToRegexp(buf, tags);
+      buf.append('|');
+    }
+    
+    // Replace the pipe of the last iteration, close and set
+    buf.setCharAt(buf.length() - 1, ')');
+    buf.append("$");
+    scanner.setKeyRegexp(buf.toString(), Charset.forName("ISO-8859-1"));
   }
 }
