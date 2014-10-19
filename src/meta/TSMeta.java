@@ -14,13 +14,13 @@ package net.opentsdb.meta;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -73,17 +73,14 @@ import com.stumbleupon.async.Deferred;
 public final class TSMeta {
   private static final Logger LOG = LoggerFactory.getLogger(TSMeta.class);
 
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  
   /** The single column family used by this class. */
-  private static final byte[] FAMILY = "name".getBytes(CHARSET);
+  private static final byte[] FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   
   /** The cell qualifier to use for timeseries meta */
-  private static final byte[] META_QUALIFIER = "ts_meta".getBytes(CHARSET);
+  private static final byte[] META_QUALIFIER = "ts_meta".getBytes(Const.CHARSET_ASCII);
   
   /** The cell qualifier to use for timeseries meta */
-  private static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(CHARSET);
+  private static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(Const.CHARSET_ASCII);
   
   /** Hexadecimal representation of the TSUID this metadata is associated with */
   private String tsuid = "";

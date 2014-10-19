@@ -14,11 +14,11 @@ package net.opentsdb.meta;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.opentsdb.core.Const;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
@@ -69,12 +69,9 @@ import net.opentsdb.utils.JSONException;
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class UIDMeta {
   private static final Logger LOG = LoggerFactory.getLogger(UIDMeta.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  
+
   /** The single column family used by this class. */
-  private static final byte[] FAMILY = "name".getBytes(CHARSET);
+  private static final byte[] FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   
   /** A hexadecimal representation of the UID this metadata is associated with */
   private String uid = "";
@@ -243,7 +240,7 @@ public final class UIDMeta {
           
           final PutRequest put = new PutRequest(tsdb.uidTable(), 
               UniqueId.stringToUid(uid), FAMILY, 
-              (type.toString().toLowerCase() + "_meta").getBytes(CHARSET), 
+              (type.toString().toLowerCase() + "_meta").getBytes(Const.CHARSET_ASCII),
               local_meta.getStorageJSON());
           return tsdb.getClient().compareAndSet(put, original_meta);
         }
@@ -261,7 +258,7 @@ public final class UIDMeta {
         final GetRequest get = new GetRequest(tsdb.uidTable(), 
             UniqueId.stringToUid(uid));
         get.family(FAMILY);
-        get.qualifier((type.toString().toLowerCase() + "_meta").getBytes(CHARSET));
+        get.qualifier((type.toString().toLowerCase() + "_meta").getBytes(Const.CHARSET_ASCII));
         
         // #2 deferred
         return tsdb.getClient().get(get)
@@ -300,7 +297,7 @@ public final class UIDMeta {
 
     final PutRequest put = new PutRequest(tsdb.uidTable(), 
         UniqueId.stringToUid(uid), FAMILY, 
-        (type.toString().toLowerCase() + "_meta").getBytes(CHARSET), 
+        (type.toString().toLowerCase() + "_meta").getBytes(Const.CHARSET_ASCII),
         UIDMeta.this.getStorageJSON());
     return tsdb.getClient().put(put);
   }
@@ -323,7 +320,7 @@ public final class UIDMeta {
 
     final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
         UniqueId.stringToUid(uid), FAMILY, 
-        (type.toString().toLowerCase() + "_meta").getBytes(CHARSET));
+        (type.toString().toLowerCase() + "_meta").getBytes(Const.CHARSET_ASCII));
     return tsdb.getClient().delete(delete);
   }
   
@@ -413,7 +410,7 @@ public final class UIDMeta {
             // fix missing types
             if (meta.type == null) {
               final String qualifier = 
-                new String(row.get(0).qualifier(), CHARSET);
+                new String(row.get(0).qualifier(), Const.CHARSET_ASCII);
               meta.type = UniqueId.stringToUniqueIdType(qualifier.substring(0, 
                   qualifier.indexOf("_meta")));
             }
@@ -425,7 +422,7 @@ public final class UIDMeta {
         
         final GetRequest get = new GetRequest(tsdb.uidTable(), uid);
         get.family(FAMILY);
-        get.qualifier((type.toString().toLowerCase() + "_meta").getBytes(CHARSET));
+        get.qualifier((type.toString().toLowerCase() + "_meta").getBytes(Const.CHARSET_ASCII));
         return tsdb.getClient().get(get).addCallbackDeferring(new FetchMetaCB());
       }
     }

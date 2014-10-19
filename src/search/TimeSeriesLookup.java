@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.search;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -73,10 +72,7 @@ import org.slf4j.LoggerFactory;
 public class TimeSeriesLookup {
   private static final Logger LOG = 
       LoggerFactory.getLogger(TimeSeriesLookup.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-  
+
   /** The query with metrics and/or tags to use */
   private final SearchQuery query;
   
@@ -135,7 +131,7 @@ public class TimeSeriesLookup {
           // TODO - there MUST be a better way than creating a ton of temp
           // string objects.
           if (tagv_regex != null && 
-              !tagv_regex.matcher(new String(tsuid, CHARSET)).find()) {
+              !tagv_regex.matcher(new String(tsuid, Const.CHARSET_ASCII)).find()) {
             continue;
           }
           
@@ -266,7 +262,7 @@ public class TimeSeriesLookup {
         // in this case we don't have any tagks to deal with so we can just
         // pass the previously compiled regex to the rowkey filter of the 
         // scanner
-        scanner.setKeyRegexp(buf.toString(), CHARSET);
+        scanner.setKeyRegexp(buf.toString(), Const.CHARSET_ASCII);
         LOG.debug("Setting scanner row key filter with tagvs only: " + 
             buf.toString());
       }
@@ -318,7 +314,7 @@ public class TimeSeriesLookup {
         }
         buf.append(")(?:.{").append(tagsize).append("})*").append("$");
         
-        scanner.setKeyRegexp(buf.toString(), CHARSET);
+        scanner.setKeyRegexp(buf.toString(), Const.CHARSET_ASCII);
         LOG.debug("Setting scanner row key filter: " + buf.toString());
       }
     }

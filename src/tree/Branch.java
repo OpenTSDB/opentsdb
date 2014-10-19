@@ -14,7 +14,6 @@ package net.opentsdb.tree;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -24,6 +23,7 @@ import java.util.TreeSet;
 
 import javax.xml.bind.DatatypeConverter;
 
+import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
@@ -87,13 +87,11 @@ import net.opentsdb.utils.JSONException;
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class Branch implements Comparable<Branch> {
   private static final Logger LOG = LoggerFactory.getLogger(Branch.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+
   /** Integer width in bytes */
   private static final short INT_WIDTH = 4;
   /** Name of the branch qualifier ID */
-  private static final byte[] BRANCH_QUALIFIER = "branch".getBytes(CHARSET);
+  private static final byte[] BRANCH_QUALIFIER = "branch".getBytes(Const.CHARSET_ASCII);
   
   /** The tree this branch belongs to */
   private int tree_id;
@@ -685,7 +683,7 @@ public final class Branch implements Comparable<Branch> {
     }
     buf.append("\\E(?:.{").append(INT_WIDTH).append("})?$");
     
-    scanner.setKeyRegexp(buf.toString(), CHARSET);
+    scanner.setKeyRegexp(buf.toString(), Const.CHARSET_ASCII);
     return scanner;
   }
   

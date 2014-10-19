@@ -14,12 +14,12 @@ package net.opentsdb.tree;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
@@ -56,11 +56,9 @@ import net.opentsdb.utils.JSONException;
  */
 public final class Leaf implements Comparable<Leaf> {
   private static final Logger LOG = LoggerFactory.getLogger(Leaf.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+
   /** ASCII Leaf prefix */
-  private static final byte[] LEAF_PREFIX = "leaf:".getBytes(CHARSET);
+  private static final byte[] LEAF_PREFIX = "leaf:".getBytes(Const.CHARSET_ASCII);
 
   /** The metric associated with this TSUID */
   private String metric = "";
