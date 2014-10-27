@@ -72,6 +72,7 @@ public final class TestTSDB {
     PowerMockito.whenNew(HBaseClient.class)
       .withArguments(anyString(), anyString()).thenReturn(client);
     config = new Config(false);
+    config.setFixDuplicates(true); // TODO(jat): test both ways
     tsdb = new TSDB(config);
 
     Field met = tsdb.getClass().getDeclaredField("metrics");
@@ -847,22 +848,22 @@ public final class TestTSDB {
    * Configures storage for the addPoint() tests to validate that we're storing
    * data points correctly.
    */
-  @SuppressWarnings("unchecked")
   private void setupAddPointStorage() throws Exception {
     storage = new MockBase(tsdb, client, true, true, true, true);
-    
+
     PowerMockito.mockStatic(IncomingDataPoints.class);   
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 
     PowerMockito.doAnswer(
         new Answer<byte[]>() {
+          @Override
           public byte[] answer(final InvocationOnMock unused) 
             throws Exception {
             return row;
           }
         }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", (TSDB)any(), anyString(), 
-        (Map<String, String>)any());
-        
+    ).when(IncomingDataPoints.class, "rowKeyTemplate", any(), anyString(), 
+        any());
+
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
     when(tag_values.width()).thenReturn((short)3);
