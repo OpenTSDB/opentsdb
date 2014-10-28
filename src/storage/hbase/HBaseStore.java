@@ -2161,16 +2161,15 @@ public class HBaseStore implements TsdbStore {
       @Override
       public Deferred<Leaf> call(final ArrayList<Object> name_calls)
               throws Exception {
-        int idx = 0;
-        String tagk = "";
+                
         ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-        for (String name : tags) {
-          if (idx % 2 == 0) {
-            tagk = name;
-          } else {
-            builder.put(tagk, name);
-          }
-          idx++;
+        Iterator<String> name_it = tags.iterator();
+
+        while (name_it.hasNext()) {
+          final String tagk = name_it.next();
+          final String name = name_it.next();
+          builder.put(tagk, name);
+
         }
         leaf.setTags(builder.build());
         return Deferred.fromResult(leaf);
