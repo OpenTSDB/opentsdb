@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.TSDB;
 
 import com.google.common.collect.Lists;
@@ -46,7 +47,7 @@ public class UidFormatter {
    * @param tags The tag ids to format
    * @return A map of tag names (keys), tag values (values).
    */
-  public Deferred<Map<String,String>> formatTags(final Map<byte[],byte[]> tags) {
+  public Deferred<ImmutableMap<String, String>> formatTags(final Map<byte[],byte[]> tags) {
     checkNotNull(tags);
 
     final ArrayList<Deferred<String>> deferreds =
@@ -57,21 +58,20 @@ public class UidFormatter {
       deferreds.add(tsdb.getUidName(TAGV, tag.getValue()));
     }
 
-    class NameCB implements Callback<Map<String,String>, ArrayList<String>> {
-      @Override
-      public Map<String, String> call(final ArrayList<String> names) {
-        final Map<String,String> result = Maps.newHashMapWithExpectedSize(tags.size());
 
-        Iterator<String> name_it = names.iterator();
 
-        while (name_it.hasNext()) {
-          final String tagk = name_it.next();
-          final String tagv = name_it.next();
-          result.put(tagk, tagv);
-        }
+    return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
+  }
 
-        return result;
-      }
+  public Deferred<ImmutableMap<String,String>> formatTags(final List<byte[]> tags) {
+    checkNotNull(tags);
+
+    final ArrayList<Deferred<String>> deferreds =
+            Lists.newArrayListWithCapacity(tags.size());
+
+    for (int i = 0 ; i < tags.size() ; i+=2) {
+      deferreds.add(tsdb.getUidName(TAGK, tags.get(i)));
+      deferreds.add(tsdb.getUidName(TAGV, tags.get(i + 1)));
     }
 
     return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
@@ -89,5 +89,23 @@ public class UidFormatter {
     }
 
     return Deferred.groupInOrder(deferreds);
+  }
+
+  private static class NameCB implements Callback<ImmutableMap<String,String>,
+          ArrayList<String>> {
+    @Override
+    public ImmutableMap<String, String> call(final ArrayList<String> names) {
+      ImmutableMap.Builder<String, String> result = ImmutableMap.builder();
+
+      Iterator<String> name_it = names.iterator();
+
+      while (name_it.hasNext()) {
+        final String tagk = name_it.next();
+        final String tagv = name_it.next();
+        result.put(tagk, tagv);
+      }
+
+      return result.build();
+    }
   }
 }

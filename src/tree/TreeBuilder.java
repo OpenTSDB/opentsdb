@@ -266,7 +266,7 @@ public final class TreeBuilder {
                 }
                 
               }
-              final Deferred<Boolean> deferred = cb.storeBranch(tsdb, tree, true)
+              final Deferred<Boolean> deferred = tsdb.storeBranch(tree, cb, true)
                 .addCallbackDeferring(new BranchCB());
               storage_calls.add(deferred);
               processed_branches.put(cb.getBranchId(), true);
@@ -407,7 +407,7 @@ public final class TreeBuilder {
           if (is_testing) {
             return Deferred.fromResult(root);
           } else {
-            return root.storeBranch(tsdb, null, true).addCallbackDeferring(
+            return tsdb.storeBranch(null,root, true).addCallbackDeferring(
                 new NewRootCB(root));
           }
         } else {
@@ -425,7 +425,7 @@ public final class TreeBuilder {
     }
     
     LOG.debug("Loading or initializing root for tree: " + tree_id);
-    return Branch.fetchBranchOnly(tsdb, Tree.idToBytes(tree_id))
+    return tsdb.fetchBranchOnly(Tree.idToBytes(tree_id))
       .addCallbackDeferring(new RootCB());
   }
   
@@ -645,7 +645,7 @@ public final class TreeBuilder {
     if (current_branch.getDisplayName() == null || 
         current_branch.getDisplayName().isEmpty()) {
       if (not_matched == null) {
-        not_matched = new String(rule.toString());
+        not_matched = rule.toString();
       } else {
         not_matched += " " + rule;
       }
@@ -867,7 +867,6 @@ public final class TreeBuilder {
     } else {
       testMessage("No match on custom tag [" + rule.getCustomField() + 
           "] for rule: " + rule);
-      return;
     }
   }
   
@@ -1124,7 +1123,7 @@ public final class TreeBuilder {
     TreeMap<Integer, TreeRule> current_level = null;
     
     // iterate until we find some rules on a level or we run out
-    while (current_level == null && rule_idx <= max_rule_level) {
+    while (rule_idx <= max_rule_level) {
       current_level = tree.getRules().get(rule_idx);
       if (current_level != null) {
         return current_level;

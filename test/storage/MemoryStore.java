@@ -24,12 +24,14 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
 import org.hbase.async.*;
@@ -1005,6 +1007,41 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
                                      final Tree tree) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<ArrayList<Boolean>> storeBranch(Tree tree, Branch branch, boolean store_leaves) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Branch> fetchBranchOnly(byte[] branch_id) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Branch> fetchBranch(final byte[] branch_id, final boolean load_leaf_uids, final TSDB tsdb) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<TreeRule> fetchTreeRule(int tree_id, int level, int order) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Object> deleteTreeRule(int tree_id, int level, int order) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Object> deleteAllTreeRule(int tree_id) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> syncTreeRuleToStorage(TreeRule rule, boolean overwrite) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

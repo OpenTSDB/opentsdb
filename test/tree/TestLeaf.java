@@ -13,10 +13,7 @@
 package net.opentsdb.tree;
 
 import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -162,64 +159,72 @@ public final class TestLeaf {
   
   @Test
   public void parseFromStorage() throws Exception {
-    final KeyValue column = mock(KeyValue.class);
-    when(column.qualifier()).thenReturn(
-        new Leaf("0", "000001000001000001").columnQualifier());
-    when(column.value()).thenReturn(
-        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
-        .getBytes(Const.CHARSET_ASCII));
-    final Leaf leaf = tsdb.getLeaf( column, true).joinUninterruptibly();
-    assertNotNull(leaf);
-    assertEquals("0", leaf.getDisplayName());
-    assertEquals("000001000001000001", leaf.getTsuid());
-    assertEquals("sys.cpu.0", leaf.getMetric());
-    assertEquals(1, leaf.getTags().size());
-    assertEquals("web01", leaf.getTags().get("host"));
+    //TODO move test, this part is now a private method in HBaseStore
+    fail();
+//    final KeyValue column = mock(KeyValue.class);
+//    when(column.qualifier()).thenReturn(
+//        new Leaf("0", "000001000001000001").columnQualifier());
+//    when(column.value()).thenReturn(
+//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
+//        .getBytes(Const.CHARSET_ASCII));
+//    final Leaf leaf = tsdb.getLeaf( column, true).joinUninterruptibly();
+//    assertNotNull(leaf);
+//    assertEquals("0", leaf.getDisplayName());
+//    assertEquals("000001000001000001", leaf.getTsuid());
+//    assertEquals("sys.cpu.0", leaf.getMetric());
+//    assertEquals(1, leaf.getTags().size());
+//    assertEquals("web01", leaf.getTags().get("host"));
   }
   
   @Test (expected = NoSuchUniqueId.class)
   public void parseFromStorageNSUMetric() throws Throwable {
-    final KeyValue column = mock(KeyValue.class);
-    when(column.qualifier()).thenReturn(
-        new Leaf("0", "000002000001000001").columnQualifier());
-    when(column.value()).thenReturn(
-        ("{\"displayName\":\"0\",\"tsuid\":\"000002000001000001\"}")
-        .getBytes(Const.CHARSET_ASCII));
-    try {
-      tsdb.getLeaf(column, true).joinUninterruptibly();
-    } catch (DeferredGroupException e) {
-      throw e.getCause();
-    }
+    //TODO move test, this part is now a private method in HBaseStore
+    fail();
+//    final KeyValue column = mock(KeyValue.class);
+//    when(column.qualifier()).thenReturn(
+//        new Leaf("0", "000002000001000001").columnQualifier());
+//    when(column.value()).thenReturn(
+//        ("{\"displayName\":\"0\",\"tsuid\":\"000002000001000001\"}")
+//        .getBytes(Const.CHARSET_ASCII));
+//    try {
+//      tsdb.getLeaf(column, true).joinUninterruptibly();
+//    } catch (DeferredGroupException e) {
+//      throw e.getCause();
+//    }
   }
   
   @Test (expected = NoSuchUniqueId.class)
   public void parseFromStorageNSUTagk() throws Throwable {
-    final KeyValue column = mock(KeyValue.class);
-    when(column.qualifier()).thenReturn(
-        new Leaf("0", "000001000002000001").columnQualifier());
-    when(column.value()).thenReturn(
-        ("{\"displayName\":\"0\",\"tsuid\":\"000001000002000001\"}")
-        .getBytes(Const.CHARSET_ASCII));
-    try {
-      tsdb.getLeaf(column, true).joinUninterruptibly();
-    } catch (DeferredGroupException e) {
-      throw e.getCause();
-    }
+    //TODO move test, this part is now a private method in HBaseStore
+    fail();
+//    final KeyValue column = mock(KeyValue.class);
+//    when(column.qualifier()).thenReturn(
+//        new Leaf("0", "000001000002000001").columnQualifier());
+//    when(column.value()).thenReturn(
+//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000002000001\"}")
+//        .getBytes(Const.CHARSET_ASCII));
+//    try {
+//      tsdb.getLeaf(column, true).joinUninterruptibly();
+//    } catch (DeferredGroupException e) {
+//      throw e.getCause();
+//    }
   }
   
   @Test (expected = NoSuchUniqueId.class)
   public void parseFromStorageNSUTagV() throws Throwable {
-    final KeyValue column = mock(KeyValue.class);
-    when(column.qualifier()).thenReturn(
-        new Leaf("0", "000001000001000002").columnQualifier());
-    when(column.value()).thenReturn(
-        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000002\"}")
-        .getBytes(Const.CHARSET_ASCII));
-    try {
-      tsdb.getLeaf(column, true).joinUninterruptibly();
-    } catch (DeferredGroupException e) {
-      throw e.getCause();
-    }
+    //TODO move test, this part is now a private method in HBaseStore
+    fail();
+//    final KeyValue column = mock(KeyValue.class);
+//    when(column.qualifier()).thenReturn(
+//        new Leaf("0", "000001000001000002").columnQualifier());
+//    when(column.value()).thenReturn(
+//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000002\"}")
+//        .getBytes(Const.CHARSET_ASCII));
+//    try {
+//      tsdb.getLeaf(column, true).joinUninterruptibly();
+//    } catch (DeferredGroupException e) {
+//      throw e.getCause();
+//    }
   }
 
   @Test

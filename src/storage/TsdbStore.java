@@ -17,6 +17,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -24,6 +25,7 @@ import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.TreeRule;
 import org.hbase.async.*;
 
 import java.util.ArrayList;
@@ -147,4 +149,18 @@ public interface TsdbStore {
   Deferred<Boolean> flushTreeNotMatched(final Tree tree);
 
   Deferred<Boolean> storeLeaf(final Leaf leaf,final Branch branch,final Tree tree);
+
+  Deferred<ArrayList<Boolean>> storeBranch(final Tree tree, final Branch branch, final boolean store_leaves);
+
+  Deferred<Branch> fetchBranchOnly(final byte[] branch_id);
+
+  Deferred<Branch> fetchBranch(final byte[] branch_id, final boolean load_leaf_uids, final TSDB tsdb);
+
+  Deferred<TreeRule> fetchTreeRule(final int tree_id, final int level, final int order);
+
+  Deferred<Object> deleteTreeRule(final int tree_id, final int level, final int order);
+
+  Deferred<Object> deleteAllTreeRule(final int tree_id);
+
+  Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule, final boolean overwrite);
 }
