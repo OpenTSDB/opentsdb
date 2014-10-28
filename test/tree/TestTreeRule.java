@@ -12,11 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
 import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.core.Const;
@@ -37,6 +32,8 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import static org.junit.Assert.*;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -180,218 +177,240 @@ public final class TestTreeRule {
 
   @Test
   public void fetchRule() throws Exception {
-    setupStorage();
-    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 1)
-      .joinUninterruptibly();
-    assertNotNull(rule);
-    assertEquals(1, rule.getTreeId());
-    assertEquals(2, rule.getLevel());
-    assertEquals(1, rule.getOrder());
-    assertEquals("Host owner", rule.getDescription());
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 1)
+//      .joinUninterruptibly();
+//    assertNotNull(rule);
+//    assertEquals(1, rule.getTreeId());
+//    assertEquals(2, rule.getLevel());
+//    assertEquals(1, rule.getOrder());
+//    assertEquals("Host owner", rule.getDescription());
   }
   
   @Test
   public void fetchRuleDoesNotExist() throws Exception {
-    setupStorage();
-    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 2)
-      .joinUninterruptibly();
-    assertNull(rule);
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 2)
+//      .joinUninterruptibly();
+//    assertNull(rule);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchRuleBadTreeID0() throws Exception {
-    setupStorage();
-    TreeRule.fetchRule(tsdb, 0, 2, 1);
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    TreeRule.fetchRule(tsdb, 0, 2, 1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchRuleBadTreeID65536() throws Exception {
-    setupStorage();
-    TreeRule.fetchRule(tsdb, 65536, 2, 1);
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    TreeRule.fetchRule(tsdb, 65536, 2, 1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchRuleBadLevel() throws Exception {
-    setupStorage();
-    TreeRule.fetchRule(tsdb, 1, -1, 1);
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    TreeRule.fetchRule(tsdb, 1, -1, 1);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void fetchRuleBadOrder() throws Exception {
-    setupStorage();
-    TreeRule.fetchRule(tsdb, 1, 2, -1);
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    TreeRule.fetchRule(tsdb, 1, 2, -1);
   }
   
   @Test
   public void storeRule() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.METRIC);
-    rule.setNotes("Just some notes");
-    assertTrue(rule.syncToStorage(tsdb, false).joinUninterruptibly());
-    assertEquals(3, tsdb_store.numColumns(new byte[] { 0, 1 }));
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.METRIC);
+//    rule.setNotes("Just some notes");
+//    assertTrue(rule.syncToStorage(tsdb, false).joinUninterruptibly());
+//    assertEquals(3, tsdb_store.numColumns(new byte[] { 0, 1 }));
   }
   
   @Test
   public void storeRuleMege() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(2);
-    rule.setOrder(1);
-    rule.setNotes("Just some notes");
-    assertTrue(rule.syncToStorage(tsdb, false).joinUninterruptibly());
-    assertEquals(2, tsdb_store.numColumns(new byte[] { 0, 1 }));
-    final TreeRule stored = JSON.parseToObject(
-        tsdb_store.getColumn(new byte[] { 0, 1 },
-        "tree_rule:2:1".getBytes(Const.CHARSET_ASCII)), TreeRule.class);
-    assertEquals("Host owner", stored.getDescription());
-    assertEquals("Just some notes", stored.getNotes());
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(2);
+//    rule.setOrder(1);
+//    rule.setNotes("Just some notes");
+//    assertTrue(rule.syncToStorage(tsdb, false).joinUninterruptibly());
+//    assertEquals(2, tsdb_store.numColumns(new byte[] { 0, 1 }));
+//    final TreeRule stored = JSON.parseToObject(
+//        tsdb_store.getColumn(new byte[] { 0, 1 },
+//        "tree_rule:2:1".getBytes(Const.CHARSET_ASCII)), TreeRule.class);
+//    assertEquals("Host owner", stored.getDescription());
+//    assertEquals("Just some notes", stored.getNotes());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleBadID0() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(0);
-    rule.syncToStorage(tsdb, false);
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(0);
+//    rule.syncToStorage(tsdb, false);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleBadID65536() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(65536);
-    rule.syncToStorage(tsdb, false);
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(65536);
+//    rule.syncToStorage(tsdb, false);
   }
   
   @Test (expected = IllegalStateException.class)
   public void storeRuleNoChanges() throws Exception {
-    setupStorage();
-    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 1)
-      .joinUninterruptibly();
-    rule.syncToStorage(tsdb, false);
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = TreeRule.fetchRule(tsdb, 1, 2, 1)
+//      .joinUninterruptibly();
+//    rule.syncToStorage(tsdb, false);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidType() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setNotes("Just some notes");
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setNotes("Just some notes");
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidMissingFieldTagk() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.TAGK);
-    rule.setNotes("Just some notes");
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.TAGK);
+//    rule.setNotes("Just some notes");
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidMissingFieldTagkCustom() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.TAGK_CUSTOM);
-    rule.setNotes("Just some notes");
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.TAGK_CUSTOM);
+//    rule.setNotes("Just some notes");
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidMissingFieldTagvCustom() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.TAGV_CUSTOM);
-    rule.setNotes("Just some notes");
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.TAGV_CUSTOM);
+//    rule.setNotes("Just some notes");
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidMissingFieldMetricCustom() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.METRIC_CUSTOM);
-    rule.setNotes("Just some notes");
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.METRIC_CUSTOM);
+//    rule.setNotes("Just some notes");
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidMissingCustomFieldTagkCustom() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.TAGK_CUSTOM);
-    rule.setNotes("Just some notes");
-    rule.setField("foo");
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.TAGK_CUSTOM);
+//    rule.setNotes("Just some notes");
+//    rule.setField("foo");
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidMissingCustomFieldTagvCustom() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.TAGV_CUSTOM);
-    rule.setNotes("Just some notes");
-    rule.setField("foo");
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.TAGV_CUSTOM);
+//    rule.setNotes("Just some notes");
+//    rule.setField("foo");
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidMissingCustomFieldMetricCustom() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.METRIC_CUSTOM);
-    rule.setNotes("Just some notes");
-    rule.setField("foo");
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.METRIC_CUSTOM);
+//    rule.setNotes("Just some notes");
+//    rule.setField("foo");
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeRuleInvalidRegexIdx() throws Exception {
-    setupStorage();
-    final TreeRule rule = new TreeRule(1);
-    rule.setLevel(1);
-    rule.setOrder(0);
-    rule.setType(TreeRuleType.TAGK);
-    rule.setRegex("^.*$");
-    rule.setRegexGroupIdx(-1);
-    rule.syncToStorage(tsdb, false).joinUninterruptibly();
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    final TreeRule rule = new TreeRule(1);
+//    rule.setLevel(1);
+//    rule.setOrder(0);
+//    rule.setType(TreeRuleType.TAGK);
+//    rule.setRegex("^.*$");
+//    rule.setRegexGroupIdx(-1);
+//    rule.syncToStorage(tsdb, false).joinUninterruptibly();
   }
   
   @Test
   public void deleteRule() throws Exception {
-    setupStorage();
-    assertNotNull(TreeRule.deleteRule(tsdb, 1, 2, 1));
-    assertEquals(1, tsdb_store.numColumns(new byte[] { 0, 1 }));
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    assertNotNull(tsdb.deleteTreeRule(1, 2, 1));
+//    assertEquals(1, tsdb_store.numColumns(new byte[] { 0, 1 }));
   }
   
   @Test
   public void deleteAllRules() throws Exception {
-    setupStorage();
-    TreeRule.deleteAllRules(tsdb, 1);
-    assertEquals(1, tsdb_store.numColumns(new byte[] { 0, 1 }));
+    fail(); //TODO move this test to TSDB also add test for method in HBaseStore
+//    setupStorage();
+//    TreeRule.deleteAllRules(tsdb, 1);
+//    assertEquals(1, tsdb_store.numColumns(new byte[] { 0, 1 }));
   }
 
   @Test
   public void RULE_PREFIX() throws Exception {
     assertEquals("tree_rule:",
-        new String(TreeRule.RULE_PREFIX(), Const.CHARSET_ASCII));
+        new String(Const.TREE_RULE_PREFIX, Const.CHARSET_ASCII));
   }
   
   @Test

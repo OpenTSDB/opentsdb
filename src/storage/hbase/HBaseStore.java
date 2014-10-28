@@ -1110,9 +1110,9 @@ public class HBaseStore implements TsdbStore {
             tree.setEnabled(local_tree.getEnabled());
             tree.setStoreFailures(local_tree.getStoreFailures());
             // Tree rule
-          } else if (Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0,
-                  TreeRule.RULE_PREFIX().length) == 0) {
-            final TreeRule rule = TreeRule.parseFromStorage(column);
+          } else if (Bytes.memcmp(Const.TREE_RULE_PREFIX, column.qualifier(), 0,
+                  Const.TREE_RULE_PREFIX.length) == 0) {
+            final TreeRule rule = parseTreeRuleFromStorage(column);
             tree.addRule(rule);
           }
         }
@@ -1314,10 +1314,10 @@ public class HBaseStore implements TsdbStore {
               tree.setTreeId(Tree.bytesToId(row.get(0).key()));
 
               // tree rule
-            } else if (column.qualifier().length > TreeRule.RULE_PREFIX().length &&
-                    Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(),
-                            0, TreeRule.RULE_PREFIX().length) == 0) {
-              final TreeRule rule = TreeRule.parseFromStorage(column);
+            } else if (column.qualifier().length > Const.TREE_RULE_PREFIX.length &&
+                    Bytes.memcmp(Const.TREE_RULE_PREFIX, column.qualifier(),
+                            0, Const.TREE_RULE_PREFIX.length) == 0) {
+              final TreeRule rule = parseTreeRuleFromStorage(column);
               tree.addRule(rule);
             }
           }
@@ -1337,6 +1337,24 @@ public class HBaseStore implements TsdbStore {
     // start the scanning process
     new AllTreeScanner().fetchTrees();
     return result;
+  }
+
+  /**
+   * Parses a rule from the given column. Used by the Tree class when scanning
+   * a row for rules.
+   * @param column The column to parse
+   * @return A valid TreeRule object if parsed successfully
+   * @throws IllegalArgumentException if the column was empty
+   * @throws JSONException if the object could not be serialized
+   */
+  private TreeRule parseTreeRuleFromStorage(final KeyValue column) {
+    if (column.value() == null) {
+      throw new IllegalArgumentException("Tree rule column value was null");
+    }
+
+    final TreeRule rule = JSON.parseToObject(column.value(), TreeRule.class);
+    rule.initializeChangedMap();
+    return rule;
   }
 
   @Override
@@ -1419,9 +1437,9 @@ public class HBaseStore implements TsdbStore {
               qualifiers.add(column.qualifier());
 
               // tree rule
-            } else if (delete_definition && column.qualifier().length > TreeRule.RULE_PREFIX().length &&
-                    Bytes.memcmp(TreeRule.RULE_PREFIX(), column.qualifier(), 0,
-                            TreeRule.RULE_PREFIX().length) == 0) {
+            } else if (delete_definition && column.qualifier().length > Const.TREE_RULE_PREFIX.length &&
+                    Bytes.memcmp(Const.TREE_RULE_PREFIX, column.qualifier(), 0,
+                            Const.TREE_RULE_PREFIX.length) == 0) {
               LOG.trace("Deleting tree rule in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
             }
@@ -1995,6 +2013,156 @@ public class HBaseStore implements TsdbStore {
     new FetchBranchCB().fetchBranch();
 
     return null;
+  }
+
+  @Override
+  public Deferred<TreeRule> fetchTreeRule(final int tree_id, final int level,
+                                          final int order) {
+    // fetch the whole row
+    final GetRequest get = new GetRequest(tree_table_name,
+            Tree.idToBytes(tree_id))
+            .family(Tree.TREE_FAMILY())
+            .qualifier(TreeRule.getQualifier(level, order));
+
+    /**
+     * Called after fetching to parse the results
+     */
+    final class FetchCB implements Callback<Deferred<TreeRule>,
+            ArrayList<KeyValue>> {
+
+      @Override
+      public Deferred<TreeRule> call(final ArrayList<KeyValue> row) {
+        if (row == null || row.isEmpty()) {
+          return Deferred.fromResult(null);
+        }
+        return Deferred.fromResult(parseTreeRuleFromStorage(row.get(0)));
+      }
+    }
+
+    return client.get(get).addCallbackDeferring(new FetchCB());
+  }
+
+  @Override
+  public Deferred<Object> deleteTreeRule(final int tree_id, final int level,
+                                         final int order) {
+    final DeleteRequest delete = new DeleteRequest(tree_table_name,
+            Tree.idToBytes(tree_id), Tree.TREE_FAMILY(),
+            TreeRule.getQualifier(level, order));
+
+    return client.delete(delete);
+  }
+
+  @Override
+  public Deferred<Object> deleteAllTreeRule(final int tree_id) {
+    // fetch the whole row
+    final GetRequest get = new GetRequest(tree_table_name,
+            Tree.idToBytes(tree_id)).family(Tree.TREE_FAMILY());
+
+    /**
+     * Called after fetching the requested row. If the row is empty, we just
+     * return, otherwise we compile a list of qualifiers to delete and submit
+     * a single delete request to storage.
+     */
+    final class GetCB implements Callback<Deferred<Object>,
+            ArrayList<KeyValue>> {
+
+      @Override
+      public Deferred<Object> call(final ArrayList<KeyValue> row)
+              throws Exception {
+        if (row == null || row.isEmpty()) {
+          return Deferred.fromResult(null);
+        }
+
+        final ArrayList<byte[]> qualifiers = new ArrayList<byte[]>(row.size());
+
+        for (KeyValue column : row) {
+          if (column.qualifier().length > Const.TREE_RULE_PREFIX.length &&
+                  Bytes.memcmp(Const.TREE_RULE_PREFIX, column.qualifier(), 0,
+                          Const.TREE_RULE_PREFIX.length) == 0) {
+            qualifiers.add(column.qualifier());
+          }
+        }
+
+        final DeleteRequest delete = new DeleteRequest(tree_table_name,
+                Tree.idToBytes(tree_id), Tree.TREE_FAMILY(),
+                qualifiers.toArray(new byte[qualifiers.size()][]));
+        return client.delete(delete);
+      }
+
+    }
+
+    return client.get(get).addCallbackDeferring(new GetCB());
+
+  }
+
+  @Override
+  public Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule, final boolean overwrite) {
+    // if there aren't any changes, save time and bandwidth by not writing to
+    // storage
+    boolean has_changes = false;
+    for (Map.Entry<String, Boolean> entry : rule.getChanged().entrySet()) {
+      if (entry.getValue()) {
+        has_changes = true;
+        break;
+      }
+    }
+
+    if (!has_changes) {
+      LOG.trace(this + " does not have changes, skipping sync to storage");
+      throw new IllegalStateException("No changes detected in the rule");
+    }
+
+    /**
+     * Executes the CAS after retrieving existing rule from storage, if it
+     * exists.
+     */
+    final class StoreCB implements Callback<Deferred<Boolean>, TreeRule> {
+      final TreeRule local_rule;
+
+      public StoreCB(final TreeRule local_rule) {
+        this.local_rule = local_rule;
+      }
+
+      /**
+       * @return True if the CAS was successful, false if not
+       */
+      @Override
+      public Deferred<Boolean> call(final TreeRule fetched_rule) {
+
+        TreeRule stored_rule = fetched_rule;
+        final byte[] original_rule = stored_rule == null ? new byte[0] :
+                JSON.serializeToBytes(stored_rule);
+        if (stored_rule == null) {
+          stored_rule = local_rule;
+        } else {
+          if (!stored_rule.copyChanges(local_rule, overwrite)) {
+            LOG.debug(this + " does not have changes, skipping sync to storage");
+            throw new IllegalStateException("No changes detected in the rule");
+          }
+        }
+
+        // reset the local change map so we don't keep writing on subsequent
+        // requests
+        rule.initializeChangedMap();
+
+        // validate before storing
+        stored_rule.validateRule();
+
+        final PutRequest put = new PutRequest(tree_table_name,
+                Tree.idToBytes(rule.getTreeId()), Tree.TREE_FAMILY(),
+                TreeRule.getQualifier(rule.getLevel(), rule.getOrder()),
+                JSON.serializeToBytes(stored_rule));
+        return client.compareAndSet(put, original_rule);
+      }
+
+    }
+    //here as to conform with previous check.
+    TreeRule.validateTreeRule(rule.getTreeId(), rule.getLevel(),
+            rule.getOrder());
+
+    // start the callback chain by fetching from storage
+    return fetchTreeRule(rule.getTreeId(), rule.getLevel(), rule.getOrder())
+            .addCallbackDeferring(new StoreCB(rule));
   }
 
   /**

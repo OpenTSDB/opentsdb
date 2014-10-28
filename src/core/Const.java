@@ -16,6 +16,8 @@ import com.google.common.base.Charsets;
 
 import java.nio.charset.Charset;
 
+import static net.opentsdb.core.StringCoder.toBytes;
+
 /** Constants used in various places.  */
 public final class Const {
 
@@ -103,4 +105,7 @@ public final class Const {
   /** Integer width in bytes used when setting up the HBase Scanner
    * Used only when scanning the branch */
   public static final short INT_WIDTH = 4;
+
+  /** ASCII Tree Rule prefix. Qualifier is tree_rule:<level>:<order> */
+  public static final byte[] TREE_RULE_PREFIX = toBytes("tree_rule:");
 }

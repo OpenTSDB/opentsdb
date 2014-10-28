@@ -291,11 +291,10 @@ final class TreeRpc implements HttpRpc {
         
       } else if (query.getAPIMethod() == HttpMethod.POST || query.getAPIMethod() == HttpMethod.PUT) {
   
-        if (rule.syncToStorage(tsdb, (query.getAPIMethod() == HttpMethod.PUT))
+        if (tsdb.syncTreeRuleToStorage(rule, (query.getAPIMethod() == HttpMethod.PUT))
             .joinUninterruptibly()) {
-          final TreeRule stored_rule = TreeRule.fetchRule(tsdb, 
-              rule.getTreeId(), rule.getLevel(), rule.getOrder())
-              .joinUninterruptibly();
+          final TreeRule stored_rule = tsdb.fetchTreeRule(rule.getTreeId(),
+                  rule.getLevel(), rule.getOrder()).joinUninterruptibly();
           query.sendReply(query.serializer().formatTreeRuleV1(stored_rule));
         } else {
           throw new RuntimeException("Unable to save rule " + rule + 
@@ -308,7 +307,7 @@ final class TreeRpc implements HttpRpc {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
               "Unable to locate rule: " + rule);
         }
-        TreeRule.deleteRule(tsdb, tree.getTreeId(), rule.getLevel(), 
+        tsdb.deleteTreeRule(tree.getTreeId(), rule.getLevel(),
             rule.getOrder()).joinUninterruptibly(); 
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
   
@@ -373,17 +372,17 @@ final class TreeRpc implements HttpRpc {
         
         // purge the existing tree rules if we're told to PUT
         if (query.getAPIMethod() == HttpMethod.PUT) {
-          TreeRule.deleteAllRules(tsdb, tree_id).joinUninterruptibly();
+          tsdb.deleteAllTreeRules(tree_id).joinUninterruptibly();
         }
         for (TreeRule rule : rules) {
-          rule.syncToStorage(tsdb, query.getAPIMethod() == HttpMethod.PUT)
+          tsdb.syncTreeRuleToStorage(rule, query.getAPIMethod() == HttpMethod.PUT)
             .joinUninterruptibly();
         }
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
   
       } else if (query.getAPIMethod() == HttpMethod.DELETE) {
   
-        TreeRule.deleteAllRules(tsdb, tree_id).joinUninterruptibly();
+        tsdb.deleteAllTreeRules(tree_id).joinUninterruptibly();
         query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
   
       } else {
