@@ -596,27 +596,7 @@ public class UniqueId {
     }
     buf.append("\\E");
   }
-  
-  /**
-   * Attempts to convert the given string to a type enumerator
-   * @param type The string to convert
-   * @return a valid UniqueIdType if matched
-   * @throws IllegalArgumentException if the string did not match a type
-   * @since 2.0
-   */
-  public static UniqueIdType stringToUniqueIdType(final String type) {
-    if (type.toLowerCase().equals("metric") || 
-        type.toLowerCase().equals("metrics")) {
-      return UniqueIdType.METRIC;
-    } else if (type.toLowerCase().equals("tagk")) {
-      return UniqueIdType.TAGK;
-    } else if (type.toLowerCase().equals("tagv")) {
-      return UniqueIdType.TAGV;
-    } else {
-      throw new IllegalArgumentException("Invalid type requested: " + type);
-    }
-  }
-  
+
   /**
    * Converts a hex string to a byte array
    * If the {@code uid} is less than {@code uid_length * 2} characters wide, it

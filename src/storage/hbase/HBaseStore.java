@@ -652,8 +652,8 @@ public class HBaseStore implements TsdbStore {
         if (effective_type == null) {
           final String qualifier =
             new String(cell.get().qualifier(), HBaseConst.CHARSET);
-          effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
-            qualifier.indexOf("_meta")));
+          effective_type = UniqueIdType.fromString(qualifier.substring(0,
+                  qualifier.indexOf("_meta")));
         }
 
         UIDMeta return_meta = UIDMeta.buildFromJSON(cell.get().value(),

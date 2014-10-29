@@ -22,4 +22,24 @@ public enum UniqueIdType {
     this.qualifier = qualifier;
     this.width = width;
   }
+
+  /**
+   * Attempts to convert the given string to a type enumerator
+   * @param type The string to convert
+   * @return a valid UniqueIdType if matched
+   * @throws IllegalArgumentException if the string did not match a type
+   * @since 2.0
+   */
+  public static UniqueIdType fromString(final String type) {
+    if (type.toLowerCase().equals("metric") ||
+        type.toLowerCase().equals("metrics")) {
+      return METRIC;
+    } else if (type.toLowerCase().equals("tagk")) {
+      return TAGK;
+    } else if (type.toLowerCase().equals("tagv")) {
+      return TAGV;
+    } else {
+      throw new IllegalArgumentException("Invalid type requested: " + type);
+    }
+  }
 }

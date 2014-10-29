@@ -19,7 +19,6 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.SearchQuery.SearchType;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -374,7 +373,7 @@ public final class JSON {
     @Override
     public UniqueIdType deserialize(final JsonParser parser, final
         DeserializationContext context) throws IOException {
-      return UniqueId.stringToUniqueIdType(parser.getValueAsString());
+      return UniqueIdType.fromString(parser.getValueAsString());
     }
   }
   

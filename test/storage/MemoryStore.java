@@ -508,7 +508,7 @@ public class MemoryStore implements TsdbStore {
 
     UniqueIdType effective_type = type;
     if (effective_type == null) {
-      effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
+      effective_type = UniqueIdType.fromString(qualifier.substring(0,
               qualifier.indexOf("_meta")));
     }
 

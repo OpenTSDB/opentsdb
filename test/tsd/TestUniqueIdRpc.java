@@ -21,7 +21,6 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
@@ -703,34 +702,34 @@ public final class TestUniqueIdRpc {
   @Test
   public void stringToUniqueIdTypeMetric() throws Exception {
     setupAssign();
-    assertEquals(UniqueIdType.METRIC, UniqueId.stringToUniqueIdType("Metric"));
+    assertEquals(UniqueIdType.METRIC, UniqueIdType.fromString("Metric"));
   }
   
   @Test
   public void stringToUniqueIdTypeTagk() throws Exception {
     setupAssign();
-    assertEquals(UniqueIdType.TAGK, UniqueId.stringToUniqueIdType("TagK"));
+    assertEquals(UniqueIdType.TAGK, UniqueIdType.fromString("TagK"));
   }
   
   @Test
   public void stringToUniqueIdTypeTagv() throws Exception {
     setupAssign();
-    assertEquals(UniqueIdType.TAGV, UniqueId.stringToUniqueIdType("TagV"));
+    assertEquals(UniqueIdType.TAGV, UniqueIdType.fromString("TagV"));
   }
   
   @Test (expected = NullPointerException.class)
   public void stringToUniqueIdTypeNull() throws Exception {
-    UniqueId.stringToUniqueIdType(null);
+    UniqueIdType.fromString(null);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeEmpty() throws Exception {
-    UniqueId.stringToUniqueIdType("");
+    UniqueIdType.fromString("");
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void stringToUniqueIdTypeInvalid() throws Exception {setupAssign();
-    UniqueId.stringToUniqueIdType("Not a type");
+    UniqueIdType.fromString("Not a type");
   }
 
   // Teset /api/uid/uidmeta --------------------
