@@ -21,7 +21,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
@@ -206,7 +206,7 @@ class Span implements DataPoints {
   /** Returns a human readable string representation of the object. */
   @Override
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
             .add("size", rows.size())
             .add("rows", Joiner.on(',').join(rows))
             .toString();
@@ -252,7 +252,7 @@ class Span implements DataPoints {
     }
 
     public String toString() {
-      return Objects.toStringHelper(this)
+      return MoreObjects.toStringHelper(this)
               .add("span", Span.this)
               .add("iterator", iterator)
               .toString();
