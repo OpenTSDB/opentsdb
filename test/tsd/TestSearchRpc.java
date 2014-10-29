@@ -395,14 +395,6 @@ public final class TestSearchRpc {
   
   @SuppressWarnings("unchecked")
   private void setupAnswerLookupQuery() throws Exception {
-    PowerMockito.mockStatic(RowKey.class);
-    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(0)))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
-    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(1)))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
-    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(2)))
-      .thenReturn(Deferred.fromResult("sys.cpu.nice"));
-
     PowerMockito.mockStatic(UniqueId.class);
     final List<byte[]> pair_a = new ArrayList<byte[]>(2);
     pair_a.add(new byte[] { 0, 0, 1 });
