@@ -515,8 +515,7 @@ final class Fsck {
       
       // Process the time series ID by resolving the UIDs to names if we haven't
       // already seen this particular TSUID
-      final byte[] tsuid = UniqueId.getTSUIDFromKey(key, Const.METRICS_WIDTH,
-          Const.TIMESTAMP_BYTES);
+      final byte[] tsuid = RowKey.tsuid(key);
       if (!tsuids.contains(tsuid)) {
         try {
           byte[] metric_id = RowKey.metric(key);

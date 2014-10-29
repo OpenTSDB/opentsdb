@@ -58,6 +58,24 @@ final public class RowKey {
 
     return tags;
   }
+
+  /**
+   * Extracts the TSUID from a storage row key that includes the timestamp.
+   * @param row_key The row key to process
+   * @return The TSUID
+   * @throws ArrayIndexOutOfBoundsException if the row_key is invalid
+   */
+  public static byte[] tsuid(final byte[] row_key) {
+    final short metric_width = Const.METRICS_WIDTH;
+    final short timestamp_width = Const.TIMESTAMP_BYTES;
+
+    final byte[] tsuid = new byte[row_key.length - timestamp_width];
+    System.arraycopy(row_key, 0, tsuid, 0, metric_width);
+    System.arraycopy(row_key, metric_width + timestamp_width, tsuid,
+            metric_width, row_key.length - metric_width - timestamp_width);
+
+    return tsuid;
+  }
   
   /**
    * Generates a row key given a TSUID and an absolute timestamp. The timestamp

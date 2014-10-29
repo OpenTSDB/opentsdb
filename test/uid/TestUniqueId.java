@@ -35,8 +35,6 @@ import org.junit.runner.RunWith;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
 
 import org.mockito.ArgumentMatcher;
 
@@ -49,7 +47,6 @@ import static org.mockito.Mockito.verify;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 @RunWith(PowerMockRunner.class)
 // "Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
@@ -338,22 +335,6 @@ public final class TestUniqueId {
   @Test (expected = IllegalArgumentException.class)
   public void stringToUidNotHex2() {
     UniqueId.stringToUid(" ");
-  }
-  
-  @Test
-  public void getTSUIDFromKey() {
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
-      { 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
-    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2, 0, 0, 3 }, 
-        tsuid);
-  }
-  
-  @Test
-  public void getTSUIDFromKeyMissingTags() {
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
-      { 0, 0, 1, 1, 1, 1, 1 }, (short)3, (short)4);
-    assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsuid);
   }
   
   @Test
