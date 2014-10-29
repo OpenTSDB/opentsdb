@@ -1093,7 +1093,7 @@ public class HBaseStore implements TsdbStore {
         final Tree tree = new Tree();
 
         // WARNING: Since the JSON in storage doesn't store the tree ID, we need
-        // to loadi t from the row key.
+        // to load it from the row key.
         tree.setTreeId(Tree.bytesToId(row.get(0).key()));
 
         for (KeyValue column : row) {
@@ -1235,7 +1235,7 @@ public class HBaseStore implements TsdbStore {
         }
 
         local_tree.setTreeId(max_id + 1);
-        if (local_tree.getTreeId() > Const.MAX_TREE_ID_EXCLUSIVE) {
+        if (local_tree.getTreeId() > Const.MAX_TREE_ID_INCLUSIVE) {
           throw new IllegalStateException("Exhausted all Tree IDs");
         }
 
@@ -1772,8 +1772,8 @@ public class HBaseStore implements TsdbStore {
         final class LeafFetchCB implements Callback<Deferred<Boolean>, Leaf> {
 
           /**
-           * @return True if the put was successful or the leaf existed, false if
-           * there was a collision
+           * @return True if the put was successful or the leaf existed, false
+           * if there was a collision
            */
           @Override
           public Deferred<Boolean> call(final Leaf existing_leaf)
@@ -1792,7 +1792,12 @@ public class HBaseStore implements TsdbStore {
             }
 
             tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());
-            LOG.warn("Branch ID: [{}] Leaf collision with [{}] on existing leaf [{}] named [{}]", Branch.idToString(branch_id), leaf.getTsuid(), existing_leaf.getTsuid(), leaf.getDisplayName());
+            LOG.warn("Branch ID: [{}] Leaf collision with [{}] on existing" +
+                            " leaf [{}] named [{}]",
+                    Branch.idToString(branch_id),
+                    leaf.getTsuid(),
+                    existing_leaf.getTsuid(),
+                    leaf.getDisplayName());
             return Deferred.fromResult(false);
           }
         }
@@ -1811,9 +1816,12 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<ArrayList<Boolean>> storeBranch(final Tree tree, final Branch branch, final boolean store_leaves) {
+  public Deferred<ArrayList<Boolean>> storeBranch(final Tree tree,
+                                                  final Branch branch,
+                                                  final boolean store_leaves) {
     final ArrayList<Deferred<Boolean>> storage_results =
-            new ArrayList<Deferred<Boolean>>(branch.getLeaves() != null ? branch.getLeaves().size() + 1 : 1);
+            new ArrayList<Deferred<Boolean>>(branch.getLeaves() != null
+                    ? branch.getLeaves().size() + 1 : 1);
 
     // compile the row key by making sure the display_name is in the path set
     // row ID = <treeID>[<parent.display_name.hashCode()>...]
@@ -1823,13 +1831,14 @@ public class HBaseStore implements TsdbStore {
     // missing anything important
     final byte[] storage_data = branch.toStorageJson();
 
-    final PutRequest put = new PutRequest(tree_table_name, row, Tree.TREE_FAMILY(),
-            BRANCH_QUALIFIER, storage_data);
+    final PutRequest put = new PutRequest(tree_table_name, row,
+            Tree.TREE_FAMILY(), BRANCH_QUALIFIER, storage_data);
     put.setBufferable(true);
     storage_results.add(client.compareAndSet(put, new byte[0]));
 
     // store leaves if told to and put the storage calls in our deferred group
-    if (store_leaves && branch.getLeaves()!= null && !branch.getLeaves().isEmpty()) {
+    if (store_leaves && branch.getLeaves()!= null &&
+            !branch.getLeaves().isEmpty()) {
       for (final Leaf leaf : branch.getLeaves()) {
         storage_results.add(storeLeaf(leaf, branch, tree));
       }
