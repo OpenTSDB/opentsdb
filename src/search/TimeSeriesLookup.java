@@ -136,8 +136,7 @@ public class TimeSeriesLookup {
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] tsuid = query.useMeta() ? row.get(0).key() :
-            UniqueId.getTSUIDFromKey(row.get(0).key(), Const.METRICS_WIDTH,
-                Const.TIMESTAMP_BYTES);
+            RowKey.tsuid(row.get(0).key());
           
           // TODO - there MUST be a better way than creating a ton of temp
           // string objects.

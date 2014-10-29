@@ -734,8 +734,7 @@ public class TSDB {
           return result;
         }
 
-        final byte[] tsuid = UniqueId.getTSUIDFromKey(row, Const.METRICS_WIDTH,
-                Const.TIMESTAMP_BYTES);
+        final byte[] tsuid = RowKey.tsuid(row);
 
         // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
         // counter field for a TSUID with the proper timestamp. If the user would

@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -334,8 +335,7 @@ final class MetaSync extends Thread {
         
         for (final ArrayList<KeyValue> row : rows) {
 
-          final byte[] tsuid = UniqueId.getTSUIDFromKey(row.get(0).key(),
-                  Const.METRICS_WIDTH, Const.TIMESTAMP_BYTES);
+          final byte[] tsuid = RowKey.tsuid(row.get(0).key());
           
           // if the current tsuid is the same as the last, just continue
           // so we save time

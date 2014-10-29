@@ -19,9 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.Const;
+import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.storage.MemoryStore;
@@ -42,20 +41,13 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
 import org.mockito.ArgumentMatcher;
-import org.mockito.InOrder;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -348,22 +340,6 @@ public final class TestUniqueId {
   @Test (expected = IllegalArgumentException.class)
   public void stringToUidNotHex2() {
     UniqueId.stringToUid(" ");
-  }
-  
-  @Test
-  public void getTSUIDFromKey() {
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
-      { 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
-    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2, 0, 0, 3 }, 
-        tsuid);
-  }
-  
-  @Test
-  public void getTSUIDFromKeyMissingTags() {
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
-      { 0, 0, 1, 1, 1, 1, 1 }, (short)3, (short)4);
-    assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsuid);
   }
   
   @Test
