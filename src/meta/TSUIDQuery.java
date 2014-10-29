@@ -24,7 +24,7 @@ import net.opentsdb.core.*;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.GetRequest;

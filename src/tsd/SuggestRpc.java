@@ -21,7 +21,7 @@ import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -77,9 +77,9 @@ final class SuggestRpc implements HttpRpc {
       max_results = 0;
     }
 
-    UniqueId.UniqueIdType utype;
+    UniqueIdType utype;
     try {
-      utype = UniqueId.stringToUniqueIdType(type);
+      utype = UniqueIdType.fromString(type);
     } catch (IllegalArgumentException e) {
       throw new BadRequestException("Invalid 'type' parameter:" + type, e);
     }

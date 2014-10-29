@@ -12,9 +12,9 @@ import com.stumbleupon.async.DeferredGroupException;
 import org.junit.Before;
 import org.junit.Test;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType.METRIC;
-import static net.opentsdb.uid.UniqueId.UniqueIdType.TAGK;
-import static net.opentsdb.uid.UniqueId.UniqueIdType.TAGV;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueIdType.TAGK;
+import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.junit.Assert.assertEquals;
 
 public class TestUidFormatter {

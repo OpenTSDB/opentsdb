@@ -26,7 +26,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.Sets;
 
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.JSON;
 
 /**

@@ -16,14 +16,12 @@ import java.util.NoSuchElementException;
 
 import com.google.common.collect.Lists;
 import net.opentsdb.core.DataPoint;
-import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.hbase.CompactedRow;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
@@ -31,7 +29,7 @@ import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import static org.junit.Assert.*;
 
 public final class TestCompactedRow {

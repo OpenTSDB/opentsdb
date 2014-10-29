@@ -20,7 +20,6 @@ import java.util.Map;
 
 import com.stumbleupon.async.Callback;
 
-import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.storage.MemoryStore;
@@ -33,12 +32,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
 
 import org.mockito.ArgumentMatcher;
 
@@ -51,7 +47,6 @@ import static org.mockito.Mockito.verify;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 @RunWith(PowerMockRunner.class)
 // "Classloader hell"...  It's real.  Tell PowerMock to ignore these classes

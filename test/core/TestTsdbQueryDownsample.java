@@ -16,7 +16,6 @@ import java.util.HashMap;
 
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.DateTime;
 
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -27,7 +26,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import static org.junit.Assert.*;
 
 /**

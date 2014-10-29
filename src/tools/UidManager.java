@@ -44,7 +44,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 
 /**
  * Command line tool to manipulate UIDs.
@@ -323,7 +323,7 @@ final class UidManager {
   private static UniqueId buildUniqueIdInstance(final TsdbStore tsdb_store,
                                                 final byte[] table,
                                                 final String stype) {
-    final UniqueIdType type = UniqueId.stringToUniqueIdType(stype);
+    final UniqueIdType type = UniqueIdType.fromString(stype);
     return new UniqueId(tsdb_store, table, type);
   }
 
@@ -784,7 +784,7 @@ final class UidManager {
                               final byte[] table,
                               final long lid,
                               final String kind) {
-    UniqueIdType type = UniqueId.stringToUniqueIdType(kind);
+    UniqueIdType type = UniqueIdType.fromString(kind);
     final byte[] id = UniqueId.longToUID(lid, type.width);
 
     if (id == null) {

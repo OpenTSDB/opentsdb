@@ -42,6 +42,7 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 /**
@@ -518,7 +519,7 @@ final class Fsck {
       if (!tsuids.contains(tsuid)) {
         try {
           byte[] metric_id = RowKey.metric(key);
-          tsdb.getUidName(UniqueId.UniqueIdType.METRIC, metric_id).joinUninterruptibly();
+          tsdb.getUidName(UniqueIdType.METRIC, metric_id).joinUninterruptibly();
         } catch (NoSuchUniqueId nsui) {
           LOG.error("Unable to resolve the metric from the row key.\n\tKey: {}\n\t{}",
                   UniqueId.uidToString(key), nsui.getMessage());

@@ -54,7 +54,8 @@ import org.slf4j.LoggerFactory;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.core.StringCoder.toBytes;
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
+
+import net.opentsdb.uid.UniqueIdType;
 import static net.opentsdb.storage.hbase.HBaseConst.CHARSET;
 
 /**
@@ -651,8 +652,8 @@ public class HBaseStore implements TsdbStore {
         if (effective_type == null) {
           final String qualifier =
             new String(cell.get().qualifier(), HBaseConst.CHARSET);
-          effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
-            qualifier.indexOf("_meta")));
+          effective_type = UniqueIdType.fromString(qualifier.substring(0,
+                  qualifier.indexOf("_meta")));
         }
 
         UIDMeta return_meta = UIDMeta.buildFromJSON(cell.get().value(),

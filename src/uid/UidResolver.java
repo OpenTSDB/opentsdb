@@ -1,10 +1,8 @@
 package net.opentsdb.uid;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.Map;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
@@ -15,8 +13,6 @@ import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
-import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
 
 public class UidResolver {
   private final TSDB tsdb;
