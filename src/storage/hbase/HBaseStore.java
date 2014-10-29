@@ -54,7 +54,8 @@ import org.slf4j.LoggerFactory;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.core.StringCoder.toBytes;
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
+
+import net.opentsdb.uid.UniqueIdType;
 import static net.opentsdb.storage.hbase.HBaseConst.CHARSET;
 
 /**

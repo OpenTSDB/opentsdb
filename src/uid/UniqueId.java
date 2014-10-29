@@ -25,7 +25,6 @@ import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
-import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -56,24 +55,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
-  /** Enumerator for different types of UIDS @since 2.0 */
-  public enum UniqueIdType {
-    METRIC(Const.METRICS_QUAL, Const.METRICS_WIDTH),
-    TAGK(Const.TAG_NAME_QUAL, Const.TAG_NAME_WIDTH),
-    TAGV(Const.TAG_VALUE_QUAL, Const.TAG_VALUE_WIDTH);
-
-    public final String qualifier;
-    public final short width;
-
-    UniqueIdType(String qualifier, short width) {
-      checkArgument(!Strings.isNullOrEmpty(qualifier), "Empty string as 'qualifier' argument!");
-      checkArgument(width > 0 && width <= 8, "Invalid width: %s", width);
-
-      this.qualifier = qualifier;
-      this.width = width;
-    }
-  }
-  
   /** Charset used to convert Strings to byte arrays and back. */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** The single column family used by this class. */

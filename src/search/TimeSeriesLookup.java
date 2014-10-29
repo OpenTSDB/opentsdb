@@ -26,7 +26,7 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteArrayPair;
 import net.opentsdb.utils.Pair;
 
