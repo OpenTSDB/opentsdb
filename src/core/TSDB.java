@@ -667,7 +667,7 @@ public class TSDB {
                                          + " for metric=" + metric
                                          + " timestamp=" + timestamp);
     }
-    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 4 bytes.
+    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 8 bytes.
     return addPointInternal(metric, timestamp,
                             Bytes.fromLong(Double.doubleToRawLongBits(value)),
                             tags, flags);

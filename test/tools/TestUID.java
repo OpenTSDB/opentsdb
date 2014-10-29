@@ -36,6 +36,7 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -73,7 +74,7 @@ public class TestUID {
     config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(config);
-    
+
     // replace the "real" field objects with mocks
 //    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");
 //    cl.setAccessible(true);
@@ -114,6 +115,17 @@ public class TestUID {
 //    when(metrics.width()).thenReturn((short)3);
 //    when(tag_names.width()).thenReturn((short)3);
 //    when(tag_values.width()).thenReturn((short)3);
+    PowerMockito.spy(System.class);
+    PowerMockito.when(System.nanoTime())
+      .thenReturn(1357300800000000L)
+      .thenReturn(1357300801000000L)
+      .thenReturn(1357300802000000L)
+      .thenReturn(1357300803000000L);
+    PowerMockito.when(System.currentTimeMillis())
+      .thenReturn(1357300800000L)
+      .thenReturn(1357300801000L)
+      .thenReturn(1357300802000L)
+      .thenReturn(1357300803000L);
   }
   
   /* FSCK --------------------------------------------
