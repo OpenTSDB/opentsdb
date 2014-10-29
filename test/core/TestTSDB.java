@@ -748,33 +748,12 @@ public final class TestTSDB {
   }
 
   @Test (expected = IllegalArgumentException.class)
-  public void storeNewEmptyUID() throws Exception {
-    UIDMeta meta = new UIDMeta(METRIC, "");
-    try {
-      tsdb.add(meta).joinUninterruptibly();
-    } catch (Exception e) {
-      assertEquals("Missing UID", e.getMessage());
-      throw(e);
-    }
-  }
-  @Test (expected = IllegalArgumentException.class)
   public void storeNewNoName() throws Exception {
     UIDMeta meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "");
     try {
       tsdb.add(meta).joinUninterruptibly();
     } catch (Exception e) {
       assertEquals("Missing name", e.getMessage());
-      throw(e);
-    }
-  }
-
-  @Test (expected = IllegalArgumentException.class)
-  public void storeNewNullType() throws Exception {
-    UIDMeta meta = new UIDMeta(null, new byte[] { 0, 0, 1 }, "sys.cpu.1");
-    try {
-      tsdb.add(meta).joinUninterruptibly();
-    } catch (Exception e) {
-      assertEquals("Missing type", e.getMessage());
       throw(e);
     }
   }
