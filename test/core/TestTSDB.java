@@ -933,18 +933,18 @@ public final class TestTSDB {
   }
 
   @Test (expected = IllegalArgumentException.class)
-  public void testfetchCollisionsTooLowID() {
+  public void testFetchCollisionsTooLowID() {
 
     tsdb.fetchCollisions(Const.MIN_TREE_ID_INCLUSIVE - 1, null);
   }
 
   @Test (expected = IllegalArgumentException.class)
-  public void testfetchCollisionsTooHighID() {
+  public void testFetchCollisionsTooHighID() {
     tsdb.fetchCollisions(Const.MAX_TREE_ID_INCLUSIVE + 1, null);
   }
 
   @Test
-  public void testfetchCollisions() throws Exception {
+  public void testFetchCollisions() throws Exception {
     testStoreTreeValidID();
     for (int id = Const.MIN_TREE_ID_INCLUSIVE;
          id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
@@ -954,17 +954,17 @@ public final class TestTSDB {
   }
 
   @Test (expected = IllegalArgumentException.class)
-  public void testfetchNotMatchedTooLowID() {
+  public void testFetchNotMatchedTooLowID() {
     tsdb.fetchCollisions(Const.MIN_TREE_ID_INCLUSIVE - 1, null);
   }
 
   @Test (expected = IllegalArgumentException.class)
-  public void testfetchNotMatchedTooHighID() {
+  public void testFetchNotMatchedTooHighID() {
     tsdb.fetchCollisions(Const.MAX_TREE_ID_INCLUSIVE + 1, null);
   }
 
   @Test
-  public void testfetchNotMatched() throws Exception {
+  public void testFetchNotMatched() throws Exception {
     for (int id = Const.MIN_TREE_ID_INCLUSIVE;
          id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
 
@@ -973,7 +973,7 @@ public final class TestTSDB {
   }
 
   @Test
-  public void testflushTreeCollisionsNoStoredFailures() throws Exception {
+  public void testFlushTreeCollisionsNoStoredFailures() throws Exception {
     final Tree tree = new Tree();
     tree.setStoreFailures(false);
     tree.addCollision("4711", "JustANumber");
@@ -986,7 +986,7 @@ public final class TestTSDB {
     assertEquals(0, tree.getCollisions().size());
   }
   @Test
-  public void testflushTreeCollisionsFailures() throws Exception {
+  public void testFlushTreeCollisionsFailures() throws Exception {
     final Tree tree = new Tree();
     tree.setStoreFailures(true);
     tree.addCollision("4711", "JustANumber");
@@ -999,7 +999,7 @@ public final class TestTSDB {
   }
 
   @Test
-  public void testflushTreeNotMatchedStoreFailures() throws Exception {
+  public void testFlushTreeNotMatchedStoreFailures() throws Exception {
     final Tree tree = new Tree();
     tree.setStoreFailures(false);
     tree.addNotMatched("4711", "JustANumber");
@@ -1012,7 +1012,7 @@ public final class TestTSDB {
     assertEquals(0, tree.getNotMatched().size());
   }
   @Test
-  public void testflushTreeNotMatchedNoStoreFailures() throws Exception {
+  public void testFlushTreeNotMatchedNoStoreFailures() throws Exception {
     final Tree tree = new Tree();
     tree.setStoreFailures(true);
     tree.addNotMatched("4711", "JustANumber");
@@ -1100,7 +1100,7 @@ public final class TestTSDB {
   @Test
   public void testFetchTreeRuleTooLowID() {
     try {
-      tsdb.fetchTreeRule(Const.MIN_TREE_ID_INCLUSIVE - 1, -1, -1);
+      tsdb.fetchTreeRule(Const.MIN_TREE_ID_INCLUSIVE - 1, 0, 0);
     } catch (IllegalArgumentException e){
       assertEquals("Invalid Tree ID", e.getMessage());
     }
@@ -1109,7 +1109,7 @@ public final class TestTSDB {
   @Test
   public void testFetchTreeRuleTooHighID() {
     try {
-      tsdb.fetchTreeRule(Const.MAX_TREE_ID_INCLUSIVE + 1, -1, -1);
+      tsdb.fetchTreeRule(Const.MAX_TREE_ID_INCLUSIVE + 1, 0, 0);
     } catch (IllegalArgumentException e){
       assertEquals("Invalid Tree ID", e.getMessage());
     }
