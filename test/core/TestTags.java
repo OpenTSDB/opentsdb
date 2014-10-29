@@ -25,7 +25,7 @@ import net.opentsdb.utils.Pair;
 
 import org.junit.Test;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import static org.junit.Assert.*;
 
 public final class TestTags {

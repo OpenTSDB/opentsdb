@@ -5,7 +5,7 @@ import java.util.Map;
 
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import com.google.common.base.Optional;
@@ -44,9 +44,9 @@ public class TestQueryBuilder {
     MemoryStore tsdb_store = new MemoryStore();
     final TSDB tsdb = new TSDB(tsdb_store, new Config(false));
 
-    tsdb_store.allocateUID(SYS_CPU_USER_NAME, SYS_CPU_USER_ID, UniqueId.UniqueIdType.METRIC);
-    tsdb_store.allocateUID(HOST_NAME, HOST_ID, UniqueId.UniqueIdType.TAGK);
-    tsdb_store.allocateUID(WEB01_NAME, WEB01_ID, UniqueId.UniqueIdType.TAGV);
+    tsdb_store.allocateUID(SYS_CPU_USER_NAME, SYS_CPU_USER_ID, UniqueIdType.METRIC);
+    tsdb_store.allocateUID(HOST_NAME, HOST_ID, UniqueIdType.TAGK);
+    tsdb_store.allocateUID(WEB01_NAME, WEB01_ID, UniqueIdType.TAGV);
 
     good_tags = Maps.newHashMap();
     good_tags.put(HOST_NAME, WEB01_NAME);

@@ -2,9 +2,7 @@ package net.opentsdb.uid;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Maps;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
+
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.utils.Config;
@@ -15,9 +13,9 @@ import java.io.IOException;
 import java.util.*;
 import java.util.List;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType.METRIC;
-import static net.opentsdb.uid.UniqueId.UniqueIdType.TAGK;
-import static net.opentsdb.uid.UniqueId.UniqueIdType.TAGV;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueIdType.TAGK;
+import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 

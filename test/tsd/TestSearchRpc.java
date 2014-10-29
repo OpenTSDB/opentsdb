@@ -24,11 +24,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
@@ -39,9 +37,8 @@ import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;

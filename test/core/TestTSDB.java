@@ -12,7 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
+import static net.opentsdb.uid.UniqueIdType.*;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;

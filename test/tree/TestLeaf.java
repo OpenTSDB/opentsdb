@@ -12,16 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
+import static net.opentsdb.uid.UniqueIdType.*;
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.KeyValue;
@@ -31,8 +29,6 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.stumbleupon.async.DeferredGroupException;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
