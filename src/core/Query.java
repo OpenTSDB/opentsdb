@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -303,7 +303,7 @@ public final class Query {
 
   @Override
   public String toString() {
-    Objects.ToStringHelper str_helper = Objects.toStringHelper(this);
+    MoreObjects.ToStringHelper str_helper = MoreObjects.toStringHelper(this);
 
     str_helper.add("start_time", start_time)
             .add("end_time", end_time);
