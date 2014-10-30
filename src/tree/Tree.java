@@ -531,7 +531,7 @@ public final class Tree {
   }
 
   public static void validateTreeID(int id) {
-    if (id < Const.MIN_TREE_ID_EXCLUSIVE || id > Const.MAX_TREE_ID_EXCLUSIVE) {
+    if (id < Const.MIN_TREE_ID_INCLUSIVE || id > Const.MAX_TREE_ID_INCLUSIVE) {
       throw new IllegalArgumentException("Invalid Tree ID");
     }
   }
