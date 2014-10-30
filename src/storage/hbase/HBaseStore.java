@@ -1909,8 +1909,7 @@ public class HBaseStore implements TsdbStore {
           ex = ex.getCause();
         }
         if (ex.getClass().equals(NoSuchUniqueId.class)) {
-          LOG.debug("Invalid UID for leaf: " + Branch.idToString(qualifier) +
-                  " in branch: " + Branch.idToString(branch_id), ex);
+          LOG.debug("Invalid UID for leaf: {} in branch: {}", Branch.idToString(qualifier), Branch.idToString(branch_id), ex);
         } else {
           throw (Exception)ex;
         }
@@ -2110,7 +2109,7 @@ public class HBaseStore implements TsdbStore {
     }
 
     if (!has_changes) {
-      LOG.trace(this + " does not have changes, skipping sync to storage");
+      LOG.trace("{} does not have changes, skipping sync to storage", this);
       throw new IllegalStateException("No changes detected in the rule");
     }
 
@@ -2138,7 +2137,7 @@ public class HBaseStore implements TsdbStore {
           stored_rule = local_rule;
         } else {
           if (!stored_rule.copyChanges(local_rule, overwrite)) {
-            LOG.debug(this + " does not have changes, skipping sync to storage");
+            LOG.debug("{} does not have changes, skipping sync to storage", this);
             throw new IllegalStateException("No changes detected in the rule");
           }
         }

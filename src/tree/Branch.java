@@ -241,9 +241,7 @@ public final class Branch implements Comparable<Branch> {
         
         // log at info or lower since it's not a system error, rather it's
         // a user issue with the rules or naming schema
-        LOG.warn("Incoming TSUID [" + leaf.getTsuid() + 
-            "] collided with existing TSUID [" + collision.getTsuid() + 
-            "] on display name [" + collision.getDisplayName() + "]");
+        LOG.warn("Incoming TSUID [{}] collided with existing TSUID [{}] on display name [{}]", leaf.getTsuid(), collision.getTsuid(), collision.getDisplayName());
       }
       return false;
     } else {

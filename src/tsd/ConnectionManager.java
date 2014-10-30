@@ -97,7 +97,7 @@ final class ConnectionManager extends IdleStateAwareChannelHandler {
     final Channel chan = ctx.getChannel();
     if (cause instanceof ClosedChannelException) {
       exceptions_closed.incrementAndGet();
-      LOG.warn("Attempt to write to closed channel " + chan);
+      LOG.warn("Attempt to write to closed channel {}", chan);
       return;
     }
     if (cause instanceof IOException) {
@@ -116,12 +116,12 @@ final class ConnectionManager extends IdleStateAwareChannelHandler {
     }
     if (cause instanceof CodecEmbedderException) {
     	// payload was not compressed as it was announced to be
-    	LOG.warn("Http codec error : " + cause.getMessage());
+      LOG.warn("Http codec error : {}", cause.getMessage());
     	e.getChannel().close();
     	return;
     }
     exceptions_unknown.incrementAndGet();
-    LOG.error("Unexpected exception from downstream for " + chan, cause);
+    LOG.error("Unexpected exception from downstream for {}", chan, cause);
     e.getChannel().close();
   }
 

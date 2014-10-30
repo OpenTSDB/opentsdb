@@ -149,8 +149,7 @@ final class MetaSync extends Thread {
           UIDMeta new_meta = new UIDMeta(type, uid, name);
           new_meta.setCreated(timestamp);
           tsdb.indexUIDMeta(new_meta);
-          LOG.info("Replacing corrupt UID [" + UniqueId.uidToString(uid) + 
-            "] of type [" + type + "]");
+          LOG.info("Replacing corrupt UID [{}] of type [{}]", UniqueId.uidToString(uid), type);
           
           return tsdb.syncUIDMetaToStorage(new_meta, true);
         }
@@ -164,8 +163,7 @@ final class MetaSync extends Thread {
         // otherwise it's probably an accurate timestamp
         if (meta.getCreated() > (timestamp + 3600) || 
             meta.getCreated() == 0) {
-          LOG.info("Updating UID [" + UniqueId.uidToString(uid) + 
-              "] of type [" + type + "]");
+          LOG.info("Updating UID [{}] of type [{}]", UniqueId.uidToString(uid), type);
           meta.setCreated(timestamp);
           
           // if the UIDMeta object was missing any of these fields, we'll
@@ -178,13 +176,11 @@ final class MetaSync extends Thread {
             // the meta was good, just needed a timestamp update so sync to
             // search and storage
             tsdb.indexUIDMeta(meta);
-            LOG.info("Syncing valid UID [" + UniqueId.uidToString(uid) + 
-              "] of type [" + type + "]");
+            LOG.info("Syncing valid UID [{}] of type [{}]", UniqueId.uidToString(uid), type);
             return tsdb.syncUIDMetaToStorage(meta, false);
           }
         } else {
-          LOG.debug("UID [" + UniqueId.uidToString(uid) + 
-              "] of type [" + type + "] is up to date in storage");
+          LOG.debug("UID [{}] of type [{}] is up to date in storage", UniqueId.uidToString(uid), type);
           return Deferred.fromResult(true);
         }
       }
@@ -229,8 +225,7 @@ final class MetaSync extends Thread {
 
             @Override
             public Deferred<Boolean> call(Long value) throws Exception {
-              LOG.info("Created counter and meta for timeseries [" + 
-                  tsuid_string + "]");
+              LOG.info("Created counter and meta for timeseries [{}]", tsuid_string);
               return Deferred.fromResult(true);
             }
             
@@ -254,8 +249,7 @@ final class MetaSync extends Thread {
               } else {
                 TSMeta new_meta = new TSMeta(tsuid, timestamp);
                 tsdb.indexTSMeta(new_meta);
-                LOG.info("Counter exists but meta was null, creating meta data for timeseries [" + 
-                    tsuid_string + "]");
+                LOG.info("Counter exists but meta was null, creating meta data for timeseries [{}]", tsuid_string);
                 return new_meta.storeNew(tsdb);    
               }
             }
@@ -272,8 +266,7 @@ final class MetaSync extends Thread {
         // corrupted
         if (meta.getTSUID() == null || 
             meta.getTSUID().isEmpty()) {
-          LOG.warn("Replacing corrupt meta data for timeseries [" + 
-              tsuid_string + "]");
+          LOG.warn("Replacing corrupt meta data for timeseries [{}]", tsuid_string);
           TSMeta new_meta = new TSMeta(tsuid, timestamp);
           tsdb.indexTSMeta(new_meta);
           return new_meta.storeNew(tsdb);
@@ -284,12 +277,11 @@ final class MetaSync extends Thread {
               meta.getCreated() == 0) {
             meta.setCreated(timestamp);
             tsdb.indexTSMeta(meta);
-            LOG.info("Updated created timestamp for timeseries [" + 
-                tsuid_string + "]");
+            LOG.info("Updated created timestamp for timeseries [{}]", tsuid_string);
             return meta.syncToStorage(tsdb, false);
           }
-          
-          LOG.debug("TSUID [" + tsuid_string + "] is up to date in storage");
+
+          LOG.debug("TSUID [{}] is up to date in storage", tsuid_string);
           return Deferred.fromResult(false);
         }
       }
@@ -358,9 +350,8 @@ final class MetaSync extends Thread {
           // parse datapoints, but for now the hourly row time is enough
           final long timestamp = Bytes.getUnsignedInt(row.get(0).key(),
                   Const.METRICS_WIDTH);
-          
-          LOG.debug("[" + thread_id + "] Processing TSUID: " + tsuid_string + 
-              "  row timestamp: " + timestamp);
+
+          LOG.debug("[{}] Processing TSUID: {}  row timestamp: {}", thread_id, tsuid_string, timestamp);
           
           // now process the UID metric meta data
           final byte[] metric_uid_bytes =
@@ -434,16 +425,13 @@ final class MetaSync extends Thread {
                 ex = ex.getCause();
               }
               if (ex.getClass().equals(IllegalStateException.class)) {
-                LOG.error("Invalid data when processing TSUID [" + 
-                    tsuid_string + "]", ex);
+                LOG.error("Invalid data when processing TSUID [{}]", tsuid_string, ex);
               } else if (ex.getClass().equals(IllegalArgumentException.class)) {
-                LOG.error("Invalid data when processing TSUID [" + 
-                    tsuid_string + "]", ex);
+                LOG.error("Invalid data when processing TSUID [{}]", tsuid_string, ex);
               } else if (ex.getClass().equals(NoSuchUniqueId.class)) {
-                LOG.warn("Timeseries [" + tsuid_string + 
-                    "] includes a non-existant UID: " + ex.getMessage());
+                LOG.warn("Timeseries [{}] includes a non-existant UID: {}", tsuid_string, ex.getMessage());
               } else {
-                LOG.error("Unmatched Exception: " + ex.getClass());
+                LOG.error("Unmatched Exception: {}", ex.getClass());
                 throw e;
               }
               
@@ -495,7 +483,7 @@ final class MetaSync extends Thread {
               }
               ex = ex.getCause();
             }
-            LOG.error("[" + thread_id + "] Upstream Exception: ", ex);
+            LOG.error("[{}] Upstream Exception: ", thread_id, ex);
             return scan();
           }
         }
@@ -513,9 +501,9 @@ final class MetaSync extends Thread {
     try {
       scanner.scan();
       result.joinUninterruptibly();
-      LOG.info("[" + thread_id + "] Complete");
+      LOG.info("[{}] Complete", thread_id);
     } catch (Exception e) {
-      LOG.error("[" + thread_id + "] Scanner Exception", e);
+      LOG.error("[{}] Scanner Exception", thread_id, e);
       throw new RuntimeException("[" + thread_id + "] Scanner exception", e);
     }
   }
@@ -532,8 +520,8 @@ final class MetaSync extends Thread {
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
 
-    LOG.debug("[" + thread_id + "] Start row: " + UniqueId.uidToString(start_row));
-    LOG.debug("[" + thread_id + "] End row: " + UniqueId.uidToString(end_row));
+    LOG.debug("[{}] Start row: {}", thread_id, UniqueId.uidToString(start_row));
+    LOG.debug("[{}] End row: {}", thread_id, UniqueId.uidToString(end_row));
     final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);

@@ -523,7 +523,7 @@ public class UniqueId {
    * @since 2.0
    */
   public static byte[] stringToUid(final String uid) {
-    return stringToUid(uid, (short)0);
+    return stringToUid(uid, (short) 0);
   }
   
   /**
@@ -567,7 +567,7 @@ public class UniqueId {
       if (padded[i] != 0) {
         final String message = "UID " + Long.toString(uid) + 
           " was too large for " + width + " bytes";
-        LOG.error("OMG " + message);
+        LOG.error("OMG {}", message);
         throw new IllegalStateException(message);
       }
     }
@@ -762,7 +762,7 @@ public class UniqueId {
       final ByteMap<UniqueId> uid_cache_map) throws HBaseException {
     int max_results = tsdb.getConfig().getInt(
         "tsd.core.preload_uid_cache.max_entries");
-    LOG.info("Preloading uid cache with max_results=" + max_results);
+    LOG.info("Preloading uid cache with max_results={}", max_results);
     if (max_results <= 0) {
       return;
     }

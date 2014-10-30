@@ -168,8 +168,7 @@ public class TimeSeriesLookup {
               }
               System.out.println(buf.toString());
             } catch (NoSuchUniqueId nsui) {
-              LOG.error("Unable to resolve UID in TSUID (" + 
-                  UniqueId.uidToString(tsuid) + ") " + nsui.getMessage());
+              LOG.error("Unable to resolve UID in TSUID ({}) {}", UniqueId.uidToString(tsuid), nsui.getMessage());
             }
             buf.setLength(0);   // reset the buffer so we can re-use it
           } else {
@@ -182,9 +181,8 @@ public class TimeSeriesLookup {
     } finally {
       scanner.close();
     }
-    
-    LOG.debug("Lookup query matched " + tsuids.size() + " time series in " +
-        (System.currentTimeMillis() - start) + " ms");
+
+    LOG.debug("Lookup query matched {} time series in {} ms", tsuids.size(), System.currentTimeMillis() - start);
     return tsuids;
   }
   
@@ -277,14 +275,13 @@ public class TimeSeriesLookup {
         // filter on, so we dump the previous regex into the tagv_filter and
         // continue on with a row key
         tagv_filter.append(buf.toString());
-        LOG.debug("Setting tagv filter: " + buf.toString());
+        LOG.debug("Setting tagv filter: {}", buf.toString());
       } else if (index >= pairs.size()) {
         // in this case we don't have any tagks to deal with so we can just
         // pass the previously compiled regex to the rowkey filter of the 
         // scanner
         scanner.setKeyRegexp(buf.toString(), CHARSET);
-        LOG.debug("Setting scanner row key filter with tagvs only: " + 
-            buf.toString());
+        LOG.debug("Setting scanner row key filter with tagvs only: {}", buf.toString());
       }
       
       // catch any left over tagk/tag pairs
@@ -302,7 +299,7 @@ public class TimeSeriesLookup {
               Bytes.memcmp(last_pair.getKey(), pairs.get(index).getKey()) == 0) {
             // tagk=null is a wildcard so we don't need to bother adding 
             // tagk=tagv pairs with the same tagk.
-            LOG.debug("Skipping pair due to wildcard: " + pairs.get(index));
+            LOG.debug("Skipping pair due to wildcard: {}", pairs.get(index));
           } else if (last_pair != null && 
               Bytes.memcmp(last_pair.getKey(), pairs.get(index).getKey()) == 0) {
             // in this case we're ORing e.g. "host=web01|host=web02"
@@ -335,7 +332,7 @@ public class TimeSeriesLookup {
         buf.append(")(?:.{").append(tagsize).append("})*").append("$");
         
         scanner.setKeyRegexp(buf.toString(), CHARSET);
-        LOG.debug("Setting scanner row key filter: " + buf.toString());
+        LOG.debug("Setting scanner row key filter: {}", buf.toString());
       }
     }
     return scanner;

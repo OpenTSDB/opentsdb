@@ -97,9 +97,9 @@ final class CliQuery {
     if (plot != null) {
       try {
         final int npoints = plot.dumpToFiles(basepath);
-        LOG.info("Wrote " + npoints + " for Gnuplot");
+        LOG.info("Wrote {} for Gnuplot", npoints);
       } catch (IOException e) {
-        LOG.error("Failed to write the Gnuplot file under " + basepath, e);
+        LOG.error("Failed to write the Gnuplot file under {}", basepath, e);
         System.exit(1);
       }
     }
