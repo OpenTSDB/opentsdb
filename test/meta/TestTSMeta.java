@@ -49,9 +49,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.DeferredGroupException;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",

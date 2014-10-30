@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
 
 import org.jboss.netty.buffer.ChannelBuffer;

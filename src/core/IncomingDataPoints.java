@@ -18,7 +18,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Preconditions;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
@@ -27,7 +26,6 @@ import org.hbase.async.PutRequest;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.storage.hbase.HBaseStore;
-import net.opentsdb.uid.UidFormatter;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.TSDB.checkTimestamp;

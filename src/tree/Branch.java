@@ -15,7 +15,6 @@ package net.opentsdb.tree;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -25,8 +24,6 @@ import javax.xml.bind.DatatypeConverter;
 
 import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,15 +31,9 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-import com.stumbleupon.async.DeferredGroupException;
 
-import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.JSONException;
 
 /**
  * Represents a branch of a meta data tree, used to organize timeseries into 

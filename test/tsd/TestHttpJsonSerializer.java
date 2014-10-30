@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.junit.Before;
