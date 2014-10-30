@@ -55,7 +55,7 @@ public class TestUidResolver {
 
   @Test
   public void testResolveEmpty() throws Exception {
-    final List<byte[]> resolve = resolver.resolve(Iterators.<String>emptyIterator(), METRIC).joinUninterruptibly();
+    final List<byte[]> resolve = resolver.resolve(ImmutableSet.<String>of().iterator(), METRIC).joinUninterruptibly();
     assertEquals(0, resolve.size());
   }
 
