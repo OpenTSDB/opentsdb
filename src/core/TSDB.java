@@ -1277,21 +1277,12 @@ public class TSDB {
    */
   public Deferred<Boolean> syncUIDMetaToStorage(final UIDMeta meta,
                                                 final boolean overwrite) {
-    if (Strings.isNullOrEmpty(meta.getUID())) {
-      throw new IllegalArgumentException("Missing UID");
-    }
-    if (meta.getType() == null) {
-      throw new IllegalArgumentException("Missing type");
-    }
-
     if (!meta.hasChanges()) {
       LOG.debug("{} does not have changes, skipping sync to storage", meta);
       throw new IllegalStateException("No changes detected in UID meta data");
     }
 
-    return this.getUidName(meta.getType(),
-      UniqueId.stringToUid(meta.getUID())).addCallbackDeferring(
-
+    return this.getUidName(meta.getType(), meta.getUID()).addCallbackDeferring(
       new Callback<Deferred<Boolean>, String>() {
         @Override
         public Deferred<Boolean> call(String arg) {
@@ -1311,13 +1302,6 @@ public class TSDB {
    * @throws IllegalArgumentException if data was missing (uid and type)
    */
   public Deferred<Object> delete(final UIDMeta meta) {
-    if (Strings.isNullOrEmpty(meta.getUID())) {
-      throw new IllegalArgumentException("Missing UID");
-    }
-    if (meta.getType() == null) {
-      throw new IllegalArgumentException("Missing type");
-    }
-
     return tsdb_store.delete(meta);
   }
 
@@ -1334,12 +1318,6 @@ public class TSDB {
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Object> add(final UIDMeta meta) {
-    if (Strings.isNullOrEmpty(meta.getUID())) {
-      throw new IllegalArgumentException("Missing UID");
-    }
-    if (meta.getType() == null) {
-      throw new IllegalArgumentException("Missing type");
-    }
     if (Strings.isNullOrEmpty(meta.getName())) {
       throw new IllegalArgumentException("Missing name");
     }

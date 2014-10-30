@@ -541,8 +541,8 @@ public class HBaseStore implements TsdbStore {
    */
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
-    final PutRequest put = new PutRequest(uid_table_name,
-      UniqueId.stringToUid(meta.getUID()), UID_FAMILY,
+    final PutRequest put = new PutRequest(uid_table_name, meta.getUID(),
+            UID_FAMILY,
       (meta.getType().toString().toLowerCase() + "_meta").getBytes(HBaseConst.CHARSET),
       meta.getStorageJSON());
 
@@ -561,7 +561,7 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(final UIDMeta meta) {
     final DeleteRequest delete = new DeleteRequest(uid_table_name,
-      UniqueId.stringToUid(meta.getUID()), UID_FAMILY,
+      meta.getUID(), UID_FAMILY,
       (meta.getType().toString().toLowerCase() + "_meta").getBytes(HBaseConst.CHARSET));
     return client.delete(delete);
   }
@@ -599,7 +599,7 @@ public class HBaseStore implements TsdbStore {
         }
 
         final PutRequest put = new PutRequest(uid_table_name,
-                UniqueId.stringToUid(meta.getUID()),
+                meta.getUID(),
                 UID_FAMILY,
                 toBytes(meta.getType().toString().toLowerCase() + "_meta"),
                 meta.getStorageJSON());
@@ -607,7 +607,7 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
-    return getMeta(meta.getUID().getBytes(CHARSET),
+    return getMeta(meta.getUID(),
             meta.getType()).addCallbackDeferring(new MergeCB());
 
 

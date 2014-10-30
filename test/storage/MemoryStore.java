@@ -85,7 +85,7 @@ public class MemoryStore implements TsdbStore {
 
   private final Map<Integer, Tree> tree_table;
   private final Table<String, String, byte[]> data_table;
-  private final Table<String, String, byte[]> uid_table;
+  private final Table<Long, String, byte[]> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
@@ -482,7 +482,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
     uid_table.put(
-            meta.getUID(),
+            UniqueId.uidToLong(meta.getUID()),
             meta.getType().toString().toLowerCase() + "_meta",
             meta.getStorageJSON());
 
@@ -492,7 +492,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(final UIDMeta meta) {
     uid_table.remove(
-            meta.getUID(),
+            UniqueId.uidToLong(meta.getUID()),
             meta.getType().toString().toLowerCase() + "_meta");
 
     return Deferred.fromResult(null);
@@ -503,7 +503,7 @@ public class MemoryStore implements TsdbStore {
                                    final String name,
                                    final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    final String s_uid = uidToString(uid);
+    final long s_uid = UniqueId.uidToLong(uid);
 
     byte[] json_value = uid_table.get(s_uid, qualifier);
 
@@ -524,11 +524,11 @@ public class MemoryStore implements TsdbStore {
     return Deferred.fromResult(return_meta);
   }
 
-  private Deferred<UIDMeta> getMeta(final String uid,
+  private Deferred<UIDMeta> getMeta(final byte[] uid,
                                     final UniqueIdType
           type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    byte[] json_value = uid_table.get(uid, qualifier);
+    byte[] json_value = uid_table.get(UniqueId.uidToLong(uid), qualifier);
 
     if (json_value == null)
       return Deferred.fromResult(null);

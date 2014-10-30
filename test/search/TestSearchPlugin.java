@@ -134,11 +134,6 @@ public final class TestSearchPlugin {
   }
   
   @Test
-  public void indexUIDMeta() throws Exception  {
-    assertNotNull(search.indexUIDMeta(new UIDMeta()));
-  }
-  
-  @Test
   public void indexUIDMetaNull() throws Exception  {
     assertNotNull(search.indexUIDMeta(null));
   }
@@ -146,11 +141,6 @@ public final class TestSearchPlugin {
   @Test
   public void IndexUIDMetaNullErrBack() throws Exception  {
     assertNotNull(search.indexUIDMeta(null).addErrback(new Errback()));
-  }
-  
-  @Test
-  public void deleteUIDMeta() throws Exception  {
-    assertNotNull(search.deleteUIDMeta(new UIDMeta()));
   }
   
   @Test

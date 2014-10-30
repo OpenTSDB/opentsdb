@@ -316,7 +316,7 @@ public final class TestSearchRpc {
               meta.setCreated(1356998400);
               meta.setDescription("System CPU metric");
               
-              UIDMeta uid = new UIDMeta(UniqueIdType.METRIC, "000001");
+              UIDMeta uid = new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 1});
               final Field uid_name = UIDMeta.class.getDeclaredField("name");
               uid_name.setAccessible(true);
               uid_name.set(uid, "sys.cpu.0");
@@ -326,10 +326,10 @@ public final class TestSearchRpc {
               metric.set(meta, uid);
               
               final ArrayList<UIDMeta> tags = new ArrayList<UIDMeta>(2);
-              uid = new UIDMeta(UniqueIdType.TAGK, "000001");
+              uid = new UIDMeta(UniqueIdType.TAGK, new byte[] {0, 0, 1});
               uid_name.set(uid, "host");
               tags.add(uid);
-              uid = new UIDMeta(UniqueIdType.TAGV, "000001");
+              uid = new UIDMeta(UniqueIdType.TAGV, new byte[] {0, 0, 1});
               uid_name.set(uid, "web01");
               tags.add(uid);
               
@@ -358,13 +358,13 @@ public final class TestSearchRpc {
               break;
               
             case UIDMETA:
-              UIDMeta uid2 = new UIDMeta(UniqueIdType.METRIC, "000001");
+              UIDMeta uid2 = new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 1});
               final Field name_field = UIDMeta.class.getDeclaredField("name");
               name_field.setAccessible(true);
               name_field.set(uid2, "sys.cpu.0");
               results.add(uid2);
               
-              uid2 = new UIDMeta(UniqueIdType.TAGK, "000001");
+              uid2 = new UIDMeta(UniqueIdType.TAGK, new byte[] {0, 0, 1});
               name_field.set(uid2, "host");
               results.add(uid2);
               break;

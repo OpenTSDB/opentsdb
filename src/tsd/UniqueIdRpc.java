@@ -462,7 +462,7 @@ final class UniqueIdRpc implements HttpRpc {
    * be parsed
    */
   private UIDMeta parseUIDMetaQS(final HttpQuery query) {
-    final String uid = query.getRequiredQueryStringParam("uid");
+    final byte[] uid = UniqueId.stringToUid(query.getRequiredQueryStringParam("uid"));
     final String type = query.getRequiredQueryStringParam("type");
     final UIDMeta meta = new UIDMeta(UniqueIdType.fromString(type), uid);
     final String display_name = query.getQueryStringParam("display_name");
