@@ -83,12 +83,10 @@ final class MetaPurge extends Thread {
     long purged_columns;
     try {
       purged_columns = purgeUIDMeta().joinUninterruptibly();
-      LOG.info("Thread [" + thread_id + "] finished. Purged [" + 
-          purged_columns + "] UIDMeta columns from storage");
+      LOG.info("Thread [{}] finished. Purged [{}] UIDMeta columns from storage", thread_id, purged_columns);
       
       purged_columns = purgeTSMeta().joinUninterruptibly();
-      LOG.info("Thread [" + thread_id + "] finished. Purged [" + 
-          purged_columns + "] TSMeta columns from storage");
+      LOG.info("Thread [{}] finished. Purged [{}] TSMeta columns from storage", thread_id, purged_columns);
     } catch (Exception e) {
       LOG.error("Unexpected exception", e);
     }
@@ -178,8 +176,7 @@ final class MetaPurge extends Thread {
           @Override
           public Deferred<Long> call(ArrayList<Object> deletes)
               throws Exception {
-            LOG.debug("[" + thread_id + "] Processed [" + deletes.size() 
-                + "] delete calls");
+            LOG.debug("[{}] Processed [{}] delete calls", thread_id, deletes.size());
             delete_calls.clear();
             return scan();
           }
@@ -276,8 +273,7 @@ final class MetaPurge extends Thread {
           @Override
           public Deferred<Long> call(ArrayList<Object> deletes)
               throws Exception {
-            LOG.debug("[" + thread_id + "] Processed [" + deletes.size() 
-                + "] delete calls");
+            LOG.debug("[{}] Processed [{}] delete calls", thread_id, deletes.size());
             delete_calls.clear();
             return scan();
           }

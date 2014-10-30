@@ -138,7 +138,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   public Deferred<ArrayList<Object>> flush() {
     final int size = size();
     if (size > 0) {
-      LOG.info("Flushing all old outstanding rows out of " + size + " rows");
+      LOG.info("Flushing all old outstanding rows out of {} rows", size);
     }
     final long now = System.currentTimeMillis();
     return flush(now / 1000 - Const.MAX_TIMESPAN - 1, Integer.MAX_VALUE);
@@ -418,7 +418,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           if (qual[0] == HBaseStore.ANNOTATION_QUAL_PREFIX) {
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
           } else {
-            LOG.warn("Ignoring unexpected extended format type " + qual[0]);
+            LOG.warn("Ignoring unexpected extended format type {}", qual[0]);
           }
           continue;
         }
@@ -463,9 +463,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
                   + Arrays.toString(existingVal) + ", newer=" + Arrays.toString(discardedVal)
                   + "; set tsd.storage.fix_duplicates=true to fix automatically or run Fsck");
             }
-            LOG.warn("Duplicate timestamp for key=" + Arrays.toString(row.get(0).key())
-                + ", ms_offset=" + ts + ", kept=" + Arrays.toString(existingVal) + ", discarded="
-                + Arrays.toString(discardedVal));
+            LOG.warn("Duplicate timestamp for key={}, ms_offset={}, kept={}, discarded={}", Arrays.toString(row.get(0).key()), ts, Arrays.toString(existingVal), Arrays.toString(discardedVal));
           } else {
             duplicates_same.incrementAndGet();
           }
@@ -634,13 +632,12 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           add(((HBaseRpc.HasKey) rpc).key());
           return Boolean.TRUE;  // We handled it, so don't return an exception.
         } else {  // Should never get in this clause.
-          LOG.error("WTF?  Cannot retry this RPC, and this shouldn't happen: "
-                    + rpc);
+          LOG.error("WTF?  Cannot retry this RPC, and this shouldn't happen: {}", rpc);
         }
       }
       // `++' is not atomic but doesn't matter if we miss some increments.
       if (++errors % 100 == 1) {  // Basic rate-limiting to not flood logs.
-        LOG.error("Failed to " + what + " a row to re-compact", e);
+        LOG.error("Failed to {} a row to re-compact", what, e);
       }
       return e;
     }
@@ -717,9 +714,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
             flush(now / 1000 - Const.MAX_TIMESPAN - 1, maxflushes);
             if (LOG.isDebugEnabled()) {
               final int newsize = size();
-              LOG.debug("flush() took " + (System.currentTimeMillis() - now)
-                        + "ms, new queue size=" + newsize
-                        + " (" + (newsize - size) + ')');
+              LOG.debug("flush() took {}ms, new queue size={} ({}" + ')', System.currentTimeMillis() - now, newsize, newsize - size);
             }
           }
         } catch (Exception e) {
@@ -729,7 +724,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           final int sz = size.get();
           CompactionQueue.super.clear();
           size.set(0);
-          LOG.error("Discarded the compaction queue, size=" + sz, e);
+          LOG.error("Discarded the compaction queue, size={}", sz, e);
         } catch (Throwable e) {
           LOG.error("Uncaught *Throwable* in compaction thread", e);
           // Catching this kind of error is totally unexpected and is really

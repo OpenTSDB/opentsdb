@@ -1259,15 +1259,15 @@ final class HttpQuery {
   // ---------------- //
 
   private void logInfo(final String msg) {
-    LOG.info(chan.toString() + ' ' + msg);
+    LOG.info("{}" + ' ' + "{}", chan.toString(), msg);
   }
 
   private void logWarn(final String msg) {
-    LOG.warn(chan.toString() + ' ' + msg);
+    LOG.warn("{}" + ' ' + "{}", chan.toString(), msg);
   }
 
   private void logError(final String msg, final Exception e) {
-    LOG.error(chan.toString() + ' ' + msg, e);
+    LOG.error("{}" + ' ' + "{}", chan.toString(), msg, e);
   }
 
   // -------------------------------------------- //

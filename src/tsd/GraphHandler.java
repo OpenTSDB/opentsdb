@@ -970,20 +970,20 @@ final class GraphHandler implements HttpRpc {
   // ---------------- //
 
   static void logInfo(final HttpQuery query, final String msg) {
-    LOG.info(query.channel().toString() + ' ' + msg);
+    LOG.info("{}" + ' ' + "{}", query.channel().toString(), msg);
   }
 
   static void logWarn(final HttpQuery query, final String msg) {
-    LOG.warn(query.channel().toString() + ' ' + msg);
+    LOG.warn("{}" + ' ' + "{}", query.channel().toString(), msg);
   }
 
   static void logError(final HttpQuery query, final String msg) {
-    LOG.error(query.channel().toString() + ' ' + msg);
+    LOG.error("{}" + ' ' + "{}", query.channel().toString(), msg);
   }
 
   static void logError(final HttpQuery query, final String msg,
                        final Throwable e) {
-    LOG.error(query.channel().toString() + ' ' + msg, e);
+    LOG.error("{}" + ' ' + "{}", query.channel().toString(), msg, e);
   }
 
 }

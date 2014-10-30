@@ -98,7 +98,7 @@ public final class PluginLoader {
     ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
     Iterator<T> it = serviceLoader.iterator();
     if (!it.hasNext()) {
-      LOG.warn("Unable to locate any plugins of the type: " + type.getName());
+      LOG.warn("Unable to locate any plugins of the type: {}", type.getName());
       return null;
     }
     
@@ -108,8 +108,8 @@ public final class PluginLoader {
         return plugin;
       }
     }
-    
-    LOG.warn("Unable to locate plugin: " + name);
+
+    LOG.warn("Unable to locate plugin: {}", name);
     return null;
   }
   
@@ -136,7 +136,7 @@ public final class PluginLoader {
     ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
     Iterator<T> it = serviceLoader.iterator();
     if (!it.hasNext()) {
-      LOG.warn("Unable to locate any plugins of the type: " + type.getName());
+      LOG.warn("Unable to locate any plugins of the type: {}", type.getName());
       return null;
     }
     
@@ -147,8 +147,8 @@ public final class PluginLoader {
     if (plugins.size() > 0) {
       return plugins;
     }
-    
-    LOG.warn("Unable to locate plugins for type: " + type.getName());
+
+    LOG.warn("Unable to locate plugins for type: {}", type.getName());
     return null;
   }
   
@@ -207,7 +207,7 @@ public final class PluginLoader {
     ArrayList<File> jars = new ArrayList<File>();
     searchForJars(file, jars);
     if (jars.size() < 1) {
-      LOG.debug("No JAR files found in path: " + directory);
+      LOG.debug("No JAR files found in path: {}", directory);
       return;
     }
     
@@ -227,13 +227,13 @@ public final class PluginLoader {
     if (file.isFile()) {
       if (file.getAbsolutePath().toLowerCase().endsWith(".jar")) {
         jars.add(file);
-        LOG.debug("Found a jar: " + file.getAbsolutePath());
+        LOG.debug("Found a jar: {}", file.getAbsolutePath());
       }
     } else if (file.isDirectory()) {
       File[] files = file.listFiles();
       if (files == null) {
         // if this is null, it's due to a security issue
-        LOG.warn("Access denied to directory: " + file.getAbsolutePath());
+        LOG.warn("Access denied to directory: {}", file.getAbsolutePath());
       } else {
         for (File f : files) {
           searchForJars(f, jars);
@@ -279,7 +279,7 @@ public final class PluginLoader {
     
     Method method = sysclass.getDeclaredMethod("addURL", PARAMETER_TYPES);
     method.setAccessible(true);
-    method.invoke(sysloader, new Object[]{ url }); 
-    LOG.debug("Successfully added JAR to class loader: " + url.getFile());
+    method.invoke(sysloader, new Object[]{ url });
+    LOG.debug("Successfully added JAR to class loader: {}", url.getFile());
   }
 }
