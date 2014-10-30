@@ -29,7 +29,7 @@ import net.opentsdb.core.SeekableView;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UniqueId;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
@@ -467,7 +467,7 @@ public final class CompactedRow implements DataPoints {
     }
 
     public String toString() {
-      return Objects.toStringHelper(this)
+      return MoreObjects.toStringHelper(this)
               .add("qual_index", qual_index)
               .add("value_index", value_index)
               .add("seq", CompactedRow.this)

@@ -12,14 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertNull;
 import static net.opentsdb.uid.UniqueIdType.*;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;

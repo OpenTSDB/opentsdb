@@ -124,7 +124,7 @@ final class TextImporter {
         public String toString() {
           return "importFile errback";
         }
-      };
+      }
       final Errback errback = new Errback();
       while ((line = in.readLine()) != null) {
         final String[] words = Tags.splitString(line, ' ');
