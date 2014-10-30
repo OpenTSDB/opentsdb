@@ -1266,7 +1266,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
       refreshGraph();
     }
 
-  };
+  }
 
   private final class AdjustYRangeCheckOnClick implements ClickHandler {
 
@@ -1289,7 +1289,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
       }
     }
 
-  };
+  }
 
   /**
    * Ensures all the widgets in the given panel have the same size.
