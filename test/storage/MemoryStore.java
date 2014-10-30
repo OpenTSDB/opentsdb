@@ -49,8 +49,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import net.opentsdb.uid.UniqueIdType;
+
 import static com.google.common.collect.Maps.newHashMap;
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
 import static net.opentsdb.uid.UniqueId.uidToString;
 
 /**
@@ -513,7 +514,7 @@ public class MemoryStore implements TsdbStore {
 
     UniqueIdType effective_type = type;
     if (effective_type == null) {
-      effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
+      effective_type = UniqueIdType.fromString(qualifier.substring(0,
               qualifier.indexOf("_meta")));
     }
 

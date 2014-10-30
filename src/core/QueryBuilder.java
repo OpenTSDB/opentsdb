@@ -21,7 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Map.Entry;
 import static net.opentsdb.core.TSDB.checkTimestamp;
-import static net.opentsdb.uid.UniqueId.UniqueIdType.TAGV;
+import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.hbase.async.Bytes.ByteMap;
 
 public class QueryBuilder {

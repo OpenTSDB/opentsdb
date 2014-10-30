@@ -27,19 +27,6 @@ final public class RowKey {
     // Can't create instances of this utility class.
   }
 
-  /**
-   * Extracts the name of the metric ID contained in a row key.
-   * @param tsdb The TSDB to use.
-   * @param row The actual row key.
-   * @return The name of the metric.
-   * @since 1.2
-   */
-  public static Deferred<String> metricNameAsync(final TSDB tsdb,
-                                                 final byte[] row) {
-    final byte[] id = Arrays.copyOfRange(row, 0, tsdb.metrics.width());
-    return tsdb.metrics.getNameAsync(id);
-  }
-
   /** Extracts the metric id from a row key */
   public static byte[] metric(final byte[] row) {
     return Arrays.copyOfRange(row, 0, Const.METRICS_WIDTH);
@@ -70,6 +57,24 @@ final public class RowKey {
     }
 
     return tags;
+  }
+
+  /**
+   * Extracts the TSUID from a storage row key that includes the timestamp.
+   * @param row_key The row key to process
+   * @return The TSUID
+   * @throws ArrayIndexOutOfBoundsException if the row_key is invalid
+   */
+  public static byte[] tsuid(final byte[] row_key) {
+    final short metric_width = Const.METRICS_WIDTH;
+    final short timestamp_width = Const.TIMESTAMP_BYTES;
+
+    final byte[] tsuid = new byte[row_key.length - timestamp_width];
+    System.arraycopy(row_key, 0, tsuid, 0, metric_width);
+    System.arraycopy(row_key, metric_width + timestamp_width, tsuid,
+            metric_width, row_key.length - metric_width - timestamp_width);
+
+    return tsuid;
   }
   
   /**

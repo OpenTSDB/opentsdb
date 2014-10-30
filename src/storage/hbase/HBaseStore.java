@@ -15,6 +15,7 @@ package net.opentsdb.storage.hbase;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -53,7 +54,8 @@ import org.slf4j.LoggerFactory;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.core.StringCoder.toBytes;
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
+
+import net.opentsdb.uid.UniqueIdType;
 import static net.opentsdb.storage.hbase.HBaseConst.CHARSET;
 
 /**
@@ -650,8 +652,8 @@ public class HBaseStore implements TsdbStore {
         if (effective_type == null) {
           final String qualifier =
             new String(cell.get().qualifier(), HBaseConst.CHARSET);
-          effective_type = UniqueId.stringToUniqueIdType(qualifier.substring(0,
-            qualifier.indexOf("_meta")));
+          effective_type = UniqueIdType.fromString(qualifier.substring(0,
+                  qualifier.indexOf("_meta")));
         }
 
         UIDMeta return_meta = UIDMeta.buildFromJSON(cell.get().value(),
@@ -2338,16 +2340,15 @@ public class HBaseStore implements TsdbStore {
       @Override
       public Deferred<Leaf> call(final ArrayList<Object> name_calls)
               throws Exception {
-        int idx = 0;
-        String tagk = "";
+                
         ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-        for (String name : tags) {
-          if (idx % 2 == 0) {
-            tagk = name;
-          } else {
-            builder.put(tagk, name);
-          }
-          idx++;
+        Iterator<String> name_it = tags.iterator();
+
+        while (name_it.hasNext()) {
+          final String tagk = name_it.next();
+          final String name = name_it.next();
+          builder.put(tagk, name);
+
         }
         leaf.setTags(builder.build());
         return Deferred.fromResult(leaf);

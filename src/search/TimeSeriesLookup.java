@@ -26,7 +26,7 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteArrayPair;
 import net.opentsdb.utils.Pair;
 
@@ -136,8 +136,7 @@ public class TimeSeriesLookup {
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
           final byte[] tsuid = query.useMeta() ? row.get(0).key() :
-            UniqueId.getTSUIDFromKey(row.get(0).key(), Const.METRICS_WIDTH,
-                Const.TIMESTAMP_BYTES);
+            RowKey.tsuid(row.get(0).key());
           
           // TODO - there MUST be a better way than creating a ton of temp
           // string objects.

@@ -149,7 +149,7 @@ public final class CompactedRow implements DataPoints {
    */
   @Override
   public List<String> getTSUIDs() {
-    byte[] str_tsuid = UniqueId.getTSUIDFromKey(key, Const.METRICS_WIDTH, Const.TIMESTAMP_BYTES);
+    byte[] str_tsuid = RowKey.tsuid(key);
     return Lists.newArrayList(UniqueId.uidToString(str_tsuid));
   }
 

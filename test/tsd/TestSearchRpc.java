@@ -24,11 +24,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
@@ -39,9 +37,8 @@ import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
@@ -395,14 +392,6 @@ public final class TestSearchRpc {
   
   @SuppressWarnings("unchecked")
   private void setupAnswerLookupQuery() throws Exception {
-    PowerMockito.mockStatic(RowKey.class);
-    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(0)))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
-    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(1)))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
-    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(2)))
-      .thenReturn(Deferred.fromResult("sys.cpu.nice"));
-
     PowerMockito.mockStatic(UniqueId.class);
     final List<byte[]> pair_a = new ArrayList<byte[]>(2);
     pair_a.add(new byte[] { 0, 0, 1 });

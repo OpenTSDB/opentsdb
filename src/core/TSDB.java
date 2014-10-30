@@ -51,7 +51,7 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.PluginLoader;
@@ -667,7 +667,7 @@ public class TSDB {
                                          + " for metric=" + metric
                                          + " timestamp=" + timestamp);
     }
-    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 4 bytes.
+    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 8 bytes.
     return addPointInternal(metric, timestamp,
                             Bytes.fromLong(Double.doubleToRawLongBits(value)),
                             tags, flags);
@@ -734,8 +734,7 @@ public class TSDB {
           return result;
         }
 
-        final byte[] tsuid = UniqueId.getTSUIDFromKey(row, Const.METRICS_WIDTH,
-                Const.TIMESTAMP_BYTES);
+        final byte[] tsuid = RowKey.tsuid(row);
 
         // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
         // counter field for a TSUID with the proper timestamp. If the user would
@@ -1391,7 +1390,7 @@ public class TSDB {
       /**
        * Called after verifying that the name mapping exists
        * @return The results of {@link TsdbStore#getMeta(
-       *      byte[], String, net.opentsdb.uid.UniqueId.UniqueIdType)}
+       *      byte[], String, net.opentsdb.uid.UniqueIdType)}
        */
       @Override
       public Deferred<UIDMeta> call(final String name) throws Exception {

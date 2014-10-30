@@ -14,7 +14,8 @@ package net.opentsdb.core;
 
 import static junit.framework.TestCase.assertNotNull;
 import static junit.framework.TestCase.assertNull;
-import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
+import static net.opentsdb.uid.UniqueIdType.*;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

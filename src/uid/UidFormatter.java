@@ -9,13 +9,12 @@ import com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.TSDB;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.uid.UniqueId.UniqueIdType;
-import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
+
+import static net.opentsdb.uid.UniqueIdType.*;
 
 /**
  * Looks up uid names based on uids.

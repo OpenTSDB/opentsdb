@@ -25,7 +25,6 @@ import javax.xml.bind.DatatypeConverter;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
-import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -56,24 +55,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
-  /** Enumerator for different types of UIDS @since 2.0 */
-  public enum UniqueIdType {
-    METRIC(Const.METRICS_QUAL, Const.METRICS_WIDTH),
-    TAGK(Const.TAG_NAME_QUAL, Const.TAG_NAME_WIDTH),
-    TAGV(Const.TAG_VALUE_QUAL, Const.TAG_VALUE_WIDTH);
-
-    public final String qualifier;
-    public final short width;
-
-    UniqueIdType(String qualifier, short width) {
-      checkArgument(!Strings.isNullOrEmpty(qualifier), "Empty string as 'qualifier' argument!");
-      checkArgument(width > 0 && width <= 8, "Invalid width: %s", width);
-
-      this.qualifier = qualifier;
-      this.width = width;
-    }
-  }
-  
   /** Charset used to convert Strings to byte arrays and back. */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** The single column family used by this class. */
@@ -615,27 +596,7 @@ public class UniqueId {
     }
     buf.append("\\E");
   }
-  
-  /**
-   * Attempts to convert the given string to a type enumerator
-   * @param type The string to convert
-   * @return a valid UniqueIdType if matched
-   * @throws IllegalArgumentException if the string did not match a type
-   * @since 2.0
-   */
-  public static UniqueIdType stringToUniqueIdType(final String type) {
-    if (type.toLowerCase().equals("metric") || 
-        type.toLowerCase().equals("metrics")) {
-      return UniqueIdType.METRIC;
-    } else if (type.toLowerCase().equals("tagk")) {
-      return UniqueIdType.TAGK;
-    } else if (type.toLowerCase().equals("tagv")) {
-      return UniqueIdType.TAGV;
-    } else {
-      throw new IllegalArgumentException("Invalid type requested: " + type);
-    }
-  }
-  
+
   /**
    * Converts a hex string to a byte array
    * If the {@code uid} is less than {@code uid_length * 2} characters wide, it
@@ -669,27 +630,6 @@ public class UniqueId {
     return DatatypeConverter.parseHexBinary(id);
   }
 
-  /**
-   * Extracts the TSUID from a storage row key that includes the timestamp.
-   * @param row_key The row key to process
-   * @param metric_width The width of the metric
-   * @param timestamp_width The width of the timestamp
-   * @return The TSUID
-   * @throws ArrayIndexOutOfBoundsException if the row_key is invalid
-   */
-  public static byte[] getTSUIDFromKey(final byte[] row_key, 
-      final short metric_width, final short timestamp_width) {
-    int idx = 0;
-    final byte[] tsuid = new byte[row_key.length - timestamp_width];
-    for (int i = 0; i < row_key.length; i++) {
-      if (i < metric_width || i >= (metric_width + timestamp_width)) {
-        tsuid[idx] = row_key[i];
-        idx++;
-      }
-    }
-    return tsuid;
-  }
-  
   /**
    * Extracts a list of tagks and tagvs as individual values in a list
    * @param tsuid The tsuid to parse
