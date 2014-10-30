@@ -35,10 +35,7 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
-import org.hbase.async.DeleteRequest;
-import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 import org.junit.Test;
 import org.junit.runner.RunWith;

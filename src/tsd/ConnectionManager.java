@@ -28,7 +28,6 @@ import org.jboss.netty.handler.codec.embedder.CodecEmbedderException;
 import org.jboss.netty.handler.timeout.IdleState;
 import org.jboss.netty.handler.timeout.IdleStateAwareChannelHandler;
 import org.jboss.netty.handler.timeout.IdleStateEvent;
-import org.jboss.netty.handler.timeout.ReadTimeoutException;
 
 import net.opentsdb.stats.StatsCollector;
 

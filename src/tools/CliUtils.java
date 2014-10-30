@@ -13,7 +13,6 @@
 package net.opentsdb.tools;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
