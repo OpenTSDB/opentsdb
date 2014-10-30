@@ -822,7 +822,6 @@ public final class TSMeta {
         return Deferred.fromResult(null);
       }
 
-      // list of fetch calls that we can wait on for completion
       final ArrayList<Deferred<UIDMeta>> uid_group =
         new ArrayList<Deferred<UIDMeta>>(tags.size());
 
@@ -832,12 +831,10 @@ public final class TSMeta {
         uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGK, tag_iter.next()));
         uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGV, tag_iter.next()));
       }
-      
+
       /**
-       * Callback for each getUIDMeta request that will place the resulting 
-       * meta data in the proper location. The meta should always be either an
-       * actual stored value or a default. On creation, this callback will have
-       * an index to associate the UIDMeta with the proper location.
+       * A callback that will place the loaded UIDMeta objects for the tags in
+       * order on meta.tags.
        */
       final class UIDMetaTagsCB implements Callback<TSMeta, ArrayList<UIDMeta>> {
         @Override
@@ -847,20 +844,24 @@ public final class TSMeta {
         }
       }
 
+      /**
+       * A callback that will place the loaded UIDMeta object for the metric
+       * UID on meta.metric.
+       */
       class UIDMetaMetricCB implements Callback<Deferred<TSMeta>, UIDMeta> {
         @Override
         public Deferred<TSMeta> call(UIDMeta uid_meta) {
           meta.metric = uid_meta;
 
+          // This will chain the UIDMetaTagsCB on this callback which is what
+          // allows us to just return the result of the callback chain bellow
+          // . groupInOrder is used so that the resulting list will be in the
+          // same order as they were added to uid_group.
           return Deferred.groupInOrder(uid_group)
               .addCallback(new UIDMetaTagsCB());
         }
       }
-      
-      // for the UIDMeta indexes: -1 means metric, >= 0 means tag. Each 
-      // getUIDMeta request must be added to the uid_group array so that we
-      // can wait for them to complete before returning the TSMeta object, 
-      // otherwise the caller may get a TSMeta with missing UIDMetas
+
       return tsdb.getUIDMeta(UniqueIdType.METRIC, metric_uid)
           .addCallbackDeferring(new UIDMetaMetricCB());
     }
