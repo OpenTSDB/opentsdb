@@ -163,24 +163,20 @@ final class MetaSync extends Thread {
         // otherwise it's probably an accurate timestamp
         if (meta.getCreated() > (timestamp + 3600) || 
             meta.getCreated() == 0) {
-          LOG.info("Updating UID [{}] of type [{}]", UniqueId.uidToString(uid), type);
+
+          LOG.info("Updating UID [{}] of type [{}]",
+                  UniqueId.uidToString(uid), type);
           meta.setCreated(timestamp);
-          
-          // if the UIDMeta object was missing any of these fields, we'll
-          // consider it corrupt and replace it with a new object
-          if (meta.getUID() == null || meta.getUID().isEmpty() || 
-              meta.getType() == null) {
-            return tsdb.getUidName(type, uid)
-              .addCallbackDeferring(new UidNameCB());
-          } else {
-            // the meta was good, just needed a timestamp update so sync to
-            // search and storage
-            tsdb.indexUIDMeta(meta);
-            LOG.info("Syncing valid UID [{}] of type [{}]", UniqueId.uidToString(uid), type);
-            return tsdb.syncUIDMetaToStorage(meta, false);
-          }
+
+          // the meta was good, just needed a timestamp update so sync to
+          // search and storage
+          tsdb.indexUIDMeta(meta);
+          LOG.info("Syncing valid UID [{}] of type [{}]",
+                  UniqueId.uidToString(uid), type);
+          return tsdb.syncUIDMetaToStorage(meta, false);
         } else {
-          LOG.debug("UID [{}] of type [{}] is up to date in storage", UniqueId.uidToString(uid), type);
+          LOG.debug("UID [{}] of type [{}] is up to date in storage",
+                  UniqueId.uidToString(uid), type);
           return Deferred.fromResult(true);
         }
       }

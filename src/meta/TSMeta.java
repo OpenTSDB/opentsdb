@@ -18,6 +18,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -800,13 +801,18 @@ public final class TSMeta {
    * by multiple methods so it's broken into it's own class here.
    */
   private static class LoadUIDs implements Callback<Deferred<TSMeta>, TSMeta> {
+    private final TSDB tsdb;
 
-    final private TSDB tsdb;
-    final private String tsuid;
+    private final byte[] metric_uid;
+    private final List<byte[]> tags;
     
     public LoadUIDs(final TSDB tsdb, final String tsuid) {
       this.tsdb = tsdb;
-      this.tsuid = tsuid;
+
+      final byte[] byte_tsuid = UniqueId.stringToUid(tsuid);
+
+      metric_uid = Arrays.copyOfRange(byte_tsuid, 0, Const.METRICS_WIDTH);
+      tags = UniqueId.getTagsFromTSUID(tsuid);
     }
     
     /**
@@ -820,92 +826,50 @@ public final class TSMeta {
       if (meta == null) {
         return Deferred.fromResult(null);
       }
-      
-      // split up the tags
-      final List<byte[]> tags = UniqueId.getTagsFromTSUID(tsuid);
-      meta.tags = new ArrayList<UIDMeta>(tags.size());
-      
-      // initialize with empty objects, otherwise the "set" operations in 
-      // the callback won't work. Each UIDMeta will be given an index so that 
-      // the callback can store it in the proper location
-      for (int i = 0; i < tags.size(); i++) {
-        meta.tags.add(new UIDMeta());
-      }
-      
-      // list of fetch calls that we can wait on for completion
-      ArrayList<Deferred<Object>> uid_group = 
-        new ArrayList<Deferred<Object>>(tags.size() + 1);
-      
-      /**
-       * Callback for each getUIDMeta request that will place the resulting 
-       * meta data in the proper location. The meta should always be either an
-       * actual stored value or a default. On creation, this callback will have
-       * an index to associate the UIDMeta with the proper location.
-       */
-      final class UIDMetaCB implements Callback<Object, UIDMeta> {
 
-        final int index;
-        
-        public UIDMetaCB(final int index) {
-          this.index = index;
-        }
-        
-        /**
-         * @return null always since we don't care about the result, just that
-         * the callback has completed.
-         */
-        @Override
-        public Object call(final UIDMeta uid_meta) throws Exception {
-          if (index < 0) {
-            meta.metric = uid_meta;
-          } else {
-            meta.tags.set(index, uid_meta);
-          }
-          return null;
-        }
-        
-      }
-      
-      // for the UIDMeta indexes: -1 means metric, >= 0 means tag. Each 
-      // getUIDMeta request must be added to the uid_group array so that we
-      // can wait for them to complete before returning the TSMeta object, 
-      // otherwise the caller may get a TSMeta with missing UIDMetas
-      uid_group.add(tsdb.getUIDMeta(UniqueIdType.METRIC,
-        tsuid.substring(0, Const.METRICS_WIDTH * 2)).addCallback(
-            new UIDMetaCB(-1)));
-      
-      int idx = 0;
-      for (byte[] tag : tags) {
-        if (idx % 2 == 0) {
-          uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGK, tag)
-                .addCallback(new UIDMetaCB(idx)));
-        } else {
-          uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGV, tag)
-              .addCallback(new UIDMetaCB(idx)));
-        }          
-        idx++;
-      }
-      
-      /**
-       * Super simple callback that is used to wait on the group of getUIDMeta
-       * deferreds so that we return only when all of the UIDMetas have been
-       * loaded.
-       */
-      final class CollateCB implements Callback<Deferred<TSMeta>, 
-        ArrayList<Object>> {
+      final ArrayList<Deferred<UIDMeta>> uid_group =
+        new ArrayList<Deferred<UIDMeta>>(tags.size());
 
-        @Override
-        public Deferred<TSMeta> call(ArrayList<Object> uids) throws Exception {
-          return Deferred.fromResult(meta);
-        }
-        
+      Iterator<byte[]> tag_iter = tags.iterator();
+
+      while(tag_iter.hasNext()) {
+        uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGK, tag_iter.next()));
+        uid_group.add(tsdb.getUIDMeta(UniqueIdType.TAGV, tag_iter.next()));
       }
-      
-      // start the callback chain by grouping and waiting on all of the UIDMeta
-      // deferreds
-      return Deferred.group(uid_group).addCallbackDeferring(new CollateCB());
+
+      /**
+       * A callback that will place the loaded UIDMeta objects for the tags in
+       * order on meta.tags.
+       */
+      final class UIDMetaTagsCB implements Callback<TSMeta, ArrayList<UIDMeta>> {
+        @Override
+        public TSMeta call(final ArrayList<UIDMeta> uid_metas) {
+          meta.tags = uid_metas;
+          return meta;
+        }
+      }
+
+      /**
+       * A callback that will place the loaded UIDMeta object for the metric
+       * UID on meta.metric.
+       */
+      class UIDMetaMetricCB implements Callback<Deferred<TSMeta>, UIDMeta> {
+        @Override
+        public Deferred<TSMeta> call(UIDMeta uid_meta) {
+          meta.metric = uid_meta;
+
+          // This will chain the UIDMetaTagsCB on this callback which is what
+          // allows us to just return the result of the callback chain bellow
+          // . groupInOrder is used so that the resulting list will be in the
+          // same order as they were added to uid_group.
+          return Deferred.groupInOrder(uid_group)
+              .addCallback(new UIDMetaTagsCB());
+        }
+      }
+
+      return tsdb.getUIDMeta(UniqueIdType.METRIC, metric_uid)
+          .addCallbackDeferring(new UIDMetaMetricCB());
     }
-    
   }
   
   // Getters and Setters --------------
