@@ -80,6 +80,8 @@ public class MemoryStore implements TsdbStore {
   private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
     storage = new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>();
 
+  private int TREE_MAX_ID = 1;
+
   private final Map<Integer, Tree> tree_table;
   private final Table<String, String, byte[]> data_table;
   private final Table<String, String, byte[]> uid_table;
@@ -971,6 +973,7 @@ public class MemoryStore implements TsdbStore {
   public Deferred<Boolean> storeTree(Tree tree, boolean overwrite) {
     // The overwrite matters only for the HBaseStore implementation.
     // Therefore in this case this value should not matter or be tested.
+    // It can happen in-flight for a live instance
     // (Should be tested in the HBaseStore test class)
 
     Tree stored_tree = tree_table.get(tree.getTreeId());
@@ -989,17 +992,7 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Integer> createNewTree(Tree tree) {
-    Set<Integer> trees_id = tree_table.keySet();
-    int max_id = 0;
-
-    if (!trees_id.isEmpty()) {
-      for (Integer key : trees_id) {
-        if (key > max_id) {
-          max_id = key;
-        }
-      }
-    }
-    tree.setTreeId(max_id + 1);
+    tree.setTreeId(TREE_MAX_ID++);
     if (tree.getTreeId() > Const.MAX_TREE_ID_INCLUSIVE) {
       throw new IllegalStateException("Exhausted all Tree IDs");
     }

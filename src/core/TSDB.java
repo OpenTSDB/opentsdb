@@ -1417,7 +1417,7 @@ public class TSDB {
     // if there aren't any changes, save time and bandwidth by not writing to
     // storage
     if (!tree.hasChanged()) {
-      LOG.debug(tree + " does not have changes, skipping sync to storage");
+      LOG.debug("{} does not have changes, skipping sync to storage", tree);
       throw new IllegalStateException("No changes detected in the tree");
     }
     return tsdb_store.storeTree(tree, overwrite);

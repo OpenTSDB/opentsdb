@@ -12,8 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static junit.framework.TestCase.assertNotNull;
+import static junit.framework.TestCase.assertNull;
 import static net.opentsdb.uid.UniqueId.UniqueIdType.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -174,7 +179,9 @@ public final class TestTSDB {
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
         tsdb.getUID(METRIC, "sys.cpu.0").joinUninterruptibly());
   }
-  
+
+
+
   @Test
   public void getUIDTagk() throws Exception {
     setupAssignUid();
