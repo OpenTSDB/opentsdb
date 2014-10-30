@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.xml.bind.DatatypeConverter;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -491,7 +491,7 @@ public class UniqueId {
 
   /** Returns a human readable string representation of the object. */
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
             .add("kind", kind())
             .add("id_width", id_width)
             .toString();
@@ -523,7 +523,7 @@ public class UniqueId {
    * @since 2.0
    */
   public static byte[] stringToUid(final String uid) {
-    return stringToUid(uid, (short)0);
+    return stringToUid(uid, (short) 0);
   }
   
   /**
@@ -544,6 +544,22 @@ public class UniqueId {
     
     final byte[] uid_raw = new byte[8];
     System.arraycopy(uid, 0, uid_raw, 8 - uid_length, uid_length);
+    return Bytes.getLong(uid_raw);
+  }
+
+  /**
+   * Converts a UID to an integer value. The array must be the same length as
+   * uid_length or an exception will be thrown.
+   * @param uid The byte array to convert
+   * @param uid_length Length the array SHOULD be according to the UID config
+   * @return The UID converted to an integer
+   * @throws IllegalArgumentException if the length of the byte array does not
+   * match the uid_length value
+   * @since 2.1
+   */
+  public static long uidToLong(final byte[] uid) {
+    final byte[] uid_raw = new byte[8];
+    System.arraycopy(uid, 0, uid_raw, 8 - uid.length, uid.length);
     return Bytes.getLong(uid_raw);
   }
  

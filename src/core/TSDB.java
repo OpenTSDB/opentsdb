@@ -1277,21 +1277,12 @@ public class TSDB {
    */
   public Deferred<Boolean> syncUIDMetaToStorage(final UIDMeta meta,
                                                 final boolean overwrite) {
-    if (Strings.isNullOrEmpty(meta.getUID())) {
-      throw new IllegalArgumentException("Missing UID");
-    }
-    if (meta.getType() == null) {
-      throw new IllegalArgumentException("Missing type");
-    }
-
     if (!meta.hasChanges()) {
       LOG.debug("{} does not have changes, skipping sync to storage", meta);
       throw new IllegalStateException("No changes detected in UID meta data");
     }
 
-    return this.getUidName(meta.getType(),
-      UniqueId.stringToUid(meta.getUID())).addCallbackDeferring(
-
+    return this.getUidName(meta.getType(), meta.getUID()).addCallbackDeferring(
       new Callback<Deferred<Boolean>, String>() {
         @Override
         public Deferred<Boolean> call(String arg) {
@@ -1311,13 +1302,6 @@ public class TSDB {
    * @throws IllegalArgumentException if data was missing (uid and type)
    */
   public Deferred<Object> delete(final UIDMeta meta) {
-    if (Strings.isNullOrEmpty(meta.getUID())) {
-      throw new IllegalArgumentException("Missing UID");
-    }
-    if (meta.getType() == null) {
-      throw new IllegalArgumentException("Missing type");
-    }
-
     return tsdb_store.delete(meta);
   }
 
@@ -1334,12 +1318,6 @@ public class TSDB {
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Object> add(final UIDMeta meta) {
-    if (Strings.isNullOrEmpty(meta.getUID())) {
-      throw new IllegalArgumentException("Missing UID");
-    }
-    if (meta.getType() == null) {
-      throw new IllegalArgumentException("Missing type");
-    }
     if (Strings.isNullOrEmpty(meta.getName())) {
       throw new IllegalArgumentException("Missing name");
     }
@@ -1416,7 +1394,7 @@ public class TSDB {
     // if there aren't any changes, save time and bandwidth by not writing to
     // storage
     if (!tree.hasChanged()) {
-      LOG.debug(this + " does not have changes, skipping sync to storage");
+      LOG.debug("{} does not have changes, skipping sync to storage", tree);
       throw new IllegalStateException("No changes detected in the tree");
     }
     return tsdb_store.storeTree(tree, overwrite);
@@ -1443,8 +1421,8 @@ public class TSDB {
    * This method will scan the UID table for the maximum tree ID, increment it,
    * store the new tree, and return the new ID. If no trees have been created,
    * the returned ID will be "1". If we have reached the limit of trees for the
-   * system, as determined by {@link Const#MAX_TREE_ID_EXCLUSIVE}, we will throw an
-   * exception.
+   * system, as determined by {@link Const#MAX_TREE_ID_INCLUSIVE}, we will throw
+   * an exception.
    *
    * @param tree The Tree to store
    * @return A positive ID, greater than 0 if successful, 0 if there was
@@ -1475,12 +1453,14 @@ public class TSDB {
    * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the tree ID was invalid
    */
-  public Deferred<Boolean> deleteTree(final int tree_id, final boolean delete_definition) {
+  public Deferred<Boolean> deleteTree(final int tree_id,
+                                      final boolean delete_definition) {
 
     Tree.validateTreeID(tree_id);
 
     return tsdb_store.deleteTree(tree_id, delete_definition);
   }
+
   /**
    * Returns the collision set from storage for the given tree, optionally for
    * only the list of TSUIDs provided.
@@ -1496,8 +1476,9 @@ public class TSDB {
    * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the tree ID was invalid
    */
-  public Deferred<Map<String, String>> fetchCollisions(final int tree_id,
-                                                              final List<String> tsuids) {
+  public Deferred<Map<String, String>> fetchCollisions(
+          final int tree_id,
+          final List<String> tsuids) {
     Tree.validateTreeID(tree_id);
     return tsdb_store.fetchCollisions(tree_id, tsuids);
   }
@@ -1530,6 +1511,7 @@ public class TSDB {
    * <b>Note:</b> This will also clear the {@link Tree#collisions} map
    *
    * @param tree The Tree to flush to storage.
+   *
    * @return A meaningless deferred (will always be true since we need to group
    * it with tree store calls) for the caller to wait on
    * @throws HBaseException if there was an issue

@@ -50,6 +50,8 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.uid.UniqueIdType;
+
+import static com.google.common.collect.Maps.newHashMap;
 import static net.opentsdb.uid.UniqueId.uidToString;
 
 /**
@@ -79,8 +81,11 @@ public class MemoryStore implements TsdbStore {
   private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
     storage = new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>();
 
+  private int TREE_MAX_ID = 1;
+
+  private final Map<Integer, Tree> tree_table;
   private final Table<String, String, byte[]> data_table;
-  private final Table<String, String, byte[]> uid_table;
+  private final Table<Long, String, byte[]> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
@@ -97,6 +102,7 @@ public class MemoryStore implements TsdbStore {
   private long current_timestamp = 1388534400000L;
 
   public MemoryStore() {
+    tree_table = newHashMap();
     data_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
     annotation_table = HashBasedTable.create();
@@ -476,7 +482,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
     uid_table.put(
-            meta.getUID(),
+            UniqueId.uidToLong(meta.getUID()),
             meta.getType().toString().toLowerCase() + "_meta",
             meta.getStorageJSON());
 
@@ -486,7 +492,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(final UIDMeta meta) {
     uid_table.remove(
-            meta.getUID(),
+            UniqueId.uidToLong(meta.getUID()),
             meta.getType().toString().toLowerCase() + "_meta");
 
     return Deferred.fromResult(null);
@@ -497,7 +503,7 @@ public class MemoryStore implements TsdbStore {
                                    final String name,
                                    final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    final String s_uid = uidToString(uid);
+    final long s_uid = UniqueId.uidToLong(uid);
 
     byte[] json_value = uid_table.get(s_uid, qualifier);
 
@@ -518,11 +524,11 @@ public class MemoryStore implements TsdbStore {
     return Deferred.fromResult(return_meta);
   }
 
-  private Deferred<UIDMeta> getMeta(final String uid,
+  private Deferred<UIDMeta> getMeta(final byte[] uid,
                                     final UniqueIdType
           type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    byte[] json_value = uid_table.get(uid, qualifier);
+    byte[] json_value = uid_table.get(UniqueId.uidToLong(uid), qualifier);
 
     if (json_value == null)
       return Deferred.fromResult(null);
@@ -961,17 +967,38 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Tree> fetchTree(int tree_id) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    return Deferred.fromResult(tree_table.get(tree_id));
   }
 
   @Override
   public Deferred<Boolean> storeTree(Tree tree, boolean overwrite) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    // The overwrite matters only for the HBaseStore implementation.
+    // Therefore in this case this value should not matter or be tested.
+    // It can happen in-flight for a live instance
+    // (Should be tested in the HBaseStore test class)
+
+    Tree stored_tree = tree_table.get(tree.getTreeId());
+
+    if (stored_tree == null) {
+      stored_tree = tree;
+    } else {
+      stored_tree.copyChanges(tree, overwrite);
+    }
+    Tree res = tree_table.put(stored_tree.getTreeId(), stored_tree);
+    // In the real implementation it does a compare and set.
+    // So since this is a serial implementation right now no other process
+    // should have accessed and it should always return true.
+    return Deferred.fromResult(true);
   }
 
   @Override
   public Deferred<Integer> createNewTree(Tree tree) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    tree.setTreeId(TREE_MAX_ID++);
+    if (tree.getTreeId() > Const.MAX_TREE_ID_INCLUSIVE) {
+      throw new IllegalStateException("Exhausted all Tree IDs");
+    }
+    tree_table.put(tree.getTreeId(), tree);
+    return Deferred.fromResult(tree.getTreeId());
   }
 
   @Override
@@ -981,27 +1008,39 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> deleteTree(int tree_id, boolean delete_definition) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    Tree res = tree_table.remove(tree_id);
+    if (res == null)
+      return Deferred.fromResult(false);
+    return Deferred.fromResult(true);
   }
 
   @Override
   public Deferred<Map<String, String>> fetchCollisions(int tree_id, List<String> tsuids) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    /*
+    * This method in lack of something better will return an empty map.
+    * Later this must be solved.
+    */
+    final Map<String, String> returnValue = new HashMap<String, String>();
+    return Deferred.fromResult(returnValue);
   }
 
   @Override
   public Deferred<Map<String, String>> fetchNotMatched(int tree_id, List<String> tsuids) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    final Map<String, String> returnValue = new HashMap<String, String>();
+    return Deferred.fromResult(returnValue);
   }
 
   @Override
   public Deferred<Boolean> flushTreeCollisions(Tree tree) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    /*
+     * Return a meaningless deferred but should always be true.
+     */
+    return Deferred.fromResult(true);
   }
 
   @Override
   public Deferred<Boolean> flushTreeNotMatched(Tree tree) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    return Deferred.fromResult(true); //A meaningless deferred
   }
 
   @Override
@@ -1011,8 +1050,13 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<ArrayList<Boolean>> storeBranch(Tree tree, Branch branch, boolean store_leaves) {
-    throw new UnsupportedOperationException("Not implemented yet");
+  public Deferred<ArrayList<Boolean>> storeBranch(Tree tree, Branch branch,
+                                                  boolean store_leaves) {
+    /*
+    * This method in lack of something better will return an empty map.
+    * Later this must be solved.
+    */
+    return Deferred.fromResult(new ArrayList<Boolean>());
   }
 
   @Override
@@ -1027,22 +1071,24 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<TreeRule> fetchTreeRule(int tree_id, int level, int order) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    return Deferred.fromResult(null);
   }
 
   @Override
   public Deferred<Object> deleteTreeRule(int tree_id, int level, int order) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    return Deferred.fromResult(null);
   }
 
   @Override
   public Deferred<Object> deleteAllTreeRule(int tree_id) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    return Deferred.fromResult(null);
   }
 
   @Override
   public Deferred<Boolean> syncTreeRuleToStorage(TreeRule rule, boolean overwrite) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    // Return true if the CAS call succeeded, false if the stored data was
+    // modified in flight.
+    return Deferred.fromResult(true);
   }
 
   /**

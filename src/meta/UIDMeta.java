@@ -15,6 +15,7 @@ package net.opentsdb.meta;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -22,12 +23,21 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Objects;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.JSON;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * UIDMeta objects are associated with the UniqueId of metrics, tag names
@@ -57,55 +67,47 @@ import net.opentsdb.utils.JSON;
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class UIDMeta {
   /** A hexadecimal representation of the UID this metadata is associated with */
-  private String uid = "";
+  private byte[] uid;
   
   /** The type of UID this metadata represents */
   @JsonDeserialize(using = JSON.UniqueIdTypeDeserializer.class)
-  private UniqueIdType type = null;
+  private UniqueIdType type;
   
   /** 
    * This is the identical name of what is stored in the UID table
    * It cannot be overridden 
    */
-  private String name = "";
+  private String name;
   
   /** 
    * An optional, user supplied name used for display purposes only
    * If this field is empty, the {@link name} field should be used
    */
-  private String display_name = "";
+  private String display_name;
   
   /** A short description of what this object represents */
-  private String description = "";
+  private String description;
   
   /** Optional, detailed notes about what the object represents */
-  private String notes = "";
+  private String notes;
   
   /** A timestamp of when this UID was first recorded by OpenTSDB in seconds */
   private long created = 0;
   
   /** Optional user supplied key/values */
-  private HashMap<String, String> custom = null;
+  private Map<String, String> custom;
   
   /** Tracks fields that have changed by the user to avoid overwrites */
   private final Set<String> changed = Sets.newHashSetWithExpectedSize(5);
-  
-  /**
-   * Default constructor
-   * Initializes the the changed map
-   */
-  public UIDMeta() {
-  }
- 
+
   /**
    * Constructor used for overwriting. Will not reset the name or created values
    * in storage.
    * @param type Type of UID object
    * @param uid UID of the object
    */
-  public UIDMeta(final UniqueIdType type, final String uid) {
-    this.type = type;
-    this.uid = uid;
+  public UIDMeta(final UniqueIdType type, final byte[] uid) {
+    this(type, uid, null, false);
   }
   
   /**
@@ -116,10 +118,7 @@ public final class UIDMeta {
    * @param name Name of the UID
    */
   public UIDMeta(final UniqueIdType type, final byte[] uid, final String name) {
-    this.type = type;
-    this.uid = UniqueId.uidToString(uid);
-    this.name = name;
-    created = System.currentTimeMillis() / 1000;
+    this(uid, type, name, null, null, null, null, System.currentTimeMillis() / 1000);
     changed.add("created");
   }
 
@@ -133,8 +132,12 @@ public final class UIDMeta {
    */
   public UIDMeta(final UniqueIdType type, final byte[] uid,
                  final String name, final boolean created) {
-    this.type = type;
-    this.uid = UniqueId.uidToString(uid);
+    this.type = checkNotNull(type);
+
+    checkArgument(type.width == uid.length, "UID length must match the UID " +
+            "type width");
+    this.uid = uid;
+
     this.name = name;
 
     if (created) {
@@ -142,6 +145,29 @@ public final class UIDMeta {
       changed.add("created");
     }
   }
+
+  public UIDMeta(final byte[] uid,
+                 final UniqueIdType type,
+                 final String name,
+                 final String display_name,
+                 final String description,
+                 final String notes,
+                 final Map<String, String> custom,
+                 final long created) {
+    this.type = checkNotNull(type);
+
+    checkArgument(type.width == uid.length, "UID length must match the UID " +
+            "type width");
+    this.uid = uid;
+
+    this.name = name;
+    this.display_name = display_name;
+    this.description = description;
+    this.notes = notes;
+    this.custom = custom;
+    this.created = created;
+  }
+
   /**
    * Constructor used by TSD only to create a new UID with the given data and
    * the current system time for {@code createdd}
@@ -152,17 +178,35 @@ public final class UIDMeta {
    */
   public static UIDMeta buildFromJSON(byte[] json, UniqueIdType type, byte[] uid,
                               String name) {
-    UIDMeta meta = JSON.parseToObject(json, UIDMeta.class);
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode rootNode = mapper.readValue(json, ObjectNode.class);
 
-    meta.type = type;
-    meta.uid = UniqueId.uidToString(uid);
-    meta.name = name;
+      String display_name = rootNode.get("displayName").textValue();
+      String description = rootNode.get("description").textValue();
+      String notes = rootNode.get("notes").textValue();
+      long created = rootNode.get("description").longValue();
 
-    meta.resetChangedMap();
+      JsonNode custom_node = rootNode.get("custom");
+      Map<String, String> custom = null;
 
-    return meta;
+      if (custom_node != null && custom_node.getNodeType() == JsonNodeType.OBJECT) {
+        custom = Maps.newHashMap();
+        Iterator<String> custom_keys = custom_node.fieldNames();
+
+        while (custom_keys.hasNext()) {
+          String key = custom_keys.next();
+          String value = custom_node.get(key).textValue();
+          custom.put(key, value);
+        }
+      }
+
+      return new UIDMeta(uid, type, name, display_name, description, notes,
+              custom, created);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
   }
-
 
   /**
    * @return a string with details about this object
@@ -171,8 +215,6 @@ public final class UIDMeta {
   public String toString() {
     return "'" + type.toString() + ":" + uid + "'";
   }
-
-
 
   /**
    * Syncs the local object with the stored object for atomic writes, 
@@ -184,15 +226,8 @@ public final class UIDMeta {
    * replaced by the local object
    */
   public void syncMeta(final UIDMeta meta, final boolean overwrite) {
-    // copy non-user-accessible data first
-    if (meta.uid != null && !meta.uid.isEmpty()) {
-      uid = meta.uid;
-    }
     if (meta.name != null && !meta.name.isEmpty()) {
       name = meta.name;
-    }
-    if (meta.type != null) {
-      type = meta.type;
     }
     if (meta.created > 0 && (meta.created < created || created == 0)) {
       created = meta.created;
@@ -263,7 +298,7 @@ public final class UIDMeta {
   // Getters and Setters --------------
   
   /** @return the uid as a hex encoded string */
-  public String getUID() {
+  public byte[] getUID() {
     return uid;
   }
 
@@ -306,7 +341,7 @@ public final class UIDMeta {
    * @param display_name an optional descriptive name for the UID
    */
   public void setDisplayName(final String display_name) {
-    if (!this.display_name.equals(display_name)) {
+    if (!Objects.equal(this.display_name, display_name)) {
       changed.add("display_name");
       this.display_name = display_name;
     }
@@ -314,7 +349,7 @@ public final class UIDMeta {
 
   /** @param description an optional description of the UID */
   public void setDescription(final String description) {
-    if (!this.description.equals(description)) {
+    if (!Objects.equal(this.description, description)) {
       changed.add("description");
       this.description = description;
     }
@@ -322,7 +357,7 @@ public final class UIDMeta {
 
   /** @param notes optional notes */
   public void setNotes(final String notes) {
-    if (!this.notes.equals(notes)) {
+    if (!Objects.equal(this.notes, notes)) {
       changed.add("notes");
       this.notes = notes;
     }

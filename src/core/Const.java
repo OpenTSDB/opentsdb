@@ -96,11 +96,11 @@ public final class Const {
    */
   public static final long MAX_MS_TIMESTAMP = 9999999999999L;
 
-  /** The lower limit of the tree/branch ID (exclusive) */
-  public static final int MIN_TREE_ID_EXCLUSIVE = 1;
+  /** The lower limit of the tree/branch ID (inclusive) */
+  public static final int MIN_TREE_ID_INCLUSIVE = 1;
 
-  /** The upper limit of the tree/branch ID (exclusive) */
-  public static final int MAX_TREE_ID_EXCLUSIVE = 65535;
+  /** The upper limit of the tree/branch ID (inclusive) */
+  public static final int MAX_TREE_ID_INCLUSIVE = 65535;
 
   /** Integer width in bytes used when setting up the HBase Scanner
    * Used only when scanning the branch */

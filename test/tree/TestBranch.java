@@ -92,61 +92,61 @@ public final class TestBranch {
   
   @Test
   public void testEquals() {
-    final Branch branch = buildTestBranch(tree);;
-    final Branch branch2 = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
+    final Branch branch2 = buildTestBranch(tree);
     assertTrue(branch.equals(branch2));
   }
   
   @Test
   public void equalsSameAddress() {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     assertTrue(branch.equals(branch));
   }
   
   @Test
   public void equalsNull() {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     assertFalse(branch.equals(null));
   }
   
   @Test
   public void equalsWrongClass() {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     assertFalse(branch.equals(new Object()));
   }
   
   @Test
   public void compareTo() {
-    final Branch branch = buildTestBranch(tree);;
-    final Branch branch2 = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
+    final Branch branch2 = buildTestBranch(tree);
     assertEquals(0, branch.compareTo(branch2));
   }
   
   @Test
   public void compareToLess() {
-    final Branch branch = buildTestBranch(tree);;
-    final Branch branch2 = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
+    final Branch branch2 = buildTestBranch(tree);
     branch2.setDisplayName("Ardvark");
     assertTrue(branch.compareTo(branch2) > 0);
   }
   
   @Test
   public void compareToGreater() {
-    final Branch branch = buildTestBranch(tree);;
-    final Branch branch2 = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
+    final Branch branch2 = buildTestBranch(tree);
     branch2.setDisplayName("Zelda");
     assertTrue(branch.compareTo(branch2) < 0);
   }
   
   @Test
   public void getBranchIdRoot() {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     assertEquals("0001", branch.getBranchId());
   }
   
   @Test
   public void getBranchIdChild() {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     assertEquals("0001D119F20E", branch.getBranches().first().getBranchId());
   }
   
@@ -161,7 +161,7 @@ public final class TestBranch {
   
   @Test
   public void addChildNoLocalBranches() throws Exception {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     final Branch child = new Branch(tree.getTreeId());
     Field branches = Branch.class.getDeclaredField("branches");
     branches.setAccessible(true);
@@ -174,7 +174,7 @@ public final class TestBranch {
   
   @Test
   public void addChildNoChanges() throws Exception {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     final Branch child = new Branch(tree.getTreeId());
     assertTrue(branch.addChild(child));
     assertFalse(branch.addChild(child));
@@ -185,7 +185,7 @@ public final class TestBranch {
   @Test
   public void addLeafExists() throws Exception {
     final Tree tree = TestTree.buildTestTree();
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
 
     Leaf leaf = new Leaf();
     leaf.setDisplayName("Alarms");
@@ -200,7 +200,7 @@ public final class TestBranch {
   @Test
   public void addLeafCollision() throws Exception {
     final Tree tree = TestTree.buildTestTree();
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
 
     Leaf leaf = new Leaf();
     leaf.setDisplayName("Alarms");
@@ -214,13 +214,13 @@ public final class TestBranch {
 
   @Test (expected = IllegalArgumentException.class)
   public void addChildNull() throws Exception {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     branch.addChild(null);
   }
 
   @Test
   public void addLeaf() throws Exception {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     
     Leaf leaf = new Leaf();
     leaf.setDisplayName("Application Servers");
@@ -231,19 +231,19 @@ public final class TestBranch {
 
   @Test (expected = IllegalArgumentException.class)
   public void addLeafNull() throws Exception {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     branch.addLeaf(null, null);
   }
   
   @Test
   public void compileBranchId() {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     assertArrayEquals(new byte[] { 0, 1 }, branch.compileBranchId());
   }
   
   @Test
   public void compileBranchIdChild() {
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     assertArrayEquals(new byte[] { 0, 1 , (byte) 0xD1, 0x19, (byte) 0xF2, 0x0E }, 
         branch.getBranches().first().compileBranchId());
   }
@@ -353,7 +353,7 @@ public final class TestBranch {
   @Test (expected = IllegalArgumentException.class)
   public void storeBranchTreeID0() throws Exception {
     setupStorage();
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     branch.setTreeId(0);
     tsdb.storeBranch(tree, branch, false);
   }
@@ -361,7 +361,7 @@ public final class TestBranch {
   @Test (expected = IllegalArgumentException.class)
   public void storeBranchTreeID65536() throws Exception {
     setupStorage();
-    final Branch branch = buildTestBranch(tree);;
+    final Branch branch = buildTestBranch(tree);
     branch.setTreeId(65536);
     tsdb.storeBranch(tree ,branch, false);
   }
