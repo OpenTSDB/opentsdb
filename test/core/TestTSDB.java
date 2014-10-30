@@ -13,15 +13,22 @@
 package net.opentsdb.core;
 
 import static net.opentsdb.uid.UniqueIdType.*;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
 
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.tree.Branch;
+import net.opentsdb.tree.Tree;
+import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Config;
@@ -173,7 +180,9 @@ public final class TestTSDB {
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
         tsdb.getUID(METRIC, "sys.cpu.0").joinUninterruptibly());
   }
-  
+
+
+
   @Test
   public void getUIDTagk() throws Exception {
     setupAssignUid();
@@ -810,5 +819,407 @@ public final class TestTSDB {
     tsdb_store.allocateUID("sys.cpu.user", new byte[]{0, 0, 1}, METRIC);
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
     tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testStoreTreeTooLowID() {
+    Tree tree = new Tree();
+    tree.setTreeId(Const.MIN_TREE_ID_INCLUSIVE - 1);
+
+    tsdb.storeTree(tree, true);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testStoreTreeTooHighID() {
+    Tree tree = new Tree();
+    tree.setTreeId(Const.MAX_TREE_ID_INCLUSIVE + 1);
+
+    tsdb.storeTree(tree, true);
+  }
+
+  @Test (expected = IllegalStateException.class)
+  public void testStoreTreeNotChanged() {
+    Tree tree = new Tree();
+    tree.setTreeId(Const.MAX_TREE_ID_INCLUSIVE);
+
+    tsdb.storeTree(tree, true);
+  }
+  @Test
+  public void testStoreTreeValidID() throws Exception {
+    Tree tree = new Tree();
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+
+      tree.setTreeId(id);
+      // sets the optional Note field do tha this
+      // tree will have the status changed
+      tree.setNotes("Note");
+
+      assertTrue(tsdb.storeTree(tree, true).joinUninterruptibly());
+    }
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testFetchTreeTooLowID() {
+    tsdb.fetchTree(Const.MIN_TREE_ID_INCLUSIVE - 1);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testFetchTreeTooHighID() {
+    tsdb.fetchTree(Const.MAX_TREE_ID_INCLUSIVE + 1);
+  }
+
+  @Test
+  public void testFetchTree() throws Exception {
+    Tree tree = new Tree();
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+
+      tree.setTreeId(id);
+      // sets the optional Note field do tha this
+      // tree will have the status changed
+      tree.setNotes("Note");
+
+      tsdb.storeTree(tree, true);//maybe alternate true and false?
+      assertEquals(tree, tsdb.fetchTree(id).joinUninterruptibly());
+    }
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testCreateNewTreeIDAlreadySet() {
+    Tree tree = new Tree();
+    tree.setTreeId(1);
+
+    tsdb.createNewTree(tree);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testCreateNewTreeNoName() {
+    Tree tree = new Tree();
+
+    tsdb.createNewTree(tree);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testCreateNewTreeEmptyName() {
+    Tree tree = new Tree();
+    tree.setName("");
+
+    tsdb.createNewTree(tree);
+  }
+
+  @Test
+  public void testCreateNewTree() throws Exception {
+    Tree tree = new Tree();
+    tree.setName("Valid1");
+
+    assertEquals( new Integer(1), tsdb.createNewTree(tree).joinUninterruptibly());
+    Tree tree2 = new Tree();
+    tree2.setName("Valid2");
+    assertEquals( new Integer(2), tsdb.createNewTree(tree2).joinUninterruptibly());
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testDeleteTreeTooLowID() {
+
+    tsdb.deleteTree(Const.MIN_TREE_ID_INCLUSIVE - 1, true);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testDeleteTreeTooHighID() {
+    tsdb.deleteTree(Const.MAX_TREE_ID_INCLUSIVE + 1, true);
+  }
+
+  @Test
+  public void testDeleteTree() throws Exception {
+    testStoreTreeValidID();
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+
+      assertTrue(tsdb.deleteTree(id, true).joinUninterruptibly());
+    }
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testFetchCollisionsTooLowID() {
+
+    tsdb.fetchCollisions(Const.MIN_TREE_ID_INCLUSIVE - 1, null);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testFetchCollisionsTooHighID() {
+    tsdb.fetchCollisions(Const.MAX_TREE_ID_INCLUSIVE + 1, null);
+  }
+
+  @Test
+  public void testFetchCollisions() throws Exception {
+    testStoreTreeValidID();
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+
+      tsdb.fetchCollisions(id, null).joinUninterruptibly();
+    }
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testFetchNotMatchedTooLowID() {
+    tsdb.fetchCollisions(Const.MIN_TREE_ID_INCLUSIVE - 1, null);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testFetchNotMatchedTooHighID() {
+    tsdb.fetchCollisions(Const.MAX_TREE_ID_INCLUSIVE + 1, null);
+  }
+
+  @Test
+  public void testFetchNotMatched() throws Exception {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+
+      tsdb.fetchNotMatched(id, null).joinUninterruptibly();
+    }
+  }
+
+  @Test
+  public void testFlushTreeCollisionsNoStoredFailures() throws Exception {
+    final Tree tree = new Tree();
+    tree.setStoreFailures(false);
+    tree.addCollision("4711", "JustANumber");
+    assertTrue(tree.getCollisions().containsKey("4711"));
+    assertTrue(tree.getCollisions().containsValue("JustANumber"));
+    assertEquals(1, tree.getCollisions().size());
+
+    assertTrue(tsdb.flushTreeCollisions(tree).joinUninterruptibly());
+
+    assertEquals(0, tree.getCollisions().size());
+  }
+  @Test
+  public void testFlushTreeCollisionsFailures() throws Exception {
+    final Tree tree = new Tree();
+    tree.setStoreFailures(true);
+    tree.addCollision("4711", "JustANumber");
+    assertTrue(tree.getCollisions().containsKey("4711"));
+    assertTrue(tree.getCollisions().containsValue("JustANumber"));
+    assertEquals(1, tree.getCollisions().size());
+
+    assertTrue(tsdb.flushTreeCollisions(tree).joinUninterruptibly());
+    assertEquals(1, tree.getCollisions().size());
+  }
+
+  @Test
+  public void testFlushTreeNotMatchedStoreFailures() throws Exception {
+    final Tree tree = new Tree();
+    tree.setStoreFailures(false);
+    tree.addNotMatched("4711", "JustANumber");
+    assertTrue(tree.getNotMatched().containsKey("4711"));
+    assertTrue(tree.getNotMatched().containsValue("JustANumber"));
+    assertEquals(1, tree.getNotMatched().size());
+
+    assertTrue(tsdb.flushTreeNotMatched(tree).joinUninterruptibly());
+
+    assertEquals(0, tree.getNotMatched().size());
+  }
+  @Test
+  public void testFlushTreeNotMatchedNoStoreFailures() throws Exception {
+    final Tree tree = new Tree();
+    tree.setStoreFailures(true);
+    tree.addNotMatched("4711", "JustANumber");
+    assertTrue(tree.getNotMatched().containsKey("4711"));
+    assertTrue(tree.getNotMatched().containsValue("JustANumber"));
+    assertEquals(1, tree.getNotMatched().size());
+
+    assertTrue(tsdb.flushTreeNotMatched(tree).joinUninterruptibly());
+
+    assertEquals(1, tree.getNotMatched().size());
+  }
+
+  @Test
+  public void testStoreLeaf() {
+    /*
+     * Placeholder test. The method does nothing but forwards the call to the
+     * tsdb_store.
+     */
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testStoreBranchTooLowID() {
+    Branch branch = new Branch();
+    branch.setTreeId(Const.MIN_TREE_ID_INCLUSIVE - 1);
+    tsdb.storeBranch(null, branch, true);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testStoreBranchTooHighID() {
+    Branch branch = new Branch();
+    branch.setTreeId(Const.MAX_TREE_ID_INCLUSIVE + 1);
+    tsdb.storeBranch(null, branch, true);
+  }
+
+  @Test
+  public void testStoreBranch() throws Exception{
+    Branch branch = new Branch();
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+
+      branch.setTreeId(id);
+
+      tsdb.storeBranch(null, branch, true).joinUninterruptibly();
+    }
+  }
+
+  @Test
+  public void testFetchBranchOnly() {
+    /*
+     * Placeholder test. The method does nothing but forwards the call to the
+     * tsdb_store.
+     */
+  }
+
+  @Test
+  public void testFetchBranch() {
+    /*
+     * Placeholder test. The method does nothing but forwards the call to the
+     * tsdb_store.
+     */
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testSyncTreeRuleToStorageTooLowID() {
+    TreeRule rule = new TreeRule(Const.MIN_TREE_ID_INCLUSIVE - 1);
+    tsdb.syncTreeRuleToStorage(rule, true);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testSyncTreeRuleToStorageTooHighID() {
+    TreeRule rule = new TreeRule(Const.MAX_TREE_ID_INCLUSIVE + 1);
+    tsdb.syncTreeRuleToStorage(rule, true);
+  }
+
+  @Test
+  public void testFestSyncTreeRuleToStorage() {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+      TreeRule rule = new TreeRule(id);
+      tsdb.syncTreeRuleToStorage(rule, true);
+    }
+
+  }
+
+  @Test
+  public void testFetchTreeRuleTooLowID() {
+    try {
+      tsdb.fetchTreeRule(Const.MIN_TREE_ID_INCLUSIVE - 1, 0, 0);
+    } catch (IllegalArgumentException e){
+      assertEquals("Invalid Tree ID", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testFetchTreeRuleTooHighID() {
+    try {
+      tsdb.fetchTreeRule(Const.MAX_TREE_ID_INCLUSIVE + 1, 0, 0);
+    } catch (IllegalArgumentException e){
+      assertEquals("Invalid Tree ID", e.getMessage());
+    }
+  }
+
+  @Test
+  public void testFetchTreeRuleInvalidLevel() {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+      try {
+        tsdb.fetchTreeRule(id, -1, 0);
+      } catch (IllegalArgumentException e){
+        assertEquals("Invalid rule level" ,e.getMessage());
+      }
+    }
+  }
+
+  @Test
+  public void testFetchTreeRuleInvalidOrder() {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+      try {
+        tsdb.fetchTreeRule(id, 0, -1);
+      } catch (IllegalArgumentException e){
+        assertEquals("Invalid rule order" , e.getMessage());
+      }
+    }
+  }
+
+  @Test
+  public void testFetchTreeRule() throws Exception {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+      assertNull(tsdb.fetchTreeRule(id, 0, 0).joinUninterruptibly());
+    }
+  }
+
+  @Test
+  public void testDeleteTreeRuleTooLowID() {
+    try {
+      tsdb.deleteTreeRule(Const.MIN_TREE_ID_INCLUSIVE - 1, -1, -1);
+    } catch (IllegalArgumentException e) {
+      assertEquals("Invalid Tree ID" , e.getMessage());
+    }
+  }
+
+  @Test
+  public void testDeleteTreeRuleTooHighID() {
+    try {
+      tsdb.deleteTreeRule(Const.MAX_TREE_ID_INCLUSIVE + 1, -1, -1);
+    } catch (IllegalArgumentException e) {
+      assertEquals("Invalid Tree ID" , e.getMessage());
+    }
+  }
+
+  @Test
+  public void testDeleteTreeRuleInvalidLevel() {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+      try {
+        tsdb.deleteTreeRule(id, -1, 0);
+      } catch (IllegalArgumentException e) {
+        assertEquals("Invalid rule level" , e.getMessage());
+      }
+    }
+  }
+
+  @Test
+  public void testDeleteTreeRuleInvalidOrder() {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+      try {
+        tsdb.deleteTreeRule(id, 0, -1);
+      } catch (IllegalArgumentException e) {
+        assertEquals("Invalid rule order" , e.getMessage());
+      }
+    }
+  }
+
+  @Test
+  public void testDeleteTreeRule() {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+      tsdb.deleteTreeRule(id, 0, 0);
+    }
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testDeleteAllTreeRulesTooLowID() {
+    tsdb.deleteAllTreeRules(Const.MIN_TREE_ID_INCLUSIVE - 1);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void testDeleteAllTreeRulesTooHighID() {
+    tsdb.deleteAllTreeRules(Const.MAX_TREE_ID_INCLUSIVE + 1);
+  }
+
+  @Test
+  public void testDeleteAllTreeRules() {
+    for (int id = Const.MIN_TREE_ID_INCLUSIVE;
+         id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
+      tsdb.deleteAllTreeRules(id);
+    }
   }
 }

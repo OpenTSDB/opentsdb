@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.xml.bind.DatatypeConverter;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -491,7 +491,7 @@ public class UniqueId {
 
   /** Returns a human readable string representation of the object. */
   public String toString() {
-    return Objects.toStringHelper(this)
+    return MoreObjects.toStringHelper(this)
             .add("kind", kind())
             .add("id_width", id_width)
             .toString();

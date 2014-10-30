@@ -486,7 +486,7 @@ public final class TreeRule {
     }
   }
   public final ImmutableMap<String, Boolean> getChanged(){
-    ImmutableMap.Builder<String, Boolean> builder = ImmutableMap.builder();;
+    ImmutableMap.Builder<String, Boolean> builder = ImmutableMap.builder();
     builder.putAll(changed);
     return  builder.build();
   }
