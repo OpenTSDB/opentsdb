@@ -19,6 +19,10 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.Iterators;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -59,16 +63,11 @@ public final class TestUIDMeta {
   }
   
   @Test
-  public void constructorEmpty() {
-    assertNotNull(new UIDMeta());
-  }
-  
-  @Test
   public void constructor2() {
     meta = new UIDMeta(METRIC, new byte[] {0, 0, 5});
     assertNotNull(meta);
     assertEquals(METRIC, meta.getType());
-    assertArrayEquals(new byte[] {0, 0, 5}, meta.getUID());
+    assertArrayEquals(new byte[]{0, 0, 5}, meta.getUID());
   }
   
   @Test
@@ -76,7 +75,7 @@ public final class TestUIDMeta {
     meta = new UIDMeta(METRIC, new byte[] {0, 0, 5}, "sys.cpu.5");
     assertNotNull(meta);
     assertEquals(METRIC, meta.getType());
-    assertArrayEquals(new byte[] {0, 0, 5}, meta.getUID());
+    assertArrayEquals(new byte[]{0, 0, 5}, meta.getUID());
     assertEquals("sys.cpu.5", meta.getName());
     assertEquals(System.currentTimeMillis() / 1000, meta.getCreated());
   }
@@ -87,7 +86,7 @@ public final class TestUIDMeta {
     when(System.currentTimeMillis()).thenReturn(1357300800000L);
     meta = new UIDMeta(TAGK, new byte[] { 1, 0, 0 }, "host");
     assertEquals(1357300800000L / 1000, meta.getCreated());
-    assertArrayEquals(new byte[] {1, 0, 0}, meta.getUID());
+    assertArrayEquals(new byte[]{1, 0, 0}, meta.getUID());
     assertEquals("host", meta.getName());
   }
 
@@ -114,11 +113,18 @@ public final class TestUIDMeta {
  
   @Test
   public void serialize() throws Exception {
-    final String json = JSON.serializeToString(meta);
-    assertNotNull(json);
-    assertEquals("{\"uid\":\"AAAB\",\"type\":\"METRIC\",\"name\":null," +
-                 "\"description\":null,\"notes\":null,\"created\":0,\"custom\":null,\"displayName\":null}",
-        json);
+    final byte[] json = meta.getStorageJSON();
+
+    ObjectMapper mapper = new ObjectMapper();
+    ObjectNode rootNode = mapper.readValue(json, ObjectNode.class);
+
+    assertEquals(6, Iterators.size(rootNode.fields()));
+    assertEquals("METRIC", rootNode.get("type").asText());
+    assertEquals(JsonNodeType.NULL, rootNode.get("displayName").getNodeType());
+    assertEquals(JsonNodeType.NULL, rootNode.get("description").getNodeType());
+    assertEquals(JsonNodeType.NULL, rootNode.get("notes").getNodeType());
+    assertEquals(JsonNodeType.NULL, rootNode.get("custom").getNodeType());
+    assertEquals(0, rootNode.get("created").longValue());
   }
   
   @Test
@@ -126,9 +132,10 @@ public final class TestUIDMeta {
     String json = "{\"uid\":\"ABCD\",\"type\":\"MeTriC\",\"name\":\"MyName\"," +
     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
     "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
-    meta = JSON.parseToObject(json, UIDMeta.class);
+    meta = UIDMeta.buildFromJSON(json.getBytes(), METRIC, new byte[] {0, (byte) 16,
+            (byte) -125}, "MyName");
     assertNotNull(meta);
-    assertArrayEquals(new byte[] {0, (byte) 16, (byte) -125}, meta.getUID());
+    assertArrayEquals(new byte[]{0, (byte) 16, (byte) -125}, meta.getUID());
     assertEquals(METRIC, meta.getType());
     assertEquals("MyNotes", meta.getNotes());
     assertEquals("Empty", meta.getDisplayName());
@@ -140,7 +147,7 @@ public final class TestUIDMeta {
       .joinUninterruptibly();
     assertEquals(METRIC, meta.getType());
     assertEquals("sys.cpu.2", meta.getName());
-    assertArrayEquals(new byte[] {0, 0, 3}, meta.getUID());
+    assertArrayEquals(new byte[]{0, 0, 3}, meta.getUID());
   }
   
   @Test

@@ -15,6 +15,7 @@ package net.opentsdb.meta;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -22,12 +23,16 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.google.common.base.MoreObjects;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Objects;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.JSON;
 
@@ -90,17 +95,10 @@ public final class UIDMeta {
   private long created = 0;
   
   /** Optional user supplied key/values */
-  private HashMap<String, String> custom;
+  private Map<String, String> custom;
   
   /** Tracks fields that have changed by the user to avoid overwrites */
   private final Set<String> changed = Sets.newHashSetWithExpectedSize(5);
-
-  /**
-   * Default constructor
-   * Initializes the the changed map
-   */
-  public UIDMeta() {
-  }
 
   /**
    * Constructor used for overwriting. Will not reset the name or created values
@@ -120,14 +118,7 @@ public final class UIDMeta {
    * @param name Name of the UID
    */
   public UIDMeta(final UniqueIdType type, final byte[] uid, final String name) {
-    this.type = checkNotNull(type);
-
-    checkArgument(type.width == uid.length, "UID length must match the UID " +
-            "type width");
-    this.uid = uid;
-
-    this.name = name;
-    created = System.currentTimeMillis() / 1000;
+    this(uid, type, name, null, null, null, null, System.currentTimeMillis() / 1000);
     changed.add("created");
   }
 
@@ -154,6 +145,29 @@ public final class UIDMeta {
       changed.add("created");
     }
   }
+
+  public UIDMeta(final byte[] uid,
+                 final UniqueIdType type,
+                 final String name,
+                 final String display_name,
+                 final String description,
+                 final String notes,
+                 final Map<String, String> custom,
+                 final long created) {
+    this.type = checkNotNull(type);
+
+    checkArgument(type.width == uid.length, "UID length must match the UID " +
+            "type width");
+    this.uid = uid;
+
+    this.name = name;
+    this.display_name = display_name;
+    this.description = description;
+    this.notes = notes;
+    this.custom = custom;
+    this.created = created;
+  }
+
   /**
    * Constructor used by TSD only to create a new UID with the given data and
    * the current system time for {@code createdd}
@@ -164,19 +178,34 @@ public final class UIDMeta {
    */
   public static UIDMeta buildFromJSON(byte[] json, UniqueIdType type, byte[] uid,
                               String name) {
-    UIDMeta meta = JSON.parseToObject(json, UIDMeta.class);
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode rootNode = mapper.readValue(json, ObjectNode.class);
 
-    meta.type = checkNotNull(type);
+      String display_name = rootNode.get("displayName").textValue();
+      String description = rootNode.get("description").textValue();
+      String notes = rootNode.get("notes").textValue();
+      long created = rootNode.get("description").longValue();
 
-    checkArgument(type.width == uid.length, "UID length must match the UID " +
-            "type width");
-    meta.uid = uid;
+      JsonNode custom_node = rootNode.get("custom");
+      Map<String, String> custom = null;
 
-    meta.name = name;
+      if (custom_node != null && custom_node.getNodeType() == JsonNodeType.OBJECT) {
+        custom = Maps.newHashMap();
+        Iterator<String> custom_keys = custom_node.fieldNames();
 
-    meta.resetChangedMap();
+        while (custom_keys.hasNext()) {
+          String key = custom_keys.next();
+          String value = custom_node.get(key).textValue();
+          custom.put(key, value);
+        }
+      }
 
-    return meta;
+      return new UIDMeta(uid, type, name, display_name, description, notes,
+              custom, created);
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   /**
