@@ -2,7 +2,14 @@ package net.opentsdb.storage.hbase;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.TestTsdbStore;
+import net.opentsdb.tree.Branch;
+import net.opentsdb.tree.Leaf;
+import net.opentsdb.tree.TestBranch;
+import net.opentsdb.tree.TestTree;
+import net.opentsdb.tree.Tree;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import org.hbase.async.*;
@@ -11,6 +18,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -18,8 +27,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Map;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -255,6 +266,106 @@ public class TestHBaseStore extends TestTsdbStore {
             emptyArray());
   }
 
+  @Test
+  public void testStoreLeaf() throws Exception {
+
+    final Tree tree = TestTree.buildTestTree();
+    final Branch branch = TestBranch.buildTestBranch(tree);
+    final Leaf leaf = new Leaf("Leaf", "000002000002000002");
+
+    when(client.compareAndSet(anyPut(), eq(new byte[0])))
+            .thenReturn(Deferred.fromResult(true));
+
+    assertTrue(tsdb_store.storeLeaf(leaf, branch, tree)
+            .joinUninterruptibly());
+  }
+
+  @Test
+  public void testStoreLeafDataCorruptEmptyArray() throws Exception {
+
+    final Tree tree = TestTree.buildTestTree();
+    final Branch branch = TestBranch.buildTestBranch(tree);
+    final Leaf leaf = new Leaf("Leaf", "000002000002000002");
+
+    when(client.compareAndSet(anyPut(), eq(new byte[0])))
+            .thenReturn(Deferred.fromResult(false));
+
+    when(client.get(anyGet())).thenReturn(
+            Deferred.fromResult(new ArrayList<KeyValue>()));
+
+    assertFalse(tsdb_store.storeLeaf(leaf, branch, tree)
+            .joinUninterruptibly());
+    Map<String, String> collisions = tree.getCollisions();
+    assertNull(collisions);
+  }
+
+  @Test
+  public void testStoreLeafDataCorruptNullAnswer() throws Exception {
+
+    final Tree tree = TestTree.buildTestTree();
+    final Branch branch = TestBranch.buildTestBranch(tree);
+    final Leaf leaf = new Leaf("Leaf", "000002000002000002");
+
+    when(client.compareAndSet(anyPut(), eq(new byte[0])))
+            .thenReturn(Deferred.fromResult(false));
+
+    when(client.get(anyGet())).thenAnswer(newDeferred(null));
+
+    assertFalse(tsdb_store.storeLeaf(leaf, branch, tree)
+            .joinUninterruptibly());
+    Map<String, String> collisions = tree.getCollisions();
+    assertNull(collisions);
+  }
+  @Test
+  public void testStoreLeafLeafAlreadyExists() throws Exception {
+
+    final Tree tree = TestTree.buildTestTree();
+    final Branch branch = TestBranch.buildTestBranch(tree);
+    final Leaf leaf = new Leaf("Leaf", "000002000002000002");
+
+    when(client.compareAndSet(anyPut(), eq(new byte[0])))
+            .thenReturn(Deferred.fromResult(false));
+
+    ArrayList<KeyValue> answer = new ArrayList<KeyValue>(1);
+
+    answer.add(new KeyValue(
+            new byte[0], new byte[0], new byte[0], leaf.getStorageJSON()));
+
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(answer));
+
+    assertTrue(tsdb_store.storeLeaf(leaf, branch, tree)
+            .joinUninterruptibly());
+  }
+
+  @Test
+  public void testStoreLeafCollision() throws Exception {
+
+    final Tree tree = TestTree.buildTestTree();
+    final Branch branch = TestBranch.buildTestBranch(tree);
+    final Leaf leaf = new Leaf("Leaf", "000002000002000002");
+
+    final Leaf existing_leaf = new Leaf("Leaf", "000002000002000001");
+
+    when(client.compareAndSet(anyPut(), eq(new byte[0])))
+            .thenReturn(Deferred.fromResult(false));
+
+    ArrayList<KeyValue> answer = new ArrayList<KeyValue>(1);
+
+    answer.add(
+            new KeyValue(
+            new byte[0], new byte[0], new byte[0],
+                    existing_leaf.getStorageJSON()));
+
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(answer));
+
+    assertFalse(tsdb_store.storeLeaf(leaf, branch, tree)
+            .joinUninterruptibly());
+    /*Check that collision was properly set*/
+    Map<String, String> collisions = tree.getCollisions();
+    assertEquals(1, collisions.size());
+    assertEquals("000002000002000001",collisions.get("000002000002000002"));
+  }
+
   private static AtomicIncrementRequest incrementForRow(final byte[] p_row) {
     return argThat(new ArgumentMatcher<AtomicIncrementRequest>() {
       public boolean matches(Object incr) {
@@ -281,5 +392,89 @@ public class TestHBaseStore extends TestTsdbStore {
   }
   private PutRequest anyPut() {
     return any(PutRequest.class);
+  }
+  private GetRequest anyGet() {
+    return any(GetRequest.class);
+  }
+  /** Creates a new Deferred that's already called back.  */
+  private static <T> Answer<Deferred<T>> newDeferred(final T result) {
+    return new Answer<Deferred<T>>() {
+      public Deferred<T> answer(final InvocationOnMock invocation) {
+        return Deferred.fromResult(result);
+      }
+    };
+  }
+
+
+  // THESE TESTS ARE FOR THE getLeaf() FUNCTION HAS TO BE TESTED THROUGH THE
+  // FETCH BRANCH FUNCTION. WILL BE DONE TOGETHER WITH THE BRANCH TEST FIX.
+  @Test
+  public void parseFromStorage() throws Exception {
+    //TODO move test, this part is now a private method in HBaseStore
+    fail();
+//    final KeyValue column = mock(KeyValue.class);
+//    when(column.qualifier()).thenReturn(
+//        new Leaf("0", "000001000001000001").columnQualifier());
+//    when(column.value()).thenReturn(
+//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
+//        .getBytes(Const.CHARSET_ASCII));
+//    final Leaf leaf = tsdb.getLeaf( column, true).joinUninterruptibly();
+//    assertNotNull(leaf);
+//    assertEquals("0", leaf.getDisplayName());
+//    assertEquals("000001000001000001", leaf.getTsuid());
+//    assertEquals("sys.cpu.0", leaf.getMetric());
+//    assertEquals(1, leaf.getTags().size());
+//    assertEquals("web01", leaf.getTags().get("host"));
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void parseFromStorageNSUMetric() throws Throwable {
+    //TODO move test, this part is now a private method in HBaseStore
+    fail();
+//    final KeyValue column = mock(KeyValue.class);
+//    when(column.qualifier()).thenReturn(
+//        new Leaf("0", "000002000001000001").columnQualifier());
+//    when(column.value()).thenReturn(
+//        ("{\"displayName\":\"0\",\"tsuid\":\"000002000001000001\"}")
+//        .getBytes(Const.CHARSET_ASCII));
+//    try {
+//      tsdb.getLeaf(column, true).joinUninterruptibly();
+//    } catch (DeferredGroupException e) {
+//      throw e.getCause();
+//    }
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void parseFromStorageNSUTagk() throws Throwable {
+    //TODO move test, this part is now a private method in HBaseStore
+    fail();
+//    final KeyValue column = mock(KeyValue.class);
+//    when(column.qualifier()).thenReturn(
+//        new Leaf("0", "000001000002000001").columnQualifier());
+//    when(column.value()).thenReturn(
+//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000002000001\"}")
+//        .getBytes(Const.CHARSET_ASCII));
+//    try {
+//      tsdb.getLeaf(column, true).joinUninterruptibly();
+//    } catch (DeferredGroupException e) {
+//      throw e.getCause();
+//    }
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void parseFromStorageNSUTagV() throws Throwable {
+    //TODO move test, this part is now a private method in HBaseStore
+    fail();
+//    final KeyValue column = mock(KeyValue.class);
+//    when(column.qualifier()).thenReturn(
+//        new Leaf("0", "000001000001000002").columnQualifier());
+//    when(column.value()).thenReturn(
+//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000002\"}")
+//        .getBytes(Const.CHARSET_ASCII));
+//    try {
+//      tsdb.getLeaf(column, true).joinUninterruptibly();
+//    } catch (DeferredGroupException e) {
+//      throw e.getCause();
+//    }
   }
 }

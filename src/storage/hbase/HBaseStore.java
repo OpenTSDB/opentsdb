@@ -1733,7 +1733,7 @@ public class HBaseStore implements TsdbStore {
           return Deferred.fromResult(null);
         }
 
-        final Leaf leaf = JSON.parseToObject(row.get(0).value(), Leaf.class);
+        final Leaf leaf = Leaf.buildFromJSON(row.get(0).value());
         return Deferred.fromResult(leaf);
       }
 
@@ -1743,7 +1743,8 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch, final Tree tree) {
+  public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
+                                     final Tree tree) {
     final byte[] branch_id = branch.compileBranchId();
     /**
      * Callback executed with the results of our CAS operation. If the put was
@@ -1812,7 +1813,7 @@ public class HBaseStore implements TsdbStore {
 
     // execute the CAS call to start the callback chain
     final PutRequest put = new PutRequest(tree_table_name, branch_id,
-            Tree.TREE_FAMILY(), leaf.columnQualifier(), leaf.toStorageJson());
+            Tree.TREE_FAMILY(), leaf.columnQualifier(), leaf.getStorageJSON());
     return client.compareAndSet(put, new byte[0])
             .addCallbackDeferring(new LeafStoreCB(leaf));
   }

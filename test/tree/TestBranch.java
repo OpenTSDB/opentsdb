@@ -64,7 +64,7 @@ public final class TestBranch {
   final static private Method LeaftoStorageJson;
   static {
     try {
-      LeaftoStorageJson = Leaf.class.getDeclaredMethod("toStorageJson");
+      LeaftoStorageJson = Leaf.class.getDeclaredMethod("getStorageJSON");
       LeaftoStorageJson.setAccessible(true);
     } catch (Exception e) {
       throw new RuntimeException("Failed in static initializer", e);
