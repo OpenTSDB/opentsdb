@@ -292,6 +292,7 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
   @Override
   public void messageReceived(final ChannelHandlerContext ctx,
                               final MessageEvent msgevent) {
+	  LOG.warn("Message Event: {}", msgevent);
     try {
       final Object message = msgevent.getMessage();
       if (message instanceof String[]) {

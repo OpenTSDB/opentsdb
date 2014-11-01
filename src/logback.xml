@@ -30,6 +30,10 @@
 	<logger name="net.opentsdb.tsd" level="${tsd-level:-INFO}"/>
 	<logger name="net.opentsdb.uid" level="${uid-level:-INFO}"/>
 	<logger name="net.opentsdb.utils" level="${utils-level:-INFO}"/>  
+	
+	
+	<logger name="net.opentsdb.tsd.ConnectionManager" level="WARN"/>
+	
   
   
 <!-- 
