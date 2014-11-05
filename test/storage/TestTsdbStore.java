@@ -1,8 +1,9 @@
 package net.opentsdb.storage;
 
-import net.opentsdb.core.Const;
+import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
@@ -11,23 +12,46 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.uid.UniqueIdType;
 
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
-import org.junit.Ignore;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.hbase.async.PutRequest;
+import org.hbase.async.Scanner;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.TreeMap;
 
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.*;
+import static org.powermock.api.mockito.PowerMockito.whenNew;
 
-@Ignore
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({HBaseClient.class, Scanner.class})
 public abstract class TestTsdbStore {
   private TSDB tsdb;
+  private HBaseClient client;
   protected TsdbStore tsdb_store;
   protected UIDMeta meta;
+  private Config config;
 
+  /*Branch test*/
   private Tree tree = TestTree.buildTestTree();
+  private Branch root_branch;
+  private Branch child_branch;
+  private Leaf root_leaf_one;
+  private Leaf root_leaf_two;
+  private Leaf child_leaf_one;
+
+
 
   @Test
   public void testGetMetaNullCell() throws IOException {
@@ -36,43 +60,108 @@ public abstract class TestTsdbStore {
 
 
   /*BRANCH DATABASE STUFF*/
-
   /**
-   * Mocks classes for testing the storage calls
+   * Sets up the branches
    */
-  private void setupMemoryStore() throws Exception {
-    final Config config = new Config(false);
-
-    tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
-
-    Branch branch = new Branch(1);
+  private void setUpBranchesAndLeafs() {
+    root_branch = new Branch(1);
     TreeMap<Integer, String> path = new TreeMap<Integer, String>();
     path.put(0, "ROOT");
     path.put(1, "sys");
     path.put(2, "cpu");
-    branch.prependParentPath(path);
-    branch.setDisplayName("cpu");
+    root_branch.prependParentPath(path);
+    root_branch.setDisplayName("cpu");
 
-    tsdb_store.storeBranch(tree, branch, false);
-    Leaf leaf = new Leaf("user", "000001000001000001");
-    tsdb_store.storeLeaf(leaf, branch, tree);
-    leaf = new Leaf("nice", "000002000002000002");
-    tsdb_store.storeLeaf(leaf, branch, tree);
+    root_leaf_one = new Leaf("user", "000001000001000001");
+    root_leaf_two = new Leaf("nice", "000002000002000002");
 
-    branch = new Branch(1);
+    child_branch  = new Branch(1);
     path.put(3, "mboard");
-    branch.prependParentPath(path);
-    branch.setDisplayName("mboard");
-    tsdb_store.storeBranch(tree, branch, false);
-    leaf = new Leaf("Asus", "000003000003000003");
-    tsdb_store.storeLeaf(leaf, branch, tree);
+    child_branch.prependParentPath(path);
+    child_branch.setDisplayName("mboard");
+    child_leaf_one = new Leaf("Asus", "000003000003000003");
   }
 
+  /**
+   * Mocks classes for testing the storage calls
+   */
+  private void setupBranchMemoryStore() throws Exception {
+
+    config = new Config(false);
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, config);
+
+    setUpBranchesAndLeafs();
+
+    tsdb_store.storeBranch(tree, root_branch, false);
+    tsdb_store.storeLeaf(root_leaf_one, root_branch, tree);
+    tsdb_store.storeLeaf(root_leaf_two, root_branch, tree);
+    tsdb_store.storeBranch(tree, child_branch, false);
+    tsdb_store.storeLeaf(child_leaf_one, child_branch, tree);
+  }
+
+  /**
+   * Mocks HBase Branch stuff
+   */
+  private void setupBranchHBaseStore() throws Exception{
+
+    config = new Config(false);
+    client = PowerMockito.mock(HBaseClient.class);
+    tsdb_store = new HBaseStore(client, config);
+    tsdb = new TSDB(tsdb_store, config);
+
+    setUpBranchesAndLeafs();
+
+    tsdb_store.storeBranch(tree, root_branch, false);
+    tsdb_store.storeLeaf(root_leaf_one, root_branch, tree);
+    tsdb_store.storeLeaf(root_leaf_two, root_branch, tree);
+    tsdb_store.storeBranch(tree, child_branch, false);
+    tsdb_store.storeLeaf(child_leaf_one, child_branch, tree);
+  }
+
+  /**
+   * Use this method to get a Deferred with valid answers for the branch query.
+   *
+   * @return A valid return that the HBase database would return for the objects
+   * specified by the @see {@link TestTsdbStore#setUpBranchesAndLeafs()}
+   */
+  private Deferred<ArrayList<ArrayList<KeyValue>>> get_valid_return() {
+
+    ArrayList<ArrayList<KeyValue>> valid_return =
+            new ArrayList<ArrayList<KeyValue>>();
+
+    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
+
+    //branches
+    KeyValue kv = new KeyValue(
+            Branch.stringToId("00010001BECD000181A8"), new byte[0],
+            toBytes("branch"), root_branch.toStorageJson());
+    ans.add(kv);
+    kv = new KeyValue(
+            Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
+            toBytes("branch"), child_branch.toStorageJson());
+    ans.add(kv);
+    //leaves
+    kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
+            Leaf.LEAF_PREFIX(), root_leaf_one.toStorageJson());
+    ans.add(kv);
+    kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
+            Leaf.LEAF_PREFIX(), root_leaf_two.toStorageJson());
+    ans.add(kv);
+    kv = new KeyValue(
+            Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
+            Leaf.LEAF_PREFIX(), child_leaf_one.toStorageJson());
+    ans.add(kv);
+
+    valid_return.add(ans);
+    return Deferred.fromResult(valid_return);
+  }
+
+
   @Test
-  public void fetchBranch() throws Exception {
-    setupMemoryStore();
-    fail();
+  public void testFetchBranch() throws Exception {
+
+    setupBranchMemoryStore();
 
     final Branch branch = tsdb.fetchBranch(
             Branch.stringToId("00010001BECD000181A8"),
@@ -83,11 +172,33 @@ public abstract class TestTsdbStore {
     assertEquals("00010001BECD000181A8", branch.getBranchId());
     assertEquals(1, branch.getBranches().size());
     assertEquals(2, branch.getLeaves().size());
+
+    setupBranchHBaseStore();
+    Scanner scanner = PowerMockito.mock(Scanner.class);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    Deferred<ArrayList<ArrayList<KeyValue>>> d = Deferred.fromResult(null);
+    when(scanner.nextRows()).thenReturn(get_valid_return())
+            .thenReturn(d);
+
+
+    final Branch hBaseBranch = tsdb.fetchBranch(
+            Branch.stringToId("00010001BECD000181A8"),
+            true).joinUninterruptibly();
+    assertNotNull(hBaseBranch);
+    assertEquals(1, hBaseBranch.getTreeId());
+    assertEquals("cpu", hBaseBranch.getDisplayName());
+    assertEquals("00010001BECD000181A8", hBaseBranch.getBranchId());
+    assertEquals(1, hBaseBranch.getBranches().size());
+    assertEquals(2, hBaseBranch.getLeaves().size());
+
+    assertEquals(hBaseBranch, branch);
   }
+
 
   @Test
   public void fetchBranchNotFound() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     fail();
     final Branch branch = tsdb.fetchBranch(
             Branch.stringToId("00010001BECD000181A0"),
@@ -97,7 +208,7 @@ public abstract class TestTsdbStore {
 
   @Test
   public void fetchBranchOnly() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     fail();
     final Branch branch = tsdb.fetchBranchOnly(
             Branch.stringToId("00010001BECD000181A8")).joinUninterruptibly();
@@ -109,7 +220,7 @@ public abstract class TestTsdbStore {
 
   @Test
   public void fetchBranchOnlyNotFound() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     fail();
     final Branch branch = tsdb.fetchBranchOnly(
             Branch.stringToId("00010001BECD000181A0")).joinUninterruptibly();
@@ -117,7 +228,7 @@ public abstract class TestTsdbStore {
   }
   @Test
   public void fetchBranchNSU() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     fail();
     /*
     *This test was supposed to test the branch structure if it was not linked by
@@ -145,23 +256,24 @@ public abstract class TestTsdbStore {
   }
 
   @Test
-  public void storeBranch() throws Exception {
-    setupMemoryStore();
+  public void testStoreBranch() throws Exception {
+    setupBranchMemoryStore();
     final Branch branch = TestBranch.buildTestBranch(tree);
     tsdb.storeBranch(tree, branch, true);
-    fail();//TODO need to fetch from the new structure.
     //assertEquals(3, tsdb_store.numRows());
     //assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
-    //final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-    //    new byte[] { 0, 1 }, "branch".getBytes(Const.CHARSET_ASCII)),
-    //    Branch.class);
-    //parsed.setTreeId(1);
-    //assertEquals("ROOT", parsed.getDisplayName());
+    final Branch parsed =
+            tsdb_store.fetchBranch(branch.compileBranchId(), true, tsdb)
+            .joinUninterruptibly();
+    parsed.setTreeId(1);
+    assertEquals("ROOT", parsed.getDisplayName());
+
+    setupBranchHBaseStore();
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void storeBranchMissingTreeID() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     fail();
     final Branch branch = new Branch();
     tsdb.storeBranch(tree, branch, false);
@@ -169,7 +281,7 @@ public abstract class TestTsdbStore {
 
   @Test (expected = IllegalArgumentException.class)
   public void storeBranchTreeID0() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     fail();
     final Branch branch = TestBranch.buildTestBranch(tree);
     branch.setTreeId(0);
@@ -178,7 +290,7 @@ public abstract class TestTsdbStore {
 
   @Test (expected = IllegalArgumentException.class)
   public void storeBranchTreeID65536() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     fail();
     final Branch branch = TestBranch.buildTestBranch(tree);
     branch.setTreeId(65536);
@@ -187,7 +299,7 @@ public abstract class TestTsdbStore {
 
   @Test
   public void storeBranchExistingLeaf() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     final Branch branch = TestBranch.buildTestBranch(tree);
     Leaf leaf = new Leaf("Alarms", "ABCD");
     byte[] qualifier = leaf.columnQualifier();
@@ -208,7 +320,7 @@ public abstract class TestTsdbStore {
 
   @Test
   public void storeBranchCollision() throws Exception {
-    setupMemoryStore();
+    setupBranchMemoryStore();
     final Branch branch = TestBranch.buildTestBranch(tree);
     Leaf leaf = new Leaf("Alarms", "0101");
     byte[] qualifier = leaf.columnQualifier();
@@ -226,4 +338,12 @@ public abstract class TestTsdbStore {
     //parsed.setTreeId(1);
     //assertEquals("ROOT", parsed.getDisplayName());
   }
+
+  private byte[] emptyArray() {
+    return eq(HBaseClient.EMPTY_ARRAY);
+  }
+  private PutRequest anyPut() {
+    return any(PutRequest.class);
+  }
+  private byte[] anyBytes() { return any(byte[].class); }
 }

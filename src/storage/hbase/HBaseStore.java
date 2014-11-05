@@ -1986,16 +1986,14 @@ public class HBaseStore implements TsdbStore {
                 // it's *this* branch. We deserialize to a new object and copy
                 // since the columns could be in any order and we may get a
                 // leaf before the branch
-                final Branch local_branch = JSON.parseToObject(column.value(),
-                        Branch.class);
-                branch.setPath(local_branch.getPath());
-                branch.setDisplayName(local_branch.getDisplayName());
+                final Branch local_branch = Branch.buildFromJSON(column.value());
+                local_branch.setTreeId(Tree.bytesToId(column.key()));
                 branch.setTreeId(Tree.bytesToId(column.key()));
-
+                branch.setDisplayName(local_branch.getDisplayName());
+                branch.setPath(local_branch.getPath());
               } else {
                 // it's a child branch
-                final Branch child = JSON.parseToObject(column.value(),
-                        Branch.class);
+                final Branch child = Branch.buildFromJSON(column.value());
                 child.setTreeId(Tree.bytesToId(column.key()));
                 branch.addChild(child);
               }
@@ -2024,7 +2022,7 @@ public class HBaseStore implements TsdbStore {
     // start scanning
     new FetchBranchCB().fetchBranch();
 
-    return null;
+    return result;
   }
 
   @Override

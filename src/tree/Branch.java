@@ -16,20 +16,24 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
 import javax.xml.bind.DatatypeConverter;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Throwables;
 import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 import net.opentsdb.uid.UniqueId;
@@ -71,8 +75,8 @@ import net.opentsdb.utils.JSON;
  * and collisions recorded to the given Tree object.
  * @since 2.0
  */
-@JsonIgnoreProperties(ignoreUnknown = true) 
-@JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)
 public final class Branch implements Comparable<Branch> {
   private static final Logger LOG = LoggerFactory.getLogger(Branch.class);
   
@@ -232,7 +236,9 @@ public final class Branch implements Comparable<Branch> {
         
         // log at info or lower since it's not a system error, rather it's
         // a user issue with the rules or naming schema
-        LOG.warn("Incoming TSUID [{}] collided with existing TSUID [{}] on display name [{}]", leaf.getTsuid(), collision.getTsuid(), collision.getDisplayName());
+        LOG.warn("Incoming TSUID [{}] collided with existing TSUID [{}] on" +
+                "display name [{}]", leaf.getTsuid(),
+                collision.getTsuid(), collision.getDisplayName());
       }
       return false;
     } else {
@@ -363,6 +369,35 @@ public final class Branch implements Comparable<Branch> {
       return output.toByteArray();
     } catch (IOException e) {
       throw new RuntimeException(e);
+    }
+  }
+  public static Branch buildFromJSON(final byte[] json) {
+    try {
+
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode rootNode = mapper.readValue(json, ObjectNode.class);
+
+      String display_name = rootNode.get("displayName").textValue();
+      Iterator<Map.Entry<String, JsonNode>> path = rootNode.get("path").fields();
+
+      Branch branch = new Branch();
+      final Map<Integer, String> parent_path = new TreeMap<Integer, String>();
+
+      branch.setDisplayName(display_name);
+      int i;
+      String s;
+      while (path.hasNext()) {
+        Map.Entry<String, JsonNode> entry = path.next();
+        i = Integer.parseInt(entry.getKey());
+        s = entry.getValue().asText();
+        parent_path.put(i, s);
+      }
+      branch.setPath(parent_path);
+
+      return branch;
+
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
     }
   }
   
