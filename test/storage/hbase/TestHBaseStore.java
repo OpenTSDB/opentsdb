@@ -97,32 +97,6 @@ public class TestHBaseStore extends TestTsdbStore {
   }
 
   @Test
-  public void allocateUIDWithTooNarrowWidth() throws Exception {
-
-    final short id_width = 9;
-    long id = 16777216L;
-    //mock overflow answer from atomic Increment since width is checked first
-    when(client.atomicIncrement(incrementForRow(MAX_UID))).
-            thenReturn(Deferred.fromResult(16777216L));
-    final byte[] row = Bytes.fromLong(id);
-    try {
-      Deferred<byte[]> uid = tsdb_store.allocateUID(foo_name,
-              UniqueIdType.METRIC);
-
-      fail("IllegalArgumentException should have been thrown but instead "
-              + " this was returned id=" + uid.joinUninterruptibly());
-    } catch (IllegalStateException e) {
-      String expected_msg = "row.length = " + row.length
-              + " which is less than " + id_width
-              + " for id=" + id
-              + " row=" + Arrays.toString(row);
-      //Check if we got the right exception
-      assertEquals(expected_msg, e.getMessage());
-
-    }
-  }
-
-  @Test
   // Test the creation of an ID when all possible IDs are already in use
   public void allocateUIDWithOverflow() throws Exception {
     //mock overflow answer from atomic Increment

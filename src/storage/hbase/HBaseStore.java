@@ -718,14 +718,6 @@ public class HBaseStore implements TsdbStore {
 
         final byte[] row = Bytes.fromLong(id);
 
-        // row.length should actually be 8.
-        if (row.length < type.width) {
-          throw new IllegalStateException("row.length = " + row.length
-                  + " which is less than " + type.width
-                  + " for id=" + id
-                  + " row=" + Arrays.toString(row));
-        }
-
         // Verify that the indices in the row array that won't be used in the
         // uid with the current length are zero so we haven't reached the upper
         // limits.
@@ -1866,8 +1858,7 @@ public class HBaseStore implements TsdbStore {
           return Deferred.fromResult(null);
         }
 
-        final Branch branch = JSON.parseToObject(row.get(0).value(),
-                Branch.class);
+        final Branch branch = Branch.buildFromJSON(row.get(0).value());
 
         // WARNING: Since the json doesn't store the tree ID, to cut down on
         // space, we have to load it from the row key.
@@ -2266,7 +2257,7 @@ public class HBaseStore implements TsdbStore {
 
     // qualifier has the TSUID in the format  "leaf:<display_name.hashCode()>"
     // and we should only be here if the qualifier matched on "leaf:"
-    final Leaf leaf = JSON.parseToObject(value, Leaf.class);
+    final Leaf leaf = Leaf.buildFromJSON(value);
 
     // if there was an error with the data and the tsuid is missing, dump it
     if (Strings.isNullOrEmpty(leaf.getTsuid())) {

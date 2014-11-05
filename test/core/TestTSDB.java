@@ -1045,6 +1045,11 @@ public final class TestTSDB {
       tsdb.storeBranch(null, branch, true).joinUninterruptibly();
     }
   }
+  @Test (expected = IllegalArgumentException.class)
+  public void testStoreBranchMissingTreeID() throws Exception {
+    final Branch branch = new Branch();
+    tsdb.storeBranch(null, branch, false);
+  }
 
   @Test
   public void testFetchBranchOnly() {

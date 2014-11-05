@@ -93,8 +93,6 @@ public class MemoryStore implements TsdbStore {
   private final Table<Long, String, byte[]> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
-  private final Table<Integer, String, byte[]> leaf_table;
-
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
           UniqueIdType.TAGK, new AtomicLong(1),
@@ -117,8 +115,6 @@ public class MemoryStore implements TsdbStore {
     annotation_table = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
-
-    leaf_table = HashBasedTable.create();
   }
 
   /**

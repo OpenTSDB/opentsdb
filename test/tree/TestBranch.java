@@ -20,12 +20,7 @@ import net.opentsdb.core.Const;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 
 
 public final class TestBranch {
@@ -394,6 +389,15 @@ public final class TestBranch {
 
     assertNotNull(root.getLeaves());
     assertEquals(1, root.getLeaves().size());
+  }
+
+  @Test
+  public void testBuildFromJSON() {
+    fail();
+    /*
+     * Right now we do not test the buildFromJSON function.
+     * Needs to be done.
+     */
   }
 
   /**
