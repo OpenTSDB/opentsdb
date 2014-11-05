@@ -123,103 +123,41 @@ public final class TestLeaf {
     final Leaf leaf = new Leaf("", "000001000001000001");
     leaf.columnQualifier();
   }
-  
   @Test
-  public void storeLeaf() throws Exception {
-    final Leaf leaf = new Leaf("Leaf", "000002000002000002");
-    final Tree tree = TestTree.buildTestTree();
-    assertTrue(tsdb.storeLeaf(leaf, branch, tree)
-        .joinUninterruptibly());
-    assertEquals(2, tsdb_store.numColumns(new byte[]{0, 1}));
+  public void testBuildFromJSON() {
+    final Leaf leaf = new Leaf("Leaf", "000001000001000001");
+    byte [] json =
+            hexStringToByteArray("7b22646973706c61794e616d65223a224c6561" +
+                    "66222c227473756964223a22303030303031303030303031303" +
+                    "030303031227d");
+
+    final Leaf jsonLeaf = Leaf.buildFromJSON(json);
+    assertEquals(leaf.getDisplayName(), jsonLeaf.getDisplayName());
+    assertEquals(leaf.getTsuid(), jsonLeaf.getTsuid());
   }
-  
+
   @Test
-  public void storeLeafExistingSame() throws Exception {
-    final Leaf leaf = new Leaf("0", "000001000001000001");
-    final Tree tree = TestTree.buildTestTree();
-    assertTrue(tsdb.storeLeaf(leaf, branch, tree)
-        .joinUninterruptibly());
-    assertEquals(1, tsdb_store.numColumns(new byte[]{0, 1}));
+  public void testGetStorageJSON() {
+    final Leaf leaf = new Leaf("Leaf", "000001000001000001");
+
+    byte[] storage_json = leaf.getStorageJSON();
+
+    byte [] json =
+            hexStringToByteArray("7b22646973706c61794e616d65223a224c6561" +
+                    "66222c227473756964223a22303030303031303030303031303" +
+                    "030303031227d");
+
+    assertArrayEquals(json, storage_json);
   }
-  
-  @Test
-  public void storeLeafCollision() throws Exception {
-    final Leaf leaf = new Leaf("0", "000002000001000001");
-    final Tree tree = TestTree.buildTestTree();
-    assertFalse(tsdb.storeLeaf(leaf, branch, tree)
-        .joinUninterruptibly());
-    assertEquals(1, tsdb_store.numColumns(new byte[]{0, 1}));
-    assertEquals(1, tree.getCollisions().size());
-  }
-  
-  @Test
-  public void parseFromStorage() throws Exception {
-    //TODO move test, this part is now a private method in HBaseStore
-    fail();
-//    final KeyValue column = mock(KeyValue.class);
-//    when(column.qualifier()).thenReturn(
-//        new Leaf("0", "000001000001000001").columnQualifier());
-//    when(column.value()).thenReturn(
-//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
-//        .getBytes(Const.CHARSET_ASCII));
-//    final Leaf leaf = tsdb.getLeaf( column, true).joinUninterruptibly();
-//    assertNotNull(leaf);
-//    assertEquals("0", leaf.getDisplayName());
-//    assertEquals("000001000001000001", leaf.getTsuid());
-//    assertEquals("sys.cpu.0", leaf.getMetric());
-//    assertEquals(1, leaf.getTags().size());
-//    assertEquals("web01", leaf.getTags().get("host"));
-  }
-  
-  @Test (expected = NoSuchUniqueId.class)
-  public void parseFromStorageNSUMetric() throws Throwable {
-    //TODO move test, this part is now a private method in HBaseStore
-    fail();
-//    final KeyValue column = mock(KeyValue.class);
-//    when(column.qualifier()).thenReturn(
-//        new Leaf("0", "000002000001000001").columnQualifier());
-//    when(column.value()).thenReturn(
-//        ("{\"displayName\":\"0\",\"tsuid\":\"000002000001000001\"}")
-//        .getBytes(Const.CHARSET_ASCII));
-//    try {
-//      tsdb.getLeaf(column, true).joinUninterruptibly();
-//    } catch (DeferredGroupException e) {
-//      throw e.getCause();
-//    }
-  }
-  
-  @Test (expected = NoSuchUniqueId.class)
-  public void parseFromStorageNSUTagk() throws Throwable {
-    //TODO move test, this part is now a private method in HBaseStore
-    fail();
-//    final KeyValue column = mock(KeyValue.class);
-//    when(column.qualifier()).thenReturn(
-//        new Leaf("0", "000001000002000001").columnQualifier());
-//    when(column.value()).thenReturn(
-//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000002000001\"}")
-//        .getBytes(Const.CHARSET_ASCII));
-//    try {
-//      tsdb.getLeaf(column, true).joinUninterruptibly();
-//    } catch (DeferredGroupException e) {
-//      throw e.getCause();
-//    }
-  }
-  
-  @Test (expected = NoSuchUniqueId.class)
-  public void parseFromStorageNSUTagV() throws Throwable {
-    //TODO move test, this part is now a private method in HBaseStore
-    fail();
-//    final KeyValue column = mock(KeyValue.class);
-//    when(column.qualifier()).thenReturn(
-//        new Leaf("0", "000001000001000002").columnQualifier());
-//    when(column.value()).thenReturn(
-//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000002\"}")
-//        .getBytes(Const.CHARSET_ASCII));
-//    try {
-//      tsdb.getLeaf(column, true).joinUninterruptibly();
-//    } catch (DeferredGroupException e) {
-//      throw e.getCause();
-//    }
+
+  public static byte[] hexStringToByteArray(String s) {
+    int len = s.length();
+    byte[] data = new byte[len / 2];
+    for (int i = 0; i < len; i += 2) {
+      data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+              + Character.digit(s.charAt(i+1), 16));
+    }
+    return data;
   }
 
   @Test

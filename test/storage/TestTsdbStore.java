@@ -112,6 +112,9 @@ public abstract class TestTsdbStore {
 
     setUpBranchesAndLeafs();
 
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(true));
+
     tsdb_store.storeBranch(tree, root_branch, false);
     tsdb_store.storeLeaf(root_leaf_one, root_branch, tree);
     tsdb_store.storeLeaf(root_leaf_two, root_branch, tree);
@@ -125,7 +128,7 @@ public abstract class TestTsdbStore {
    * @return A valid return that the HBase database would return for the objects
    * specified by the @see {@link TestTsdbStore#setUpBranchesAndLeafs()}
    */
-  private Deferred<ArrayList<ArrayList<KeyValue>>> get_valid_return() {
+  private ArrayList<ArrayList<KeyValue>> get_valid_return() {
 
     ArrayList<ArrayList<KeyValue>> valid_return =
             new ArrayList<ArrayList<KeyValue>>();
@@ -143,18 +146,18 @@ public abstract class TestTsdbStore {
     ans.add(kv);
     //leaves
     kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
-            Leaf.LEAF_PREFIX(), root_leaf_one.toStorageJson());
+            Leaf.LEAF_PREFIX(), root_leaf_one.getStorageJSON());
     ans.add(kv);
     kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
-            Leaf.LEAF_PREFIX(), root_leaf_two.toStorageJson());
+            Leaf.LEAF_PREFIX(), root_leaf_two.getStorageJSON());
     ans.add(kv);
     kv = new KeyValue(
             Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
-            Leaf.LEAF_PREFIX(), child_leaf_one.toStorageJson());
+            Leaf.LEAF_PREFIX(), child_leaf_one.getStorageJSON());
     ans.add(kv);
 
     valid_return.add(ans);
-    return Deferred.fromResult(valid_return);
+    return valid_return;
   }
 
 
@@ -177,9 +180,12 @@ public abstract class TestTsdbStore {
     Scanner scanner = PowerMockito.mock(Scanner.class);
     when(client.newScanner(anyBytes())).thenReturn(scanner);
 
-    Deferred<ArrayList<ArrayList<KeyValue>>> d = Deferred.fromResult(null);
-    when(scanner.nextRows()).thenReturn(get_valid_return())
-            .thenReturn(d);
+    ArrayList<ArrayList<KeyValue>> valid_return = get_valid_return();
+
+    when(scanner.nextRows()).thenReturn(
+            Deferred.fromResult(valid_return))
+            .thenReturn(
+            Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
 
 
     final Branch hBaseBranch = tsdb.fetchBranch(

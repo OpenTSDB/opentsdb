@@ -16,6 +16,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import org.hbase.async.Bytes;
 
@@ -51,7 +54,7 @@ public final class Leaf implements Comparable<Leaf> {
   
   /** The tags associated with this TSUID for API response purposes */
   private ImmutableMap<String, String> tags = null;
-  
+
   /** Display name for the leaf */
   private String display_name = "";  
   
@@ -145,34 +148,6 @@ public final class Leaf implements Comparable<Leaf> {
     return LEAF_PREFIX;
   }
   
-  /**
-   * Writes the leaf to a JSON object for storage. This is necessary for the CAS
-   * calls and to reduce storage costs since we don't need to store UID names
-   * (particularly as someone may rename a UID)
-   * @return The byte array to store
-   */
-  public byte[] toStorageJson() {
-    final ByteArrayOutputStream output = new ByteArrayOutputStream(
-        display_name.length() + tsuid.length() + 30);
-    try {
-      final JsonGenerator json = JSON.getFactory().createGenerator(output);
-      
-      json.writeStartObject();
-      
-      // we only need to write a small amount of information
-      json.writeObjectField("displayName", display_name);
-      json.writeObjectField("tsuid", tsuid);
-      
-      json.writeEndObject();
-      json.close();
-      
-      // TODO zero copy?
-      return output.toByteArray();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-  
   // GETTERS AND SETTERS ----------------------------
 
   /** @return The metric associated with this TSUID */
@@ -216,4 +191,49 @@ public final class Leaf implements Comparable<Leaf> {
     this.tsuid = tsuid;
   }
 
+
+  // JSON HANDLING ----------------------------
+  public static Leaf buildFromJSON(final byte[] json) {
+    try {
+
+      ObjectMapper mapper = new ObjectMapper();
+      ObjectNode rootNode = mapper.readValue(json, ObjectNode.class);
+
+      String display_name = rootNode.get("displayName").textValue();
+      String tsuid = rootNode.get("tsuid").textValue();
+
+      return new Leaf(display_name, tsuid);
+
+    } catch (IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  /**
+   * Writes the leaf to a JSON object for storage. This is necessary for the CAS
+   * calls and to reduce storage costs since we don't need to store UID names
+   * (particularly as someone may rename a UID)
+   * @return The byte array to store
+   */
+  public byte[] getStorageJSON() {
+    final ByteArrayOutputStream output = new ByteArrayOutputStream(
+            display_name.length() + tsuid.length() + 30);
+    try {
+      final JsonGenerator json = JSON.getFactory().createGenerator(output);
+
+      json.writeStartObject();
+
+      // we only need to write a small amount of information
+      json.writeObjectField("displayName", display_name);
+      json.writeObjectField("tsuid", tsuid);
+
+      json.writeEndObject();
+      json.close();
+
+      // TODO zero copy?
+      return output.toByteArray();
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to serialize Leaf", e);
+    }
+  }
 }
