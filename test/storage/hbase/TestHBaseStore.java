@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.*;
@@ -48,6 +49,98 @@ public class TestHBaseStore extends TestTsdbStore {
     client = PowerMockito.mock(HBaseClient.class);
     tsdb_store = new HBaseStore(client, new Config(false));
     foo_name = "foo";
+  }
+  @Test
+  public void testFetchBranch() throws Exception {
+    setupBranchHBaseStore(STORE_DATA);
+    Scanner scanner = PowerMockito.mock(Scanner.class);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
+    when(scanner.nextRows()).thenReturn(
+            Deferred.fromResult(valid_return))
+            .thenReturn(
+                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    super.testFetchBranch();
+  }
+  @Test
+  public void testFetchBranchNotFound() throws Exception {
+    setupBranchHBaseStore(STORE_DATA);
+    Scanner scanner = PowerMockito.mock(Scanner.class);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+    when(scanner.nextRows()).thenReturn(
+            Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    //Could I have some C in^ that Java?
+    super.testFetchBranchNotFound();
+  }
+
+  @Test
+  public void testFetchBranchOnly() throws Exception {
+    setupBranchHBaseStore(STORE_DATA);
+
+    ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
+
+    when(client.get(anyGet())).thenReturn(
+            Deferred.fromResult(valid_return.get(0)));
+    super.testFetchBranchOnly();
+  }
+
+  @Test
+  public void testFetchBranchOnlyNotFound() throws Exception {
+    setupBranchHBaseStore(STORE_DATA);
+    when(client.get(anyGet())).thenReturn(
+            Deferred.<ArrayList<KeyValue>>fromResult(null));
+    //Could I have sôme C in that Java?
+    super.testFetchBranchOnlyNotFound();
+  }
+  @Test
+  public void testStoreBranch() throws Exception {
+    setupBranchHBaseStore(!STORE_DATA);
+
+    //answer is mocked so this compareAndSet does not do anything really
+    when(client.compareAndSet(anyPut(),emptyArray())).
+            thenReturn(Deferred.fromResult(true));
+
+    Scanner scanner = PowerMockito.mock(Scanner.class);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    ArrayList<ArrayList<KeyValue>> valid_return =
+            new ArrayList<ArrayList<KeyValue>>();
+
+    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
+
+    //answer
+    KeyValue kv = new KeyValue(
+            Branch.stringToId("0001"), new byte[0],
+            toBytes("branch"),
+            TestBranch.buildTestBranch(tree).toStorageJson());
+    ans.add(kv);
+
+    valid_return.add(ans);
+
+    when(scanner.nextRows()).thenReturn(Deferred.fromResult(valid_return))
+            .thenReturn(
+                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+    super.testStoreBranch();
+  }
+
+  @Test
+  public void testStoreBranchExistingLeaf() throws Exception {
+    setupBranchHBaseStore(!STORE_DATA);//test for HBaseStore
+    /*Setup data*/
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(true));
+    final Branch branch = TestBranch.buildTestBranch(tree);
+    tsdb_store.storeBranch(tree, branch, true);
+
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(false))
+            .thenReturn(Deferred.fromResult(true));
+
+    when(client.get(anyGet())).thenReturn(
+            Deferred.fromResult(getValidReturn().get(0)));//TODO modify the answer
+
+    super.testStoreBranchExistingLeaf();
   }
 
   @Test(expected = NullPointerException.class)
@@ -361,24 +454,6 @@ public class TestHBaseStore extends TestTsdbStore {
     return hbe;
   }
 
-  private byte[] emptyArray() {
-    return eq(HBaseClient.EMPTY_ARRAY);
-  }
-  private PutRequest anyPut() {
-    return any(PutRequest.class);
-  }
-  private GetRequest anyGet() {
-    return any(GetRequest.class);
-  }
-  /** Creates a new Deferred that's already called back.  */
-  private static <T> Answer<Deferred<T>> newDeferred(final T result) {
-    return new Answer<Deferred<T>>() {
-      public Deferred<T> answer(final InvocationOnMock invocation) {
-        return Deferred.fromResult(result);
-      }
-    };
-  }
-
 
   // THESE TESTS ARE FOR THE getLeaf() FUNCTION HAS TO BE TESTED THROUGH THE
   // FETCH BRANCH FUNCTION. WILL BE DONE TOGETHER WITH THE BRANCH TEST FIX.
@@ -450,5 +525,66 @@ public class TestHBaseStore extends TestTsdbStore {
 //    } catch (DeferredGroupException e) {
 //      throw e.getCause();
 //    }
+  }
+  @Test
+  public void fetchBranchNSU() throws Exception {
+    //setupBranchMemoryStore(false);
+    fail();
+    /*
+    *This test was supposed to test the branch structure if it was not linked by
+    * UID anymore. Thus a leaf should not be connected to the branch because
+    * of lacking UID match. In the Memory store we keep these things separate.
+    *
+    * As this basically was mocked before I would argue this test was more or
+    * less useless.
+    */
+
+    /*tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
+
+    final Branch branch = tsdb.fetchBranch(
+    Branch.stringToId("00010001BECD000181A8"),
+    true).joinUninterruptibly();
+    assertNotNull(branch);
+    assertEquals(1, branch.getTreeId());
+    assertEquals("cpu", branch.getDisplayName());
+    assertEquals("00010001BECD000181A8", branch.getBranchId());
+    assertEquals(1, branch.getBranches().size());
+    assertEquals(1, branch.getLeaves().size());*/
+  }
+
+
+  /** Creates a new Deferred that's already called back.  */
+  private static <T> Answer<Deferred<T>> newDeferred(final T result) {
+    return new Answer<Deferred<T>>() {
+      public Deferred<T> answer(final InvocationOnMock invocation) {
+        return Deferred.fromResult(result);
+      }
+    };
+  }
+
+  /**
+   * Mocks HBase Branch stuff
+   */
+  private void setupBranchHBaseStore(final boolean store) throws Exception{
+
+    config = new Config(false);
+    client = PowerMockito.mock(HBaseClient.class);
+    tsdb_store = new HBaseStore(client, config);
+    tsdb = new TSDB(tsdb_store, config);
+
+    setUpBranchesAndLeafs();
+    if (!store)
+      return;
+
+    //since the answer is mocket this probably does not matter much
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(true));
+    tsdb_store.storeBranch(tree, root_branch, false);
+    tsdb_store.storeLeaf(root_leaf_one, root_branch, tree);
+    tsdb_store.storeLeaf(root_leaf_two, root_branch, tree);
+    tsdb_store.storeBranch(tree, child_branch, false);
+    tsdb_store.storeLeaf(child_leaf_one, child_branch, tree);
   }
 }

@@ -33,40 +33,34 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({HBaseClient.class, Scanner.class})
 public abstract class TestTsdbStore {
-  private TSDB tsdb;
+  private static final boolean SAME_TSUID = true;
+  protected TSDB tsdb;
   private HBaseClient client;
   protected TsdbStore tsdb_store;
   protected UIDMeta meta;
-  private Config config;
+  protected Config config;
 
   /*Branch test*/
-  private Tree tree = TestTree.buildTestTree();
-  private Branch root_branch;
-  private Branch child_branch;
-  private Leaf root_leaf_one;
-  private Leaf root_leaf_two;
-  private Leaf child_leaf_one;
+  protected Tree tree;
+  protected Branch root_branch;
+  protected Branch child_branch;
+  protected Leaf root_leaf_one;
+  protected Leaf root_leaf_two;
+  protected Leaf child_leaf_one;
 
-  private static boolean STORE_DATA = true;
-
-
-
-  @Test
-  public void testGetMetaNullCell() throws IOException {
-    tsdb_store.getMeta(new byte[]{0, 0, 1}, "derp", UniqueIdType.TAGK);
-  }
+  protected static boolean STORE_DATA = true;
 
 
   /*BRANCH DATABASE STUFF*/
   /**
    * Sets up the branches
    */
-  private void setUpBranchesAndLeafs() {
+  protected void setUpBranchesAndLeafs() {
+    tree = TestTree.buildTestTree();
     root_branch = new Branch(1);
     TreeMap<Integer, String> path = new TreeMap<Integer, String>();
     path.put(0, "ROOT");
@@ -135,13 +129,12 @@ public abstract class TestTsdbStore {
    * @return A valid return that the HBase database would return for the objects
    * specified by the @see {@link TestTsdbStore#setUpBranchesAndLeafs()}
    */
-  private ArrayList<ArrayList<KeyValue>> get_valid_return() {
+  protected ArrayList<ArrayList<KeyValue>> getValidReturn() {
 
     ArrayList<ArrayList<KeyValue>> valid_return =
             new ArrayList<ArrayList<KeyValue>>();
 
     ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
-
     //branches
     KeyValue kv = new KeyValue(
             Branch.stringToId("00010001BECD000181A8"), new byte[0],
@@ -167,6 +160,7 @@ public abstract class TestTsdbStore {
     return valid_return;
   }
 
+  @Test
   public void testFetchBranchLoadingMetrics() throws Exception {
   fail();
 
@@ -178,12 +172,8 @@ public abstract class TestTsdbStore {
 
   }
 
-
   @Test
   public void testFetchBranch() throws Exception {
-
-    setupBranchMemoryStore(STORE_DATA);
-
     final Branch branch = tsdb_store.fetchBranch(
             Branch.stringToId("00010001BECD000181A8"),
             false, tsdb).joinUninterruptibly();
@@ -193,56 +183,18 @@ public abstract class TestTsdbStore {
     assertEquals("00010001BECD000181A8", branch.getBranchId());
     assertEquals(1, branch.getBranches().size());
     assertEquals(2, branch.getLeaves().size());
-
-    setupBranchHBaseStore(STORE_DATA);
-    Scanner scanner = PowerMockito.mock(Scanner.class);
-    when(client.newScanner(anyBytes())).thenReturn(scanner);
-
-    ArrayList<ArrayList<KeyValue>> valid_return = get_valid_return();
-    when(scanner.nextRows()).thenReturn(
-            Deferred.fromResult(valid_return))
-            .thenReturn(
-            Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-
-    final Branch hBaseBranch = tsdb_store.fetchBranch(
-            Branch.stringToId("00010001BECD000181A8"),
-            false, tsdb).joinUninterruptibly();
-    assertNotNull(hBaseBranch);
-    assertEquals(1, hBaseBranch.getTreeId());
-    assertEquals("cpu", hBaseBranch.getDisplayName());
-    assertEquals("00010001BECD000181A8", hBaseBranch.getBranchId());
-    assertEquals(1, hBaseBranch.getBranches().size());
-    assertEquals(2, hBaseBranch.getLeaves().size());
-
-    assertEquals(hBaseBranch, branch);
   }
-
 
   @Test
   public void testFetchBranchNotFound() throws Exception {
-    setupBranchMemoryStore(STORE_DATA);
     Branch branch = tsdb_store.fetchBranch(
             Branch.stringToId("00010001BECD000181A0"),
             false, tsdb).joinUninterruptibly();
     assertNull(branch);
-
-    setupBranchHBaseStore(STORE_DATA);
-    Scanner scanner = PowerMockito.mock(Scanner.class);
-    when(client.newScanner(anyBytes())).thenReturn(scanner);
-    when(scanner.nextRows()).thenReturn(
-                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-    //Could I have some C in^ that Java?
-
-    final Branch HBaseBranch = tsdb_store.fetchBranch(
-            Branch.stringToId("00010001BECD000181A0"),
-            false, tsdb).joinUninterruptibly();
-
-    assertNull(HBaseBranch);
   }
 
   @Test
   public void testFetchBranchOnly() throws Exception {
-    setupBranchMemoryStore(STORE_DATA);
     final Branch branch = tsdb_store.fetchBranchOnly(
             Branch.stringToId("00010001BECD000181A8")).joinUninterruptibly();
     assertNotNull(branch);
@@ -251,167 +203,133 @@ public abstract class TestTsdbStore {
     assertNull(branch.getBranches());
 
     setupBranchHBaseStore(STORE_DATA);
-
-    ArrayList<ArrayList<KeyValue>> valid_return = get_valid_return();
-
-    when(client.get(anyGet())).thenReturn(
-            Deferred.fromResult(valid_return.get(0)));
-
-    final Branch HBaseBranch = tsdb_store.fetchBranchOnly(
-            Branch.stringToId("00010001BECD000181A8")).joinUninterruptibly();
-
-    assertEquals("cpu", HBaseBranch.getDisplayName());
-    assertNull(HBaseBranch.getLeaves());
-    assertNull(HBaseBranch.getBranches());
-
-    assertEquals(root_branch, branch);
-    assertEquals(root_branch, HBaseBranch);
   }
 
   @Test
   public void testFetchBranchOnlyNotFound() throws Exception {
-    setupBranchMemoryStore(STORE_DATA);
     final Branch branch = tsdb_store.fetchBranchOnly(
             Branch.stringToId("00010001BECD000181A0")).joinUninterruptibly();
-
     assertNull(branch);
-
-    setupBranchHBaseStore(STORE_DATA);
-    when(client.get(anyGet())).thenReturn(
-            Deferred.<ArrayList<KeyValue>>fromResult(null));
-    //Could I have sôme C in that Java?
-
-    final Branch HBaseBranch = tsdb_store.fetchBranchOnly(
-            Branch.stringToId("00010001BECD000181A8")).joinUninterruptibly();
-
-    assertNull(HBaseBranch);
-  }
-  @Test
-  public void fetchBranchNSU() throws Exception {
-    setupBranchMemoryStore(false);
-    fail();
-    /*
-    *This test was supposed to test the branch structure if it was not linked by
-    * UID anymore. Thus a leaf should not be connected to the branch because
-    * of lacking UID match. In the Memory store we keep these things separate.
-    *
-    * As this basically was mocked before I would argue this test was more or
-    * less useless here. All the fetch methods should be moved into
-    * TestHBaseStore.
-    */
-
-    /*tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
-    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
-    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
-
-    final Branch branch = tsdb.fetchBranch(
-    Branch.stringToId("00010001BECD000181A8"),
-    true).joinUninterruptibly();
-    assertNotNull(branch);
-    assertEquals(1, branch.getTreeId());
-    assertEquals("cpu", branch.getDisplayName());
-    assertEquals("00010001BECD000181A8", branch.getBranchId());
-    assertEquals(1, branch.getBranches().size());
-    assertEquals(1, branch.getLeaves().size());*/
   }
 
   @Test
   public void testStoreBranch() throws Exception {
-    setupBranchMemoryStore(!STORE_DATA);
     final Branch branch = TestBranch.buildTestBranch(tree);
     tsdb_store.storeBranch(tree, branch, true);
     final Branch parsed =
             tsdb_store.fetchBranch(branch.compileBranchId(), true, tsdb)
             .joinUninterruptibly();
     assertEquals("ROOT", parsed.getDisplayName());
+    assertEquals(1, parsed.getTreeId());
+    assertNotNull(parsed.getPath());
+  }
 
-    setupBranchHBaseStore(!STORE_DATA);
+  @Test
+  public void testStoreBranchExistingLeaf() throws Exception {
 
-    //answer is mocked so this compareAndSet does not do anything really
-    when(client.compareAndSet(anyPut(),emptyArray())).
-            thenReturn(Deferred.fromResult(true));
+    final Branch root = getLeafCollision(SAME_TSUID);
+
+    ArrayList<Boolean> results =
+            tsdb_store.storeBranch(tree, root, true).joinUninterruptibly();
+
+    assertEquals(2, results.size());
+    assertFalse(results.get(0));
+    assertTrue(results.get(1));
+    assertNull(tree.getCollisions());
+
+
+    final Branch parsed = tsdb_store
+            .fetchBranchOnly(
+            TestBranch.buildTestBranch(tree)
+            .compileBranchId()).joinUninterruptibly();
+    parsed.setTreeId(1);
+    assertEquals("ROOT", parsed.getDisplayName());
+  }
+
+  @Test
+  public void testStoreBranchCollision() throws Exception {
+
+    setupBranchMemoryStore(!STORE_DATA);//test for memory store
+
+    /*Collision object*/
+    final TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
+    final Branch root = new Branch(tree.getTreeId());
+    root.setDisplayName("ROOT");
+    root_path.put(0, "ROOT");
+    root.prependParentPath(root_path);
+    Leaf leaf = new Leaf("Alarms", "0101");//collision leaf not same tsuid
+    root.addLeaf(leaf, tree);
+
+
+    /*Setup data*/
+    final Branch branch = TestBranch.buildTestBranch(tree);
     tsdb_store.storeBranch(tree, branch, true);
 
-    Scanner scanner = PowerMockito.mock(Scanner.class);
-    when(client.newScanner(anyBytes())).thenReturn(scanner);
+    final ArrayList<Boolean> results =
+            tsdb_store.storeBranch(tree, root, true).joinUninterruptibly();
 
-    ArrayList<ArrayList<KeyValue>> valid_return =
-            new ArrayList<ArrayList<KeyValue>>();
-
-    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
-
-    //answer
-    KeyValue kv = new KeyValue(
-            Branch.stringToId("0001"), new byte[0],
-            toBytes("branch"), branch.toStorageJson());
-    ans.add(kv);
-
-    valid_return.add(ans);
-
-    when(scanner.nextRows()).thenReturn(Deferred.fromResult(valid_return))
-            .thenReturn(
-            Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-
-    final Branch HBaseParsed =
-            tsdb_store.fetchBranch(branch.compileBranchId(), true, tsdb)
-                    .joinUninterruptibly();
-    assertEquals("ROOT", HBaseParsed.getDisplayName());
-    assertEquals(branch, parsed);
-    assertEquals(branch, HBaseParsed);
-  }
-
-  @Test
-  public void storeBranchExistingLeaf() throws Exception {
-    //setupBranchMemoryStore();
-    fail();//TODO
-    final Branch branch = TestBranch.buildTestBranch(tree);
-    Leaf leaf = new Leaf("Alarms", "ABCD");
-    byte[] qualifier = leaf.columnQualifier();
-    //tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-    //        qualifier, leaf.toStorageJson());
-
-    tsdb.storeBranch(tree, branch, true);
-
-    //assertEquals(3, tsdb_store.numRows());
-    //assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
-    assertNull(tree.getCollisions());
-    //final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-    //                new byte[]{0, 1}, "branch".getBytes(Const.CHARSET_ASCII)),
-    //        Branch.class);
-    //parsed.setTreeId(1);
-    //assertEquals("ROOT", parsed.getDisplayName());
-  }
-
-  @Test
-  public void storeBranchCollision() throws Exception {
-    fail();//TODO
-    //setupBranchMemoryStore();
-    final Branch branch = TestBranch.buildTestBranch(tree);
-    Leaf leaf = new Leaf("Alarms", "0101");
-    byte[] qualifier = leaf.columnQualifier();
-    //tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-    //        qualifier, leaf.toStorageJson());
-
-    tsdb.storeBranch(tree, branch, true);
-
-    //assertEquals(3, tsdb_store.numRows());
-    //assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
+    assertEquals(2, results.size());
+    assertFalse(results.get(0));
+    assertFalse(results.get(1));
     assertEquals(1, tree.getCollisions().size());
-    //final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-    //                new byte[] { 0, 1 }, "branch".getBytes(Const.CHARSET_ASCII)),
-    //        Branch.class);
-    //parsed.setTreeId(1);
-    //assertEquals("ROOT", parsed.getDisplayName());
+
+    //HBaseStore test part
+    setupBranchHBaseStore(!STORE_DATA);
+
+    /*Setup data*/
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(true));
+    tsdb_store.storeBranch(tree, branch, true);
+
+
+    //mock answers that should be generated
+    KeyValue kv = new KeyValue(root.compileBranchId(), new byte[0],
+            Leaf.LEAF_PREFIX(), branch.getLeaves().first().getStorageJSON());
+    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
+    ans.add(kv);
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(ans));
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(false));
+
+    final ArrayList<Boolean> HBase_results =
+            tsdb_store.storeBranch(tree, root, true).joinUninterruptibly();
+
+    assertEquals(2, HBase_results.size());
+    assertFalse(HBase_results.get(0));
+    assertFalse(HBase_results.get(1));
+    assertEquals(1, tree.getCollisions().size());
   }
 
-  private byte[] emptyArray() {
+  /*META TESTS*/
+
+  @Test
+  public void testGetMetaNullCell() throws IOException {
+    tsdb_store.getMeta(new byte[]{0, 0, 1}, "derp", UniqueIdType.TAGK);
+  }
+
+  protected byte[] emptyArray() {
     return eq(HBaseClient.EMPTY_ARRAY);
   }
-  private PutRequest anyPut() {
+  protected PutRequest anyPut() {
     return any(PutRequest.class);
   }
-  private GetRequest anyGet() {
+  protected GetRequest anyGet() {
     return any(GetRequest.class);
   }
-  private byte[] anyBytes() { return any(byte[].class); }
+  protected byte[] anyBytes() { return any(byte[].class); }
+
+  protected Branch getLeafCollision(boolean sameTsuid) {
+    /*Collision object*/
+    final TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
+    final Branch root = new Branch(tree.getTreeId());
+    root.setDisplayName("ROOT");
+    root_path.put(0, "ROOT");
+    root.prependParentPath(root_path);
+    Leaf leaf = new Leaf("Alarms", "ABCD");//collision leaf but with same tsuid
+    if (!sameTsuid)
+      leaf.setTsuid("0101");
+    root.addLeaf(leaf, tree);
+
+    return root;
+  }
 }
