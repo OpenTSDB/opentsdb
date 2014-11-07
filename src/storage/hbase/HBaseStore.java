@@ -19,6 +19,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.InjectableValues;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -36,6 +39,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
@@ -103,6 +107,11 @@ public class HBaseStore implements TsdbStore {
   final org.hbase.async.HBaseClient client;
 
   /**
+   * Jackson de/serializer initialized, configured and shared
+   */
+  private final ObjectMapper jsonMapper;
+
+  /**
    * Row keys that need to be compacted.
    * Whenever we write a new data point to a row, we add the row key to this
    * set.  Every once in a while, the compaction thread will go through old
@@ -139,6 +148,9 @@ public class HBaseStore implements TsdbStore {
     client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
 
     compactionq = new CompactionQueue(this, config, data_table_name, TS_FAMILY);
+
+    jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
   }
 
   /**
@@ -542,12 +554,17 @@ public class HBaseStore implements TsdbStore {
    */
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
-    final PutRequest put = new PutRequest(uid_table_name, meta.getUID(),
-            UID_FAMILY,
-      (meta.getType().toString().toLowerCase() + "_meta").getBytes(HBaseConst.CHARSET),
-      meta.getStorageJSON());
+    try {
+      final String qualifier = meta.getType().toString().toLowerCase() + "_meta";
+      final byte[] json = jsonMapper.writeValueAsBytes(meta);
 
-    return client.put(put);
+      final PutRequest put = new PutRequest(uid_table_name, meta.getUID(),
+              UID_FAMILY, qualifier.getBytes(HBaseConst.CHARSET), json);
+
+      return client.put(put);
+    } catch (JsonProcessingException e) {
+      throw new JSONException(e);
+    }
   }
 
   /**
@@ -599,11 +616,12 @@ public class HBaseStore implements TsdbStore {
           meta.syncMeta(stored_meta, overwrite);
         }
 
+        final byte[] json = jsonMapper.writeValueAsBytes(meta);
         final PutRequest put = new PutRequest(uid_table_name,
                 meta.getUID(),
                 UID_FAMILY,
                 toBytes(meta.getType().toString().toLowerCase() + "_meta"),
-                meta.getStorageJSON());
+                json);
         return client.compareAndSet(put, original_meta);
       }
     }
@@ -649,16 +667,13 @@ public class HBaseStore implements TsdbStore {
             uid, name, false);
         }
 
-        UniqueIdType effective_type = type;
-        if (effective_type == null) {
-          final String qualifier =
-            new String(cell.get().qualifier(), HBaseConst.CHARSET);
-          effective_type = UniqueIdType.fromString(qualifier.substring(0,
-                  qualifier.indexOf("_meta")));
-        }
+        InjectableValues vals = new InjectableValues.Std()
+                .addValue(byte[].class, uid)
+                .addValue(String.class, name);
 
-        return UIDMeta.buildFromJSON(cell.get().value(),
-                effective_type, uid, name);
+        return jsonMapper.reader(UIDMeta.class)
+                .with(vals)
+                .readValue(cell.get().value());
       }
     }
 

@@ -15,14 +15,8 @@ package net.opentsdb.meta;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.Iterators;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -109,36 +103,6 @@ public final class TestUIDMeta {
   public void ctorWrongUIDLength() throws Exception {
     new UIDMeta(METRIC, new byte[] {0}, null, false);
     new UIDMeta(METRIC, new byte[] {0, 1, 2, 3}, null, false);
-  }
- 
-  @Test
-  public void serialize() throws Exception {
-    final byte[] json = meta.getStorageJSON();
-
-    ObjectMapper mapper = new ObjectMapper();
-    ObjectNode rootNode = mapper.readValue(json, ObjectNode.class);
-
-    assertEquals(6, Iterators.size(rootNode.fields()));
-    assertEquals("METRIC", rootNode.get("type").asText());
-    assertEquals(JsonNodeType.NULL, rootNode.get("displayName").getNodeType());
-    assertEquals(JsonNodeType.NULL, rootNode.get("description").getNodeType());
-    assertEquals(JsonNodeType.NULL, rootNode.get("notes").getNodeType());
-    assertEquals(JsonNodeType.NULL, rootNode.get("custom").getNodeType());
-    assertEquals(0, rootNode.get("created").longValue());
-  }
-  
-  @Test
-  public void deserialize() throws Exception {
-    String json = "{\"uid\":\"ABCD\",\"type\":\"MeTriC\",\"name\":\"MyName\"," +
-    "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-    "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
-    meta = UIDMeta.buildFromJSON(json.getBytes(), METRIC, new byte[] {0, (byte) 16,
-            (byte) -125}, "MyName");
-    assertNotNull(meta);
-    assertArrayEquals(new byte[]{0, (byte) 16, (byte) -125}, meta.getUID());
-    assertEquals(METRIC, meta.getType());
-    assertEquals("MyNotes", meta.getNotes());
-    assertEquals("Empty", meta.getDisplayName());
   }
 
   @Test

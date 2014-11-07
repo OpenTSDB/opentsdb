@@ -12,6 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.InjectableValues;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
@@ -28,6 +31,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
@@ -44,6 +48,7 @@ import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 
 import javax.xml.bind.DatatypeConverter;
+import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -51,6 +56,7 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.JSONException;
 
 import static com.google.common.collect.Maps.newHashMap;
 import static net.opentsdb.uid.UniqueId.uidToString;
@@ -106,6 +112,11 @@ public class MemoryStore implements TsdbStore {
   /** Incremented every time a new value is stored (without a timestamp) */
   private long current_timestamp = 1388534400000L;
 
+  /**
+   * Jackson de/serializer initialized, configured and shared
+   */
+  private final ObjectMapper jsonMapper;
+
   public MemoryStore() {
     tree_table = newHashMap();
     branch_table = HashBasedTable.create();
@@ -116,6 +127,8 @@ public class MemoryStore implements TsdbStore {
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
 
+    jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
   }
 
   /**
@@ -489,12 +502,16 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
-    uid_table.put(
-            UniqueId.uidToLong(meta.getUID()),
-            meta.getType().toString().toLowerCase() + "_meta",
-            meta.getStorageJSON());
+    try {
+      uid_table.put(
+              UniqueId.uidToLong(meta.getUID()),
+              meta.getType().toString().toLowerCase() + "_meta",
+              jsonMapper.writeValueAsBytes(meta));
 
-    return Deferred.fromResult(null);
+      return Deferred.fromResult(null);
+    } catch (IOException e) {
+      throw new JSONException(e);
+    }
   }
 
   @Override
@@ -526,31 +543,53 @@ public class MemoryStore implements TsdbStore {
               qualifier.indexOf("_meta")));
     }
 
-    UIDMeta return_meta = UIDMeta.buildFromJSON(
-            json_value, effective_type, uid, name);
+    try {
 
-    return Deferred.fromResult(return_meta);
+      InjectableValues vals = new InjectableValues.Std()
+              .addValue(byte[].class, uid)
+              .addValue(UniqueIdType.class, effective_type)
+              .addValue(String.class, name);
+
+      UIDMeta return_meta = jsonMapper.reader(UIDMeta.class)
+              .with(vals)
+              .readValue(json_value);
+
+      return Deferred.fromResult(return_meta);
+    } catch (IOException e) {
+      throw new JSONException(e);
+    }
   }
 
   private Deferred<UIDMeta> getMeta(final byte[] uid,
-                                    final UniqueIdType
-          type) {
+                                    final UniqueIdType type,
+                                    final String name) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     byte[] json_value = uid_table.get(UniqueId.uidToLong(uid), qualifier);
 
     if (json_value == null)
       return Deferred.fromResult(null);
 
-    UIDMeta meta = JSON.parseToObject(json_value, UIDMeta.class);
-    meta.resetChangedMap();
+    try {
+      InjectableValues vals = new InjectableValues.Std()
+              .addValue(byte[].class, uid)
+              .addValue(UniqueIdType.class, type)
+              .addValue(String.class, name);
 
-    return Deferred.fromResult(meta);
+      UIDMeta meta = jsonMapper.reader(UIDMeta.class)
+              .with(vals)
+              .readValue(json_value);
+
+      return Deferred.fromResult(meta);
+    } catch (IOException e) {
+      throw new JSONException(e);
+    }
   }
 
   @Override
   public Deferred<Boolean> updateMeta(final UIDMeta meta,
                                       final boolean overwrite) {
-    return getMeta(meta.getUID(), meta.getType()).addCallbackDeferring(
+    return getMeta(meta.getUID(), meta.getType(), meta.getName())
+            .addCallbackDeferring(
             new Callback<Deferred<Boolean>, UIDMeta>() {
               @Override
               public Deferred<Boolean> call(UIDMeta meta2) throws Exception {
@@ -609,7 +648,7 @@ public class MemoryStore implements TsdbStore {
                                       final byte[] uid,
                                       final UniqueIdType type) {
     uid_max.get(type).set(Math.max(uid_max.get(type).get(),
-            (UniqueId.uidToLong(uid, (short) uid.length) + 1 )));
+            (UniqueId.uidToLong(uid, (short) uid.length) + 1)));
 
     String str_uid = new String(uid, Const.CHARSET_ASCII);
 
