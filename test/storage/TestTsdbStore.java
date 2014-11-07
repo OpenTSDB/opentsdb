@@ -1,6 +1,5 @@
 package net.opentsdb.storage;
 
-import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.tree.Branch;
@@ -11,15 +10,17 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.uid.UniqueIdType;
 
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.TreeMap;
 
-import static org.junit.Assert.*;
+
+import static junit.framework.TestCase.assertNotNull;
+import static junit.framework.TestCase.assertNull;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 @Ignore
 public abstract class TestTsdbStore {
