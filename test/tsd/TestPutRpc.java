@@ -549,13 +549,19 @@ public final class TestPutRpc {
     assertTrue(response.contains("\"success\":0"));
   }
   
-  @Test (expected = BadRequestException.class)
+  @Test
   public void ValueInfinityUnsigned() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":Infinity,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
+    final String response = 
+      query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
+    assertTrue(response.contains("\"failed\":1"));
+    assertTrue(response.contains("\"success\":0"));
   }
   
   @Test

@@ -767,7 +767,12 @@ public final class UniqueId implements UniqueIdInterface {
         }
         suggestions.add(name);
         if ((short) suggestions.size() >= max_results) {  // We have enough.
-          return suggestions;
+          return scanner.close().addCallback(new Callback<Object, Object>() {
+            @Override
+            public Object call(Object ignored) throws Exception {
+              return suggestions;
+            }
+          });
         }
         row.clear();  // free()
       }

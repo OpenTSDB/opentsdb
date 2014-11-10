@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 # Getting this value out of Autoconf is not a good idea, because it might be
 # set to a relative path to install-sh.  We don't install `install-sh' during

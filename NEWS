@@ -1,6 +1,22 @@
 OpenTSDB - User visible changes.
 
-* Version 2.0.0 (2014-05-5) [???????]
+* Version 2.0.1 (2014-11-09)
+
+Bug Fixes:
+  - Fix tree REST endpoint to allow modification of the strictMatch and storeFailure fields
+  - Fix compacted millisecond columns throwing an error during fsck
+  - Fix tsd startup directory permission checks
+  - Fix thread safety of pending UID assignment when they are complete
+  - Fix compaction queue flushing on tsd shutdown
+  - Fix RTPublisher plugin floating point value detection where it was previously posting to the wrong method
+  - Fix TsdbQuery.toString() to avoid looing up UIDs if an error was thrown as this can cause cause a deadlock
+
+Noteworthy changes:
+  - Add Travis CI build support
+  - Update to Asynchbase 1.6.0 and update additional dependencies
+  - Modify scripts to allow easier compilation under FreeBSD
+
+* Version 2.0.0 (2014-05-5)
 
 API incompatible changes:
   - The `TSDB' class now takes a `Config' object in argument instead of an
