@@ -273,7 +273,7 @@ public final class Annotation implements Comparable<Annotation> {
           return Deferred.fromResult(null);
         }
         
-        Annotation note = JSON.parseToObject(row.get(0).value(), 
+        Annotation note = JSON.parseToObject(row.get(0).value(),
             Annotation.class);
         return Deferred.fromResult(note);
       }
@@ -356,7 +356,7 @@ public final class Annotation implements Comparable<Annotation> {
           for (KeyValue column : row) {
             if ((column.qualifier().length == 3 || column.qualifier().length == 5) 
                 && column.qualifier()[0] == PREFIX()) {
-              Annotation note = JSON.parseToObject(row.get(0).value(), 
+              Annotation note = JSON.parseToObject(column.value(),
                   Annotation.class);
               if (note.start_time < start_time || note.end_time > end_time) {
                 continue;
