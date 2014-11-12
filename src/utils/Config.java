@@ -367,19 +367,19 @@ public class Config {
   public final Map<String, String> getMap() {
     return ImmutableMap.copyOf(properties);
   }
-  
+
   /**
    * set enable_compactions to true
    */
   public final void enableCompactions() {
-	  this.enable_compactions = true;
+    this.enable_compactions = true;
   }
 
   /**
-   * set enable_compactions to false 
+   * set enable_compactions to false
    */
   public final void disableCompactions() {
-	  this.enable_compactions = false;
+    this.enable_compactions = false;
   }
   
   /**
