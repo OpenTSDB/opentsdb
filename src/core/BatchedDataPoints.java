@@ -51,7 +51,7 @@ final class BatchedDataPoints implements WritableDataPoints {
   /**
    * Number of data points in this row.
    */
-  private short size = 0;
+  private int size = 0;
 
   /**
    * Storage of the compacted qualifier.
