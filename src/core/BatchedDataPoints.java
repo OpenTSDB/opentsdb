@@ -374,41 +374,73 @@ final class BatchedDataPoints implements WritableDataPoints {
   }
 
   /**
-   * Calculates the 
-   * @param qualifier
+   * Computes the proper offset to reach qualifier 
+   * @param i
    * @return
    */
-  private static short delta(final short qualifier) {
-    return (short) ((qualifier & 0xFFFF) >>> Const.FLAG_BITS);
+  private int qualifierOffset(final int i) {
+    int offset = 0;
+    for (int j = 0; j < i; j++) {
+      offset += Internal.getQualifierLength(batched_qualifier, offset);
+    }
+    return offset;
   }
 
   @Override
   public long timestamp(final int i) {
     checkIndex(i);
-    // once fixed, use the proper Internal.getTimestampFromQualifier() method
-    return base_time + (delta(batched_qualifier[i]) & 0xFFFF);
+    return Internal.getTimestampFromQualifier(batched_qualifier, base_time, qualifierOffset(i));
   }
 
   @Override
   public boolean isInteger(final int i) {
     checkIndex(i);
-    return (batched_qualifier[i] & Const.FLAG_FLOAT) == 0x0;
+    return isInteger(i, qualifierOffset(i));
+  }
+
+  /**
+   * Tells whether or not the ith value is integer. Uses pre-computed qualifier offset.
+   * @param i
+   * @param q_offset qualifier offset
+   * @return
+   */
+  private boolean isInteger(final int i, final int q_offset) {
+    final short flags = Internal.getFlagsFromQualifier(batched_qualifier, q_offset);
+    return (flags & Const.FLAG_FLOAT) == 0x0;
   }
 
   @Override
   public long longValue(final int i) {
-    // Don't call checkIndex(i) because isInteger(i) already calls it.
-    if (isInteger(i)) {
-      return batched_value[i];
+    checkIndex(i);
+    // compute the prope value and qualifier offsets
+    int v_offset = 0;
+    int q_offset = 0;
+    for (int j = 0; j < i; j++) {
+      v_offset += Internal.getValueLengthFromQualifier(batched_qualifier, q_offset);
+      q_offset += Internal.getQualifierLength(batched_qualifier, q_offset);
+    }
+
+    if (isInteger(i, q_offset)) {
+      final short flags = Internal.getFlagsFromQualifier(batched_qualifier, q_offset);
+      return Internal.extractIntegerValue(batched_value, v_offset, (byte)flags);
     }
     throw new ClassCastException("value #" + i + " is not a long in " + this);
   }
-
+  
   @Override
   public double doubleValue(final int i) {
-    // Don't call checkIndex(i) because isInteger(i) already calls it.
-    if (!isInteger(i)) {
-      return Float.intBitsToFloat((int) batched_value[i]);
+    checkIndex(i);
+    // compute the proper value and qualifier offsets
+    int v_offset = 0;
+    int q_offset = 0;
+    for (int j = 0; j < i; j++) {
+      v_offset += Internal.getValueLengthFromQualifier(batched_qualifier, q_offset);
+      q_offset += Internal.getQualifierLength(batched_qualifier, q_offset);
+    }
+
+    if (!isInteger(i, q_offset)) {
+      final short flags = Internal.getFlagsFromQualifier(batched_qualifier, q_offset);
+      return Internal.extractFloatingPointValue(batched_value, v_offset, (byte)flags);
     }
     throw new ClassCastException("value #" + i + " is not a float in " + this);
   }
@@ -432,18 +464,25 @@ final class BatchedDataPoints implements WritableDataPoints {
         .append(" (")
         .append(base_time > 0 ? new Date(base_time * 1000) : "no date")
         .append("), [");
-    for (short i = 0; i < size; i++) {
-      buf.append('+').append(delta(batched_qualifier[i]));
-      if (isInteger(i)) {
-        buf.append(":long(").append(longValue(i));
+    int q_offset = 0;
+    int v_offset = 0;
+    for (int i = 0; i < size; i++) {
+      buf.append('+').append(Internal.getOffsetFromQualifier(batched_qualifier, q_offset));
+      final short flags = Internal.getFlagsFromQualifier(batched_qualifier, q_offset);
+      if (isInteger(i, q_offset)) {
+        buf.append(":long(")
+          .append(Internal.extractIntegerValue(batched_value, v_offset, (byte)flags));
       }
       else {
-        buf.append(":float(").append(doubleValue(i));
+        buf.append(":float(")
+          .append(Internal.extractFloatingPointValue(batched_value, v_offset, (byte)flags));
       }
       buf.append(')');
       if (i != size - 1) {
         buf.append(", ");
       }
+      v_offset += Internal.getValueLengthFromQualifier(batched_qualifier, q_offset);
+      q_offset += Internal.getQualifierLength(batched_qualifier, q_offset);
     }
     buf.append("])");
     return buf.toString();
