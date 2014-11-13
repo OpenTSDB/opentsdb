@@ -41,12 +41,12 @@ final class BatchedDataPoints implements WritableDataPoints {
    * The row key. 3 bytes for the metric name, 4 bytes for the base timestamp, 
    * 6 bytes per tag (3 for the name, 3 for the value).
    */
-  private byte[] rowKey;
+  private byte[] row_key;
 
   /**
    * Track the last timestamp written for this series.
    */
-  private long lastTimestamp;
+  private long last_timestamp;
 
   /**
    * Number of data points in this row.
@@ -56,27 +56,27 @@ final class BatchedDataPoints implements WritableDataPoints {
   /**
    * Storage of the compacted qualifier.
    */
-  private byte[] batchedQualifier = new byte[Const.MAX_TIMESPAN * 4];
+  private byte[] batched_qualifier = new byte[Const.MAX_TIMESPAN * 4];
 
   /**
    * Storage of the compacted value.
    */
-  private byte[] batchedValue = new byte[Const.MAX_TIMESPAN * 8];
+  private byte[] batched_value = new byte[Const.MAX_TIMESPAN * 8];
 
   /**
    * Track the index position where the next qualifier gets written.
    */
-  private int qualifierIndex = 0;
+  private int qualifier_index = 0;
 
   /**
    * Track the index position where the next value gets written.
    */
-  private int valueIndex = 0;
+  private int value_index = 0;
 
   /**
    * Track the base time for this batch of points.
    */
-  private long baseTime;
+  private long base_time;
 
   /**
    * Constructor.
@@ -101,7 +101,7 @@ final class BatchedDataPoints implements WritableDataPoints {
   public void setSeries(final String metric, final Map<String, String> tags) {
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     try {
-      rowKey = IncomingDataPoints.rowKeyTemplate(tsdb, metric, tags);
+      row_key = IncomingDataPoints.rowKeyTemplate(tsdb, metric, tags);
       reset();
     }
     catch (RuntimeException e) {
@@ -118,10 +118,10 @@ final class BatchedDataPoints implements WritableDataPoints {
    */
   private void reset() {
     size = 0;
-    qualifierIndex = 0;
-    valueIndex = 0;
-    baseTime = Long.MIN_VALUE;
-    lastTimestamp = Long.MIN_VALUE;
+    qualifier_index = 0;
+    value_index = 0;
+    base_time = Long.MIN_VALUE;
+    last_timestamp = Long.MIN_VALUE;
   }
 
   /**
@@ -132,9 +132,9 @@ final class BatchedDataPoints implements WritableDataPoints {
    */
   @Override
   public Deferred<Object> persist() {
-    final byte[] q = Arrays.copyOfRange(batchedQualifier, 0, qualifierIndex);
-    final byte[] v = Arrays.copyOfRange(batchedValue, 0, valueIndex);
-    final byte[] r = Arrays.copyOfRange(rowKey, 0, rowKey.length);
+    final byte[] q = Arrays.copyOfRange(batched_qualifier, 0, qualifier_index);
+    final byte[] v = Arrays.copyOfRange(batched_value, 0, value_index);
+    final byte[] r = Arrays.copyOfRange(row_key, 0, row_key.length);
     reset();
     return tsdb.put(r, q, v);
   }
@@ -198,13 +198,13 @@ final class BatchedDataPoints implements WritableDataPoints {
     }
 
     // always maintain lastTimestamp in milliseconds
-    if ((ms_timestamp ? timestamp : timestamp * 1000) <= lastTimestamp) {
+    if ((ms_timestamp ? timestamp : timestamp * 1000) <= last_timestamp) {
       throw new IllegalArgumentException("New timestamp=" + timestamp
-          + " is less than or equal to previous=" + lastTimestamp
+          + " is less than or equal to previous=" + last_timestamp
           + " when trying to add value=" + Arrays.toString(value)
           + " to " + this);
     }
-    lastTimestamp = (ms_timestamp ? timestamp : timestamp * 1000);
+    last_timestamp = (ms_timestamp ? timestamp : timestamp * 1000);
 
     long incomingBaseTime;
     if (ms_timestamp) {
@@ -219,25 +219,25 @@ final class BatchedDataPoints implements WritableDataPoints {
     /**
      * First time we add a point initialize the rows timestamp.
      */
-    if (baseTime == Long.MIN_VALUE) {
-      baseTime = incomingBaseTime;
-      Bytes.setInt(rowKey, (int) baseTime, tsdb.metrics.width());
+    if (base_time == Long.MIN_VALUE) {
+      base_time = incomingBaseTime;
+      Bytes.setInt(row_key, (int) base_time, tsdb.metrics.width());
     }
 
-    if (incomingBaseTime - baseTime >= Const.MAX_TIMESPAN) {
+    if (incomingBaseTime - base_time >= Const.MAX_TIMESPAN) {
       throw new IllegalDataException(
           "The timestamp is beyond the boundary of this batch of data points");
     }
-    if (incomingBaseTime < baseTime) {
+    if (incomingBaseTime < base_time) {
       throw new IllegalDataException(
           "The timestamp is prior to the boundary of this batch of data points");
     }
 
     // Java is so stupid with its auto-promotion of int to float.
-    final byte[] newQualifier = Internal.buildQualifier(timestamp, flags);
+    final byte[] new_qualifier = Internal.buildQualifier(timestamp, flags);
 
     // compact this data point with the previously compacted data points.
-    append(newQualifier, value);
+    append(new_qualifier, value);
     size++;
 
     /**
@@ -254,13 +254,14 @@ final class BatchedDataPoints implements WritableDataPoints {
    * @param next_qualifier The next qualifier to use for it's length
    * @param next_value The next value to use for it's length
    */
-  private void ensureCapacity(final byte[] nextQualifier, final byte[] nextValue) {
-    if (qualifierIndex + nextQualifier.length >= batchedQualifier.length) {
-      batchedQualifier = Arrays.copyOf(batchedQualifier,
-          batchedQualifier.length * 2);
+  private void ensureCapacity(final byte[] next_qualifier, 
+      final byte[] next_value) {
+    if (qualifier_index + next_qualifier.length >= batched_qualifier.length) {
+      batched_qualifier = Arrays.copyOf(batched_qualifier,
+          batched_qualifier.length * 2);
     }
-    if (valueIndex + nextValue.length >= batchedValue.length) {
-      batchedValue = Arrays.copyOf(batchedValue, batchedValue.length * 2);
+    if (value_index + next_value.length >= batched_value.length) {
+      batched_value = Arrays.copyOf(batched_value, batched_value.length * 2);
     }
   }
 
@@ -269,17 +270,17 @@ final class BatchedDataPoints implements WritableDataPoints {
    * @param next_qualifier The next qualifier to append
    * @param next_value The next value to append
    */
-  private void append(final byte[] nextQualifier, final byte[] nextValue) {
-    ensureCapacity(nextQualifier, nextValue);
+  private void append(final byte[] next_qualifier, final byte[] next_value) {
+    ensureCapacity(next_qualifier, next_value);
 
     // Now let's simply concatenate all the values together.
-    System.arraycopy(nextValue, 0, batchedValue, valueIndex, nextValue.length);
-    valueIndex += nextValue.length;
+    System.arraycopy(next_value, 0, batched_value, value_index, next_value.length);
+    value_index += next_value.length;
 
     // Now let's concatenate all the qualifiers together.
-    System.arraycopy(nextQualifier, 0, batchedQualifier, qualifierIndex, 
-        nextQualifier.length);
-    qualifierIndex += nextQualifier.length;
+    System.arraycopy(next_qualifier, 0, batched_qualifier, qualifier_index, 
+        next_qualifier.length);
+    qualifier_index += next_qualifier.length;
   }
 
   @Override
@@ -297,10 +298,10 @@ final class BatchedDataPoints implements WritableDataPoints {
 
   @Override
   public Deferred<String> metricNameAsync() {
-    if (rowKey == null) {
+    if (row_key == null) {
       throw new IllegalStateException("Instance was not properly constructed!");
     }
-    final byte[] id = Arrays.copyOfRange(rowKey, 0, tsdb.metrics.width());
+    final byte[] id = Arrays.copyOfRange(row_key, 0, tsdb.metrics.width());
     return tsdb.metrics.getNameAsync(id);
   }
 
@@ -319,7 +320,7 @@ final class BatchedDataPoints implements WritableDataPoints {
 
   @Override
   public Deferred<Map<String, String>> getTagsAsync() {
-    return Tags.getTagsAsync(tsdb, rowKey);
+    return Tags.getTagsAsync(tsdb, row_key);
   }
 
   @Override
@@ -385,20 +386,20 @@ final class BatchedDataPoints implements WritableDataPoints {
   public long timestamp(final int i) {
     checkIndex(i);
     // once fixed, use the proper Internal.getTimestampFromQualifier() method
-    return baseTime + (delta(batchedQualifier[i]) & 0xFFFF);
+    return base_time + (delta(batched_qualifier[i]) & 0xFFFF);
   }
 
   @Override
   public boolean isInteger(final int i) {
     checkIndex(i);
-    return (batchedQualifier[i] & Const.FLAG_FLOAT) == 0x0;
+    return (batched_qualifier[i] & Const.FLAG_FLOAT) == 0x0;
   }
 
   @Override
   public long longValue(final int i) {
     // Don't call checkIndex(i) because isInteger(i) already calls it.
     if (isInteger(i)) {
-      return batchedValue[i];
+      return batched_value[i];
     }
     throw new ClassCastException("value #" + i + " is not a long in " + this);
   }
@@ -407,7 +408,7 @@ final class BatchedDataPoints implements WritableDataPoints {
   public double doubleValue(final int i) {
     // Don't call checkIndex(i) because isInteger(i) already calls it.
     if (!isInteger(i)) {
-      return Float.intBitsToFloat((int) batchedValue[i]);
+      return Float.intBitsToFloat((int) batched_value[i]);
     }
     throw new ClassCastException("value #" + i + " is not a float in " + this);
   }
@@ -421,18 +422,18 @@ final class BatchedDataPoints implements WritableDataPoints {
     // length of the final string based on the row key and number of elements.
     final String metric = metricName();
     final StringBuilder buf = new StringBuilder(80 + metric.length()
-        + rowKey.length * 4 + size * 16);
+        + row_key.length * 4 + size * 16);
     buf.append("BatchedDataPoints(")
-        .append(rowKey == null ? "<null>" : Arrays.toString(rowKey))
+        .append(row_key == null ? "<null>" : Arrays.toString(row_key))
         .append(" (metric=")
         .append(metric)
         .append("), base_time=")
-        .append(baseTime)
+        .append(base_time)
         .append(" (")
-        .append(baseTime > 0 ? new Date(baseTime * 1000) : "no date")
+        .append(base_time > 0 ? new Date(base_time * 1000) : "no date")
         .append("), [");
     for (short i = 0; i < size; i++) {
-      buf.append('+').append(delta(batchedQualifier[i]));
+      buf.append('+').append(delta(batched_qualifier[i]));
       if (isInteger(i)) {
         buf.append(":long(").append(longValue(i));
       }
