@@ -14,7 +14,6 @@ package net.opentsdb.tree;
 
 import static net.opentsdb.uid.UniqueIdType.*;
 import static org.junit.Assert.*;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;

@@ -115,28 +115,28 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           if (show_details) {
             details.add(this.getHttpDetails("Metric name was empty", dp));
           }
-          LOG.warn("Metric name was empty: " + dp);
+          LOG.warn("Metric name was empty: {}", dp);
           continue;
         }
         if (dp.getTimestamp() <= 0) {
           if (show_details) {
             details.add(this.getHttpDetails("Invalid timestamp", dp));
           }
-          LOG.warn("Invalid timestamp: " + dp);
+          LOG.warn("Invalid timestamp: {}", dp);
           continue;
         }
         if (dp.getValue() == null || dp.getValue().isEmpty()) {
           if (show_details) {
             details.add(this.getHttpDetails("Empty value", dp));
           }
-          LOG.warn("Empty value: " + dp);
+          LOG.warn("Empty value: {}", dp);
           continue;
         }
         if (dp.getTags() == null || dp.getTags().size() < 1) {
           if (show_details) {
             details.add(this.getHttpDetails("Missing tags", dp));
           }
-          LOG.warn("Missing tags: " + dp);
+          LOG.warn("Missing tags: {}", dp);
           continue;
         }
         if (Tags.looksLikeInteger(dp.getValue())) {
@@ -152,19 +152,19 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           details.add(this.getHttpDetails("Unable to parse value to a number", 
               dp));
         }
-        LOG.warn("Unable to parse value to a number: " + dp);
+        LOG.warn("Unable to parse value to a number: {}", dp);
         invalid_values.incrementAndGet();
       } catch (IllegalArgumentException iae) {
         if (show_details) {
           details.add(this.getHttpDetails(iae.getMessage(), dp));
         }
-        LOG.warn(iae.getMessage() + ": " + dp);
+        LOG.warn("{}: {}", iae.getMessage(), dp);
         illegal_arguments.incrementAndGet();
       } catch (NoSuchUniqueName nsu) {
         if (show_details) {
           details.add(this.getHttpDetails("Unknown metric", dp));
         }
-        LOG.warn("Unknown metric: " + dp);
+        LOG.warn("Unknown metric: {}", dp);
         unknown_metrics.incrementAndGet();
       }
     }

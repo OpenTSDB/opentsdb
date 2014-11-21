@@ -294,10 +294,10 @@ public class HBaseStore implements TsdbStore {
 
   /**
    * Attempts to mark an Annotation object for deletion. Note that if the
-   * annoation does not exist in storage, this delete call will not throw an
+   * annotation does not exist in storage, this delete call will not throw an
    * error.
    *
-   * @param annotation
+   * @param annotation The annotation to be deleted.
    * @return A meaningless Deferred for the caller to wait on until the call is
    * complete. The value may be null.
    */
@@ -344,7 +344,8 @@ public class HBaseStore implements TsdbStore {
 
   @Override
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    final ArrayList<Deferred<Object>> checks = new ArrayList<Deferred<Object>>(4);
+    final ArrayList<Deferred<Object>> checks
+            = new ArrayList<Deferred<Object>>(4);
     checks.add(client.ensureTableExists(data_table_name));
     checks.add(client.ensureTableExists(uid_table_name));
 
@@ -656,10 +657,8 @@ public class HBaseStore implements TsdbStore {
                   qualifier.indexOf("_meta")));
         }
 
-        UIDMeta return_meta = UIDMeta.buildFromJSON(cell.get().value(),
+        return UIDMeta.buildFromJSON(cell.get().value(),
                 effective_type, uid, name);
-
-        return return_meta;
       }
     }
 
@@ -1766,7 +1765,7 @@ public class HBaseStore implements TsdbStore {
       @Override
       public Deferred<Boolean> call(final Boolean success) throws Exception {
         if (success) {
-          return Deferred.fromResult(success);
+          return Deferred.fromResult(true);
         }
 
         /**
@@ -1919,8 +1918,9 @@ public class HBaseStore implements TsdbStore {
           ex = ex.getCause();
         }
         if (ex.getClass().equals(NoSuchUniqueId.class)) {
-          LOG.debug("Invalid UID for leaf: " + Branch.idToString(qualifier) +
-                  " in branch: " + Branch.idToString(branch_id), ex);
+          LOG.debug("Invalid UID for leaf: {} in branch: {}",
+                  Branch.idToString(qualifier),
+                  Branch.idToString(branch_id), ex);
         } else {
           throw (Exception)ex;
         }
@@ -2120,7 +2120,7 @@ public class HBaseStore implements TsdbStore {
     }
 
     if (!has_changes) {
-      LOG.trace(this + " does not have changes, skipping sync to storage");
+      LOG.trace("{} does not have changes, skipping sync to storage", this);
       throw new IllegalStateException("No changes detected in the rule");
     }
 
@@ -2148,7 +2148,7 @@ public class HBaseStore implements TsdbStore {
           stored_rule = local_rule;
         } else {
           if (!stored_rule.copyChanges(local_rule, overwrite)) {
-            LOG.debug(this + " does not have changes, skipping sync to storage");
+            LOG.debug("{} does not have changes, skipping sync to storage", this);
             throw new IllegalStateException("No changes detected in the rule");
           }
         }
@@ -2206,14 +2206,13 @@ public class HBaseStore implements TsdbStore {
    * branches. It uses a row key regex filter to match any rows starting with
    * the given branch and another INT_WIDTH bytes deep. Deeper branches are
    * ignored.
-   * @param branch_id ID of the branch to fetch
-   * @return An HBase scanner ready for scanning
+   * @param branch_id ID of the branch to fetch.
+   * @return An HBase scanner ready for scanning.
    */
   private Scanner setupBranchScanner(final byte[] branch_id) {
-    final byte[] start = branch_id;
     final byte[] end = Arrays.copyOf(branch_id, branch_id.length);
     final Scanner scanner = client.newScanner(tree_table_name);
-    scanner.setStartKey(start);
+    scanner.setStartKey(branch_id);
 
     // increment the tree ID so we scan the whole tree
     byte[] tree_id = new byte[Const.INT_WIDTH];
@@ -2237,10 +2236,10 @@ public class HBaseStore implements TsdbStore {
     // branch
     // "^\\Q\000\001\001\002\003\004\\E(?:.{4})$"
 
-    final StringBuilder buf = new StringBuilder((start.length * 6) + 20);
+    final StringBuilder buf = new StringBuilder((branch_id.length * 6) + 20);
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
             + "^\\Q");
-    for (final byte b : start) {
+    for (final byte b : branch_id) {
       buf.append((char) (b & 0xFF));
     }
     buf.append("\\E(?:.{").append(Const.INT_WIDTH).append("})?$");

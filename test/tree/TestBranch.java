@@ -12,54 +12,25 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import static net.opentsdb.uid.UniqueIdType.*;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.powermock.api.mockito.PowerMockito.mock;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.TreeMap;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-                  "ch.qos.*", "org.slf4j.*",
-                  "com.sum.*", "org.xml.*"})
-@PrepareForTest({KeyValue.class, Scanner.class})
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+
+
 public final class TestBranch {
-  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
-  MemoryStore tsdb_store;
-  private TSDB tsdb;
   private Tree tree = TestTree.buildTestTree();
-  final static private Method toStorageJson;
 
-  static {
-    try {
-      toStorageJson = Branch.class.getDeclaredMethod("toStorageJson");
-      toStorageJson.setAccessible(true);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed in static initializer", e);
-    }
-  }
 
   @Test
   public void copyConstructor() {
@@ -97,7 +68,7 @@ public final class TestBranch {
   @Test
   public void equalsNull() {
     final Branch branch = buildTestBranch(tree);
-    assertFalse(branch.equals(null));
+    assertFalse(branch == null);
   }
   
   @Test
@@ -152,12 +123,19 @@ public final class TestBranch {
   
   @Test
   public void addChildNoLocalBranches() throws Exception {
-    final Branch branch = buildTestBranch(tree);
+    final TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
+    final Branch branch = new Branch(tree.getTreeId());
+    branch.setDisplayName("ROOT");
+    root_path.put(0, "ROOT");
+    branch.prependParentPath(root_path);
+
+    Leaf leaf = new Leaf("Alarms", "ABCD");
+    branch.addLeaf(leaf, tree);
+
+    leaf = new Leaf("Employees in Office", "EF00");
+    branch.addLeaf(leaf, tree);
+
     final Branch child = new Branch(tree.getTreeId());
-    Field branches = Branch.class.getDeclaredField("branches");
-    branches.setAccessible(true);
-    branches.set(branch, null);
-    branches.setAccessible(false);
     assertTrue(branch.addChild(child));
     assertEquals(1, branch.getBranches().size());
     assertEquals(2, branch.getLeaves().size());
@@ -249,152 +227,6 @@ public final class TestBranch {
   public void compileBranchIdInvalidId() {
     final Branch branch = new Branch(0);
     branch.compileBranchId();
-  }
-
-  @Test
-  public void fetchBranch() throws Exception {
-    setupStorage();
-
-    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
-    tsdb_store.allocateUID("sys.cpu.1", new byte[]{0, 0, 2}, METRIC);
-    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
-    tsdb_store.allocateUID("owner", new byte[]{0, 0, 2}, TAGK);
-    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
-    tsdb_store.allocateUID("ops", new byte[]{0, 0, 2}, TAGV);
-    
-    final Branch branch = tsdb.fetchBranch(
-            Branch.stringToId("00010001BECD000181A8"),
-            true).joinUninterruptibly();
-    assertNotNull(branch);
-    assertEquals(1, branch.getTreeId());
-    assertEquals("cpu", branch.getDisplayName());
-    assertEquals("00010001BECD000181A8", branch.getBranchId());
-    assertEquals(1, branch.getBranches().size());
-    assertEquals(2, branch.getLeaves().size());
-  }
-  
-  @Test
-  public void fetchBranchNSU() throws Exception {
-    setupStorage();
-
-    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
-    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
-    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
-    
-    final Branch branch = tsdb.fetchBranch(
-            Branch.stringToId("00010001BECD000181A8"),
-            true).joinUninterruptibly();
-    assertNotNull(branch);
-    assertEquals(1, branch.getTreeId());
-    assertEquals("cpu", branch.getDisplayName());
-    assertEquals("00010001BECD000181A8", branch.getBranchId());
-    assertEquals(1, branch.getBranches().size());
-    assertEquals(1, branch.getLeaves().size());
-  }
-  
-  @Test
-  public void fetchBranchNotFound() throws Exception {
-    setupStorage();
-    final Branch branch = tsdb.fetchBranch(
-        Branch.stringToId("00010001BECD000181A0"),
-            false).joinUninterruptibly();
-    assertNull(branch);
-  }
-  
-  @Test
-  public void fetchBranchOnly() throws Exception {
-    setupStorage();
-    final Branch branch = tsdb.fetchBranchOnly(
-        Branch.stringToId("00010001BECD000181A8")).joinUninterruptibly();
-    assertNotNull(branch);
-    assertEquals("cpu", branch.getDisplayName());
-    assertNull(branch.getLeaves());
-    assertNull(branch.getBranches());
-  }
-
-  @Test
-  public void fetchBranchOnlyNotFound() throws Exception {
-    setupStorage();
-    final Branch branch = tsdb.fetchBranchOnly(
-        Branch.stringToId("00010001BECD000181A0")).joinUninterruptibly();
-    assertNull(branch);
-  }
-  
-  @Test
-  public void storeBranch() throws Exception {
-    setupStorage();
-    final Branch branch = buildTestBranch(tree);
-    tsdb.storeBranch(tree, branch, true);
-    assertEquals(3, tsdb_store.numRows());
-    assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
-    final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-        new byte[] { 0, 1 }, "branch".getBytes(Const.CHARSET_ASCII)),
-        Branch.class);
-    parsed.setTreeId(1);
-    assertEquals("ROOT", parsed.getDisplayName());
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void storeBranchMissingTreeID() throws Exception {
-    setupStorage();
-    final Branch branch = new Branch();
-    tsdb.storeBranch(tree, branch, false);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void storeBranchTreeID0() throws Exception {
-    setupStorage();
-    final Branch branch = buildTestBranch(tree);
-    branch.setTreeId(0);
-    tsdb.storeBranch(tree, branch, false);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void storeBranchTreeID65536() throws Exception {
-    setupStorage();
-    final Branch branch = buildTestBranch(tree);
-    branch.setTreeId(65536);
-    tsdb.storeBranch(tree ,branch, false);
-  }
-
-  @Test
-  public void storeBranchExistingLeaf() throws Exception {
-    setupStorage();
-    final Branch branch = buildTestBranch(tree);
-    Leaf leaf = new Leaf("Alarms", "ABCD");
-    byte[] qualifier = leaf.columnQualifier();
-    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, leaf.getStorageJSON());
-
-    tsdb.storeBranch(tree, branch, true);
-    assertEquals(3, tsdb_store.numRows());
-    assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
-    assertNull(tree.getCollisions());
-    final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-        new byte[] { 0, 1 }, "branch".getBytes(Const.CHARSET_ASCII)),
-        Branch.class);
-    parsed.setTreeId(1);
-    assertEquals("ROOT", parsed.getDisplayName());
-  }
-  
-  @Test
-  public void storeBranchCollision() throws Exception {
-    setupStorage();
-    final Branch branch = buildTestBranch(tree);
-    Leaf leaf = new Leaf("Alarms", "0101");
-    byte[] qualifier = leaf.columnQualifier();
-    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, leaf.getStorageJSON());
-
-    tsdb.storeBranch(tree, branch, true);
-    assertEquals(3, tsdb_store.numRows());
-    assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1}));
-    assertEquals(1, tree.getCollisions().size());
-    final Branch parsed = JSON.parseToObject(tsdb_store.getColumn(
-        new byte[] { 0, 1 }, "branch".getBytes(Const.CHARSET_ASCII)),
-        Branch.class);
-    parsed.setTreeId(1);
-    assertEquals("ROOT", parsed.getDisplayName());
   }
   
   @Test
@@ -490,7 +322,81 @@ public final class TestBranch {
   public void prependParentPathNull() throws Exception {
     new Branch().prependParentPath(null);
   }
-  
+
+  @Test
+  public void testToStorageJson() {
+    Branch branch = buildTestBranch(tree);
+    byte[] answer = {123,34,112,97,116,104,34,58,123,34,48,34,58,34,82,
+            79,79,84,34,125,44,34,100,105,115,112,108,97,121,78,97,109,
+            101,34,58,34,82,79,79,84,34,125};
+    assertArrayEquals(answer, branch.toStorageJson());
+  }
+
+  @Test
+  public void testGetTreeId() {
+    Branch branch = buildTestBranch(tree);
+    assertEquals(1, branch.getTreeId());
+  }
+
+  @Test
+  public void testGetDisplayName() {
+    Branch branch = buildTestBranch(tree);
+    assertEquals("ROOT", branch.getDisplayName());
+  }
+
+  @Test
+  public void testGetLeaves() {
+    Branch branch = buildTestBranch(tree);
+    assertEquals(2, branch.getLeaves().size());
+  }
+
+  @Test
+  public void testGetBranches() {
+    Branch branch = buildTestBranch(tree);
+    assertEquals(2, branch.getBranches().size());
+  }
+
+  @Test
+  public void testSetTreeId() {
+    Branch branch = buildTestBranch(tree);
+
+    assertEquals(1, branch.getTreeId());
+    branch.setTreeId(2);
+    assertEquals(2, branch.getTreeId());
+  }
+
+  @Test
+  public void testSetDisplayName() {
+    Branch branch = buildTestBranch(tree);
+    assertEquals("ROOT", branch.getDisplayName());
+    branch.setDisplayName("ROOT2");
+    assertEquals("ROOT2", branch.getDisplayName());
+  }
+
+  @Test
+  public void testSetPath() {
+    Branch branch = buildTestBranch(tree);
+    assertEquals(1, branch.getPath().size());
+    assertEquals("ROOT", branch.getPath().get(0));
+  }
+
+  @Test
+  public void testAddLeaf() {
+    final TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
+    final Branch root = new Branch(tree.getTreeId());
+    root.setDisplayName("ROOT");
+    root_path.put(0, "ROOT");
+    root.prependParentPath(root_path);
+
+    assertNull(root.getLeaves());
+
+    Leaf leaf = new Leaf("Alarms", "ABCD");
+    root.addLeaf(leaf, tree);
+
+    assertNotNull(root.getLeaves());
+    assertEquals(1, root.getLeaves().size());
+  }
+
   /**
    * Helper to build a default branch for testing
    * @return A branch with some child branches and leaves
@@ -501,12 +407,12 @@ public final class TestBranch {
     root.setDisplayName("ROOT");
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    
+
     Branch child = new Branch(1);
     child.prependParentPath(root_path);
     child.setDisplayName("System");
     root.addChild(child);
-    
+
     child = new Branch(tree.getTreeId());
     child.prependParentPath(root_path);
     child.setDisplayName("Network");
@@ -514,55 +420,10 @@ public final class TestBranch {
 
     Leaf leaf = new Leaf("Alarms", "ABCD");
     root.addLeaf(leaf, tree);
-    
+
     leaf = new Leaf("Employees in Office", "EF00");
     root.addLeaf(leaf, tree);
 
     return root;
-  }
-  
-  /**
-   * Mocks classes for testing the storage calls
-   */
-  private void setupStorage() throws Exception {
-    final Config config = new Config(false);
-
-    tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
-
-    Branch branch = new Branch(1);
-    TreeMap<Integer, String> path = new TreeMap<Integer, String>();
-    path.put(0, "ROOT");
-    path.put(1, "sys");
-    path.put(2, "cpu");
-    branch.prependParentPath(path);
-    branch.setDisplayName("cpu");
-    this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      "branch".getBytes(Const.CHARSET_ASCII),
-      (byte[]) toStorageJson.invoke(branch));
-    
-    Leaf leaf = new Leaf("user", "000001000001000001");
-    byte[] qualifier = leaf.columnQualifier();
-    this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, leaf.getStorageJSON());
-    
-    leaf = new Leaf("nice", "000002000002000002");
-    qualifier = leaf.columnQualifier();
-    this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, leaf.getStorageJSON());
-    
-    // child branch
-    branch = new Branch(1);
-    path.put(3, "mboard");
-    branch.prependParentPath(path);
-    branch.setDisplayName("mboard");
-    this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      "branch".getBytes(Const.CHARSET_ASCII),
-      (byte[]) toStorageJson.invoke(branch));
-    
-    leaf = new Leaf("Asus", "000003000003000003");
-    qualifier = leaf.columnQualifier();
-    this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, leaf.getStorageJSON());
   }
 }

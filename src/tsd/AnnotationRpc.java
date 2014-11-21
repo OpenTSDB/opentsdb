@@ -221,7 +221,7 @@ final class AnnotationRpc implements HttpRpc {
             deferred.addCallbackDeferring(new IndexCB());
         callbacks.add(indexer);
       } catch (IllegalStateException e) {
-        LOG.info("No changes for annotation: " + note);
+        LOG.info("No changes for annotation: {}", note);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
             e.getMessage(), "Annotation error: " + note, e);

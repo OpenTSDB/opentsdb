@@ -227,8 +227,7 @@ public final class TreeBuilder {
           // something was wrong with the rule set that resulted in an empty
           // branch. Since this is likely a user error, log it instead of
           // throwing an exception
-          LOG.warn("Processed TSUID [" + meta + 
-              "] resulted in a null branch on tree: " + tree.getTreeId());
+          LOG.warn("Processed TSUID [{}] resulted in a null branch on tree: {}", meta, tree.getTreeId());
           
         } else if (!is_testing) {
           
@@ -240,7 +239,7 @@ public final class TreeBuilder {
           while (cb != null) {
             if (cb.getLeaves() != null || 
                 !processed_branches.containsKey(cb.getBranchId())) {
-              LOG.debug("Flushing branch to storage: " + cb);
+              LOG.debug("Flushing branch to storage: {}", cb);
 
               /**
                * Since we need to return a deferred group and we can't just
@@ -308,8 +307,8 @@ public final class TreeBuilder {
             }
           }
         }
-        
-        LOG.debug("Completed processing meta [" + meta + "] through tree: " + tree.getTreeId());
+
+        LOG.debug("Completed processing meta [{}] through tree: {}", meta, tree.getTreeId());
         return Deferred.group(storage_calls);
       }
     
@@ -330,12 +329,12 @@ public final class TreeBuilder {
       }
       
     }
-    
-    LOG.debug("Processing meta [" + meta + "] through tree: " + tree.getTreeId());
+
+    LOG.debug("Processing meta [{}] through tree: {}", meta, tree.getTreeId());
     if (root == null) {
       // if this is a new object or the root has been reset, we need to fetch
       // it from storage or initialize it
-      LOG.debug("Fetching root branch for tree: " + tree.getTreeId());
+      LOG.debug("Fetching root branch for tree: {}", tree.getTreeId());
       return loadOrInitializeRoot(tsdb, tree.getTreeId(), is_testing)
         .addCallbackDeferring(new LoadRootCB());
     } else {
@@ -381,7 +380,7 @@ public final class TreeBuilder {
       @Override
       public Deferred<Branch> call(final ArrayList<Boolean> storage_call) 
         throws Exception {
-        LOG.info("Initialized root branch for tree: " + tree_id);
+        LOG.info("Initialized root branch for tree: {}", tree_id);
         tree_roots.put(tree_id, root);
         return Deferred.fromResult(new Branch(root));
       }
@@ -420,11 +419,11 @@ public final class TreeBuilder {
     // if the root is already in cache, return it
     final Branch cached = tree_roots.get(tree_id);
     if (cached != null) {
-      LOG.debug("Loaded cached root for tree: " + tree_id);
+      LOG.debug("Loaded cached root for tree: {}", tree_id);
       return Deferred.fromResult(new Branch(cached));
     }
-    
-    LOG.debug("Loading or initializing root for tree: " + tree_id);
+
+    LOG.debug("Loading or initializing root for tree: {}", tree_id);
     return tsdb.fetchBranchOnly(Tree.idToBytes(tree_id))
       .addCallbackDeferring(new RootCB());
   }
@@ -471,7 +470,7 @@ public final class TreeBuilder {
           LOG.debug("No trees found to process meta through");
           return Deferred.fromResult(false);
         } else {
-          LOG.debug("Loaded [" + trees.size() + "] trees");
+          LOG.debug("Loaded [{}] trees", trees.size());
         }
         
         processed_trees = 
@@ -1069,8 +1068,7 @@ public final class TreeBuilder {
         // we can't match the {tag_name} token since the rule type is invalid
         // so we'll just blank it
         format = format.replace("{tag_name}", "");
-        LOG.warn("Display rule " + rule + 
-          " was of the wrong type to match on {tag_name}");
+        LOG.warn("Display rule {} was of the wrong type to match on {tag_name}", rule);
         if (test_messages != null) {
           test_messages.add("Display rule " + rule + 
               " was of the wrong type to match on {tag_name}");

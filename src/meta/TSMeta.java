@@ -583,11 +583,11 @@ public final class TSMeta {
           @Override
           public Deferred<Long> call(Boolean success) throws Exception {
             if (!success) {
-              LOG.warn("Unable to save metadata: " + meta);
+              LOG.warn("Unable to save metadata: {}", meta);
               return Deferred.fromResult(0L);
             }
-            
-            LOG.info("Successfullly created new TSUID entry for: " + meta);
+
+            LOG.info("Successfullly created new TSUID entry for: {}", meta);
             final Deferred<TSMeta> meta = getFromStorage(tsdb, tsuid)
               .addCallbackDeferring(
                 new LoadUIDs(tsdb, UniqueId.uidToString(tsuid)));
@@ -657,8 +657,7 @@ public final class TSMeta {
         }
         
         if (meta == null) {
-          LOG.warn("Found a counter TSMeta column without a meta for TSUID: " + 
-              UniqueId.uidToString(row.get(0).key()));
+          LOG.warn("Found a counter TSMeta column without a meta for TSUID: {}", UniqueId.uidToString(row.get(0).key()));
           return Deferred.fromResult(null);
         }
         

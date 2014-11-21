@@ -144,8 +144,8 @@ final class Fsck {
     final int workers = options.threads() > 0 ? options.threads() :
       Runtime.getRuntime().availableProcessors() * 2;
     final double quotient = (double)max_id / (double)workers;
-    LOG.info("Max metric ID is [" + max_id + "]");
-    LOG.info("Spooling up [" + workers + "] worker threads");
+    LOG.info("Max metric ID is [{}]", max_id);
+    LOG.info("Spooling up [{}] worker threads", workers);
     long index = 1;
     final Thread[] threads = new Thread[workers];
     for (int i = 0; i < workers; i++) {
@@ -162,13 +162,13 @@ final class Fsck {
     reporter.start();
     for (int i = 0; i < workers; i++) {
       threads[i].join();
-      LOG.info("Thread [" + i + "] Finished");
+      LOG.info("Thread [{}] Finished", i);
     }
     reporter.interrupt();
     
     logResults();
     final long duration = (System.currentTimeMillis() / 1000) - start_time;
-    LOG.info("Completed fsck in [" + duration + "] seconds");
+    LOG.info("Completed fsck in [{}] seconds", duration);
   }
   
   /**
@@ -194,7 +194,7 @@ final class Fsck {
     
     logResults();
     final long duration = (System.currentTimeMillis() / 1000) - start_time;
-    LOG.info("Completed fsck in [" + duration + "] seconds");
+    LOG.info("Completed fsck in [{}] seconds", duration);
   }
   
   /** @return The total number of errors detected during the run */
@@ -361,7 +361,7 @@ final class Fsck {
         // all qualifiers must be at least 2 bytes long, i.e. a single data point
         if (qual.length < 2) {
           unknown.getAndIncrement();
-          LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t" + kv);
+          LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t{}", kv);
           if (options.fix() && options.deleteUnknownColumns()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
             tsdb.getTsdbStore().delete(delete);
@@ -380,8 +380,7 @@ final class Fsck {
           // for now we'll consider it an error.
           if (qual.length != 3 && qual.length != 5) {
             unknown.getAndIncrement();
-            LOG.error("Unknown qualifier, must be 2, 3, 5 or an even number " +
-                "of bytes.\n\t" + kv);
+            LOG.error("Unknown qualifier, must be 2, 3, 5 or an even number of bytes.\n\t{}", kv);
             if (options.fix() && options.deleteUnknownColumns()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
               tsdb.getTsdbStore().delete(delete);
@@ -397,8 +396,7 @@ final class Fsck {
             annotations.getAndIncrement();
             continue;
           }
-          LOG.warn("Found an object possibly from a future version of OpenTSDB\n\t"
-              + kv);
+          LOG.warn("Found an object possibly from a future version of OpenTSDB\n\t{}", kv);
           future.getAndIncrement();
           continue;
         }
@@ -415,9 +413,7 @@ final class Fsck {
             // byte. Otherwise it could be a bad compaction and we'd need to 
             // toss it.
             bad_compacted_columns.getAndIncrement();
-            LOG.error("The last byte of a compacted should be 0 or 1. Either"
-                      + " this value is corrupted or it was written by a"
-                      + " future version of OpenTSDB.\n\t" + kv);
+            LOG.error("The last byte of a compacted should be 0 or 1. Either this value is corrupted or it was written by a future version of OpenTSDB.\n\t{}", kv);
             continue;
           }
           
@@ -451,8 +447,7 @@ final class Fsck {
             }
             
             if (Bytes.memcmp(recompacted_qualifier, kv.qualifier()) != 0) {
-              LOG.error("Compacted column was out of order or requires a "
-                  + "fixup: " + kv);
+              LOG.error("Compacted column was out of order or requires a fixup: {}", kv);
               fixable_compacted_columns.getAndIncrement();
             }
             compact_row = true;
@@ -502,7 +497,7 @@ final class Fsck {
     private boolean fsckKey(final byte[] key) throws Exception {
       if (key.length < key_prefix_length || 
           (key.length - key_prefix_length) % key_tags_length != 0) {
-        LOG.error("Invalid row key.\n\tKey: " + UniqueId.uidToString(key));
+        LOG.error("Invalid row key.\n\tKey: {}", UniqueId.uidToString(key));
         bad_key.getAndIncrement();
         
         if (options.fix() && options.deleteBadRows()) {
@@ -537,8 +532,7 @@ final class Fsck {
           Tags.resolveIdsAsync(tsdb,
                   UniqueId.getTagPairsFromTSUID(tsuid)).joinUninterruptibly();
         } catch (NoSuchUniqueId nsui) {
-          LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: "
-              + UniqueId.uidToString(key) + "\n\t" + nsui.getMessage());
+          LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: {}\n\t{}", UniqueId.uidToString(key), nsui.getMessage());
           orphans.getAndIncrement();
           
           if (options.fix() && options.deleteOrphans()) {
@@ -648,7 +642,7 @@ final class Fsck {
             }
           } else if (options.fix() && options.resolveDupes()) {
             // don't want this dp
-            LOG.error("Delete: " + dp.kv);
+            LOG.error("Delete: {}", dp.kv);
             if (!compact_row && options.fix() && options.resolveDupes() && 
                 !dp.compacted) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
@@ -745,10 +739,7 @@ final class Fsck {
         if (value[0] == -1 && value[1] == -1
             && value[2] == -1 && value[3] == -1 && qual.length == 2) {
           value_encoding.getAndIncrement();
-          LOG.error("Floating point value with 0xFF most significant"
-              + " bytes, probably caused by sign extension bug"
-              + " present in revisions [96908436..607256fc].\n"
-              + "\t" + dp.kv);
+          LOG.error("Floating point value with 0xFF most significant bytes, probably caused by sign extension bug present in revisions [96908436..607256fc].\n\t{}", dp.kv);
           if (options.fix()) {
             final float value_as_float =
                 Float.intBitsToFloat(Bytes.getInt(value, 4));
@@ -771,9 +762,7 @@ final class Fsck {
         } else if (value[0] != 0 || value[1] != 0
                    || value[2] != 0 || value[3] != 0) {
           // can't happen if it was compacted
-          LOG.error("Floating point value was marked as 4 bytes long but"
-              + " was actually 8 bytes long and the first four bytes were"
-              + " not zeroed\n\t" + dp);
+          LOG.error("Floating point value was marked as 4 bytes long but was actually 8 bytes long and the first four bytes were not zeroed\n\t{}", dp);
           bad_values.getAndIncrement();
           if (options.fix() && options.deleteBadValues() && !dp.compacted) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
@@ -781,8 +770,7 @@ final class Fsck {
             tsdb.getTsdbStore().delete(delete);
             bad_values_deleted.getAndIncrement();
           } else if (dp.compacted) {
-            LOG.error("The value was in a compacted column. This should "
-                + "not be possible\n\t" + dp);
+            LOG.error("The value was in a compacted column. This should not be possible\n\t{}", dp);
             bad_compacted_columns.getAndIncrement();
             return true;
           } else {
@@ -790,8 +778,7 @@ final class Fsck {
           }
         } else {
           // can't happen if it was compacted
-          LOG.warn("Floating point value was marked as 4 bytes long but"
-              + " was actually 8 bytes long\n\t" + dp.kv);
+          LOG.warn("Floating point value was marked as 4 bytes long but was actually 8 bytes long\n\t{}", dp.kv);
           value_encoding.getAndIncrement();
           if (options.fix() && !dp.compacted) {
             final float value_as_float =
@@ -816,8 +803,7 @@ final class Fsck {
         // could be a marked as a Double but actually encoded as a Float. BUT we
         // don't know that and can't parse it accurately so tank it
         bad_values.getAndIncrement();
-        LOG.error("This floating point value was marked as 8 bytes long but"
-                  + " was only " + value.length + " bytes.\n\t" + dp.kv);
+        LOG.error("This floating point value was marked as 8 bytes long but was only {} bytes.\n\t{}", value.length, dp.kv);
         if (options.fix() && options.deleteBadValues() && !dp.compacted) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
           tsdb.getTsdbStore().delete(delete);
@@ -831,9 +817,7 @@ final class Fsck {
         }
       } else if (value.length != 4 && value.length != 8) {
         bad_values.getAndIncrement();
-        LOG.error("This floating point value must be encoded either on"
-                  + " 4 or 8 bytes, but it's on " + value.length
-                  + " bytes.\n\t" + dp.kv);
+        LOG.error("This floating point value must be encoded either on 4 or 8 bytes, but it's on {} bytes.\n\t{}", value.length, dp.kv);
         if (options.fix() && options.deleteBadValues() && !dp.compacted) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
           tsdb.getTsdbStore().delete(delete);
@@ -873,8 +857,7 @@ final class Fsck {
       if (value.length != length) {
         // can't happen in a compacted column
         bad_values.getAndIncrement();
-        LOG.error("The integer value is " + value.length + " bytes long but "
-            + "should be " + length + " bytes.\n\t" + dp.kv);
+        LOG.error("The integer value is {} bytes long but should be {} bytes.\n\t{}", value.length, length, dp.kv);
         if (options.fix() && options.deleteBadValues()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
           tsdb.getTsdbStore().delete(delete);
@@ -1046,8 +1029,7 @@ final class Fsck {
           processed_rows = (processed_rows - (processed_rows % report_rows));
           if (processed_rows - last_progress >= report_rows) {
             last_progress = processed_rows;
-            LOG.info("Processed " + processed_rows + " rows, " + 
-                valid_datapoints.get() + " valid datapoints");   
+            LOG.info("Processed {} rows, {} valid datapoints", processed_rows, valid_datapoints.get());
           }
           Thread.sleep(1000);
         } catch (InterruptedException e) {
@@ -1077,33 +1059,31 @@ final class Fsck {
    * Helper to dump the atomic counters to the log after a completed FSCK
    */
   private void logResults() {
-    LOG.info("Key Values Processed: " + kvs_processed.get());
-    LOG.info("Rows Processed: " + rows_processed.get());
-    LOG.info("Valid Datapoints: " + valid_datapoints.get());
-    LOG.info("Annotations: " + annotations.get());
-    LOG.info("Invalid Row Keys Found: " + bad_key.get());
-    LOG.info("Invalid Rows Deleted: " + bad_key_fixed.get());
-    LOG.info("Duplicate Datapoints: " + duplicates.get());
-    LOG.info("Duplicate Datapoints Resolved: " + duplicates_fixed.get());
-    LOG.info("Orphaned UID Rows: " + orphans.get());
-    LOG.info("Orphaned UID Rows Deleted: " + orphans_fixed.get());
-    LOG.info("Possible Future Objects: " + future.get());
-    LOG.info("Unknown Objects: " + unknown.get());
-    LOG.info("Unknown Objects Deleted: " + unknown_fixed.get());
-    LOG.info("Unparseable Datapoint Values: " + bad_values.get());
-    LOG.info("Unparseable Datapoint Values Deleted: " + bad_values_deleted.get());
-    LOG.info("Improperly Encoded Floating Point Values: " + value_encoding.get());
-    LOG.info("Improperly Encoded Floating Point Values Fixed: " + 
-        value_encoding_fixed.get());
-    LOG.info("Unparseable Compacted Columns: " + bad_compacted_columns.get());
-    LOG.info("Unparseable Compacted Columns Deleted: " + 
-        bad_compacted_columns_deleted.get());
-    LOG.info("Datapoints Qualified for VLE : " + vle.get());
-    LOG.info("Datapoints Compressed with VLE: " + vle_fixed.get());
-    LOG.info("Bytes Saved with VLE: " + vle_bytes.get());  
-    LOG.info("Total Errors: " + totalErrors());
-    LOG.info("Total Correctable Errors: " + correctable());
-    LOG.info("Total Errors Fixed: " + totalFixed());
+    LOG.info("Key Values Processed: {}", kvs_processed.get());
+    LOG.info("Rows Processed: {}", rows_processed.get());
+    LOG.info("Valid Datapoints: {}", valid_datapoints.get());
+    LOG.info("Annotations: {}", annotations.get());
+    LOG.info("Invalid Row Keys Found: {}", bad_key.get());
+    LOG.info("Invalid Rows Deleted: {}", bad_key_fixed.get());
+    LOG.info("Duplicate Datapoints: {}", duplicates.get());
+    LOG.info("Duplicate Datapoints Resolved: {}", duplicates_fixed.get());
+    LOG.info("Orphaned UID Rows: {}", orphans.get());
+    LOG.info("Orphaned UID Rows Deleted: {}", orphans_fixed.get());
+    LOG.info("Possible Future Objects: {}", future.get());
+    LOG.info("Unknown Objects: {}", unknown.get());
+    LOG.info("Unknown Objects Deleted: {}", unknown_fixed.get());
+    LOG.info("Unparseable Datapoint Values: {}", bad_values.get());
+    LOG.info("Unparseable Datapoint Values Deleted: {}", bad_values_deleted.get());
+    LOG.info("Improperly Encoded Floating Point Values: {}", value_encoding.get());
+    LOG.info("Improperly Encoded Floating Point Values Fixed: {}", value_encoding_fixed.get());
+    LOG.info("Unparseable Compacted Columns: {}", bad_compacted_columns.get());
+    LOG.info("Unparseable Compacted Columns Deleted: {}", bad_compacted_columns_deleted.get());
+    LOG.info("Datapoints Qualified for VLE : {}", vle.get());
+    LOG.info("Datapoints Compressed with VLE: {}", vle_fixed.get());
+    LOG.info("Bytes Saved with VLE: {}", vle_bytes.get());
+    LOG.info("Total Errors: {}", totalErrors());
+    LOG.info("Total Correctable Errors: {}", correctable());
+    LOG.info("Total Errors Fixed: {}", totalFixed());
   }
   
   /**

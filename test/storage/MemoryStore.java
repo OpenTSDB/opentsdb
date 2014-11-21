@@ -34,6 +34,7 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
 import org.hbase.async.*;
 import org.hbase.async.Scanner;
 import org.mockito.Matchers;
@@ -84,11 +85,15 @@ public class MemoryStore implements TsdbStore {
   private int TREE_MAX_ID = 1;
 
   private final Map<Integer, Tree> tree_table;
+                    //ID       display_name
+  private final Table<Integer, String, Branch> branch_table;
+                   //branch ID  tsuid
+  private final Table<Pair<Integer, String>, String, Leaf> leaf_table;
   private final Table<String, String, byte[]> data_table;
   private final Table<Long, String, byte[]> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
-  private final Table<Integer, String, byte[]> leaf_table;
+  //private final Table<Integer, String, byte[]> leaf_table;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
@@ -105,13 +110,15 @@ public class MemoryStore implements TsdbStore {
 
   public MemoryStore() {
     tree_table = newHashMap();
+    branch_table = HashBasedTable.create();
+    leaf_table = HashBasedTable.create();
     data_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
     annotation_table = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
 
-    leaf_table = HashBasedTable.create();
+    //leaf_table = HashBasedTable.create();
   }
 
   /**
@@ -1050,27 +1057,103 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
                                      final Tree tree) {
-    throw new UnsupportedOperationException("Not implemented yet");
+
+    if (!leaf_table.contains(branch.getTreeId(), leaf.getTsuid())) {
+      leaf_table.put(
+              new Pair<Integer, String>(branch.getTreeId(), branch.getDisplayName()),
+              leaf.getTsuid(), leaf);
+      return Deferred.fromResult(true);
+    } else {
+      Leaf existing_leaf = leaf_table.get(branch.getTreeId(), leaf.getTsuid());
+      if (existing_leaf == null)
+        return Deferred.fromResult(false);
+      if (existing_leaf.getTsuid().equals(leaf.getTsuid()))
+        return Deferred.fromResult(true);
+      tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());
+      return Deferred.fromResult(false);
+    }
   }
 
   @Override
-  public Deferred<ArrayList<Boolean>> storeBranch(Tree tree, Branch branch,
-                                                  boolean store_leaves) {
-    /*
-    * This method in lack of something better will return an empty map.
-    * Later this must be solved.
-    */
-    return Deferred.fromResult(new ArrayList<Boolean>());
+  public Deferred<ArrayList<Boolean>> storeBranch(final Tree tree,
+                                                  final Branch branch,
+                                                  final boolean store_leaves) {
+
+    final ArrayList<Deferred<Boolean>> storage_results =
+            new ArrayList<Deferred<Boolean>>(branch.getLeaves() != null
+                    ? branch.getLeaves().size() + 1 : 1);
+    if (branch_table.contains(branch.getTreeId(), branch.getDisplayName())) {
+      storage_results.add(Deferred.fromResult(false));
+    } else {
+      branch_table.put(branch.getTreeId(), branch.getDisplayName(), branch);
+      storage_results.add(Deferred.fromResult(true));
+    }
+    if (store_leaves && branch.getLeaves()!= null) {
+      for (final Leaf leaf : branch.getLeaves()) {
+        storage_results.add(storeLeaf(leaf, branch, tree));
+      }
+    }
+    return Deferred.group(storage_results);
   }
 
   @Override
   public Deferred<Branch> fetchBranchOnly(byte[] branch_id) {
-    throw new UnsupportedOperationException("Not implemented yet");
+    final int ID = Tree.bytesToId(branch_id);
+
+    Map<String, Branch> branches =  branch_table.row(ID);
+    Branch branch = new Branch();
+    boolean found = false;
+    for (Map.Entry<String, Branch> branch_entry : branches.entrySet()) {
+      Branch temp = branch_entry.getValue();
+
+      if (Arrays.equals(temp.compileBranchId(), branch_id)) {
+        found = true;
+        branch.setPath(temp.getPath());
+        branch.setDisplayName(temp.getDisplayName());
+        branch.setTreeId(ID);
+        break;
+      }
+    }
+    if (found)
+      return Deferred.fromResult(branch);
+    return Deferred.fromResult(null);
   }
 
   @Override
-  public Deferred<Branch> fetchBranch(final byte[] branch_id, final boolean load_leaf_uids, final TSDB tsdb) {
-    throw new UnsupportedOperationException("Not implemented yet");
+  public Deferred<Branch> fetchBranch(final byte[] branch_id,
+                                      final boolean load_leaf_uids,
+                                      final TSDB tsdb) {
+
+    final int ID = Tree.bytesToId(branch_id);
+
+    Map<String, Branch> branches =  branch_table.row(ID);
+    Branch branch = new Branch();
+    boolean found = false;
+
+    for (Map.Entry<String, Branch> branch_entry : branches.entrySet()) {
+      Branch temp = branch_entry.getValue();
+
+      if (Arrays.equals(temp.compileBranchId(), branch_id)) {
+        found = true;
+        branch.setPath(temp.getPath());
+        branch.setDisplayName(temp.getDisplayName());
+        branch.setTreeId(ID);
+      } else {
+        branch.addChild(branch_entry.getValue());
+      }
+    }
+    if (found) {
+      Pair<Integer, String> key =
+              new Pair<Integer, String>(ID, branch.getDisplayName());
+      for (Leaf leaf : leaf_table.row(key).values()) {
+        if (!load_leaf_uids) //if the tsuid should not be loaded we remove them
+          leaf.setTsuid("");
+        branch.addLeaf(leaf);
+      }
+      return Deferred.fromResult(branch);
+    }
+
+    return Deferred.fromResult(null);
   }
 
   @Override
