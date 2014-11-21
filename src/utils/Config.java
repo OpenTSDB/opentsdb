@@ -350,6 +350,11 @@ public class Config {
       throw new IllegalArgumentException(
           "Unix path names cannot contain a back slash");
     }
+    
+    if (directory == null || directory.isEmpty()){
+    	return null;
+    }
+    
     if (directory.charAt(directory.length() - 1) == '/') {
       return directory;
     }
