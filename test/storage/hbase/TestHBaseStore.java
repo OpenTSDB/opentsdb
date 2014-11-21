@@ -9,7 +9,6 @@ import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
 import net.opentsdb.tree.TestTree;
 import net.opentsdb.tree.Tree;
-import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import org.hbase.async.*;
@@ -30,30 +29,73 @@ import java.util.Arrays;
 import java.util.Map;
 
 import static net.opentsdb.core.StringCoder.toBytes;
-import static org.junit.Assert.*;
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.*;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest(HBaseClient.class)
+@PrepareForTest({HBaseClient.class, Scanner.class})
 public class TestHBaseStore extends TestTsdbStore {
   private static final byte[] MAX_UID = {0};
 
   private HBaseClient client;
   private String foo_name;
+  private Scanner scanner;
 
   @Before
   public void setUp() throws IOException {
     client = PowerMockito.mock(HBaseClient.class);
     tsdb_store = new HBaseStore(client, new Config(false));
     foo_name = "foo";
+    scanner = PowerMockito.mock(Scanner.class);
   }
+
+  @Test
+  public void testFetchBranchLoadingMetricsUID() throws Exception {
+    setupBranchHBaseStore(STORE_DATA);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
+    when(scanner.nextRows()).thenReturn(
+            Deferred.fromResult(valid_return))
+            .thenReturn(
+                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+
+    ArrayList<KeyValue> ans1 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans2 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans3 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans4 = new ArrayList<KeyValue>();
+
+    KeyValue kv = new KeyValue(new byte[0], new byte[0], new byte[0],
+            "user".getBytes());
+    ans1.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "tagk".getBytes());
+    ans2.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "tagv".getBytes());
+    ans3.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "nice".getBytes());
+    ans4.add(kv);
+
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(ans1))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3))
+            .thenReturn(Deferred.fromResult(ans4))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3));
+
+    super.testFetchBranchLoadingMetricsUID();
+  }
+
   @Test
   public void testFetchBranch() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
-    Scanner scanner = PowerMockito.mock(Scanner.class);
     when(client.newScanner(anyBytes())).thenReturn(scanner);
 
     ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
@@ -66,7 +108,6 @@ public class TestHBaseStore extends TestTsdbStore {
   @Test
   public void testFetchBranchNotFound() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
-    Scanner scanner = PowerMockito.mock(Scanner.class);
     when(client.newScanner(anyBytes())).thenReturn(scanner);
     when(scanner.nextRows()).thenReturn(
             Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
@@ -101,7 +142,6 @@ public class TestHBaseStore extends TestTsdbStore {
     when(client.compareAndSet(anyPut(),emptyArray())).
             thenReturn(Deferred.fromResult(true));
 
-    Scanner scanner = PowerMockito.mock(Scanner.class);
     when(client.newScanner(anyBytes())).thenReturn(scanner);
 
     ArrayList<ArrayList<KeyValue>> valid_return =
@@ -127,6 +167,7 @@ public class TestHBaseStore extends TestTsdbStore {
   @Test
   public void testStoreBranchExistingLeaf() throws Exception {
     setupBranchHBaseStore(!STORE_DATA);//test for HBaseStore
+
     /*Setup data*/
     when(client.compareAndSet(anyPut(), emptyArray()))
             .thenReturn(Deferred.fromResult(true));
@@ -137,11 +178,45 @@ public class TestHBaseStore extends TestTsdbStore {
             .thenReturn(Deferred.fromResult(false))
             .thenReturn(Deferred.fromResult(true));
 
+    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
+    //branches
+    KeyValue kv = new KeyValue(
+            branch.compileBranchId(), new byte[0],
+            toBytes("branch"), branch.toStorageJson());
+    ans.add(kv);
+
     when(client.get(anyGet())).thenReturn(
-            Deferred.fromResult(getValidReturn().get(0)));//TODO modify the answer
+            Deferred.fromResult(ans));
 
     super.testStoreBranchExistingLeaf();
   }
+  @Test
+  public void testStoreBranchCollision() throws Exception {
+
+    setupBranchHBaseStore(!STORE_DATA);
+
+    /* Collision object */
+    final Branch root = getLeafCollision(NOT_SAME_TSUID);
+    final Branch branch = TestBranch.buildTestBranch(tree);
+
+    //mock answers that should be generated
+    KeyValue kv = new KeyValue(root.compileBranchId(), new byte[0],
+            Leaf.LEAF_PREFIX(), branch.getLeaves().first().getStorageJSON());
+    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
+    ans.add(kv);
+
+    /*Setup answer */
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(true))
+            .thenReturn(Deferred.fromResult(true))
+            .thenReturn(Deferred.fromResult(true))
+            .thenReturn(Deferred.fromResult(false));
+
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(ans));
+
+    super.testStoreBranchCollision();
+  }
+
 
   @Test(expected = NullPointerException.class)
   // Test what happens when config is Null
@@ -155,7 +230,7 @@ public class TestHBaseStore extends TestTsdbStore {
     new HBaseStore(null, new Config(false));
   }
 
-  @PrepareForTest({Config.class, HBaseClient.class})
+  @PrepareForTest({Config.class, HBaseClient.class, Scanner.class})
   @Test
   public void constructorWithValidConfig() throws IOException{
 
@@ -183,7 +258,8 @@ public class TestHBaseStore extends TestTsdbStore {
       );
 
       fail("IllegalArgumentException should have been thrown but instead "
-              + " this was returned id=" + uid.joinUninterruptibly());
+              + " this was returned id=" +
+              Arrays.toString(uid.joinUninterruptibly()));
     } catch (IllegalStateException e) {
       assertEquals("Got a negative ID from HBase: " + id, e.getMessage());
     }
@@ -201,7 +277,8 @@ public class TestHBaseStore extends TestTsdbStore {
       );
 
       fail("IllegalArgumentException should have been thrown but instead "
-              + " this was returned id=" + uid.joinUninterruptibly());
+              + " this was returned id=" +
+              Arrays.toString(uid.joinUninterruptibly()));
     } catch (IllegalStateException e) {
       assertTrue(e.getMessage().startsWith("All Unique IDs for "));
     }
@@ -221,7 +298,8 @@ public class TestHBaseStore extends TestTsdbStore {
               UniqueIdType.METRIC
       );
       fail("IllegalArgumentException should have been thrown but instead "
-              + " this was returned id=" + uid.joinUninterruptibly());
+              + " this was returned id=" +
+              Arrays.toString(uid.joinUninterruptibly()));
 
     } catch(IllegalStateException e) {
       //validate we got the right exception
@@ -258,7 +336,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
     try {
       //need to join to get the exception to be thrown
-      byte[] uid = tsdb_store.allocateUID(foo_name,
+      tsdb_store.allocateUID(foo_name,
               UniqueIdType.METRIC
       ).joinUninterruptibly();
       fail("HBaseException should have been thrown!");
@@ -455,103 +533,182 @@ public class TestHBaseStore extends TestTsdbStore {
   }
 
 
-  // THESE TESTS ARE FOR THE getLeaf() FUNCTION HAS TO BE TESTED THROUGH THE
-  // FETCH BRANCH FUNCTION. WILL BE DONE TOGETHER WITH THE BRANCH TEST FIX.
+  /**
+   * The tests named parseFromStorage tests the private function getLeaf()
+   * Previously this was a public method on the leaf that was called
+   * parseFromStorage(), this the name convention is left.
+   *
+   * @throws Exception
+   */
   @Test
-  public void parseFromStorage() throws Exception {
-    //TODO move test, this part is now a private method in HBaseStore
-    fail();
-//    final KeyValue column = mock(KeyValue.class);
-//    when(column.qualifier()).thenReturn(
-//        new Leaf("0", "000001000001000001").columnQualifier());
-//    when(column.value()).thenReturn(
-//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
-//        .getBytes(Const.CHARSET_ASCII));
-//    final Leaf leaf = tsdb.getLeaf( column, true).joinUninterruptibly();
-//    assertNotNull(leaf);
-//    assertEquals("0", leaf.getDisplayName());
-//    assertEquals("000001000001000001", leaf.getTsuid());
-//    assertEquals("sys.cpu.0", leaf.getMetric());
-//    assertEquals(1, leaf.getTags().size());
-//    assertEquals("web01", leaf.getTags().get("host"));
+  public void testParseFromStorage() throws Exception {
+    setupBranchHBaseStore(STORE_DATA);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
+    when(scanner.nextRows()).thenReturn(
+            Deferred.fromResult(valid_return))
+            .thenReturn(
+                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+
+    ArrayList<KeyValue> ans1 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans2 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans3 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans4 = new ArrayList<KeyValue>();
+
+    KeyValue kv;
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0],
+            "sys.cpu.0".getBytes());
+    ans1.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "host".getBytes());
+    ans2.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0],
+            "web01".getBytes());
+    ans3.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "nice".getBytes());
+    ans4.add(kv);
+
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(ans1))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3))
+            .thenReturn(Deferred.fromResult(ans4))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3));
+    super.testParseFromStorage();
   }
 
-  @Test (expected = NoSuchUniqueId.class)
-  public void parseFromStorageNSUMetric() throws Throwable {
-    //TODO move test, this part is now a private method in HBaseStore
-    fail();
-//    final KeyValue column = mock(KeyValue.class);
-//    when(column.qualifier()).thenReturn(
-//        new Leaf("0", "000002000001000001").columnQualifier());
-//    when(column.value()).thenReturn(
-//        ("{\"displayName\":\"0\",\"tsuid\":\"000002000001000001\"}")
-//        .getBytes(Const.CHARSET_ASCII));
-//    try {
-//      tsdb.getLeaf(column, true).joinUninterruptibly();
-//    } catch (DeferredGroupException e) {
-//      throw e.getCause();
-//    }
+  @Test
+  public void testParseFromStorageNSUMetric() throws Throwable {
+    setupBranchHBaseStore(STORE_DATA);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
+    when(scanner.nextRows()).thenReturn(
+            Deferred.fromResult(valid_return))
+            .thenReturn(
+                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+
+    ArrayList<KeyValue> ans1 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans2 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans3 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans4 = new ArrayList<KeyValue>();
+
+    KeyValue kv;
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "host".getBytes());
+    ans2.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0],
+            "web01".getBytes());
+    ans3.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "nice".getBytes());
+    ans4.add(kv);
+
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(ans1))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3))
+            .thenReturn(Deferred.fromResult(ans4))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3));
+
+    super.testParseFromStorageNSUMetric();
   }
 
-  @Test (expected = NoSuchUniqueId.class)
-  public void parseFromStorageNSUTagk() throws Throwable {
-    //TODO move test, this part is now a private method in HBaseStore
-    fail();
-//    final KeyValue column = mock(KeyValue.class);
-//    when(column.qualifier()).thenReturn(
-//        new Leaf("0", "000001000002000001").columnQualifier());
-//    when(column.value()).thenReturn(
-//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000002000001\"}")
-//        .getBytes(Const.CHARSET_ASCII));
-//    try {
-//      tsdb.getLeaf(column, true).joinUninterruptibly();
-//    } catch (DeferredGroupException e) {
-//      throw e.getCause();
-//    }
+  @Test
+  public void testParseFromStorageNSUTagk() throws Throwable {
+    setupBranchHBaseStore(STORE_DATA);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
+    when(scanner.nextRows()).thenReturn(
+            Deferred.fromResult(valid_return))
+            .thenReturn(
+                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+
+    ArrayList<KeyValue> ans1 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans2 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans3 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans4 = new ArrayList<KeyValue>();
+
+    KeyValue kv;
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0],
+            "sys.cpu.0".getBytes());
+    ans1.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0],
+            "web01".getBytes());
+    ans3.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "nice".getBytes());
+    ans4.add(kv);
+
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(ans1))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3))
+            .thenReturn(Deferred.fromResult(ans4))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3));
+    super.testParseFromStorageNSUTagk();
   }
 
-  @Test (expected = NoSuchUniqueId.class)
-  public void parseFromStorageNSUTagV() throws Throwable {
-    //TODO move test, this part is now a private method in HBaseStore
-    fail();
-//    final KeyValue column = mock(KeyValue.class);
-//    when(column.qualifier()).thenReturn(
-//        new Leaf("0", "000001000001000002").columnQualifier());
-//    when(column.value()).thenReturn(
-//        ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000002\"}")
-//        .getBytes(Const.CHARSET_ASCII));
-//    try {
-//      tsdb.getLeaf(column, true).joinUninterruptibly();
-//    } catch (DeferredGroupException e) {
-//      throw e.getCause();
-//    }
+  @Test
+  public void testParseFromStorageNSUTagV() throws Throwable {
+    setupBranchHBaseStore(STORE_DATA);
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
+    when(scanner.nextRows()).thenReturn(
+            Deferred.fromResult(valid_return))
+            .thenReturn(
+                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+
+    ArrayList<KeyValue> ans1 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans2 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans3 = new ArrayList<KeyValue>();
+    ArrayList<KeyValue> ans4 = new ArrayList<KeyValue>();
+
+    KeyValue kv;
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0],
+            "sys.cpu.0".getBytes());
+    ans1.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "host".getBytes());
+    ans2.add(kv);
+    kv = new KeyValue(new byte[0], new byte[0], new byte[0], "nice".getBytes());
+    ans4.add(kv);
+
+    when(client.get(anyGet())).thenReturn(Deferred.fromResult(ans1))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3))
+            .thenReturn(Deferred.fromResult(ans4))
+            .thenReturn(Deferred.fromResult(ans2))
+            .thenReturn(Deferred.fromResult(ans3));
+
+    super.testParseFromStorageNSUTagV();
   }
   @Test
-  public void fetchBranchNSU() throws Exception {
-    //setupBranchMemoryStore(false);
-    fail();
+  public void TestFetchBranchNSU() throws Exception {
+    setupBranchHBaseStore(STORE_DATA);
+
+    when(client.newScanner(anyBytes())).thenReturn(scanner);
+
+    ArrayList<ArrayList<KeyValue>> valid_return = getValidReturn();
+
+    // Modify the valid_return var as to un-match the Leaf!
+    valid_return.get(0).set(2, new KeyValue(
+                    Branch.stringToId("00010001BECD000181A8BF992A98"),
+                    new byte[0],
+                    toBytes("branch"),
+                    child_branch.toStorageJson()));
+    when(scanner.nextRows()).thenReturn(
+            Deferred.fromResult(valid_return))
+            .thenReturn(
+                    Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
+
+    super.TestFetchBranchNSU();
+
     /*
     *This test was supposed to test the branch structure if it was not linked by
     * UID anymore. Thus a leaf should not be connected to the branch because
     * of lacking UID match. In the Memory store we keep these things separate.
-    *
-    * As this basically was mocked before I would argue this test was more or
-    * less useless.
+    * No point in testing for MemoryStore.
     */
 
-    /*tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
-    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
-    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
-
-    final Branch branch = tsdb.fetchBranch(
-    Branch.stringToId("00010001BECD000181A8"),
-    true).joinUninterruptibly();
-    assertNotNull(branch);
-    assertEquals(1, branch.getTreeId());
-    assertEquals("cpu", branch.getDisplayName());
-    assertEquals("00010001BECD000181A8", branch.getBranchId());
-    assertEquals(1, branch.getBranches().size());
-    assertEquals(1, branch.getLeaves().size());*/
   }
 
 
@@ -578,7 +735,7 @@ public class TestHBaseStore extends TestTsdbStore {
     if (!store)
       return;
 
-    //since the answer is mocket this probably does not matter much
+    //since the answer is mocked this probably does not matter much
     when(client.compareAndSet(anyPut(), emptyArray()))
             .thenReturn(Deferred.fromResult(true));
     tsdb_store.storeBranch(tree, root_branch, false);

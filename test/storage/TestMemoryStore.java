@@ -2,12 +2,10 @@ package net.opentsdb.storage;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.tree.Branch;
-import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
 import net.opentsdb.utils.Config;
 import org.junit.Test;
 
-import java.util.TreeMap;
 
 /**
  * Use this to make sure the MemoryStore returns the same as the other
@@ -50,6 +48,34 @@ public class TestMemoryStore extends TestTsdbStore {
     tsdb.storeBranch(tree, branch, true);
     super.testStoreBranchExistingLeaf();
   }
+  @Test
+  public void testStoreBranchCollision() throws Exception {
+    setupBranchMemoryStore(!STORE_DATA);//test for memory store
+    super.testStoreBranchCollision();
+  }
+
+  /**
+   * The tests testFetchBranchLoadingMetricsUID and testParseFromStorage are
+   * not tested in the MemoryStore. testFetchBranchLoadingMetricsUID is
+   * unnecessary to test since it stores the whole leaf.
+   * testParseFromStorage - These errors or correct answers are there to test
+   * the parsing from the KeyValue from the database. No such parsing is made
+   * in the MemoryStore since the raw objects is stored.
+   */
+  @Test
+  public void testFetchBranchLoadingMetricsUID() { }
+
+  @Test
+  public void testParseFromStorage() throws Exception { }
+
+  @Test
+  public void testParseFromStorageNSUMetric() throws Throwable { }
+
+  @Test
+  public void testParseFromStorageNSUTagk() throws Throwable { }
+
+  @Test
+  public void testParseFromStorageNSUTagV() throws Throwable { }
 
     /**
      *  Classes for testing the storage calls for branch tests

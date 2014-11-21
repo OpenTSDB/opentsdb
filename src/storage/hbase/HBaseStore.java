@@ -2273,13 +2273,6 @@ public class HBaseStore implements TsdbStore {
     // split the TSUID to get the tags
     final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(leaf.getTsuid());
 
-    // initialize the with empty objects, otherwise the "set" operations in
-    // the callback won't work.
-    final ArrayList<String> tags = new ArrayList<String>(parsed_tags.size());
-    for (int i = 0; i < parsed_tags.size(); i++) {
-      tags.add("");
-    }
-
     // setup an array of deferreds to wait on so we can return the leaf only
     // after all of the name fetches have completed
     final ArrayList<Deferred<Object>> uid_group =
@@ -2329,17 +2322,6 @@ public class HBaseStore implements TsdbStore {
       @Override
       public Deferred<Leaf> call(final ArrayList<Object> name_calls)
               throws Exception {
-                
-        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-        Iterator<String> name_it = tags.iterator();
-
-        while (name_it.hasNext()) {
-          final String tagk = name_it.next();
-          final String name = name_it.next();
-          builder.put(tagk, name);
-
-        }
-        leaf.setTags(builder.build());
         return Deferred.fromResult(leaf);
       }
 

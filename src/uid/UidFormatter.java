@@ -62,7 +62,7 @@ public class UidFormatter {
     return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
   }
 
-  public Deferred<ImmutableMap<String,String>> formatTags(final List<byte[]> tags) {
+  public Deferred<ImmutableMap<String, String>> formatTags(final List<byte[]> tags) {
     checkNotNull(tags);
 
     final ArrayList<Deferred<String>> deferreds =

@@ -1,14 +1,14 @@
 package net.opentsdb.storage;
 
-import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
 import net.opentsdb.tree.TestTree;
 import net.opentsdb.tree.Tree;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
 import net.opentsdb.utils.Config;
@@ -16,12 +16,7 @@ import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
-import org.hbase.async.Scanner;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,14 +27,11 @@ import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({HBaseClient.class, Scanner.class})
 public abstract class TestTsdbStore {
-  private static final boolean SAME_TSUID = true;
+  protected static final boolean SAME_TSUID = true;
+  protected static final boolean NOT_SAME_TSUID = false;
   protected TSDB tsdb;
-  private HBaseClient client;
   protected TsdbStore tsdb_store;
   protected UIDMeta meta;
   protected Config config;
@@ -80,50 +72,6 @@ public abstract class TestTsdbStore {
   }
 
   /**
-   * Mocks classes for testing the storage calls
-   */
-  private void setupBranchMemoryStore(final boolean store) throws Exception {
-
-    config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
-
-    setUpBranchesAndLeafs();
-    if (!store)
-      return;
-
-    tsdb_store.storeBranch(tree, root_branch, false);
-    tsdb_store.storeLeaf(root_leaf_one, root_branch, tree);
-    tsdb_store.storeLeaf(root_leaf_two, root_branch, tree);
-    tsdb_store.storeBranch(tree, child_branch, false);
-    tsdb_store.storeLeaf(child_leaf_one, child_branch, tree);
-  }
-
-  /**
-   * Mocks HBase Branch stuff
-   */
-  private void setupBranchHBaseStore(final boolean store) throws Exception{
-
-    config = new Config(false);
-    client = PowerMockito.mock(HBaseClient.class);
-    tsdb_store = new HBaseStore(client, config);
-    tsdb = new TSDB(tsdb_store, config);
-
-    setUpBranchesAndLeafs();
-    if (!store)
-      return;
-
-    //since the answer is mocket this probably does not matter much
-    when(client.compareAndSet(anyPut(), emptyArray()))
-            .thenReturn(Deferred.fromResult(true));
-    tsdb_store.storeBranch(tree, root_branch, false);
-    tsdb_store.storeLeaf(root_leaf_one, root_branch, tree);
-    tsdb_store.storeLeaf(root_leaf_two, root_branch, tree);
-    tsdb_store.storeBranch(tree, child_branch, false);
-    tsdb_store.storeLeaf(child_leaf_one, child_branch, tree);
-  }
-
-  /**
    * Use this method to get a Deferred with valid answers for the branch query.
    *
    * @return A valid return that the HBase database would return for the objects
@@ -161,15 +109,20 @@ public abstract class TestTsdbStore {
   }
 
   @Test
-  public void testFetchBranchLoadingMetrics() throws Exception {
-  fail();
-
+  public void testFetchBranchLoadingMetricsUID() throws Exception {
   /*
-   * This test should test fetching a branch and loading the metrics.
-   * The testFetchBranch does not load because the leafs currently does not have
-   * a metric set. This must be looked at carefully...
+   * This test should test fetching a branch and loading the uid metrics on the
+   * leafs.
    */
-
+  final Branch branch = tsdb_store.fetchBranch(
+    Branch.stringToId("00010001BECD000181A8"), true, tsdb)
+          .joinUninterruptibly();
+    assertNotNull(branch);
+    assertEquals(1, branch.getTreeId());
+    assertEquals("cpu", branch.getDisplayName());
+    assertEquals("00010001BECD000181A8", branch.getBranchId());
+    assertEquals(1, branch.getBranches().size());
+    assertEquals(2, branch.getLeaves().size());
   }
 
   @Test
@@ -201,8 +154,6 @@ public abstract class TestTsdbStore {
     assertEquals("cpu", branch.getDisplayName());
     assertNull(branch.getLeaves());
     assertNull(branch.getBranches());
-
-    setupBranchHBaseStore(STORE_DATA);
   }
 
   @Test
@@ -237,7 +188,6 @@ public abstract class TestTsdbStore {
     assertTrue(results.get(1));
     assertNull(tree.getCollisions());
 
-
     final Branch parsed = tsdb_store
             .fetchBranchOnly(
             TestBranch.buildTestBranch(tree)
@@ -249,55 +199,88 @@ public abstract class TestTsdbStore {
   @Test
   public void testStoreBranchCollision() throws Exception {
 
-    setupBranchMemoryStore(!STORE_DATA);//test for memory store
+    /* Collision object */
+    final Branch root = getLeafCollision(NOT_SAME_TSUID);
 
-    /*Collision object*/
-    final TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
-    final Branch root = new Branch(tree.getTreeId());
-    root.setDisplayName("ROOT");
-    root_path.put(0, "ROOT");
-    root.prependParentPath(root_path);
-    Leaf leaf = new Leaf("Alarms", "0101");//collision leaf not same tsuid
-    root.addLeaf(leaf, tree);
-
-
-    /*Setup data*/
+    /* Setup data */
     final Branch branch = TestBranch.buildTestBranch(tree);
     tsdb_store.storeBranch(tree, branch, true);
-
+    /* Get results*/
     final ArrayList<Boolean> results =
             tsdb_store.storeBranch(tree, root, true).joinUninterruptibly();
-
+    /* Check results*/
     assertEquals(2, results.size());
     assertFalse(results.get(0));
     assertFalse(results.get(1));
     assertEquals(1, tree.getCollisions().size());
+  }
 
-    //HBaseStore test part
-    setupBranchHBaseStore(!STORE_DATA);
+  @Test
+  public void testParseFromStorage() throws Exception {
 
-    /*Setup data*/
-    when(client.compareAndSet(anyPut(), emptyArray()))
-            .thenReturn(Deferred.fromResult(true));
-    tsdb_store.storeBranch(tree, branch, true);
+    final Branch branch = tsdb_store.fetchBranch(
+            Branch.stringToId("00010001BECD000181A8"), true, tsdb)
+            .joinUninterruptibly();
+    Leaf leaf = null;
+    for (Leaf temp : branch.getLeaves()) {
+      if (temp.getTsuid().equals("000001000001000001")) {
+        leaf = temp;
+        break;
+      }
+    }
 
+    assertNotNull(leaf);
+    assertEquals("user", leaf.getDisplayName());
+    assertEquals("000001000001000001", leaf.getTsuid());
+    assertEquals("sys.cpu.0", leaf.getMetric());
+    assertEquals(1, leaf.getTags().size());
+    assertEquals("web01", leaf.getTags().get("host"));
+  }
 
-    //mock answers that should be generated
-    KeyValue kv = new KeyValue(root.compileBranchId(), new byte[0],
-            Leaf.LEAF_PREFIX(), branch.getLeaves().first().getStorageJSON());
-    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
-    ans.add(kv);
-    when(client.get(anyGet())).thenReturn(Deferred.fromResult(ans));
-    when(client.compareAndSet(anyPut(), emptyArray()))
-            .thenReturn(Deferred.fromResult(false));
+  @Test (expected = NoSuchUniqueId.class)
+  public void testParseFromStorageNSUMetric() throws Throwable {
+    try {
+      tsdb_store.fetchBranch(
+              Branch.stringToId("00010001BECD000181A8"), true, tsdb)
+              .joinUninterruptibly();
+    } catch (DeferredGroupException e) {
+      throw e.getCause();
+    }
+  }
 
-    final ArrayList<Boolean> HBase_results =
-            tsdb_store.storeBranch(tree, root, true).joinUninterruptibly();
+  @Test (expected = NoSuchUniqueId.class)
+  public void testParseFromStorageNSUTagk() throws Throwable {
+    try {
+      tsdb_store.fetchBranch(
+              Branch.stringToId("00010001BECD000181A8"), true, tsdb)
+              .joinUninterruptibly();
+    } catch (DeferredGroupException e) {
+      throw e.getCause();
+    }
+  }
 
-    assertEquals(2, HBase_results.size());
-    assertFalse(HBase_results.get(0));
-    assertFalse(HBase_results.get(1));
-    assertEquals(1, tree.getCollisions().size());
+  @Test (expected = NoSuchUniqueId.class)
+  public void testParseFromStorageNSUTagV() throws Throwable{
+    try {
+      tsdb_store.fetchBranch(
+              Branch.stringToId("00010001BECD000181A8"), true, tsdb)
+              .joinUninterruptibly();
+    } catch (DeferredGroupException e) {
+      throw e.getCause();
+    }
+  }
+  public void TestFetchBranchNSU() throws Exception {
+
+    final Branch branch = tsdb.fetchBranch(
+            Branch.stringToId("00010001BECD000181A8"),
+            false).joinUninterruptibly();
+
+    assertNotNull(branch);
+    assertEquals(1, branch.getTreeId());
+    assertEquals("cpu", branch.getDisplayName());
+    assertEquals("00010001BECD000181A8", branch.getBranchId());
+    assertEquals(1, branch.getBranches().size());
+    assertEquals(1, branch.getLeaves().size());
   }
 
   /*META TESTS*/
@@ -316,6 +299,7 @@ public abstract class TestTsdbStore {
   protected GetRequest anyGet() {
     return any(GetRequest.class);
   }
+
   protected byte[] anyBytes() { return any(byte[].class); }
 
   protected Branch getLeafCollision(boolean sameTsuid) {
