@@ -93,8 +93,6 @@ public class MemoryStore implements TsdbStore {
   private final Table<Long, String, byte[]> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
-  //private final Table<Integer, String, byte[]> leaf_table;
-
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
           UniqueIdType.TAGK, new AtomicLong(1),
@@ -118,7 +116,6 @@ public class MemoryStore implements TsdbStore {
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
 
-    //leaf_table = HashBasedTable.create();
   }
 
   /**
@@ -1058,20 +1055,42 @@ public class MemoryStore implements TsdbStore {
   public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
                                      final Tree tree) {
 
-    if (!leaf_table.contains(branch.getTreeId(), leaf.getTsuid())) {
+
+      //tsuid   object
+    final Iterator<Map.Entry<String, Leaf>> iterator = leaf_table.row(
+            new Pair<Integer, String>(branch.getTreeId(),
+                    branch.getDisplayName())).entrySet().iterator();
+
+    Leaf existing_leaf = null;
+    boolean found = false;
+
+    while(iterator.hasNext()) {
+      Map.Entry<String, Leaf> entry = iterator.next();
+      //found the leaf matching our display name
+      if (entry.getValue().getDisplayName().equals(leaf.getDisplayName())) {
+        existing_leaf = entry.getValue();
+        found = true;
+        break;
+      }
+    }
+    if(!found) {
       leaf_table.put(
-              new Pair<Integer, String>(branch.getTreeId(), branch.getDisplayName()),
+              new Pair<Integer, String>(
+              branch.getTreeId(),branch.getDisplayName()),
               leaf.getTsuid(), leaf);
       return Deferred.fromResult(true);
-    } else {
-      Leaf existing_leaf = leaf_table.get(branch.getTreeId(), leaf.getTsuid());
-      if (existing_leaf == null)
-        return Deferred.fromResult(false);
-      if (existing_leaf.getTsuid().equals(leaf.getTsuid()))
-        return Deferred.fromResult(true);
-      tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());
+    }
+    if (existing_leaf == null) {
+      // this should never happen in this implementation
+      // stored data may be corrupt
+      // the likelyhood of getting corrupt data is very low.
       return Deferred.fromResult(false);
     }
+    if (existing_leaf.getTsuid().equals(leaf.getTsuid())) {
+      return Deferred.fromResult(true);
+    }
+    tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());
+    return Deferred.fromResult(false);
   }
 
   @Override

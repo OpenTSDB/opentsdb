@@ -718,14 +718,6 @@ public class HBaseStore implements TsdbStore {
 
         final byte[] row = Bytes.fromLong(id);
 
-        // row.length should actually be 8.
-        if (row.length < type.width) {
-          throw new IllegalStateException("row.length = " + row.length
-                  + " which is less than " + type.width
-                  + " for id=" + id
-                  + " row=" + Arrays.toString(row));
-        }
-
         // Verify that the indices in the row array that won't be used in the
         // uid with the current length are zero so we haven't reached the upper
         // limits.
@@ -1866,8 +1858,7 @@ public class HBaseStore implements TsdbStore {
           return Deferred.fromResult(null);
         }
 
-        final Branch branch = JSON.parseToObject(row.get(0).value(),
-                Branch.class);
+        final Branch branch = Branch.buildFromJSON(row.get(0).value());
 
         // WARNING: Since the json doesn't store the tree ID, to cut down on
         // space, we have to load it from the row key.
@@ -1986,16 +1977,14 @@ public class HBaseStore implements TsdbStore {
                 // it's *this* branch. We deserialize to a new object and copy
                 // since the columns could be in any order and we may get a
                 // leaf before the branch
-                final Branch local_branch = JSON.parseToObject(column.value(),
-                        Branch.class);
-                branch.setPath(local_branch.getPath());
-                branch.setDisplayName(local_branch.getDisplayName());
+                final Branch local_branch = Branch.buildFromJSON(column.value());
+                local_branch.setTreeId(Tree.bytesToId(column.key()));
                 branch.setTreeId(Tree.bytesToId(column.key()));
-
+                branch.setDisplayName(local_branch.getDisplayName());
+                branch.setPath(local_branch.getPath());
               } else {
                 // it's a child branch
-                final Branch child = JSON.parseToObject(column.value(),
-                        Branch.class);
+                final Branch child = Branch.buildFromJSON(column.value());
                 child.setTreeId(Tree.bytesToId(column.key()));
                 branch.addChild(child);
               }
@@ -2024,7 +2013,7 @@ public class HBaseStore implements TsdbStore {
     // start scanning
     new FetchBranchCB().fetchBranch();
 
-    return null;
+    return result;
   }
 
   @Override
@@ -2268,7 +2257,7 @@ public class HBaseStore implements TsdbStore {
 
     // qualifier has the TSUID in the format  "leaf:<display_name.hashCode()>"
     // and we should only be here if the qualifier matched on "leaf:"
-    final Leaf leaf = JSON.parseToObject(value, Leaf.class);
+    final Leaf leaf = Leaf.buildFromJSON(value);
 
     // if there was an error with the data and the tsuid is missing, dump it
     if (Strings.isNullOrEmpty(leaf.getTsuid())) {
@@ -2283,13 +2272,6 @@ public class HBaseStore implements TsdbStore {
 
     // split the TSUID to get the tags
     final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(leaf.getTsuid());
-
-    // initialize the with empty objects, otherwise the "set" operations in
-    // the callback won't work.
-    final ArrayList<String> tags = new ArrayList<String>(parsed_tags.size());
-    for (int i = 0; i < parsed_tags.size(); i++) {
-      tags.add("");
-    }
 
     // setup an array of deferreds to wait on so we can return the leaf only
     // after all of the name fetches have completed
@@ -2340,17 +2322,6 @@ public class HBaseStore implements TsdbStore {
       @Override
       public Deferred<Leaf> call(final ArrayList<Object> name_calls)
               throws Exception {
-                
-        ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-        Iterator<String> name_it = tags.iterator();
-
-        while (name_it.hasNext()) {
-          final String tagk = name_it.next();
-          final String name = name_it.next();
-          builder.put(tagk, name);
-
-        }
-        leaf.setTags(builder.build());
         return Deferred.fromResult(leaf);
       }
 
