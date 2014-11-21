@@ -31,6 +31,7 @@ import static org.junit.Assert.assertNull;
 public final class TestBranch {
   private Tree tree = TestTree.buildTestTree();
 
+
   @Test
   public void copyConstructor() {
     final Branch branch = buildTestBranch(tree);
