@@ -115,6 +115,7 @@ public class MemoryStore implements TsdbStore {
     annotation_table = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
+
   }
 
   /**
@@ -1086,7 +1087,6 @@ public class MemoryStore implements TsdbStore {
       return Deferred.fromResult(false);
     }
     if (existing_leaf.getTsuid().equals(leaf.getTsuid())) {
-      //LOG.debug("Leaf already exists: {}", local_leaf);
       return Deferred.fromResult(true);
     }
     tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());

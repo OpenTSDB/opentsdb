@@ -230,7 +230,6 @@ public final class Leaf implements Comparable<Leaf> {
       json.writeEndObject();
       json.close();
 
-      // TODO zero copy?
       return output.toByteArray();
     } catch (IOException e) {
       throw new RuntimeException("Unable to serialize Leaf", e);

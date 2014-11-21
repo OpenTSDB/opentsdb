@@ -657,8 +657,8 @@ public class HBaseStore implements TsdbStore {
                   qualifier.indexOf("_meta")));
         }
 
-        return UIDMeta.buildFromJSON(
-                cell.get().value(),effective_type, uid, name);
+        return UIDMeta.buildFromJSON(cell.get().value(),
+                effective_type, uid, name);
       }
     }
 

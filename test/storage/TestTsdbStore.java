@@ -22,11 +22,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.TreeMap;
 
+
 import static net.opentsdb.core.StringCoder.toBytes;
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static junit.framework.TestCase.assertNotNull;
+import static junit.framework.TestCase.assertNull;
+import static junit.framework.TestCase.assertFalse;
+import static junit.framework.TestCase.assertTrue;
 
 public abstract class TestTsdbStore {
   protected static final boolean SAME_TSUID = true;
