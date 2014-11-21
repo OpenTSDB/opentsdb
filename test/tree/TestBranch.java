@@ -60,16 +60,6 @@ public final class TestBranch {
       throw new RuntimeException("Failed in static initializer", e);
     }
   }
-  
-  final static private Method LeaftoStorageJson;
-  static {
-    try {
-      LeaftoStorageJson = Leaf.class.getDeclaredMethod("getStorageJSON");
-      LeaftoStorageJson.setAccessible(true);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed in static initializer", e);
-    }
-  }
 
   @Test
   public void copyConstructor() {
@@ -374,7 +364,7 @@ public final class TestBranch {
     Leaf leaf = new Leaf("Alarms", "ABCD");
     byte[] qualifier = leaf.columnQualifier();
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, (byte[]) LeaftoStorageJson.invoke(leaf));
+      qualifier, leaf.getStorageJSON());
 
     tsdb.storeBranch(tree, branch, true);
     assertEquals(3, tsdb_store.numRows());
@@ -394,7 +384,7 @@ public final class TestBranch {
     Leaf leaf = new Leaf("Alarms", "0101");
     byte[] qualifier = leaf.columnQualifier();
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, (byte[]) LeaftoStorageJson.invoke(leaf));
+      qualifier, leaf.getStorageJSON());
 
     tsdb.storeBranch(tree, branch, true);
     assertEquals(3, tsdb_store.numRows());
@@ -554,12 +544,12 @@ public final class TestBranch {
     Leaf leaf = new Leaf("user", "000001000001000001");
     byte[] qualifier = leaf.columnQualifier();
     this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, (byte[]) LeaftoStorageJson.invoke(leaf));
+      qualifier, leaf.getStorageJSON());
     
     leaf = new Leaf("nice", "000002000002000002");
     qualifier = leaf.columnQualifier();
     this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, (byte[]) LeaftoStorageJson.invoke(leaf));
+      qualifier, leaf.getStorageJSON());
     
     // child branch
     branch = new Branch(1);
@@ -573,6 +563,6 @@ public final class TestBranch {
     leaf = new Leaf("Asus", "000003000003000003");
     qualifier = leaf.columnQualifier();
     this.tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, (byte[]) LeaftoStorageJson.invoke(leaf));
+      qualifier, leaf.getStorageJSON());
   }
 }

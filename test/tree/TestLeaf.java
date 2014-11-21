@@ -129,10 +129,10 @@ public final class TestLeaf {
   @Test
   public void testBuildFromJSON() {
     final Leaf leaf = new Leaf("Leaf", "000001000001000001");
-    byte [] json =
-            hexStringToByteArray("7b22646973706c61794e616d65223a224c6561" +
-                    "66222c227473756964223a22303030303031303030303031303" +
-                    "030303031227d");
+    final String s = "7b22646973706c61794e616d65223a224c6561" +
+            "66222c227473756964223a22303030303031303030303031303030303031227d";
+
+    byte [] json = new BigInteger(s, 16).toByteArray();
 
     final Leaf jsonLeaf = Leaf.buildFromJSON(json);
     assertEquals(leaf.getDisplayName(), jsonLeaf.getDisplayName());
@@ -151,16 +151,6 @@ public final class TestLeaf {
     byte [] json = new BigInteger(s, 16).toByteArray();
 
     assertArrayEquals(json, storage_json);
-  }
-
-  public static byte[] hexStringToByteArray(String s) {
-    int len = s.length();
-    byte[] data = new byte[len / 2];
-    for (int i = 0; i < len; i += 2) {
-      data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-              + Character.digit(s.charAt(i+1), 16));
-    }
-    return data;
   }
 
   @Test
