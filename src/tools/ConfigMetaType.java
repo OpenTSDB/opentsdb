@@ -15,7 +15,9 @@ package net.opentsdb.tools;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLConnection;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -58,7 +60,10 @@ public enum ConfigMetaType implements ArgValueValidator {
 	/** A boolean value (true|false) */
 	BOOL("A boolean value (true|false)", new BooleanValidator()),
 	/** A znode path name */
-	ZPATH("A znode path name", new StringValidator("ZPATH"));
+	ZPATH("A znode path name", new StringValidator("ZPATH")),
+	/** The read write mode */
+	RWMODE("Read/Write mode specification", new ReadWriteModeValidator());
+	
 	
 	
 	/**
@@ -104,6 +109,41 @@ public enum ConfigMetaType implements ArgValueValidator {
 		validator.validate(citem);		
 	}
 
+	/**
+	 * <p>Title: ReadWriteModeValidator</p>
+	 * <p>Description: Validator for ReadWrite Modes</p> 
+	 * @author Whitehead (nwhitehead AT heliosdev DOT org)
+	 * <p><code>net.opentsdb.tools.ConfigMetaType.ReadWriteModeValidator</code></p>
+	 */
+	public static class ReadWriteModeValidator implements ArgValueValidator {
+		/** The supported mode codes */
+		private static final Set<String> MODES = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList(
+				"rw",            	// READ AND WRITE
+				"wo",				// WRITE ONLY
+				"ro"				// READ ONLY
+		)));
+		/**
+		 * Creates a new IntegerValidator
+		 */
+		public ReadWriteModeValidator() {
+			
+		}		
+		
+		/**
+		 * {@inheritDoc}
+		 * @see net.opentsdb.tools.ArgValueValidator#validate(net.opentsdb.tools.ConfigArgP.ConfigurationItem)
+		 */
+		@Override
+		public void validate(final ConfigurationItem citem) {			
+			try {
+				final String _mode = citem.getValue();
+				if(!MODES.contains(_mode)) throw new Exception();
+			} catch (Exception ex) {
+				throw new IllegalArgumentException("Invalid ReadWrite Mode [" + citem.getValue() + "] for " + citem.getName());
+			}
+		}
+	}
+	
 	
 	/**
 	 * <p>Title: IntegerValidator</p>
