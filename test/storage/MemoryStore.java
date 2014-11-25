@@ -1082,11 +1082,13 @@ public class MemoryStore implements TsdbStore {
     /*
      * Return a meaningless deferred but should always be true.
      */
+    storeTree(tree, true);
     return Deferred.fromResult(true);
   }
 
   @Override
   public Deferred<Boolean> flushTreeNotMatched(Tree tree) {
+    storeTree(tree, true);
     return Deferred.fromResult(true); //A meaningless deferred
   }
 
