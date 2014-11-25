@@ -304,10 +304,10 @@
  {
   "key": "tsd.network.keep_alive",
   "cl-option": "--keep-alive",
-  "defaultValue": "true",
-  "description": "Determines whether or not to send keepalive packets to peers, default is true",
+  "defaultValue": 10000,
+  "description": "The core socket timeout",
   "help": "extended",
-  "meta": "BOOL"
+  "meta": "POSINT"
  },
  {
   "key": "tsd.network.reuse_address",
@@ -316,7 +316,16 @@
   "description": "Determines if the same socket should be used for new connections, default is true",
   "help": "extended",
   "meta": "BOOL"
+ },
+ {
+  "key": "tsd.core.socket.timeout",
+  "cl-option": "--socket-timeout",
+  "defaultValue": 10000,
+  "description": "The idle time timeout",
+  "help": "extended",
+  "meta": "POSINT"
  }
+ 
 ],
 "bindings" : [ 
 	"importPackage(Packages.java.lang);",

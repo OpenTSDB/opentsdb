@@ -113,7 +113,7 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
    * @throws IllegalArgumentException if there was an error with the CORS domain
    * list
    */
-  private RpcHandler(final TSDB tsdb) {
+  public RpcHandler(final TSDB tsdb) {
     this.tsdb = tsdb;
 
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
