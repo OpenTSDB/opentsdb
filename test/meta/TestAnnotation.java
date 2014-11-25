@@ -18,8 +18,11 @@ import static org.junit.Assert.assertNull;
 
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
@@ -44,33 +47,38 @@ public final class TestAnnotation {
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
 
+    final ObjectMapper jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
+
+    final ObjectReader annotation_reader = jsonMapper.reader(Annotation.class);
+
     // add a global
     String json = "{\"startTime\":1328140800,\"endTime\":1328140801,\"" +
             "description\":\"Description\",\"notes\":\"Notes\",\"custom\"" +
             ":{\"owner\":\"ops\"}}";
 
-   Annotation note = JSON.parseToObject(json, Annotation.class);
+    Annotation note = annotation_reader.readValue(json);
     tsdb_store.updateAnnotation(null, note);
 
     // add another global
     json = "{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" +
             "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" +
             "\"ops\"}}";
-    note = JSON.parseToObject(json, Annotation.class);
+    note = annotation_reader.readValue(json);
     tsdb_store.updateAnnotation(null, note);
 
     // add a local
     json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
             "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" +
             "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}";
-    note = JSON.parseToObject(json, Annotation.class);
+    note = annotation_reader.readValue(json);
     tsdb_store.updateAnnotation(null, note);
 
     // add another local
     json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
             "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" +
             "\"Nothing\"}";
-    note = JSON.parseToObject(json, Annotation.class);
+    note = annotation_reader.readValue(json);
     tsdb_store.updateAnnotation(null, note);
 
     // add some data points too maybe not relevant any more
@@ -79,26 +87,6 @@ public final class TestAnnotation {
     
     tsdb_store.addColumn(tsuid_row_key,
       new byte[]{0x50, 0x18}, new byte[]{2});
-  }
-  
-  @Test
-  public void constructor() {
-    assertNotNull(new Annotation());
-  }
-
-  @Test
-  public void serialize() throws Exception {
-    assertNotNull(JSON.serializeToString(note));
-  }
-  
-  @Test
-  public void deserialize() throws Exception {
-    String json = "{\"tsuid\":\"ABCD\",\"description\":\"Description\"," + 
-    "\"notes\":\"Notes\",\"custom\":null,\"endTime\":1328140801,\"startTime" + 
-    "\":1328140800}";
-    Annotation note = JSON.parseToObject(json, Annotation.class);
-    assertNotNull(note);
-    assertEquals(note.getTSUID(), "ABCD");
   }
 
   @Test
@@ -176,7 +164,7 @@ public final class TestAnnotation {
   public void getGlobalAnnotationsEndLessThanStart() throws Exception {
     tsdb.getGlobalAnnotations(1328150000, 1328140000).joinUninterruptibly();
   }
-  
+
   @Test
   public void syncToStorage() throws Exception {
     note.setTSUID("000001000001000001");
@@ -280,6 +268,7 @@ public final class TestAnnotation {
   public void deleteNormalizeMs() throws Exception {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562000L);
+
     tsdb.delete(note).joinUninterruptibly();
 
     assertNull(tsdb_store.getAnnotation(
@@ -368,6 +357,7 @@ public final class TestAnnotation {
   @Test
   public void deleteRange() throws Exception {
     note.setTSUID("000001000001000001");
+
     final int count = tsdb.deleteRange(
             UniqueId.stringToUid(note.getTSUID()), 1388450560000L,
             1388450562000L).joinUninterruptibly();
@@ -448,7 +438,6 @@ public final class TestAnnotation {
     final int count = tsdb.deleteRange(null, 1328140799000L,
             1328140800000L).joinUninterruptibly();
     assertEquals(1, count);
-
 
     note.setStartTime(1328140800);
     assertNull(tsdb_store.getAnnotation(null,

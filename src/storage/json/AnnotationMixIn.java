@@ -1,0 +1,31 @@
+package net.opentsdb.storage.json;
+
+import java.util.Map;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+@JsonPropertyOrder({"tsuid", "startTime", "endTime", "description", "notes", "custom"})
+abstract class AnnotationMixIn {
+  AnnotationMixIn(@JsonProperty("tsuid") final String tsuid,
+                  @JsonProperty("startTime") final long start_time,
+                  @JsonProperty("endTime") final long end_time,
+                  @JsonProperty("description") final String description,
+                  @JsonProperty("notes") final String notes,
+                  @JsonProperty("custom") final Map<String, String> custom) {
+  }
+
+  @JsonProperty("tsuid") abstract String getTSUID();
+  @JsonProperty("startTime") abstract long getStartTime();
+  @JsonProperty("endTime") abstract long getEndTime();
+  @JsonProperty("description") abstract String getDescription();
+  @JsonProperty("notes") abstract String getNotes();
+  @JsonProperty("custom") abstract Map<String, String> getCustom();
+}
