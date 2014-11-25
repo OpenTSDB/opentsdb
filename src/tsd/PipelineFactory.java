@@ -13,16 +13,22 @@
 package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
 import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
+import org.jboss.netty.handler.codec.http.HttpContentDecompressor;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
+import org.jboss.netty.handler.timeout.IdleStateHandler;
+import org.jboss.netty.util.HashedWheelTimer;
+import org.jboss.netty.util.Timer;
 
 import net.opentsdb.core.TSDB;
 
@@ -40,12 +46,17 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   // PipelineFactory is needed.
   private final ConnectionManager connmgr = new ConnectionManager();
   private final DetectHttpOrRpc HTTP_OR_RPC = new DetectHttpOrRpc();
+  private final Timer timer = new HashedWheelTimer();
+  private final ChannelHandler timeoutHandler;
 
   /** Stateless handler for RPCs. */
   private final RpcHandler rpchandler;
   
   /** The TSDB to which we belong */ 
   private final TSDB tsdb;
+  
+  /** The server side socket timeout. **/
+  private final int socketTimeout;
 
   /**
    * Constructor that initializes the RPC router and loads HTTP formatter 
@@ -57,7 +68,9 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    */
   public PipelineFactory(final TSDB tsdb) {
     this.tsdb = tsdb;
-    this.rpchandler = RpcHandler.getInstance(tsdb);
+    this.socketTimeout = tsdb.getConfig().getInt("tsd.core.socket.timeout");
+    this.timeoutHandler = new IdleStateHandler(this.timer, 0, 0, this.socketTimeout);
+    this.rpchandler = new RpcHandler(tsdb);
     try {
       HttpQuery.initializeSerializerMaps(tsdb);
     } catch (RuntimeException e) {
@@ -71,6 +84,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   public ChannelPipeline getPipeline() throws Exception {
    final ChannelPipeline pipeline = pipeline();
 
+    pipeline.addLast("timeout", this.timeoutHandler);
     pipeline.addLast("connmgr", connmgr);
     pipeline.addLast("detect", HTTP_OR_RPC);
     return pipeline;
@@ -102,6 +116,8 @@ public final class PipelineFactory implements ChannelPipelineFactory {
           pipeline.addLast("aggregator", new HttpChunkAggregator(
               tsdb.getConfig().max_chunked_requests()));
         }
+        // allow client to encode the payload (ie : with gziped json)
+        pipeline.addLast("deflater", new HttpContentDecompressor());
         pipeline.addLast("encoder", new HttpResponseEncoder());
       } else {
         pipeline.addLast("framer", new LineBasedFrameDecoder(1024));
@@ -118,3 +134,4 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   }
 
 }
+ 

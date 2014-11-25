@@ -25,6 +25,7 @@ import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.tsd.ConnectionManager;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -112,7 +113,7 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
    * @throws IllegalArgumentException if there was an error with the CORS domain
    * list
    */
-  private RpcHandler(final TSDB tsdb) {
+  public RpcHandler(final TSDB tsdb) {
     this.tsdb = tsdb;
 
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
@@ -132,12 +133,15 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
         LOG.info("Loaded CORS domain (" + domain + ")");
       }
     }
-    cors_headers = tsdb.getConfig().getString("tsd.http.request.cors_headers").trim();
+  cors_headers = tsdb.getConfig().getString("tsd.http.request.cors_headers");
     if ((cors_headers == null) || !cors_headers.matches("^([a-zA-Z0-9_.-]+,\\s*)*[a-zA-Z0-9_.-]+$")) {
-    	throw new IllegalArgumentException("tsd.http.request.cors_headers must be a list of validly-formed "
-    		          + "HTTP header names. No wildcards are allowed.");
+      throw new IllegalArgumentException(
+          "tsd.http.request.cors_headers must be a list of validly-formed "
+          + "HTTP header names. No wildcards are allowed.");
+    } else {
+      LOG.info("Loaded CORS headers (" + cors_headers + ")");
     }
-	LOG.info("Loaded CORS headers (" + cors_headers + ")");    
+
     
     {
       final DieDieDie diediedie = new DieDieDie();
@@ -287,6 +291,7 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
   @Override
   public void messageReceived(final ChannelHandlerContext ctx,
                               final MessageEvent msgevent) {
+	  LOG.warn("Message Event: {}", msgevent);
     try {
       final Object message = msgevent.getMessage();
       if (message instanceof String[]) {
