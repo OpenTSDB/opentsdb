@@ -1,6 +1,7 @@
 package net.opentsdb.storage;
 
 import com.stumbleupon.async.DeferredGroupException;
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.tree.Branch;
@@ -12,19 +13,24 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.JSON;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 
 
 import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static junit.framework.TestCase.assertNotNull;
@@ -221,7 +227,6 @@ public abstract class TestTsdbStore {
 
   @Test
   public void testParseFromStorage() throws Exception {
-
     final Branch branch = tsdb_store.fetchBranch(
             Branch.stringToId("00010001BECD000181A8"), true, tsdb)
             .joinUninterruptibly();
@@ -240,6 +245,301 @@ public abstract class TestTsdbStore {
     assertEquals(1, leaf.getTags().size());
     assertEquals("web01", leaf.getTags().get("host"));
   }
+
+  /* TREE */
+  @Test
+  public void storeTree() throws Exception {
+    fail();
+    /*setupStorage();
+    final Tree tree = buildTestTree();
+    tree.setName("New Name");
+    Assert.assertNotNull(tsdb_store.storeTree(tree, false)
+            .joinUninterruptibly());*/
+  }
+
+
+  @Test
+  public void flushCollisions() throws Exception {
+    fail();
+    /*setupStorage();
+    final Tree tree = buildTestTree();
+    tree.setStoreFailures(true);
+    tree.addCollision("010203", "AABBCCDD");
+    Assert.assertNotNull(tsdb.flushTreeCollisions(tree)
+            .joinUninterruptibly());
+    assertEquals(4, tsdb_store.numRows());
+    assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1, 1}));*/
+  }
+
+
+  @Test
+  public void flushNotMatched() throws Exception {
+    fail();
+    /*setupStorage();
+    final Tree tree = buildTestTree();
+    tree.setStoreFailures(true);
+    tree.addNotMatched("010203", "Failed rule 2:2");
+    Assert.assertNotNull(tsdb.flushTreeNotMatched(tree)
+            .joinUninterruptibly());
+    assertEquals(4, tsdb_store.numRows());
+    assertEquals(3, tsdb_store.numColumns(new byte[]{0, 1, 2}));*/
+  }
+  @Test
+  public void flushNotMatchedDisabled() throws Exception {
+    fail();
+    /*setupStorage();
+    final Tree tree = buildTestTree();
+    tree.addNotMatched("010203", "Failed rule 2:2");
+    Assert.assertTrue(tsdb.flushTreeNotMatched(tree)
+            .joinUninterruptibly());
+
+    ArrayList<String> list = new ArrayList<String>(tree.getNotMatched().size());
+    list.addAll(tree.getNotMatched().keySet());
+    Map<String, String> fetched = tsdb.fetchNotMatched(tree.getTreeId(), list)
+            .joinUninterruptibly();*/
+
+
+  }
+
+  @Test
+  public void flushNotMatchedWNotMatchedExisting() throws Exception {
+    fail();
+    /*setupStorage();
+    final Tree tree = buildTestTree();
+    tree.addNotMatched("010101", "Failed rule 4:4");
+    Assert.assertNotNull(tsdb.flushTreeNotMatched(tree)
+            .joinUninterruptibly());
+    assertEquals(4, tsdb_store.numRows());
+    assertEquals(2, tsdb_store.numColumns(new byte[]{0, 1, 2}));*/
+  }
+
+  @Test
+  public void createNewTree() throws Exception {
+    fail();
+    /*setupStorage();
+    final Tree tree = new Tree();
+    tree.setName("New Tree");
+    final int tree_id = tsdb.createNewTree(tree)
+            .joinUninterruptibly();
+    assertEquals(3, tree_id);
+    assertEquals(5, tsdb_store.numRows());
+    assertEquals(1, tsdb_store.numColumns(new byte[]{0, 3}));*/
+  }
+
+  @Test
+  public void createNewFirstTree() throws Exception {
+    fail();
+    /*setupStorage();
+    tsdb_store.flushStorage();
+    final Tree tree = new Tree();
+    tree.setName("New Tree");
+    final int tree_id = tsdb.createNewTree(tree)
+            .joinUninterruptibly();
+    assertEquals(1, tree_id);
+    assertEquals(1, tsdb_store.numRows());
+    assertEquals(1, tsdb_store.numColumns(new byte[]{0, 1}));*/
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void createNewTreeNoChanges() throws Exception {
+    fail();
+    /*
+    setupStorage();
+    final Tree tree = new Tree();
+    tsdb.createNewTree(tree).joinUninterruptibly();
+    */
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void createNewTreeOutOfIDs() throws Exception {
+    fail();/*
+    setupStorage();
+
+    final Tree max_tree = new Tree(65535);
+    max_tree.setName("max");
+    tsdb_store.addColumn(new byte[]{(byte) 0xFF, (byte) 0xFF},
+            "tree".getBytes(Const.CHARSET_ASCII), JSON.serializeToBytes(max_tree));
+
+    final Tree tree = new Tree();
+    tsdb.createNewTree(tree).joinUninterruptibly();*/
+  }
+  @Test
+  public void fetchTree() throws Exception {
+    fail();/*
+    setupStorage();
+    final Tree tree = tsdb.fetchTree(1)
+            .joinUninterruptibly();
+    Assert.assertNotNull(tree);
+    assertEquals("Test Tree", tree.getName());
+    assertEquals(2, tree.getRules().size());
+    Assert.assertTrue(tree.getEnabled());*/
+  }
+
+  @Test
+  public void fetchTreeDoesNotExist() throws Exception {
+    fail();/*
+    setupStorage();
+    Assert.assertNull(tsdb.fetchTree(3).joinUninterruptibly());*/
+  }
+
+  @Test
+  public void fetchAllTrees() throws Exception {
+    fail(); /*
+    setupStorage();
+    final List<Tree> trees = tsdb_store.fetchAllTrees()
+            .joinUninterruptibly();
+    Assert.assertNotNull(trees);
+    assertEquals(2, trees.size());*/
+  }
+
+  @Test
+  public void fetchAllTreesNone() throws Exception {
+    fail();/*
+    setupStorage();
+    tsdb_store.flushStorage();
+    final List<Tree> trees = tsdb_store.fetchAllTrees()
+            .joinUninterruptibly();
+    Assert.assertNotNull(trees);
+    assertEquals(0, trees.size());*/
+  }
+
+  @Test
+  public void fetchAllCollisions() throws Exception {
+    fail();/*
+    setupStorage();
+    Map<String, String> collisions =
+            tsdb.fetchCollisions(1, null).joinUninterruptibly();
+    Assert.assertNotNull(collisions);
+    assertEquals(2, collisions.size());
+    Assert.assertTrue(collisions.containsKey("010101"));
+    Assert.assertTrue(collisions.containsKey("020202"));*/
+  }
+
+  @Test
+  public void fetchAllCollisionsNone() throws Exception {
+    fail();/*
+    setupStorage();
+    tsdb_store.flushRow(new byte[]{0, 1, 1});
+    Map<String, String> collisions =
+            tsdb.fetchCollisions(1, null).joinUninterruptibly();
+    Assert.assertNotNull(collisions);
+    assertEquals(0, collisions.size());*/
+  }
+
+  @Test
+  public void fetchCollisionsSingle() throws Exception {
+    fail();/*
+    setupStorage();
+    final ArrayList<String> tsuids = new ArrayList<String>(1);
+    tsuids.add("020202");
+    Map<String, String> collisions =
+            tsdb.fetchCollisions(1, tsuids).joinUninterruptibly();
+    Assert.assertNotNull(collisions);
+    assertEquals(1, collisions.size());
+    Assert.assertTrue(collisions.containsKey("020202"));*/
+  }
+
+  @Test
+  public void fetchCollisionsSingleNotFound() throws Exception {
+    fail();/*
+    setupStorage();
+    final ArrayList<String> tsuids = new ArrayList<String>(1);
+    tsuids.add("030303");
+    Map<String, String> collisions =
+            tsdb.fetchCollisions(1, tsuids).joinUninterruptibly();
+    Assert.assertNotNull(collisions);
+    assertEquals(0, collisions.size());*/
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void fetchCollisionsID0() throws Exception {
+    fail();/*
+    setupStorage();
+    tsdb.fetchCollisions(0, null);*/
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void fetchCollisionsID655536() throws Exception {
+    fail();/*
+    setupStorage();
+    tsdb.fetchCollisions(655536, null);*/
+  }
+
+  @Test
+  public void fetchAllNotMatched() throws Exception {
+    fail();/*
+    setupStorage();
+    Map<String, String> not_matched =
+            tsdb.fetchNotMatched(1, null).joinUninterruptibly();
+    Assert.assertNotNull(not_matched);
+    assertEquals(2, not_matched.size());
+    Assert.assertTrue(not_matched.containsKey("010101"));
+    assertEquals("Failed rule 0:0", not_matched.get("010101"));
+    Assert.assertTrue(not_matched.containsKey("020202"));
+    assertEquals("Failed rule 1:1", not_matched.get("020202"));*/
+  }
+
+  @Test
+  public void fetchAllNotMatchedNone() throws Exception {
+    fail();/*
+    setupStorage();
+    tsdb_store.flushRow(new byte[]{0, 1, 2});
+    Map<String, String> not_matched =
+            tsdb.fetchNotMatched(1, null).joinUninterruptibly();
+    Assert.assertNotNull(not_matched);
+    assertEquals(0, not_matched.size());*/
+  }
+
+  @Test
+  public void fetchNotMatchedSingle() throws Exception {
+    fail();/*
+    setupStorage();
+    final ArrayList<String> tsuids = new ArrayList<String>(1);
+    tsuids.add("020202");
+    Map<String, String> not_matched =
+            tsdb.fetchNotMatched(1, tsuids).joinUninterruptibly();
+    Assert.assertNotNull(not_matched);
+    assertEquals(1, not_matched.size());
+    Assert.assertTrue(not_matched.containsKey("020202"));
+    assertEquals("Failed rule 1:1", not_matched.get("020202"));*/
+  }
+
+  @Test
+  public void fetchNotMatchedSingleNotFound() throws Exception {
+    fail();/*
+    setupStorage();
+    final ArrayList<String> tsuids = new ArrayList<String>(1);
+    tsuids.add("030303");
+    Map<String, String> not_matched =
+            tsdb.fetchNotMatched(1, tsuids).joinUninterruptibly();
+    Assert.assertNotNull(not_matched);
+    assertEquals(0, not_matched.size());*/
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void fetchNotMatchedID0() throws Exception {
+    fail();/*
+    setupStorage();
+    tsdb.fetchNotMatched(0, null);*/
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void fetchNotMatchedID655536() throws Exception {
+    fail();/*
+    setupStorage();
+    tsdb.fetchNotMatched(655536, null);*/
+  }
+
+  @Test
+  public void deleteTree() throws Exception {
+    fail();/*
+    setupStorage();
+    Assert.assertNotNull(tsdb.deleteTree(1, true)
+            .joinUninterruptibly());
+    assertEquals(0, tsdb_store.numRows());*/
+  }
+
+
 
   @Test (expected = NoSuchUniqueId.class)
   public void testParseFromStorageNSUMetric() throws Throwable {

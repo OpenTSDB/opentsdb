@@ -22,17 +22,22 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNull;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.TreeMap;
 
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.tree.Branch;
+import net.opentsdb.tree.TestTree;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
+import net.opentsdb.utils.JSON;
 import org.hbase.async.Bytes;
 
 import org.junit.Before;
@@ -972,6 +977,7 @@ public final class TestTSDB {
 
     assertEquals(0, tree.getCollisions().size());
   }
+
   @Test
   public void testFlushTreeCollisionsFailures() throws Exception {
     final Tree tree = new Tree();
@@ -983,6 +989,21 @@ public final class TestTSDB {
 
     assertTrue(tsdb.flushTreeCollisions(tree).joinUninterruptibly());
     assertEquals(1, tree.getCollisions().size());
+  }
+
+  @Test
+  public void testFlushCollisionsDisabled() throws Exception {
+    final Tree tree = new Tree();
+    tree.setStoreFailures(false);
+    tree.addCollision("4711", "JustANumber");
+    assertTrue(tree.getCollisions().containsKey("4711"));
+    assertTrue(tree.getCollisions().containsValue("JustANumber"));
+    assertEquals(1, tree.getCollisions().size());
+
+    tree.addCollision("010203", "AABBCCDD");
+    assertTrue(tsdb.flushTreeCollisions(tree)
+            .joinUninterruptibly());
+    assertEquals(0, tree.getCollisions().size());
   }
 
   @Test
@@ -1205,5 +1226,121 @@ public final class TestTSDB {
          id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
       tsdb.deleteAllTreeRules(id);
     }
+  }
+
+
+  /**
+   * Mocks classes for testing the storage calls
+   */
+  private void setupTreeStorage() throws Exception {
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, new Config(false));
+
+    byte[] key = new byte[] { 0, 1 };
+    // set pre-test values
+    tsdb_store.addColumn(key, "tree".getBytes(Const.CHARSET_ASCII),
+            TestTree.buildTestTree().toStorageJson());
+
+    TreeRule rule = new TreeRule(1);
+    rule.setField("host");
+    rule.setType(TreeRule.TreeRuleType.TAGK);
+    tsdb_store.addColumn(key, "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
+            JSON.serializeToBytes(rule));
+
+    rule = new TreeRule(1);
+    rule.setField("");
+    rule.setLevel(1);
+    rule.setType(TreeRule.TreeRuleType.METRIC);
+    tsdb_store.addColumn(key, "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
+            JSON.serializeToBytes(rule));
+
+    Branch root = new Branch(1);
+    root.setDisplayName("ROOT");
+    TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
+    root_path.put(0, "ROOT");
+    root.prependParentPath(root_path);
+    // TODO - static
+    Method branch_json = Branch.class.getDeclaredMethod("toStorageJson");
+    branch_json.setAccessible(true);
+    tsdb_store.addColumn(key, "branch".getBytes(Const.CHARSET_ASCII),
+            (byte[]) branch_json.invoke(root));
+
+    // tree 2
+    key = new byte[] { 0, 2 };
+
+    Tree tree2 = new Tree();
+    tree2.setTreeId(2);
+    tree2.setName("2nd Tree");
+    tree2.setDescription("Other Tree");
+    tsdb_store.addColumn(key, "tree".getBytes(Const.CHARSET_ASCII),
+            tree2.toStorageJson());
+
+    rule = new TreeRule(2);
+    rule.setField("host");
+    rule.setType(TreeRule.TreeRuleType.TAGK);
+    tsdb_store.addColumn(key, "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
+            JSON.serializeToBytes(rule));
+
+    rule = new TreeRule(2);
+    rule.setField("");
+    rule.setLevel(1);
+    rule.setType(TreeRule.TreeRuleType.METRIC);
+    tsdb_store.addColumn(key, "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
+            JSON.serializeToBytes(rule));
+
+    root = new Branch(2);
+    root.setDisplayName("ROOT");
+    root_path = new TreeMap<Integer, String>();
+    root_path.put(0, "ROOT");
+    root.prependParentPath(root_path);
+    tsdb_store.addColumn(key, "branch".getBytes(Const.CHARSET_ASCII),
+            (byte[]) branch_json.invoke(root));
+
+    // sprinkle in some collisions and no matches for fun
+    // collisions
+    key = new byte[] { 0, 1, 1 };
+    String tsuid = "010101";
+    byte[] qualifier = new byte[Tree.COLLISION_PREFIX().length +
+            (tsuid.length() / 2)];
+    System.arraycopy(Tree.COLLISION_PREFIX(), 0, qualifier, 0,
+            Tree.COLLISION_PREFIX().length);
+    byte[] tsuid_bytes = UniqueId.stringToUid(tsuid);
+    System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length,
+            tsuid_bytes.length);
+    tsdb_store.addColumn(key, qualifier, "AAAAAA".getBytes(Const.CHARSET_ASCII));
+
+    tsuid = "020202";
+    qualifier = new byte[Tree.COLLISION_PREFIX().length +
+            (tsuid.length() / 2)];
+    System.arraycopy(Tree.COLLISION_PREFIX(), 0, qualifier, 0,
+            Tree.COLLISION_PREFIX().length);
+    tsuid_bytes = UniqueId.stringToUid(tsuid);
+    System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length,
+            tsuid_bytes.length);
+    tsdb_store.addColumn(key, qualifier, "BBBBBB".getBytes(Const.CHARSET_ASCII));
+
+    // not matched
+    key = new byte[] { 0, 1, 2 };
+    tsuid = "010101";
+    qualifier = new byte[Tree.NOT_MATCHED_PREFIX().length +
+            (tsuid.length() / 2)];
+    System.arraycopy(Tree.NOT_MATCHED_PREFIX(), 0, qualifier, 0,
+            Tree.NOT_MATCHED_PREFIX().length);
+    tsuid_bytes = UniqueId.stringToUid(tsuid);
+    System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length,
+            tsuid_bytes.length);
+    tsdb_store.addColumn(key, qualifier, "Failed rule 0:0"
+            .getBytes(Const.CHARSET_ASCII));
+
+    tsuid = "020202";
+    qualifier = new byte[Tree.NOT_MATCHED_PREFIX().length +
+            (tsuid.length() / 2)];
+    System.arraycopy(Tree.NOT_MATCHED_PREFIX(), 0, qualifier, 0,
+            Tree.NOT_MATCHED_PREFIX().length);
+    tsuid_bytes = UniqueId.stringToUid(tsuid);
+    System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length,
+            tsuid_bytes.length);
+    tsdb_store.addColumn(key, qualifier, "Failed rule 1:1"
+            .getBytes(Const.CHARSET_ASCII));
   }
 }
