@@ -135,6 +135,7 @@ public final class JSON {
     try {
       return jsonMapper.readValue(json, pojo);
     } catch (JsonParseException e) {
+    	System.out.println("Failed to parse JSON: [" + new String(json) + "]");
       throw new IllegalArgumentException(e);
     } catch (JsonMappingException e) {
       throw new IllegalArgumentException(e);

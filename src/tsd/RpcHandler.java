@@ -67,6 +67,8 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
   /** List of domains to allow access to HTTP. By default this will be empty and
    * all CORS headers will be ignored. */
   private final HashSet<String> cors_domains;
+  /** List of headers allowed for access to HTTP. By default this will contain a set of known-to-work headers */
+  private final String cors_headers;
   
   private final HandlerRegistrarImpl handlerRegistrar;
 
@@ -130,6 +132,12 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
         LOG.info("Loaded CORS domain (" + domain + ")");
       }
     }
+    cors_headers = tsdb.getConfig().getString("tsd.http.request.cors_headers").trim();
+    if ((cors_headers == null) || !cors_headers.matches("^([a-zA-Z0-9_.-]+,\\s*)*[a-zA-Z0-9_.-]+$")) {
+    	throw new IllegalArgumentException("tsd.http.request.cors_headers must be a list of validly-formed "
+    		          + "HTTP header names. No wildcards are allowed.");
+    }
+	LOG.info("Loaded CORS headers (" + cors_headers + ")");    
     
     {
       final DieDieDie diediedie = new DieDieDie();
@@ -358,6 +366,7 @@ public final class RpcHandler extends SimpleChannelUpstreamHandler {
                 domain);
             query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
                 "GET, POST, PUT, DELETE");
+            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, cors_headers);
 
             // if the method requested was for OPTIONS then we'll return an OK
             // here and no further processing is needed.
