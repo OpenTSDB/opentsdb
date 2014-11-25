@@ -12,29 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Objects;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.JSON;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -63,14 +48,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * Note that the HBase specific storage code will be removed once we have a DAL
  * @since 2.0
  */
-@JsonIgnoreProperties(ignoreUnknown = true) 
-@JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class UIDMeta {
   /** A hexadecimal representation of the UID this metadata is associated with */
   private byte[] uid;
-  
-  /** The type of UID this metadata represents */
-  @JsonDeserialize(using = JSON.UniqueIdTypeDeserializer.class)
+
   private UniqueIdType type;
   
   /** 
@@ -169,46 +150,6 @@ public final class UIDMeta {
   }
 
   /**
-   * Constructor used by TSD only to create a new UID with the given data and
-   * the current system time for {@code createdd}
-   * @param type Type of UID object
-   * @param uid UID of the object
-   * @param name Name of the UID
-   * @param created If this object should be considered newly created.
-   */
-  public static UIDMeta buildFromJSON(byte[] json, UniqueIdType type, byte[] uid,
-                              String name) {
-    try {
-      ObjectMapper mapper = new ObjectMapper();
-      ObjectNode rootNode = mapper.readValue(json, ObjectNode.class);
-
-      String display_name = rootNode.get("displayName").textValue();
-      String description = rootNode.get("description").textValue();
-      String notes = rootNode.get("notes").textValue();
-      long created = rootNode.get("description").longValue();
-
-      JsonNode custom_node = rootNode.get("custom");
-      Map<String, String> custom = null;
-
-      if (custom_node != null && custom_node.getNodeType() == JsonNodeType.OBJECT) {
-        custom = Maps.newHashMap();
-        Iterator<String> custom_keys = custom_node.fieldNames();
-
-        while (custom_keys.hasNext()) {
-          String key = custom_keys.next();
-          String value = custom_node.get(key).textValue();
-          custom.put(key, value);
-        }
-      }
-
-      return new UIDMeta(uid, type, name, display_name, description, notes,
-              custom, created);
-    } catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  /**
    * @return a string with details about this object
    */
   @Override
@@ -256,43 +197,6 @@ public final class UIDMeta {
    */
   public void resetChangedMap() {
     changed.clear();
-  }
-  
-  /**
-   * Formats the JSON output for writing to storage. It drops objects we don't
-   * need or want to store (such as the UIDMeta objects or the total dps) to
-   * save space. It also serializes in order so that we can make a proper CAS
-   * call. Otherwise the POJO serializer may place the fields in any order
-   * and CAS calls would fail all the time.
-   * @return A byte array to write to storage
-   */
-  public byte[] getStorageJSON() {
-    // 256 bytes is a good starting value, assumes default info
-    final ByteArrayOutputStream output = new ByteArrayOutputStream(256);
-    try {
-      final JsonGenerator json = JSON.getFactory().createGenerator(output); 
-      json.writeStartObject();
-      json.writeStringField("type", type.toString());
-      json.writeStringField("displayName", display_name);
-      json.writeStringField("description", description);
-      json.writeStringField("notes", notes);
-      json.writeNumberField("created", created);
-      if (custom == null) {
-        json.writeNullField("custom");
-      } else {
-        json.writeObjectFieldStart("custom");
-        for (Map.Entry<String, String> entry : custom.entrySet()) {
-          json.writeStringField(entry.getKey(), entry.getValue());
-        }
-        json.writeEndObject();
-      }
-      
-      json.writeEndObject(); 
-      json.close();
-      return output.toByteArray();
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to serialize UIDMeta", e);
-    }
   }
   
   // Getters and Setters --------------

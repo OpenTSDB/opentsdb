@@ -367,12 +367,12 @@ public final class JSON {
   /**
    * Helper class for deserializing UID type enum from human readable strings
    */
-  public static class UniqueIdTypeDeserializer 
-    extends JsonDeserializer<UniqueIdType> {
-    
+  public static class UniqueIdTypeDeserializer
+          extends JsonDeserializer<UniqueIdType> {
+
     @Override
     public UniqueIdType deserialize(final JsonParser parser, final
-        DeserializationContext context) throws IOException {
+    DeserializationContext context) throws IOException {
       return UniqueIdType.fromString(parser.getValueAsString());
     }
   }
