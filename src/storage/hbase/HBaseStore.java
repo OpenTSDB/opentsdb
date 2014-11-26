@@ -605,8 +605,14 @@ public class HBaseStore implements TsdbStore {
 
         if (cell.isPresent()) {
           original_meta = cell.get().value();
-          stored_meta = JSON.parseToObject(original_meta, UIDMeta.class);
-          stored_meta.resetChangedMap();
+
+          InjectableValues vals = new InjectableValues.Std()
+              .addValue(byte[].class, meta.getUID())
+              .addValue(String.class, meta.getName());
+
+          stored_meta = jsonMapper.reader(UIDMeta.class)
+              .with(vals)
+              .readValue(original_meta);
         } else {
           original_meta = new byte[0];
           stored_meta = null;
