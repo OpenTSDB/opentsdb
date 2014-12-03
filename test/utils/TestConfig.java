@@ -249,8 +249,20 @@ public final class TestConfig {
     }
   }
   
-  @Test (expected = NullPointerException.class)
+  @Test
   public void getDirectoryNameNull() throws Exception {
-    config.getDirectoryName("tsd.unitest");
+    assertNull(config.getDirectoryName("tsd.unitest"));
+  }
+  
+  @Test
+  public void getDirectoryNameEmpty() throws Exception {
+    config.overrideConfig("tsd.unitest", "");
+    assertNull(config.getDirectoryName("tsd.unitest"));
+  }
+  
+  @Test
+  public void getDirectoryNameNoslash() throws Exception {
+    config.overrideConfig("tsd.unitest", "relative");
+    assertEquals("relative/", config.getDirectoryName("tsd.unitest"));
   }
 }

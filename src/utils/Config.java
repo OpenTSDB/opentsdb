@@ -333,6 +333,9 @@ public class Config {
    */
   public final String getDirectoryName(final String property) {
     String directory = properties.get(property);
+    if (directory == null || directory.isEmpty()){
+      return null;
+    }
     if (IS_WINDOWS) {
       // Windows swings both ways. If a forward slash was already used, we'll
       // add one at the end if missing. Otherwise use the windows default of \
@@ -348,10 +351,6 @@ public class Config {
     if (directory.contains("\\")) {
       throw new IllegalArgumentException(
           "Unix path names cannot contain a back slash");
-    }
-    
-    if (directory == null || directory.isEmpty()){
-    	return null;
     }
     
     if (directory.charAt(directory.length() - 1) == '/') {
