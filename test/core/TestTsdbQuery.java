@@ -2466,7 +2466,42 @@ public final class TestTsdbQuery {
     }
     assertEquals(600, dps[0].size());
   }
- 
+  
+  @Test
+  public void runPercentiles() throws Exception {
+    storeLongTimeSeriesSeconds(false, true);
+
+    HashMap<String, String> tags = new HashMap<String, String>(0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.p50, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+
+    long v1 = 151;
+    long v2 = 150;
+    long ts = 1356998430000L;
+    int counter = 0;
+    int size = dps[0].size();
+    for (DataPoint dp : dps[0]) {
+      assertEquals(ts, dp.timestamp());
+      ts += 15000;
+      if (counter == 0 || counter == size - 1) {
+          assertEquals(1, dp.longValue());
+      } else if (counter % 2 == 0) {
+        assertEquals(v1, dp.longValue());
+      } else {
+        assertEquals(v2, dp.longValue());
+      }
+      counter++;
+    }
+    assertEquals(600, size);
+  }
+  
   // ----------------- //
   // Helper functions. //
   // ----------------- //
