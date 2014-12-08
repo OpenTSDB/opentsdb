@@ -370,6 +370,17 @@
       <version>@ASYNCHBASE_VERSION@</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.matttproud.quantile</groupId>
+      <artifactId>quantile</artifactId>
+      <version>0.0.3</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-math</artifactId>
+      <version>2.1</version>
+    </dependency>
+
     <!-- runtime dependencies -->
 
     <dependency>

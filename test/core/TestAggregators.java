@@ -134,4 +134,15 @@ public final class TestAggregators {
     return Math.sqrt(variance);
   }
 
+  @Test
+  public void testPercentiles() {
+      final long[] values = new long[100];
+      for (int i = 0; i < values.length; i++) {
+        values[i] = i+1;
+      }
+      Assert.assertEquals(50, Aggregators.get("p50").runLong(new Numbers(values)));
+      Assert.assertEquals(75, Aggregators.get("p75").runLong(new Numbers(values)));
+      Assert.assertEquals(95, Aggregators.get("p95").runLong(new Numbers(values)));
+      Assert.assertEquals(99, Aggregators.get("p99").runLong(new Numbers(values)));
+  }
 }
