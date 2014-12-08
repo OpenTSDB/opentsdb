@@ -134,4 +134,33 @@ public final class TestAggregators {
     return Math.sqrt(variance);
   }
 
+  @Test
+  public void testPercentiles() {
+    final long[] longValues = new long[1000];
+    for (int i = 0; i < longValues.length; i++) {
+      longValues[i] = i+1;
+    }
+
+    Numbers values = new Numbers(longValues);
+    assertEquals(500, Aggregators.get("p50"), values);
+    assertEquals(750, Aggregators.get("p75"), values);
+    assertEquals(900, Aggregators.get("p90"), values);
+    assertEquals(950, Aggregators.get("p95"), values);
+    assertEquals(990, Aggregators.get("p99"), values);
+    assertEquals(999, Aggregators.get("p999"), values);
+
+    assertEquals(500, Aggregators.get("ep50"), values);
+    assertEquals(750, Aggregators.get("ep75"), values);
+    assertEquals(900, Aggregators.get("ep90"), values);
+    assertEquals(950, Aggregators.get("ep95"), values);
+    assertEquals(990, Aggregators.get("ep99"), values);
+    assertEquals(999, Aggregators.get("ep999"), values);
+  }
+
+  private void assertEquals(long value, Aggregator agg, Numbers numbers) {
+    Assert.assertEquals(value, agg.runLong(numbers));
+    numbers.reset();
+    Assert.assertEquals((double)value, agg.runDouble(numbers), 1.0);
+    numbers.reset();
+  }
 }
