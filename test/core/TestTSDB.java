@@ -28,6 +28,7 @@ import java.util.TreeMap;
 
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.TestTree;
 import net.opentsdb.tree.Tree;
@@ -38,6 +39,8 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
 import net.opentsdb.utils.JSON;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hbase.async.Bytes;
 
 import org.junit.Before;
@@ -47,7 +50,8 @@ public final class TestTSDB {
   private Config config;
   private TSDB tsdb;
   private MemoryStore tsdb_store;
-  
+  private ObjectMapper jsonMapper;
+
   @Before
   public void before() throws Exception {
     config = new Config(false);
@@ -1236,6 +1240,9 @@ public final class TestTSDB {
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, new Config(false));
 
+    jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
+
     byte[] key = new byte[] { 0, 1 };
     // set pre-test values
     tsdb_store.addColumn(key, "tree".getBytes(Const.CHARSET_ASCII),
@@ -1245,14 +1252,14 @@ public final class TestTSDB {
     rule.setField("host");
     rule.setType(TreeRule.TreeRuleType.TAGK);
     tsdb_store.addColumn(key, "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
-            JSON.serializeToBytes(rule));
+            jsonMapper.writeValueAsBytes(rule));
 
     rule = new TreeRule(1);
     rule.setField("");
     rule.setLevel(1);
     rule.setType(TreeRule.TreeRuleType.METRIC);
     tsdb_store.addColumn(key, "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
-            JSON.serializeToBytes(rule));
+            jsonMapper.writeValueAsBytes(rule));
 
     Branch root = new Branch(1);
     root.setDisplayName("ROOT");
@@ -1279,14 +1286,14 @@ public final class TestTSDB {
     rule.setField("host");
     rule.setType(TreeRule.TreeRuleType.TAGK);
     tsdb_store.addColumn(key, "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
-            JSON.serializeToBytes(rule));
+            jsonMapper.writeValueAsBytes(rule));
 
     rule = new TreeRule(2);
     rule.setField("");
     rule.setLevel(1);
     rule.setType(TreeRule.TreeRuleType.METRIC);
     tsdb_store.addColumn(key, "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
-            JSON.serializeToBytes(rule));
+            jsonMapper.writeValueAsBytes(rule));
 
     root = new Branch(2);
     root.setDisplayName("ROOT");

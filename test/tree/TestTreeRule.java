@@ -17,10 +17,12 @@ import java.util.regex.PatternSyntaxException;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,10 +42,14 @@ public final class TestTreeRule {
   private MemoryStore tsdb_store;
   private TSDB tsdb;
   private TreeRule rule;
+  private ObjectMapper jsonMapper;
 
   @Before
   public void before() {
     rule = new TreeRule();
+
+    jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
   }
   
   @Test
@@ -137,38 +143,6 @@ public final class TestTreeRule {
   @Test (expected = IllegalArgumentException.class)
   public void stringToTypeInvalid() {
     TreeRule.stringToType("NotAType");
-  }
-  
-  @Test
-  public void serialize() {
-    rule.setField("host");
-    final String json = JSON.serializeToString(rule);
-    assertNotNull(json);
-    assertTrue(json.contains("\"field\":\"host\""));
-  }
-  
-  @Test
-  public void deserialize() {
-    final String json = "{\"type\":\"METRIC\",\"field\":\"host\",\"regex\":" +
-    "\"^[a-z]$\",\"separator\":\".\",\"description\":\"My Description\"," +
-    "\"notes\":\"Got Notes?\",\"display_format\":\"POP {ovalue}\",\"level\":1" +
-    ",\"order\":2,\"customField\":\"\",\"regexGroupIdx\":1,\"treeId\":42," +
-    "\"UnknownKey\":\"UnknownVal\"}";
-    rule = JSON.parseToObject(json, TreeRule.class);
-    assertNotNull(rule);
-    assertEquals(42, rule.getTreeId());
-    assertEquals("^[a-z]$", rule.getRegex());
-    assertNotNull(rule.getCompiledRegex());
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void deserializeBadRegexCompile() {
-    final String json = "{\"type\":\"METRIC\",\"field\":\"host\",\"regex\":" +
-    "\"^(ok$\",\"separator\":\".\",\"description\":\"My Description\"," +
-    "\"notes\":\"Got Notes?\",\"display_format\":\"POP {ovalue}\",\"level\":1" +
-    ",\"order\":2,\"customField\":\"\",\"regexGroupIdx\":1,\"treeId\":42," +
-    "\"UnknownKey\":\"UnknownVal\"}";
-    rule = JSON.parseToObject(json, TreeRule.class);
   }
 
   @Test
@@ -438,6 +412,6 @@ public final class TestTreeRule {
     // add a rule to the row
     tsdb_store.addColumn(new byte[]{0, 1},
       "tree_rule:2:1".getBytes(Const.CHARSET_ASCII),
-      JSON.serializeToBytes(stored_rule));
+      jsonMapper.writeValueAsBytes(stored_rule));
   }
 }
