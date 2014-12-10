@@ -126,11 +126,11 @@ def main(argv):
     try:
       conn.connect()
     except socket.error, e:
-      print "ERROR: couldn't connect to %s: %s" % (tsd, e)
+      print ("ERROR: couldn't connect to %s: %s" % (tsd, e))
       return 2
     if options.verbose:
         peer = conn.sock.getpeername()
-        print 'Connected to %s:%d' % (peer[0], peer[1])
+        print ('Connected to %s:%d' % (peer[0], peer[1]))
         conn.set_debuglevel(1)
     now = int(time.time())
     try:
@@ -139,7 +139,7 @@ def main(argv):
       datapoints = res.read()
       conn.close()
     except socket.error, e:
-      print "ERROR: couldn't GET %s from %s: %s" % (url, tsd, e)
+      print ("ERROR: couldn't GET %s from %s: %s" % (url, tsd, e))
       return 2
 
     # if failure...
@@ -147,21 +147,21 @@ def main(argv):
         print ('CRITICAL: status = %d when talking to %s:%d'
                % (res.status, options.host, options.port))
         if options.verbose:
-            print 'TSD said:'
-            print datapoints
+            print ('TSD said:')
+            print (datapoints)
         return 2
 
     # but we won!
     if options.verbose:
-        print datapoints
+        print (datapoints)
     datapoints = datapoints.splitlines()
 
     def no_data_point():
         if options.no_result_ok:
-            print 'OK: query did not return any data point (--no-result-ok)'
+            print ('OK: query did not return any data point (--no-result-ok)')
             return 0
         else:
-            print 'CRITICAL: query did not return any data point'
+            print ('CRITICAL: query did not return any data point')
             return 2
 
     if not len(datapoints):
@@ -208,7 +208,7 @@ def main(argv):
         return no_data_point()
     if badts:
         if options.verbose:
-            print 'worse data point value=%s at ts=%s' % (badval, badts)
+            print ('worse data point value=%s at ts=%s' % (badval, badts))
         badts = time.asctime(time.localtime(badts))
 
     # in nrpe, pipe character is something special, but it's used in tag
