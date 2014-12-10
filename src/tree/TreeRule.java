@@ -19,13 +19,6 @@ import java.util.regex.PatternSyntaxException;
 
 import com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.Const;
-import net.opentsdb.utils.JSON;
-
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * Represents single rule in a set of rules for a given tree. Each rule is
@@ -39,8 +32,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
  * individually. RPC calls can also bulk replace rule sets.
  * @since 2.0
  */
-@JsonIgnoreProperties(ignoreUnknown = true) 
-@JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class TreeRule {
 
   /** Types of tree rules */
@@ -53,7 +44,6 @@ public final class TreeRule {
   }
 
   /** Type of rule */
-  @JsonDeserialize(using = JSON.TreeRuleTypeDeserializer.class)
   private TreeRuleType type = null;
   
   /** Name of the field to match on if applicable */
@@ -375,7 +365,6 @@ public final class TreeRule {
   }
 
   /** @return the compiled_regex */
-  @JsonIgnore
   public Pattern getCompiledRegex() {
     return compiled_regex;
   }

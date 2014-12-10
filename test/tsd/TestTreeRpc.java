@@ -1144,7 +1144,7 @@ public final class TestTreeRpc {
     rule.setDescription("Host Name");
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
       "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
-      JSON.serializeToBytes(rule));
+      jsonMapper.writeValueAsBytes(rule));
 
     rule = new TreeRule(1);
     rule.setField("");
@@ -1153,7 +1153,7 @@ public final class TestTreeRpc {
     rule.setType(TreeRuleType.METRIC);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
       "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
-      JSON.serializeToBytes(rule));
+      jsonMapper.writeValueAsBytes(rule));
     
     root = new Branch(1);
     root.setDisplayName("ROOT");
@@ -1179,7 +1179,7 @@ public final class TestTreeRpc {
     rule.setType(TreeRuleType.TAGK);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
       "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
-      JSON.serializeToBytes(rule));
+      jsonMapper.writeValueAsBytes(rule));
     
     rule = new TreeRule(2);
     rule.setField("");
@@ -1187,7 +1187,7 @@ public final class TestTreeRpc {
     rule.setType(TreeRuleType.METRIC);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
       "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
-      JSON.serializeToBytes(rule));
+      jsonMapper.writeValueAsBytes(rule));
     
     root = new Branch(2);
     root.setDisplayName("ROOT");

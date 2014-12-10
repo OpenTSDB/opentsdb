@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage.hbase;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -1372,9 +1373,13 @@ public class HBaseStore implements TsdbStore {
       throw new IllegalArgumentException("Tree rule column value was null");
     }
 
-    final TreeRule rule = JSON.parseToObject(column.value(), TreeRule.class);
-    rule.initializeChangedMap();
-    return rule;
+    try {
+      final TreeRule rule = jsonMapper.readValue(column.value(), TreeRule.class);
+      rule.initializeChangedMap();
+      return rule;
+    } catch (IOException e) {
+      throw new JSONException(e);
+    }
   }
 
   @Override
@@ -2156,31 +2161,34 @@ public class HBaseStore implements TsdbStore {
        */
       @Override
       public Deferred<Boolean> call(final TreeRule fetched_rule) {
-
-        TreeRule stored_rule = fetched_rule;
-        final byte[] original_rule = stored_rule == null ? new byte[0] :
-                JSON.serializeToBytes(stored_rule);
-        if (stored_rule == null) {
-          stored_rule = local_rule;
-        } else {
-          if (!stored_rule.copyChanges(local_rule, overwrite)) {
-            LOG.debug("{} does not have changes, skipping sync to storage", this);
-            throw new IllegalStateException("No changes detected in the rule");
+        try {
+          TreeRule stored_rule = fetched_rule;
+          final byte[] original_rule = stored_rule == null ? new byte[0] :
+                  jsonMapper.writeValueAsBytes(stored_rule);
+          if (stored_rule == null) {
+            stored_rule = local_rule;
+          } else {
+            if (!stored_rule.copyChanges(local_rule, overwrite)) {
+              LOG.debug("{} does not have changes, skipping sync to storage", this);
+              throw new IllegalStateException("No changes detected in the rule");
+            }
           }
+
+          // reset the local change map so we don't keep writing on subsequent
+          // requests
+          rule.initializeChangedMap();
+
+          // validate before storing
+          stored_rule.validateRule();
+
+          final PutRequest put = new PutRequest(tree_table_name,
+                  Tree.idToBytes(rule.getTreeId()), Tree.TREE_FAMILY(),
+                  TreeRule.getQualifier(rule.getLevel(), rule.getOrder()),
+                  jsonMapper.writeValueAsBytes(stored_rule));
+          return client.compareAndSet(put, original_rule);
+        } catch (JsonProcessingException e) {
+          throw new JSONException(e);
         }
-
-        // reset the local change map so we don't keep writing on subsequent
-        // requests
-        rule.initializeChangedMap();
-
-        // validate before storing
-        stored_rule.validateRule();
-
-        final PutRequest put = new PutRequest(tree_table_name,
-                Tree.idToBytes(rule.getTreeId()), Tree.TREE_FAMILY(),
-                TreeRule.getQualifier(rule.getLevel(), rule.getOrder()),
-                JSON.serializeToBytes(stored_rule));
-        return client.compareAndSet(put, original_rule);
       }
 
     }
