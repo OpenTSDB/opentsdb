@@ -20,6 +20,7 @@ import static org.mockito.Mockito.*;
 import java.nio.charset.Charset;
 import java.util.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
@@ -29,6 +30,7 @@ import org.hbase.async.*;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.utils.Config;
 
 import org.junit.Before;
@@ -55,6 +57,7 @@ public final class TestCompactionQueue {
   private static final byte[] note = annotation.getBytes(Charset.forName("UTF-8"));
   private static final byte[] note_qual = { 1, 0, 0 };
   private CompactionQueue compactionq;
+  private ObjectMapper jsonMapper;
 
   @Before
   public void before() throws Exception {
@@ -68,7 +71,10 @@ public final class TestCompactionQueue {
     PowerMockito.whenNew(CompactionQueue.Thrd.class).withNoArguments()
       .thenReturn(mock(CompactionQueue.Thrd.class));
 
-    compactionq = new CompactionQueue(tsdb_store, config, TABLE, FAMILY);
+    jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
+
+    compactionq = new CompactionQueue(tsdb_store, jsonMapper, config, TABLE, FAMILY);
 
     when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
     when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
@@ -429,7 +435,7 @@ public final class TestCompactionQueue {
     tsdb_store = mock(HBaseStore.class);
     config = new Config(false);
 
-    compactionq = new CompactionQueue(tsdb_store, config, TABLE, FAMILY);
+    compactionq = new CompactionQueue(tsdb_store, jsonMapper, config, TABLE, FAMILY);
 
     when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
     when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
@@ -522,7 +528,7 @@ public final class TestCompactionQueue {
     tsdb_store = mock(HBaseStore.class);
     config = new Config(false);
 
-    compactionq = new CompactionQueue(tsdb_store, config, TABLE, FAMILY);
+    compactionq = new CompactionQueue(tsdb_store, jsonMapper, config, TABLE, FAMILY);
 
     when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
     when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
@@ -821,7 +827,7 @@ public final class TestCompactionQueue {
     tsdb_store = mock(HBaseStore.class);
     config = new Config(false);
 
-    compactionq = new CompactionQueue(tsdb_store, config, TABLE, FAMILY);
+    compactionq = new CompactionQueue(tsdb_store, jsonMapper, config, TABLE, FAMILY);
 
     when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
     when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());

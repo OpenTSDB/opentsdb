@@ -12,22 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Sets;
-
-import net.opentsdb.utils.JSON;
-
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.core.JsonGenerator;
 
 /**
  * Annotations are used to record time-based notes about timeseries events.
@@ -52,9 +42,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
  * with the name of the person who recorded the note.
  * @since 2.0
  */
-@JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
-@JsonInclude(Include.NON_NULL)
-@JsonIgnoreProperties(ignoreUnknown = true)
 public final class Annotation implements Comparable<Annotation> {
   /** If the note is associated with a timeseries, represents the ID */
   private String tsuid = "";
@@ -66,23 +53,38 @@ public final class Annotation implements Comparable<Annotation> {
   private long end_time = 0;
   
   /** A short description of the event, displayed in GUIs */
-  private String description = "";  
+  private String description = "";
   
   /** A detailed accounting of the event or note */
   private String notes = "";
   
   /** Optional user supplied key/values */
-  private HashMap<String, String> custom = null;
+  private Map<String, String> custom = null;
 
   /** Tracks fields that have changed by the user to avoid overwrites */
   private final Set<String> changed = Sets.newHashSetWithExpectedSize(6);
 
-  /**
-   * Default constructor, initializes the change map
-   */
   public Annotation() {
   }
-  
+
+  public Annotation(final String tsuid, final long start_time, final String description) {
+    this(tsuid, start_time, 0, description, null, null);
+  }
+
+  public Annotation(final String tsuid,
+                    final long start_time,
+                    final long end_time,
+                    final String description,
+                    final String notes,
+                    final Map<String, String> custom) {
+    this.tsuid = tsuid;
+    this.start_time = start_time;
+    this.end_time = end_time;
+    this.description = description;
+    this.notes = notes;
+    this.custom = custom;
+  }
+
   /** @return A string with information about the annotation object */
   @Override
   public String toString() {
@@ -105,42 +107,6 @@ public final class Annotation implements Comparable<Annotation> {
     return !changed.isEmpty();
   }
 
-  /**
-   * Serializes the object in a uniform matter for storage. Needed for 
-   * successful CAS calls
-   * @return The serialized object as a byte array
-   */
-  public byte[] getStorageJSON() {
-    // TODO - precalculate size
-    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    try {
-      final JsonGenerator json = JSON.getFactory().createGenerator(output); 
-      json.writeStartObject();
-      if (tsuid != null && !tsuid.isEmpty()) {
-        json.writeStringField("tsuid", tsuid);  
-      }
-      json.writeNumberField("startTime", start_time);
-      json.writeNumberField("endTime", end_time);
-      json.writeStringField("description", description);
-      json.writeStringField("notes", notes);
-      if (custom == null) {
-        json.writeNullField("custom");
-      } else {
-        json.writeObjectFieldStart("custom");
-        for (Map.Entry<String, String> entry : custom.entrySet()) {
-          json.writeStringField(entry.getKey(), entry.getValue());
-        }
-        json.writeEndObject();
-      }
-      
-      json.writeEndObject(); 
-      json.close();
-      return output.toByteArray();
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to serialize Annotation", e);
-    }
-  }
-  
   /**
    * Syncs the local object with the stored object for atomic writes, 
    * overwriting the stored data if the user issued a PUT request

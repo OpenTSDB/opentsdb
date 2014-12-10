@@ -147,10 +147,11 @@ public class HBaseStore implements TsdbStore {
 
     client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
 
-    compactionq = new CompactionQueue(this, config, data_table_name, TS_FAMILY);
-
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());
+
+    compactionq = new CompactionQueue(this, jsonMapper, config, data_table_name,
+            TS_FAMILY);
   }
 
   /**
@@ -291,8 +292,9 @@ public class HBaseStore implements TsdbStore {
           return Deferred.fromResult(null);
         }
 
-        Annotation note = JSON.parseToObject(row.get(0).value(),
-            Annotation.class);
+        final byte[] json = row.get(0).value();
+        final Annotation note = jsonMapper
+                .reader(Annotation.class).readValue(json);
         return Deferred.fromResult(note);
       }
     }
@@ -325,18 +327,22 @@ public class HBaseStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
-    final byte[] original_note = original == null ? new byte[0] :
-            original.getStorageJSON();
+    try {
+      final byte[] original_note = original == null ? new byte[0] :
+          jsonMapper.writeValueAsBytes(original);
 
-    final byte[] tsuid_byte = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
-            UniqueId.stringToUid(annotation.getTSUID()) : null;
+      final byte[] tsuid_byte = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
+          UniqueId.stringToUid(annotation.getTSUID()) : null;
 
-    final PutRequest put = new PutRequest(data_table_name,
-            getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), TS_FAMILY,
-            getAnnotationQualifier(annotation.getStartTime()),
-            annotation.getStorageJSON());
+      final PutRequest put = new PutRequest(data_table_name,
+          getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), TS_FAMILY,
+          getAnnotationQualifier(annotation.getStartTime()),
+          jsonMapper.writeValueAsBytes(annotation));
 
-    return client.compareAndSet(put, original_note);
+      return client.compareAndSet(put, original_note);
+    } catch (JsonProcessingException e) {
+      throw new JSONException(e);
+    }
   }
 
   @Override
@@ -909,8 +915,8 @@ public class HBaseStore implements TsdbStore {
           for (KeyValue column : row) {
             if ((column.qualifier().length == 3 || column.qualifier().length == 5)
                 && column.qualifier()[0] == ANNOTATION_QUAL_PREFIX) {
-              Annotation note = JSON.parseToObject(row.get(0).value(),
-                      Annotation.class);
+              Annotation note = jsonMapper.reader(Annotation.class)
+                      .readValue(row.get(0).value());
               if (note.getStartTime() < start_time || note.getEndTime() > end_time) {
                 continue;
               }

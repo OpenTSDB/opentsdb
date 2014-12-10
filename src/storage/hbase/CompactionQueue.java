@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage.hbase;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -22,6 +23,8 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -38,6 +41,9 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.JSONException;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * "Queue" of rows to compact.
@@ -72,6 +78,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   private final AtomicLong deleted_cells = new AtomicLong();
 
   private final TsdbStore tsdb_store;
+  private final ObjectMapper jsonMapper;
   private final Config config;
 
   private final byte[] table_name;
@@ -80,13 +87,16 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   /**
    * Constructor.
    * @param tsdb_store
+   * @param jsonMapper
    */
   public CompactionQueue(final TsdbStore tsdb_store,
+                         final ObjectMapper jsonMapper,
                          final Config config,
                          final byte[] table_name,
                          final byte[] column_family) {
     super(new Cmp());
     this.tsdb_store = tsdb_store;
+    this.jsonMapper = checkNotNull(jsonMapper);
     this.config = config;
     this.table_name = table_name;
     this.column_family = column_family;
@@ -416,7 +426,15 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         if ((len & 1) != 0) {
           // process annotations and other extended formats
           if (qual[0] == HBaseStore.ANNOTATION_QUAL_PREFIX) {
-            annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
+            try {
+              final Annotation annotation = jsonMapper.reader(Annotation.class)
+                      .readValue(kv.value());
+              annotations.add(annotation);
+            } catch (JsonProcessingException e) {
+              throw new IllegalArgumentException(e);
+            } catch (IOException e) {
+              throw new JSONException(e);
+            }
           } else {
             LOG.warn("Ignoring unexpected extended format type {}", qual[0]);
           }
