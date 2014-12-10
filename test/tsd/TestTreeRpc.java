@@ -24,6 +24,7 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestTree;
@@ -35,6 +36,7 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
@@ -58,6 +60,7 @@ public final class TestTreeRpc {
   private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
   private TSDB tsdb;
   private MemoryStore tsdb_store;
+  private ObjectMapper jsonMapper;
   private TreeRpc rpc = new TreeRpc();
   
   final static private Method branchToStorageJson;
@@ -89,22 +92,15 @@ public final class TestTreeRpc {
       throw new RuntimeException("Failed in static initializer", e);
     }
   }
-  
-  final static private Method UIDMetagetStorageJSON;
-  static {
-    try {
-      UIDMetagetStorageJSON = UIDMeta.class.getDeclaredMethod("getStorageJSON");
-      UIDMetagetStorageJSON.setAccessible(true);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed in static initializer", e);
-    }
-  }
-  
+
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
     tsdb = new TSDB(tsdb_store, config);
+
+    jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
   }
   
   @Test
@@ -1320,27 +1316,27 @@ public final class TestTreeRpc {
         "sys.cpu.0");
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
       "metric_meta".getBytes(Const.CHARSET_ASCII),
-      (byte[]) UIDMetagetStorageJSON.invoke(metric));
+      jsonMapper.writeValueAsBytes(metric));
     final UIDMeta tagk1 = new UIDMeta(UniqueIdType.TAGK, new byte[] { 0, 0, 1 }, 
         "host");
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
       "tagk_meta".getBytes(Const.CHARSET_ASCII),
-      (byte[]) UIDMetagetStorageJSON.invoke(tagk1));
+      jsonMapper.writeValueAsBytes(tagk1));
     final UIDMeta tagv1 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 0, 0, 1 }, 
         "web-01.lga.mysite.com");
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
       "tagv_meta".getBytes(Const.CHARSET_ASCII),
-      (byte[]) UIDMetagetStorageJSON.invoke(tagv1));
+      jsonMapper.writeValueAsBytes(tagv1));
     final UIDMeta tagk2 = new UIDMeta(UniqueIdType.TAGK, new byte[] { 0, 0, 2 }, 
         "type");
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
       "tagk_meta".getBytes(Const.CHARSET_ASCII),
-      (byte[]) UIDMetagetStorageJSON.invoke(tagk2));
+      jsonMapper.writeValueAsBytes(tagk2));
     final UIDMeta tagv2 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 0, 0, 2 }, 
         "user");
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
       "tagv_meta".getBytes(Const.CHARSET_ASCII),
-      (byte[]) UIDMetagetStorageJSON.invoke(tagv2));
+      jsonMapper.writeValueAsBytes(tagv2));
 
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
       "tagk".getBytes(Const.CHARSET_ASCII),
