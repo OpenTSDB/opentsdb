@@ -1247,7 +1247,7 @@ public final class TestTSDB {
     byte[] key = new byte[] { 0, 1 };
     // set pre-test values
     tsdb_store.addColumn(key, "tree".getBytes(Const.CHARSET_ASCII),
-            TestTree.buildTestTree().toStorageJson());
+        jsonMapper.writeValueAsBytes(TestTree.buildTestTree()));
 
     TreeRule rule = new TreeRule(1);
     rule.setField("host");
@@ -1267,11 +1267,8 @@ public final class TestTSDB {
     TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    // TODO - static
-    Method branch_json = Branch.class.getDeclaredMethod("toStorageJson");
-    branch_json.setAccessible(true);
     tsdb_store.addColumn(key, "branch".getBytes(Const.CHARSET_ASCII),
-            (byte[]) branch_json.invoke(root));
+            jsonMapper.writeValueAsBytes(root));
 
     // tree 2
     key = new byte[] { 0, 2 };
@@ -1281,7 +1278,7 @@ public final class TestTSDB {
     tree2.setName("2nd Tree");
     tree2.setDescription("Other Tree");
     tsdb_store.addColumn(key, "tree".getBytes(Const.CHARSET_ASCII),
-            tree2.toStorageJson());
+        jsonMapper.writeValueAsBytes(tree2));
 
     rule = new TreeRule(2);
     rule.setField("host");
@@ -1302,7 +1299,7 @@ public final class TestTSDB {
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
     tsdb_store.addColumn(key, "branch".getBytes(Const.CHARSET_ASCII),
-            (byte[]) branch_json.invoke(root));
+            jsonMapper.writeValueAsBytes(root));
 
     // sprinkle in some collisions and no matches for fun
     // collisions

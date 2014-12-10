@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -22,15 +20,8 @@ import java.util.TreeMap;
 import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.utils.JSON;
 
 import org.hbase.async.Bytes;
-
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.core.JsonGenerator;
 
 /**
  * Represents a meta data tree in OpenTSDB that organizes timeseries into a
@@ -54,8 +45,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
  * and storing these collisions and non-matched items.
  * @since 2.0
  */
-@JsonIgnoreProperties(ignoreUnknown = true) 
-@JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class Tree {
   
   /** Charset used to convert Strings to byte arrays and back. */
@@ -369,38 +358,6 @@ public final class Tree {
     changed.put("enabled", false);
     changed.put("store_failures", false);
   }
-  
-  /**
-   * Converts the object to a JSON byte array, necessary for CAS calls and to
-   * keep redundant data down
-   * @return A byte array with the serialized tree
-   */
-  public byte[] toStorageJson() {
-    // TODO - precalc how much memory to grab
-    final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    try {
-      final JsonGenerator json = JSON.getFactory().createGenerator(output);
-      
-      json.writeStartObject();
-      
-      // we only need to write a small amount of information
-      //json.writeNumberField("treeId", tree_id);
-      json.writeStringField("name", name);
-      json.writeStringField("description", description);
-      json.writeStringField("notes", notes);
-      json.writeBooleanField("strictMatch", strict_match);
-      json.writeNumberField("created", created);
-      json.writeBooleanField("enabled", enabled);
-      json.writeBooleanField("storeFailures", store_failures);
-      json.writeEndObject();
-      json.close();
-      
-      // TODO zero copy?
-      return output.toByteArray();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
 
   // GETTERS AND SETTERS ----------------------------
   
@@ -450,13 +407,11 @@ public final class Tree {
   }
 
   /** @return List of TSUIDs that did not match any rules */
-  @JsonIgnore
   public Map<String, String> getNotMatched() {
     return not_matched;
   }
 
   /** @return List of TSUIDs that were not stored due to collisions */
-  @JsonIgnore
   public Map<String, String> getCollisions() {
     return collisions;
   }

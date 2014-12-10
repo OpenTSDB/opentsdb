@@ -5,6 +5,7 @@ import java.io.IOException;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.utils.JSON;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
@@ -24,11 +25,11 @@ public class TreeRuleMixInTest {
   }
 
   @Test
-  public void serialize() {
+  public void serialize() throws JsonProcessingException {
     final TreeRule rule = new TreeRule();
     rule.setField("host");
 
-    final String json = JSON.serializeToString(rule);
+    final String json = jsonMapper.writeValueAsString(rule);
     assertNotNull(json);
     assertTrue(json.contains("\"field\":\"host\""));
   }

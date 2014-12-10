@@ -14,7 +14,6 @@ package net.opentsdb.tree;
 
 
 import net.opentsdb.tree.TreeRule.TreeRuleType;
-import net.opentsdb.utils.JSON;
 
 import org.junit.Test;
 
@@ -71,25 +70,6 @@ public final class TestTree {
     assertTrue(tree.getName().isEmpty());
     assertTrue(tree.getDescription().isEmpty());
     assertTrue(tree.getNotes().isEmpty());
-  }
-
-  @Test
-  public void serialize() throws Exception {
-    final String json = JSON.serializeToString(buildTestTree());
-    assertNotNull(json);
-    assertTrue(json.contains("\"created\":1356998400"));
-    assertTrue(json.contains("\"name\":\"Test Tree\""));
-    assertTrue(json.contains("\"description\":\"My Description\""));
-    assertTrue(json.contains("\"enabled\":true"));
-  }
-
-  @Test
-  public void deserialize() throws Exception {
-    fail();
-    //TODO NOT IMPLEMENTED YET, will be implemented with jackson_json branch
-    /*Tree t = JSON.parseToObject((byte[])TreetoStorageJson.invoke(
-        buildTestTree()), Tree.class);
-    assertTrue(t.getEnabled());*/
   }
   
   @Test

@@ -1,9 +1,12 @@
 package net.opentsdb.storage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
@@ -19,6 +22,7 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -43,6 +47,7 @@ public abstract class TestTsdbStore {
   protected static final boolean NOT_SAME_TSUID = false;
   protected TSDB tsdb;
   protected TsdbStore tsdb_store;
+  protected ObjectMapper jsonMapper;
   protected UIDMeta meta;
   protected Config config;
 
@@ -56,6 +61,11 @@ public abstract class TestTsdbStore {
 
   protected static boolean STORE_DATA = true;
 
+  @Before
+  public void setUpTsdbStore() throws Exception {
+    jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
+  }
 
   /*BRANCH DATABASE STUFF*/
   /**
@@ -87,7 +97,7 @@ public abstract class TestTsdbStore {
    * @return A valid return that the HBase database would return for the objects
    * specified by the @see {@link TestTsdbStore#setUpBranchesAndLeafs()}
    */
-  protected ArrayList<ArrayList<KeyValue>> getValidReturn() {
+  protected ArrayList<ArrayList<KeyValue>> getValidReturn() throws JsonProcessingException {
 
     ArrayList<ArrayList<KeyValue>> valid_return =
             new ArrayList<ArrayList<KeyValue>>();
@@ -96,22 +106,22 @@ public abstract class TestTsdbStore {
     //branches
     KeyValue kv = new KeyValue(
             Branch.stringToId("00010001BECD000181A8"), new byte[0],
-            toBytes("branch"), root_branch.toStorageJson());
+            toBytes("branch"), jsonMapper.writeValueAsBytes(root_branch));
     ans.add(kv);
     kv = new KeyValue(
             Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
-            toBytes("branch"), child_branch.toStorageJson());
+            toBytes("branch"), jsonMapper.writeValueAsBytes(root_branch));
     ans.add(kv);
     //leaves
     kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
-            Leaf.LEAF_PREFIX(), root_leaf_one.getStorageJSON());
+            Leaf.LEAF_PREFIX(), jsonMapper.writeValueAsBytes(root_leaf_one));
     ans.add(kv);
     kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
-            Leaf.LEAF_PREFIX(), root_leaf_two.getStorageJSON());
+            Leaf.LEAF_PREFIX(), jsonMapper.writeValueAsBytes(root_leaf_two));
     ans.add(kv);
     kv = new KeyValue(
             Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
-            Leaf.LEAF_PREFIX(), child_leaf_one.getStorageJSON());
+            Leaf.LEAF_PREFIX(), jsonMapper.writeValueAsBytes(child_leaf_one));
     ans.add(kv);
 
     valid_return.add(ans);

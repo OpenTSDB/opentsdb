@@ -19,11 +19,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
@@ -1128,7 +1131,7 @@ public class HBaseStore implements TsdbStore {
             // it's *this* tree. We deserialize to a new object and copy
             // since the columns could be in any order and we may get a rule
             // before the tree object
-            final Tree local_tree = JSON.parseToObject(column.value(), Tree.class);
+            final Tree local_tree = jsonMapper.readValue(column.value(), Tree.class);
             tree.setCreated(local_tree.getCreated());
             tree.setDescription(local_tree.getDescription());
             tree.setName(local_tree.getName());
@@ -1191,7 +1194,7 @@ public class HBaseStore implements TsdbStore {
 
         Tree stored_tree = fetched_tree;
         final byte[] original_tree = stored_tree == null ? new byte[0] :
-                stored_tree.toStorageJson();
+            jsonMapper.writeValueAsBytes(stored_tree);
         // now copy changes
         if (stored_tree == null) {
           stored_tree = local_tree;
@@ -1203,7 +1206,7 @@ public class HBaseStore implements TsdbStore {
 
         final PutRequest put = new PutRequest(tree_table_name,
                 Tree.idToBytes(tree.getTreeId()), TREE_FAMILY, TREE_QUALIFIER,
-                stored_tree.toStorageJson());
+            jsonMapper.writeValueAsBytes(stored_tree));
         return client.compareAndSet(put, original_tree);
       }
     }
@@ -1325,7 +1328,7 @@ public class HBaseStore implements TsdbStore {
               // it's *this* tree. We deserialize to a new object and copy
               // since the columns could be in any order and we may get a rule
               // before the tree object
-              final Tree local_tree = JSON.parseToObject(column.value(),
+              final Tree local_tree = jsonMapper.readValue(column.value(),
                       Tree.class);
 
               tree.setCreated(local_tree.getCreated());
@@ -1762,7 +1765,7 @@ public class HBaseStore implements TsdbStore {
           return Deferred.fromResult(null);
         }
 
-        final Leaf leaf = Leaf.buildFromJSON(row.get(0).value());
+        final Leaf leaf = jsonMapper.readValue(row.get(0).value(), Leaf.class);
         return Deferred.fromResult(leaf);
       }
 
@@ -1840,11 +1843,15 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
-    // execute the CAS call to start the callback chain
-    final PutRequest put = new PutRequest(tree_table_name, branch_id,
-            Tree.TREE_FAMILY(), leaf.columnQualifier(), leaf.getStorageJSON());
-    return client.compareAndSet(put, new byte[0])
-            .addCallbackDeferring(new LeafStoreCB(leaf));
+    try {
+      // execute the CAS call to start the callback chain
+      final PutRequest put = new PutRequest(tree_table_name, branch_id,
+              Tree.TREE_FAMILY(), leaf.columnQualifier(), jsonMapper.writeValueAsBytes(leaf));
+      return client.compareAndSet(put, new byte[0])
+              .addCallbackDeferring(new LeafStoreCB(leaf));
+    } catch (JsonProcessingException e) {
+      throw new JSONException(e);
+    }
   }
 
   @Override
@@ -1859,24 +1866,28 @@ public class HBaseStore implements TsdbStore {
     // row ID = <treeID>[<parent.display_name.hashCode()>...]
     final byte[] row = branch.compileBranchId();
 
-    // compile the object for storage, this will toss exceptions if we are
-    // missing anything important
-    final byte[] storage_data = branch.toStorageJson();
+    try {
+      // compile the object for storage, this will toss exceptions if we are
+      // missing anything important
+      final byte[] storage_data = jsonMapper.writeValueAsBytes(branch);
 
-    final PutRequest put = new PutRequest(tree_table_name, row,
-            Tree.TREE_FAMILY(), BRANCH_QUALIFIER, storage_data);
-    put.setBufferable(true);
-    storage_results.add(client.compareAndSet(put, new byte[0]));
+      final PutRequest put = new PutRequest(tree_table_name, row,
+              Tree.TREE_FAMILY(), BRANCH_QUALIFIER, storage_data);
+      put.setBufferable(true);
+      storage_results.add(client.compareAndSet(put, new byte[0]));
 
-    // store leaves if told to and put the storage calls in our deferred group
-    if (store_leaves && branch.getLeaves()!= null &&
-            !branch.getLeaves().isEmpty()) {
-      for (final Leaf leaf : branch.getLeaves()) {
-        storage_results.add(storeLeaf(leaf, branch, tree));
+      // store leaves if told to and put the storage calls in our deferred group
+      if (store_leaves && branch.getLeaves() != null &&
+              !branch.getLeaves().isEmpty()) {
+        for (final Leaf leaf : branch.getLeaves()) {
+          storage_results.add(storeLeaf(leaf, branch, tree));
+        }
       }
-    }
 
-    return Deferred.group(storage_results);
+      return Deferred.group(storage_results);
+    } catch (JsonProcessingException e) {
+      throw new JSONException(e);
+    }
   }
 
   @Override
@@ -1896,7 +1907,7 @@ public class HBaseStore implements TsdbStore {
           return Deferred.fromResult(null);
         }
 
-        final Branch branch = Branch.buildFromJSON(row.get(0).value());
+        final Branch branch = jsonMapper.readValue(row.get(0).value(), Branch.class);
 
         // WARNING: Since the json doesn't store the tree ID, to cut down on
         // space, we have to load it from the row key.
@@ -2015,14 +2026,14 @@ public class HBaseStore implements TsdbStore {
                 // it's *this* branch. We deserialize to a new object and copy
                 // since the columns could be in any order and we may get a
                 // leaf before the branch
-                final Branch local_branch = Branch.buildFromJSON(column.value());
+                final Branch local_branch = jsonMapper.readValue(column.value(), Branch.class);
                 local_branch.setTreeId(Tree.bytesToId(column.key()));
                 branch.setTreeId(Tree.bytesToId(column.key()));
                 branch.setDisplayName(local_branch.getDisplayName());
                 branch.setPath(local_branch.getPath());
               } else {
                 // it's a child branch
-                final Branch child = Branch.buildFromJSON(column.value());
+                final Branch child = jsonMapper.readValue(column.value(), Branch.class);
                 child.setTreeId(Tree.bytesToId(column.key()));
                 branch.addChild(child);
               }
@@ -2296,81 +2307,89 @@ public class HBaseStore implements TsdbStore {
 
     checkNotNull(value, "Leaf column value was null");
 
-    // qualifier has the TSUID in the format  "leaf:<display_name.hashCode()>"
-    // and we should only be here if the qualifier matched on "leaf:"
-    final Leaf leaf = Leaf.buildFromJSON(value);
+    try {
+      // qualifier has the TSUID in the format  "leaf:<display_name.hashCode()>"
+      // and we should only be here if the qualifier matched on "leaf:"
+      final Leaf leaf = jsonMapper.readValue(value, Leaf.class);
 
-    // if there was an error with the data and the tsuid is missing, dump it
-    if (Strings.isNullOrEmpty(leaf.getTsuid())) {
-      LOG.warn("Invalid leaf with JSON: {}" , value);
-      return Deferred.fromResult(null);
-    }
-
-    // if we don't need to load UIDs, then return now
-    if (!load_uids) {
-      return Deferred.fromResult(leaf);
-    }
-
-    // split the TSUID to get the tags
-    final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(leaf.getTsuid());
-
-    // setup an array of deferreds to wait on so we can return the leaf only
-    // after all of the name fetches have completed
-    final ArrayList<Deferred<Object>> uid_group =
-            new ArrayList<Deferred<Object>>(parsed_tags.size() + 1);
-
-    /**
-     * Callback executed after the UID name has been retrieved successfully.
-     * The {@code index} determines where the result is stored: -1 means metric,
-     * >= 0 means tag
-     */
-    final class UIDMetricCB implements Callback<Object, String> {
-      @Override
-      public Object call(final String name) throws Exception {
-        leaf.setMetric(name);
-        return name;
+      // if there was an error with the data and the tsuid is missing, dump it
+      if (Strings.isNullOrEmpty(leaf.getTsuid())) {
+        LOG.warn("Invalid leaf with JSON: {}", value);
+        return Deferred.fromResult(null);
       }
-    }
 
-    final class UIDTagsCB implements Callback<Object, ImmutableMap<String, String>> {
-      @Override
-      public Object call(final ImmutableMap<String, String> tagk_tagv_pair)
-              throws Exception {
-        leaf.setTags(tagk_tagv_pair);
-        return null;
-      }
-    }
-
-    UidFormatter formatter = new UidFormatter(tsdb);
-    // fetch the metric name first
-    final byte[] metric_uid = UniqueId.stringToUid(
-            leaf.getTsuid().substring(0, Const.METRICS_WIDTH * 2));
-    uid_group.add(formatter.formatMetric(metric_uid).addCallback(
-            new UIDMetricCB()));
-
-    formatter.formatTags(parsed_tags).addCallback(new UIDTagsCB());
-
-    /**
-     * Called after all of the UID name fetches have completed and parses the
-     * tag name/value list into name/value pairs for proper display
-     */
-    final class CollateUIDsCB implements Callback<Deferred<Leaf>,
-            ArrayList<Object>> {
-
-      /**
-       * @return A valid Leaf object loaded with UID names
-       */
-      @Override
-      public Deferred<Leaf> call(final ArrayList<Object> name_calls)
-              throws Exception {
+      // if we don't need to load UIDs, then return now
+      if (!load_uids) {
         return Deferred.fromResult(leaf);
       }
 
-    }
+      // split the TSUID to get the tags
+      final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(leaf.getTsuid());
 
-    // wait for all of the UID name fetches in the group to complete before
-    // returning the leaf
-    return Deferred.group(uid_group).addCallbackDeferring(new CollateUIDsCB());
+      // setup an array of deferreds to wait on so we can return the leaf only
+      // after all of the name fetches have completed
+      final ArrayList<Deferred<Object>> uid_group =
+              new ArrayList<Deferred<Object>>(parsed_tags.size() + 1);
+
+      /**
+       * Callback executed after the UID name has been retrieved successfully.
+       * The {@code index} determines where the result is stored: -1 means metric,
+       * >= 0 means tag
+       */
+      final class UIDMetricCB implements Callback<Object, String> {
+        @Override
+        public Object call(final String name) throws Exception {
+          leaf.setMetric(name);
+          return name;
+        }
+      }
+
+      final class UIDTagsCB implements Callback<Object, ImmutableMap<String, String>> {
+        @Override
+        public Object call(final ImmutableMap<String, String> tagk_tagv_pair)
+                throws Exception {
+          leaf.setTags(tagk_tagv_pair);
+          return null;
+        }
+      }
+
+      UidFormatter formatter = new UidFormatter(tsdb);
+      // fetch the metric name first
+      final byte[] metric_uid = UniqueId.stringToUid(
+              leaf.getTsuid().substring(0, Const.METRICS_WIDTH * 2));
+      uid_group.add(formatter.formatMetric(metric_uid).addCallback(
+              new UIDMetricCB()));
+
+      formatter.formatTags(parsed_tags).addCallback(new UIDTagsCB());
+
+      /**
+       * Called after all of the UID name fetches have completed and parses the
+       * tag name/value list into name/value pairs for proper display
+       */
+      final class CollateUIDsCB implements Callback<Deferred<Leaf>,
+              ArrayList<Object>> {
+
+        /**
+         * @return A valid Leaf object loaded with UID names
+         */
+        @Override
+        public Deferred<Leaf> call(final ArrayList<Object> name_calls)
+                throws Exception {
+          return Deferred.fromResult(leaf);
+        }
+
+      }
+
+      // wait for all of the UID name fetches in the group to complete before
+      // returning the leaf
+      return Deferred.group(uid_group).addCallbackDeferring(new CollateUIDsCB());
+    } catch (JsonMappingException e) {
+      throw new IllegalArgumentException(e);
+    } catch (JsonParseException e) {
+      throw new IllegalArgumentException(e);
+    } catch (IOException e) {
+      throw new JSONException(e);
+    }
   }
 
   @Override
@@ -2382,19 +2401,22 @@ public class HBaseStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> create(final TSMeta tsMeta) {
+    try {
+      final PutRequest put = new PutRequest(meta_table_name,
+              UniqueId.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
+              jsonMapper.writeValueAsBytes(tsMeta));
 
-    final PutRequest put = new PutRequest(meta_table_name,
-            UniqueId.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
-            tsMeta.getStorageJSON());
-
-    final class PutCB implements Callback<Deferred<Boolean>, Object> {
-      @Override
-      public Deferred<Boolean> call(Object arg0) throws Exception {
-        return Deferred.fromResult(true);
+      final class PutCB implements Callback<Deferred<Boolean>, Object> {
+        @Override
+        public Deferred<Boolean> call(Object arg0) throws Exception {
+          return Deferred.fromResult(true);
+        }
       }
-    }
 
-    return client.put(put).addCallbackDeferring(new PutCB());
+      return client.put(put).addCallbackDeferring(new PutCB());
+    } catch (JsonProcessingException e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   @Override
@@ -2423,7 +2445,7 @@ public class HBaseStore implements TsdbStore {
             dps = Bytes.getLong(column.value());
             last_received = column.timestamp() / 1000;
           } else if (Arrays.equals(TSMETA_QUALIFIER, column.qualifier())) {
-            meta = JSON.parseToObject(column.value(), TSMeta.class);
+            meta = jsonMapper.readValue(column.value(), TSMeta.class);
           }
         }
 
@@ -2482,12 +2504,12 @@ public class HBaseStore implements TsdbStore {
             throw new IllegalArgumentException("Requested TSMeta did not exist");
           }
 
-          final byte[] original_meta = stored_meta.getStorageJSON();
+          final byte[] original_meta = jsonMapper.writeValueAsBytes(stored_meta);
           local_meta.syncMeta(stored_meta, overwrite);
 
           final PutRequest put = new PutRequest(meta_table_name,
                   UniqueId.stringToUid(local_meta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
-                  local_meta.getStorageJSON());
+                  jsonMapper.writeValueAsBytes(local_meta));
 
           return client.compareAndSet(put, original_meta);
         }

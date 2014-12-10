@@ -18,7 +18,6 @@ import static org.junit.Assert.*;
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.KeyValue;
@@ -28,8 +27,6 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
-import java.math.BigInteger;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
@@ -124,32 +121,6 @@ public final class TestLeaf {
   public void columnQualifierNoDisplayName() throws Exception {
     final Leaf leaf = new Leaf("", "000001000001000001");
     leaf.columnQualifier();
-  }
-  @Test
-  public void testBuildFromJSON() {
-    final Leaf leaf = new Leaf("Leaf", "000001000001000001");
-    final String s = "7b22646973706c61794e616d65223a224c6561" +
-            "66222c227473756964223a22303030303031303030303031303030303031227d";
-
-    byte [] json = new BigInteger(s, 16).toByteArray();
-
-    final Leaf jsonLeaf = Leaf.buildFromJSON(json);
-    assertEquals(leaf.getDisplayName(), jsonLeaf.getDisplayName());
-    assertEquals(leaf.getTsuid(), jsonLeaf.getTsuid());
-  }
-
-  @Test
-  public void testGetStorageJSON() {
-    final Leaf leaf = new Leaf("Leaf", "000001000001000001");
-
-    byte[] storage_json = leaf.getStorageJSON();
-
-    final String s = "7b22646973706c61794e616d65223a224c656166222c2274737569" +
-            "64223a22303030303031303030303031303030303031227d";
-
-    byte [] json = new BigInteger(s, 16).toByteArray();
-
-    assertArrayEquals(json, storage_json);
   }
 
   @Test

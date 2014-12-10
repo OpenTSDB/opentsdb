@@ -365,33 +365,6 @@ public final class JSON {
   }
 
   /**
-   * Helper class for deserializing UID type enum from human readable strings
-   */
-  public static class UniqueIdTypeDeserializer
-          extends JsonDeserializer<UniqueIdType> {
-
-    @Override
-    public UniqueIdType deserialize(final JsonParser parser, final
-    DeserializationContext context) throws IOException {
-      return UniqueIdType.fromString(parser.getValueAsString());
-    }
-  }
-  
-  /**
-   * Helper class for deserializing Tree Rule type enum from human readable 
-   * strings
-   */
-  public static class TreeRuleTypeDeserializer 
-    extends JsonDeserializer<TreeRuleType> {
-    
-    @Override
-    public TreeRuleType deserialize(final JsonParser parser, final
-        DeserializationContext context) throws IOException {
-      return TreeRule.stringToType(parser.getValueAsString());
-    }
-  }
-  
-  /**
    * Helper class for deserializing Search type enum from human readable 
    * strings
    */

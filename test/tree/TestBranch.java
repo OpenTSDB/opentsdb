@@ -318,15 +318,6 @@ public final class TestBranch {
   }
 
   @Test
-  public void testToStorageJson() {
-    Branch branch = buildTestBranch(tree);
-    byte[] answer = {123,34,112,97,116,104,34,58,123,34,48,34,58,34,82,
-            79,79,84,34,125,44,34,100,105,115,112,108,97,121,78,97,109,
-            101,34,58,34,82,79,79,84,34,125};
-    assertArrayEquals(answer, branch.toStorageJson());
-  }
-
-  @Test
   public void testGetTreeId() {
     Branch branch = buildTestBranch(tree);
     assertEquals(1, branch.getTreeId());
@@ -389,15 +380,6 @@ public final class TestBranch {
 
     assertNotNull(root.getLeaves());
     assertEquals(1, root.getLeaves().size());
-  }
-
-  @Test
-  public void testBuildFromJSON() {
-    fail();
-    /*
-     * Right now we do not test the buildFromJSON function.
-     * Needs to be done.
-     */
   }
 
   /**

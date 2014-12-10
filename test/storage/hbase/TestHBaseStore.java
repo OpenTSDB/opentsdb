@@ -154,7 +154,7 @@ public class TestHBaseStore extends TestTsdbStore {
     KeyValue kv = new KeyValue(
             Branch.stringToId("0001"), new byte[0],
             toBytes("branch"),
-            TestBranch.buildTestBranch(tree).toStorageJson());
+            jsonMapper.writeValueAsBytes(TestBranch.buildTestBranch(tree)));
     ans.add(kv);
 
     valid_return.add(ans);
@@ -183,7 +183,7 @@ public class TestHBaseStore extends TestTsdbStore {
     //branches
     KeyValue kv = new KeyValue(
             branch.compileBranchId(), new byte[0],
-            toBytes("branch"), branch.toStorageJson());
+            toBytes("branch"), jsonMapper.writeValueAsBytes(branch));
     ans.add(kv);
 
     when(client.get(anyGet())).thenReturn(
@@ -202,7 +202,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
     //mock answers that should be generated
     KeyValue kv = new KeyValue(root.compileBranchId(), new byte[0],
-            Leaf.LEAF_PREFIX(), branch.getLeaves().first().getStorageJSON());
+            Leaf.LEAF_PREFIX(), jsonMapper.writeValueAsBytes(branch.getLeaves().first()));
     ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
     ans.add(kv);
 
@@ -475,7 +475,7 @@ public class TestHBaseStore extends TestTsdbStore {
     ArrayList<KeyValue> answer = new ArrayList<KeyValue>(1);
 
     answer.add(new KeyValue(
-            new byte[0], new byte[0], new byte[0], leaf.getStorageJSON()));
+            new byte[0], new byte[0], new byte[0], jsonMapper.writeValueAsBytes(leaf)));
 
     when(client.get(anyGet())).thenReturn(Deferred.fromResult(answer));
 
@@ -500,7 +500,7 @@ public class TestHBaseStore extends TestTsdbStore {
     answer.add(
             new KeyValue(
             new byte[0], new byte[0], new byte[0],
-                    existing_leaf.getStorageJSON()));
+                    jsonMapper.writeValueAsBytes(existing_leaf)));
 
     when(client.get(anyGet())).thenReturn(Deferred.fromResult(answer));
 
@@ -695,7 +695,7 @@ public class TestHBaseStore extends TestTsdbStore {
                     Branch.stringToId("00010001BECD000181A8BF992A98"),
                     new byte[0],
                     toBytes("branch"),
-                    child_branch.toStorageJson()));
+                    jsonMapper.writeValueAsBytes(child_branch)));
     when(scanner.nextRows()).thenReturn(
             Deferred.fromResult(valid_return))
             .thenReturn(

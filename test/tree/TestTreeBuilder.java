@@ -29,11 +29,13 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
@@ -69,16 +71,6 @@ public final class TestTreeBuilder {
       "type");
   private UIDMeta tagv2 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 5 }, 
       "user");
-  
-  final static private Method toStorageJson;
-  static {
-    try {
-      toStorageJson = Branch.class.getDeclaredMethod("toStorageJson");
-      toStorageJson.setAccessible(true);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed in static initializer", e);
-    }
-  }
 
   @Before
   public void before() throws Exception {
@@ -106,6 +98,9 @@ public final class TestTreeBuilder {
     tags_field.set(meta, tags);
     tags_field.setAccessible(false);
 
+    final ObjectMapper jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
+
     // store root
     final TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();
     final Branch root = new Branch(tree.getTreeId());
@@ -114,7 +109,7 @@ public final class TestTreeBuilder {
     root.prependParentPath(root_path);
     tsdb_store.addColumn(root.compileBranchId(),
       "branch".getBytes(Const.CHARSET_ASCII),
-      (byte[]) toStorageJson.invoke(root));
+            jsonMapper.writeValueAsBytes(root));
   }
   
   @Test

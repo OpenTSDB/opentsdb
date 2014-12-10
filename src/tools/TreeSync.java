@@ -195,7 +195,7 @@ final class TreeSync extends Thread {
             @Override
             public Deferred<Boolean> call(TSMeta meta) throws Exception {
               if (meta != null) {
-                LOG.debug("Processing TSMeta: {} w value: {}", meta, JSON.serializeToString(meta));
+                LOG.debug("Processing TSMeta: {}", meta);
                 
                 // copy the trees into a tree builder object and iterate through
                 // each builder. We need to do this as a builder is not thread
