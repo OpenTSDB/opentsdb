@@ -146,6 +146,7 @@ test_SRC := \
 	test/core/SeekableViewsForTest.java \
 	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
+	test/core/TestBatchedDataPoints.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestDownsampler.java \
 	test/core/TestInternal.java	\
