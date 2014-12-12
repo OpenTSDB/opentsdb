@@ -24,10 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.Const;
-import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Query;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.*;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -456,8 +453,9 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(byte[] row, byte[] qualifier, byte[] value) {
-    final String s_row = new String(row, ASCII);
+  public Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags) {
+    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
+    final String s_row = new String(RowKey.rowKeyFromTSUID(tsuid, timestamp), ASCII);
     final String s_qual = new String(qualifier, ASCII);
     data_table.put(s_row, s_qual, value);
     return Deferred.fromResult(null);

@@ -35,8 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes.ByteMap;
-import org.hbase.async.HBaseException;
-import org.hbase.async.TableNotFoundException;
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.PutRequest;
@@ -231,18 +229,17 @@ public class TSDB {
   }
 
   /**
-   * Returns a partially initialized row key for this metric and these tags.
-   * The only thing left to fill in is the base timestamp.
+   * Returns a initialized TSUID for this metric and these tags.
    * @since 2.0
    */
-  Deferred<byte[]> rowKeyTemplateAsync(final String metric,
-                                       final Map<String, String> tags) {
+  Deferred<byte[]> getTSUID(final String metric,
+                            final Map<String, String> tags) {
     final short metric_width = metrics.width();
     final short tag_name_width = tag_names.width();
     final short tag_value_width = tag_values.width();
     final short num_tags = (short) tags.size();
 
-    int row_size = (metric_width + Const.TIMESTAMP_BYTES
+    int row_size = (metric_width
                     + tag_name_width * num_tags
                     + tag_value_width * num_tags);
     final byte[] row = new byte[row_size];
@@ -276,7 +273,6 @@ public class TSDB {
       implements Callback<Deferred<byte[]>, ArrayList<byte[]>> {
       public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
         short pos = metric_width;
-        pos += Const.TIMESTAMP_BYTES;
         for (final byte[] tag : tags) {
           copyInRowKey(row, pos, tag);
           pos += tag.length;
@@ -446,7 +442,6 @@ public class TSDB {
    * tree and meta data tables if the user has enabled meta tracking or tree
    * building
    * @return An ArrayList of objects to wait for
-   * @throws TableNotFoundException
    * @since 2.0
    */
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
@@ -609,8 +604,6 @@ public class TSDB {
    * illegal characters.
    * @throws IllegalArgumentException if the tags list is empty or one of the
    * elements contains illegal characters.
-   * @throws HBaseException (deferred) if there was a problem while persisting
-   * data.
    */
   public Deferred<Object> addPoint(final String metric,
                                    final long timestamp,
@@ -648,8 +641,6 @@ public class TSDB {
    * @throws IllegalArgumentException if the value is NaN or infinite.
    * @throws IllegalArgumentException if the tags list is empty or one of the
    * elements contains illegal characters.
-   * @throws HBaseException (deferred) if there was a problem while persisting
-   * data.
    * @since 1.2
    */
   public Deferred<Object> addPoint(final String metric,
@@ -685,8 +676,6 @@ public class TSDB {
    * @throws IllegalArgumentException if the value is NaN or infinite.
    * @throws IllegalArgumentException if the tags list is empty or one of the
    * elements contains illegal characters.
-   * @throws HBaseException (deferred) if there was a problem while persisting
-   * data.
    */
   public Deferred<Object> addPoint(final String metric,
                                    final long timestamp,
@@ -711,24 +700,19 @@ public class TSDB {
     checkTimestamp(timestamp);
     IncomingDataPoints.checkMetricAndTags(metric, tags);
 
+
     class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
       @Override
-      public Deferred<Object> call(byte[] row) throws Exception {
-        final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
-
-        final long base_time = HBaseStore.buildBaseTime(timestamp);
-        Bytes.setInt(row, (int) base_time, metrics.width());
+      public Deferred<Object> call(final byte[] tsuid) throws Exception {
 
         // TODO(tsuna): Add a callback to time the latency of HBase and store the
         // timing in a moving Histogram (once we have a class for this).
-        Deferred<Object> result = tsdb_store.addPoint(row, qualifier, value);
+        Deferred<Object> result = tsdb_store.addPoint(tsuid, value, timestamp, flags);
 
         if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() &&
                 !config.enable_tsuid_tracking() && rt_publisher == null) {
           return result;
         }
-
-        final byte[] tsuid = RowKey.tsuid(row);
 
         // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
         // counter field for a TSUID with the proper timestamp. If the user would
@@ -748,8 +732,9 @@ public class TSDB {
       }
     }
 
-    return this.rowKeyTemplateAsync(metric, tags)
+    return this.getTSUID(metric, tags)
             .addCallbackDeferring(new RowKeyCB());
+
   }
 
   /**
@@ -773,12 +758,8 @@ public class TSDB {
    * @return A {@link Deferred} that will be called once all the un-committed
    * data has been successfully and durably stored.  The value of the deferred
    * object return is meaningless and unspecified, and can be {@code null}.
-   * @throws HBaseException (deferred) if there was a problem sending
-   * un-committed data to HBase.  Please refer to the {@link HBaseException}
-   * hierarchy to handle the possible failures.  Some of them are easily
-   * recoverable by retrying, some are not.
    */
-  public Deferred<Object> flush() throws HBaseException {
+  public Deferred<Object> flush() {
     return tsdb_store.flush();
   }
 
@@ -791,10 +772,6 @@ public class TSDB {
    * data has been successfully and durably stored, and all resources used by
    * this instance have been released.  The value of the deferred object
    * return is meaningless and unspecified, and can be {@code null}.
-   * @throws HBaseException (deferred) if there was a problem sending
-   * un-committed data to HBase.  Please refer to the {@link HBaseException}
-   * hierarchy to handle the possible failures.  Some of them are easily
-   * recoverable by retrying, some are not.
    */
   public Deferred<Object> shutdown() {
     final ArrayList<Deferred<Object>> deferreds = 
@@ -1063,7 +1040,6 @@ public class TSDB {
    * True if the storage call was successful, false if the object was
    * modified in storage during the CAS call. If false, retry the call. Other
    * failures will result in an exception being thrown.
-   * @throws org.hbase.async.HBaseException if there was an issue
    * @throws IllegalArgumentException if required data was missing such as the
    * {@code #start_time}
    * @throws IllegalStateException if the data hasn't changed. This is OK!
@@ -1260,7 +1236,6 @@ public class TSDB {
    * was
    * modified in storage during the CAS call. If false, retry the call. Other
    * failures will result in an exception being thrown.
-   * @throws org.hbase.async.HBaseException           if there was an issue fetching
    * @throws IllegalArgumentException if parsing failed
    * @throws NoSuchUniqueId           If the UID does not exist
    * @throws IllegalStateException    if the data hasn't changed. This is OK!
@@ -1289,7 +1264,6 @@ public class TSDB {
    * @param meta The meta object to delete
    * @return A deferred without meaning. The response may be null and should
    * only be used to track completion.
-   * @throws org.hbase.async.HBaseException           if there was an issue
    * @throws IllegalArgumentException if data was missing (uid and type)
    */
   public Deferred<Object> delete(final UIDMeta meta) {
@@ -1304,7 +1278,6 @@ public class TSDB {
    * @param meta The meta object to store
    * @return A deferred without meaning. The response may be null and should
    * only be used to track completion.
-   * @throws org.hbase.async.HBaseException if there was an issue writing to storage
    * @throws IllegalArgumentException if data was missing
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
@@ -1321,7 +1294,6 @@ public class TSDB {
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
-   * @throws HBaseException if there was an issue fetching
    * @throws NoSuchUniqueId If the UID does not exist
    */
   public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
@@ -1342,7 +1314,6 @@ public class TSDB {
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
-   * @throws HBaseException if there was an issue fetching
    * @throws NoSuchUniqueId If the UID does not exist
    */
   public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
@@ -1378,7 +1349,6 @@ public class TSDB {
    * @param overwrite Whether or not tree data should be overwritten
    * @return True if the write was successful, false if an error occurred
    * @throws IllegalArgumentException if the tree ID is missing or invalid
-   * @throws HBaseException if a storage exception occurred
    */
   public Deferred<Boolean> storeTree(final Tree tree, final boolean overwrite) {
     Tree.validateTreeID(tree.getTreeId());
@@ -1397,7 +1367,6 @@ public class TSDB {
    * @param tree_id The Tree to fetch
    * @return A tree object if found, null if the tree did not exist
    * @throws IllegalArgumentException if the tree ID was invalid
-   * @throws HBaseException if a storage exception occurred
    * @throws JSONException if the object could not be deserialized
    */
   public Deferred<Tree> fetchTree(final int tree_id) {
@@ -1441,7 +1410,6 @@ public class TSDB {
    * should be deleted as well
    * @return True if the deletion completed successfully, false if there was an
    * issue.
-   * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the tree ID was invalid
    */
   public Deferred<Boolean> deleteTree(final int tree_id,
@@ -1464,7 +1432,6 @@ public class TSDB {
    * be empty or null, in which case all collisions for the tree will be
    * returned.
    * @return A list of collisions or null if nothing was found
-   * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the tree ID was invalid
    */
   public Deferred<Map<String, String>> fetchCollisions(
@@ -1486,7 +1453,6 @@ public class TSDB {
    * be empty or null, in which case all non-matches for the tree will be
    * returned.
    * @return A list of not-matched mappings or null if nothing was found
-   * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the tree ID was invalid
    */
   public Deferred<Map<String, String>> fetchNotMatched(final int tree_id,
@@ -1505,7 +1471,6 @@ public class TSDB {
    *
    * @return A meaningless deferred (will always be true since we need to group
    * it with tree store calls) for the caller to wait on
-   * @throws HBaseException if there was an issue
    */
   public Deferred<Boolean> flushTreeCollisions(final Tree tree) {
     if (!tree.getStoreFailures()) {
@@ -1523,7 +1488,6 @@ public class TSDB {
    * @param tree The Tree to flush to storage.
    * @return A meaningless deferred (will always be true since we need to group
    * it with tree store calls) for the caller to wait on
-   * @throws HBaseException if there was an issue
    */
   public Deferred<Boolean> flushTreeNotMatched(final Tree tree) {
     if (!tree.getStoreFailures()) {
@@ -1546,7 +1510,6 @@ public class TSDB {
    * @param tree Tree the leaf and branch belong to
    * @return True if the leaf was stored successful or already existed, false
    * if there was a collision
-   * @throws HBaseException if there was an issue
    * @throws JSONException if the object could not be serialized
    */
   public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
@@ -1568,7 +1531,6 @@ public class TSDB {
    * @param store_leaves Whether or not child leaves should be written to
    * storage
    * @return A list of deferreds to wait on for completion.
-   * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the tree ID was missing or data was
    * missing
    */
@@ -1618,7 +1580,6 @@ public class TSDB {
    * accessible fields
    * @return True if the CAS call succeeded, false if the stored data was
    * modified in flight. This should be retried if that happens.
-   * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if parsing failed or the tree ID was
    * invalid or validation failed
    * @throws IllegalStateException if the data hasn't changed. This is OK!
@@ -1637,7 +1598,6 @@ public class TSDB {
    * @param level Level where the rule resides
    * @param order Order where the rule resides
    * @return A TreeRule object if found, null if it does not exist
-   * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the one of the required parameters was
    * missing
    * @throws JSONException if the object could not be serialized
@@ -1656,7 +1616,6 @@ public class TSDB {
    * @param order Order where the rule resides
    * @return A deferred without meaning. The response may be null and should
    * only be used to track completion.
-   * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the one of the required parameters was
    * missing
    */
@@ -1673,7 +1632,6 @@ public class TSDB {
    * @param tree_id ID of the tree the rules belongs to
    * @return A deferred to wait on for completion. The value has no meaning and
    * may be null.
-   * @throws HBaseException if there was an issue
    * @throws IllegalArgumentException if the one of the required parameters was
    * missing
    */

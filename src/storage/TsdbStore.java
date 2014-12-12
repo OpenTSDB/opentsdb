@@ -71,7 +71,7 @@ public interface TsdbStore {
 
   void setFlushInterval(short aShort);
 
-  Deferred<Object> addPoint(byte[] row, byte[] qualifier, byte[] value);
+  Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags);
 
   public Deferred<Object> shutdown();
 
@@ -163,4 +163,6 @@ public interface TsdbStore {
   Deferred<Object> deleteAllTreeRule(final int tree_id);
 
   Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule, final boolean overwrite);
+
+
 }

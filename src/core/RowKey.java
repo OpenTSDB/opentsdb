@@ -80,13 +80,12 @@ final public class RowKey {
   /**
    * Generates a row key given a TSUID and an absolute timestamp. The timestamp
    * will be normalized to an hourly base time.
-   * @param tsdb The TSDB to use for fetching tag widths
    * @param tsuid The TSUID to use for the key
    * @param timestamp An absolute time from which we generate the row base time
    * @return A row key for use in fetching data from OpenTSDB
    * @since 2.0
    */
-  public static byte[] rowKeyFromTSUID(final TSDB tsdb, final byte[] tsuid, 
+  public static byte[] rowKeyFromTSUID(final byte[] tsuid,
       final long timestamp) {
     final long base_time = HBaseStore.buildBaseTime(timestamp);
     final byte[] row = new byte[tsuid.length + Const.TIMESTAMP_BYTES];
@@ -95,6 +94,20 @@ final public class RowKey {
     System.arraycopy(tsuid, Const.METRICS_WIDTH, row,
         Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES,
         tsuid.length - Const.METRICS_WIDTH);
+    return row;
+  }
+
+  /**
+   * Generates a partial row key given a TSUID.
+   * @param tsuid The TSUID to use for the key
+   * @return A row key for use in fetching data from OpenTSDB
+   */
+  public static byte[] partialRowKeyFromTSUID(final byte[] tsuid) {
+    final byte[] row = new byte[tsuid.length + Const.TIMESTAMP_BYTES];
+    System.arraycopy(tsuid, 0, row, 0, Const.METRICS_WIDTH);
+    System.arraycopy(tsuid, Const.METRICS_WIDTH, row,
+            Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES,
+            tsuid.length - Const.METRICS_WIDTH);
     return row;
   }
 
