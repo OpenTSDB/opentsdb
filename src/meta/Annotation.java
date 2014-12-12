@@ -222,4 +222,25 @@ public final class Annotation implements Comparable<Annotation> {
       this.custom = new HashMap<String, String>(custom);
     }
   }
+
+  @Override
+  public boolean equals(final Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+
+    final Annotation that = (Annotation) o;
+
+    if (end_time != that.end_time) return false;
+    if (start_time != that.start_time) return false;
+
+    return Objects.equal(custom, that.custom) &&
+           Objects.equal(description, that.description) &&
+           Objects.equal(notes, that.notes) &&
+           Objects.equal(tsuid, that.tsuid);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(tsuid, start_time, end_time, description, notes, custom);
+  }
 }
