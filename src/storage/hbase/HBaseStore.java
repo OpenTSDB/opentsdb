@@ -157,7 +157,6 @@ public class HBaseStore implements TsdbStore {
 
   /**
    * Calculate the base time based on a timestamp to be used in a row key.
-   * TODO This should be made into an instance method
    */
   public static long buildBaseTime(final long timestamp) {
     if ((timestamp & Const.SECOND_MASK) != 0) {
@@ -190,7 +189,7 @@ public class HBaseStore implements TsdbStore {
    * @param tsuid An optional TSUID if storing a local annotation
    * @return The row key as a byte array
    */
-  public static byte[] getAnnotationRowKey(final long start_time, final byte[] tsuid) {
+  public byte[] getAnnotationRowKey(final long start_time, final byte[] tsuid) {
     if (start_time < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
@@ -412,7 +411,12 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(byte[] row, byte[] qualifier, byte[] value) {
+  public Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags) {
+
+    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
+    // we have a tsuid so we need to add some bytes(4) for the timestamp
+    final byte[] row = RowKey.rowKeyFromTSUID(tsuid, timestamp);
+
     final PutRequest point = new PutRequest(data_table_name, row, TS_FAMILY,
             qualifier,
             value);

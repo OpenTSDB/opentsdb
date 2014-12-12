@@ -398,7 +398,7 @@ public class TSUIDQuery {
         // look one row into the past
         final long previous_time = timestamp - 3600;
         
-        final byte[] key = RowKey.rowKeyFromTSUID(tsdb, tsuid, previous_time);
+        final byte[] key = RowKey.rowKeyFromTSUID(tsuid, previous_time);
         final GetRequest get = new GetRequest(tsdb.dataTable(), key);
         get.family(TSDB.FAMILY());
         tsdb.getTsdbStore().get(get).addCallback(
@@ -423,7 +423,7 @@ public class TSUIDQuery {
         // we want the timestamp in seconds so we can figure out what row the
         // data *should* be in (though it's not guaranteed)
         final long last_write = row.get(0).timestamp();
-        final byte[] key = RowKey.rowKeyFromTSUID(tsdb, tsuid, last_write);
+        final byte[] key = RowKey.rowKeyFromTSUID(tsuid, last_write);
         final GetRequest get = new GetRequest(tsdb.dataTable(), key);
         get.family(TSDB.FAMILY());
         
@@ -449,7 +449,7 @@ public class TSUIDQuery {
           .addCallback(new ExistsCB())
           .addErrback(new ErrBack());
       } else {
-        final byte[] key = RowKey.rowKeyFromTSUID(tsdb, tsuid, last_timestamp);
+        final byte[] key = RowKey.rowKeyFromTSUID(tsuid, last_timestamp);
         final GetRequest get = new GetRequest(tsdb.dataTable(), key);
         get.family(TSDB.FAMILY());
         
@@ -459,7 +459,7 @@ public class TSUIDQuery {
             .addErrback(new ErrBack());
       }
     } else {
-      final byte[] key = RowKey.rowKeyFromTSUID(tsdb, tsuid, start_time);
+      final byte[] key = RowKey.rowKeyFromTSUID(tsuid, start_time);
       final GetRequest get = new GetRequest(tsdb.dataTable(), key);
       get.family(TSDB.FAMILY());
       tsdb.getTsdbStore().get(get).addCallback(

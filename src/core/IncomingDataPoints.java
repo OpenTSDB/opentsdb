@@ -20,12 +20,12 @@ import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.storage.hbase.HBaseStore;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
-import net.opentsdb.storage.hbase.HBaseStore;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.TSDB.checkTimestamp;
@@ -112,7 +112,9 @@ class IncomingDataPoints implements WritableDataPoints {
   public void setSeries(final String metric, final Map<String, String> tags) {
     checkMetricAndTags(metric, tags);
     try {
-      row = tsdb.rowKeyTemplateAsync(metric, tags).joinUninterruptibly();
+      byte[] tsuid = tsdb.getTSUID(metric, tags).joinUninterruptibly();
+      // we have a tsuid so we need to add some bytes(4) for the timestamp
+      row = RowKey.partialRowKeyFromTSUID(tsuid);
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
