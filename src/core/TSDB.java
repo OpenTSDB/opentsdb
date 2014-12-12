@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.Iterator;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -31,13 +32,20 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.tree.TreeRule;
+
+import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.Config;
+import net.opentsdb.utils.DateTime;
+import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.PluginLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseClient;
-import org.hbase.async.PutRequest;
 
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.storage.TsdbStore;
@@ -47,13 +55,6 @@ import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeBuilder;
-import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
-import net.opentsdb.utils.DateTime;
-import net.opentsdb.utils.PluginLoader;
-import net.opentsdb.utils.JSONException;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -61,7 +62,6 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.uid.NoSuchUniqueId;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -409,7 +409,7 @@ public class TSDB {
    * @param uid The UID to search for
    * @return The name of the UID object if found
    * @throws IllegalArgumentException if the type is not valid
-   * @throws NoSuchUniqueId if the UID was not found
+   * @throws net.opentsdb.uid.NoSuchUniqueId if the UID was not found
    * @since 2.0
    */
   public Deferred<String> getUidName(final UniqueIdType type, final byte[] uid) {
@@ -718,11 +718,9 @@ public class TSDB {
         // counter field for a TSUID with the proper timestamp. If the user would
         // rather have TSUID incrementing enabled, that will trump the PUT
         if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
-          final PutRequest tracking = new PutRequest(meta_table, tsuid,
-                  TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(1));
-          tsdb_store.put(tracking);
+          tsdb_store.setTSMetaCounter(tsuid, 1);
         } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
-          TSMeta.incrementAndGetCounter(TSDB.this, tsuid);
+          incrementAndGetCounter(tsuid);
         }
 
         if (rt_publisher != null) {
@@ -1236,10 +1234,11 @@ public class TSDB {
    * was
    * modified in storage during the CAS call. If false, retry the call. Other
    * failures will result in an exception being thrown.
-   * @throws IllegalArgumentException if parsing failed
-   * @throws NoSuchUniqueId           If the UID does not exist
-   * @throws IllegalStateException    if the data hasn't changed. This is OK!
-   * @throws net.opentsdb.utils.JSONException            if the object could not be serialized
+   * @throws org.hbase.async.HBaseException     If there was an issue fetching
+   * @throws IllegalArgumentException           If parsing failed
+   * @throws net.opentsdb.uid.NoSuchUniqueId    If the UID does not exist
+   * @throws IllegalStateException              If the data hasn't changed. This is OK!
+   * @throws net.opentsdb.utils.JSONException   If the object could not be serialized
    */
   public Deferred<Boolean> syncUIDMetaToStorage(final UIDMeta meta,
                                                 final boolean overwrite) {
@@ -1294,7 +1293,8 @@ public class TSDB {
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
-   * @throws NoSuchUniqueId If the UID does not exist
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
                                              final String uid) {
@@ -1314,7 +1314,8 @@ public class TSDB {
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
-   * @throws NoSuchUniqueId If the UID does not exist
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
                                        final byte[] uid) {
@@ -1367,8 +1368,9 @@ public class TSDB {
    * @param tree_id The Tree to fetch
    * @return A tree object if found, null if the tree did not exist
    * @throws IllegalArgumentException if the tree ID was invalid
-   * @throws JSONException if the object could not be deserialized
-   */
+   * @throws org.hbase.async.HBaseException if a storage exception occurred
+   * @throws net.opentsdb.utils.JSONException if the object could not be deserialized
+  */
   public Deferred<Tree> fetchTree(final int tree_id) {
     Tree.validateTreeID(tree_id);
 
@@ -1510,7 +1512,8 @@ public class TSDB {
    * @param tree Tree the leaf and branch belong to
    * @return True if the leaf was stored successful or already existed, false
    * if there was a collision
-   * @throws JSONException if the object could not be serialized
+   * @throws org.hbase.async.HBaseException if there was an issue
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
                                      final Tree tree) {
@@ -1549,7 +1552,7 @@ public class TSDB {
    * fetch the root branch.
    * @param branch_id ID of the branch to retrieve
    * @return A branch if found, null if it did not exist
-   * @throws JSONException if the object could not be deserialized
+   * @throws net.opentsdb.utils.JSONException if the object could not be deserialized
    */
   public Deferred<Branch> fetchBranchOnly(final byte[] branch_id) {
     return tsdb_store.fetchBranchOnly(branch_id);
@@ -1561,7 +1564,7 @@ public class TSDB {
    * @param branch_id ID of the branch to retrieve
    * @param load_leaf_uids Whether or not to load UID names for each leaf
    * @return A branch if found, null if it did not exist
-   * @throws JSONException if the object could not be deserialized
+   * @throws net.opentsdb.utils.JSONException if the object could not be deserialized
    */
   public Deferred<Branch> fetchBranch(final byte[] branch_id,
                                       final boolean load_leaf_uids) {
@@ -1583,7 +1586,7 @@ public class TSDB {
    * @throws IllegalArgumentException if parsing failed or the tree ID was
    * invalid or validation failed
    * @throws IllegalStateException if the data hasn't changed. This is OK!
-   * @throws JSONException if the object could not be serialized
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule,
                                          final boolean overwrite) {
@@ -1600,7 +1603,7 @@ public class TSDB {
    * @return A TreeRule object if found, null if it does not exist
    * @throws IllegalArgumentException if the one of the required parameters was
    * missing
-   * @throws JSONException if the object could not be serialized
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<TreeRule> fetchTreeRule(final int tree_id, final int level,
                                           final int order) {
@@ -1640,6 +1643,386 @@ public class TSDB {
     Tree.validateTreeID(tree_id);
 
     return tsdb_store.deleteAllTreeRule(tree_id);
+  }
+
+  /**
+   * Attempts to delete the meta object from storage
+   * @param tsMeta The TSMeta to be removed.
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws IllegalArgumentException if data was missing (uid and type)
+   */
+  public Deferred<Object> delete(final TSMeta tsMeta) {
+    tsMeta.checkTSUI();
+    return tsdb_store.delete(tsMeta);
+  }
+
+  /**
+   * Attempts to store a new, blank timeseries meta object via a Put
+   * <b>Note:</b> This should not be called by user accessible methods as it will
+   * overwrite any data already in the column.
+   * <b>Note:</b> This call does not guarantee that the UIDs exist before
+   * storing as it should only be called *after* a data point has been recorded
+   * or during a meta sync.
+   * @param tsMeta The TSMeta to be stored in the database
+   * @return A meaningless deferred.
+   * @throws IllegalArgumentException if parsing failed
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   */
+  public Deferred<Boolean> create(final TSMeta tsMeta) {
+    tsMeta.checkTSUI();
+
+    return tsdb_store.create(tsMeta);
+  }
+
+
+  /**
+   * Attempts a CompareAndSet storage call, loading the object from storage,
+   * synchronizing changes, and attempting a put. Also verifies that associated
+   * UID name mappings exist before merging.
+   * <b>Note:</b> If the local object didn't have any fields set by the caller
+   * or there weren't any changes, then the data will not be written and an
+   * exception will be thrown.
+   * <b>Note:</b> We do not store the UIDMeta information with TSMeta's since
+   * users may change a single UIDMeta object and we don't want to update every
+   * TSUID that includes that object with the new data. Instead, UIDMetas are
+   * merged into the TSMeta on retrieval so we always have canonical data. This
+   * also saves space in storage.
+   * @param tsMeta The TSMeta to stored
+   * @param overwrite When the RPC method is PUT, will overwrite all user
+   * accessible fields
+   * @return True if the storage call was successful, false if the object was
+   * modified in storage during the CAS call. If false, retry the call. Other
+   * failures will result in an exception being thrown.
+   * @throws IllegalArgumentException if parsing failed
+   * @throws IllegalStateException if the data hasn't changed. This is OK!
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   */
+  public Deferred<Boolean> syncToStorage(final TSMeta tsMeta,
+                                         final boolean overwrite) {
+    tsMeta.checkTSUI();
+
+    if (!tsMeta.hasChanges()) {
+      LOG.debug("{} does not have changes, skipping sync to storage", this);
+      throw new IllegalStateException("No changes detected in TSUID meta data");
+    }
+
+    /**
+     * Callback used to verify that the UID name mappings exist. We don't need
+     * to process the actual name, we just want it to throw an error if any
+     * of the UIDs don't exist.
+     */
+    class UidCB implements Callback<Object, String> {
+
+      @Override
+      public Object call(String name) throws Exception {
+        // nothing to do as missing mappings will throw a NoSuchUniqueId
+        return null;
+      }
+
+    }
+
+    // parse out the tags from the tsuid
+    final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(tsMeta.getTSUID());
+
+    // Deferred group used to accumulate UidCB callbacks so the next call
+    // can wait until all of the UIDs have been verified
+    ArrayList<Deferred<Object>> uid_group =
+            new ArrayList<Deferred<Object>>(parsed_tags.size() + 1);
+
+    // calculate the metric UID and fetch it's name mapping
+    final byte[] metric_uid = UniqueId.stringToUid(
+            tsMeta.getTSUID().substring(0, Const.METRICS_WIDTH * 2));
+    uid_group.add(getUidName(UniqueIdType.METRIC, metric_uid)
+            .addCallback(new UidCB()));
+
+    int idx = 0;
+    for (byte[] tag : parsed_tags) {
+      if (idx % 2 == 0) {
+        uid_group.add(getUidName(UniqueIdType.TAGK, tag)
+                .addCallback(new UidCB()));
+      } else {
+        uid_group.add(getUidName(UniqueIdType.TAGV, tag)
+                .addCallback(new UidCB()));
+      }
+      idx++;
+    }
+
+    return tsdb_store.syncToStorage(tsMeta, Deferred.group(uid_group), overwrite);
+  }
+
+  /**
+   * Determines if an entry exists in storage or not.
+   * This is used by the UID Manager tool to determine if we need to write a
+   * new TSUID entry or not. It will not attempt to verify if the stored data is
+   * valid, just checks to see if something is stored in the proper column.
+   * @param tsuid The UID of the meta to verify
+   * @return True if data was found, false if not
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   */
+  public Deferred<Boolean> TSMetaExists(final String tsuid) {
+    return tsdb_store.TSMetaExists(tsuid);
+  }
+
+  /**
+   * Determines if the counter column exists for the TSUID.
+   * This is used by the UID Manager tool to determine if we need to write a
+   * new TSUID entry or not. It will not attempt to verify if the stored data is
+   * valid, just checks to see if something is stored in the proper column.
+   * @param tsuid The UID of the meta to verify
+   * @return True if data was found, false if not
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   */
+  public Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid) {
+    return tsdb_store.TSMetaCounterExists(tsuid);
+  }
+
+  /**
+   * Increments the tsuid datapoint counter or creates a new counter. Also
+   * creates a new meta data entry if the counter did not exist.
+   * <b>Note:</b> This method also:
+   * <ul><li>Passes the new TSMeta object to the Search plugin after loading
+   * UIDMeta objects</li>
+   * <li>Passes the new TSMeta through all configured trees if enabled</li></ul>
+   * @param tsuid The TSUID to increment or create
+   * @return 0 if the put failed, a positive LONG if the put was successful
+   * @throws org.hbase.async.HBaseException if there was a storage issue
+   * @throws net.opentsdb.utils.JSONException if the data was corrupted
+   */
+  public Deferred<Long> incrementAndGetCounter(final byte[] tsuid) {
+
+    /**
+     * Callback that will create a new TSMeta if the increment result is 1 or
+     * will simply return the new value.
+     */
+    final class TSMetaCB implements Callback<Deferred<Long>, Long> {
+
+      /**
+       * Called after incrementing the counter and will create a new TSMeta if
+       * the returned value was 1 as well as pass the new meta through trees
+       * and the search indexer if configured.
+       * @return 0 if the put failed, a positive LONG if the put was successful
+       */
+      @Override
+      public Deferred<Long> call(final Long incremented_value)
+              throws Exception {
+
+        if (incremented_value > 1) {
+          // TODO - maybe update the search index every X number of increments?
+          // Otherwise the search engine would only get last_updated/count
+          // whenever the user runs the full sync CLI
+          return Deferred.fromResult(incremented_value);
+        }
+
+        // create a new meta object with the current system timestamp. Ideally
+        // we would want the data point's timestamp, but that's much more data
+        // to keep track of and may not be accurate.
+        final TSMeta meta = new TSMeta(tsuid,
+                System.currentTimeMillis() / 1000);
+
+        /**
+         * Called after the meta has been passed through tree processing. The
+         * result of the processing doesn't matter and the user may not even
+         * have it enabled, so we'll just return the counter.
+         */
+        final class TreeCB implements Callback<Deferred<Long>, Boolean> {
+
+          @Override
+          public Deferred<Long> call(Boolean success) throws Exception {
+            return Deferred.fromResult(incremented_value);
+          }
+
+        }
+
+        /**
+         * Called after retrieving the newly stored TSMeta and loading
+         * associated UIDMeta objects. This class will also pass the meta to the
+         * search plugin and run it through any configured trees
+         */
+        final class FetchNewCB implements Callback<Deferred<Long>, TSMeta> {
+
+          @Override
+          public Deferred<Long> call(TSMeta stored_meta) throws Exception {
+
+            // pass to the search plugin
+            indexTSMeta(stored_meta);
+
+            // pass through the trees
+            return processTSMetaThroughTrees(stored_meta)
+                    .addCallbackDeferring(new TreeCB());
+          }
+
+        }
+
+        /**
+         * Called after the CAS to store the new TSMeta object. If the CAS
+         * failed then we return immediately with a 0 for the counter value.
+         * Otherwise we keep processing to load the meta and pass it on.
+         */
+        final class StoreNewCB implements Callback<Deferred<Long>, Boolean> {
+
+          @Override
+          public Deferred<Long> call(Boolean success) throws Exception {
+            if (!success) {
+              LOG.warn("Unable to save metadata: {}", meta);
+              return Deferred.fromResult(0L);
+            }
+
+            LOG.info("Successfullly created new TSUID entry for: {}", meta);
+            final Deferred<TSMeta> meta = tsdb_store.getTSMeta(tsuid)
+                    .addCallbackDeferring(
+                            new LoadUIDs(UniqueId.uidToString(tsuid)));
+            return meta.addCallbackDeferring(new FetchNewCB());
+          }
+
+        }
+
+        // store the new TSMeta object and setup the callback chain
+        return create(meta).addCallbackDeferring(new StoreNewCB());
+      }
+
+    }
+
+    Deferred<Long> res = tsdb_store.incrementAndGetCounter(tsuid);
+    if (!config.enable_realtime_ts())
+      return res;
+    return res.addCallbackDeferring(
+            new TSMetaCB());
+  }
+
+
+
+  /**
+   * Attempts to fetch the timeseries meta data from storage.
+   * This method will fetch the {@code counter} and {@code meta} columns.
+   * If load_uids is false this method will not load the UIDMeta objects.
+   * <b>Note:</b> Until we have a caching layer implemented, this will make at
+   * least 4 reads to the storage system, 1 for the TSUID meta, 1 for the
+   * metric UIDMeta and 1 each for every tagk/tagv UIDMeta object.
+   * <p>
+   * @param tsuid The UID of the meta to fetch
+   * @param load_uids Set this you true if you also want to load the UIDs
+   * @return A TSMeta object if found, null if not
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   * @throws IllegalArgumentException if parsing failed
+   * @throws net.opentsdb.utils.JSONException if the data was corrupted
+   */
+  public Deferred<TSMeta> getTSMeta(final String tsuid, final boolean load_uids) {
+    if (load_uids)
+    return tsdb_store.getTSMeta(UniqueId.stringToUid(tsuid))
+            .addCallbackDeferring(new LoadUIDs( tsuid));
+
+    return  tsdb_store.getTSMeta(UniqueId.stringToUid(tsuid));
+
+  }
+
+  /**
+   * Parses a TSMeta object from the given column, optionally loading the
+   * UIDMeta objects
+   *
+   * @param column_key The KeyValue.key() of the column to parse also know as uid
+   * @param column_value The KeyValue.value() of the column to parse
+   * @param load_uidmetas Whether or not UIDmeta objects should be loaded
+   * @return A TSMeta if parsed successfully
+   * @throws net.opentsdb.utils.JSONException if the data was corrupted
+   */
+  public Deferred<TSMeta> parseFromColumn(final byte[] column_key,
+                                          final byte[] column_value,
+                                          final boolean load_uidmetas) {
+    if (column_value == null || column_value.length < 1) {
+      throw new IllegalArgumentException("Empty column value");
+    }
+
+    final TSMeta meta = JSON.parseToObject(column_value, TSMeta.class);
+
+    // fix in case the tsuid is missing
+    if (meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
+      meta.setTSUID(UniqueId.uidToString(column_key));
+    }
+
+    if (!load_uidmetas) {
+      return Deferred.fromResult(meta);
+    }
+
+    final LoadUIDs deferred = new LoadUIDs(meta.getTSUID());
+    try {
+      return deferred.call(meta);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Asynchronously loads the UIDMeta objects into the given TSMeta object. Used
+   * by multiple methods so it's broken into it's own class here.
+   */
+  private class LoadUIDs implements Callback<Deferred<TSMeta>, TSMeta> {
+
+    private final byte[] metric_uid;
+    private final List<byte[]> tags;
+
+    public LoadUIDs(final String tsuid) {
+
+      final byte[] byte_tsuid = UniqueId.stringToUid(tsuid);
+
+      metric_uid = Arrays.copyOfRange(byte_tsuid, 0, Const.METRICS_WIDTH);
+      tags = UniqueId.getTagsFromTSUID(tsuid);
+    }
+
+    /**
+     * @return A TSMeta object loaded with UIDMetas if successful
+     * @throws org.hbase.async.HBaseException if there was a storage issue
+     * @throws net.opentsdb.utils.JSONException if the data was corrupted
+     */
+    @Override
+    public Deferred<TSMeta> call(final TSMeta meta) throws Exception {
+      if (meta == null) {
+        return Deferred.fromResult(null);
+      }
+
+      final ArrayList<Deferred<UIDMeta>> uid_group =
+              new ArrayList<Deferred<UIDMeta>>(tags.size());
+
+      Iterator<byte[]> tag_iter = tags.iterator();
+
+      while(tag_iter.hasNext()) {
+        uid_group.add(getUIDMeta(UniqueIdType.TAGK, tag_iter.next()));
+        uid_group.add(getUIDMeta(UniqueIdType.TAGV, tag_iter.next()));
+      }
+
+      /**
+       * A callback that will place the loaded UIDMeta objects for the tags in
+       * order on meta.tags.
+       */
+      final class UIDMetaTagsCB implements Callback<TSMeta, ArrayList<UIDMeta>> {
+        @Override
+        public TSMeta call(final ArrayList<UIDMeta> uid_metas) {
+          meta.setTags(uid_metas);
+          return meta;
+        }
+      }
+
+      /**
+       * A callback that will place the loaded UIDMeta object for the metric
+       * UID on meta.metric.
+       */
+      class UIDMetaMetricCB implements Callback<Deferred<TSMeta>, UIDMeta> {
+        @Override
+        public Deferred<TSMeta> call(UIDMeta uid_meta) {
+          meta.setMetric(uid_meta);
+
+          // This will chain the UIDMetaTagsCB on this callback which is what
+          // allows us to just return the result of the callback chain bellow
+          // . groupInOrder is used so that the resulting list will be in the
+          // same order as they were added to uid_group.
+          return Deferred.groupInOrder(uid_group)
+                  .addCallback(new UIDMetaTagsCB());
+        }
+      }
+
+      return getUIDMeta(UniqueIdType.METRIC, metric_uid)
+              .addCallbackDeferring(new UIDMetaMetricCB());
+    }
   }
 
 }

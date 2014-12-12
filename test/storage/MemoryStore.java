@@ -26,6 +26,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.*;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.json.StorageModule;
@@ -1236,7 +1237,47 @@ public class MemoryStore implements TsdbStore {
     return Deferred.fromResult(true);
   }
 
-  /**
+  @Override
+  public Deferred<Object> delete(TSMeta tsMeta) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> create(TSMeta tsMeta) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<TSMeta> getTSMeta(byte[] tsuid) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> syncToStorage(TSMeta tsMeta, Deferred<ArrayList<Object>> uid_group, boolean overwrite) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> TSMetaExists(String tsuid) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Boolean> TSMetaCounterExists(byte[] tsuid) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Long> incrementAndGetCounter(byte[] tsuid) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public void setTSMetaCounter(byte[] tsuid, long number) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+    /**
    * Attempts to fetch a global or local annotation from storage
    * @param tsuid The TSUID as a byte array. May be null if retrieving a global
    * annotation

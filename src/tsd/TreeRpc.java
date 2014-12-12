@@ -449,7 +449,7 @@ final class TreeRpc implements HttpRpc {
             new HashMap<String, Object>();
           
           try {
-            final TSMeta meta = TSMeta.getTSMeta(tsdb, tsuid)
+            final TSMeta meta = tsdb.getTSMeta(tsuid, true)
               .joinUninterruptibly();
             // if the meta doesn't exist, we can't process, so just log a 
             // message to the results and move on to the next TSUID

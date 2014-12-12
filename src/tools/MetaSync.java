@@ -240,13 +240,13 @@ final class MetaSync extends Thread {
                 // note that the increment call will create the meta object
                 // and send it to the search plugin so we don't have to do that
                 // here or in the local callback
-                return TSMeta.incrementAndGetCounter(tsdb, tsuid)
+                return tsdb.incrementAndGetCounter(tsuid)
                   .addCallbackDeferring(new CreatedCB());
               } else {
                 TSMeta new_meta = new TSMeta(tsuid, timestamp);
                 tsdb.indexTSMeta(new_meta);
                 LOG.info("Counter exists but meta was null, creating meta data for timeseries [{}]", tsuid_string);
-                return new_meta.storeNew(tsdb);    
+                return tsdb.create(new_meta);
               }
             }
           }
@@ -254,7 +254,7 @@ final class MetaSync extends Thread {
           // Take care of situations where the counter is created but the
           // meta data is not. May happen if the TSD crashes or is killed
           // improperly before the meta is flushed to storage.
-          return TSMeta.counterExistsInStorage(tsdb, tsuid)
+          return tsdb.TSMetaCounterExists(tsuid)
             .addCallbackDeferring(new CounterCB());
         }
 
@@ -265,7 +265,7 @@ final class MetaSync extends Thread {
           LOG.warn("Replacing corrupt meta data for timeseries [{}]", tsuid_string);
           TSMeta new_meta = new TSMeta(tsuid, timestamp);
           tsdb.indexTSMeta(new_meta);
-          return new_meta.storeNew(tsdb);
+          return tsdb.create(new_meta);
         } else {
           // we only want to update the time if it was outside of an 
           // hour otherwise it's probably an accurate timestamp
@@ -274,7 +274,7 @@ final class MetaSync extends Thread {
             meta.setCreated(timestamp);
             tsdb.indexTSMeta(meta);
             LOG.info("Updated created timestamp for timeseries [{}]", tsuid_string);
-            return meta.syncToStorage(tsdb, false);
+            return tsdb.syncToStorage(meta, false);
           }
 
           LOG.debug("TSUID [{}] is up to date in storage", tsuid_string);
@@ -439,7 +439,7 @@ final class MetaSync extends Thread {
           // handle the timeseries meta last so we don't record it if one
           // or more of the UIDs had an issue
           final Deferred<Boolean> process_tsmeta = 
-            TSMeta.getTSMeta(tsdb, tsuid_string)
+            tsdb.getTSMeta(tsuid_string, true)
               .addCallbackDeferring(new TSMetaCB(tsuid, timestamp));
           process_tsmeta.addErrback(new ErrBack());
           storage_calls.add(process_tsmeta);

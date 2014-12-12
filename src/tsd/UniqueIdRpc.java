@@ -267,7 +267,7 @@ final class UniqueIdRpc implements HttpRpc {
       if (query.hasQueryStringParam("tsuid")) {
         tsuid = query.getQueryStringParam("tsuid");
         try {
-          final TSMeta meta = TSMeta.getTSMeta(tsdb, tsuid).joinUninterruptibly();
+          final TSMeta meta = tsdb.getTSMeta(tsuid, true).joinUninterruptibly();
           if (meta != null) {
             query.sendReply(query.serializer().formatTSMetaV1(meta));
           } else {
@@ -338,7 +338,7 @@ final class UniqueIdRpc implements HttpRpc {
                 "This may be caused by another process modifying storage data");
           }
 
-          return TSMeta.getTSMeta(tsdb, meta.getTSUID());
+          return tsdb.getTSMeta(meta.getTSUID(), true);
         }
 
       }
@@ -369,26 +369,25 @@ final class UniqueIdRpc implements HttpRpc {
 
         try {
           // Check whether we have a TSMeta stored already
-          final boolean exists = TSMeta
-              .metaExistsInStorage(tsdb, tsuid)
-              .joinUninterruptibly();
+          final boolean exists = tsdb.TSMetaExists(tsuid)
+                  .joinUninterruptibly();
           // set TSUID
           meta.setTSUID(tsuid);
           
           if (!exists && create) {
             // Write 0 to counter column if not present
-            TSMeta.counterExistsInStorage(tsdb, UniqueId.stringToUid(tsuid))
-                .addCallback(new WriteCounterIfNotPresentCB())
+            tsdb.TSMetaCounterExists(UniqueId.stringToUid(tsuid))
+                    .addCallback(new WriteCounterIfNotPresentCB())
                 .joinUninterruptibly();
             // set TSUID
-            final Deferred<TSMeta> process_meta = meta.storeNew(tsdb)
-                .addCallbackDeferring(new SyncCB());
+            final Deferred<TSMeta> process_meta = tsdb.create(meta)
+                    .addCallbackDeferring(new SyncCB());
             final TSMeta updated_meta = process_meta.joinUninterruptibly();
             tsdb.indexTSMeta(updated_meta);
             tsdb.processTSMetaThroughTrees(updated_meta);
             query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
           } else if (exists) {
-            final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
+            final Deferred<TSMeta> process_meta = tsdb.syncToStorage(meta,
                 method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
             final TSMeta updated_meta = process_meta.joinUninterruptibly();
             tsdb.indexTSMeta(updated_meta);
@@ -413,7 +412,7 @@ final class UniqueIdRpc implements HttpRpc {
         }
       } else {
         try {
-          final Deferred<TSMeta> process_meta = meta.syncToStorage(tsdb,
+          final Deferred<TSMeta> process_meta = tsdb.syncToStorage(meta,
               method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
           final TSMeta updated_meta = process_meta.joinUninterruptibly();
           tsdb.indexTSMeta(updated_meta);
@@ -441,7 +440,7 @@ final class UniqueIdRpc implements HttpRpc {
         meta = this.parseTSMetaQS(query);
       }
       try{
-        meta.delete(tsdb);
+        tsdb.delete(meta);
         tsdb.deleteTSMeta(meta.getTSUID());
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete TSMeta information", e);

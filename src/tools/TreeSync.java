@@ -251,7 +251,7 @@ final class TreeSync extends Thread {
           // associated UIDMeta objects, then pass it off to callbacks for 
           // parsing through the trees.
           final Deferred<Boolean> process_tsmeta = 
-            TSMeta.parseFromColumn(tsdb, row.get(0), true)
+            tsdb.parseFromColumn(row.get(0).key(), row.get(0).value(), true)
               .addCallbackDeferring(new ParseCB());
           process_tsmeta.addErrback(new ErrBack());
           tree_calls.add(process_tsmeta);
