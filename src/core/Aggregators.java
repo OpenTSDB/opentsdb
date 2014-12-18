@@ -40,6 +40,10 @@ public final class Aggregators {
   public static final Aggregator SUM = new Sum(
       Interpolation.LERP, "sum");
 
+  /** Aggregator that counts up all the data points. */
+  public static final Aggregator COUNT = new Count(
+      Interpolation.LERP, "sum");
+
   /** Aggregator that returns the minimum data point. */
   public static final Aggregator MIN = new Min(
       Interpolation.LERP, "min");
@@ -95,6 +99,7 @@ public final class Aggregators {
   static {
     aggregators = new HashMap<String, Aggregator>(8);
     aggregators.put("sum", SUM);
+    aggregators.put("count", COUNT);
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
@@ -172,6 +177,43 @@ public final class Aggregators {
     }
     
   }
+
+  private static final class Count implements Aggregator {
+      private final Interpolation method;
+      private final String name;
+      
+      public Count(final Interpolation method, final String name) {
+        this.method = method;
+        this.name = name;
+      }
+      
+      public long runLong(final Longs values) {
+        long result = 0;
+        while (values.hasNextValue()) {
+          result++;
+          values.nextLongValue();
+        }
+        return result;
+      }
+
+      public double runDouble(final Doubles values) {
+        double result = 0;
+        while (values.hasNextValue()) {
+            result++;
+            values.nextDoubleValue();
+        }
+        return result;
+      }
+
+      public String toString() {
+        return name;
+      }
+
+      public Interpolation interpolationMethod() {
+        return method;
+      }
+      
+    }
 
   private static final class Min implements Aggregator {
     private final Interpolation method;
