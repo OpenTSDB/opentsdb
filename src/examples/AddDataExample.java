@@ -159,6 +159,42 @@ public class AddDataExample {
     long elapsedTime3 = (System.nanoTime() - startTime3) / (1000 * 1000);
     System.out.println("\nAdding " + nDataPoints
         + " points in batch mode took: " + elapsedTime3 + " milliseconds.\n");
+    
+    
+    /*
+     * Writing in batch import mode with reinstantiation of WriteableDataPoints connection
+     * This is needed if you want to write datapoints with the same time to the same metrics but
+     * that have different tags.  
+     */
+    
+    // Make some data
+    long timestamp4 = System.currentTimeMillis(); // one time
+    long[] values4 = makeRandomValues(nDataPoints, rand);
+    // Start timer
+    long startTime4 = System.nanoTime();
+    // Now write to tsdb
+    for (int i = 0; i < nDataPoints; i++) {
+      WritableDataPoints wdp2 = tsdb.newDataPoints();
+      wdp2.setBatchImport(true);
+      wdp2.setBufferingTime((short) 50);
+      Map<String, String> tags2 = new HashMap<String, String>(1);
+      tags2.put("some-tag", "version-" + i);
+      wdp2.setSeries(metricName, tags2);
+      // write the data and add the returned Deferred to our ArrayList
+      deferreds.add(wdp2.addPoint(timestamp4, values3[i]));
+    }
+
+    try {
+      Deferred.groupInOrder(deferreds).addErrback(new errBack())
+          .joinUninterruptibly();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    // End timer.
+    long elapsedTime4 = (System.nanoTime() - startTime3) / (1000 * 1000);
+    System.out.println("\nAdding " + nDataPoints
+        + " points in batch mode with WDP reinstantiation took: " + elapsedTime4 + " milliseconds.\n");
+    
 
     // Gracefully shutdown connection to TSDB
     tsdb.shutdown();
