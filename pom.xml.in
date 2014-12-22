@@ -248,6 +248,11 @@
   </build>
 
   <dependencies>
+    <dependency>
+      <groupId>com.datastax.cassandra</groupId>
+      <artifactId>cassandra-driver-core</artifactId>
+      <version>@CASSANDRA_VERSION@</version>
+    </dependency>
 
     <dependency>
       <groupId>com.google.auto.service</groupId>
