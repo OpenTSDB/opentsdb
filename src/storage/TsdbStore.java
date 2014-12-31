@@ -19,6 +19,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 
@@ -164,5 +165,19 @@ public interface TsdbStore {
 
   Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule, final boolean overwrite);
 
+  Deferred<Object> delete(final TSMeta tsMeta);
 
+  Deferred<Boolean> create(final TSMeta tsMeta);
+
+  Deferred<TSMeta> getTSMeta(final byte[] tsuid);
+
+  Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
+
+  Deferred<Boolean> TSMetaExists(final String tsuid);
+
+  Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid);
+
+  Deferred<Long> incrementAndGetCounter(final byte[] tsuid);
+
+  void setTSMetaCounter(final byte[] tsuid, final long number);
 }

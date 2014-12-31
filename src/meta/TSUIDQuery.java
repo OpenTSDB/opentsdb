@@ -237,7 +237,7 @@ public class TSUIDQuery {
             return null;
           }
           for (final ArrayList<KeyValue> row : rows) {
-            tsmeta_group.add(TSMeta.parseFromColumn(tsdb, row.get(0), true));
+            tsmeta_group.add(tsdb.parseFromColumn(row.get(0).key(), row.get(0).value(), true));
           }
           return scan();
         } catch (Exception e) {

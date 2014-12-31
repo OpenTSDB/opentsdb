@@ -160,7 +160,7 @@ public final class TestTSMeta {
   
   @Test
   public void getTSMeta() throws Exception {
-    meta = TSMeta.getTSMeta(tsdb, "000001000001000001").joinUninterruptibly();
+    meta = tsdb.getTSMeta("000001000001000001").joinUninterruptibly();
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
     assertEquals("sys.cpu.0", meta.getMetric().getName());
@@ -174,7 +174,7 @@ public final class TestTSMeta {
   
   @Test
   public void getTSMetaDoesNotExist() throws Exception {
-    meta = TSMeta.getTSMeta(tsdb, "000002000001000001").joinUninterruptibly();
+    meta = tsdb.getTSMeta("000002000001000001").joinUninterruptibly();
     assertNull(meta);
   }
   
@@ -189,7 +189,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      TSMeta.getTSMeta(tsdb, "000002000001000001").joinUninterruptibly();
+      tsdb.getTSMeta( "000002000001000001").joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -206,7 +206,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      TSMeta.getTSMeta(tsdb, "000001000002000001").joinUninterruptibly();
+      tsdb.getTSMeta( "000001000002000001").joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -223,7 +223,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      TSMeta.getTSMeta(tsdb, "000001000001000002").joinUninterruptibly();
+      tsdb.getTSMeta( "000001000001000002").joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -231,21 +231,21 @@ public final class TestTSMeta {
   
   @Test
   public void delete() throws Exception {
-    meta = TSMeta.getTSMeta(tsdb, "000001000001000001").joinUninterruptibly();
-    meta.delete(tsdb);
+    meta = tsdb.getTSMeta( "000001000001000001").joinUninterruptibly();
+    tsdb.delete(meta);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void deleteNull() throws Exception {
     meta = new TSMeta();
-    meta.delete(tsdb);
+    tsdb.delete(meta);
   }
   
   @Test
   public void syncToStorage() throws Exception {
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
     meta.setDisplayName("New DN");
-    meta.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(meta, false).joinUninterruptibly();
     assertEquals("New DN", meta.getDisplayName());
     assertEquals(42, meta.getRetention());
   }
@@ -254,7 +254,7 @@ public final class TestTSMeta {
   public void syncToStorageOverwrite() throws Exception {
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
     meta.setDisplayName("New DN");
-    meta.syncToStorage(tsdb, true).joinUninterruptibly();
+    tsdb.syncToStorage(meta, true).joinUninterruptibly();
     assertEquals("New DN", meta.getDisplayName());
     assertEquals(0, meta.getRetention());
   }
@@ -262,72 +262,72 @@ public final class TestTSMeta {
   @Test (expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
     meta = new TSMeta("ABCD");
-    meta.syncToStorage(tsdb, true).joinUninterruptibly();
+    tsdb.syncToStorage(meta, true).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageNullTSUID() throws Exception {
     meta = new TSMeta();
-    meta.syncToStorage(tsdb, true).joinUninterruptibly();
+    tsdb.syncToStorage(meta, true).joinUninterruptibly();
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageDoesNotExist() throws Exception {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
-    meta.syncToStorage(tsdb, false).joinUninterruptibly();
+    tsdb.syncToStorage(meta, false).joinUninterruptibly();
   }
   
   @Test
   public void storeNew() throws Exception {
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
     meta.setDisplayName("New DN");
-    meta.storeNew(tsdb);
+    tsdb.create(meta);
     assertEquals("New DN", meta.getDisplayName());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeNewNull() throws Exception {
     meta = new TSMeta(null);
-    meta.storeNew(tsdb);
+    tsdb.create(meta);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void storeNewEmpty() throws Exception {
     meta = new TSMeta("");
-    meta.storeNew(tsdb);
+    tsdb.create(meta);
   }
   
   @Test
   public void metaExistsInStorage() throws Exception {
-    assertTrue(TSMeta.metaExistsInStorage(tsdb, "000001000001000001")
+    assertTrue(tsdb.TSMetaExists("000001000001000001")
         .joinUninterruptibly());
   }
   
   @Test
   public void metaExistsInStorageNot() throws Exception {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
-    assertFalse(TSMeta.metaExistsInStorage(tsdb, "000001000001000001")
-        .joinUninterruptibly());
+    assertFalse(tsdb.TSMetaExists("000001000001000001")
+            .joinUninterruptibly());
   }
   
   @Test
   public void counterExistsInStorage() throws Exception {
-    assertTrue(TSMeta.counterExistsInStorage(tsdb, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }).joinUninterruptibly());
+    assertTrue(tsdb.TSMetaCounterExists(
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly());
   }
   
   @Test
   public void counterExistsInStorageNot() throws Exception {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
-    assertFalse(TSMeta.counterExistsInStorage(tsdb, 
-        new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }).joinUninterruptibly());
+    assertFalse(tsdb.TSMetaCounterExists(
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly());
   }
 
   @Test
   public void incrementAndGetCounter() throws Exception {
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
-    TSMeta.incrementAndGetCounter(tsdb, tsuid).joinUninterruptibly();
+    tsdb.incrementAndGetCounter(tsuid).joinUninterruptibly();
     verify(tsdb_store).bufferAtomicIncrement((AtomicIncrementRequest)any());
   }
   
@@ -344,8 +344,8 @@ public final class TestTSMeta {
         throw (Exception)ex;
       }      
     }
-    
-    TSMeta.incrementAndGetCounter(tsdb, tsuid).addErrback(new ErrBack())
+
+    tsdb.incrementAndGetCounter(tsuid).addErrback(new ErrBack())
     .joinUninterruptibly();
   }
   
@@ -369,7 +369,7 @@ public final class TestTSMeta {
       new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
       NAME_FAMILY,
       "ts_meta".getBytes(Const.CHARSET_ASCII)));
-    final TSMeta meta = TSMeta.parseFromColumn(tsdb, column, false)
+    final TSMeta meta = tsdb.parseFromColumn(column.key(), column.value(), false)
       .joinUninterruptibly();
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
@@ -384,7 +384,7 @@ public final class TestTSMeta {
       new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
       NAME_FAMILY,
       "ts_meta".getBytes(Const.CHARSET_ASCII)));
-    final TSMeta meta = TSMeta.parseFromColumn(tsdb, column, true)
+    final TSMeta meta = tsdb.parseFromColumn(column.key(), column.value(), true)
       .joinUninterruptibly();
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
@@ -412,7 +412,7 @@ public final class TestTSMeta {
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
-    TSMeta.parseFromColumn(tsdb, column, true).addErrback(new ErrBack())
+    tsdb.parseFromColumn(column.key(), column.value(), true).addErrback(new ErrBack())
       .joinUninterruptibly();
   }
 }

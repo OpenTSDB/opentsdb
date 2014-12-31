@@ -38,6 +38,7 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.json.StorageModule;
@@ -85,6 +86,13 @@ public class HBaseStore implements TsdbStore {
    * The single column family used by this class.
    */
   private static final byte[] NAME_FAMILY = toBytes("name");
+
+  /** The family to use for timeseries meta */
+  private static final byte[] TSMETA_FAMILY = toBytes("name");
+  /** The cell qualifier to use for timeseries meta */
+  private static final byte[] TSMETA_QUALIFIER = toBytes("ts_meta");
+  /** The cell qualifier to use for timeseries meta */
+  private static final byte[] TSMETA_COUNTER_QUALIFIER = toBytes("ts_ctr");
 
   /** The single column family used by this class. */
   private static final byte[] UID_FAMILY = toBytes("name");
@@ -2370,4 +2378,193 @@ public class HBaseStore implements TsdbStore {
     // returning the leaf
     return Deferred.group(uid_group).addCallbackDeferring(new CollateUIDsCB());
   }
+
+  @Override
+  public Deferred<Object> delete(final TSMeta tsMeta) {
+    final DeleteRequest delete = new DeleteRequest(meta_table_name,
+            UniqueId.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER);
+    return client.delete(delete);
+  }
+
+  @Override
+  public Deferred<Boolean> create(final TSMeta tsMeta) {
+
+    final PutRequest put = new PutRequest(meta_table_name,
+            UniqueId.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
+            tsMeta.getStorageJSON());
+
+    final class PutCB implements Callback<Deferred<Boolean>, Object> {
+      @Override
+      public Deferred<Boolean> call(Object arg0) throws Exception {
+        return Deferred.fromResult(true);
+      }
+    }
+
+    return client.put(put).addCallbackDeferring(new PutCB());
+  }
+
+  @Override
+  public Deferred<TSMeta> getTSMeta(final byte[] tsuid) { //previously getFromStorage
+    /**
+    * Called after executing the GetRequest to parse the meta data.
+    */
+    final class GetCB implements Callback<Deferred<TSMeta>, ArrayList<KeyValue>> {
+
+      /**
+       * @return Null if the meta did not exist or a valid TSMeta object if it
+       * did.
+       */
+      @Override
+      public Deferred<TSMeta> call(final ArrayList<KeyValue> row) throws Exception {
+        if (row == null || row.isEmpty()) {
+          return Deferred.fromResult(null);
+        }
+
+        long dps = 0;
+        long last_received = 0;
+        TSMeta meta = null;
+
+        for (KeyValue column : row) {
+          if (Arrays.equals(TSMETA_COUNTER_QUALIFIER, column.qualifier())) {
+            dps = Bytes.getLong(column.value());
+            last_received = column.timestamp() / 1000;
+          } else if (Arrays.equals(TSMETA_QUALIFIER, column.qualifier())) {
+            meta = JSON.parseToObject(column.value(), TSMeta.class);
+          }
+        }
+
+        if (meta == null) {
+          LOG.warn("Found a counter TSMeta column without a meta for TSUID: {}", UniqueId.uidToString(row.get(0).key()));
+          return Deferred.fromResult(null);
+        }
+
+        meta.setTotalDatapoints(dps);
+        meta.setLastReceived(last_received);
+        return Deferred.fromResult(meta);
+      }
+
+    }
+
+    final GetRequest get = new GetRequest(meta_table_name, tsuid);
+    get.family(TSMETA_FAMILY);
+    get.qualifiers(new byte[][] { TSMETA_COUNTER_QUALIFIER, TSMETA_QUALIFIER });
+    return client.get(get).addCallbackDeferring(new GetCB());
+  }
+
+  @Override
+  public Deferred<Boolean> syncToStorage(final TSMeta tsMeta,
+                                         final Deferred<ArrayList<Object>> uid_group,
+                                         final boolean overwrite) {
+
+
+/**
+ * Callback executed after all of the UID mappings have been verified. This
+ * will then proceed with the CAS call.
+ */
+    final class ValidateCB implements Callback<Deferred<Boolean>,
+            ArrayList<Object>> {
+      private final TSMeta local_meta;
+
+      public ValidateCB(final TSMeta local_meta) {
+        this.local_meta = local_meta;
+      }
+
+      /**
+       * Nested class that executes the CAS after retrieving existing TSMeta
+       * from storage.
+       */
+      final class StoreCB implements Callback<Deferred<Boolean>, TSMeta> {
+
+        /**
+         * Executes the CAS if the TSMeta was successfully retrieved
+         * @return True if the CAS was successful, false if the stored data
+         * was modified in flight
+         * @throws IllegalArgumentException if the TSMeta did not exist in
+         * storage. Only the TSD should be able to create TSMeta objects.
+         */
+        @Override
+        public Deferred<Boolean> call(TSMeta stored_meta) throws Exception {
+          if (stored_meta == null) {
+            throw new IllegalArgumentException("Requested TSMeta did not exist");
+          }
+
+          final byte[] original_meta = stored_meta.getStorageJSON();
+          local_meta.syncMeta(stored_meta, overwrite);
+
+          final PutRequest put = new PutRequest(meta_table_name,
+                  UniqueId.stringToUid(local_meta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
+                  local_meta.getStorageJSON());
+
+          return client.compareAndSet(put, original_meta);
+        }
+      }
+
+      /**
+       * Called on UID mapping verification and continues executing the CAS
+       * procedure.
+       * @return Results from the {@link StoreCB#call} callback
+       */
+      @Override
+      public Deferred<Boolean> call(ArrayList<Object> validated)
+              throws Exception {
+        return getTSMeta(UniqueId.stringToUid(tsMeta.getTSUID()))
+                .addCallbackDeferring(new StoreCB());
+      }
+
+    }
+    // Begins the callback chain by validating that the UID mappings exist
+    return uid_group.addCallbackDeferring(new ValidateCB(tsMeta));
+  }
+
+  @Override
+  public Deferred<Boolean> TSMetaExists(final String tsuid) {
+
+    final GetRequest get = new GetRequest(meta_table_name,
+            UniqueId.stringToUid(tsuid)).family(TSMETA_FAMILY)
+            .qualifier(TSMETA_QUALIFIER);
+
+    /**
+     * Callback from the GetRequest that simply determines if the row is empty
+     * or not
+     */
+    final class ExistsCB implements Callback<Boolean, ArrayList<KeyValue>> {
+      @Override
+      public Boolean call(ArrayList<KeyValue> row) throws Exception {
+        return !(row == null || row.isEmpty() || row.get(0).value() == null);
+      }
+    }
+    return client.get(get).addCallback(new ExistsCB());
+  }
+
+  @Override
+  public Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid) {
+    /**
+     * Callback from the GetRequest that simply determines if the row is empty
+     * or not
+     */
+    final class ExistsCB implements Callback<Boolean, ArrayList<KeyValue>> {
+      @Override
+      public Boolean call(ArrayList<KeyValue> row) throws Exception {
+        return !(row == null || row.isEmpty() || row.get(0).value() == null);
+      }
+    }
+    final GetRequest get = new GetRequest(meta_table_name, tsuid)
+            .family(TSMETA_FAMILY).qualifier(TSMETA_COUNTER_QUALIFIER);
+    return client.get(get).addCallback(new ExistsCB());
+  }
+
+  @Override
+  public Deferred<Long> incrementAndGetCounter(final byte[] tsuid) {
+    final AtomicIncrementRequest inc = new AtomicIncrementRequest(
+            meta_table_name, tsuid, TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER);
+    return client.bufferAtomicIncrement(inc);
+  }
+
+  @Override
+  public void setTSMetaCounter(final byte[] tsuid, final long number) {
+      final PutRequest tracking = new PutRequest(meta_table_name, tsuid,
+              TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(number));
+      client.put(tracking);
+ }
+
 }
