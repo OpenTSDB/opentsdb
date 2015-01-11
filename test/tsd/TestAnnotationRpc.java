@@ -134,6 +134,14 @@ public final class TestAnnotationRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
   
+  @Test
+  public void getGlobals() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/annotations?start_time=1328140800");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+  
   @Test (expected = BadRequestException.class)
   public void getNotFound() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -145,6 +153,13 @@ public final class TestAnnotationRpc {
   public void getGlobalNotFound() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
     "/api/annotation?start_time=1388450563");
+    rpc.execute(tsdb, query);
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void getGlobalsNotFound() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/annotation?start_time=1388450563");
     rpc.execute(tsdb, query);
   }
   
