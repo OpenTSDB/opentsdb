@@ -108,7 +108,7 @@ public class Config {
     new HashMap<String, String>();
   
   /** Tracks the location of the file that was actually loaded */
-  private String config_location;
+  protected String config_location;
 
   /**
    * Constructor that initializes default configuration values. May attempt to
@@ -119,9 +119,10 @@ public class Config {
    *           config files
    */
   public Config(final boolean auto_load_config) throws IOException {
-    if (auto_load_config)
-      this.loadConfig();
-    this.setDefaults();
+    if (auto_load_config) {
+      loadConfig();
+    }
+    setDefaults();
   }
 
   /**
@@ -131,8 +132,8 @@ public class Config {
    * @throws IOException Thrown if unable to read or parse the file
    */
   public Config(final String file) throws IOException {
-    this.loadConfig(file);
-    this.setDefaults();
+    loadConfig(file);
+    setDefaults();
   }
 
   /**
@@ -145,14 +146,14 @@ public class Config {
    */
   public Config(final Config parent) {
     // copy so changes to the local props by the plugin don't affect the master
-    this.properties.putAll(parent.properties);
-    this.config_location = parent.config_location;
-    this.setDefaults();
+    properties.putAll(parent.properties);
+    config_location = parent.config_location;
+    setDefaults();
   }
 
   /** @return the auto_metric value */
   public boolean auto_metric() {
-    return this.auto_metric;
+    return auto_metric;
   }
   
   /** @return the auto_tagk value */
@@ -174,7 +175,7 @@ public class Config {
   
   /** @return the enable_compaction value */
   public boolean enable_compactions() {
-    return this.enable_compactions;
+    return enable_compactions;
   }
   
   /** @return whether or not to record new TSMeta objects in real time */
@@ -199,12 +200,12 @@ public class Config {
   
   /** @return whether or not chunked requests are supported */
   public boolean enable_chunked_requests() {
-    return this.enable_chunked_requests;
+    return enable_chunked_requests;
   }
   
   /** @return max incoming chunk size in bytes */
   public int max_chunked_requests() {
-    return this.max_chunked_requests;
+    return max_chunked_requests;
   }
   
   /** @return true if duplicate values should be fixed */
@@ -233,7 +234,7 @@ public class Config {
    * @param value The value to store
    */
   public void overrideConfig(final String property, final String value) {
-    this.properties.put(property, value);
+    properties.put(property, value);
     loadStaticVariables();
   }
 
@@ -244,7 +245,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final String getString(final String property) {
-    return this.properties.get(property);
+    return properties.get(property);
   }
 
   /**
@@ -255,7 +256,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final int getInt(final String property) {
-    return Integer.parseInt(this.properties.get(property));
+    return Integer.parseInt(properties.get(property));
   }
 
   /**
@@ -266,7 +267,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final short getShort(final String property) {
-    return Short.parseShort(this.properties.get(property));
+    return Short.parseShort(properties.get(property));
   }
 
   /**
@@ -277,7 +278,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final long getLong(final String property) {
-    return Long.parseLong(this.properties.get(property));
+    return Long.parseLong(properties.get(property));
   }
 
   /**
@@ -288,7 +289,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final float getFloat(final String property) {
-    return Float.parseFloat(this.properties.get(property));
+    return Float.parseFloat(properties.get(property));
   }
 
   /**
@@ -299,7 +300,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final double getDouble(final String property) {
-    return Double.parseDouble(this.properties.get(property));
+    return Double.parseDouble(properties.get(property));
   }
 
   /**
@@ -315,7 +316,7 @@ public class Config {
    * @throws NullPointerException if the property was not found
    */
   public final boolean getBoolean(final String property) {
-    final String val = this.properties.get(property).toUpperCase();
+    final String val = properties.get(property).toUpperCase();
     if (val.equals("1"))
       return true;
     if (val.equals("TRUE"))
@@ -328,8 +329,8 @@ public class Config {
   /**
    * Returns the directory name, making sure the end is an OS dependent slash
    * @param property The property to load
-   * @return The property value with a forward or back slash appended
-   * @throws NullPointerException if the property was not found
+   * @return The property value with a forward or back slash appended or null
+   * if the property wasn't found or the directory was empty.
    */
   public final String getDirectoryName(final String property) {
     String directory = properties.get(property);
@@ -365,7 +366,7 @@ public class Config {
    * @return True if the property exists and has a value, not an empty string
    */
   public final boolean hasProperty(final String property) {
-    final String val = this.properties.get(property);
+    final String val = properties.get(property);
     if (val == null)
       return false;
     if (val.isEmpty())
@@ -378,13 +379,13 @@ public class Config {
    * @return A string with information about the config
    */
   public final String dumpConfiguration() {
-    if (this.properties.isEmpty())
+    if (properties.isEmpty())
       return "No configuration settings stored";
 
     StringBuilder response = new StringBuilder("TSD Configuration:\n");
-    response.append("File [" + this.config_location + "]\n");
+    response.append("File [" + config_location + "]\n");
     int line = 0;
-    for (Map.Entry<String, String> entry : this.properties.entrySet()) {
+    for (Map.Entry<String, String> entry : properties.entrySet()) {
       if (line > 0) {
         response.append("\n");
       }
@@ -491,8 +492,8 @@ public class Config {
    * @throws IOException Thrown if there was an issue reading a file
    */
   protected void loadConfig() throws IOException {
-    if (this.config_location != null && !this.config_location.isEmpty()) {
-      this.loadConfig(this.config_location);
+    if (config_location != null && !config_location.isEmpty()) {
+      loadConfig(config_location);
       return;
     }
 
@@ -518,7 +519,7 @@ public class Config {
         props.load(file_stream);
         
         // load the hash map
-        this.loadHashMap(props);        
+        loadHashMap(props);        
       } catch (Exception e) {
         // don't do anything, the file may be missing and that's fine
         LOG.debug("Unable to find or load " + file, e);
@@ -527,7 +528,7 @@ public class Config {
 
       // no exceptions thrown, so save the valid path and exit
       LOG.info("Successfully loaded configuration file: " + file);
-      this.config_location = file;
+      config_location = file;
       return;
     }
 
@@ -542,17 +543,20 @@ public class Config {
    */
   protected void loadConfig(final String file) throws FileNotFoundException,
       IOException {
-    FileInputStream file_stream;
-    file_stream = new FileInputStream(file);
-    Properties props = new Properties();
-    props.load(file_stream);
-    
-    // load the hash map
-    this.loadHashMap(props);
-
-    // no exceptions thrown, so save the valid path and exit
-    LOG.info("Successfully loaded configuration file: " + file);
-    this.config_location = file;
+    final FileInputStream file_stream = new FileInputStream(file);
+    try {
+      final Properties props = new Properties();
+      props.load(file_stream);
+  
+      // load the hash map
+      loadHashMap(props);
+  
+      // no exceptions thrown, so save the valid path and exit
+      LOG.info("Successfully loaded configuration file: " + file);
+      config_location = file;
+    } finally {
+      file_stream.close();
+    }
   }
 
   /**
@@ -586,13 +590,13 @@ public class Config {
    * @param props The loaded Properties object to copy
    */
   private void loadHashMap(final Properties props) {
-    this.properties.clear();
+    properties.clear();
     
     @SuppressWarnings("rawtypes")
     Enumeration e = props.propertyNames();
     while (e.hasMoreElements()) {
       String key = (String) e.nextElement();
-      this.properties.put(key, props.getProperty(key));
+      properties.put(key, props.getProperty(key));
     }
   }
 }
