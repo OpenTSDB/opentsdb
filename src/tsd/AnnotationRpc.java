@@ -39,7 +39,7 @@ import net.opentsdb.utils.JSONException;
  */
 final class AnnotationRpc implements HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(AnnotationRpc.class);
-  
+
   /**
    * Performs CRUD methods on individual annotation objects.
    * @param tsdb The TSD to which we belong
@@ -47,32 +47,29 @@ final class AnnotationRpc implements HttpRpc {
    */
   public void execute(final TSDB tsdb, HttpQuery query) throws IOException {
     final HttpMethod method = query.getAPIMethod();
-    
+
     final String[] uri = query.explodeAPIPath();
     final String endpoint = uri.length > 1 ? uri[1] : "";
     if (endpoint != null && endpoint.toLowerCase().endsWith("bulk")) {
       executeBulk(tsdb, method, query);
       return;
     }
-    
+
     final Annotation note;
     if (query.hasContent()) {
       note = query.serializer().parseAnnotationV1();
     } else {
       note = parseQS(query);
     }
-    
+
     // GET
     if (method == HttpMethod.GET) {
       try {
-        final Annotation stored_annotation = 
-          Annotation.getAnnotation(tsdb, note.getTSUID(), note.getStartTime())
-            .joinUninterruptibly();
-        if (stored_annotation == null) {
-          throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-              "Unable to locate annotation in storage");
+        if ("annotations".equals(uri[0])) {
+          fetchMultipleAnnotations(tsdb, note, query);
+        } else {
+          fetchSingleAnnotation(tsdb, note, query);
         }
-        query.sendReply(query.serializer().formatAnnotationV1(stored_annotation));
       } catch (BadRequestException e) {
         throw e;
       } catch (Exception e) {
@@ -80,30 +77,30 @@ final class AnnotationRpc implements HttpRpc {
       }
     // POST
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-      
+
       /**
        * Storage callback used to determine if the storage call was successful
        * or not. Also returns the updated object from storage.
        */
       class SyncCB implements Callback<Deferred<Annotation>, Boolean> {
-        
+
         @Override
         public Deferred<Annotation> call(Boolean success) throws Exception {
           if (!success) {
             throw new BadRequestException(
                 HttpResponseStatus.INTERNAL_SERVER_ERROR,
-                "Failed to save the Annotation to storage", 
+                "Failed to save the Annotation to storage",
                 "This may be caused by another process modifying storage data");
           }
-          
-          return Annotation.getAnnotation(tsdb, note.getTSUID(), 
+
+          return Annotation.getAnnotation(tsdb, note.getTSUID(),
               note.getStartTime());
         }
-        
+
       }
-      
+
       try {
-        final Deferred<Annotation> process_meta = note.syncToStorage(tsdb, 
+        final Deferred<Annotation> process_meta = note.syncToStorage(tsdb,
             method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
         final Annotation updated_meta = process_meta.joinUninterruptibly();
         tsdb.indexAnnotation(note);
@@ -115,7 +112,7 @@ final class AnnotationRpc implements HttpRpc {
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
-    // DELETE    
+    // DELETE
     } else if (method == HttpMethod.DELETE) {
 
       try {
@@ -128,14 +125,38 @@ final class AnnotationRpc implements HttpRpc {
         throw new RuntimeException(e);
       }
       query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
-      
+
     } else {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,
           "Method not allowed", "The HTTP method [" + method.getName() +
           "] is not permitted for this endpoint");
     }
   }
-  
+
+  private void fetchSingleAnnotation(final TSDB tsdb, final Annotation note,
+                                     final HttpQuery query) throws Exception {
+    final Annotation stored_annotation =
+      Annotation.getAnnotation(tsdb, note.getTSUID(), note.getStartTime())
+        .joinUninterruptibly();
+    if (stored_annotation == null) {
+      throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+          "Unable to locate annotation in storage");
+    }
+    query.sendReply(query.serializer().formatAnnotationV1(stored_annotation));
+  }
+
+  private void fetchMultipleAnnotations(final TSDB tsdb, final Annotation note,
+                                        final HttpQuery query) throws Exception {
+    final List<Annotation> annotations =
+      Annotation.getGlobalAnnotations(tsdb, note.getStartTime(), note.getEndTime())
+        .joinUninterruptibly();
+    if (annotations == null) {
+      throw new BadRequestException(HttpResponseStatus.NOT_FOUND,
+          "Unable to locate annotations in storage");
+    }
+    query.sendReply(query.serializer().formatAnnotationsV1(annotations));
+  }
+
   /**
    * Performs CRUD methods on a list of annotation objects to reduce calls to
    * the API.
@@ -149,12 +170,12 @@ final class AnnotationRpc implements HttpRpc {
     } else if (method == HttpMethod.DELETE) {
       executeBulkDelete(tsdb, query);
     } else {
-      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
+      throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,
           "Method not allowed", "The HTTP method [" + query.method().getName() +
           "] is not permitted for this endpoint");
     }
   }
-  
+
   /**
    * Performs CRU methods on a list of annotation objects to reduce calls to
    * the API. Only supports body content and adding or updating annotation
@@ -172,35 +193,35 @@ final class AnnotationRpc implements HttpRpc {
     } catch (JSONException e){
       throw new BadRequestException(e);
     }
-    final List<Deferred<Annotation>> callbacks = 
+    final List<Deferred<Annotation>> callbacks =
         new ArrayList<Deferred<Annotation>>(notes.size());
-    
+
     /**
      * Storage callback used to determine if the storage call was successful
      * or not. Also returns the updated object from storage.
      */
     class SyncCB implements Callback<Deferred<Annotation>, Boolean> {
       final private Annotation note;
-      
+
       public SyncCB(final Annotation note) {
         this.note = note;
       }
-      
+
       @Override
       public Deferred<Annotation> call(Boolean success) throws Exception {
         if (!success) {
           throw new BadRequestException(
               HttpResponseStatus.INTERNAL_SERVER_ERROR,
-              "Failed to save an Annotation to storage", 
+              "Failed to save an Annotation to storage",
               "This may be caused by another process modifying storage data: "
               + note);
         }
-        
-        return Annotation.getAnnotation(tsdb, note.getTSUID(), 
+
+        return Annotation.getAnnotation(tsdb, note.getTSUID(),
             note.getStartTime());
       }
     }
-    
+
     /**
      * Simple callback that will index the updated annotation
      */
@@ -211,23 +232,23 @@ final class AnnotationRpc implements HttpRpc {
         return Deferred.fromResult(note);
       }
     }
-    
+
     for (Annotation note : notes) {
       try {
-        Deferred<Annotation> deferred = 
+        Deferred<Annotation> deferred =
             note.syncToStorage(tsdb, method == HttpMethod.PUT)
             .addCallbackDeferring(new SyncCB(note));
-        Deferred<Annotation> indexer = 
+        Deferred<Annotation> indexer =
             deferred.addCallbackDeferring(new IndexCB());
         callbacks.add(indexer);
       } catch (IllegalStateException e) {
         LOG.info("No changes for annotation: " + note);
       } catch (IllegalArgumentException e) {
-        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
             e.getMessage(), "Annotation error: " + note, e);
       }
     }
-    
+
     try {
       // wait untill all of the syncs have completed, then rebuild the list
       // of annotations using the data synced from storage.
@@ -243,7 +264,7 @@ final class AnnotationRpc implements HttpRpc {
       throw new RuntimeException(e);
     }
   }
-  
+
   /**
    * Handles bulk deletions of a range of annotations (local or global) using
    * query string or body data
@@ -258,33 +279,33 @@ final class AnnotationRpc implements HttpRpc {
       } else {
         delete_request = parseBulkDeleteQS(query);
       }
-      
+
       // validate the start time on the string. Users could request a timestamp of
       // 0 to delete all annotations, BUT we don't want them doing that accidentally
       if (delete_request.start_time == null || delete_request.start_time.isEmpty()) {
-        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
             "Missing the start time value");
       }
-      if (!delete_request.global && 
+      if (!delete_request.global &&
           (delete_request.tsuids == null || delete_request.tsuids.isEmpty())) {
-        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
+        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
             "Missing the TSUIDs or global annotations flag");
       }
-      
-      final int pre_allocate = delete_request.tsuids != null ? 
+
+      final int pre_allocate = delete_request.tsuids != null ?
           delete_request.tsuids.size() + 1 : 1;
       List<Deferred<Integer>> deletes = new ArrayList<Deferred<Integer>>(pre_allocate);
       if (delete_request.global) {
-        deletes.add(Annotation.deleteRange(tsdb, null, 
+        deletes.add(Annotation.deleteRange(tsdb, null,
             delete_request.getStartTime(), delete_request.getEndTime()));
       }
       if (delete_request.tsuids != null) {
         for (String tsuid : delete_request.tsuids) {
-          deletes.add(Annotation.deleteRange(tsdb, UniqueId.stringToUid(tsuid), 
+          deletes.add(Annotation.deleteRange(tsdb, UniqueId.stringToUid(tsuid),
               delete_request.getStartTime(), delete_request.getEndTime()));
         }
       }
-      
+
       Deferred.group(deletes).joinUninterruptibly();
       delete_request.total_deleted = 0; // just in case the caller set it
       for (Deferred<Integer> count : deletes) {
@@ -302,23 +323,23 @@ final class AnnotationRpc implements HttpRpc {
       throw new RuntimeException("Shouldn't be here", e);
     }
   }
-  
+
   /**
    * Parses a query string for annotation information. Note that {@code custom}
    * key/values are not supported via query string. Users must issue a POST or
    * PUT with content data.
    * @param query The query to parse
    * @return An annotation object if parsing was successful
-   * @throws IllegalArgumentException - if the request was malformed 
+   * @throws IllegalArgumentException - if the request was malformed
    */
   private Annotation parseQS(final HttpQuery query) {
     final Annotation note = new Annotation();
-    
+
     final String tsuid = query.getQueryStringParam("tsuid");
     if (tsuid != null) {
       note.setTSUID(tsuid);
     }
-    
+
     final String start = query.getQueryStringParam("start_time");
     final Long start_time = DateTime.parseDateTimeString(start, "");
     if (start_time < 1) {
@@ -326,22 +347,22 @@ final class AnnotationRpc implements HttpRpc {
     }
     // TODO - fix for ms support in the future
     note.setStartTime(start_time / 1000);
-    
+
     final String end = query.getQueryStringParam("end_time");
     final Long end_time = DateTime.parseDateTimeString(end, "");
     // TODO - fix for ms support in the future
     note.setEndTime(end_time / 1000);
-    
+
     final String description = query.getQueryStringParam("description");
     if (description != null) {
       note.setDescription(description);
     }
-    
+
     final String notes = query.getQueryStringParam("notes");
     if (notes != null) {
       note.setNotes(notes);
     }
-    
+
     return note;
   }
 
@@ -354,7 +375,7 @@ final class AnnotationRpc implements HttpRpc {
     final AnnotationBulkDelete settings = new AnnotationBulkDelete();
     settings.start_time = query.getRequiredQueryStringParam("start_time");
     settings.end_time = query.getQueryStringParam("end_time");
-    
+
     if (query.hasQueryStringParam("tsuids")) {
       String[] tsuids = query.getQueryStringParam("tsuids").split(",");
       settings.tsuids = new ArrayList<String>(tsuids.length);
@@ -362,17 +383,17 @@ final class AnnotationRpc implements HttpRpc {
         settings.tsuids.add(tsuid.trim());
       }
     }
-    
+
     if (query.hasQueryStringParam("global")) {
       settings.global = true;
     }
     return settings;
   }
-  
+
   /**
    * Represents a bulk annotation delete query. Either one or more TSUIDs must
    * be supplied or the global flag can be set to determine what annotations
-   * are purged. Both may be set in one request. Annotations for the time 
+   * are purged. Both may be set in one request. Annotations for the time
    * between and including the start and end times will be removed based on
    * the annotation's recorded start time.
    */
@@ -388,19 +409,19 @@ final class AnnotationRpc implements HttpRpc {
     private boolean global;
     /** Total number of items deleted (for later response to the user) */
     private long total_deleted;
-    
+
     /**
      * Default ctor for Jackson
      */
     public AnnotationBulkDelete() {
-      
+
     }
-    
+
     /** @return The start timestamp in milliseconds */
     public long getStartTime() {
       return DateTime.parseDateTimeString(start_time, null);
     }
-    
+
     /** @return The ending timestamp in milliseconds. If it wasn't set, the
      * current time is returned */
     public long getEndTime() {
@@ -425,7 +446,7 @@ final class AnnotationRpc implements HttpRpc {
       return total_deleted;
     }
 
-    /** @param start_time Start time for the range. May be relative, absolute 
+    /** @param start_time Start time for the range. May be relative, absolute
      * or unixy in seconds or milliseconds */
     public void setStartTime(String start_time) {
       this.start_time = start_time;
