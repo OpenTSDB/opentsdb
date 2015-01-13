@@ -160,7 +160,7 @@ public final class TestTSMeta {
   
   @Test
   public void getTSMeta() throws Exception {
-    meta = tsdb.getTSMeta("000001000001000001").joinUninterruptibly();
+    meta = tsdb.getTSMeta("000001000001000001", true).joinUninterruptibly();
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
     assertEquals("sys.cpu.0", meta.getMetric().getName());
@@ -174,7 +174,7 @@ public final class TestTSMeta {
   
   @Test
   public void getTSMetaDoesNotExist() throws Exception {
-    meta = tsdb.getTSMeta("000002000001000001").joinUninterruptibly();
+    meta = tsdb.getTSMeta("000002000001000001", true).joinUninterruptibly();
     assertNull(meta);
   }
   
@@ -189,7 +189,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      tsdb.getTSMeta( "000002000001000001").joinUninterruptibly();
+      tsdb.getTSMeta( "000002000001000001", true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -206,7 +206,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      tsdb.getTSMeta( "000001000002000001").joinUninterruptibly();
+      tsdb.getTSMeta( "000001000002000001", true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -223,7 +223,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      tsdb.getTSMeta( "000001000001000002").joinUninterruptibly();
+      tsdb.getTSMeta( "000001000001000002", true).joinUninterruptibly();
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -231,7 +231,7 @@ public final class TestTSMeta {
   
   @Test
   public void delete() throws Exception {
-    meta = tsdb.getTSMeta( "000001000001000001").joinUninterruptibly();
+    meta = tsdb.getTSMeta( "000001000001000001", true).joinUninterruptibly();
     tsdb.delete(meta);
   }
   
@@ -328,7 +328,8 @@ public final class TestTSMeta {
   public void incrementAndGetCounter() throws Exception {
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
     tsdb.incrementAndGetCounter(tsuid).joinUninterruptibly();
-    verify(tsdb_store).bufferAtomicIncrement((AtomicIncrementRequest)any());
+    verify(tsdb_store).
+            bufferAtomicIncrement((AtomicIncrementRequest)any());
   }
   
   @Test (expected = NoSuchUniqueId.class)
