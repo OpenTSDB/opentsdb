@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.Iterator;
 
 import com.google.common.base.Strings;
+import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
@@ -45,9 +46,6 @@ import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.Bytes;
-import org.hbase.async.HBaseClient;
-
-import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.RpcPlugin;
@@ -157,11 +155,7 @@ public class TSDB {
    * @since 2.0
    */
   public TSDB(final Config config) {
-    this(new HBaseStore(
-      new HBaseClient(
-        config.getString("tsd.storage.hbase.zk_quorum"),
-        config.getString("tsd.storage.hbase.zk_basedir")), config),
-         config);
+    this(Suppliers.memoize(new StoreSupplier(config)).get(), config);
   }
   
   /** @return The data point column family name */
