@@ -54,8 +54,6 @@ public interface TsdbStore {
 
   public Deferred<Long> bufferAtomicIncrement(final AtomicIncrementRequest request);
 
-  public Deferred<Boolean> compareAndSet(final PutRequest edit, final byte[] expected);
-
   public Deferred<Object> delete(final DeleteRequest request);
 
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist();

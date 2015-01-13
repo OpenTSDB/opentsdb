@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
@@ -35,7 +34,6 @@ import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.Pair;
 import org.hbase.async.*;
 import org.hbase.async.Scanner;
@@ -166,70 +164,6 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
     return atomicIncrement(request);
-  }
-
-  /**
-   * Imitates the compareAndSet client call where a {@code PutRequest} is passed
-   * along with a byte array to compared the stored value against. If the stored
-   * value doesn't match, the put is ignored and a "false" is returned. If the
-   * comparator matches, the new put is recorded.
-   * <b>Warning:</b> While a put works on multiple qualifiers, CAS only works
-   * with one. So if the put includes more than one qualifier, only the first
-   * one will be processed in this CAS call.
-   */
-  @Override
-  public Deferred<Boolean> compareAndSet(PutRequest put, byte[] expected) {
-    Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(put.key());
-    if (row == null) {
-      if (expected != null && expected.length > 0) {
-        return Deferred.fromResult(false);
-      }
-
-      row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
-      storage.put(put.key(), row);
-    }
-
-    Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(put.family());
-    if (cf == null) {
-      if (expected != null && expected.length > 0) {
-        return Deferred.fromResult(false);
-      }
-
-      cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
-      row.put(put.family(), cf);
-    }
-
-    // CAS can only operate on one cell, so if the put request has more than
-    // one, we ignore any but the first
-    TreeMap<Long, byte[]> column = cf.get(put.qualifiers()[0]);
-    if (column == null && (expected != null && expected.length > 0)) {
-      return Deferred.fromResult(false);
-    }
-    // if a timestamp was specified, maybe we're CASing against a specific
-    // cell. Otherwise we deal with the latest value
-    final byte[] stored = column == null ? null :
-      put.timestamp() != Long.MAX_VALUE ? column.get(put.timestamp()) :
-        column.firstEntry().getValue();
-    if (stored == null && (expected != null && expected.length > 0)) {
-      return Deferred.fromResult(false);
-    }
-    if (stored != null && (expected == null || expected.length < 1)) {
-      return Deferred.fromResult(false);
-    }
-    if (stored != null && expected != null &&
-      Bytes.memcmp(stored, expected) != 0) {
-      return Deferred.fromResult(false);
-    }
-
-    // passed CAS!
-    if (column == null) {
-      column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
-      cf.put(put.qualifiers()[0], column);
-    }
-    column.put(put.timestamp() != Long.MAX_VALUE ? put.timestamp() :
-      current_timestamp++, put.value());
-    return Deferred.fromResult(true);
   }
 
   /**
