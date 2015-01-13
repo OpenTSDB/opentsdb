@@ -126,7 +126,7 @@ public abstract class TestTsdbStore {
    */
   final Branch branch = tsdb_store.fetchBranch(
     Branch.stringToId("00010001BECD000181A8"), true, tsdb)
-          .joinUninterruptibly();
+          .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(branch);
     assertEquals(1, branch.getTreeId());
     assertEquals("cpu", branch.getDisplayName());
@@ -139,7 +139,7 @@ public abstract class TestTsdbStore {
   public void testFetchBranch() throws Exception {
     final Branch branch = tsdb_store.fetchBranch(
             Branch.stringToId("00010001BECD000181A8"),
-            false, tsdb).joinUninterruptibly();
+            false, tsdb).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(branch);
     assertEquals(1, branch.getTreeId());
     assertEquals("cpu", branch.getDisplayName());
@@ -152,14 +152,14 @@ public abstract class TestTsdbStore {
   public void testFetchBranchNotFound() throws Exception {
     Branch branch = tsdb_store.fetchBranch(
             Branch.stringToId("00010001BECD000181A0"),
-            false, tsdb).joinUninterruptibly();
+            false, tsdb).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(branch);
   }
 
   @Test
   public void testFetchBranchOnly() throws Exception {
     final Branch branch = tsdb_store.fetchBranchOnly(
-            Branch.stringToId("00010001BECD000181A8")).joinUninterruptibly();
+            Branch.stringToId("00010001BECD000181A8")).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(branch);
     assertEquals("cpu", branch.getDisplayName());
     assertNull(branch.getLeaves());
@@ -169,7 +169,7 @@ public abstract class TestTsdbStore {
   @Test
   public void testFetchBranchOnlyNotFound() throws Exception {
     final Branch branch = tsdb_store.fetchBranchOnly(
-            Branch.stringToId("00010001BECD000181A0")).joinUninterruptibly();
+            Branch.stringToId("00010001BECD000181A0")).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(branch);
   }
 
@@ -179,7 +179,7 @@ public abstract class TestTsdbStore {
     tsdb_store.storeBranch(tree, branch, true);
     final Branch parsed =
             tsdb_store.fetchBranch(branch.compileBranchId(), true, tsdb)
-            .joinUninterruptibly();
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("ROOT", parsed.getDisplayName());
     assertEquals(1, parsed.getTreeId());
     assertNotNull(parsed.getPath());
@@ -191,7 +191,7 @@ public abstract class TestTsdbStore {
     final Branch root = getLeafCollision(SAME_TSUID);
 
     ArrayList<Boolean> results =
-            tsdb_store.storeBranch(tree, root, true).joinUninterruptibly();
+            tsdb_store.storeBranch(tree, root, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals(2, results.size());
     assertFalse(results.get(0));
@@ -201,7 +201,7 @@ public abstract class TestTsdbStore {
     final Branch parsed = tsdb_store
             .fetchBranchOnly(
             TestBranch.buildTestBranch(tree)
-            .compileBranchId()).joinUninterruptibly();
+            .compileBranchId()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     parsed.setTreeId(1);
     assertEquals("ROOT", parsed.getDisplayName());
   }
@@ -217,7 +217,7 @@ public abstract class TestTsdbStore {
     tsdb_store.storeBranch(tree, branch, true);
     /* Get results*/
     final ArrayList<Boolean> results =
-            tsdb_store.storeBranch(tree, root, true).joinUninterruptibly();
+            tsdb_store.storeBranch(tree, root, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     /* Check results*/
     assertEquals(2, results.size());
     assertFalse(results.get(0));
@@ -229,7 +229,7 @@ public abstract class TestTsdbStore {
   public void testParseFromStorage() throws Exception {
     final Branch branch = tsdb_store.fetchBranch(
             Branch.stringToId("00010001BECD000181A8"), true, tsdb)
-            .joinUninterruptibly();
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     Leaf leaf = null;
     for (Leaf temp : branch.getLeaves()) {
       if (temp.getTsuid().equals("000001000001000001")) {
@@ -546,7 +546,7 @@ public abstract class TestTsdbStore {
     try {
       tsdb_store.fetchBranch(
               Branch.stringToId("00010001BECD000181A8"), true, tsdb)
-              .joinUninterruptibly();
+              .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -557,7 +557,7 @@ public abstract class TestTsdbStore {
     try {
       tsdb_store.fetchBranch(
               Branch.stringToId("00010001BECD000181A8"), true, tsdb)
-              .joinUninterruptibly();
+              .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -568,7 +568,7 @@ public abstract class TestTsdbStore {
     try {
       tsdb_store.fetchBranch(
               Branch.stringToId("00010001BECD000181A8"), true, tsdb)
-              .joinUninterruptibly();
+              .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -577,7 +577,7 @@ public abstract class TestTsdbStore {
 
     final Branch branch = tsdb.fetchBranch(
             Branch.stringToId("00010001BECD000181A8"),
-            false).joinUninterruptibly();
+            false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(branch);
     assertEquals(1, branch.getTreeId());

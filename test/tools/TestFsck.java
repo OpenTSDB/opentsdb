@@ -157,9 +157,9 @@ public final class TestFsck {
         ts = ts / 1000;
       }
       if (i % 2 == 0) {
-        tsdb.addPoint("sys.cpu.user", ts, (long)i, tags).joinUninterruptibly();
+        tsdb.addPoint("sys.cpu.user", ts, (long)i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       } else {
-        tsdb.addPoint("sys.cpu.user", ts, i, tags).joinUninterruptibly();
+        tsdb.addPoint("sys.cpu.user", ts, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
     
@@ -202,9 +202,9 @@ public final class TestFsck {
         ts = ts / 1000;
       }
       if (i % 2 == 0) {
-        tsdb.addPoint("sys.cpu.user", ts, (long)i, tags).joinUninterruptibly();
+        tsdb.addPoint("sys.cpu.user", ts, (long)i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       } else {
-        tsdb.addPoint("sys.cpu.user", ts, i, tags).joinUninterruptibly();
+        tsdb.addPoint("sys.cpu.user", ts, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   
@@ -225,9 +225,9 @@ public final class TestFsck {
         ts = ts / 1000;
       }
       if (i % 2 == 0) {
-        tsdb.addPoint("sys.cpu.user", ts, (long)i, tags).joinUninterruptibly();
+        tsdb.addPoint("sys.cpu.user", ts, (long)i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       } else {
-        tsdb.addPoint("sys.cpu.user", ts, i, tags).joinUninterruptibly();
+        tsdb.addPoint("sys.cpu.user", ts, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
     

@@ -5,6 +5,7 @@ import com.google.common.collect.Iterators;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
 import org.junit.Before;
 import org.junit.Test;
@@ -55,31 +56,31 @@ public class TestUidResolver {
 
   @Test
   public void testResolveEmpty() throws Exception {
-    final List<byte[]> resolve = resolver.resolve(ImmutableSet.<String>of().iterator(), METRIC).joinUninterruptibly();
+    final List<byte[]> resolve = resolver.resolve(ImmutableSet.<String>of().iterator(), METRIC).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(0, resolve.size());
   }
 
   @Test
   public void testResolveOneMetric() throws Exception {
-    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("sys.cpu.0"), METRIC).joinUninterruptibly();
+    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("sys.cpu.0"), METRIC).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertArrayEquals(new byte[]{0, 0, 1}, resolve.get(0));
   }
 
   @Test
   public void testResolveOneTagk() throws Exception {
-    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("host"), TAGK).joinUninterruptibly();
+    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("host"), TAGK).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertArrayEquals(new byte[]{0,0,1},resolve.get(0));
   }
 
   @Test
   public void testResolveOneTagv() throws Exception {
-    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("web01"), TAGV).joinUninterruptibly();
+    final List<byte[]> resolve = resolver.resolve(ImmutableSet.of("web01"), TAGV).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertArrayEquals(new byte[]{0,0,1},resolve.get(0));
   }
 
   @Test
   public void testResolveMultipleMetric() throws Exception {
-    final List<byte[]> resolve = resolver.resolve(METRICS_1, METRIC).joinUninterruptibly();
+    final List<byte[]> resolve = resolver.resolve(METRICS_1, METRIC).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final List<byte[]> bytes = new ArrayList<byte[]>();
     bytes.add(new byte[]{0,0,1});
     bytes.add(new byte[]{0,0,2});
@@ -89,7 +90,7 @@ public class TestUidResolver {
 
   @Test
   public void testResolveMultipleMetricUnsorted() throws Exception {
-    final List<byte[]> resolve = resolver.resolve(METRICS_2, METRIC).joinUninterruptibly();
+    final List<byte[]> resolve = resolver.resolve(METRICS_2, METRIC).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final List<byte[]> bytes = new ArrayList<byte[]>();
     bytes.add(new byte[]{0,0,1});
     bytes.add(new byte[]{0,0,2});
