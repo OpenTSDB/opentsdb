@@ -28,6 +28,7 @@ import java.util.TreeMap;
 
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.TestTree;
@@ -133,61 +134,61 @@ public final class TestTSDB {
   public void getUidNameMetric() throws Exception {
     setGetUidName();
     assertEquals("sys.cpu.0", tsdb.getUidName(METRIC,
-        new byte[] { 0, 0, 1 }).joinUninterruptibly());
+        new byte[] { 0, 0, 1 }).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void getUidNameTagk() throws Exception {
     setGetUidName();
     assertEquals("host", tsdb.getUidName(TAGK,
-        new byte[] { 0, 0, 1 }).joinUninterruptibly());
+        new byte[] { 0, 0, 1 }).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void getUidNameTagv() throws Exception {
     setGetUidName();
     assertEquals("web01", tsdb.getUidName(TAGV,
-        new byte[] { 0, 0, 1 }).joinUninterruptibly());
+        new byte[] { 0, 0, 1 }).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test (expected = NoSuchUniqueId.class)
   public void getUidNameMetricNSU() throws Exception {
     setGetUidName();
     tsdb.getUidName(METRIC, new byte[] { 0, 0, 2 })
-    .joinUninterruptibly();
+    .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = NoSuchUniqueId.class)
   public void getUidNameTagkNSU() throws Exception {
     setGetUidName();
     tsdb.getUidName(TAGK, new byte[] { 0, 0, 2 })
-    .joinUninterruptibly();
+    .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = NoSuchUniqueId.class)
   public void getUidNameTagvNSU() throws Exception {
     setGetUidName();
     tsdb.getUidName(TAGV, new byte[] { 0, 0, 2 })
-    .joinUninterruptibly();
+    .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = NullPointerException.class)
   public void getUidNameNullType() throws Exception {
     setGetUidName();
-    tsdb.getUidName(null, new byte[] { 0, 0, 2 }).joinUninterruptibly();
+    tsdb.getUidName(null, new byte[] { 0, 0, 2 }).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getUidNameNullUID() throws Exception {
     setGetUidName();
-    tsdb.getUidName(TAGV, null).joinUninterruptibly();
+    tsdb.getUidName(TAGV, null).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
   public void getUIDMetric() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(METRIC, "sys.cpu.0").joinUninterruptibly());
+        tsdb.getUID(METRIC, "sys.cpu.0").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
 
@@ -196,32 +197,32 @@ public final class TestTSDB {
   public void getUIDTagk() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(TAGK, "host").joinUninterruptibly());
+        tsdb.getUID(TAGK, "host").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void getUIDTagv() throws Exception {
     setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(TAGV, "localhost").joinUninterruptibly());
+        tsdb.getUID(TAGV, "localhost").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDMetricNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(METRIC, "sys.cpu.2").joinUninterruptibly();
+    tsdb.getUID(METRIC, "sys.cpu.2").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDTagkNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(TAGK, "region").joinUninterruptibly();
+    tsdb.getUID(TAGK, "region").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDTagvNSU() throws Exception {
     setupAssignUid();
-    tsdb.getUID(TAGV, "yourserver").joinUninterruptibly();
+    tsdb.getUID(TAGV, "yourserver").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = NullPointerException.class)
@@ -310,7 +311,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
@@ -323,7 +324,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, -42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
@@ -336,7 +337,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 257, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 257, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 1 });
@@ -349,7 +350,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -257, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, -257, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 1 });
@@ -362,7 +363,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 65537, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 65537, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 3 });
@@ -375,7 +376,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -65537, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, -65537, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 3 });
@@ -388,7 +389,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 4294967296L, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 4294967296L, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 7 });
@@ -401,7 +402,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -4294967296L, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, -4294967296L, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 7 });
@@ -414,7 +415,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row,
@@ -430,7 +431,7 @@ public final class TestTSDB {
     tags.put("host", "web01");
     long timestamp = 1356998400;
     for (int i = 1; i <= 50; i++) {
-      tsdb.addPoint("sys.cpu.user", timestamp++, i, tags).joinUninterruptibly();
+      tsdb.addPoint("sys.cpu.user", timestamp++, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
@@ -447,7 +448,7 @@ public final class TestTSDB {
     tags.put("host", "web01");
     long timestamp = 1356998400500L;
     for (int i = 1; i <= 50; i++) {
-      tsdb.addPoint("sys.cpu.user", timestamp++, i, tags).joinUninterruptibly();
+      tsdb.addPoint("sys.cpu.user", timestamp++, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
@@ -463,7 +464,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1357001999, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1357001999, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xE0,
@@ -477,8 +478,8 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400, 24, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", 1356998400, 24, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
@@ -492,7 +493,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user.0", 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user.0", 1356998400, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -501,7 +502,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 0, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 0, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
     assertNotNull(value);
@@ -514,7 +515,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 16 });
     assertNotNull(value);
@@ -527,7 +528,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 4294967295L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 4294967295L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0x69, (byte) 0xF0 });
@@ -542,7 +543,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", -2147483648, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", -2147483648, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
@@ -554,7 +555,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 4294967296L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 4294967296L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, 
         (byte) 0x90, 0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0,
@@ -569,7 +570,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 4294967295000L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 4294967295000L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF6,
@@ -584,7 +585,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9, 
         0x10, 0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xFA,
@@ -599,7 +600,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP+1, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP+1, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -609,7 +610,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", -2147483648000L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", -2147483648000L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -617,7 +618,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
@@ -631,7 +632,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, -42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
@@ -645,7 +646,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row,
@@ -660,7 +661,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1357001999, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1357001999, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xE0,
@@ -676,7 +677,7 @@ public final class TestTSDB {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1356998400, 42.5123459999F, tags)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
@@ -690,8 +691,8 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400, 25.4F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", 1356998400, 25.4F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 11 });
@@ -708,8 +709,8 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
@@ -730,8 +731,8 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
@@ -751,8 +752,8 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400L, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400000L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", 1356998400000L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     byte[] value = tsdb_store.getColumnDataTable(row, new byte[] { 0, 0 });
@@ -769,7 +770,7 @@ public final class TestTSDB {
   public void storeNewNoName() throws Exception {
     UIDMeta meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "");
     try {
-      tsdb.add(meta).joinUninterruptibly();
+      tsdb.add(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (Exception e) {
       assertEquals("Missing name", e.getMessage());
       throw(e);
@@ -843,7 +844,7 @@ public final class TestTSDB {
       // tree will have the status changed
       tree.setNotes("Note");
 
-      assertTrue(tsdb.storeTree(tree, true).joinUninterruptibly());
+      assertTrue(tsdb.storeTree(tree, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     }
   }
 
@@ -869,7 +870,7 @@ public final class TestTSDB {
       tree.setNotes("Note");
 
       tsdb.storeTree(tree, true);//maybe alternate true and false?
-      assertEquals(tree, tsdb.fetchTree(id).joinUninterruptibly());
+      assertEquals(tree, tsdb.fetchTree(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     }
   }
 
@@ -901,10 +902,10 @@ public final class TestTSDB {
     Tree tree = new Tree();
     tree.setName("Valid1");
 
-    assertEquals( new Integer(1), tsdb.createNewTree(tree).joinUninterruptibly());
+    assertEquals( new Integer(1), tsdb.createNewTree(tree).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     Tree tree2 = new Tree();
     tree2.setName("Valid2");
-    assertEquals( new Integer(2), tsdb.createNewTree(tree2).joinUninterruptibly());
+    assertEquals( new Integer(2), tsdb.createNewTree(tree2).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
   @Test (expected = IllegalArgumentException.class)
@@ -924,7 +925,7 @@ public final class TestTSDB {
     for (int id = Const.MIN_TREE_ID_INCLUSIVE;
          id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
 
-      assertTrue(tsdb.deleteTree(id, true).joinUninterruptibly());
+      assertTrue(tsdb.deleteTree(id, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     }
   }
 
@@ -945,7 +946,7 @@ public final class TestTSDB {
     for (int id = Const.MIN_TREE_ID_INCLUSIVE;
          id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
 
-      tsdb.fetchCollisions(id, null).joinUninterruptibly();
+      tsdb.fetchCollisions(id, null).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
 
@@ -964,7 +965,7 @@ public final class TestTSDB {
     for (int id = Const.MIN_TREE_ID_INCLUSIVE;
          id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
 
-      tsdb.fetchNotMatched(id, null).joinUninterruptibly();
+      tsdb.fetchNotMatched(id, null).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
 
@@ -977,7 +978,7 @@ public final class TestTSDB {
     assertTrue(tree.getCollisions().containsValue("JustANumber"));
     assertEquals(1, tree.getCollisions().size());
 
-    assertTrue(tsdb.flushTreeCollisions(tree).joinUninterruptibly());
+    assertTrue(tsdb.flushTreeCollisions(tree).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertEquals(0, tree.getCollisions().size());
   }
@@ -991,7 +992,7 @@ public final class TestTSDB {
     assertTrue(tree.getCollisions().containsValue("JustANumber"));
     assertEquals(1, tree.getCollisions().size());
 
-    assertTrue(tsdb.flushTreeCollisions(tree).joinUninterruptibly());
+    assertTrue(tsdb.flushTreeCollisions(tree).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     assertEquals(1, tree.getCollisions().size());
   }
 
@@ -1006,7 +1007,7 @@ public final class TestTSDB {
 
     tree.addCollision("010203", "AABBCCDD");
     assertTrue(tsdb.flushTreeCollisions(tree)
-            .joinUninterruptibly());
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     assertEquals(0, tree.getCollisions().size());
   }
 
@@ -1019,7 +1020,7 @@ public final class TestTSDB {
     assertTrue(tree.getNotMatched().containsValue("JustANumber"));
     assertEquals(1, tree.getNotMatched().size());
 
-    assertTrue(tsdb.flushTreeNotMatched(tree).joinUninterruptibly());
+    assertTrue(tsdb.flushTreeNotMatched(tree).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertEquals(0, tree.getNotMatched().size());
   }
@@ -1032,7 +1033,7 @@ public final class TestTSDB {
     assertTrue(tree.getNotMatched().containsValue("JustANumber"));
     assertEquals(1, tree.getNotMatched().size());
 
-    assertTrue(tsdb.flushTreeNotMatched(tree).joinUninterruptibly());
+    assertTrue(tsdb.flushTreeNotMatched(tree).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertEquals(1, tree.getNotMatched().size());
   }
@@ -1067,7 +1068,7 @@ public final class TestTSDB {
 
       branch.setTreeId(id);
 
-      tsdb.storeBranch(null, branch, true).joinUninterruptibly();
+      tsdb.storeBranch(null, branch, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
   @Test (expected = IllegalArgumentException.class)
@@ -1160,7 +1161,7 @@ public final class TestTSDB {
   public void testFetchTreeRule() throws Exception {
     for (int id = Const.MIN_TREE_ID_INCLUSIVE;
          id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
-      assertNull(tsdb.fetchTreeRule(id, 0, 0).joinUninterruptibly());
+      assertNull(tsdb.fetchTreeRule(id, 0, 0).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     }
   }
 

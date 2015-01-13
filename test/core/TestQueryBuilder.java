@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Map;
 
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
@@ -64,7 +65,7 @@ public class TestQueryBuilder {
            .withStartAndEndTime(GOOD_START, GOOD_END)
            .downsample(SAMPLE_INTERVAL, Aggregators.SUM);
 
-    final Query query = builder.createQuery().joinUninterruptibly();
+    final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals(SAMPLE_INTERVAL, query.getSampleInterval());
     assertEquals(GOOD_START, query.getStartTime());
@@ -77,7 +78,7 @@ public class TestQueryBuilder {
            .withStartAndEndTime(GOOD_START, GOOD_END)
            .downsample(SAMPLE_INTERVAL, Aggregators.SUM);
 
-    final Query query = builder.createQuery().joinUninterruptibly();
+    final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals(SAMPLE_INTERVAL, query.getSampleInterval());
     assertEquals(GOOD_START, query.getStartTime());
@@ -102,7 +103,7 @@ public class TestQueryBuilder {
   public void withStartAndEndTime() throws Exception {
     builder.withMetric(SYS_CPU_USER_NAME)
            .withStartAndEndTime(GOOD_START, GOOD_END);
-    final Query query = builder.createQuery().joinUninterruptibly();
+    final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(GOOD_START, query.getStartTime());
     assertEquals(GOOD_END, (long) query.getEndTime().get());
   }
@@ -111,7 +112,7 @@ public class TestQueryBuilder {
   public void withEndTimeAbsent() throws Exception {
     builder.withMetric(SYS_CPU_USER_NAME)
            .withStartAndEndTime(GOOD_START, Optional.<Long>absent());
-    final Query query = builder.createQuery().joinUninterruptibly();
+    final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(GOOD_START, query.getStartTime());
     assertFalse(query.getEndTime().isPresent());
   }
@@ -125,7 +126,7 @@ public class TestQueryBuilder {
   public void withStartTimeZero() throws Exception {
     builder.withMetric(SYS_CPU_USER_NAME)
            .withStartTime(0);
-    final Query query = builder.createQuery().joinUninterruptibly();
+    final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(0, query.getStartTime());
   }
 
@@ -172,7 +173,7 @@ public class TestQueryBuilder {
   public void withGoodMetric() throws Exception {
     builder.withMetric(SYS_CPU_USER_NAME)
            .withStartTime(GOOD_START);
-    Query query = builder.createQuery().joinUninterruptibly();
+    Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertArrayEquals(SYS_CPU_USER_ID, query.getMetric());
   }
 
@@ -180,7 +181,7 @@ public class TestQueryBuilder {
   public void withMetricNosuchMetric() throws Exception {
     builder.withMetric("nometric")
            .withStartTime(GOOD_START);
-    builder.createQuery().joinUninterruptibly();
+    builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test (expected = NullPointerException.class)
@@ -193,7 +194,7 @@ public class TestQueryBuilder {
     builder.withMetric(SYS_CPU_USER_NAME)
            .withTags(Maps.<String, String>newHashMap())
            .withStartTime(GOOD_START);
-    Query query = builder.createQuery().joinUninterruptibly();
+    Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     ArrayList<byte[]> tag_ids = query.getTags();
     assertEquals(0, tag_ids.size());
@@ -204,7 +205,7 @@ public class TestQueryBuilder {
     builder.withMetric(SYS_CPU_USER_NAME)
            .withTags(good_tags)
            .withStartTime(GOOD_START);
-    Query query = builder.createQuery().joinUninterruptibly();
+    Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     ArrayList<byte[]> tag_ids = query.getTags();
     assertEquals(1, tag_ids.size());
@@ -220,7 +221,7 @@ public class TestQueryBuilder {
     builder.withMetric(SYS_CPU_USER_NAME)
            .withTags(good_tags)
            .withStartTime(GOOD_START);
-    builder.createQuery().joinUninterruptibly();
+    builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test (expected = NoSuchUniqueName.class)
@@ -230,7 +231,7 @@ public class TestQueryBuilder {
     builder.withMetric(SYS_CPU_USER_NAME)
            .withTags(good_tags)
            .withStartTime(GOOD_START);
-    builder.createQuery().joinUninterruptibly();
+    builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   /*
@@ -255,7 +256,7 @@ public class TestQueryBuilder {
   public void withTSUIDS() throws Exception {
     builder.withTSUIDS(Lists.newArrayList(TSUID1))
            .withStartTime(GOOD_START);
-    Query query = builder.createQuery().joinUninterruptibly();
+    Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(TSUID1, query.getTSUIDS().get(0));
   }
 }

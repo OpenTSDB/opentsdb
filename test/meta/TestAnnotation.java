@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -92,7 +93,7 @@ public final class TestAnnotation {
   @Test
   public void getAnnotation() throws Exception {
     note = tsdb.getAnnotation("000001000001000001", 1388450562L)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(note);
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Hello!", note.getDescription());
@@ -102,7 +103,7 @@ public final class TestAnnotation {
   @Test
   public void getAnnotationNormalizeMs() throws Exception {
     note = tsdb.getAnnotation("000001000001000001", 1388450562000L)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(note);
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Hello!", note.getDescription());
@@ -112,7 +113,7 @@ public final class TestAnnotation {
   @Test
   public void getAnnotationGlobal() throws Exception {
     note = tsdb.getAnnotation(null, 1328140800000L)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(note);
     assertEquals("", note.getTSUID());
     assertEquals("Description", note.getDescription());
@@ -122,27 +123,27 @@ public final class TestAnnotation {
   @Test
   public void getAnnotationNotFound() throws Exception {
     note = tsdb.getAnnotation("000001000001000001", 1388450564L)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(note);
   }
   
   @Test
   public void getAnnotationGlobalNotFound() throws Exception {
     note = tsdb.getAnnotation(null, 1388450563L)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(note);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getAnnotationNoStartTime() throws Exception {
     tsdb.getAnnotation("000001000001000001", 0L)
-      .joinUninterruptibly();  
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
   public void getGlobalAnnotations() throws Exception {
     List<Annotation> notes = tsdb.getGlobalAnnotations(1328140000,
-            1328141000).joinUninterruptibly();
+            1328141000).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(notes);
     assertEquals(2, notes.size());
   }
@@ -150,19 +151,19 @@ public final class TestAnnotation {
   @Test
   public void getGlobalAnnotationsEmpty() throws Exception {
     List<Annotation> notes = tsdb.getGlobalAnnotations(1328150000,
-            1328160000).joinUninterruptibly();
+            1328160000).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(notes);
     assertEquals(0, notes.size());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getGlobalAnnotationsZeroEndtime() throws Exception {
-    tsdb.getGlobalAnnotations(0, 0).joinUninterruptibly();
+    tsdb.getGlobalAnnotations(0, 0).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getGlobalAnnotationsEndLessThanStart() throws Exception {
-    tsdb.getGlobalAnnotations(1328150000, 1328140000).joinUninterruptibly();
+    tsdb.getGlobalAnnotations(1328150000, 1328140000).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -170,10 +171,10 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562L);
     note.setDescription("Synced!");
-    tsdb.syncToStorage(note, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     note = tsdb_store.getAnnotation(UniqueId.stringToUid(note.getTSUID()),
-            note.getStartTime()).joinUninterruptibly();
+            note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
@@ -185,10 +186,10 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562500L);
     note.setDescription("Synced!");
-    tsdb.syncToStorage(note, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     note = tsdb_store.getAnnotation(UniqueId.stringToUid(note.getTSUID()),
-            note.getStartTime()).joinUninterruptibly();
+            note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("000001000001000001", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
@@ -200,10 +201,10 @@ public final class TestAnnotation {
   public void syncToStorageGlobal() throws Exception {
     note.setStartTime(1328140800L);
     note.setDescription("Synced!");
-    tsdb.syncToStorage(note, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     note = tsdb_store.getAnnotation(null,
-            note.getStartTime()).joinUninterruptibly();
+            note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
@@ -214,10 +215,10 @@ public final class TestAnnotation {
   public void syncToStorageGlobalMilliseconds() throws Exception {
     note.setStartTime(1328140800500L);
     note.setDescription("Synced!");
-    tsdb.syncToStorage(note, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     note = tsdb_store.getAnnotation(null,
-            note.getStartTime()).joinUninterruptibly();
+            note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("", note.getTSUID());
     assertEquals("Synced!", note.getDescription());
@@ -228,14 +229,14 @@ public final class TestAnnotation {
   public void syncToStorageMissingStart() throws Exception {
     note.setTSUID("000001000001000001");
     note.setDescription("Synced!");
-    tsdb.syncToStorage(note, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562L);
-    tsdb.syncToStorage(note, false).joinUninterruptibly();
+    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
@@ -243,19 +244,19 @@ public final class TestAnnotation {
     final long start_time = 1388450562;
     note.setTSUID("000001000001000001");
     note.setStartTime(start_time);
-    tsdb.delete(note).joinUninterruptibly();
+    tsdb.delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(start_time + 1);
 
     assertNotNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
 
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
@@ -269,19 +270,19 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450562000L);
 
-    tsdb.delete(note).joinUninterruptibly();
+    tsdb.delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563000L);
 
     assertNotNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
@@ -295,20 +296,20 @@ public final class TestAnnotation {
   public void deleteNotFound() throws Exception {
     note.setTSUID("000001000001000001");
     note.setStartTime(1388450561);
-    tsdb.delete(note).joinUninterruptibly();
+    tsdb.delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
 
     note.setStartTime(1388450562);
     assertNotNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563);
     assertNotNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
@@ -319,38 +320,38 @@ public final class TestAnnotation {
   @Test (expected = IllegalArgumentException.class)
   public void deleteMissingStart() throws Exception {
     note.setTSUID("000001000001000001");
-    tsdb.delete(note).joinUninterruptibly();
+    tsdb.delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
   public void deleteGlobal() throws Exception {
     note.setStartTime(1328140800);
-    tsdb.delete(note).joinUninterruptibly();
+    tsdb.delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNull(tsdb_store.getAnnotation(null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1328140801);
     assertNotNull(tsdb_store.getAnnotation(null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void deleteGlobalNotFound() throws Exception {
     note.setStartTime(1328140803);
-    tsdb.delete(note).joinUninterruptibly();
+    tsdb.delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     note.setStartTime(1328140800);
     assertNotNull(tsdb_store.getAnnotation(null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1328140801);
     assertNotNull(tsdb_store.getAnnotation(null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
   }
   
@@ -360,20 +361,20 @@ public final class TestAnnotation {
 
     final int count = tsdb.deleteRange(
             UniqueId.stringToUid(note.getTSUID()), 1388450560000L,
-            1388450562000L).joinUninterruptibly();
+            1388450562000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, count);
 
     note.setStartTime(1388450562);
     assertNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563);
     assertNotNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
@@ -386,20 +387,20 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     final int count = tsdb.deleteRange(
             UniqueId.stringToUid(note.getTSUID()), 1388450560000L,
-            1388450561000L).joinUninterruptibly();
+            1388450561000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(0, count);
 
     note.setStartTime(1388450562);
     assertNotNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563);
     assertNotNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
@@ -412,20 +413,20 @@ public final class TestAnnotation {
     note.setTSUID("000001000001000001");
     final int count = tsdb.deleteRange(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1388450560000L,
-            1388450568000L).joinUninterruptibly();
+            1388450568000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(2, count);
 
     note.setStartTime(1388450562);
     assertNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563);
     assertNull(tsdb_store.getAnnotation(
             UniqueId.stringToUid(note.getTSUID()),
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertNotNull(tsdb_store.getColumn(tsuid_row_key,
       new byte[]{0x50, 0x10}));
@@ -436,60 +437,60 @@ public final class TestAnnotation {
   @Test
   public void deleteRangeGlobal() throws Exception {
     final int count = tsdb.deleteRange(null, 1328140799000L,
-            1328140800000L).joinUninterruptibly();
+            1328140800000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, count);
 
     note.setStartTime(1328140800);
     assertNull(tsdb_store.getAnnotation(null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1328140801);
     assertNotNull(tsdb_store.getAnnotation( null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void deleteRangeGlobalNone() throws Exception {
     final int count = tsdb.deleteRange(null, 1328140798000L,
-            1328140799000L).joinUninterruptibly();
+            1328140799000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(0, count);
     note.setStartTime(1328140800);
     assertNotNull(tsdb_store.getAnnotation(null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1328140801);
     assertNotNull(tsdb_store.getAnnotation( null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void deleteRangeGlobalMultiple() throws Exception {
     final int count = tsdb.deleteRange(null, 1328140799000L,
-            1328140900000L).joinUninterruptibly();
+            1328140900000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(2, count);
     note.setStartTime(1328140800);
     assertNull(tsdb_store.getAnnotation(null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1328140801);
     assertNull(tsdb_store.getAnnotation( null,
             note.getStartTime()
-    ).joinUninterruptibly());
+    ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void deleteRangeEmptyEnd() throws Exception {
-    tsdb.deleteRange(null, 1328140799000L, 0).joinUninterruptibly();
+    tsdb.deleteRange(null, 1328140799000L, 0).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void deleteRangeEndLessThanStart() throws Exception {
     tsdb.deleteRange(null, 1328140799000L, 1328140798000L)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 }

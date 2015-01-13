@@ -307,15 +307,15 @@ public class TestDumpSeries {
     annotation.setStartTime(timestamp);
     annotation.setTSUID("000001000001000001");
     annotation.setDescription("Annotation on seconds");
-    tsdb.syncToStorage(annotation, false).joinUninterruptibly();
+    tsdb.syncToStorage(annotation, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     
-    tsdb.addPoint("sys.cpu.user", timestamp++, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp++, 257, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp++, 65537, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp++, 4294967296L, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp++, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp++, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", timestamp++, 257, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", timestamp++, 65537, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", timestamp++, 4294967296L, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", timestamp++, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     tsdb.addPoint("sys.cpu.user", timestamp++, 42.5123459999F, tags)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     
     timestamp = 1357002000000L;
     
@@ -323,15 +323,15 @@ public class TestDumpSeries {
     annotation.setStartTime(timestamp);
     annotation.setTSUID("000001000001000001");
     annotation.setDescription("Annotation on milliseconds");
-    tsdb.syncToStorage(annotation, false).joinUninterruptibly();
+    tsdb.syncToStorage(annotation, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     
-    tsdb.addPoint("sys.cpu.user", timestamp, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp += 1000, 257, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp += 1000, 65537, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp += 1000, 4294967296L, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", timestamp += 1000, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", timestamp += 1000, 257, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", timestamp += 1000, 65537, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", timestamp += 1000, 4294967296L, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.addPoint("sys.cpu.user", timestamp += 1000, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     tsdb.addPoint("sys.cpu.user", timestamp += 1000, 42.5123459999F, tags)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   /**

@@ -27,6 +27,7 @@ import com.google.common.collect.Maps;
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -160,7 +161,7 @@ public final class TestTSMeta {
   
   @Test
   public void getTSMeta() throws Exception {
-    meta = tsdb.getTSMeta("000001000001000001", true).joinUninterruptibly();
+    meta = tsdb.getTSMeta("000001000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
     assertEquals("sys.cpu.0", meta.getMetric().getName());
@@ -174,7 +175,7 @@ public final class TestTSMeta {
   
   @Test
   public void getTSMetaDoesNotExist() throws Exception {
-    meta = tsdb.getTSMeta("000002000001000001", true).joinUninterruptibly();
+    meta = tsdb.getTSMeta("000002000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(meta);
   }
   
@@ -189,7 +190,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      tsdb.getTSMeta( "000002000001000001", true).joinUninterruptibly();
+      tsdb.getTSMeta( "000002000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -206,7 +207,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      tsdb.getTSMeta( "000001000002000001", true).joinUninterruptibly();
+      tsdb.getTSMeta( "000001000002000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -223,7 +224,7 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     try {
-      tsdb.getTSMeta( "000001000001000002", true).joinUninterruptibly();
+      tsdb.getTSMeta( "000001000001000002", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -231,7 +232,7 @@ public final class TestTSMeta {
   
   @Test
   public void delete() throws Exception {
-    meta = tsdb.getTSMeta( "000001000001000001", true).joinUninterruptibly();
+    meta = tsdb.getTSMeta( "000001000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     tsdb.delete(meta);
   }
   
@@ -245,7 +246,7 @@ public final class TestTSMeta {
   public void syncToStorage() throws Exception {
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
     meta.setDisplayName("New DN");
-    tsdb.syncToStorage(meta, false).joinUninterruptibly();
+    tsdb.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("New DN", meta.getDisplayName());
     assertEquals(42, meta.getRetention());
   }
@@ -254,7 +255,7 @@ public final class TestTSMeta {
   public void syncToStorageOverwrite() throws Exception {
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
     meta.setDisplayName("New DN");
-    tsdb.syncToStorage(meta, true).joinUninterruptibly();
+    tsdb.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("New DN", meta.getDisplayName());
     assertEquals(0, meta.getRetention());
   }
@@ -262,20 +263,20 @@ public final class TestTSMeta {
   @Test (expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
     meta = new TSMeta("ABCD");
-    tsdb.syncToStorage(meta, true).joinUninterruptibly();
+    tsdb.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageNullTSUID() throws Exception {
     meta = new TSMeta();
-    tsdb.syncToStorage(meta, true).joinUninterruptibly();
+    tsdb.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageDoesNotExist() throws Exception {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
-    tsdb.syncToStorage(meta, false).joinUninterruptibly();
+    tsdb.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
@@ -301,35 +302,35 @@ public final class TestTSMeta {
   @Test
   public void metaExistsInStorage() throws Exception {
     assertTrue(tsdb.TSMetaExists("000001000001000001")
-        .joinUninterruptibly());
+        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void metaExistsInStorageNot() throws Exception {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     assertFalse(tsdb.TSMetaExists("000001000001000001")
-            .joinUninterruptibly());
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void counterExistsInStorage() throws Exception {
     assertTrue(tsdb.TSMetaCounterExists(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly());
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
   
   @Test
   public void counterExistsInStorageNot() throws Exception {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     assertFalse(tsdb.TSMetaCounterExists(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly());
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
   @Test
   public void incrementAndGetCounter() throws Exception {
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
-    tsdb.incrementAndGetCounter(tsuid).joinUninterruptibly();
+    tsdb.incrementAndGetCounter(tsuid).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     verify(tsdb_store).
-            bufferAtomicIncrement((AtomicIncrementRequest)any());
+            bufferAtomicIncrement((AtomicIncrementRequest) any());
   }
   
   @Test (expected = NoSuchUniqueId.class)
@@ -347,7 +348,7 @@ public final class TestTSMeta {
     }
 
     tsdb.incrementAndGetCounter(tsuid).addErrback(new ErrBack())
-    .joinUninterruptibly();
+    .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
@@ -371,7 +372,7 @@ public final class TestTSMeta {
       NAME_FAMILY,
       "ts_meta".getBytes(Const.CHARSET_ASCII)));
     final TSMeta meta = tsdb.parseFromColumn(column.key(), column.value(), false)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
     assertNull(meta.getMetric());
@@ -386,7 +387,7 @@ public final class TestTSMeta {
       NAME_FAMILY,
       "ts_meta".getBytes(Const.CHARSET_ASCII)));
     final TSMeta meta = tsdb.parseFromColumn(column.key(), column.value(), true)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
     assertNotNull(meta.getMetric());
@@ -414,6 +415,6 @@ public final class TestTSMeta {
         "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
         .getBytes(Const.CHARSET_ASCII));
     tsdb.parseFromColumn(column.key(), column.value(), true).addErrback(new ErrBack())
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 }

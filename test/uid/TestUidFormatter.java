@@ -5,6 +5,7 @@ import java.util.Map;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
 
 import com.google.common.collect.Maps;
@@ -44,12 +45,12 @@ public class TestUidFormatter {
 
   @Test
   public void testFormatMetricsReturnsName() throws Exception {
-    assertEquals("sys.cpu.0", formatter.formatMetric(new byte[]{0, 0, 1}).joinUninterruptibly());
+    assertEquals("sys.cpu.0", formatter.formatMetric(new byte[]{0, 0, 1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
   @Test(expected = NoSuchUniqueId.class)
   public void testFormatMetricsNSU() throws Exception {
-    formatter.formatMetric(new byte[] {0, 0, 2}).joinUninterruptibly();
+    formatter.formatMetric(new byte[] {0, 0, 2}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -60,7 +61,7 @@ public class TestUidFormatter {
     Map<byte[], byte[]> query = Maps.newHashMap();
     query.put(new byte[]{0, 0, 1}, new byte[]{0, 0, 1});
 
-    assertEquals(result, formatter.formatTags(query).joinUninterruptibly());
+    assertEquals(result, formatter.formatTags(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
   @Test(expected = NoSuchUniqueId.class)
@@ -69,7 +70,7 @@ public class TestUidFormatter {
     query.put(new byte[]{0, 0, 2}, new byte[]{0, 0, 2});
 
     try {
-      formatter.formatTags(query).joinUninterruptibly();
+      formatter.formatTags(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }

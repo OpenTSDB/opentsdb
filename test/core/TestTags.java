@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Config;
@@ -483,7 +484,7 @@ public final class TestTags {
     final List<byte[]> ids = new ArrayList<byte[]>(1);
     ids.add(new byte[] { 0, 0, 1, 0, 0, 1 });
     final HashMap<String, String> tags = Tags.resolveIdsAsync(tsdb, ids)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("web01", tags.get("host"));
   }
   
@@ -494,7 +495,7 @@ public final class TestTags {
     
     final List<byte[]> ids = new ArrayList<byte[]>(1);
     ids.add(new byte[] { 0, 0, 1, 0, 0, 2 });
-    Tags.resolveIdsAsync(tsdb, ids).joinUninterruptibly();
+    Tags.resolveIdsAsync(tsdb, ids).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
@@ -504,7 +505,7 @@ public final class TestTags {
     
     final List<byte[]> ids = new ArrayList<byte[]>(0);
     final HashMap<String, String> tags = Tags.resolveIdsAsync(tsdb, ids)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(tags);
     assertEquals(0, tags.size());
   }
@@ -516,7 +517,7 @@ public final class TestTags {
     
     final List<byte[]> ids = new ArrayList<byte[]>(1);
     ids.add(new byte[] { 0, 0, 1, 0, 0, 0, 2 });
-    Tags.resolveIdsAsync(tsdb, ids).joinUninterruptibly();
+    Tags.resolveIdsAsync(tsdb, ids).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -526,7 +527,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 1}, uids.get(0));
   }
@@ -538,7 +539,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("doesnotexist", "web01");
-    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 1}, uids.get(0));
   }
@@ -551,7 +552,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("pop", "web01");
-    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 2, 0, 0, 1}, uids.get(0));
   }
@@ -564,7 +565,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("nonesuch", "web01");
-    Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
+    Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   @Test
@@ -574,7 +575,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "nohost");
-    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 3}, uids.get(0));
   }
@@ -587,7 +588,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web02");
-    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
+    final List<byte[]> uids = Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
     assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2}, uids.get(0));
   }
@@ -600,7 +601,7 @@ public final class TestTags {
     
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "invalidhost");
-    Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly();
+    Tags.resolveOrCreateAllAsync(tsdb, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
   
   // PRIVATE helpers to setup unit tests

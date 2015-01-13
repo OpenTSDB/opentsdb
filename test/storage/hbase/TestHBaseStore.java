@@ -3,6 +3,7 @@ package net.opentsdb.storage.hbase;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TestTsdbStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
@@ -259,7 +260,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
       fail("IllegalArgumentException should have been thrown but instead "
               + " this was returned id=" +
-              Arrays.toString(uid.joinUninterruptibly()));
+              Arrays.toString(uid.joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)));
     } catch (IllegalStateException e) {
       assertEquals("Got a negative ID from HBase: " + id, e.getMessage());
     }
@@ -278,7 +279,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
       fail("IllegalArgumentException should have been thrown but instead "
               + " this was returned id=" +
-              Arrays.toString(uid.joinUninterruptibly()));
+              Arrays.toString(uid.joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)));
     } catch (IllegalStateException e) {
       assertTrue(e.getMessage().startsWith("All Unique IDs for "));
     }
@@ -299,7 +300,7 @@ public class TestHBaseStore extends TestTsdbStore {
       );
       fail("IllegalArgumentException should have been thrown but instead "
               + " this was returned id=" +
-              Arrays.toString(uid.joinUninterruptibly()));
+              Arrays.toString(uid.joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)));
 
     } catch(IllegalStateException e) {
       //validate we got the right exception
@@ -338,7 +339,7 @@ public class TestHBaseStore extends TestTsdbStore {
       //need to join to get the exception to be thrown
       tsdb_store.allocateUID(foo_name,
               UniqueIdType.METRIC
-      ).joinUninterruptibly();
+      ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       fail("HBaseException should have been thrown!");
     } catch (HBaseException e) {
       assertSame(hbe,e);
@@ -378,7 +379,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
 
   byte[] uid = tsdb_store.allocateUID(foo_name, UniqueIdType.METRIC
-  ).joinUninterruptibly();
+  ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   assertEquals(value,uid);
 
   // Verify the order of execution too.
@@ -404,7 +405,7 @@ public class TestHBaseStore extends TestTsdbStore {
     final byte[] id = { 0, 0, 5 };
     assertArrayEquals(id, tsdb_store.allocateUID(foo_name,
       UniqueIdType.METRIC)
-      .joinUninterruptibly());
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     verify(client, times(1)).atomicIncrement(incrementForRow(MAX_UID));
     // Reverse + forward mappings.
     verify(client, times(2)).compareAndSet(anyPut(),
@@ -422,7 +423,7 @@ public class TestHBaseStore extends TestTsdbStore {
             .thenReturn(Deferred.fromResult(true));
 
     assertTrue(tsdb_store.storeLeaf(leaf, branch, tree)
-            .joinUninterruptibly());
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
   @Test
@@ -439,7 +440,7 @@ public class TestHBaseStore extends TestTsdbStore {
             Deferred.fromResult(new ArrayList<KeyValue>()));
 
     assertFalse(tsdb_store.storeLeaf(leaf, branch, tree)
-            .joinUninterruptibly());
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     Map<String, String> collisions = tree.getCollisions();
     assertNull(collisions);
   }
@@ -457,7 +458,7 @@ public class TestHBaseStore extends TestTsdbStore {
     when(client.get(anyGet())).thenAnswer(newDeferred(null));
 
     assertFalse(tsdb_store.storeLeaf(leaf, branch, tree)
-            .joinUninterruptibly());
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     Map<String, String> collisions = tree.getCollisions();
     assertNull(collisions);
   }
@@ -479,7 +480,7 @@ public class TestHBaseStore extends TestTsdbStore {
     when(client.get(anyGet())).thenReturn(Deferred.fromResult(answer));
 
     assertTrue(tsdb_store.storeLeaf(leaf, branch, tree)
-            .joinUninterruptibly());
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
   @Test
@@ -504,7 +505,7 @@ public class TestHBaseStore extends TestTsdbStore {
     when(client.get(anyGet())).thenReturn(Deferred.fromResult(answer));
 
     assertFalse(tsdb_store.storeLeaf(leaf, branch, tree)
-            .joinUninterruptibly());
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     /*Check that collision was properly set*/
     Map<String, String> collisions = tree.getCollisions();
     assertEquals(1, collisions.size());

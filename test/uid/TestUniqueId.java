@@ -21,6 +21,7 @@ import java.util.Map;
 import com.stumbleupon.async.Callback;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
@@ -110,9 +111,9 @@ public final class TestUniqueId {
     final byte[] id = { 0, 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
 
-    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly());
+    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     // Should be a cache hit ...
-    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly());
+    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertEquals(1, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
@@ -122,13 +123,13 @@ public final class TestUniqueId {
   @Test(expected=NoSuchUniqueId.class)
   public void getNameForNonexistentId() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    uid.getNameAsync(new byte[] { 1, 2, 3 }).joinUninterruptibly();
+    uid.getNameAsync(new byte[] { 1, 2, 3 }).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test(expected=IllegalArgumentException.class)
   public void getNameWithInvalidId() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    uid.getNameAsync(new byte[] { 1 }).joinUninterruptibly();
+    uid.getNameAsync(new byte[] { 1 }).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -138,11 +139,11 @@ public final class TestUniqueId {
     final byte[] id = { 0, 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
 
-    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     // Should be a cache hit ...
-    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     // Should be a cache hit too ...
-    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertEquals(2, uid.cacheHits());
     assertEquals(1, uid.cacheMisses());
@@ -157,13 +158,13 @@ public final class TestUniqueId {
     final byte[] id = { 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
 
-    uid.getIdAsync("foo").joinUninterruptibly();
+    uid.getIdAsync("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test(expected=NoSuchUniqueName.class)
   public void getIdForNonexistentName() throws Exception {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    uid.getIdAsync("foo").joinUninterruptibly();
+    uid.getIdAsync("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -171,15 +172,15 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
 
     final byte[] id = { 0, 0, 1};
-    uid.createId("foo").joinUninterruptibly();
+    uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     try {
-      uid.createId("foo").joinUninterruptibly();
+      uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch(Exception e) {
       assertEquals("A UID with name foo already exists", e.getMessage());
     }
     // Should be a cache hit ...
-    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     assertEquals(1, uid.cacheHits());
     assertEquals(2, uid.cacheSize());
   }
@@ -191,12 +192,12 @@ public final class TestUniqueId {
     // call will always return 1
     final byte[] id = { 0, 0, 1 };
 
-    assertArrayEquals(id, uid.createId("foo").joinUninterruptibly());
+    assertArrayEquals(id, uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     // Should be a cache hit since we created that entry.
-    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly());
+    assertArrayEquals(id, uid.getIdAsync("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     // Should be a cache hit too for the same reason.
-    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly());
+    assertEquals("foo", uid.getNameAsync(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     assertEquals(2, uid.cacheHits());
     assertEquals(0, uid.cacheMisses());
@@ -210,7 +211,7 @@ public final class TestUniqueId {
 
     // Watch this! ______,^   I'm writing C++ in Java!
 
-    final List<String> suggestions = uid.suggest("nomatch").joinUninterruptibly();
+    final List<String> suggestions = uid.suggest("nomatch").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(0, suggestions.size());  // No results.
 
     //verify(fake_scanner).setStartKey("nomatch".getBytes());
@@ -242,7 +243,7 @@ public final class TestUniqueId {
     //  .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
     // Watch this! ______,^   I'm writing C++ in Java!
 
-    final List<String> suggestions = uid.suggest("foo").joinUninterruptibly();
+    final List<String> suggestions = uid.suggest("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final ArrayList<String> expected = new ArrayList<String>(2);
     expected.add("foo.bar");
     expected.add("foo.baz");
@@ -254,7 +255,7 @@ public final class TestUniqueId {
 
     // Verify that the cached results are usable.
     // Should be a cache hit ...
-    assertArrayEquals(foo_bar_id, uid.getIdAsync("foo.bar").joinUninterruptibly());
+    assertArrayEquals(foo_bar_id, uid.getIdAsync("foo.bar").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     assertEquals(1, uid.cacheHits());
     // ... so verify there was no HBase Get.
     verify(client, never()).get(anyGet());
@@ -456,7 +457,7 @@ public final class TestUniqueId {
     
     final byte[][] kinds = { metrics, tagk, tagv };
     final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb, kinds)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(uids);
     assertEquals(3, uids.size());
     assertEquals(64L, uids.get("metrics").longValue());
@@ -473,7 +474,7 @@ public final class TestUniqueId {
     
     final byte[][] kinds = { metrics, tagk, tagv };
     final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb, kinds)
-      .joinUninterruptibly();
+      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(uids);
     assertEquals(3, uids.size());
     assertEquals(0L, uids.get("metrics").longValue());
