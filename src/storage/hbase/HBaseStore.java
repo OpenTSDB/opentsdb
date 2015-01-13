@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -356,11 +355,6 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
     return this.client.bufferAtomicIncrement(request);
-  }
-
-  @Override
-  public Deferred<Boolean> compareAndSet(PutRequest edit, byte[] expected) {
-    return this.client.compareAndSet(edit, expected);
   }
 
   @Override
