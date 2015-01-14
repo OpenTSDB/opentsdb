@@ -100,6 +100,8 @@ public class TSDB {
   /** Configuration object for all TSDB components */
   final Config config;
 
+  private final MetaClient metaClient;
+
   /** Search indexer to use if configure */
   private SearchPlugin search = null;
   
@@ -146,6 +148,9 @@ public class TSDB {
       uid_cache_map.put(Const.TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
       UniqueId.preloadUidCache(this, uid_cache_map);
     }
+
+    metaClient = new MetaClient(tsdb_store);
+
     LOG.debug(config.dumpConfiguration());
   }
 
@@ -163,63 +168,8 @@ public class TSDB {
     return FAMILY;
   }
 
-  /**
-   * Deletes global or TSUID associated annotiations for the given time range.
-   * @param tsuid An optional TSUID. If set to null, then global annotations for
-   * the given range will be deleted
-   * @param start_time A start timestamp in milliseconds
-   * @param end_time An end timestamp in millseconds
-   * @return The number of annotations deleted
-   * @throws IllegalArgumentException if the timestamps are invalid
-   * @since 2.1
-   */
-  public Deferred<Integer> deleteRange(final byte[] tsuid, final long start_time, final long end_time) {
-    if (end_time < 1) {
-      throw new IllegalArgumentException("The end timestamp has not been set");
-    }
-    if (end_time < start_time) {
-      throw new IllegalArgumentException(
-          "The end timestamp cannot be less than the start timestamp");
-    }
-
-    return tsdb_store.deleteAnnotationRange(tsuid, start_time, end_time);
-  }
-
-  /**
-   * Scans through the global annotation storage rows and returns a list of
-   * parsed annotation objects. If no annotations were found for the given
-   * timespan, the resulting list will be empty.
-   * @param start_time Start time to scan from. May be 0
-   * @param end_time End time to scan to. Must be greater than 0
-   * @return A list with detected annotations. May be empty.
-   * @throws IllegalArgumentException if the end timestamp has not been set or
-   * the end time is less than the start time
-   */
-  public Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time) {
-    if (end_time < 1) {
-      throw new IllegalArgumentException("The end timestamp has not been set");
-    }
-    if (end_time < start_time) {
-      throw new IllegalArgumentException(
-          "The end timestamp cannot be less than the start timestamp");
-    }
-
-    return tsdb_store.getGlobalAnnotations(start_time, end_time);
-  }
-
-  /**
-   * Attempts to fetch a global or local annotation from storage
-   * @param tsuid The TSUID as a string. May be empty if retrieving a global
-   * annotation
-   * @param start_time The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
-   */
-  public Deferred<Annotation> getAnnotation(final String tsuid, final long start_time) {
-    if (Strings.isNullOrEmpty(tsuid)) {
-      return tsdb_store.getAnnotation(null, start_time);
-    }
-
-    return tsdb_store.getAnnotation(UniqueId.stringToUid(tsuid), start_time);
+  public MetaClient getMetaClient() {
+    return metaClient;
   }
 
   /**
@@ -1018,73 +968,6 @@ public class TSDB {
     }
     
     return search.executeQuery(query);
-  }
-
-  /**
-   * Attempts a CompareAndSet storage call, loading the object from storage,
-   * synchronizing changes, and attempting a put.
-   * <b>Note:</b> If the local object didn't have any fields set by the caller
-   * or there weren't any changes, then the data will not be written and an
-   * exception will be thrown.
-   * @param annotation The The Annotation we want to store.
-   * @param overwrite When the RPC method is PUT, will overwrite all user
-   * accessible fields
-   * True if the storage call was successful, false if the object was
-   * modified in storage during the CAS call. If false, retry the call. Other
-   * failures will result in an exception being thrown.
-   * @throws IllegalArgumentException if required data was missing such as the
-   * {@code #start_time}
-   * @throws IllegalStateException if the data hasn't changed. This is OK!
-   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
-   */
-  public Deferred<Boolean> syncToStorage(final Annotation annotation,
-                                         final boolean overwrite) {
-    if (annotation.getStartTime() < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    if (!annotation.hasChanges()) {
-      LOG.debug("{} does not have changes, skipping sync to storage", annotation);
-      throw new IllegalStateException("No changes detected in Annotation data");
-    }
-
-    final class StoreCB implements Callback<Deferred<Boolean>, Annotation> {
-      @Override
-      public Deferred<Boolean> call(final Annotation stored_note)
-        throws Exception {
-        if (stored_note != null) {
-          annotation.syncNote(stored_note, overwrite);
-        }
-
-        return tsdb_store.updateAnnotation(stored_note, annotation);
-      }
-    }
-
-    final byte[] tsuid;
-    if (Strings.isNullOrEmpty(annotation.getTSUID())) {
-      tsuid = null;
-    } else {
-      tsuid = UniqueId.stringToUid(annotation.getTSUID());
-    }
-
-    return tsdb_store.getAnnotation(tsuid, annotation.getStartTime()).addCallbackDeferring(new StoreCB());
-  }
-
-  /**
-   * Attempts to mark an Annotation object for deletion. Note that if the
-   * annotation does not exist in storage, this delete call will not throw an
-   * error.
-   *
-   * @param annotation The Annotation we want to store.
-   * @return A meaningless Deferred for the caller to wait on until the call is
-   * complete. The value may be null.
-   */
-  public Deferred<Object> delete(Annotation annotation) {
-    if (annotation.getStartTime() < 1) {
-      throw new IllegalArgumentException("The start timestamp has not been set");
-    }
-
-    return tsdb_store.delete(annotation);
   }
 
   /**

@@ -205,7 +205,7 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME);
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
 
-    Annotation a = tsdb.getAnnotation("000001000001000001",1388450564)
+    Annotation a = tsdb.getMetaClient().getAnnotation("000001000001000001", 1388450564)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("Boo", a.getDescription());
   }
@@ -227,7 +227,7 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME);
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
 
-    Annotation a = tsdb.getAnnotation(TSUID_GLOBAL_ANNOTATION, 1328140802)
+    Annotation a = tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, 1328140802)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("Boo",a.getDescription());
   }
@@ -256,8 +256,7 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
 
-    Annotation local = tsdb.
-            getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+    Annotation local = tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(local);
 
@@ -280,8 +279,7 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
 
-    Annotation global = tsdb.
-            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+    Annotation global = tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(global);
 
@@ -303,8 +301,7 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME);
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
-    Annotation local = tsdb.
-            getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+    Annotation local = tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(local);
 
@@ -327,8 +324,7 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
 
-    Annotation global = tsdb.
-            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+    Annotation global = tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(global);
 
@@ -353,8 +349,7 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
 
-    Annotation local = tsdb.
-            getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+    Annotation local = tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(local);
     assertEquals("Boo", local.getDescription());
@@ -377,8 +372,7 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
 
-    Annotation global = tsdb.
-            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+    Annotation global = tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(global);
     assertEquals("Boo",global.getDescription());
@@ -407,7 +401,7 @@ public final class TestAnnotationRpc {
     //check right resonse
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     //check that tsuid is gone
-    assertNull(tsdb.getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+    assertNull(tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     //verify others
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
@@ -425,7 +419,7 @@ public final class TestAnnotationRpc {
     //check right resonse
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     //check that tsuid is gone
-    assertNull(tsdb.getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+    assertNull(tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
     //verify others
     isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME);
@@ -478,14 +472,12 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME);
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
 
-    Annotation local = tsdb.
-            getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+    Annotation local = tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(local);
     assertEquals("Boo", local.getDescription());
 
-    Annotation new_local = tsdb.
-            getAnnotation("000001000001000002", LOCAL_ONE_START_TIME)
+    Annotation new_local = tsdb.getMetaClient().getAnnotation("000001000001000002", LOCAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(new_local);
     assertEquals("Gum", new_local.getDescription());
@@ -508,14 +500,12 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
 
-    Annotation global = tsdb.
-            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+    Annotation global = tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(global);
     assertEquals("Boo", global.getDescription());
 
-    Annotation new_local = tsdb.
-            getAnnotation(TSUID_GLOBAL_ANNOTATION, LOCAL_ONE_START_TIME)
+    Annotation new_local = tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, LOCAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(new_local);
     assertEquals("Gum", new_local.getDescription());
@@ -548,14 +538,12 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME);
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME);
 
-    Annotation local = tsdb.
-            getAnnotation(TSUID_ANNOTATION, GLOBAL_ONE_START_TIME)
+    Annotation local = tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, GLOBAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(local);
     assertEquals("Boo", local.getDescription());
 
-    Annotation new_local = tsdb.
-            getAnnotation("000001000001000002", GLOBAL_ONE_START_TIME)
+    Annotation new_local = tsdb.getMetaClient().getAnnotation("000001000001000002", GLOBAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(new_local);
     assertEquals("Gum", new_local.getDescription());
@@ -578,14 +566,12 @@ public final class TestAnnotationRpc {
     isUnchanged(TSUID_ANNOTATION, LOCAL_ONE_START_TIME);
     isUnchanged(TSUID_ANNOTATION, LOCAL_TWO_START_TIME);
 
-    Annotation global = tsdb.
-            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
+    Annotation global = tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(global);
     assertEquals("Boo", global.getDescription());
 
-    Annotation global2 = tsdb.
-            getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME)
+    Annotation global2 = tsdb.getMetaClient().getAnnotation(TSUID_GLOBAL_ANNOTATION, GLOBAL_TWO_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(global2);
     assertEquals("Gum", global2.getDescription());
@@ -602,7 +588,7 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":1"));
 
-    assertNull(tsdb.getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+    assertNull(tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
       .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME);
@@ -639,10 +625,10 @@ public final class TestAnnotationRpc {
       .toString(Charset.forName("UTF-8"));
     assertTrue(data.contains("\"totalDeleted\":2"));
 
-    assertNull(tsdb.getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
+    assertNull(tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, LOCAL_ONE_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
-    assertNull(tsdb.getAnnotation(TSUID_ANNOTATION, LOCAL_TWO_START_TIME)
+    assertNull(tsdb.getMetaClient().getAnnotation(TSUID_ANNOTATION, LOCAL_TWO_START_TIME)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     isUnchanged(TSUID_GLOBAL_ANNOTATION, GLOBAL_ONE_START_TIME);
@@ -788,8 +774,7 @@ public final class TestAnnotationRpc {
     String tsuid = TSUID;
     if (null == TSUID) tsuid = "";
 
-    Annotation a = tsdb.
-            getAnnotation(TSUID, timestamp)
+    Annotation a = tsdb.getMetaClient().getAnnotation(TSUID, timestamp)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     checkNotNull(a);
     Annotation original = annotations.get(tsuid, timestamp);
