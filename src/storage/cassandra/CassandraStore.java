@@ -1,7 +1,13 @@
 package net.opentsdb.storage.cassandra;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Host;
+import com.datastax.driver.core.Metadata;
+import com.datastax.driver.core.Session;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import com.google.common.net.HostAndPort;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
@@ -23,6 +29,8 @@ import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,9 +40,33 @@ import java.util.Map;
  * The CassandraStore that implements the client interface required by TSDB.
  */
 public class CassandraStore implements TsdbStore {
+    /**
+     * The logger used for this class.
+     */
+    private static final Logger LOG = LoggerFactory.getLogger(CassandraStore.class);
 
-    public CassandraStore(final Config config) {
+    /**
+     * The Cassandra cluster that we are connected to.
+     */
+    private Cluster cluster;
+    /**
+     * The current Cassandra session.
+     */
+    private Session session;
 
+    public CassandraStore(final Cluster cluster) {
+
+        this.cluster = cluster;
+        this.session = cluster.connect("tsdb");
+
+        Metadata metadata = cluster.getMetadata();
+
+        //Show what we connected to in the debug log
+        LOG.info("Connected to cluster: {}", metadata.getClusterName());
+        for ( Host host : metadata.getAllHosts() ) {
+            LOG.info("Datacenter: {}; Host: {}; Rack: {}",
+                    host.getDatacenter(), host.getAddress(), host.getRack());
+        }
     }
     @Override
     public Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time) {
