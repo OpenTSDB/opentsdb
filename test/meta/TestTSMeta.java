@@ -31,7 +31,6 @@ import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -136,27 +135,6 @@ public final class TestTSMeta {
   public void createConstructor() {
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 2, 0, 0, 3 }, 1357300800000L);
     assertEquals(1357300800000L / 1000, meta.getCreated());
-  }
-  
-  @Test
-  public void serialize() throws Exception {
-    final String json = JSON.serializeToString(meta);
-    assertNotNull(json);
-    assertTrue(json.contains("\"created\":0"));
-  }
-  
-  @Test
-  public void deserialize() throws Exception {
-    String json = "{\"tsuid\":\"ABCD\",\"" +
-     "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
-     "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-     "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\",\"lastReceived" +
-     "\":1328140801,\"unknownkey\":null}";
-    TSMeta tsmeta = JSON.parseToObject(json, TSMeta.class);
-    assertNotNull(tsmeta);
-    assertEquals("ABCD", tsmeta.getTSUID());
-    assertEquals("Notes", tsmeta.getNotes());
-    assertEquals(42, tsmeta.getRetention());
   }
   
   @Test

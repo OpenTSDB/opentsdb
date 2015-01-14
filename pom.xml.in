@@ -323,6 +323,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-guava</artifactId>
+      <version>@JACKSON_VERSION@</version>
+    </dependency>
+
+    <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty</artifactId>
       <version>@NETTY_VERSION@</version>

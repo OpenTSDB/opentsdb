@@ -12,19 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.charset.Charset;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import org.hbase.async.Bytes;
-
-import com.fasterxml.jackson.core.JsonGenerator;
-
-import net.opentsdb.utils.JSON;
 
 /**
  * A leaf in a tree. Each leaf is composed, primarily, of a display name and a 
@@ -189,50 +180,5 @@ public final class Leaf implements Comparable<Leaf> {
   /** @param tsuid the tsuid to set */
   public void setTsuid(final String tsuid) {
     this.tsuid = tsuid;
-  }
-
-
-  // JSON HANDLING ----------------------------
-  public static Leaf buildFromJSON(final byte[] json) {
-    try {
-
-      ObjectMapper mapper = new ObjectMapper();
-      ObjectNode rootNode = mapper.readValue(json, ObjectNode.class);
-
-      String display_name = rootNode.get("displayName").textValue();
-      String tsuid = rootNode.get("tsuid").textValue();
-
-      return new Leaf(display_name, tsuid);
-
-    } catch (IOException e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  /**
-   * Writes the leaf to a JSON object for storage. This is necessary for the CAS
-   * calls and to reduce storage costs since we don't need to store UID names
-   * (particularly as someone may rename a UID)
-   * @return The byte array to store
-   */
-  public byte[] getStorageJSON() {
-    final ByteArrayOutputStream output = new ByteArrayOutputStream(
-            display_name.length() + tsuid.length() + 30);
-    try {
-      final JsonGenerator json = JSON.getFactory().createGenerator(output);
-
-      json.writeStartObject();
-
-      // we only need to write a small amount of information
-      json.writeObjectField("displayName", display_name);
-      json.writeObjectField("tsuid", tsuid);
-
-      json.writeEndObject();
-      json.close();
-
-      return output.toByteArray();
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to serialize Leaf", e);
-    }
   }
 }

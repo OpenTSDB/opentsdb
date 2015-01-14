@@ -36,5 +36,11 @@ JACKSON_DATABIND_BASE_URL := http://central.maven.org/maven2/com/fasterxml/jacks
 $(JACKSON_DATABIND): $(JACKSON_DATABIND).md5
 	set dummy "$(JACKSON_DATABIND_BASE_URL)" "$(JACKSON_DATABIND)"; shift; $(FETCH_DEPENDENCY)
 
+JACKSON_GUAVA_VERSION = $(JACKSON_VERSION)
+JACKSON_GUAVA := third_party/jackson/jackson-datatype-guava-$(JACKSON_GUAVA_VERSION).jar
+JACKSON_GUAVA_BASE_URL := http://central.maven.org/maven2/com/fasterxml/jackson/datatype/jackson-datatype-guava/$(JACKSON_VERSION)
 
-THIRD_PARTY += $(JACKSON_ANNOTATIONS) $(JACKSON_CORE) $(JACKSON_DATABIND)
+$(JACKSON_GUAVA): $(JACKSON_GUAVA).md5
+	set dummy "$(JACKSON_GUAVA_BASE_URL)" "$(JACKSON_GUAVA)"; shift; $(FETCH_DEPENDENCY)
+
+THIRD_PARTY += $(JACKSON_ANNOTATIONS) $(JACKSON_CORE) $(JACKSON_DATABIND) $(JACKSON_GUAVA)

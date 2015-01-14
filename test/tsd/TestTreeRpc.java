@@ -62,36 +62,6 @@ public final class TestTreeRpc {
   private MemoryStore tsdb_store;
   private ObjectMapper jsonMapper;
   private TreeRpc rpc = new TreeRpc();
-  
-  final static private Method branchToStorageJson;
-  static {
-    try {
-      branchToStorageJson = Branch.class.getDeclaredMethod("toStorageJson");
-      branchToStorageJson.setAccessible(true);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed in static initializer", e);
-    }
-  }
-  
-  final static private Method TreetoStorageJson;
-  static {
-    try {
-      TreetoStorageJson = Tree.class.getDeclaredMethod("toStorageJson");
-      TreetoStorageJson.setAccessible(true);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed in static initializer", e);
-    }
-  }
-  
-  final static private Method TSMetagetStorageJSON;
-  static {
-    try {
-      TSMetagetStorageJSON = TSMeta.class.getDeclaredMethod("getStorageJSON");
-      TSMetagetStorageJSON.setAccessible(true);
-    } catch (Exception e) {
-      throw new RuntimeException("Failed in static initializer", e);
-    }
-  }
 
   @Before
   public void before() throws Exception {
@@ -1130,12 +1100,12 @@ public final class TestTreeRpc {
     root.prependParentPath(root_path);
     tsdb_store.addColumn(root.compileBranchId(), Tree.TREE_FAMILY(),
       "branch".getBytes(Const.CHARSET_ASCII),
-      (byte[]) branchToStorageJson.invoke(root));
+            jsonMapper.writeValueAsBytes(root));
     
     // store the first tree
     byte[] key = new byte[] { 0, 1 };
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(Const.CHARSET_ASCII),
-      (byte[]) TreetoStorageJson.invoke(TestTree.buildTestTree()));
+            jsonMapper.writeValueAsBytes(TestTree.buildTestTree()));
     
     TreeRule rule = new TreeRule(1);
     rule.setField("host");
@@ -1162,7 +1132,7 @@ public final class TestTreeRpc {
     root.prependParentPath(root_path);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
       "branch".getBytes(Const.CHARSET_ASCII),
-      (byte[]) branchToStorageJson.invoke(root));
+            jsonMapper.writeValueAsBytes(root));
     
     // tree 2
     key = new byte[] { 0, 2 };
@@ -1172,7 +1142,7 @@ public final class TestTreeRpc {
     tree2.setName("2nd Tree");
     tree2.setDescription("Other Tree");
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(Const.CHARSET_ASCII),
-      (byte[]) TreetoStorageJson.invoke(tree2));
+            jsonMapper.writeValueAsBytes(tree2));
     
     rule = new TreeRule(2);
     rule.setField("host");
@@ -1196,7 +1166,7 @@ public final class TestTreeRpc {
     root.prependParentPath(root_path);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
       "branch".getBytes(Const.CHARSET_ASCII),
-      (byte[]) branchToStorageJson.invoke(root));
+            jsonMapper.writeValueAsBytes(root));
     
     // sprinkle in some collisions and no matches for fun
     // collisions
@@ -1257,17 +1227,17 @@ public final class TestTreeRpc {
     branch.setDisplayName("cpu");
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
       "branch".getBytes(Const.CHARSET_ASCII),
-      (byte[]) branchToStorageJson.invoke(branch));
+            jsonMapper.writeValueAsBytes(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
     qualifier = leaf.columnQualifier();
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, leaf.getStorageJSON());
+      qualifier, jsonMapper.writeValueAsBytes(leaf));
     
     leaf = new Leaf("nice", "000002000002000002");
     qualifier = leaf.columnQualifier();
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, leaf.getStorageJSON());
+      qualifier, jsonMapper.writeValueAsBytes(leaf));
     
     // child branch
     branch = new Branch(1);
@@ -1276,12 +1246,12 @@ public final class TestTreeRpc {
     branch.setDisplayName("mboard");
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
       "branch".getBytes(Const.CHARSET_ASCII),
-      (byte[]) branchToStorageJson.invoke(branch));
+            jsonMapper.writeValueAsBytes(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");
     qualifier = leaf.columnQualifier();
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      qualifier, leaf.getStorageJSON());
+      qualifier, jsonMapper.writeValueAsBytes(leaf));
   }
   
   /**
@@ -1310,7 +1280,7 @@ public final class TestTreeRpc {
     final TSMeta meta = new TSMeta("000001000001000001000002000002");
     tsdb_store.addColumn(UniqueId.stringToUid("000001000001000001000002000002"),
       NAME_FAMILY, "ts_meta".getBytes(Const.CHARSET_ASCII),
-      (byte[]) TSMetagetStorageJSON.invoke(meta));
+            jsonMapper.writeValueAsBytes(meta));
     
     final UIDMeta metric = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, 
         "sys.cpu.0");

@@ -1,13 +1,9 @@
 package net.opentsdb.storage.json;
 
-import java.util.Iterator;
-import java.util.Map;
-
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.databind.InjectableValues;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -101,7 +97,7 @@ public class UIDMetaMixInTest {
   /**
    * This method tests what happens when you try to deserialize a UIDMeta
    * object from JSON. It should throw an IllegalArgumentException due to how
-   * {@link net.opentsdb.utils.JSON.UniqueIdTypeDeserializer} parses types.
+   * {@link UniqueIdTypeDeserializer} parses types.
    * This conforms to opentsdb/opentsdb as of commit
    * 8e3d0cc8ed82842819c7adee3339c274604be277.
    */

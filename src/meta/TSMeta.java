@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,16 +21,8 @@ import java.util.Set;
 
 import com.google.common.base.Strings;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.JSON;
 
 import com.google.common.collect.Sets;
-
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.core.JsonGenerator;
 
 /**
  * Timeseries Metadata is associated with a particular series of data points
@@ -55,9 +45,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
  * at least 3 extra storage calls when loading.
  * @since 2.0
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
-@JsonInclude(Include.NON_NULL)
-@JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
 public final class TSMeta {
 
   /** Charset used to convert Strings to byte arrays and back. */
@@ -70,7 +57,7 @@ public final class TSMeta {
 
   /** Hexadecimal representation of the TSUID this metadata is associated with */
   private String tsuid = "";
-  
+
   /** The metric associated with this timeseries */
   private UIDMeta metric = null;
   
@@ -90,11 +77,11 @@ public final class TSMeta {
   private long created = 0;
   
   /** Optional user supplied key/values */
-  private HashMap<String, String> custom = null;
+  private Map<String, String> custom = null;
   
   /** An optional field recording the units of data in this timeseries */
   private String units = "";
-  
+
   /** An optional field used to record the type of data, e.g. counter, gauge */
   private String data_type = "";
   
@@ -146,6 +133,30 @@ public final class TSMeta {
     // downgrade to seconds
     this.created = created > 9999999999L ? created / 1000 : created;
     changed.add("created");
+  }
+
+  TSMeta(final String tsuid,
+         final String displayName,
+         final String description,
+         final String notes,
+         final long created,
+         final Map<String, String> custom,
+         final String units,
+         final String dataType,
+         final int retention,
+         final double max,
+         final double min) {
+    this.tsuid = tsuid;
+    this.display_name = displayName;
+    this.description = description;
+    this.notes = notes;
+    this.created = created;
+    this.custom = custom;
+    this.units = units;
+    this.data_type = dataType;
+    this.retention = retention;
+    this.max = max;
+    this.min = min;
   }
   
   /** @return a string with details about this object */
@@ -238,48 +249,6 @@ public final class TSMeta {
     changed.clear();
   }
   
-  /**
-   * Formats the JSON output for writing to storage. It drops objects we don't
-   * need or want to store (such as the UIDMeta objects or the total dps) to
-   * save space. It also serializes in order so that we can make a proper CAS
-   * call. Otherwise the POJO serializer may place the fields in any order
-   * and CAS calls would fail all the time.
-   * @return A byte array to write to storage
-   */
-  public byte[] getStorageJSON() {
-    // 256 bytes is a good starting value, assumes default info
-    final ByteArrayOutputStream output = new ByteArrayOutputStream(256);
-    try {
-      final JsonGenerator json = JSON.getFactory().createGenerator(output); 
-      json.writeStartObject();
-      json.writeStringField("tsuid", tsuid);
-      json.writeStringField("displayName", display_name);
-      json.writeStringField("description", description);
-      json.writeStringField("notes", notes);
-      json.writeNumberField("created", created);
-      if (custom == null) {
-        json.writeNullField("custom");
-      } else {
-        json.writeObjectFieldStart("custom");
-        for (Map.Entry<String, String> entry : custom.entrySet()) {
-          json.writeStringField(entry.getKey(), entry.getValue());
-        }
-        json.writeEndObject();
-      }
-      json.writeStringField("units", units);
-      json.writeStringField("dataType", data_type);
-      json.writeNumberField("retention", retention);
-      json.writeNumberField("max", max);
-      json.writeNumberField("min", min);
-      
-      json.writeEndObject(); 
-      json.close();
-      return output.toByteArray();
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to serialize TSMeta", e);
-    }
-  }
-  
   // Getters and Setters --------------
   
   /** @return the TSUID as a hex encoded string */
@@ -320,6 +289,14 @@ public final class TSMeta {
   /** @return optional custom key/value map, may be null */
   public final Map<String, String> getCustom() {
     return custom;
+  }
+
+  public String getUnits() {
+    return units;
+  }
+
+  public String getDataType() {
+    return data_type;
   }
 
   /** @return optional retention, default of 0 means retain indefinitely */

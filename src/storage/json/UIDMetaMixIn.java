@@ -3,7 +3,6 @@ package net.opentsdb.storage.json;
 import java.util.Map;
 
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.JSON;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
@@ -31,7 +30,7 @@ abstract class UIDMetaMixIn {
   @JsonIgnore abstract String getName();
 
   /** The type of UID this metadata represents */
-  @JsonDeserialize(using = JSON.UniqueIdTypeDeserializer.class)
+  @JsonDeserialize(using = UniqueIdTypeDeserializer.class)
   @JsonProperty("type") abstract UniqueIdType getType();
 
   @JsonProperty("displayName") abstract String getDisplayName();
