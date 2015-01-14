@@ -443,6 +443,8 @@ public class Config {
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.stats.canonical", "false");
     default_map.put("tsd.storage.adapter", "HBase");
+    default_map.put("tsd.storage.cassandra.clusters", "127.0.0.1, " +
+            "127.0.0.2:9043");
     default_map.put("tsd.storage.fix_duplicates", "false");
     default_map.put("tsd.storage.flush_interval", "1000");
     default_map.put("tsd.storage.hbase.data_table", "tsdb");
