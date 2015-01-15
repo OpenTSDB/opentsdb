@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.TreeMap;
 
-import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -33,23 +32,13 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
-import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.opentsdb.utils.Pair;
-import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-import com.stumbleupon.async.Deferred;
 
 public final class TestTreeBuilder {
   private MemoryStore tsdb_store;

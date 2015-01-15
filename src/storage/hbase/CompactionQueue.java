@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
