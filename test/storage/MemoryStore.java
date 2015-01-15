@@ -770,6 +770,10 @@ public class MemoryStore implements TsdbStore {
     storage.clear();
   }
 
+  public void purgeBranches() {
+    branch_table.clear();
+  }
+
   /**
    * Removes the entire row from the hash table
    * @param key The row to remove
@@ -1023,6 +1027,10 @@ public class MemoryStore implements TsdbStore {
   public Deferred<Boolean> flushTreeNotMatched(Tree tree) {
     storeTree(tree, true);
     return Deferred.fromResult(true); //A meaningless deferred
+  }
+
+  public Collection<Leaf> getLeaf(Pair<Integer, String> key) {
+    return leaf_table.row(key).values();
   }
 
   @Override

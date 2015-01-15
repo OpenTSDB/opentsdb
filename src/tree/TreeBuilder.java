@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 /**
  * Contains the logic and methods for building a branch from a tree definition
  * and a TSMeta object. Use the class by loading a tree, passing it to the 
@@ -130,25 +132,9 @@ public final class TreeBuilder {
    * @param tree A tree with rules configured and ready for parsing
    */
   public TreeBuilder(final TSDB tsdb, final Tree tree) {
-    this.tsdb = tsdb;
-    this.tree = tree;
+    this.tsdb = checkNotNull(tsdb);
+    this.tree = checkNotNull(tree);
     calculateMaxLevel();
-  }
-  
-  /**
-   * Convenience overload of {@link #processTimeseriesMeta(TSMeta, boolean)} that
-   * sets the testing flag to false. Any changes processed from this method will
-   * be saved to storage
-   * @param meta The timeseries meta object to process
-   * @return A list of deferreds to wait on for storage completion
-   * @throws IllegalArgumentException if the tree has not been set or is invalid
-   */
-  public Deferred<ArrayList<Boolean>> processTimeseriesMeta(final TSMeta meta) {
-    if (tree == null || tree.getTreeId() < 1) {
-      throw new IllegalArgumentException(
-          "The tree has not been set or is invalid");
-    }
-    return processTimeseriesMeta(meta, false);
   }
   
   /**
@@ -159,19 +145,13 @@ public final class TreeBuilder {
    * would result from the processing. Also, the {@link #test_messages} list
    * will contain details about the process for debugging purposes.
    * @param meta The timeseries meta object to process
-   * @param is_testing Whether or not changes should be written to storage. If 
-   * false, resulting branches and leaves will be saved. If true, results will
-   * not be flushed to storage.
    * @return A list of deferreds to wait on for storage completion
    * @throws IllegalArgumentException if the tree has not been set or is invalid
    * @throws HBaseException if a storage exception occurred
    */
-  public Deferred<ArrayList<Boolean>> processTimeseriesMeta(final TSMeta meta, 
-      final boolean is_testing) {
-    if (tree == null || tree.getTreeId() < 1) {
-      throw new IllegalArgumentException(
-          "The tree has not been set or is invalid");
-    }
+  public Deferred<ArrayList<Boolean>> processTimeseriesMeta(final TSMeta meta) {
+    Tree.validateTreeID(tree.getTreeId());
+
     if (meta == null || meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
       throw new IllegalArgumentException("Missing TSUID");
     }
@@ -216,7 +196,7 @@ public final class TreeBuilder {
           testMessage(
               "TSUID failed to match one or more rule levels, will not add: " + 
               meta);
-          if (!is_testing && tree.getNotMatched() != null && 
+          if ( tree.getNotMatched() != null &&
               !tree.getNotMatched().isEmpty()) {
             tree.addNotMatched(meta.getTSUID(), not_matched);
             storage_calls.add(tsdb.flushTreeNotMatched(tree));
@@ -229,7 +209,7 @@ public final class TreeBuilder {
           // throwing an exception
           LOG.warn("Processed TSUID [{}] resulted in a null branch on tree: {}", meta, tree.getTreeId());
           
-        } else if (!is_testing) {
+        }
           
           // iterate through the generated tree store the tree and leaves,
           // adding the parent path as we go
@@ -287,26 +267,6 @@ public final class TreeBuilder {
           if (tree.getCollisions() != null && !tree.getCollisions().isEmpty()) {
             storage_calls.add(tsdb.flushTreeCollisions(tree));
           }
-          
-        } else {
-          
-          // we are testing, so compile the branch paths so that the caller can
-          // fetch the root branch object and return it from an RPC call
-          Branch cb = current_branch;
-          branch.addChild(cb);
-          Map<Integer, String> path = branch.getPath();
-          cb.prependParentPath(path);
-          while (cb != null) {
-            if (cb.getBranches() == null) {
-              cb = null;
-            } else {
-              path = cb.getPath();
-              // we should only have one child if we're building
-              cb = cb.getBranches().first();
-              cb.prependParentPath(path);
-            }
-          }
-        }
 
         LOG.debug("Completed processing meta [{}] through tree: {}", meta, tree.getTreeId());
         return Deferred.group(storage_calls);
@@ -335,7 +295,7 @@ public final class TreeBuilder {
       // if this is a new object or the root has been reset, we need to fetch
       // it from storage or initialize it
       LOG.debug("Fetching root branch for tree: {}", tree.getTreeId());
-      return loadOrInitializeRoot(tsdb, tree.getTreeId(), is_testing)
+      return loadOrInitializeRoot(tsdb, tree.getTreeId())
         .addCallbackDeferring(new LoadRootCB());
     } else {
       // the root has been set, so just reuse it
@@ -356,12 +316,10 @@ public final class TreeBuilder {
    * don't want to keep loading on every TSMeta during real-time processing
    * @param tsdb The tsdb to use for storage calls
    * @param tree_id ID of the tree the root should be fetched/initialized for
-   * @param is_testing Whether or not the root should be written to storage if
-   * initialized.
    * @return True if loading or initialization was successful.
    */
   public static Deferred<Branch> loadOrInitializeRoot(final TSDB tsdb, 
-      final int tree_id, final boolean is_testing) {
+      final int tree_id) {
 
     /**
      * Final callback executed after the storage put completed. It also caches
@@ -403,12 +361,9 @@ public final class TreeBuilder {
             new TreeMap<Integer, String>();
           root_path.put(0, "ROOT");
           root.prependParentPath(root_path);
-          if (is_testing) {
-            return Deferred.fromResult(root);
-          } else {
-            return tsdb.storeBranch(null,root, true).addCallbackDeferring(
-                new NewRootCB(root));
-          }
+
+          return tsdb.storeBranch(null, root, true).addCallbackDeferring(
+                  new NewRootCB(root));
         } else {
           return Deferred.fromResult(branch);
         }
@@ -480,7 +435,7 @@ public final class TreeBuilder {
             continue;
           }
           final TreeBuilder builder = new TreeBuilder(tsdb, new Tree(tree));
-          processed_trees.add(builder.processTimeseriesMeta(meta, false));
+          processed_trees.add(builder.processTimeseriesMeta(meta));
         }
         
         return Deferred.group(processed_trees).addCallback(new FinalCB());
