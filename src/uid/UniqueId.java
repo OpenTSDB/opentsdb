@@ -72,8 +72,6 @@ public class UniqueId {
   private final TsdbStore tsdb_store;
   /** Table where IDs are stored.  */
   private final byte[] table;
-  /** The kind of UniqueId, used as the column qualifier. */
-  private final byte[] kind;
   /** The type of UID represented by this cache */
   private final UniqueIdType type;
   /** Number of bytes on which each ID is encoded. */
@@ -102,15 +100,12 @@ public class UniqueId {
    * Constructor.
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
-   * @param type
-   * @throws IllegalArgumentException if width is negative or too small/large
-   * or if kind is an empty string.
+   * @param type The type of UIDs this instance represents
    */
   public UniqueId(final TsdbStore tsdb_store, final byte[] table, UniqueIdType type) {
     this.tsdb_store = checkNotNull(tsdb_store);
     this.table = checkNotNull(table);
     this.type = checkNotNull(type);
-    this.kind = toBytes(type.qualifier);
     this.id_width = type.width;
   }
 
@@ -129,8 +124,8 @@ public class UniqueId {
     return name_cache.size() + id_cache.size();
   }
 
-  public String kind() {
-    return StringCoder.fromBytes(kind);
+  public UniqueIdType type() {
+    return type;
   }
 
   public short width() {
@@ -183,7 +178,7 @@ public class UniqueId {
           return name.get();
         }
 
-        throw new NoSuchUniqueId(kind(), id);
+        throw new NoSuchUniqueId(type, id);
       }
     }
     return tsdb_store.getName(id, type).addCallback(new GetNameCB());
@@ -220,7 +215,7 @@ public class UniqueId {
           return id.get();
         }
 
-        throw new NoSuchUniqueName(kind(), name);
+        throw new NoSuchUniqueName(type.qualifier, name);
       }
     }
     return tsdb_store.getId(name, type).addCallback(new GetIdCB());
@@ -342,7 +337,7 @@ public class UniqueId {
 
     SuggestCB(final String search, final int max_results) {
       this.max_results = max_results;
-      this.scanner = getSuggestScanner(tsdb_store, table, search, kind, max_results);
+      this.scanner = getSuggestScanner(tsdb_store, table, search, type, max_results);
     }
 
     Deferred<List<String>> search() {
@@ -370,7 +365,7 @@ public class UniqueId {
         if (cached_id == null) {
           cacheMapping(name, id); 
         } else if (!Arrays.equals(id, cached_id)) {
-          throw new IllegalStateException("WTF?  For kind=" + kind()
+          throw new IllegalStateException("For type=" + type
             + " name=" + name + ", we have id=" + Arrays.toString(cached_id)
             + " in cache, but just scanned id=" + Arrays.toString(id));
         }
@@ -407,7 +402,7 @@ public class UniqueId {
       public Object call(final Boolean exists) {
         if (exists) {
           throw new IllegalArgumentException("An UID with name " + newname + " " +
-                  "for " + kind() + " already exists");
+                  "for " + type + " already exists");
         }
 
         return getIdAsync(oldname).addCallbackDeferring(new Callback<Deferred<Object>, byte[]>() {
@@ -421,7 +416,7 @@ public class UniqueId {
             name_cache.remove(oldname);             // remove  old name -> ID
 
             // Delete the old forward mapping.
-            return tsdb_store.deleteUID(toBytes(oldname), kind);
+            return tsdb_store.deleteUID(toBytes(oldname), type);
           }
         });
       }
@@ -457,12 +452,12 @@ public class UniqueId {
    * @param tsdb_store The TsdbStore to use.
    * @param tsd_uid_table Table where IDs are stored.
    * @param search The string to start searching at
-   * @param kind_or_null The kind of UID to search or null for any kinds.
+   * @param type The type of UID to search or null for any types.
    * @param max_results The max number of results to return
    */
   private static Scanner getSuggestScanner(final TsdbStore tsdb_store,
       final byte[] tsd_uid_table, final String search,
-      final byte[] kind_or_null, final int max_results) {
+      final UniqueIdType type, final int max_results) {
     final byte[] start_row;
     final byte[] end_row;
     if (search.isEmpty()) {
@@ -477,8 +472,8 @@ public class UniqueId {
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(ID_FAMILY);
-    if (kind_or_null != null) {
-      scanner.setQualifier(kind_or_null);
+    if (type != null) {
+      scanner.setQualifier(type.qualifier.getBytes(Const.CHARSET_ASCII));
     }
     scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;
@@ -492,7 +487,7 @@ public class UniqueId {
   /** Returns a human readable string representation of the object. */
   public String toString() {
     return MoreObjects.toStringHelper(this)
-            .add("kind", kind())
+            .add("type", type)
             .add("id_width", id_width)
             .toString();
   }
@@ -811,7 +806,7 @@ public class UniqueId {
       }
       for (UniqueId unique_id_table : uid_cache_map.values()) {
         LOG.info("After preloading, uid cache '{}' has {} ids and {} names.",
-                 unique_id_table.kind(),
+                 unique_id_table.type,
                  unique_id_table.id_cache.size(),
                  unique_id_table.name_cache.size());
       }

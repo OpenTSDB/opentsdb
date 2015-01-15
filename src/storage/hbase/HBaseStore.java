@@ -724,19 +724,20 @@ public class HBaseStore implements TsdbStore {
    * This only removes the forward mapping. The reverse mapping will not be
    * removed.
    * @param name The UID key to remove
-   * @param kind The qualifier of the UID to remove
+   * @param type The type of the UID to remove
    * @return A deferred that indicated the completion of the request. The
    * contained object has no special meaning and may be null.
    */
   @Override
-  public Deferred<Object> deleteUID(final byte[] name, final byte[] kind) {
+  public Deferred<Object> deleteUID(final byte[] name, final UniqueIdType type) {
     try {
+      final byte[] qualifier = type.qualifier.getBytes(HBaseConst.CHARSET);
       final DeleteRequest request = new DeleteRequest(
-              uid_table_name, name, ID_FAMILY, kind);
+              uid_table_name, name, ID_FAMILY, qualifier);
       return client.delete(request);
     } catch (HBaseException e) {
       LOG.error("When deleting(\"{}\", on {}: Failed to remove the mapping" +
-              "for (key, qualifier) = ({}, {}). ", name, this, name, kind, e);
+              "for (key, qualifier) = ({}, {}). ", name, this, name, type, e);
       throw e;
     }
   }

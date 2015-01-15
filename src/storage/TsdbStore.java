@@ -89,7 +89,7 @@ public interface TsdbStore {
   public Deferred<Boolean> updateMeta(final UIDMeta meta,
                                       final boolean overwrite);
 
-  Deferred<Object> deleteUID(byte[] name, byte[] kind);
+  Deferred<Object> deleteUID(byte[] name, UniqueIdType type);
 
   public Deferred<byte[]> allocateUID(final String name,
                                       final UniqueIdType type);

@@ -22,26 +22,26 @@ import java.util.NoSuchElementException;
  */
 public final class NoSuchUniqueId extends NoSuchElementException {
 
-  /** The 'kind' of the table.  */
-  private final String kind;
+  /** The 'type' of the table.  */
+  private final UniqueIdType type;
   /** The ID that couldn't be found.  */
   private final byte[] id;
 
   /**
    * Constructor.
    *
-   * @param kind The kind of unique ID that triggered the exception.
+   * @param type The type of unique ID that triggered the exception.
    * @param id The ID that couldn't be found.
    */
-  public NoSuchUniqueId(final String kind, final byte[] id) {
-    super("No such unique ID for '" + kind + "': " + Arrays.toString(id));
-    this.kind = kind;
+  public NoSuchUniqueId(final UniqueIdType type, final byte[] id) {
+    super("No such unique ID for '" + type + "': " + Arrays.toString(id));
+    this.type = type;
     this.id = id;
   }
 
-  /** Returns the kind of unique ID that couldn't be found.  */
-  public String kind() {
-    return kind;
+  /** Returns the type of unique ID that couldn't be found.  */
+  public UniqueIdType type() {
+    return type;
   }
 
   /** Returns the unique ID that couldn't be found.  */

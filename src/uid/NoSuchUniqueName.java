@@ -21,7 +21,7 @@ import java.util.NoSuchElementException;
  */
 public final class NoSuchUniqueName extends NoSuchElementException {
 
-  /** The 'kind' of the table.  */
+  /** The 'type' of the table.  */
   private final String kind;
   /** The name that couldn't be found.  */
   private final String name;
@@ -29,7 +29,7 @@ public final class NoSuchUniqueName extends NoSuchElementException {
   /**
    * Constructor.
    *
-   * @param kind The kind of unique ID that triggered the exception.
+   * @param kind The type of unique ID that triggered the exception.
    * @param name The name that couldn't be found.
    */
   public NoSuchUniqueName(final String kind, final String name) {
@@ -38,7 +38,7 @@ public final class NoSuchUniqueName extends NoSuchElementException {
     this.name = name;
   }
 
-  /** Returns the kind of unique ID that couldn't be found.  */
+  /** Returns the type of unique ID that couldn't be found.  */
   public String kind() {
     return kind;
   }
