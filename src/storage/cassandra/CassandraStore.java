@@ -167,9 +167,9 @@ public class CassandraStore implements TsdbStore {
     public Deferred<Boolean> updateMeta(UIDMeta meta, boolean overwrite) {
         return null;
     }
-
+    
     @Override
-    public Deferred<Object> deleteUID(byte[] name, byte[] kind) {
+    public Deferred<Object> deleteUID(byte[] name, UniqueIdType type) {
         return null;
     }
 
