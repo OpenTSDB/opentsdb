@@ -86,9 +86,9 @@ public final class TestUniqueId {
   }
 
   @Test
-  public void kindEqual() {
+  public void typeEqual() {
     uid = new UniqueId(client, table, UniqueIdType.METRIC);
-    assertEquals(kind, uid.kind());
+    assertEquals(UniqueIdType.METRIC, uid.type());
   }
 
   @Test

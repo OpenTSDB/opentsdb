@@ -566,9 +566,9 @@ public class TSDB {
    */
   private static void collectUidStats(final UniqueId uid,
                                       final StatsCollector collector) {
-    collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.kind());
-    collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.kind());
-    collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
+    collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.type().qualifier);
+    collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.type().qualifier);
+    collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.type().qualifier);
   }
 
   /**

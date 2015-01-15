@@ -542,7 +542,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> deleteUID(byte[] name, byte[] kind) {
+  public Deferred<Object> deleteUID(byte[] name, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

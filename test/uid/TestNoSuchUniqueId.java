@@ -14,20 +14,20 @@ package net.opentsdb.uid;
 
 import junit.framework.TestCase;
 
-public final class TestNoSuchUniqueId extends TestCase {
+import static org.junit.Assert.assertArrayEquals;
 
+public final class TestNoSuchUniqueId extends TestCase {
   public void testMessage() {
     final byte[] id = { 0, 'A', 'a' };
-    final NoSuchUniqueId e = new NoSuchUniqueId("Foo", id);
-    assertEquals("No such unique ID for 'Foo': [0, 65, 97]", e.getMessage());
+    final NoSuchUniqueId e = new NoSuchUniqueId(UniqueIdType.METRIC, id);
+    assertEquals("No such unique ID for 'METRIC': [0, 65, 97]", e.getMessage());
   }
 
   public void testFields() {
-    final String kind = "bar";
+    final UniqueIdType type = UniqueIdType.METRIC;
     final byte[] id = { 42, '!' };
-    final NoSuchUniqueId e = new NoSuchUniqueId(kind, id);
-    assertEquals(kind, e.kind());
-    assertEquals(id, e.id());
+    final NoSuchUniqueId e = new NoSuchUniqueId(type, id);
+    assertEquals(type, e.type());
+    assertArrayEquals(id, e.id());
   }
-
 }
