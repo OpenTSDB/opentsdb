@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
+import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
@@ -159,8 +159,8 @@ public class TimeSeriesLookup {
               buf.append(" ");
               
               final List<byte[]> tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
-              final Map<String, String> resolved_tags = 
-                  Tags.resolveIdsAsync(tsdb, tag_ids).joinUninterruptibly();
+              final Map<String, String> resolved_tags =
+                      tsdb.getUniqueIdClient().getTagNames(tag_ids).joinUninterruptibly();
               for (final Map.Entry<String, String> tag_pair : 
                   resolved_tags.entrySet()) {
                 buf.append(tag_pair.getKey()).append("=")

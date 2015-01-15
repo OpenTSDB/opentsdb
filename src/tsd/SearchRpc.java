@@ -24,6 +24,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
@@ -183,7 +184,7 @@ final class SearchRpc implements HttpRpc {
           Deferred<String> metric = new UidFormatter(tsdb).formatMetric(metric_id);
           series.put("metric", metric.joinUninterruptibly());
           tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
-          series.put("tags", Tags.resolveIdsAsync(tsdb, tag_ids)
+          series.put("tags", tsdb.getUniqueIdClient().getTagNames(tag_ids)
               .joinUninterruptibly());
         } catch (NoSuchUniqueId nsui) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 

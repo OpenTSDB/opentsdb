@@ -102,10 +102,10 @@ class IncomingDataPoints implements WritableDataPoints {
           + " maximum allowed: " + Const.MAX_NUM_TAGS + ", tags: " + tags);
     }
 
-    Tags.validateString("metric name", metric);
+    UniqueIdClient.validateUidName("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
-      Tags.validateString("tag name", tag.getKey());
-      Tags.validateString("tag value", tag.getValue());
+      UniqueIdClient.validateUidName("tag name", tag.getKey());
+      UniqueIdClient.validateUidName("tag value", tag.getValue());
     }
   }
 

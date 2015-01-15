@@ -148,7 +148,7 @@ public class QueryBuilder {
    * this or {@link #withTSUIDS(java.util.List)}, not both.
    */
   public QueryBuilder withMetric(final String metric) {
-    this.metric = tsdb.getUniqueIdClient().metrics.getIdAsync(checkNotNull(metric));
+    this.metric = tsdb.getUniqueIdClient().metrics.getId(checkNotNull(metric));
     return this;
   }
 
@@ -157,7 +157,7 @@ public class QueryBuilder {
    */
   public QueryBuilder withTags(final Map<String, String> tags) {
     findGroupBys(checkNotNull(tags));
-    this.tags = Tags.resolveAllAsync(tsdb, tags);
+    this.tags = tsdb.getUniqueIdClient().getAllTags(tags);
     return this;
   }
 
@@ -308,7 +308,7 @@ public class QueryBuilder {
 
       // 'GROUP BY' with any value OR Multiple possible values.
       if ("*".equals(tagvalue) || tagvalue.indexOf('|', 1) >= 0) {
-        Deferred<byte[]> tagk_id = tsdb.getUniqueIdClient().tag_names.getIdAsync(tagk);
+        Deferred<byte[]> tagk_id = tsdb.getUniqueIdClient().tag_names.getId(tagk);
         group_bys_deferreds.add(tagk_id);
         tagk_id.addCallback(new GroupBysCB(tagk));
 
