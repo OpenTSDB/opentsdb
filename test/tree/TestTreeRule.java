@@ -20,24 +20,14 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import static org.junit.Assert.*;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-                  "ch.qos.*", "org.slf4j.*",
-                  "com.sum.*", "org.xml.*"})
-@PrepareForTest({KeyValue.class})
+
 public final class TestTreeRule {
   private MemoryStore tsdb_store;
   private TSDB tsdb;

@@ -25,7 +25,6 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.JSON;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseException;

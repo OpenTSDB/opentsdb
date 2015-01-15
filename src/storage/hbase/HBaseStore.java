@@ -53,7 +53,6 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.JSONException;
 import org.hbase.async.*;
 import org.slf4j.Logger;

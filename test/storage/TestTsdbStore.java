@@ -3,7 +3,6 @@ package net.opentsdb.storage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.DeferredGroupException;
-import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.json.StorageModule;
@@ -16,19 +15,15 @@ import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
 
 
