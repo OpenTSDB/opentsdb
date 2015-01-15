@@ -112,7 +112,7 @@ class IncomingDataPoints implements WritableDataPoints {
   public void setSeries(final String metric, final Map<String, String> tags) {
     checkMetricAndTags(metric, tags);
     try {
-      byte[] tsuid = tsdb.getTSUID(metric, tags).joinUninterruptibly();
+      byte[] tsuid = tsdb.getUniqueIdClient().getTSUID(metric, tags, tsdb).joinUninterruptibly();
       // we have a tsuid so we need to add some bytes(4) for the timestamp
       row = RowKey.partialRowKeyFromTSUID(tsuid);
     } catch (RuntimeException e) {
@@ -137,7 +137,7 @@ class IncomingDataPoints implements WritableDataPoints {
     // because the TsdbStore may still hold a reference to it in its
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
-    Bytes.setInt(row, (int) base_time, tsdb.metrics.width());
+    Bytes.setInt(row, (int) base_time, tsdb.getUniqueIdClient().metrics.width());
     tsdb.getTsdbStore().scheduleForCompaction(row);
   }
 

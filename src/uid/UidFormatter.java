@@ -38,7 +38,7 @@ public class UidFormatter {
    * @param uid The uid to lookup
    */
   public Deferred<String> formatMetric(final byte[] uid) {
-    return tsdb.getUidName(METRIC, checkNotNull(uid));
+    return tsdb.getUniqueIdClient().getUidName(METRIC, checkNotNull(uid));
   }
 
   /**
@@ -53,8 +53,8 @@ public class UidFormatter {
             Lists.newArrayListWithCapacity(tags.size() * 2);
 
     for (Map.Entry<byte[], byte[]> tag : tags.entrySet()) {
-      deferreds.add(tsdb.getUidName(TAGK, tag.getKey()));
-      deferreds.add(tsdb.getUidName(TAGV, tag.getValue()));
+      deferreds.add(tsdb.getUniqueIdClient().getUidName(TAGK, tag.getKey()));
+      deferreds.add(tsdb.getUniqueIdClient().getUidName(TAGV, tag.getValue()));
     }
 
 
@@ -69,8 +69,8 @@ public class UidFormatter {
             Lists.newArrayListWithCapacity(tags.size());
 
     for (int i = 0 ; i < tags.size() ; i+=2) {
-      deferreds.add(tsdb.getUidName(TAGK, tags.get(i)));
-      deferreds.add(tsdb.getUidName(TAGV, tags.get(i + 1)));
+      deferreds.add(tsdb.getUniqueIdClient().getUidName(TAGK, tags.get(i)));
+      deferreds.add(tsdb.getUniqueIdClient().getUidName(TAGV, tags.get(i + 1)));
     }
 
     return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
@@ -84,7 +84,7 @@ public class UidFormatter {
             Lists.newArrayListWithCapacity(uids.size());
 
     for (byte[] uid : uids) {
-      deferreds.add(tsdb.getUidName(type, uid));
+      deferreds.add(tsdb.getUniqueIdClient().getUidName(type, uid));
     }
 
     return Deferred.groupInOrder(deferreds);

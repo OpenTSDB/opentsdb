@@ -83,7 +83,7 @@ public class TSUIDQuery {
    */
   public void setQuery(final String metric, final HashMap<String, String> tags) {
     try {
-      this.metric = tsdb.getUID(UniqueIdType.METRIC, metric).joinUninterruptibly();
+      this.metric = tsdb.getUniqueIdClient().getUID(UniqueIdType.METRIC, metric).joinUninterruptibly();
       this.tags = Tags.resolveAllAsync(tsdb, tags).joinUninterruptibly();
     } catch (Exception e) {
       Throwables.propagate(e);
@@ -378,7 +378,7 @@ public class TSUIDQuery {
         
         // start the resolve dance
         final byte[] metric_uid = Arrays.copyOfRange(tsuid, 0, Const.METRICS_WIDTH);
-        return tsdb.getUidName(UniqueIdType.METRIC, metric_uid)
+        return tsdb.getUniqueIdClient().getUidName(UniqueIdType.METRIC, metric_uid)
           .addCallback(new MetricCB());
       }
       

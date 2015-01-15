@@ -42,7 +42,7 @@ public class UidResolver {
     // For each tag, start resolving the tag name and the tag value.
     while (uid_names.hasNext()) {
       final String uid_name = uid_names.next();
-      uids.add(tsdb.getUID(type, uid_name));
+      uids.add(tsdb.getUniqueIdClient().getUID(type, uid_name));
     }
 
     // And then once we have all the tags resolved, sort them.
