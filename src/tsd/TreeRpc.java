@@ -463,7 +463,7 @@ final class TreeRpc implements HttpRpc {
               continue;
             }
             
-            builder.processTimeseriesMeta(meta, true).joinUninterruptibly();
+            builder.processTimeseriesMeta(meta).joinUninterruptibly();
             tsuid_results.put("branch", builder.getRootBranch());
             tsuid_results.put("meta", meta);
             tsuid_results.put("messages", builder.getTestMessage());
