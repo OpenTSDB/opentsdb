@@ -307,7 +307,7 @@ public class TestDumpSeries {
     annotation.setStartTime(timestamp);
     annotation.setTSUID("000001000001000001");
     annotation.setDescription("Annotation on seconds");
-    tsdb.syncToStorage(annotation, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getMetaClient().syncToStorage(annotation, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     
     tsdb.addPoint("sys.cpu.user", timestamp++, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     tsdb.addPoint("sys.cpu.user", timestamp++, 257, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -323,7 +323,7 @@ public class TestDumpSeries {
     annotation.setStartTime(timestamp);
     annotation.setTSUID("000001000001000001");
     annotation.setDescription("Annotation on milliseconds");
-    tsdb.syncToStorage(annotation, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getMetaClient().syncToStorage(annotation, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     
     tsdb.addPoint("sys.cpu.user", timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     tsdb.addPoint("sys.cpu.user", timestamp += 1000, 257, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);

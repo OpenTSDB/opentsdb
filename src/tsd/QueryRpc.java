@@ -149,7 +149,7 @@ final class QueryRpc implements HttpRpc {
     List<Annotation> globals = null;
     if (!data_query.getNoAnnotations() && data_query.getGlobalAnnotations()) {
       try {
-        globals = tsdb.getGlobalAnnotations(
+        globals = tsdb.getMetaClient().getGlobalAnnotations(
                 data_query.startTime() / 1000, data_query.endTime() / 1000)
             .joinUninterruptibly();
       } catch (Exception e) {

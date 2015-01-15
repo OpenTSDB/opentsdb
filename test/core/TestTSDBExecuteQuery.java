@@ -826,7 +826,8 @@ public final class TestTSDBExecuteQuery {
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_3);
     note.setDescription(DESCRIPTION);
-    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase
+            .DEFAULT_TIMEOUT);
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
@@ -857,7 +858,7 @@ public final class TestTSDBExecuteQuery {
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_3);
     note.setDescription(DESCRIPTION);
-    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     final Field compact = Config.class.getDeclaredField(ENABLE_COMPACTIONS);
     compact.setAccessible(true);
@@ -911,7 +912,7 @@ public final class TestTSDBExecuteQuery {
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_4);
     note.setDescription(DESCRIPTION);
-    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
@@ -947,7 +948,7 @@ public final class TestTSDBExecuteQuery {
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_4);
     note.setDescription(DESCRIPTION);
-    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
@@ -1000,7 +1001,7 @@ public final class TestTSDBExecuteQuery {
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_4);
     note.setDescription(DESCRIPTION);
-    tsdb.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     final List<String> tsuids = new ArrayList<String>(1);
