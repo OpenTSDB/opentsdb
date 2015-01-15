@@ -84,7 +84,7 @@ public class TSUIDQuery {
   public void setQuery(final String metric, final HashMap<String, String> tags) {
     try {
       this.metric = tsdb.getUniqueIdClient().getUID(UniqueIdType.METRIC, metric).joinUninterruptibly();
-      this.tags = Tags.resolveAllAsync(tsdb, tags).joinUninterruptibly();
+      this.tags = tsdb.getUniqueIdClient().getAllTags(tags).joinUninterruptibly();
     } catch (Exception e) {
       Throwables.propagate(e);
     }
@@ -256,7 +256,7 @@ public class TSUIDQuery {
     buf.append("TSUIDQuery(metric=")
        .append(Arrays.toString(metric));
     try {
-      buf.append("), tags=").append(Tags.resolveIdsAsync(tsdb, tags).joinUninterruptibly());
+      buf.append("), tags=").append(tsdb.getUniqueIdClient().getTagNames(tags).joinUninterruptibly());
     } catch (NoSuchUniqueId e) {
       buf.append("), tags=<").append(e.getMessage()).append('>');
     } catch (Exception e) {
@@ -372,7 +372,7 @@ public class TSUIDQuery {
           public Object call(final String name) throws Exception {
             dp.setMetric(name);
             final List<byte[]> tags = UniqueId.getTagPairsFromTSUID(tsuid);
-            return Tags.resolveIdsAsync(tsdb, tags).addCallback(new TagsCB());
+            return tsdb.getUniqueIdClient().getTagNames(tags).addCallback(new TagsCB());
           }
         }
         

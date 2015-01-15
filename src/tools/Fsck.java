@@ -38,7 +38,7 @@ import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.Tags;
+import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
@@ -529,7 +529,7 @@ final class Fsck {
         }
         
         try {
-          Tags.resolveIdsAsync(tsdb,
+          tsdb.getUniqueIdClient().getTagNames(
                   UniqueId.getTagPairsFromTSUID(tsuid)).joinUninterruptibly();
         } catch (NoSuchUniqueId nsui) {
           LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: {}\n\t{}", UniqueId.uidToString(key), nsui.getMessage());

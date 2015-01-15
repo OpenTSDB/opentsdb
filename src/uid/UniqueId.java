@@ -155,7 +155,7 @@ public class UniqueId {
    * Finds the name associated with a given ID.
    *
    * @param id The ID associated with that name.
-   * @see #getIdAsync(String)
+   * @see #getId(String)
    * @see #createId(String)
    * @throws NoSuchUniqueId if the given ID is not assigned.
    * @throws HBaseException if there is a problem communicating with HBase.
@@ -163,7 +163,7 @@ public class UniqueId {
    * on the wrong number of bytes.
    * @since 1.1
    */
-  public Deferred<String> getNameAsync(final byte[] id) {
+  public Deferred<String> getName(final byte[] id) {
     final String name = getNameFromCache(id);
     if (name != null) {
       cache_hits++;
@@ -200,7 +200,7 @@ public class UniqueId {
     }
   }
 
-  public Deferred<byte[]> getIdAsync(final String name) {
+  public Deferred<byte[]> getId(final String name) {
     final byte[] id = getIdFromCache(name);
     if (id != null) {
       cache_hits++;
@@ -405,7 +405,7 @@ public class UniqueId {
                   "for " + type + " already exists");
         }
 
-        return getIdAsync(oldname).addCallbackDeferring(new Callback<Deferred<Object>, byte[]>() {
+        return getId(oldname).addCallbackDeferring(new Callback<Deferred<Object>, byte[]>() {
           @Override
           public Deferred<Object> call(final byte[] old_uid) {
             tsdb_store.allocateUID(newname, old_uid, type);
@@ -438,7 +438,7 @@ public class UniqueId {
       }
     }
 
-    return getIdAsync(newname).addCallbacks(new NoId(), new NoSuchId());
+    return getId(newname).addCallbacks(new NoId(), new NoSuchId());
   }
 
   /** The start row to scan on empty search strings.  `!' = first ASCII char. */

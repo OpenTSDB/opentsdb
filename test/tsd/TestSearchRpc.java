@@ -31,6 +31,7 @@ import java.util.List;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -416,9 +417,9 @@ public final class TestSearchRpc {
     final HashMap<String, String> tags_b = new HashMap<String, String>(1);
     tags_b.put("host", "web02");
     
-    when(Tags.resolveIdsAsync(tsdb, pair_a))
+    when(tsdb.getUniqueIdClient().getTagNames(pair_a))
       .thenReturn(Deferred.fromResult(tags_a));
-    when(Tags.resolveIdsAsync(tsdb, pair_b))
+    when(tsdb.getUniqueIdClient().getTagNames(pair_b))
       .thenReturn(Deferred.fromResult(tags_b));
     
     when(Tags.parseWithMetric(anyString(), anyList())).thenCallRealMethod();

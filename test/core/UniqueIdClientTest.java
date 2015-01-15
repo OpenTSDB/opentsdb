@@ -1,9 +1,15 @@
 package net.opentsdb.core;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import org.junit.Before;
@@ -219,5 +225,172 @@ public class UniqueIdClientTest {
   public void assignUidInvalidCharacter() {
     setupAssignUid();
     uniqueIdClient.assignUid(METRIC, "Not!A:Valid@Name");
+  }
+
+  @Test
+  public void validateGoodString() {
+    UniqueIdClient.validateUidName("test", "omg-TSDB/42._foo_");
+  }
+
+  @Test(expected=IllegalArgumentException.class)
+  public void validateNullString() {
+    UniqueIdClient.validateUidName("test", null);
+  }
+
+  @Test(expected=IllegalArgumentException.class)
+  public void validateBadString() {
+    UniqueIdClient.validateUidName("test", "this is a test!");
+  }
+
+  @Test
+  public void getTagNames() throws Exception {
+    setupStorage();
+    setupResolveIds();
+
+    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    ids.add(new byte[] { 0, 0, 1, 0, 0, 1 });
+    final HashMap<String, String> tags = uniqueIdClient.getTagNames(ids)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals("web01", tags.get("host"));
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void getTagNamesNSUI() throws Exception {
+    setupStorage();
+    setupResolveIds();
+
+    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    ids.add(new byte[] { 0, 0, 1, 0, 0, 2 });
+    uniqueIdClient.getTagNames(ids).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  @Test
+  public void getTagNamesEmptyList() throws Exception {
+    setupStorage();
+    setupResolveIds();
+
+    final List<byte[]> ids = new ArrayList<byte[]>(0);
+    final HashMap<String, String> tags = uniqueIdClient.getTagNames(ids)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertNotNull(tags);
+    assertEquals(0, tags.size());
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagNamesWrongLength() throws Exception {
+    setupStorage();
+    setupResolveIds();
+
+    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    ids.add(new byte[] { 0, 0, 1, 0, 0, 0, 2 });
+    uniqueIdClient.getTagNames(ids).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  @Test
+  public void getOrCreateAllCreate() throws Exception {
+    setupStorage();
+    setupResolveAll();
+
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 1}, uids.get(0));
+  }
+
+  @Test
+  public void getOrCreateTagkAllowed() throws Exception {
+    setupStorage();
+    setupResolveAll();
+
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("doesnotexist", "web01");
+    final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 1}, uids.get(0));
+  }
+
+  @Test
+  public void getOrCreateTagkNotAllowedGood() throws Exception {
+    setupStorage();
+    config.overrideConfig("tsd.core.auto_create_tagks", "false");
+    setupResolveAll();
+
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("pop", "web01");
+    final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 2, 0, 0, 1}, uids.get(0));
+  }
+
+  @Test (expected = NoSuchUniqueName.class)
+  public void getOrCreateTagkNotAllowedBlocked() throws Exception {
+    setupStorage();
+    config.overrideConfig("tsd.core.auto_create_tagks", "false");
+    setupResolveAll();
+
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("nonesuch", "web01");
+    uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  @Test
+  public void getOrCreateTagvAllowed() throws Exception {
+    setupStorage();
+    setupResolveAll();
+
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "nohost");
+    final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 3}, uids.get(0));
+  }
+
+  @Test
+  public void getOrCreateTagvNotAllowedGood() throws Exception {
+    setupStorage();
+    config.overrideConfig("tsd.core.auto_create_tagvs", "false");
+    setupResolveAll();
+
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web02");
+    final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals(1, uids.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2}, uids.get(0));
+  }
+
+  @Test (expected = NoSuchUniqueName.class)
+  public void getOrCreateTagvNotAllowedBlocked() throws Exception {
+    setupStorage();
+    config.overrideConfig("tsd.core.auto_create_tagvs", "false");
+    setupResolveAll();
+
+    final Map<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "invalidhost");
+    uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  // PRIVATE helpers to setup unit tests
+
+  private void setupStorage() throws Exception {
+    config = new Config(false);
+    tsdb_store = new MemoryStore();
+    tsdb = new TSDB(tsdb_store, config);
+  }
+
+  private void setupResolveIds() throws Exception {
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
+  }
+
+  private void setupResolveAll() throws Exception {
+    tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("pop", new byte[]{0, 0, 2}, UniqueIdType.TAGK);
+    tsdb_store.allocateUID("doesnotexist", new byte[]{0, 0, 3}, UniqueIdType.TAGK);
+
+    tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("web02", new byte[]{0, 0, 2}, UniqueIdType.TAGV);
+    tsdb_store.allocateUID("nohost", new byte[]{0, 0, 3}, UniqueIdType.TAGV);
   }
 }
