@@ -523,7 +523,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     /** Drops in memory caches.  */
     private void dropCaches(final TSDB tsdb, final Channel chan) {
       LOG.warn("{} Dropping all in-memory caches.", chan);
-      tsdb.dropCaches();
+      tsdb.getUniqueIdClient().dropCaches();
     }
   }
 

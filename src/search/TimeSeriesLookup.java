@@ -202,7 +202,7 @@ public class TimeSeriesLookup {
     if (query.getMetric() != null && !query.getMetric().isEmpty() && 
         !query.getMetric().equals("*")) {
       try {
-        final byte[] metric_uid = tsdb.getUID(UniqueIdType.METRIC,
+        final byte[] metric_uid = tsdb.getUniqueIdClient().getUID(UniqueIdType.METRIC,
                 query.getMetric()).joinUninterruptibly();
 
         LOG.debug("Found UID ({}) for metric ({})",
@@ -224,9 +224,9 @@ public class TimeSeriesLookup {
       for (Pair<String, String> tag : query.getTags()) {
         try {
           final byte[] tagk = tag.getKey() != null && !tag.getKey().equals("*") ?
-                  tsdb.getUID(UniqueIdType.TAGK, tag.getKey()).joinUninterruptibly() : null;
+                  tsdb.getUniqueIdClient().getUID(UniqueIdType.TAGK, tag.getKey()).joinUninterruptibly() : null;
           final byte[] tagv = tag.getValue() != null && !tag.getValue().equals("*") ?
-                  tsdb.getUID(UniqueIdType.TAGV, tag.getValue()).joinUninterruptibly() : null;
+                  tsdb.getUniqueIdClient().getUID(UniqueIdType.TAGV, tag.getValue()).joinUninterruptibly() : null;
           pairs.add(new ByteArrayPair(tagk, tagv));
         } catch (Exception e) {
           Throwables.propagate(e);

@@ -130,7 +130,7 @@ final class UniqueIdRpc implements HttpRpc {
       
       for (String name : entry.getValue()) {
         try {
-          final byte[] uid = tsdb.assignUid(type, name);
+          final byte[] uid = tsdb.getUniqueIdClient().assignUid(type, name);
           results.put(name, 
               UniqueId.uidToString(uid));
         } catch (IllegalArgumentException e) {
@@ -576,10 +576,10 @@ final class UniqueIdRpc implements HttpRpc {
             Const.METRICS_WIDTH + sortedTags.size() *
                     (Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH));
     try {
-      buf.write(tsdb.getUID(UniqueIdType.METRIC, metric).joinUninterruptibly());
+      buf.write(tsdb.getUniqueIdClient().getUID(UniqueIdType.METRIC, metric).joinUninterruptibly());
       for (Entry<String, String> e : sortedTags.entrySet()) {
-        buf.write(tsdb.getUID(UniqueIdType.TAGK, e.getKey()).joinUninterruptibly(), 0, 3);
-        buf.write(tsdb.getUID(UniqueIdType.TAGV, e.getValue()).joinUninterruptibly(), 0, 3);
+        buf.write(tsdb.getUniqueIdClient().getUID(UniqueIdType.TAGK, e.getKey()).joinUninterruptibly(), 0, 3);
+        buf.write(tsdb.getUniqueIdClient().getUID(UniqueIdType.TAGV, e.getValue()).joinUninterruptibly(), 0, 3);
       }
     } catch (IOException e) {
       throw new BadRequestException(e);

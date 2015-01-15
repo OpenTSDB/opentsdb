@@ -259,10 +259,10 @@ public final class Tags {
    */
   static byte[] getValueId(final TSDB tsdb, final byte[] row,
                            final byte[] tag_id) {
-    final short name_width = tsdb.tag_names.width();
-    final short value_width = tsdb.tag_values.width();
+    final short name_width = tsdb.getUniqueIdClient().tag_names.width();
+    final short value_width = tsdb.getUniqueIdClient().tag_values.width();
     // TODO(tsuna): Can do a binary search.
-    for (short pos = (short) (tsdb.metrics.width() + Const.TIMESTAMP_BYTES);
+    for (short pos = (short) (tsdb.getUniqueIdClient().metrics.width() + Const.TIMESTAMP_BYTES);
          pos < row.length;
          pos += name_width + value_width) {
       if (rowContains(row, pos, tag_id)) {
@@ -354,13 +354,13 @@ public final class Tags {
 
     // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      final Deferred<byte[]> name_id = tsdb.tag_names.getIdAsync(entry.getKey());
-      final Deferred<byte[]> value_id = tsdb.tag_values.getIdAsync(entry.getValue());
+      final Deferred<byte[]> name_id = tsdb.getUniqueIdClient().tag_names.getIdAsync(entry.getKey());
+      final Deferred<byte[]> value_id = tsdb.getUniqueIdClient().tag_values.getIdAsync(entry.getValue());
 
       class NoSuchTagNameCB implements Callback<Object, Exception> {
         public Object call(final Exception e) {
           if (e instanceof NoSuchUniqueName && create && create_tagks) {
-            return tsdb.tag_names.createId(entry.getKey());
+            return tsdb.getUniqueIdClient().tag_names.createId(entry.getKey());
           }
 
           return e; // Other unexpected exception, let it bubble up.
@@ -370,7 +370,7 @@ public final class Tags {
       class NoSuchTagValueCB implements Callback<Object, Exception> {
         public Object call(final Exception e) {
           if (e instanceof NoSuchUniqueName && create && create_tagvs) {
-            return tsdb.tag_values.createId(entry.getValue());
+            return tsdb.getUniqueIdClient().tag_values.createId(entry.getValue());
           }
 
           return e; // Other unexpected exception, let it bubble up.
@@ -438,8 +438,8 @@ public final class Tags {
   public static Deferred<HashMap<String, String>> resolveIdsAsync(final TSDB tsdb,
                                             final List<byte[]> tags)
     throws NoSuchUniqueId {
-    final short name_width = tsdb.tag_names.width();
-    final short value_width = tsdb.tag_values.width();
+    final short name_width = tsdb.getUniqueIdClient().tag_names.width();
+    final short value_width = tsdb.getUniqueIdClient().tag_values.width();
     final short tag_bytes = (short) (name_width + value_width);
     final HashMap<String, String> result
       = new HashMap<String, String>(tags.size());
@@ -454,9 +454,9 @@ public final class Tags {
             + " (expected " + tag_bytes + "): " + Arrays.toString(tag));
       }
       System.arraycopy(tag, 0, tmp_name, 0, name_width);
-      deferreds.add(tsdb.tag_names.getNameAsync(tmp_name));
+      deferreds.add(tsdb.getUniqueIdClient().tag_names.getNameAsync(tmp_name));
       System.arraycopy(tag, name_width, tmp_value, 0, value_width);
-      deferreds.add(tsdb.tag_values.getNameAsync(tmp_value));
+      deferreds.add(tsdb.getUniqueIdClient().tag_values.getNameAsync(tmp_value));
     }
     
     class GroupCB implements Callback<HashMap<String, String>, ArrayList<String>> {

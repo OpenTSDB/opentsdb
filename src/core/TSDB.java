@@ -22,7 +22,6 @@ import java.util.Iterator;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Suppliers;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
@@ -34,7 +33,6 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.tree.TreeRule;
 
-import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
@@ -90,17 +88,11 @@ public class TSDB {
   /** Name of the table where meta data is stored. */
   final byte[] meta_table;
 
-  /** Unique IDs for the metric names. */
-  final UniqueId metrics;
-  /** Unique IDs for the tag names. */
-  final UniqueId tag_names;
-  /** Unique IDs for the tag values. */
-  final UniqueId tag_values;
-
   /** Configuration object for all TSDB components */
   final Config config;
 
   private final MetaClient metaClient;
+  private final UniqueIdClient uniqueIdClient;
 
   /** Search indexer to use if configure */
   private SearchPlugin search = null;
@@ -126,30 +118,12 @@ public class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    metrics = new UniqueId(client, uidtable, UniqueIdType.METRIC);
-    tag_names = new UniqueId(client, uidtable, UniqueIdType.TAGK);
-    tag_values = new UniqueId(client, uidtable, UniqueIdType.TAGV);
-
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
-    if (config.enable_realtime_ts() || config.enable_realtime_uid()) {
-      // this is cleaner than another constructor and defaults to null. UIDs 
-      // will be refactored with DAL code anyways
-      metrics.setTSDB(this);
-      tag_names.setTSDB(this);
-      tag_values.setTSDB(this);
-    }
-    
-    if (config.getBoolean("tsd.core.preload_uid_cache")) {
-      final ByteMap<UniqueId> uid_cache_map = new ByteMap<UniqueId>();
-      uid_cache_map.put(Const.METRICS_QUAL.getBytes(CHARSET), metrics);
-      uid_cache_map.put(Const.TAG_NAME_QUAL.getBytes(CHARSET), tag_names);
-      uid_cache_map.put(Const.TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
-      UniqueId.preloadUidCache(this, uid_cache_map);
-    }
 
     metaClient = new MetaClient(tsdb_store);
+    uniqueIdClient = new UniqueIdClient(tsdb_store, config, this);
 
     LOG.debug(config.dumpConfiguration());
   }
@@ -172,76 +146,8 @@ public class TSDB {
     return metaClient;
   }
 
-  /**
-   * Returns a initialized TSUID for this metric and these tags.
-   * @since 2.0
-   */
-  Deferred<byte[]> getTSUID(final String metric,
-                            final Map<String, String> tags) {
-    final short metric_width = metrics.width();
-    final short tag_name_width = tag_names.width();
-    final short tag_value_width = tag_values.width();
-    final short num_tags = (short) tags.size();
-
-    int row_size = (metric_width
-                    + tag_name_width * num_tags
-                    + tag_value_width * num_tags);
-    final byte[] row = new byte[row_size];
-
-    final boolean auto_create_metrics =
-            config.getBoolean("tsd.core.auto_create_metrics");
-
-    // Lookup or create the metric ID.
-    final Deferred<byte[]> metric_id = metrics.getIdAsync(metric);
-
-    // Copy the metric ID at the beginning of the row key.
-    class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
-      public byte[] call(final byte[] metricid) {
-        copyInRowKey(row, (short) 0, metricid);
-        return row;
-      }
-    }
-
-    class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
-      public Object call(final Exception e) {
-        if (e instanceof NoSuchUniqueName && auto_create_metrics) {
-          return metrics.createId(metric);
-        }
-
-        return e; // Other unexpected exception, let it bubble up.
-      }
-    }
-
-    // Copy the tag IDs in the row key.
-    class CopyTagsInRowKeyCB
-      implements Callback<Deferred<byte[]>, ArrayList<byte[]>> {
-      public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
-        short pos = metric_width;
-        for (final byte[] tag : tags) {
-          copyInRowKey(row, pos, tag);
-          pos += tag.length;
-        }
-        // Once we've resolved all the tags, schedule the copy of the metric
-        // ID and return the row key we produced.
-        return metric_id
-                .addErrback(new HandleNoSuchUniqueNameCB())
-                .addCallback(new CopyMetricInRowKeyCB());
-      }
-    }
-
-    // Kick off the resolution of all tags.
-    return Tags.resolveOrCreateAllAsync(this, tags)
-      .addCallbackDeferring(new CopyTagsInRowKeyCB());
-  }
-
-  /**
-   * Copies the specified byte array at the specified offset in the row key.
-   * @param row The row key into which to copy the bytes.
-   * @param offset The offset in the row key to start writing at.
-   * @param bytes The bytes to copy.
-   */
-  private void copyInRowKey(final byte[] row, final short offset, final byte[] bytes) {
-    System.arraycopy(bytes, 0, row, offset, bytes.length);
+  public UniqueIdClient getUniqueIdClient() {
+    return uniqueIdClient;
   }
 
   /**
@@ -348,40 +254,6 @@ public class TSDB {
   }
 
   /**
-   * Attempts to find the name for a unique identifier given a type
-   * @param type The type of UID
-   * @param uid The UID to search for
-   * @return The name of the UID object if found
-   * @throws IllegalArgumentException if the type is not valid
-   * @throws net.opentsdb.uid.NoSuchUniqueId if the UID was not found
-   * @since 2.0
-   */
-  public Deferred<String> getUidName(final UniqueIdType type, final byte[] uid) {
-    if (uid == null) {
-      throw new IllegalArgumentException("Missing UID");
-    }
-
-    UniqueId uniqueId = uniqueIdInstanceForType(type);
-    return uniqueId.getNameAsync(uid);
-  }
-  
-  /**
-   * Attempts to find the UID matching a given name
-   * @param type The type of UID
-   * @param name The name to search for
-   * @throws IllegalArgumentException if the type is not valid
-   * @since 2.0
-   */
-  public Deferred<byte[]> getUID(final UniqueIdType type, final String name) {
-    if (name == null || name.isEmpty()) {
-      throw new IllegalArgumentException("Missing UID name");
-    }
-
-    UniqueId uniqueId = uniqueIdInstanceForType(type);
-    return uniqueId.getIdAsync(name);
-  }
-  
-  /**
    * Verifies that the data and UID tables exist in TsdbStore and optionally the
    * tree and meta data tables if the user has enabled meta tracking or tree
    * building
@@ -391,62 +263,13 @@ public class TSDB {
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
     return tsdb_store.checkNecessaryTablesExist();
   }
-  
-  /** Number of cache hits during lookups involving UIDs. */
-  public int uidCacheHits() {
-    return (metrics.cacheHits() + tag_names.cacheHits()
-            + tag_values.cacheHits());
-  }
-
-  /** Number of cache misses during lookups involving UIDs. */
-  public int uidCacheMisses() {
-    return (metrics.cacheMisses() + tag_names.cacheMisses()
-            + tag_values.cacheMisses());
-  }
-
-  /** Number of cache entries currently in RAM for lookups involving UIDs. */
-  public int uidCacheSize() {
-    return (metrics.cacheSize() + tag_names.cacheSize()
-            + tag_values.cacheSize());
-  }
 
   /**
    * Collects the stats and metrics tracked by this instance.
    * @param collector The collector to use.
    */
   public void collectStats(final StatsCollector collector) {
-    final byte[][] kinds = {
-            Const.METRICS_QUAL.getBytes(CHARSET),
-            Const.TAG_NAME_QUAL.getBytes(CHARSET),
-            Const.TAG_VALUE_QUAL.getBytes(CHARSET)
-    };
-    try {
-      final Map<String, Long> used_uids = UniqueId.getUsedUIDs(this, kinds)
-              .joinUninterruptibly();
-
-      collectUidStats(metrics, collector);
-      collector.record("uid.ids-used", used_uids.get(Const.METRICS_QUAL),
-              "kind=" + Const.METRICS_QUAL);
-      collector.record("uid.ids-available",
-              (metrics.maxPossibleId() - used_uids.get(Const.METRICS_QUAL)),
-              "kind=" + Const.METRICS_QUAL);
-
-      collectUidStats(tag_names, collector);
-      collector.record("uid.ids-used", used_uids.get(Const.TAG_NAME_QUAL),
-              "kind=" + Const.TAG_NAME_QUAL);
-      collector.record("uid.ids-available",
-              (tag_names.maxPossibleId() - used_uids.get(Const.TAG_NAME_QUAL)),
-              "kind=" + Const.TAG_NAME_QUAL);
-
-      collectUidStats(tag_values, collector);
-      collector.record("uid.ids-used", used_uids.get(Const.TAG_VALUE_QUAL),
-              "kind=" + Const.TAG_VALUE_QUAL);
-      collector.record("uid.ids-available",
-              (tag_values.maxPossibleId() - used_uids.get(Const.TAG_VALUE_QUAL)),
-              "kind=" + Const.TAG_VALUE_QUAL);
-    } catch (Exception e) {
-      throw new RuntimeException("Shouldn't be here", e);
-    }
+    uniqueIdClient.collectStats(collector, this);
 
     {
       final Runtime runtime = Runtime.getRuntime();
@@ -507,18 +330,6 @@ public class TSDB {
   /** Returns a latency histogram for Scan RPCs used to fetch data points.  */
   public Histogram getScanLatencyHistogram() {
     return Query.scanlatency;
-  }
-
-  /**
-   * Collects the stats for a {@link UniqueId}.
-   * @param uid The instance from which to collect stats.
-   * @param collector The collector to use.
-   */
-  private static void collectUidStats(final UniqueId uid,
-                                      final StatsCollector collector) {
-    collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.type().qualifier);
-    collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.type().qualifier);
-    collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.type().qualifier);
   }
 
   /**
@@ -674,7 +485,7 @@ public class TSDB {
       }
     }
 
-    return this.getTSUID(metric, tags)
+    return this.uniqueIdClient.getTSUID(metric, tags, this)
             .addCallbackDeferring(new RowKeyCB());
 
   }
@@ -780,7 +591,7 @@ public class TSDB {
    */
   public Deferred<List<String>> suggest(final UniqueIdType type,
                                         final String search) {
-    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    UniqueId uniqueId = uniqueIdClient.uniqueIdInstanceForType(type);
     return uniqueId.suggest(search);
   }
 
@@ -795,63 +606,10 @@ public class TSDB {
   public Deferred<List<String>> suggest(final UniqueIdType type,
                                         final String search,
                                         final int max_results) {
-    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    UniqueId uniqueId = uniqueIdClient.uniqueIdInstanceForType(type);
     return uniqueId.suggest(search, max_results);
   }
 
-  /**
-   * Discards all in-memory caches.
-   * @since 1.1
-   */
-  public void dropCaches() {
-    metrics.dropCaches();
-    tag_names.dropCaches();
-    tag_values.dropCaches();
-  }
-
-  /**
-   * Attempts to assign a UID to a name for the given type
-   * Used by the UniqueIdRpc call to generate IDs for new metrics, tagks or 
-   * tagvs. The name must pass validation and if it's already assigned a UID,
-   * this method will throw an error with the proper UID. Otherwise if it can
-   * create the UID, it will be returned
-   * @param type The type of uid to assign, metric, tagk or tagv
-   * @param name The name of the uid object
-   * @return A byte array with the UID if the assignment was successful
-   * @throws IllegalArgumentException if the name is invalid or it already 
-   * exists
-   * @since 2.0
-   */
-  public byte[] assignUid(final UniqueIdType type, final String name) {
-    Tags.validateString(type.toString(), name);
-    UniqueId instance = uniqueIdInstanceForType(type);
-
-    try {
-      try {
-        final byte[] uid = instance.getIdAsync(name).joinUninterruptibly();
-        throw new IllegalArgumentException("Name already exists with UID: " +
-                UniqueId.uidToString(uid));
-      } catch (NoSuchUniqueName nsue) {
-        return instance.createId(name).joinUninterruptibly();
-      }
-    } catch (Exception e) {
-      throw Throwables.propagate(e);
-    }
-  }
-
-  private UniqueId uniqueIdInstanceForType(UniqueIdType type) {
-    switch (type) {
-      case METRIC:
-        return metrics;
-      case TAGK:
-        return tag_names;
-      case TAGV:
-        return tag_values;
-      default:
-        throw new IllegalArgumentException(type + " is unknown");
-    }
-  }
-  
   /** @return the name of the UID table as a byte array for TsdbStore requests */
   public byte[] uidTable() {
     return this.uidtable;
@@ -1124,7 +882,7 @@ public class TSDB {
       throw new IllegalStateException("No changes detected in UID meta data");
     }
 
-    return this.getUidName(meta.getType(), meta.getUID()).addCallbackDeferring(
+    return this.uniqueIdClient.getUidName(meta.getType(), meta.getUID()).addCallbackDeferring(
       new Callback<Deferred<Boolean>, String>() {
         @Override
         public Deferred<Boolean> call(String arg) {
@@ -1217,7 +975,7 @@ public class TSDB {
     }
 
     // verify that the UID is still in the map before fetching from storage
-    return getUidName(type, uid).addCallbackDeferring(new NameCB());
+    return uniqueIdClient.getUidName(type, uid).addCallbackDeferring(new NameCB());
   }
 
   /**
@@ -1610,16 +1368,16 @@ public class TSDB {
     // calculate the metric UID and fetch it's name mapping
     final byte[] metric_uid = UniqueId.stringToUid(
             tsMeta.getTSUID().substring(0, Const.METRICS_WIDTH * 2));
-    uid_group.add(getUidName(UniqueIdType.METRIC, metric_uid)
+    uid_group.add(uniqueIdClient.getUidName(UniqueIdType.METRIC, metric_uid)
             .addCallback(new UidCB()));
 
     int idx = 0;
     for (byte[] tag : parsed_tags) {
       if (idx % 2 == 0) {
-        uid_group.add(getUidName(UniqueIdType.TAGK, tag)
+        uid_group.add(uniqueIdClient.getUidName(UniqueIdType.TAGK, tag)
                 .addCallback(new UidCB()));
       } else {
-        uid_group.add(getUidName(UniqueIdType.TAGV, tag)
+        uid_group.add(uniqueIdClient.getUidName(UniqueIdType.TAGV, tag)
                 .addCallback(new UidCB()));
       }
       idx++;
