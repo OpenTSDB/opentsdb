@@ -355,11 +355,6 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
-    return this.client.bufferAtomicIncrement(request);
-  }
-
-  @Override
   public Deferred<Object> delete(DeleteRequest request) {
     return this.client.delete(request);
   }

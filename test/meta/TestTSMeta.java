@@ -19,6 +19,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyByte;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -307,8 +308,7 @@ public final class TestTSMeta {
   public void incrementAndGetCounter() throws Exception {
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
     tsdb.incrementAndGetCounter(tsuid).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    verify(tsdb_store).
-            bufferAtomicIncrement((AtomicIncrementRequest) any());
+    verify(tsdb_store).incrementAndGetCounter(any(byte[].class));
   }
   
   @Test (expected = NoSuchUniqueId.class)

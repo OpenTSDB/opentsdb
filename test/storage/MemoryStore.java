@@ -161,11 +161,6 @@ public class MemoryStore implements TsdbStore {
     return Deferred.fromResult(incremented_value);
   }
 
-  @Override
-  public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
-    return atomicIncrement(request);
-  }
-
   /**
    * Deletes one or more columns. If a row no longer has any valid columns, the
    * entire row will be removed.
