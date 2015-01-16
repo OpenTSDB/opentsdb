@@ -1307,6 +1307,11 @@ public class TSDB {
     return tsdb_store.delete(tsMeta);
   }
 
+  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
+    ts.checkTSUI();
+    return tsdb_store.deleteTimeseriesCounter(ts);
+  }
+
   /**
    * Attempts to store a new, blank timeseries meta object via a Put
    * <b>Note:</b> This should not be called by user accessible methods as it will

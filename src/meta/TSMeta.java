@@ -52,8 +52,8 @@ public final class TSMeta {
 
   //TODO remove these 3
   private static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(CHARSET);
-  private static final byte[] FAMILY = "".getBytes(CHARSET);
-  private static final byte[] META_QUALIFIER = "".getBytes(CHARSET);
+  private static final byte[] FAMILY = "name".getBytes(CHARSET);
+  private static final byte[] META_QUALIFIER = "ts_meta".getBytes(CHARSET);
 
   /** Hexadecimal representation of the TSUID this metadata is associated with */
   private String tsuid = "";
@@ -121,6 +121,10 @@ public final class TSMeta {
    */
   public TSMeta(final String tsuid) {
     this.tsuid = tsuid;
+  }
+
+  public TSMeta(final byte[] tsuid) {
+    this.tsuid = UniqueId.uidToString(tsuid);
   }
   
   /**

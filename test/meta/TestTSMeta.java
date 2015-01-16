@@ -268,7 +268,7 @@ public final class TestTSMeta {
   
   @Test (expected = IllegalArgumentException.class)
   public void storeNewNull() throws Exception {
-    meta = new TSMeta(null);
+    meta = new TSMeta((String) null);
     tsdb.create(meta);
   }
   

@@ -2395,6 +2395,13 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
+    final DeleteRequest delete = new DeleteRequest(meta_table_name,
+            UniqueId.stringToUid(ts.getTSUID()), TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER);
+    return client.delete(delete);
+  }
+
+  @Override
   public Deferred<Boolean> create(final TSMeta tsMeta) {
     try {
       final PutRequest put = new PutRequest(meta_table_name,

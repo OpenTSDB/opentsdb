@@ -1146,6 +1146,11 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
+    return null;
+  }
+
+  @Override
   public Deferred<Boolean> create(TSMeta tsMeta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }

@@ -161,6 +161,8 @@ public interface TsdbStore {
 
   Deferred<Object> delete(final TSMeta tsMeta);
 
+  Deferred<Object> deleteTimeseriesCounter(final TSMeta ts);
+
   Deferred<Boolean> create(final TSMeta tsMeta);
 
   Deferred<TSMeta> getTSMeta(final byte[] tsuid);

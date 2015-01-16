@@ -364,7 +364,7 @@ final class Fsck {
           LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t{}", kv);
           if (options.fix() && options.deleteUnknownColumns()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-            tsdb.getTsdbStore().delete(delete);
+            tsdb.getHBaseStore().delete(delete);
             unknown_fixed.getAndIncrement();
           }
           continue;
@@ -383,7 +383,7 @@ final class Fsck {
             LOG.error("Unknown qualifier, must be 2, 3, 5 or an even number of bytes.\n\t{}", kv);
             if (options.fix() && options.deleteUnknownColumns()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-              tsdb.getTsdbStore().delete(delete);
+              tsdb.getHBaseStore().delete(delete);
               unknown_fixed.getAndIncrement();
             }
             continue;
@@ -456,7 +456,7 @@ final class Fsck {
             LOG.error(e.getMessage());
             if (options.fix() && options.deleteBadCompacts()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-              tsdb.getTsdbStore().delete(delete);
+              tsdb.getHBaseStore().delete(delete);
               bad_compacted_columns_deleted.getAndIncrement();
             }
           }
@@ -502,7 +502,7 @@ final class Fsck {
         
         if (options.fix() && options.deleteBadRows()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-          tsdb.getTsdbStore().delete(delete);
+          tsdb.getHBaseStore().delete(delete);
           bad_key_fixed.getAndIncrement();
         }
         return false;
@@ -522,7 +522,7 @@ final class Fsck {
           
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getTsdbStore().delete(delete);
+            tsdb.getHBaseStore().delete(delete);
             orphans_fixed.getAndIncrement();
           }
           return false;
@@ -537,7 +537,7 @@ final class Fsck {
           
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getTsdbStore().delete(delete);
+            tsdb.getHBaseStore().delete(delete);
             orphans_fixed.getAndIncrement();
           }
           return false;

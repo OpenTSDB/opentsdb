@@ -439,7 +439,7 @@ final class UniqueIdRpc implements HttpRpc {
       } else {
         meta = this.parseTSMetaQS(query);
       }
-      try{
+      try {
         tsdb.delete(meta);
         tsdb.deleteTSMeta(meta.getTSUID());
       } catch (IllegalArgumentException e) {
