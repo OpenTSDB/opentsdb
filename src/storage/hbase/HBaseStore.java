@@ -331,7 +331,7 @@ public class HBaseStore implements TsdbStore {
     final DeleteRequest delete = new DeleteRequest(data_table_name,
             getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), TS_FAMILY,
             getAnnotationQualifier(annotation.getStartTime()));
-    return delete(delete);
+    return client.delete(delete);
   }
 
   @Override
@@ -354,7 +354,7 @@ public class HBaseStore implements TsdbStore {
     }
   }
 
-  @Override
+  @Deprecated
   public Deferred<Object> delete(DeleteRequest request) {
     return this.client.delete(request);
   }
@@ -1479,7 +1479,7 @@ public class HBaseStore implements TsdbStore {
                     row.get(0).key(), TREE_FAMILY,
                     qualifiers.toArray(new byte[qualifiers.size()][])
             );
-            delete_deferreds.add(delete(delete));
+            delete_deferreds.add(client.delete(delete));
           }
         }
 

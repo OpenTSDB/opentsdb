@@ -50,8 +50,6 @@ public interface TsdbStore {
    */
   Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time);
 
-  public Deferred<Object> delete(final DeleteRequest request);
-
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist();
 
   public Deferred<Object> flush();
