@@ -84,14 +84,14 @@ final class DumpSeries {
     final boolean importformat = delete || argp.has("--import");
     argp = null;
     try {
-      doDump(tsdb, tsdb.getTsdbStore(), table, delete, importformat, args);
+      doDump(tsdb, tsdb.getHBaseStore(), table, delete, importformat, args);
     } finally {
       tsdb.shutdown().joinUninterruptibly();
     }
   }
 
   private static void doDump(final TSDB tsdb,
-                             final TsdbStore tsdb_store,
+                             final HBaseStore tsdb_store,
                              final byte[] table,
                              final boolean delete,
                              final boolean importformat,

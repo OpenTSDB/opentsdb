@@ -19,6 +19,7 @@ import java.util.Arrays;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.meta.UIDMeta;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -144,7 +145,7 @@ final class MetaPurge extends Thread {
           for (KeyValue column : row) {
             if (Bytes.equals(TSMeta.META_QUALIFIER(), column.qualifier())) {
               qualifiers.add(column.qualifier());
-            } else if (Bytes.equals("metric_meta".getBytes(CHARSET), 
+            } else if (Bytes.equals("metric_meta".getBytes(CHARSET),
                 column.qualifier())) {
               qualifiers.add(column.qualifier());
             } else if (Bytes.equals("tagk_meta".getBytes(CHARSET), 
