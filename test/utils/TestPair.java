@@ -18,9 +18,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import net.opentsdb.storage.json.StorageModule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -180,43 +183,53 @@ public class TestPair {
   }
   
   @Test
-  public void serdes() {
+  public void serdes() throws IOException {
     final Pair<String, String> ser = new Pair<String, String>("host", "web01");
-    final String json = JSON.serializeToString(ser);
+    ObjectMapper jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
+
+    final String json = jsonMapper.writeValueAsString(ser);
+
     assertEquals("{\"key\":\"host\",\"value\":\"web01\"}", json);
-    
-    @SuppressWarnings("unchecked")
-    final Pair<String, String> des = JSON.parseToObject(json, Pair.class);
+
+    final Pair<String, String> des = jsonMapper.reader(Pair.class).readValue
+            (json);
+
     assertEquals("host", des.getKey());
     assertEquals("web01", des.getValue());
   }
   
   @Test
-  public void serdesNulls() {
+  public void serdesNulls() throws IOException {
     final Pair<String, String> ser = new Pair<String, String>();
-    final String json = JSON.serializeToString(ser);
+    ObjectMapper jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
+    final String json = jsonMapper.writeValueAsString(ser);
     assertEquals("{\"key\":null,\"value\":null}", json);
-    
-    @SuppressWarnings("unchecked")
-    final Pair<String, String> des = JSON.parseToObject(json, Pair.class);
+
+    final Pair<String, String> des = jsonMapper.reader(Pair.class).readValue
+            (json);
     assertNull(des.getKey());
     assertNull(des.getValue());
   }
   
   @Test
-  public void serdesList() {
+  public void serdesList() throws IOException {
     final List<Pair<String, String>> ser = 
         new ArrayList<Pair<String, String>>(2);
     ser.add(new Pair<String, String>("host", "web01"));
     ser.add(new Pair<String, String>(null, "keyisnull"));
-    final String json = JSON.serializeToString(ser);
+
+    ObjectMapper jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
+
+    final String json = jsonMapper.writeValueAsString(ser);
     assertEquals("[{\"key\":\"host\",\"value\":\"web01\"}," + 
         "{\"key\":null,\"value\":\"keyisnull\"}]", json);
 
-    final TypeReference<List<Pair<String, String>>> TR = 
-        new TypeReference<List<Pair<String, String>>>() {};
-        
-    final List<Pair<String, String>> des = JSON.parseToObject(json, TR);
+    final List<Pair<String, String>> des = jsonMapper.readValue(json, new
+            TypeReference<List<Pair<String, String>>>() {});
+
     assertEquals(2, des.size());
     assertEquals("host", des.get(0).getKey());
     assertEquals("web01", des.get(0).getValue());
