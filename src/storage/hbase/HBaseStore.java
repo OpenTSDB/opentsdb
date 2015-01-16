@@ -2579,10 +2579,10 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public void setTSMetaCounter(final byte[] tsuid, final long number) {
+  public Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number) {
       final PutRequest tracking = new PutRequest(meta_table_name, tsuid,
-              TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(number));
-      client.put(tracking);
+              TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER, Bytes.fromLong(number));
+      return client.put(tracking);
  }
 
 }

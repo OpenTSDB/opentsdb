@@ -173,5 +173,5 @@ public interface TsdbStore {
 
   Deferred<Long> incrementAndGetCounter(final byte[] tsuid);
 
-  void setTSMetaCounter(final byte[] tsuid, final long number);
+  Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number);
 }

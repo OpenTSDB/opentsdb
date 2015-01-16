@@ -23,6 +23,7 @@ import java.util.TreeMap;
 
 import net.opentsdb.core.Const;
 
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
@@ -343,28 +344,24 @@ final class UniqueIdRpc implements HttpRpc {
 
       }
 
-      if (meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
+      if (Strings.isNullOrEmpty(meta.getTSUID())) {
         // we got a JSON object without TSUID. Try to find a timeseries spec of
         // the form "m": "metric{tagk=tagv,...}"
         final String metric = query.getRequiredQueryStringParam("m");
-        final boolean create = query.getQueryStringParam("create") != null
-            && query.getQueryStringParam("create").equals("true");
         final String tsuid = getTSUIDForMetric(metric, tsdb);
+
+        final boolean create = query.getQueryStringParam("create") != null &&
+                               query.getQueryStringParam("create").equals("true");
         
         class WriteCounterIfNotPresentCB implements Callback<Boolean, Boolean> {
-
           @Override
           public Boolean call(Boolean exists) throws Exception {
             if (!exists && create) {
-              final PutRequest put = new PutRequest(tsdb.metaTable(), 
-                  UniqueId.stringToUid(tsuid), TSMeta.FAMILY(), 
-                  TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(0));    
-              tsdb.getTsdbStore().put(put);
+              tsdb.createTimeseriesCounter(new TSMeta(tsuid));
             }
 
             return exists;
           }
-
         }
 
         try {

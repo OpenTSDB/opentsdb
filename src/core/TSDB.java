@@ -1326,8 +1326,17 @@ public class TSDB {
    */
   public Deferred<Boolean> create(final TSMeta tsMeta) {
     tsMeta.checkTSUI();
-
     return tsdb_store.create(tsMeta);
+  }
+
+  /**
+   * Create the counter for a timeseries meta object.
+   * @param ts The Timeseries meta object to create the counter for
+   * @return A deferred that indicates the completion of the request
+   */
+  public Deferred<Object> createTimeseriesCounter(final TSMeta ts) {
+    ts.checkTSUI();
+    return tsdb_store.setTSMetaCounter(UniqueId.stringToUid(ts.getTSUID()), 0);
   }
 
 
