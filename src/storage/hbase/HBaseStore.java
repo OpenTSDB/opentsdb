@@ -482,7 +482,7 @@ public class HBaseStore implements TsdbStore {
     return this.client.getFlushInterval();
   }
 
-  @Override
+  @Deprecated
   public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
     return this.client.atomicIncrement(air);
   }

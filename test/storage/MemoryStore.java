@@ -128,40 +128,6 @@ public class MemoryStore implements TsdbStore {
   }
 
   /**
-   * Creates or increments (possibly decrements) a Long in the hash table at the
-   * given location.
-   */
-  @Override
-  public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
-    final long amount = air.getAmount();
-    Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(air.key());
-    if (row == null) {
-      row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
-      storage.put(air.key(), row);
-    }
-
-    Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(air.family());
-    if (cf == null) {
-      cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
-      row.put(air.family(), cf);
-    }
-
-    TreeMap<Long, byte[]> column = cf.get(air.qualifier());
-    if (column == null) {
-      column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
-      cf.put(air.qualifier(), column);
-      column.put(current_timestamp++, Bytes.fromLong(amount));
-      return Deferred.fromResult(amount);
-    }
-
-    long incremented_value = Bytes.getLong(column.firstEntry().getValue());
-    incremented_value += amount;
-    column.put(column.firstKey(), Bytes.fromLong(incremented_value));
-    return Deferred.fromResult(incremented_value);
-  }
-
-  /**
    * Deletes one or more columns. If a row no longer has any valid columns, the
    * entire row will be removed.
    */

@@ -39,6 +39,7 @@ import org.hbase.async.Scanner;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -170,7 +171,7 @@ final class UidManager {
           }
         }
       }
-      return fsck(tsdb.getTsdbStore(), table, fix, fix_unknowns);
+      return fsck(tsdb.getHBaseStore(), table, fix, fix_unknowns);
     } else if (args[0].equals("metasync")) {
       // check for the data table existence and initialize our plugins 
       // so that update meta data can be pushed to search engines
@@ -387,7 +388,7 @@ final class UidManager {
    * @param table The name of the table to use.
    * @return The exit status of the command (0 means success).
    */
-  private static int fsck(final TsdbStore tsdb_store, final byte[] table,
+  private static int fsck(final HBaseStore tsdb_store, final byte[] table,
       final boolean fix, final boolean fix_unknowns) {
 
     if (fix) {
