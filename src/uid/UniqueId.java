@@ -102,7 +102,9 @@ public class UniqueId {
    * @param table The name of the table to use.
    * @param type The type of UIDs this instance represents
    */
-  public UniqueId(final TsdbStore tsdb_store, final byte[] table, UniqueIdType type) {
+  public UniqueId(final TsdbStore tsdb_store,
+                  final byte[] table,
+                  final UniqueIdType type) {
     this.tsdb_store = checkNotNull(tsdb_store);
     this.table = checkNotNull(table);
     this.type = checkNotNull(type);
