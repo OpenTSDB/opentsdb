@@ -60,8 +60,6 @@ public interface TsdbStore {
 
   public Scanner newScanner(final byte[] table);
 
-  public Deferred<Object> put(final PutRequest request);
-
   void setFlushInterval(short aShort);
 
   Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags);

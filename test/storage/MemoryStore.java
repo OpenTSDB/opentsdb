@@ -208,39 +208,6 @@ public class MemoryStore implements TsdbStore {
     return scanner;
   }
 
-  /**
-   * Stores one or more columns in a row. If the row does not exist, it's
-   * created.
-   */
-  @Override
-  public Deferred<Object> put(PutRequest put) {
-    Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(put.key());
-    if (row == null) {
-      row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
-      storage.put(put.key(), row);
-    }
-
-    Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(put.family());
-    if (cf == null) {
-      cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
-      row.put(put.family(), cf);
-    }
-
-    for (int i = 0; i < put.qualifiers().length; i++) {
-      TreeMap<Long, byte[]> column = cf.get(put.qualifiers()[i]);
-      if (column == null) {
-        column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
-        cf.put(put.qualifiers()[i], column);
-      }
-
-      column.put(put.timestamp() != Long.MAX_VALUE ? put.timestamp() :
-        current_timestamp++, put.values()[i]);
-    }
-
-    return Deferred.fromResult(null);
-  }
-
   @Override
   public void setFlushInterval(short aShort) {
   }

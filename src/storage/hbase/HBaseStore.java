@@ -404,7 +404,7 @@ public class HBaseStore implements TsdbStore {
     return this.client.newScanner(table);
   }
 
-  @Override
+  @Deprecated
   public Deferred<Object> put(PutRequest request) {
     return this.client.put(request);
   }

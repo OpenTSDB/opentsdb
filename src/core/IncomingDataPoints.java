@@ -175,11 +175,11 @@ class IncomingDataPoints implements WritableDataPoints {
       updateBaseTime(incoming_base_time);
     }
 
-    // Java is so stupid with its auto-promotion of int to float.
-    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
+    // TODO(luuse): This will start compaction early. The import
+    // functionality will need to be rewritten. Maybe with streams? Also it
+    // won't add with durable set to true (see bellow).
+    return tsdb.getTsdbStore().addPoint(RowKey.tsuid(row), value, timestamp, flags);
 
-    final PutRequest point = new PutRequest(tsdb.table, row, TSDB.FAMILY,
-                                            qualifier, value);
     // TODO(tsuna): The following timing is rather useless.  First of all,
     // the histogram never resets, so it tends to converge to a certain
     // distribution and never changes.  What we really want is a moving
@@ -200,8 +200,8 @@ class IncomingDataPoints implements WritableDataPoints {
     //};
 
     // TODO(tsuna): Add an errback to handle some error cases here.
-    point.setDurable(!batch_import);
-    return tsdb.tsdb_store.put(point)/*.addBoth(cb)*/;
+    //point.setDurable(!batch_import);
+    //return tsdb.tsdb_store.put(point)/*.addBoth(cb)*/;
   }
 
   private void grow() {

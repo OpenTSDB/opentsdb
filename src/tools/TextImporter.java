@@ -35,6 +35,7 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.utils.Config;
 
 final class TextImporter {
@@ -70,7 +71,7 @@ final class TextImporter {
       int points = 0;
       final long start_time = System.nanoTime();
       for (final String path : args) {
-        points += importFile(tsdb.getTsdbStore(), tsdb, path);
+        points += importFile(tsdb.getHBaseStore(), tsdb, path);
       }
       final double time_delta = (System.nanoTime() - start_time) / 1000000000.0;
       LOG.info(String.format("Total: imported %d data points in %.3fs"
@@ -95,7 +96,7 @@ final class TextImporter {
 
   static volatile boolean throttle = false;
 
-  private static int importFile(final TsdbStore tsdb_store,
+  private static int importFile(final HBaseStore tsdb_store,
                                 final TSDB tsdb,
                                 final String path) throws IOException {
     final long start_time = System.nanoTime();
