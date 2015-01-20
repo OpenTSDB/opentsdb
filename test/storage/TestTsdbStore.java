@@ -599,6 +599,20 @@ public abstract class TestTsdbStore {
     tsdb_store.getMeta(new byte[]{0, 0, 1}, "derp", UniqueIdType.TAGK);
   }
 
+  /* COUNTER TESTS */
+
+  @Test
+  public void deleteTimeseriesCounter() {
+    //tsdb_store.deleteTimeseriesCounter(TSMeta ts);
+    fail();
+  }
+
+  @Test
+  public void setTSMetaCounter() {
+    //tsdb_store.setTSMetaCounter(byte[] tsuid, long number);
+    fail();
+  }
+
   protected byte[] emptyArray() {
     return eq(HBaseClient.EMPTY_ARRAY);
   }

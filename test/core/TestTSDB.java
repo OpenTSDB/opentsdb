@@ -12,14 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static net.opentsdb.uid.UniqueIdType.*;
-
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueIdType.TAGK;
+import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -33,7 +34,6 @@ import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.TestTree;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
-import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -1035,6 +1035,10 @@ public final class TestTSDB {
          id <= Const.MAX_TREE_ID_INCLUSIVE; ++id) {
       tsdb.deleteAllTreeRules(id);
     }
+  }
+  @Test
+  public void getHBaseStore() {
+    fail();
   }
 
 

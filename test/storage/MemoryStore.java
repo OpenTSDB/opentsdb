@@ -1045,7 +1045,8 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> setTSMetaCounter(byte[] tsuid, long number) {
+  public Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long
+          number) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
