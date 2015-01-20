@@ -373,7 +373,7 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-math3</artifactId>
-      <version>3.4.1</version>
+      <version>@APACHE_MATH_VERSION@</version>
     </dependency>
 
     <!-- runtime dependencies -->
