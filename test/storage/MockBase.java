@@ -172,24 +172,6 @@ public final class MockBase {
     .then(new MockAtomicIncrement());
   }
 
-  /**
-   * Setups up mock intercepts for all of the calls. Depending on the given
-   * flags, some mocks may not be enabled, allowing local unit tests to setup
-   * their own mocks.
-   * @param default_get Enable the default .get() mock
-   * @param default_put Enable the default .put() and .compareAndSet() mocks
-   * @param default_delete Enable the default .delete() mock
-   * @param default_scan Enable the Scanner mock implementation
-   */
-  public MockBase(
-      final boolean default_get, 
-      final boolean default_put,
-      final boolean default_delete,
-      final boolean default_scan) throws IOException {
-    this(new TSDB(new Config(false)), mock(HBaseClient.class), 
-        default_get, default_put, default_delete, default_scan);
-  }
-  
   /** @param family Sets the family for calls that need it */
   public void setFamily(final byte[] family) {
     this.default_family = family;
