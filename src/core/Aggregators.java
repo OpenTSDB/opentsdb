@@ -16,10 +16,11 @@ import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
-import org.apache.commons.math.stat.descriptive.DescriptiveStatistics;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile.EstimationType;
+import org.apache.commons.math3.util.ResizableDoubleArray;
 
 import com.google.common.base.Preconditions;
-import com.matttproud.quantile.Estimator;
 
 /**
  * Utility class that provides common, generally useful aggregators.
@@ -38,10 +39,6 @@ public final class Aggregators {
   
   /** Aggregator that sums up all the data points. */
   public static final Aggregator SUM = new Sum(
-      Interpolation.LERP, "sum");
-
-  /** Aggregator that counts up all the data points. */
-  public static final Aggregator COUNT = new Count(
       Interpolation.LERP, "sum");
 
   /** Aggregator that returns the minimum data point. */
@@ -78,28 +75,35 @@ public final class Aggregators {
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
 
+  /** Aggregator that returns 99.9th percentile. */
+  public static final PercentileAgg p999 = new PercentileAgg(99.9d, "p999");
   /** Aggregator that returns 99th percentile. */
-  public static final Aggregator p99 = new Percentile(99f, "p99");
+  public static final PercentileAgg p99 = new PercentileAgg(99d, "p99");
   /** Aggregator that returns 95th percentile. */
-  public static final Aggregator p95 = new Percentile(95f, "p95");
+  public static final PercentileAgg p95 = new PercentileAgg(95d, "p95");
+  /** Aggregator that returns 99th percentile. */
+  public static final PercentileAgg p90 = new PercentileAgg(90d, "p90");
   /** Aggregator that returns 75th percentile. */
-  public static final Aggregator p75 = new Percentile(75f, "p75");
+  public static final PercentileAgg p75 = new PercentileAgg(75d, "p75");
   /** Aggregator that returns 50th percentile. */
-  public static final Aggregator p50 = new Percentile(50f, "p50");
+  public static final PercentileAgg p50 = new PercentileAgg(50d, "p50");
 
+  /** Aggregator that returns estimated 99.9th percentile. */
+  public static final PercentileAgg ep999 = new PercentileAgg(99.9d, "ep999", EstimationType.R_3);
   /** Aggregator that returns estimated 99th percentile. */
-  public static final Aggregator ep99 = new EstimatedPercentile(99f, "ep99");
+  public static final PercentileAgg ep99 = new PercentileAgg(99d, "ep99", EstimationType.R_3);
   /** Aggregator that returns estimated 95th percentile. */
-  public static final Aggregator ep95 = new EstimatedPercentile(95f, "ep95");
+  public static final PercentileAgg ep95 = new PercentileAgg(95d, "ep95", EstimationType.R_3);
   /** Aggregator that returns estimated 75th percentile. */
-  public static final Aggregator ep75 = new EstimatedPercentile(75f, "ep75");
+  public static final PercentileAgg ep90 = new PercentileAgg(90d, "ep90", EstimationType.R_3);
   /** Aggregator that returns estimated 50th percentile. */
-  public static final Aggregator ep50 = new EstimatedPercentile(50f, "ep50");
+  public static final PercentileAgg ep75 = new PercentileAgg(75d, "ep75", EstimationType.R_3);
+  /** Aggregator that returns estimated 50th percentile. */
+  public static final PercentileAgg ep50 = new PercentileAgg(50d, "ep50", EstimationType.R_3);
 
   static {
     aggregators = new HashMap<String, Aggregator>(8);
     aggregators.put("sum", SUM);
-    aggregators.put("count", COUNT);
     aggregators.put("min", MIN);
     aggregators.put("max", MAX);
     aggregators.put("avg", AVG);
@@ -107,15 +111,13 @@ public final class Aggregators {
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
     aggregators.put("mimmax", MIMMAX);
-    aggregators.put("p99", p99);
-    aggregators.put("p95", p95);
-    aggregators.put("p75", p75);
-    aggregators.put("p50", p50);
-    aggregators.put("ep99", ep99);
-    aggregators.put("ep95", ep95);
-    aggregators.put("ep75", ep75);
-    aggregators.put("ep50", ep50);
 
+    PercentileAgg[] percentiles = {
+       p999, p99, p95, p90, p75, p50, ep999, ep99, ep95, ep90, ep75, ep50
+    };
+    for (PercentileAgg agg : percentiles) {
+        aggregators.put(agg.getName(), agg);
+    }
   }
 
   private Aggregators() {
@@ -177,43 +179,6 @@ public final class Aggregators {
     }
     
   }
-
-  private static final class Count implements Aggregator {
-      private final Interpolation method;
-      private final String name;
-      
-      public Count(final Interpolation method, final String name) {
-        this.method = method;
-        this.name = name;
-      }
-      
-      public long runLong(final Longs values) {
-        long result = 0;
-        while (values.hasNextValue()) {
-          result++;
-          values.nextLongValue();
-        }
-        return result;
-      }
-
-      public double runDouble(final Doubles values) {
-        double result = 0;
-        while (values.hasNextValue()) {
-            result++;
-            values.nextDoubleValue();
-        }
-        return result;
-      }
-
-      public String toString() {
-        return name;
-      }
-
-      public Interpolation interpolationMethod() {
-        return method;
-      }
-      
-    }
 
   private static final class Min implements Aggregator {
     private final Interpolation method;
@@ -407,79 +372,47 @@ public final class Aggregators {
   }
 
   /**
-   * Percentile aggregator based on apache commons math implementation
+   * Percentile aggregator based on apache commons math3 implementation
    */
-  private static final class Percentile implements Aggregator {
-    private final Float percentile;
+  private static final class PercentileAgg implements Aggregator {
+    private final Double percentile;
     private final String name;
+    private final EstimationType estimation;
 
-    public Percentile(final Float percentile, final String name) {
-      Preconditions.checkArgument(percentile > 0 && percentile <= 100.d, "Invalid percentile value");
+    PercentileAgg(final Double percentile, final String name) {
+        this(percentile, name, null);
+    }
+    public String getName() {
+        return name;
+    }
+    PercentileAgg(final Double percentile, final String name, final EstimationType est) {
+      Preconditions.checkArgument(percentile > 0 && percentile <= 100, "Invalid percentile value");
       this.percentile = percentile;
       this.name = name;
+      this.estimation = est;
     }
 
     public long runLong(final Longs values) {
-      DescriptiveStatistics stats = new DescriptiveStatistics();
-
-      while (values.hasNextValue()) {
-        stats.addValue(values.nextLongValue());
+      final Percentile percentile =
+        this.estimation == null
+            ? new Percentile(this.percentile)
+            : new Percentile(this.percentile).withEstimationType(estimation);
+      final ResizableDoubleArray local_values = new ResizableDoubleArray();
+      while(values.hasNextValue()) {
+        local_values.addElement(values.nextLongValue());
       }
-      return (long)stats.getPercentile(percentile);
+      percentile.setData(local_values.getElements());
+      return (long) percentile.evaluate();
     }
 
     public double runDouble(final Doubles values) {
-        DescriptiveStatistics stats = new DescriptiveStatistics();
-
-        while (values.hasNextValue()) {
-          stats.addValue(values.nextDoubleValue());
+        final Percentile percentile = new Percentile(this.percentile);
+        final ResizableDoubleArray local_values = new ResizableDoubleArray();
+        while(values.hasNextValue()) {
+          local_values.addElement(values.nextDoubleValue());
         }
-        return (double)stats.getPercentile(percentile);
-    }
-
-    public String toString() {
-      return name;
-    }
-
-    @Override
-    public Interpolation interpolationMethod() {
-        return Aggregators.Interpolation.LERP;
-    }
-
-  }
-
-  /**
-   * Estimated percentile aggregator based on
-   * implementation of the Cormode, Korn, Muthukrishnan, and Srivastava algorithm
-   * for streaming calculation of targeted high-percentile epsilon-approximate
-   * quantiles.
-   */
-  private static final class EstimatedPercentile implements Aggregator {
-    private final Float percentile;
-    private final String name;
-
-    public EstimatedPercentile(final Float percentile, final String name) {
-      Preconditions.checkArgument(percentile > 0 && percentile <= 100.d, "Invalid percentile value");
-      this.percentile = percentile;
-      this.name = name;
-    }
-
-    public long runLong(final Longs values) {
-        Estimator<Long> estimator = new Estimator<Long>();
-
-        while (values.hasNextValue()) {
-          estimator.insert(values.nextLongValue());
-        }
-        return estimator.query(percentile);
-    }
-
-    public double runDouble(final Doubles values) {
-        Estimator<Double> estimator = new Estimator<Double>();
-
-        while (values.hasNextValue()) {
-          estimator.insert(values.nextDoubleValue());
-        }
-        return estimator.query(percentile);
+        percentile.setData(local_values.getElements());
+        return percentile.evaluate();
     }
 
     public String toString() {

@@ -2466,15 +2466,32 @@ public final class TestTsdbQuery {
     }
     assertEquals(600, dps[0].size());
   }
-  
+
   @Test
   public void runPercentiles() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
 
+    // These are not accurate at all when data points only contain 2 values
+    //   so we are just testing constructor logic, rather than precision
+    testPercentile(Aggregators.p50, 150, 150);
+    testPercentile(Aggregators.p75, 150, 150);
+    testPercentile(Aggregators.p90, 150, 150);
+    testPercentile(Aggregators.p95, 150, 150);
+    testPercentile(Aggregators.p99, 150, 150);
+    testPercentile(Aggregators.p999, 150, 150);
+    testPercentile(Aggregators.ep50, 150, 150);
+    testPercentile(Aggregators.ep75, 150, 150);
+    testPercentile(Aggregators.ep90, 150, 150);
+    testPercentile(Aggregators.ep95, 150, 150);
+    testPercentile(Aggregators.ep99, 150, 150);
+    testPercentile(Aggregators.ep999, 150, 150);
+  }
+
+private void testPercentile(Aggregator agg, long value, double delta) {
     HashMap<String, String> tags = new HashMap<String, String>(0);
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
-    query.setTimeSeries("sys.cpu.user", tags, Aggregators.p50, false);
+    query.setTimeSeries("sys.cpu.user", tags, agg, false);
     final DataPoints[] dps = query.run();
     assertNotNull(dps);
     assertEquals("sys.cpu.user", dps[0].metricName());
@@ -2482,25 +2499,17 @@ public final class TestTsdbQuery {
     assertNull(dps[0].getAnnotations());
     assertTrue(dps[0].getTags().isEmpty());
 
-    long v1 = 151;
-    long v2 = 150;
     long ts = 1356998430000L;
     int counter = 0;
     int size = dps[0].size();
     for (DataPoint dp : dps[0]) {
       assertEquals(ts, dp.timestamp());
       ts += 15000;
-      if (counter == 0 || counter == size - 1) {
-          assertEquals(1, dp.longValue());
-      } else if (counter % 2 == 0) {
-        assertEquals(v1, dp.longValue());
-      } else {
-        assertEquals(v2, dp.longValue());
-      }
+      assertEquals("counter " + counter, value, dp.longValue(), delta);
       counter++;
     }
     assertEquals(600, size);
-  }
+}
   
   // ----------------- //
   // Helper functions. //
