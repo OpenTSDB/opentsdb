@@ -66,8 +66,12 @@ public final class Aggregators {
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
   
-  /** Aggregator that returns the number of data points. */
-  public static final Aggregator COUNT = new Count();
+  /** Aggregator that returns the number of data points.
+   * WARNING: This currently interpolates with zero-if-missing. In this case 
+   * counts will be off when counting multiple time series. Only use this when
+   * downsampling until we support NaNs.
+   * @since 2.2 */
+  public static final Aggregator COUNT = new Count(Interpolation.ZIM, "count");
 
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
@@ -337,7 +341,14 @@ public final class Aggregators {
   }
 
   private static final class Count implements Aggregator {
-
+    private final Interpolation method;
+    private final String name;
+    
+    public Count(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
     @Override
     public long runLong(Longs values) {
       long result = 0;
@@ -359,7 +370,11 @@ public final class Aggregators {
     }
 
     public String toString() {
-      return "count";
+      return name;
+    }
+  
+    public Interpolation interpolationMethod() {
+      return method;
     }
   }
 }

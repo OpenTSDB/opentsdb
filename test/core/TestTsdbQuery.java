@@ -2587,6 +2587,116 @@ public final class TestTsdbQuery {
     assertEquals(600, dps[0].size());
   }
  
+  @Test
+  public void runCount() throws Exception {
+    storeLongTimeSeriesSeconds(false, false);
+    
+    HashMap<String, String> tags = new HashMap<String, String>(0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.COUNT, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+
+    long ts = 1356998430000L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(ts, dp.timestamp());
+      ts += 30000;
+      assertEquals(2, dp.longValue());
+    }
+    assertEquals(300, dps[0].size());
+  }
+  
+  @Test
+  public void runCountFloat() throws Exception {
+    storeFloatTimeSeriesSeconds(false, false);
+    
+    HashMap<String, String> tags = new HashMap<String, String>(0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.COUNT, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+    
+    long ts = 1356998430000L;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(ts, dp.timestamp());
+      ts += 30000;
+      assertEquals(2, dp.doubleValue(), 0.001);
+    }
+    assertEquals(300, dps[0].size());
+  }
+  
+  // TODO - The count agg is inaccurate until we implement NaNs. 
+  @Test
+  public void runCountOffset() throws Exception {
+    storeLongTimeSeriesSeconds(false, true);
+    
+    HashMap<String, String> tags = new HashMap<String, String>(0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.COUNT, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+    
+    long ts = 1356998430000L;
+    int counter = 0;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(ts, dp.timestamp());
+      ts += 15000;
+      if (counter == 0 || counter == 599) {
+        assertEquals(1, dp.longValue());
+      } else {
+        assertEquals(2, dp.longValue());
+      }
+      counter++;
+    }
+    assertEquals(600, dps[0].size());
+  }
+  
+  // TODO - The count agg is inaccurate until we implement NaNs. 
+  @Test
+  public void runCountFloatOffset() throws Exception {
+    storeFloatTimeSeriesSeconds(false, true);
+    
+    HashMap<String, String> tags = new HashMap<String, String>(0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.COUNT, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertEquals("host", dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+    
+    long ts = 1356998430000L;
+    int counter = 0;
+    for (DataPoint dp : dps[0]) {
+      assertEquals(ts, dp.timestamp());
+      ts += 15000;
+      if (counter == 0 || counter == 599) {
+        assertEquals(1, dp.doubleValue(), 0.0001);
+      } else {
+        assertEquals(2, dp.doubleValue(), 0.0001);
+      }
+      counter++;
+    }
+    assertEquals(600, dps[0].size());
+  }
+  
   // ----------------- //
   // Helper functions. //
   // ----------------- //

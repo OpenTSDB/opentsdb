@@ -513,6 +513,82 @@ public class TestTsdbQueryDownsample {
     assertEquals(150, dps[0].size());
   }
 
+  @Test
+  public void runLongSingleTSDownsampleCount() throws Exception {
+    storeLongTimeSeriesSeconds(true, false);;
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(60000, Aggregators.COUNT);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+
+    // Timeseries in intervals: (1), (2, 3), (4, 5), ... (298, 299), (300)
+    int i = 0;
+    for (DataPoint dp : dps[0]) {
+      // Downsampler outputs just doubles.
+      assertFalse(dp.isInteger());
+      if (i == 0 || i == 150) {
+        assertEquals(1, dp.doubleValue(), 0.00001);
+      } else {
+        assertEquals(2, dp.doubleValue(), 0.00001);
+      }
+      ++i;
+    }
+    // Out of 300 values, the first and the last intervals have one value each,
+    // and the 149 intervals in the middle have two values for each.
+    assertEquals(151, dps[0].size());
+  }
+  
+  // this could happen.
+  @Test
+  public void runFloatSingleTSDownsampleAndRateAndCount() throws Exception {
+    storeFloatTimeSeriesSeconds(true, false);
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.downsample(60000, Aggregators.COUNT);
+    query.setTimeSeries("sys.cpu.user", tags, Aggregators.SUM, true);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals("sys.cpu.user", dps[0].metricName());
+    assertTrue(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+    assertEquals("web01", dps[0].getTags().get("host"));
+
+    // Timeseries in intervals: (1.25), (1.5, 1.75), (2, 2.25), ...
+    // (75.5, 75.75), (76).
+    // After downsampling: 1.25, 1.625, 2.125, ... 75.625, 76
+    long expected_timestamp = 1356998460000L;
+    int i = 0;
+    for (DataPoint dp : dps[0]) {
+      assertFalse(dp.isInteger());
+      if (i == 0) {
+        // switching from 1 value to 2 on the first point
+        assertEquals(0.016666F, dp.doubleValue(), 0.00001);
+      } else if (i == 149) {
+        // switching from 2 values to 1 on the last point
+        assertEquals(-0.016666F, dp.doubleValue(), 0.00001);
+      } else {
+        // no difference between the value counts for most of these so zero
+        assertEquals(0.000F, dp.doubleValue(), 0.00001);
+      }
+      // Timestamp of an interval should be aligned by the interval.
+      assertEquals(0, dp.timestamp() % 60000);
+      assertEquals(expected_timestamp, dp.timestamp());
+      expected_timestamp += 60000;
+      ++i;
+    }
+    assertEquals(150, dps[0].size());
+  }
+  
   // ----------------- //
   // Helper functions. //
   // ----------------- //
