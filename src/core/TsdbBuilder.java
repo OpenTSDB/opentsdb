@@ -93,7 +93,7 @@ public class TsdbBuilder {
   }
 
   public TsdbBuilder withSearchPlugin(final Optional<SearchPlugin> searchPlugin) {
-    withSearchPlugin(searchPlugin.get());
+    withSearchPlugin(searchPlugin.orNull());
     return this;
   }
 
@@ -103,7 +103,7 @@ public class TsdbBuilder {
   }
 
   public TsdbBuilder withRealTimePublisher(final Optional<RTPublisher> realTimePublisher) {
-    withRealTimePublisher(realTimePublisher.get());
+    withRealTimePublisher(realTimePublisher.orNull());
     return this;
   }
 

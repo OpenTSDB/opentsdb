@@ -59,61 +59,8 @@ public final class TestTSDB {
   }
   
   @Test
-  public void initializePluginsDefaults() {
+  public void initializePlugins() {
     // no configured plugin path, plugins disabled, no exceptions
-    tsdb.initializePlugins();
-  }
-  
-  @Test
-  public void initializePluginsPathSet() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.core.plugin_path", "./");
-    properties.setAccessible(false);
-    tsdb.initializePlugins();
-  }
-  
-  @Test (expected = RuntimeException.class)
-  public void initializePluginsPathBad() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.core.plugin_path", "./doesnotexist");
-    properties.setAccessible(false);
-    tsdb.initializePlugins();
-  }
-  
-  @Test
-  public void initializePluginsSearch() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.core.plugin_path", "./");
-    props.put("tsd.search.enable", "true");
-    props.put("tsd.search.plugin", "net.opentsdb.search.DummySearchPlugin");
-    props.put("tsd.search.DummySearchPlugin.hosts", "localhost");
-    props.put("tsd.search.DummySearchPlugin.port", "42");
-    properties.setAccessible(false);
-    tsdb.initializePlugins();
-  }
-  
-  @Test (expected = RuntimeException.class)
-  public void initializePluginsSearchNotFound() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.search.enable", "true");
-    props.put("tsd.search.plugin", "net.opentsdb.search.DoesNotExist");
-    properties.setAccessible(false);
     tsdb.initializePlugins();
   }
   
