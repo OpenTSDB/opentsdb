@@ -172,10 +172,7 @@ public class TSDB {
     if (config.getBoolean("tsd.search.enable")) {
       search = PluginLoader.loadSpecificPlugin(
           config.getString("tsd.search.plugin"), SearchPlugin.class);
-      if (search == null) {
-        throw new IllegalArgumentException("Unable to locate search plugin: " + 
-            config.getString("tsd.search.plugin"));
-      }
+
       try {
         search.initialize(this);
       } catch (Exception e) {
@@ -190,11 +187,7 @@ public class TSDB {
     if (config.getBoolean("tsd.rtpublisher.enable")) {
       rt_publisher = PluginLoader.loadSpecificPlugin(
           config.getString("tsd.rtpublisher.plugin"), RTPublisher.class);
-      if (rt_publisher == null) {
-        throw new IllegalArgumentException(
-            "Unable to locate real time publisher plugin: " + 
-            config.getString("tsd.rtpublisher.plugin"));
-      }
+
       try {
         rt_publisher.initialize(this);
       } catch (Exception e) {

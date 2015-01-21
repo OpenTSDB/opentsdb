@@ -1090,7 +1090,7 @@ final class HttpQuery {
       PluginLoader.loadPlugins(HttpSerializer.class);
 
     // add the default serializers compiled with OpenTSDB
-    if (serializers == null) {
+    if (serializers.isEmpty()) {
       serializers = new ArrayList<HttpSerializer>(1);
     }
     final HttpSerializer default_serializer = new HttpJsonSerializer();

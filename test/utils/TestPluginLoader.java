@@ -83,22 +83,20 @@ public final class TestPluginLoader {
     assertEquals("Dummy Plugin A", plugin.myname);
   }
   
-  @Test
+  @Test (expected = IllegalArgumentException.class)
   public void loadSpecificPluginImplementationNotFound() throws Exception {
     PluginLoader.loadJAR("plugin_test.jar");
-    DummyPlugin plugin = PluginLoader.loadSpecificPlugin(
+    PluginLoader.loadSpecificPlugin(
         "net.opentsdb.plugin.DummyPluginC", 
         DummyPlugin.class);
-    assertNull(plugin);
   }
-  
-  @Test
+
+  @Test (expected = IllegalArgumentException.class)
   public void loadSpecificPluginNotFound() throws Exception {
     PluginLoader.loadJAR("plugin_test.jar");
-    DummyPluginBad plugin = PluginLoader.loadSpecificPlugin(
+    PluginLoader.loadSpecificPlugin(
         "net.opentsdb.plugin.DummyPluginC", 
         DummyPluginBad.class);
-    assertNull(plugin);
   }
 
   @Test
@@ -113,7 +111,7 @@ public final class TestPluginLoader {
   public void loadPluginsNotFound() throws Exception {
     List<DummyPluginBad> plugins = PluginLoader.loadPlugins(
         DummyPluginBad.class);
-    assertNull(plugins);
+    assertEquals(0, plugins.size());
   }
   
   public abstract class DummyPluginBad {
