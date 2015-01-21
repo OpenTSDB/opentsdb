@@ -47,7 +47,6 @@ import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.Bytes;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.tsd.RpcPlugin;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
@@ -100,9 +99,6 @@ public class TSDB {
   
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
-  
-  /** List of activated RPC plugins */
-  private List<RpcPlugin> rpc_plugins = null;
 
   /**
    * Constructor
@@ -156,12 +152,11 @@ public class TSDB {
    * objects that rely on such. It also moves most of the potential exception
    * throwing code out of the constructor so TSDMain can shutdown clients and
    * such properly.
-   * @param init_rpcs Whether or not to initialize RPC plugins as well
    * @throws RuntimeException if the plugin path could not be processed
    * @throws IllegalArgumentException if a plugin could not be initialized
    * @since 2.0
    */
-  public void initializePlugins(final boolean init_rpcs) {
+  public void initializePlugins() {
     final String plugin_path = config.getString("tsd.core.plugin_path");
     if (plugin_path != null && !plugin_path.isEmpty()) {
       try {
@@ -209,30 +204,6 @@ public class TSDB {
       LOG.info("Successfully initialized real time publisher plugin [{}] version: {}", rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
     } else {
       rt_publisher = null;
-    }
-    
-    if (init_rpcs && config.hasProperty("tsd.rpc.plugins")) {
-      final String[] plugins = config.getString("tsd.rpc.plugins").split(",");
-      for (final String plugin : plugins) {
-        final RpcPlugin rpc = PluginLoader.loadSpecificPlugin(plugin.trim(), 
-            RpcPlugin.class);
-        if (rpc == null) {
-          throw new IllegalArgumentException(
-              "Unable to locate RPC plugin: " + plugin.trim());
-        }
-        try {
-          rpc.initialize(this);
-        } catch (Exception e) {
-          throw new RuntimeException(
-              "Failed to initialize RPC plugin", e);
-        }
-        
-        if (rpc_plugins == null) {
-          rpc_plugins = new ArrayList<RpcPlugin>(1);
-        }
-        rpc_plugins.add(rpc);
-        LOG.info("Successfully initialized RPC plugin [{}] version: {}", rpc.getClass().getCanonicalName(), rpc.version());
-      }
     }
   }
   
@@ -321,16 +292,6 @@ public class TSDB {
       try {
         collector.addExtraTag("plugin", "search");
         search.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }
-    }
-    if (rpc_plugins != null) {
-      try {
-        collector.addExtraTag("plugin", "rpc");
-        for (RpcPlugin rpc : rpc_plugins) {
-          rpc.collectStats(collector);
-        }
       } finally {
         collector.clearExtraTag("plugin");
       }
@@ -581,13 +542,6 @@ public class TSDB {
     if (rt_publisher != null) {
       LOG.info("Shutting down RT plugin: {}", rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
-    }
-    
-    if (rpc_plugins != null && !rpc_plugins.isEmpty()) {
-      for (final RpcPlugin rpc : rpc_plugins) {
-        LOG.info("Shutting down RPC plugin: {}", rpc.getClass().getCanonicalName());
-        deferreds.add(rpc.shutdown());
-      }
     }
     
     // wait for plugins to shutdown before we close the TsdbStore

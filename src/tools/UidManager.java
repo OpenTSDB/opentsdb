@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.base.Throwables;
 import net.opentsdb.core.Const;
-import net.opentsdb.storage.TsdbStore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -177,7 +177,7 @@ final class UidManager {
       // so that update meta data can be pushed to search engines
       try {
         tsdb.checkNecessaryTablesExist().joinUninterruptibly();
-        tsdb.initializePlugins(false);
+        tsdb.initializePlugins();
         return metaSync(tsdb);
       } catch (Exception e) {
         LOG.error("Unexpected exception", e);
