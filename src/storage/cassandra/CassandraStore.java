@@ -74,21 +74,6 @@ public class CassandraStore implements TsdbStore {
     }
 
     @Override
-    public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
-        return null;
-    }
-
-    @Override
-    public Deferred<Long> bufferAtomicIncrement(AtomicIncrementRequest request) {
-        return null;
-    }
-
-    @Override
-    public Deferred<Object> delete(DeleteRequest request) {
-        return null;
-    }
-
-    @Override
     public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
         return null;
     }
@@ -110,11 +95,6 @@ public class CassandraStore implements TsdbStore {
 
     @Override
     public Scanner newScanner(byte[] table) {
-        return null;
-    }
-
-    @Override
-    public Deferred<Object> put(PutRequest request) {
         return null;
     }
 
@@ -304,6 +284,11 @@ public class CassandraStore implements TsdbStore {
     }
 
     @Override
+    public Deferred<Object> deleteTimeseriesCounter(TSMeta ts) {
+        return null;
+    }
+
+    @Override
     public Deferred<Boolean> create(TSMeta tsMeta) {
         return null;
     }
@@ -334,7 +319,7 @@ public class CassandraStore implements TsdbStore {
     }
 
     @Override
-    public void setTSMetaCounter(byte[] tsuid, long number) {
-
+    public Deferred<Object> setTSMetaCounter(byte[] tsuid, long number) {
+        return null;
     }
 }
