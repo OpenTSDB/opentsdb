@@ -29,7 +29,7 @@ public class MetaClientAnnotationTest {
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     note = new Annotation();
 

@@ -42,7 +42,7 @@ public final class TestCompactedRow {
   @Before
   public void before() throws Exception {
     final MemoryStore tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false));
+    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
 
     tsdb_store.allocateUID("sys.cpu.user", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
   }

@@ -384,7 +384,7 @@ public final class TestTreeRule {
    */
   private void setupStorage() throws Exception {
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false));
+    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
 
     final TreeRule stored_rule = new TreeRule(1);
     stored_rule.setLevel(2);

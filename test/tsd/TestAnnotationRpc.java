@@ -106,7 +106,7 @@ public final class TestAnnotationRpc {
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     // add a global
     tsdb_store.updateAnnotation(null, global_one);

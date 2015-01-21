@@ -28,6 +28,7 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.utils.Config;
 
@@ -140,7 +141,7 @@ final class TSDMain {
     
     TSDB tsdb = null;
     try {
-      tsdb = new TSDB(config);
+      tsdb = TsdbBuilder.createFromConfig(config).build();
       tsdb.initializePlugins();
       
       // Make sure we don't even start if we can't find our tables.

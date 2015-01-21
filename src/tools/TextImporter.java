@@ -23,6 +23,7 @@ import java.util.zip.GZIPInputStream;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ final class TextImporter {
     // get a config object
     Config config = CliOptions.getConfig(argp);
     
-    final TSDB tsdb = new TSDB(config);
+    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     try {

@@ -54,7 +54,7 @@ public final class TestTSUIDQuery {
     Config config = new Config(false, overrides);
 
     MemoryStore tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
       "metrics".getBytes(Const.CHARSET_ASCII),

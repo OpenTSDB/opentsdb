@@ -17,6 +17,7 @@ import java.util.List;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
@@ -67,7 +68,7 @@ final class Search {
     final boolean use_data_table = argp.has("--use-data-table");
     
     Config config = CliOptions.getConfig(argp);
-    final TSDB tsdb = new TSDB(config);
+    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     
     int rc;

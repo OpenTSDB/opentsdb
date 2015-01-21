@@ -19,7 +19,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyByte;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
@@ -75,7 +74,7 @@ public final class TestTSMeta {
     config = new Config(false, overrides);
 
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,

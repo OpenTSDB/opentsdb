@@ -39,7 +39,7 @@ public final class TestRTPublisher {
     overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
     overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config);
+    tsdb = new TSDB(new MemoryStore(), config, null, null);
 
     PluginLoader.loadJAR("plugin_test.jar");
     rt_publisher = PluginLoader.loadSpecificPlugin(
@@ -56,7 +56,7 @@ public final class TestRTPublisher {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config);
+    tsdb = new TSDB(new MemoryStore(), config, null, null);
 
     rt_publisher.initialize(tsdb);
   }
@@ -67,7 +67,7 @@ public final class TestRTPublisher {
     overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "");
     overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config);
+    tsdb = new TSDB(new MemoryStore(), config, null, null);
 
     rt_publisher.initialize(tsdb);
   }
@@ -77,7 +77,7 @@ public final class TestRTPublisher {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config);
+    tsdb = new TSDB(new MemoryStore(), config, null, null);
 
     rt_publisher.initialize(tsdb);
   }
@@ -88,7 +88,7 @@ public final class TestRTPublisher {
     overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
     overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "not a number");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config);
+    tsdb = new TSDB(new MemoryStore(), config, null, null);
 
     rt_publisher.initialize(tsdb);
   }

@@ -43,7 +43,7 @@ public final class TestUIDMeta {
   @Before
   public void before() throws Exception {
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false));
+    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
 
     tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
     tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);

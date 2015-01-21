@@ -43,7 +43,7 @@ public class TestQueryBuilder {
   @Before
   public void before() throws Exception {
     MemoryStore tsdb_store = new MemoryStore();
-    final TSDB tsdb = new TSDB(tsdb_store, new Config(false));
+    final TSDB tsdb = new TSDB(tsdb_store, new Config(false), null, null);
 
     tsdb_store.allocateUID(SYS_CPU_USER_NAME, SYS_CPU_USER_ID, UniqueIdType.METRIC);
     tsdb_store.allocateUID(HOST_NAME, HOST_ID, UniqueIdType.TAGK);

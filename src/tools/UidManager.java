@@ -38,6 +38,7 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -113,7 +114,7 @@ final class UidManager {
     final byte[] table = config.getString("tsd.storage.hbase.uid_table")
       .getBytes();
     
-    final TSDB tsdb = new TSDB(config);
+    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     int rc;

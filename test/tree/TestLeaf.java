@@ -42,7 +42,7 @@ public final class TestLeaf {
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
     branch = new Branch(1);
 
     tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);

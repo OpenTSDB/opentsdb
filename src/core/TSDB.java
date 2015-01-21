@@ -104,9 +104,14 @@ public class TSDB {
    * Constructor
    * @param client An initialized TsdbStore object
    * @param config An initialized configuration object
+   * @param searchPlugin
+   * @param realTimePublisher
    * @since 2.1
    */
-  public TSDB(final TsdbStore client, final Config config) {
+  public TSDB(final TsdbStore client,
+              final Config config,
+              final SearchPlugin searchPlugin,
+              final RTPublisher realTimePublisher) {
     this.config = checkNotNull(config);
     this.tsdb_store = checkNotNull(client);
 
@@ -119,19 +124,13 @@ public class TSDB {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
 
+    this.search = searchPlugin;
+    this.rt_publisher = realTimePublisher;
+
     metaClient = new MetaClient(tsdb_store);
     uniqueIdClient = new UniqueIdClient(tsdb_store, config, this);
 
     LOG.debug(config.dumpConfiguration());
-  }
-
-  /**
-   * Constructor
-   * @param config An initialized configuration object
-   * @since 2.0
-   */
-  public TSDB(final Config config) {
-    this(Suppliers.memoize(new StoreSupplier(config)).get(), config);
   }
   
   /** @return The data point column family name */
@@ -157,46 +156,25 @@ public class TSDB {
    * @since 2.0
    */
   public void initializePlugins() {
-    final String plugin_path = config.getString("tsd.core.plugin_path");
-    if (plugin_path != null && !plugin_path.isEmpty()) {
-      try {
-        PluginLoader.loadJARs(plugin_path);
-      } catch (Exception e) {
-        LOG.error("Error loading plugins from plugin path: {}", plugin_path, e);
-        throw new RuntimeException("Error loading plugins from plugin path: " + 
-            plugin_path, e);
-      }
-    }
-
-    // load the search plugin if enabled
-    if (config.getBoolean("tsd.search.enable")) {
-      search = PluginLoader.loadSpecificPlugin(
-          config.getString("tsd.search.plugin"), SearchPlugin.class);
-
+    if (search != null) {
       try {
         search.initialize(this);
+        LOG.info("Successfully initialized search plugin [{}] version: {}",
+                search.getClass().getCanonicalName(), search.version());
       } catch (Exception e) {
         throw new RuntimeException("Failed to initialize search plugin", e);
       }
-      LOG.info("Successfully initialized search plugin [{}] version: {}", search.getClass().getCanonicalName(), search.version());
-    } else {
-      search = null;
     }
-    
-    // load the real time publisher plugin if enabled
-    if (config.getBoolean("tsd.rtpublisher.enable")) {
-      rt_publisher = PluginLoader.loadSpecificPlugin(
-          config.getString("tsd.rtpublisher.plugin"), RTPublisher.class);
 
+    if (rt_publisher != null) {
       try {
         rt_publisher.initialize(this);
+        LOG.info("Successfully initialized real time publisher plugin [{}] version: {}",
+                rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
       } catch (Exception e) {
         throw new RuntimeException(
-            "Failed to initialize real time publisher plugin", e);
+                "Failed to initialize real time publisher plugin", e);
       }
-      LOG.info("Successfully initialized real time publisher plugin [{}] version: {}", rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
-    } else {
-      rt_publisher = null;
     }
   }
   

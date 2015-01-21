@@ -38,6 +38,7 @@ import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -1104,7 +1105,7 @@ final class Fsck {
 
     Config config = CliOptions.getConfig(argp);
     final FsckOptions options = new FsckOptions(argp, config);
-    final TSDB tsdb = new TSDB(config);
+    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
     final ArrayList<Query> queries = new ArrayList<Query>();
     if (args != null && args.length > 0) {
       CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
