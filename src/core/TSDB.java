@@ -31,6 +31,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tree.TreeRule;
 
 import net.opentsdb.uid.UniqueId;
@@ -242,6 +243,20 @@ public class TSDB {
    */
   public final TsdbStore getTsdbStore() {
     return this.tsdb_store;
+  }
+
+  /**
+   * Returns the configured HBaseStore.
+   * It will throw a classCastException if the TsdbStore was of the type
+   * CassandraStore. This should only be used by tools and will be migrated
+   * and removed later.
+   *
+   * @return The HBaseStore
+   * @since 2.0
+   */
+  @Deprecated
+  public final HBaseStore getHBaseStore() {
+    return (HBaseStore) this.tsdb_store;
   }
   
   /** 
@@ -1292,6 +1307,11 @@ public class TSDB {
     return tsdb_store.delete(tsMeta);
   }
 
+  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
+    ts.checkTSUI();
+    return tsdb_store.deleteTimeseriesCounter(ts);
+  }
+
   /**
    * Attempts to store a new, blank timeseries meta object via a Put
    * <b>Note:</b> This should not be called by user accessible methods as it will
@@ -1306,8 +1326,17 @@ public class TSDB {
    */
   public Deferred<Boolean> create(final TSMeta tsMeta) {
     tsMeta.checkTSUI();
-
     return tsdb_store.create(tsMeta);
+  }
+
+  /**
+   * Create the counter for a timeseries meta object.
+   * @param ts The Timeseries meta object to create the counter for
+   * @return A deferred that indicates the completion of the request
+   */
+  public Deferred<Object> createTimeseriesCounter(final TSMeta ts) {
+    ts.checkTSUI();
+    return tsdb_store.setTSMetaCounter(UniqueId.stringToUid(ts.getTSUID()), 0);
   }
 
 

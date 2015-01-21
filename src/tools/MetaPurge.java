@@ -19,6 +19,8 @@ import java.util.Arrays;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.uid.UniqueIdType;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -144,24 +146,22 @@ final class MetaPurge extends Thread {
           for (KeyValue column : row) {
             if (Bytes.equals(TSMeta.META_QUALIFIER(), column.qualifier())) {
               qualifiers.add(column.qualifier());
-            } else if (Bytes.equals("metric_meta".getBytes(CHARSET), 
+            } else if (Bytes.equals("metric_meta".getBytes(CHARSET),
                 column.qualifier())) {
-              qualifiers.add(column.qualifier());
+              delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
+                      (UniqueIdType.METRIC,row.get(0).key())));
+              ++columns;
             } else if (Bytes.equals("tagk_meta".getBytes(CHARSET), 
                 column.qualifier())) {
-              qualifiers.add(column.qualifier());
+              delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
+                      (UniqueIdType.TAGK,row.get(0).key())));
+              ++columns;
             } else if (Bytes.equals("tagv_meta".getBytes(CHARSET), 
                 column.qualifier())) {
-              qualifiers.add(column.qualifier());
+              delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
+                      (UniqueIdType.TAGV,row.get(0).key())));
+              ++columns;
             }
-          }
-          
-          if (qualifiers.size() > 0) {
-            columns += qualifiers.size();
-            final DeleteRequest delete = new DeleteRequest(tsdb.uidTable(), 
-                row.get(0).key(), NAME_FAMILY, 
-                qualifiers.toArray(new byte[qualifiers.size()][]));
-            delete_calls.add(tsdb.getTsdbStore().delete(delete));
           }
         }
         
@@ -240,25 +240,17 @@ final class MetaPurge extends Thread {
         }
         
         for (final ArrayList<KeyValue> row : rows) {
-          // one delete request per row. We'll almost always delete the whole
-          // row, so preallocate some ram.
-          ArrayList<byte[]> qualifiers = new ArrayList<byte[]>(row.size());
-          
+          TSMeta ts = new TSMeta(row.get(0).key());
+
           for (KeyValue column : row) {
             if (Bytes.equals(TSMeta.META_QUALIFIER(), column.qualifier())) {
-              qualifiers.add(column.qualifier());
+              delete_calls.add(tsdb.delete(ts));
+              ++columns;
             } else if (Bytes.equals(TSMeta.COUNTER_QUALIFIER(), 
                 column.qualifier())) {
-              qualifiers.add(column.qualifier());
+              delete_calls.add(tsdb.deleteTimeseriesCounter(ts));
+              ++columns;
             }
-          }
-          
-          if (qualifiers.size() > 0) {
-            columns += qualifiers.size();
-            final DeleteRequest delete = new DeleteRequest(tsdb.metaTable(), 
-                row.get(0).key(), NAME_FAMILY, 
-                qualifiers.toArray(new byte[qualifiers.size()][]));
-            delete_calls.add(tsdb.getTsdbStore().delete(delete));
           }
         }
         

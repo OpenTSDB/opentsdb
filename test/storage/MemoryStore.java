@@ -127,143 +127,6 @@ public class MemoryStore implements TsdbStore {
     jsonMapper.registerModule(new StorageModule());
   }
 
-  /**
-   * Creates or increments (possibly decrements) a Long in the hash table at the
-   * given location.
-   */
-  @Override
-  public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
-    final long amount = air.getAmount();
-    Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(air.key());
-    if (row == null) {
-      row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
-      storage.put(air.key(), row);
-    }
-
-    Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(air.family());
-    if (cf == null) {
-      cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
-      row.put(air.family(), cf);
-    }
-
-    TreeMap<Long, byte[]> column = cf.get(air.qualifier());
-    if (column == null) {
-      column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
-      cf.put(air.qualifier(), column);
-      column.put(current_timestamp++, Bytes.fromLong(amount));
-      return Deferred.fromResult(amount);
-    }
-
-    long incremented_value = Bytes.getLong(column.firstEntry().getValue());
-    incremented_value += amount;
-    column.put(column.firstKey(), Bytes.fromLong(incremented_value));
-    return Deferred.fromResult(incremented_value);
-  }
-
-  /**
-   * Deletes one or more columns. If a row no longer has any valid columns, the
-   * entire row will be removed.
-   */
-  @Override
-  public Deferred<Object> delete(DeleteRequest delete) {
-    Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(delete.key());
-    if (row == null) {
-      return Deferred.fromResult(null);
-    }
-
-    // if no qualifiers or family, then delete the row
-    if ((delete.qualifiers() == null || delete.qualifiers().length < 1 ||
-      delete.qualifiers()[0].length < 1) && (delete.family() == null ||
-      delete.family().length < 1)) {
-      storage.remove(delete.key());
-      return Deferred.fromResult(new Object());
-    }
-
-    final byte[] family = delete.family();
-    if (family != null && family.length > 0) {
-      if (!row.containsKey(family)) {
-        return Deferred.fromResult(null);
-      }
-    }
-
-    // compile a set of qualifiers to use as a filter if necessary
-    Bytes.ByteMap<Object> qualifiers = new Bytes.ByteMap<Object>();
-    if (delete.qualifiers() != null || delete.qualifiers().length > 0) {
-      for (byte[] q : delete.qualifiers()) {
-        qualifiers.put(q, null);
-      }
-    }
-
-    // if the request only has a column family and no qualifiers, we delete
-    // the entire family
-    if (family != null && qualifiers.isEmpty()) {
-      row.remove(family);
-      if (row.isEmpty()) {
-        storage.remove(delete.key());
-      }
-      return Deferred.fromResult(new Object());
-    }
-
-    List<byte[]> cf_removals = new ArrayList<byte[]>(row.entrySet().size());
-    for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf :
-      row.entrySet()) {
-
-      // column family filter
-      if (family != null && family.length > 0 &&
-        !Bytes.equals(family, cf.getKey())) {
-        continue;
-      }
-
-      for (byte[] qualifier : qualifiers.keySet()) {
-        final TreeMap<Long, byte[]> column = cf.getValue().get(qualifier);
-        if (column == null) {
-          continue;
-        }
-
-        // with this flag we delete a single timestamp
-        if (delete.deleteAtTimestampOnly()) {
-          if (column != null) {
-            column.remove(delete.timestamp());
-            if (column.isEmpty()) {
-              cf.getValue().remove(qualifier);
-            }
-          }
-        } else {
-          // otherwise we delete everything less than or equal to the
-          // delete timestamp
-          List<Long> column_removals = new ArrayList<Long>(column.size());
-          for (Map.Entry<Long, byte[]> cell : column.entrySet()) {
-            if (cell.getKey() <= delete.timestamp()) {
-              column_removals.add(cell.getKey());
-            }
-          }
-          for (Long ts : column_removals) {
-            column.remove(ts);
-          }
-          if (column.isEmpty()) {
-            cf.getValue().remove(qualifier);
-          }
-        }
-      }
-
-      if (cf.getValue().isEmpty()) {
-        cf_removals.add(cf.getKey());
-      }
-    }
-
-    for (byte[] cf : cf_removals) {
-      row.remove(cf);
-    }
-
-    if (row.isEmpty()) {
-      storage.remove(delete.key());
-    }
-
-    return Deferred.fromResult(new Object());
-  }
-
   @Override
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
     throw new UnsupportedOperationException("Not implemented yet");
@@ -343,39 +206,6 @@ public class MemoryStore implements TsdbStore {
     final Scanner scanner = PowerMockito.mock(Scanner.class);
     scanners.add(new MockScanner(scanner));
     return scanner;
-  }
-
-  /**
-   * Stores one or more columns in a row. If the row does not exist, it's
-   * created.
-   */
-  @Override
-  public Deferred<Object> put(PutRequest put) {
-    Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(put.key());
-    if (row == null) {
-      row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
-      storage.put(put.key(), row);
-    }
-
-    Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(put.family());
-    if (cf == null) {
-      cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
-      row.put(put.family(), cf);
-    }
-
-    for (int i = 0; i < put.qualifiers().length; i++) {
-      TreeMap<Long, byte[]> column = cf.get(put.qualifiers()[i]);
-      if (column == null) {
-        column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
-        cf.put(put.qualifiers()[i], column);
-      }
-
-      column.put(put.timestamp() != Long.MAX_VALUE ? put.timestamp() :
-        current_timestamp++, put.values()[i]);
-    }
-
-    return Deferred.fromResult(null);
   }
 
   @Override
@@ -1180,6 +1010,11 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
+    return null;
+  }
+
+  @Override
   public Deferred<Boolean> create(TSMeta tsMeta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
@@ -1210,7 +1045,8 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public void setTSMetaCounter(byte[] tsuid, long number) {
+  public Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long
+          number) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

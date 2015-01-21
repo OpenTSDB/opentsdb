@@ -95,7 +95,7 @@ final class CliUtils {
     get.qualifier("metrics".getBytes(CHARSET));
     ArrayList<KeyValue> row;
     try {
-      row = tsdb.getTsdbStore().get(get).joinUninterruptibly();
+      row = tsdb.getHBaseStore().get(get).joinUninterruptibly();
       if (row == null || row.isEmpty()) {
         return 0;
       }

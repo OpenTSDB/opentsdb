@@ -331,7 +331,7 @@ public class HBaseStore implements TsdbStore {
     final DeleteRequest delete = new DeleteRequest(data_table_name,
             getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), TS_FAMILY,
             getAnnotationQualifier(annotation.getStartTime()));
-    return delete(delete);
+    return client.delete(delete);
   }
 
   @Override
@@ -354,7 +354,7 @@ public class HBaseStore implements TsdbStore {
     }
   }
 
-  @Override
+  @Deprecated
   public Deferred<Object> delete(DeleteRequest request) {
     return this.client.delete(request);
   }
@@ -404,7 +404,7 @@ public class HBaseStore implements TsdbStore {
     return this.client.newScanner(table);
   }
 
-  @Override
+  @Deprecated
   public Deferred<Object> put(PutRequest request) {
     return this.client.put(request);
   }
@@ -482,7 +482,7 @@ public class HBaseStore implements TsdbStore {
     return this.client.getFlushInterval();
   }
 
-  @Override
+  @Deprecated
   public Deferred<Long> atomicIncrement(AtomicIncrementRequest air) {
     return this.client.atomicIncrement(air);
   }
@@ -1479,7 +1479,7 @@ public class HBaseStore implements TsdbStore {
                     row.get(0).key(), TREE_FAMILY,
                     qualifiers.toArray(new byte[qualifiers.size()][])
             );
-            delete_deferreds.add(delete(delete));
+            delete_deferreds.add(client.delete(delete));
           }
         }
 
@@ -2395,6 +2395,13 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
+    final DeleteRequest delete = new DeleteRequest(meta_table_name,
+            UniqueId.stringToUid(ts.getTSUID()), TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER);
+    return client.delete(delete);
+  }
+
+  @Override
   public Deferred<Boolean> create(final TSMeta tsMeta) {
     try {
       final PutRequest put = new PutRequest(meta_table_name,
@@ -2572,10 +2579,10 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public void setTSMetaCounter(final byte[] tsuid, final long number) {
+  public Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number) {
       final PutRequest tracking = new PutRequest(meta_table_name, tsuid,
-              TSMeta.FAMILY(), TSMeta.COUNTER_QUALIFIER(), Bytes.fromLong(number));
-      client.put(tracking);
+              TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER, Bytes.fromLong(number));
+      return client.put(tracking);
  }
 
 }

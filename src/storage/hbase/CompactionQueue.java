@@ -32,7 +32,6 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 import org.hbase.async.*;
 import org.slf4j.Logger;
@@ -76,7 +75,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   private final AtomicLong written_cells = new AtomicLong();
   private final AtomicLong deleted_cells = new AtomicLong();
 
-  private final TsdbStore tsdb_store;
+  private final HBaseStore tsdb_store;
   private final ObjectMapper jsonMapper;
   private final Config config;
 
@@ -88,7 +87,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * @param tsdb_store
    * @param jsonMapper
    */
-  public CompactionQueue(final TsdbStore tsdb_store,
+  public CompactionQueue(final HBaseStore tsdb_store,
                          final ObjectMapper jsonMapper,
                          final Config config,
                          final byte[] table_name,

@@ -50,10 +50,6 @@ public interface TsdbStore {
    */
   Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time);
 
-  public Deferred<Long> atomicIncrement(AtomicIncrementRequest air);
-
-  public Deferred<Object> delete(final DeleteRequest request);
-
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist();
 
   public Deferred<Object> flush();
@@ -63,8 +59,6 @@ public interface TsdbStore {
   long getFlushInterval();
 
   public Scanner newScanner(final byte[] table);
-
-  public Deferred<Object> put(final PutRequest request);
 
   void setFlushInterval(short aShort);
 
@@ -163,6 +157,8 @@ public interface TsdbStore {
 
   Deferred<Object> delete(final TSMeta tsMeta);
 
+  Deferred<Object> deleteTimeseriesCounter(final TSMeta ts);
+
   Deferred<Boolean> create(final TSMeta tsMeta);
 
   Deferred<TSMeta> getTSMeta(final byte[] tsuid);
@@ -175,5 +171,5 @@ public interface TsdbStore {
 
   Deferred<Long> incrementAndGetCounter(final byte[] tsuid);
 
-  void setTSMetaCounter(final byte[] tsuid, final long number);
+  Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number);
 }

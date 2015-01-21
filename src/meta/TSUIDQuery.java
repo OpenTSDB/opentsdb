@@ -268,12 +268,12 @@ public class TSUIDQuery {
   
   /**
    * Attempts to retrieve the last data point for the given TSUID. 
-   * This operates by checking the meta table for the {@link #COUNTER_QUALIFIER}
-   * and if found, parses the HBase timestamp for the counter (i.e. the time when
-   * the counter was written) and tries to load the row in the data table for
-   * the hour where that timestamp would have landed. If the counter does not
-   * exist or the data row doesn't exist or is empty, the results will be a null
-   * IncomingDataPoint. 
+   * This operates by checking the meta table for the {@link
+   * TSMeta#COUNTER_QUALIFIER} and if found, parses the HBase timestamp for
+   * the counter (i.e. the time when the counter was written) and tries to
+   * load the row in the data table for the hour where that timestamp would
+   * have landed. If the counter does not exist or the data row doesn't exist
+   * or is empty, the results will be a null IncomingDataPoint.
    * <b>Note:</b> This will be accurate most of the time since the counter will
    * be updated at the time a data point is written within a second or so. 
    * However if the user is writing historical data, putting data with older 
