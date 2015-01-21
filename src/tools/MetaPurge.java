@@ -148,18 +148,18 @@ final class MetaPurge extends Thread {
               qualifiers.add(column.qualifier());
             } else if (Bytes.equals("metric_meta".getBytes(CHARSET),
                 column.qualifier())) {
-              UIDMeta meta = new UIDMeta(UniqueIdType.METRIC,row.get(0).key());
-              delete_calls.add(tsdb.getTsdbStore().delete(meta));
+              delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
+                      (UniqueIdType.METRIC,row.get(0).key())));
               ++columns;
             } else if (Bytes.equals("tagk_meta".getBytes(CHARSET), 
                 column.qualifier())) {
-              UIDMeta meta = new UIDMeta(UniqueIdType.TAGK,row.get(0).key());
-              delete_calls.add(tsdb.getTsdbStore().delete(meta));
+              delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
+                      (UniqueIdType.TAGK,row.get(0).key())));
               ++columns;
             } else if (Bytes.equals("tagv_meta".getBytes(CHARSET), 
                 column.qualifier())) {
-              UIDMeta meta = new UIDMeta(UniqueIdType.TAGV,row.get(0).key());
-              delete_calls.add(tsdb.getTsdbStore().delete(meta));
+              delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
+                      (UniqueIdType.TAGV,row.get(0).key())));
               ++columns;
             }
           }
