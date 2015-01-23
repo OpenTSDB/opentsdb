@@ -502,23 +502,8 @@ public class Config {
     }
 
     for (String file : file_locations) {
-      try {
-        FileInputStream file_stream = new FileInputStream(file);
-        Properties props = new Properties();
-        props.load(file_stream);
-        
-        // load the hash map
-        this.loadHashMap(props);        
-      } catch (Exception e) {
-        // don't do anything, the file may be missing and that's fine
-        LOG.debug("Unable to find or load {}", file, e);
-        continue;
-      }
-
-      // no exceptions thrown, so save the valid path and exit
-      LOG.info("Successfully loaded configuration file: {}", file);
-      this.config_location = file;
-      return;
+      if (loadConfig(file))
+        return;
     }
 
     LOG.info("No configuration found, will use defaults");
@@ -530,19 +515,31 @@ public class Config {
    * @throws IOException Thrown if there was an issue reading the file
    * @throws FileNotFoundException Thrown if the config file was not found
    */
-  protected void loadConfig(final String file) throws FileNotFoundException,
+  protected boolean loadConfig(final String file) throws FileNotFoundException,
       IOException {
-    FileInputStream file_stream;
-    file_stream = new FileInputStream(file);
-    Properties props = new Properties();
-    props.load(file_stream);
-    
-    // load the hash map
-    this.loadHashMap(props);
 
-    // no exceptions thrown, so save the valid path and exit
-    LOG.info("Successfully loaded configuration file: {}", file);
-    this.config_location = file;
+    FileInputStream file_stream = null;
+    try {
+      file_stream = new FileInputStream(file);
+      Properties props = new Properties();
+      props.load(file_stream);
+
+      // load the hash map
+      this.loadHashMap(props);
+
+      // no exceptions thrown, so save the valid path and exit
+      LOG.info("Successfully loaded configuration file: {}", file);
+      this.config_location = file;
+      return true;
+    } catch (Exception e) {
+      // don't do anything, the file may be missing and that's fine
+      LOG.debug("Unable to find or load {}", file, e);
+    } finally {
+      if (file_stream != null) {
+        file_stream.close();
+      }
+    }
+    return false;
   }
 
   /**
