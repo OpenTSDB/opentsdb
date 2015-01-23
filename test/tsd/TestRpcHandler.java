@@ -69,7 +69,7 @@ public final class TestRpcHandler {
 
     tsdb = TsdbBuilder.createFromConfig(config)
             .withSearchPlugin((SearchPlugin)null)
-            .withRealTimePublisher((RTPublisher) null)
+            .withRealtimePublisher((RTPublisher) null)
             .build();
   }
   
