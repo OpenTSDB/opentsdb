@@ -24,6 +24,7 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
@@ -106,7 +107,9 @@ public final class TestAnnotationRpc {
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
 
     // add a global
     tsdb_store.updateAnnotation(null, global_one);

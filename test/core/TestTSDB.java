@@ -55,7 +55,9 @@ public final class TestTSDB {
     config = new Config(false);
     config.setFixDuplicates(true); // TODO(jat): test both ways
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
   }
   
   @Test
@@ -994,7 +996,9 @@ public final class TestTSDB {
    */
   private void setupTreeStorage() throws Exception {
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
+    tsdb = TsdbBuilder.createFromConfig(new Config(false))
+            .withStore(tsdb_store)
+            .build();
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());

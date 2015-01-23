@@ -3,6 +3,7 @@ package net.opentsdb.storage.hbase;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TestTsdbStore;
 import net.opentsdb.tree.Branch;
@@ -730,7 +731,9 @@ public class TestHBaseStore extends TestTsdbStore {
     config = new Config(false);
     client = PowerMockito.mock(HBaseClient.class);
     tsdb_store = new HBaseStore(client, config);
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
 
     setUpBranchesAndLeafs();
     if (!store)

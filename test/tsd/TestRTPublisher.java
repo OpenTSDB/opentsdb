@@ -20,6 +20,7 @@ import java.util.Map;
 
 import com.google.common.collect.Maps;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.utils.Config;
@@ -39,7 +40,9 @@ public final class TestRTPublisher {
     overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
     overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .build();
 
     PluginLoader.loadJAR("plugin_test.jar");
     rt_publisher = PluginLoader.loadSpecificPlugin(
@@ -56,7 +59,9 @@ public final class TestRTPublisher {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .build();
 
     rt_publisher.initialize(tsdb);
   }
@@ -67,7 +72,9 @@ public final class TestRTPublisher {
     overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "");
     overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .build();
 
     rt_publisher.initialize(tsdb);
   }
@@ -77,7 +84,9 @@ public final class TestRTPublisher {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .build();
 
     rt_publisher.initialize(tsdb);
   }
@@ -88,7 +97,9 @@ public final class TestRTPublisher {
     overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
     overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "not a number");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .build();
 
     rt_publisher.initialize(tsdb);
   }

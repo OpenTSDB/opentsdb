@@ -19,6 +19,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.TreeMap;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -65,7 +66,9 @@ public final class TestTreeRpc {
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());

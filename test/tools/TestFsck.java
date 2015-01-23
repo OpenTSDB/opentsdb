@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.uid.UniqueIdType;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -63,7 +64,9 @@ public final class TestFsck {
   public void before() throws Exception {
     Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
 
     when(options.fix()).thenReturn(false);
     when(options.compact()).thenReturn(false);

@@ -13,6 +13,7 @@
 package net.opentsdb.meta;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -43,7 +44,11 @@ public final class TestUIDMeta {
   @Before
   public void before() throws Exception {
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
+    Config config = new Config(false);
+
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
 
     tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
     tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);

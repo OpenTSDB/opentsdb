@@ -21,7 +21,6 @@ import java.util.Set;
 import java.util.Iterator;
 
 import com.google.common.base.Strings;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
@@ -39,12 +38,13 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.PluginLoader;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.Bytes;
+
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tree.Branch;
@@ -94,18 +94,22 @@ public class TSDB {
   private final MetaClient metaClient;
   private final UniqueIdClient uniqueIdClient;
 
-  /** Search indexer to use if configure */
-  private SearchPlugin search = null;
-  
-  /** Optional real time pulblisher plugin to use if configured */
-  private RTPublisher rt_publisher = null;
+  /**
+   * The search plugin that this TSDB instance is configured to use.
+   */
+  private final SearchPlugin search;
+
+  /**
+   * The realtime publisher that this TSDB instance is configured to use.
+   */
+  private final RTPublisher rt_publisher;
 
   /**
    * Constructor
    * @param client An initialized TsdbStore object
    * @param config An initialized configuration object
-   * @param searchPlugin
-   * @param realTimePublisher
+   * @param searchPlugin The search plugin to use
+   * @param realTimePublisher The realtime publisher to use
    * @since 2.1
    */
   public TSDB(final TsdbStore client,
@@ -124,8 +128,8 @@ public class TSDB {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
 
-    this.search = searchPlugin;
-    this.rt_publisher = realTimePublisher;
+    this.search = checkNotNull(searchPlugin);
+    this.rt_publisher = checkNotNull(realTimePublisher);
 
     metaClient = new MetaClient(tsdb_store);
     uniqueIdClient = new UniqueIdClient(tsdb_store, config, this);
@@ -156,25 +160,21 @@ public class TSDB {
    * @since 2.0
    */
   public void initializePlugins() {
-    if (search != null) {
-      try {
-        search.initialize(this);
-        LOG.info("Successfully initialized search plugin [{}] version: {}",
-                search.getClass().getCanonicalName(), search.version());
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to initialize search plugin", e);
-      }
+    try {
+      search.initialize(this);
+      LOG.info("Successfully initialized search plugin [{}] version: {}",
+              search.getClass().getCanonicalName(), search.version());
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize search plugin", e);
     }
 
-    if (rt_publisher != null) {
-      try {
-        rt_publisher.initialize(this);
-        LOG.info("Successfully initialized real time publisher plugin [{}] version: {}",
-                rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
-      } catch (Exception e) {
-        throw new RuntimeException(
-                "Failed to initialize real time publisher plugin", e);
-      }
+    try {
+      rt_publisher.initialize(this);
+      LOG.info("Successfully initialized real time publisher plugin [{}] version: {}",
+              rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
+    } catch (Exception e) {
+      throw new RuntimeException(
+              "Failed to initialize real time publisher plugin", e);
     }
   }
   
@@ -251,21 +251,18 @@ public class TSDB {
     tsdb_store.recordStats(collector);
 
     // Collect Stats from Plugins
-    if (rt_publisher != null) {
-      try {
-        collector.addExtraTag("plugin", "publish");
-        rt_publisher.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }
+    try {
+      collector.addExtraTag("plugin", "publish");
+      rt_publisher.collectStats(collector);
+    } finally {
+      collector.clearExtraTag("plugin");
     }
-    if (search != null) {
-      try {
-        collector.addExtraTag("plugin", "search");
-        search.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }
+
+    try {
+      collector.addExtraTag("plugin", "search");
+      search.collectStats(collector);
+    } finally {
+      collector.clearExtraTag("plugin");
     }
   }
 
@@ -411,11 +408,6 @@ public class TSDB {
         // timing in a moving Histogram (once we have a class for this).
         Deferred<Object> result = tsdb_store.addPoint(tsuid, value, timestamp, flags);
 
-        if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() &&
-                !config.enable_tsuid_tracking() && rt_publisher == null) {
-          return result;
-        }
-
         // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
         // counter field for a TSUID with the proper timestamp. If the user would
         // rather have TSUID incrementing enabled, that will trump the PUT
@@ -425,9 +417,8 @@ public class TSDB {
           incrementAndGetCounter(tsuid);
         }
 
-        if (rt_publisher != null) {
-          rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
-        }
+        rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
+
         return result;
       }
     }
@@ -506,20 +497,15 @@ public class TSDB {
       }
     }
 
-    if (search != null) {
-      LOG.info("Shutting down search plugin: {}", search.getClass().getCanonicalName());
-      deferreds.add(search.shutdown());
-    }
-    if (rt_publisher != null) {
-      LOG.info("Shutting down RT plugin: {}", rt_publisher.getClass().getCanonicalName());
-      deferreds.add(rt_publisher.shutdown());
-    }
-    
+    LOG.info("Shutting down search plugin: {}", search.getClass().getCanonicalName());
+    deferreds.add(search.shutdown());
+
+    LOG.info("Shutting down RT plugin: {}", rt_publisher.getClass().getCanonicalName());
+    deferreds.add(rt_publisher.shutdown());
+
     // wait for plugins to shutdown before we close the TsdbStore
-    return deferreds.size() > 0
-      ? Deferred.group(deferreds).addCallbacks(new StoreShutdown(),
-                                               new ShutdownErrback())
-      : tsdb_store.shutdown();
+    return Deferred.group(deferreds)
+            .addCallbacks(new StoreShutdown(), new ShutdownErrback());
   }
 
   /**
@@ -576,9 +562,7 @@ public class TSDB {
    * @since 2.0
    */
   public void indexTSMeta(final TSMeta meta) {
-    if (search != null) {
-      search.indexTSMeta(meta).addErrback(new PluginError());
-    }
+    search.indexTSMeta(meta).addErrback(new PluginError());
   }
   
   /**
@@ -587,9 +571,7 @@ public class TSDB {
    * @since 2.0
    */
   public void deleteTSMeta(final String tsuid) {
-    if (search != null) {
-      search.deleteTSMeta(tsuid).addErrback(new PluginError());
-    }
+    search.deleteTSMeta(tsuid).addErrback(new PluginError());
   }
   
   /**
@@ -598,9 +580,7 @@ public class TSDB {
    * @since 2.0
    */
   public void indexUIDMeta(final UIDMeta meta) {
-    if (search != null) {
-      search.indexUIDMeta(meta).addErrback(new PluginError());
-    }
+    search.indexUIDMeta(meta).addErrback(new PluginError());
   }
   
   /**
@@ -609,9 +589,7 @@ public class TSDB {
    * @since 2.0
    */
   public void deleteUIDMeta(final UIDMeta meta) {
-    if (search != null) {
-      search.deleteUIDMeta(meta).addErrback(new PluginError());
-    }
+    search.deleteUIDMeta(meta).addErrback(new PluginError());
   }
   
   /**
@@ -620,12 +598,8 @@ public class TSDB {
    * @since 2.0
    */
   public void indexAnnotation(final Annotation note) {
-    if (search != null) {
-      search.indexAnnotation(note).addErrback(new PluginError());
-    }
-    if( rt_publisher != null ) {
-    	rt_publisher.publishAnnotation(note);
-    }
+    search.indexAnnotation(note).addErrback(new PluginError());
+    rt_publisher.publishAnnotation(note);
   }
   
   /**
@@ -634,9 +608,7 @@ public class TSDB {
    * @since 2.0
    */
   public void deleteAnnotation(final Annotation note) {
-    if (search != null) {
-      search.deleteAnnotation(note).addErrback(new PluginError());
-    }
+    search.deleteAnnotation(note).addErrback(new PluginError());
   }
   
   /**
@@ -660,11 +632,6 @@ public class TSDB {
    * @since 2.0
    */
   public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
-    if (search == null) {
-      throw new IllegalStateException(
-          "Searching has not been enabled on this TSD");
-    }
-    
     return search.executeQuery(query);
   }
 
@@ -700,7 +667,7 @@ public class TSDB {
      * Creates the {@link SpanGroup}s to form the final results of this query.
      *
      * @param dps The {@link Span}s found for this query ({@link TSDB#findSpans}).
-     *              Can be {@code null}, in which case the array returned will be empty.
+     *            Can be {@code null}, in which case the array returned will be empty.
      * @return A possibly empty array of {@link SpanGroup}s built according to
      * any 'GROUP BY' formulated in this query.
      */
