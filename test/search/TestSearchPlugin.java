@@ -17,6 +17,7 @@ import static org.junit.Assert.assertNotNull;
 
 import com.google.common.collect.Maps;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.MemoryStore;
@@ -43,7 +44,9 @@ public final class TestSearchPlugin {
     overrides.put("tsd.search.DummySearchPlugin.port", "42");
     config = new Config(false, overrides);
 
-    tsdb = new TSDB(new MemoryStore(), config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .build();
 
     // setups a good default for the config
     PluginLoader.loadJAR("plugin_test.jar");
@@ -58,7 +61,10 @@ public final class TestSearchPlugin {
   
   @Test (expected = IllegalArgumentException.class)
   public void initializeMissingHost() throws Exception {
-    tsdb = new TSDB(new MemoryStore(), new Config(false), search, null);
+    tsdb = TsdbBuilder.createFromConfig(new Config(false))
+            .withStore(new MemoryStore())
+            .withSearchPlugin(search)
+            .build();
     search.initialize(tsdb);
   }
   
@@ -67,7 +73,10 @@ public final class TestSearchPlugin {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put("tsd.search.DummySearchPlugin.hosts", "");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config, search, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .withSearchPlugin(search)
+            .build();
 
     search.initialize(tsdb);
   }
@@ -77,7 +86,10 @@ public final class TestSearchPlugin {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put("tsd.search.DummySearchPlugin.hosts", "localhost");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config, search, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .withSearchPlugin(search)
+            .build();
 
     search.initialize(tsdb);
   }
@@ -87,7 +99,10 @@ public final class TestSearchPlugin {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put("tsd.search.DummySearchPlugin.port", "no number");
     config = new Config(false, overrides);
-    tsdb = new TSDB(new MemoryStore(), config, search, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(new MemoryStore())
+            .withSearchPlugin(search)
+            .build();
 
     search.initialize(tsdb);
   }

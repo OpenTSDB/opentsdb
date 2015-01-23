@@ -25,6 +25,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import com.google.common.collect.Maps;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
@@ -74,7 +75,9 @@ public final class TestTSMeta {
     config = new Config(false, overrides);
 
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
       NAME_FAMILY,

@@ -19,6 +19,7 @@ import java.util.HashMap;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
@@ -72,7 +73,9 @@ public class TestDumpSeries {
   public void before() throws Exception {
     config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
 
     buffer = new ByteArrayOutputStream();
     System.setOut(new PrintStream(buffer));

@@ -51,7 +51,12 @@ public class TestTsdbQueryDownsample {
   @Before
   public void before() throws Exception {
     MemoryStore tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
+    Config config = new Config(false);
+
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
+
     builder = new QueryBuilder(tsdb);
 
     tsdb_store.allocateUID("sys.cpu.user", SYS_CPU_USER_ID, UniqueIdType.METRIC);

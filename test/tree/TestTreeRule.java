@@ -16,6 +16,7 @@ import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
@@ -384,7 +385,9 @@ public final class TestTreeRule {
    */
   private void setupStorage() throws Exception {
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
+    tsdb = TsdbBuilder.createFromConfig(new Config(false))
+            .withStore(tsdb_store)
+            .build();
 
     final TreeRule stored_rule = new TreeRule(1);
     stored_rule.setLevel(2);

@@ -24,6 +24,7 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
@@ -81,7 +82,9 @@ public class TestTextImporter {
   public void before() throws Exception {
     Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
     
     PowerMockito.spy(TextImporter.class);
     // we need to purge the hash map before each unit test since it's a static

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
@@ -25,7 +26,9 @@ public class TestUidFormatter {
   @Before
   public void setUp() throws IOException {
     client = new MemoryStore();
-    TSDB tsdb = new TSDB(client, new Config(false), null, null);
+    TSDB tsdb = TsdbBuilder.createFromConfig(new Config(false))
+            .withStore(client)
+            .build();
     formatter = new UidFormatter(tsdb);
 
     client.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);

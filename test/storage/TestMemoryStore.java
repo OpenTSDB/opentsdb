@@ -1,6 +1,7 @@
 package net.opentsdb.storage;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.TestBranch;
 import net.opentsdb.utils.Config;
@@ -84,7 +85,9 @@ public class TestMemoryStore extends TestTsdbStore {
 
     config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config, null, null);
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(tsdb_store)
+            .build();
 
     setUpBranchesAndLeafs();
     if (!store)
