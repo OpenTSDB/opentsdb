@@ -8,6 +8,8 @@ import net.opentsdb.utils.PluginLoader;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class TsdbBuilder {
   private static final Logger LOG = LoggerFactory.getLogger(TsdbBuilder.class);
 
-  private TsdbStore client;
+  private Supplier<TsdbStore> storeSupplier;
   private Config config;
   private SearchPlugin searchPlugin;
   private RTPublisher realtimePublisher;
@@ -116,8 +118,8 @@ public class TsdbBuilder {
    * @param supplier The {@link net.opentsdb.core.StoreSupplier} to use
    * @return This instance
    */
-  public TsdbBuilder withStoreSupplier(final StoreSupplier supplier) {
-    withStore(supplier.get());
+  public TsdbBuilder withStoreSupplier(final Supplier<TsdbStore> supplier) {
+    this.storeSupplier = checkNotNull(supplier);
     return this;
   }
 
@@ -128,7 +130,7 @@ public class TsdbBuilder {
    * @return This instance
    */
   public TsdbBuilder withStore(final TsdbStore store) {
-    this.client = checkNotNull(store);
+    withStoreSupplier(Suppliers.ofInstance(store));
     return this;
   }
 
@@ -183,6 +185,6 @@ public class TsdbBuilder {
    * @return A newly created {@link net.opentsdb.core.TSDB} instance
    */
   public TSDB build() {
-    return new TSDB(client, config, searchPlugin, realtimePublisher);
+    return new TSDB(storeSupplier.get(), config, searchPlugin, realtimePublisher);
   }
 }
