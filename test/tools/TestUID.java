@@ -19,9 +19,12 @@ import static org.junit.Assert.assertNull;
 import java.lang.reflect.Method;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.TsdbBuilder;
+import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
@@ -67,7 +70,11 @@ public class TestUID {
   public void before() throws Exception {
     config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(config);
+
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withSearchPlugin((SearchPlugin)null)
+            .withRealtimePublisher((RTPublisher) null)
+            .build();
 
     // replace the "real" field objects with mocks
 //    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");

@@ -16,10 +16,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -64,7 +62,7 @@ public final class TestTreeBuilder {
   @Before
   public void before() throws Exception {
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false));
+    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
     treebuilder = new TreeBuilder(tsdb, tree);
 
     meta.setMetric(metric);

@@ -55,66 +55,13 @@ public final class TestTSDB {
     config = new Config(false);
     config.setFixDuplicates(true); // TODO(jat): test both ways
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
   }
   
   @Test
-  public void initializePluginsDefaults() {
+  public void initializePlugins() {
     // no configured plugin path, plugins disabled, no exceptions
-    tsdb.initializePlugins(true);
-  }
-  
-  @Test
-  public void initializePluginsPathSet() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.core.plugin_path", "./");
-    properties.setAccessible(false);
-    tsdb.initializePlugins(true);
-  }
-  
-  @Test (expected = RuntimeException.class)
-  public void initializePluginsPathBad() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.core.plugin_path", "./doesnotexist");
-    properties.setAccessible(false);
-    tsdb.initializePlugins(true);
-  }
-  
-  @Test
-  public void initializePluginsSearch() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.core.plugin_path", "./");
-    props.put("tsd.search.enable", "true");
-    props.put("tsd.search.plugin", "net.opentsdb.search.DummySearchPlugin");
-    props.put("tsd.search.DummySearchPlugin.hosts", "localhost");
-    props.put("tsd.search.DummySearchPlugin.port", "42");
-    properties.setAccessible(false);
-    tsdb.initializePlugins(true);
-  }
-  
-  @Test (expected = RuntimeException.class)
-  public void initializePluginsSearchNotFound() throws Exception {
-    Field properties = config.getClass().getDeclaredField("properties");
-    properties.setAccessible(true);
-    @SuppressWarnings("unchecked")
-    HashMap<String, String> props = 
-      (HashMap<String, String>) properties.get(config);
-    props.put("tsd.search.enable", "true");
-    props.put("tsd.search.plugin", "net.opentsdb.search.DoesNotExist");
-    properties.setAccessible(false);
-    tsdb.initializePlugins(true);
+    tsdb.initializePlugins();
   }
   
   @Test
@@ -1047,7 +994,7 @@ public final class TestTSDB {
    */
   private void setupTreeStorage() throws Exception {
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, new Config(false));
+    tsdb = new TSDB(tsdb_store, new Config(false), null, null);
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());

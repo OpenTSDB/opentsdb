@@ -29,6 +29,7 @@ import net.opentsdb.core.QueryBuilder;
 import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.utils.Config;
@@ -77,7 +78,7 @@ final class CliQuery {
     // get a config object
     Config config = CliOptions.getConfig(argp);
     
-    final TSDB tsdb = new TSDB(config);
+    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     final String basepath = argp.get("--graph");
     argp = null;

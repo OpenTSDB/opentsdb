@@ -16,7 +16,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.reflect.Method;
 import java.util.TreeMap;
 
 import net.opentsdb.core.Const;
@@ -34,7 +33,6 @@ import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
-import net.opentsdb.utils.JSON;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hbase.async.KeyValue;
@@ -67,7 +65,7 @@ public final class TestTreeRpc {
   public void before() throws Exception {
     final Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());

@@ -21,6 +21,8 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
+import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.HBaseClient;
@@ -64,7 +66,11 @@ public final class TestRpcHandler {
     final Config config = new Config(false);
     PowerMockito.whenNew(HBaseClient.class)
       .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
+
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withSearchPlugin((SearchPlugin)null)
+            .withRealtimePublisher((RTPublisher) null)
+            .build();
   }
   
   @Test

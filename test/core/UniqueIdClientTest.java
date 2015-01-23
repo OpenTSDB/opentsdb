@@ -31,7 +31,7 @@ public class UniqueIdClientTest {
     config = new Config(false);
     config.setFixDuplicates(true); // TODO(jat): test both ways
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     uniqueIdClient = new UniqueIdClient(tsdb_store, config, tsdb);
   }
@@ -376,7 +376,7 @@ public class UniqueIdClientTest {
   private void setupStorage() throws Exception {
     config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
   }
 
   private void setupResolveIds() throws Exception {

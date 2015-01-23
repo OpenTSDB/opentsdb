@@ -100,7 +100,7 @@ public final class TestTSDBExecuteQuery {
     config = new Config(false);
     config.setFixDuplicates(true);  // TODO(jat): test both ways
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
     queryBuilder = new QueryBuilder(tsdb);
 
     tsdb_store.allocateUID(METRIC_1, SYS_CPU_USER_ID, UniqueIdType.METRIC);

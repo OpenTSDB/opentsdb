@@ -452,7 +452,7 @@ public final class TestUniqueId {
     kvs.add(new KeyValue(MAXID, ID, metrics, Bytes.fromLong(64L)));
     kvs.add(new KeyValue(MAXID, ID, tagk, Bytes.fromLong(42L)));
     kvs.add(new KeyValue(MAXID, ID, tagv, Bytes.fromLong(1024L)));
-    TSDB tsdb = new TSDB(client, config);
+    TSDB tsdb = new TSDB(client, config, null, null);
 
     
     final byte[][] kinds = { metrics, tagk, tagv };
@@ -470,7 +470,7 @@ public final class TestUniqueId {
     final byte[] metrics = { 'm', 'e', 't', 'r', 'i', 'c', 's' };
     final byte[] tagk = { 't', 'a', 'g', 'k' };
     final byte[] tagv = { 't', 'a', 'g', 'v' };
-    TSDB tsdb = new TSDB(client, config);
+    TSDB tsdb = new TSDB(client, config, null, null);
     
     final byte[][] kinds = { metrics, tagk, tagv };
     final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb, kinds)

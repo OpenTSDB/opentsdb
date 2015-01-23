@@ -730,7 +730,7 @@ public class TestHBaseStore extends TestTsdbStore {
     config = new Config(false);
     client = PowerMockito.mock(HBaseClient.class);
     tsdb_store = new HBaseStore(client, config);
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     setUpBranchesAndLeafs();
     if (!store)

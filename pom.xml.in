@@ -126,9 +126,6 @@
                 <argument>net/opentsdb/tsd/DummyHttpSerializer.class</argument>
                 <argument>-C</argument>
                 <argument>target/test-classes</argument>
-                <argument>net/opentsdb/tsd/DummyRpcPlugin.class</argument>
-                <argument>-C</argument>
-                <argument>target/test-classes</argument>
                 <argument>net/opentsdb/tsd/DummyRTPublisher.class</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
@@ -139,9 +136,6 @@
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.HttpSerializer</argument>
-                <argument>-C</argument>
-                <argument>test</argument>
-                <argument>META-INF/services/net.opentsdb.tsd.RpcPlugin</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.RTPublisher</argument>

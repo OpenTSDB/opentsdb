@@ -19,6 +19,7 @@ import java.util.Date;
 import java.util.Map;
 
 
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.TsdbStore;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
@@ -76,7 +77,7 @@ final class DumpSeries {
     // get a config object
     Config config = CliOptions.getConfig(argp);
     
-    final TSDB tsdb = new TSDB(config);
+    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
     formatter = new UidFormatter(tsdb);
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     final byte[] table = config.getString("tsd.storage.hbase.data_table").getBytes();

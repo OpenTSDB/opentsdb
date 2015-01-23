@@ -84,7 +84,7 @@ public class TestMemoryStore extends TestTsdbStore {
 
     config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     setUpBranchesAndLeafs();
     if (!store)

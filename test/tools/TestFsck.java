@@ -63,7 +63,7 @@ public final class TestFsck {
   public void before() throws Exception {
     Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     when(options.fix()).thenReturn(false);
     when(options.compact()).thenReturn(false);

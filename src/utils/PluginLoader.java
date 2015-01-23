@@ -24,6 +24,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +75,7 @@ public final class PluginLoader {
   };
   
   /**
-   * Searches the class path for the specific plugin of a given type
+   * Searches the class path for the a plugin with the given name and type.
    * <p>
    * <b>Note:</b> If you want to load JARs dynamically, you need to call 
    * {@link #loadJAR} or {@link #loadJARs} methods with the proper file
@@ -85,37 +89,30 @@ public final class PluginLoader {
    * @param name The specific name of a plugin to search for, e.g. 
    *   net.opentsdb.search.ElasticSearch
    * @param type The class type to search for
-   * @return An instantiated object of the given type if found, null if the
-   * class could not be found
+   * @return An instantiated object of the given type
+   * @throws IllegalArgumentException if the plugin name is null or empty or
+   * no plugin with the requested name was found
    * @throws ServiceConfigurationError if the plugin cannot be instantiated
-   * @throws IllegalArgumentName if the plugin name is null or empty
    */
-  public static <T> T loadSpecificPlugin(final String name, 
-      final Class<T> type) {
-    if (name.isEmpty()) {
-      throw new IllegalArgumentException("Missing plugin name");
-    }
-    ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
-    Iterator<T> it = serviceLoader.iterator();
-    if (!it.hasNext()) {
-      LOG.warn("Unable to locate any plugins of the type: {}", type.getName());
-      return null;
-    }
-    
-    while(it.hasNext()) {
-      T plugin = it.next();
+  public static <T> T loadSpecificPlugin(final String name, final Class<T> type) {
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(name),
+            "Missing plugin name");
+
+    final List<T> plugins = loadPlugins(type);
+
+    for (final T plugin : plugins) {
       if (plugin.getClass().getName().equals(name)) {
         return plugin;
       }
     }
 
-    LOG.warn("Unable to locate plugin: {}", name);
-    return null;
+    throw new IllegalArgumentException("Unable to locate plugin with name " +
+            name + " of type " + type);
   }
   
   /**
    * Searches the class path for implementations of the given type, returning a 
-   * list of all plugins that were found
+   * list of all plugins that were found.
    * <p>
    * <b>Note:</b> If you want to load JARs dynamically, you need to call 
    * {@link #loadJAR} or {@link #loadJARs} methods with the proper file
@@ -127,29 +124,16 @@ public final class PluginLoader {
    * correct version was loaded.
    * 
    * @param type The class type to search for
-   * @return An instantiated list of objects of the given type if found, null 
-   * if no implementations of the type were found
+   * @return An list of objects of the given type. If no objects were found
+   * an empty list will be returned.
    * @throws ServiceConfigurationError if any of the plugins could not be 
    * instantiated
    */
   public static <T> List<T> loadPlugins(final Class<T> type) {
     ServiceLoader<T> serviceLoader = ServiceLoader.load(type);
-    Iterator<T> it = serviceLoader.iterator();
-    if (!it.hasNext()) {
-      LOG.warn("Unable to locate any plugins of the type: {}", type.getName());
-      return null;
-    }
-    
-    ArrayList<T> plugins = new ArrayList<T>();
-    while(it.hasNext()) {
-      plugins.add(it.next());
-    }
-    if (plugins.size() > 0) {
-      return plugins;
-    }
-
-    LOG.warn("Unable to locate plugins for type: {}", type.getName());
-    return null;
+    final ImmutableList<T> plugins = ImmutableList.copyOf(serviceLoader);
+    LOG.info("Found {} plugins of type {}", plugins.size(), type);
+    return plugins;
   }
   
   /**

@@ -57,7 +57,7 @@ public final class TestUniqueIdRpc {
     Config config = new Config(false, properties);
 
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
   }
 
   @Test

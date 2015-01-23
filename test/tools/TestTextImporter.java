@@ -81,7 +81,7 @@ public class TestTextImporter {
   public void before() throws Exception {
     Config config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
     
     PowerMockito.spy(TextImporter.class);
     // we need to purge the hash map before each unit test since it's a static

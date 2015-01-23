@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.base.Throwables;
 import net.opentsdb.core.Const;
-import net.opentsdb.storage.TsdbStore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +38,7 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -113,7 +114,7 @@ final class UidManager {
     final byte[] table = config.getString("tsd.storage.hbase.uid_table")
       .getBytes();
     
-    final TSDB tsdb = new TSDB(config);
+    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     int rc;
@@ -177,7 +178,7 @@ final class UidManager {
       // so that update meta data can be pushed to search engines
       try {
         tsdb.checkNecessaryTablesExist().joinUninterruptibly();
-        tsdb.initializePlugins(false);
+        tsdb.initializePlugins();
         return metaSync(tsdb);
       } catch (Exception e) {
         LOG.error("Unexpected exception", e);

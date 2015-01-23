@@ -25,7 +25,7 @@ public class TestUidFormatter {
   @Before
   public void setUp() throws IOException {
     client = new MemoryStore();
-    TSDB tsdb = new TSDB(client, new Config(false));
+    TSDB tsdb = new TSDB(client, new Config(false), null, null);
     formatter = new UidFormatter(tsdb);
 
     client.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);

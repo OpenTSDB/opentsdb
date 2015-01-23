@@ -72,7 +72,7 @@ public class TestDumpSeries {
   public void before() throws Exception {
     config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = new TSDB(tsdb_store, config);
+    tsdb = new TSDB(tsdb_store, config, null, null);
 
     buffer = new ByteArrayOutputStream();
     System.setOut(new PrintStream(buffer));
