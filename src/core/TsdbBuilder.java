@@ -151,7 +151,7 @@ public class TsdbBuilder {
    * @see com.google.common.base.Optional
    */
   public TsdbBuilder withSearchPlugin(final Optional<SearchPlugin> searchPlugin) {
-    withSearchPlugin(searchPlugin.orNull());
+    withSearchPlugin(searchPlugin.or(new DefaultSearchPlugin()));
     return this;
   }
 
@@ -174,7 +174,7 @@ public class TsdbBuilder {
    * @see com.google.common.base.Optional
    */
   public TsdbBuilder withRealtimePublisher(final Optional<RTPublisher> realtimePublisher) {
-    withRealtimePublisher(realtimePublisher.orNull());
+    withRealtimePublisher(realtimePublisher.or(new DefaultRealtimePublisher()));
     return this;
   }
 

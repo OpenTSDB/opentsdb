@@ -21,7 +21,6 @@ import java.util.Set;
 import java.util.Iterator;
 
 import com.google.common.base.Strings;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
@@ -39,12 +38,13 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
-import net.opentsdb.utils.PluginLoader;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.Bytes;
+
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tree.Branch;
@@ -64,48 +64,67 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Thread-safe implementation of the TSDB client.
- * <p>
+ * <p/>
  * This class is the central class of OpenTSDB.  You use it to add new data
  * points or query the database.
  */
 public class TSDB {
   private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
-  
-  static final byte[] FAMILY = { 't' };
 
-  /** Charset used to convert Strings to byte arrays and back. */
+  static final byte[] FAMILY = {'t'};
+
+  /**
+   * Charset used to convert Strings to byte arrays and back.
+   */
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
 
-  /** TsdbStore, the database cluster to use for storage.  */
+  /**
+   * TsdbStore, the database cluster to use for storage.
+   */
   final TsdbStore tsdb_store;
 
-  /** Name of the table in which timeseries are stored.  */
+  /**
+   * Name of the table in which timeseries are stored.
+   */
   final byte[] table;
-  /** Name of the table in which UID information is stored. */
+  /**
+   * Name of the table in which UID information is stored.
+   */
   final byte[] uidtable;
-  /** Name of the table where tree data is stored. */
+  /**
+   * Name of the table where tree data is stored.
+   */
   final byte[] treetable;
-  /** Name of the table where meta data is stored. */
+  /**
+   * Name of the table where meta data is stored.
+   */
   final byte[] meta_table;
 
-  /** Configuration object for all TSDB components */
+  /**
+   * Configuration object for all TSDB components
+   */
   final Config config;
 
   private final MetaClient metaClient;
   private final UniqueIdClient uniqueIdClient;
 
-  /** Search indexer to use if configure */
-  private SearchPlugin search = null;
-  
-  /** Optional real time pulblisher plugin to use if configured */
-  private RTPublisher rt_publisher = null;
+  /**
+   * The search plugin that this TSDB instance is configured to use.
+   */
+  private final SearchPlugin search;
+
+  /**
+   * The realtime publisher that this TSDB instance is configured to use.
+   */
+  private final RTPublisher rt_publisher;
 
   /**
    * Constructor
+   *
    * @param client An initialized TsdbStore object
    * @param config An initialized configuration object
-   * @param searchPlugin
-   * @param realTimePublisher
+   * @param searchPlugin The search plugin to use
+   * @param realTimePublisher The realtime publisher to use
    * @since 2.1
    */
   public TSDB(final TsdbStore client,
@@ -124,16 +143,18 @@ public class TSDB {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
 
-    this.search = searchPlugin;
-    this.rt_publisher = realTimePublisher;
+    this.search = checkNotNull(searchPlugin);
+    this.rt_publisher = checkNotNull(realTimePublisher);
 
     metaClient = new MetaClient(tsdb_store);
     uniqueIdClient = new UniqueIdClient(tsdb_store, config, this);
 
     LOG.debug(config.dumpConfiguration());
   }
-  
-  /** @return The data point column family name */
+
+  /**
+   * @return The data point column family name
+   */
   public static byte[] FAMILY() {
     return FAMILY;
   }
@@ -151,37 +172,35 @@ public class TSDB {
    * objects that rely on such. It also moves most of the potential exception
    * throwing code out of the constructor so TSDMain can shutdown clients and
    * such properly.
-   * @throws RuntimeException if the plugin path could not be processed
+   *
+   * @throws RuntimeException         if the plugin path could not be processed
    * @throws IllegalArgumentException if a plugin could not be initialized
    * @since 2.0
    */
   public void initializePlugins() {
-    if (search != null) {
-      try {
-        search.initialize(this);
-        LOG.info("Successfully initialized search plugin [{}] version: {}",
-                search.getClass().getCanonicalName(), search.version());
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to initialize search plugin", e);
-      }
+    try {
+      search.initialize(this);
+      LOG.info("Successfully initialized search plugin [{}] version: {}",
+              search.getClass().getCanonicalName(), search.version());
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to initialize search plugin", e);
     }
 
-    if (rt_publisher != null) {
-      try {
-        rt_publisher.initialize(this);
-        LOG.info("Successfully initialized real time publisher plugin [{}] version: {}",
-                rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
-      } catch (Exception e) {
-        throw new RuntimeException(
-                "Failed to initialize real time publisher plugin", e);
-      }
+    try {
+      rt_publisher.initialize(this);
+      LOG.info("Successfully initialized real time publisher plugin [{}] version: {}",
+              rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
+    } catch (Exception e) {
+      throw new RuntimeException(
+              "Failed to initialize real time publisher plugin", e);
     }
   }
-  
-  /** 
+
+  /**
    * Returns the configured TsdbStore
+   *
    * @return The TsdbStore
-   * @since 2.0 
+   * @since 2.0
    */
   public final TsdbStore getTsdbStore() {
     return this.tsdb_store;
@@ -200,11 +219,12 @@ public class TSDB {
   public final HBaseStore getHBaseStore() {
     return (HBaseStore) this.tsdb_store;
   }
-  
-  /** 
+
+  /**
    * Getter that returns the configuration object
+   *
    * @return The configuration object
-   * @since 2.0 
+   * @since 2.0
    */
   public final Config getConfig() {
     return this.config;
@@ -214,6 +234,7 @@ public class TSDB {
    * Verifies that the data and UID tables exist in TsdbStore and optionally the
    * tree and meta data tables if the user has enabled meta tracking or tree
    * building
+   *
    * @return An ArrayList of objects to wait for
    * @since 2.0
    */
@@ -223,6 +244,7 @@ public class TSDB {
 
   /**
    * Collects the stats and metrics tracked by this instance.
+   *
    * @param collector The collector to use.
    */
   public void collectStats(final StatsCollector collector) {
@@ -251,37 +273,38 @@ public class TSDB {
     tsdb_store.recordStats(collector);
 
     // Collect Stats from Plugins
-    if (rt_publisher != null) {
-      try {
-        collector.addExtraTag("plugin", "publish");
-        rt_publisher.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }
+    try {
+      collector.addExtraTag("plugin", "publish");
+      rt_publisher.collectStats(collector);
+    } finally {
+      collector.clearExtraTag("plugin");
     }
-    if (search != null) {
-      try {
-        collector.addExtraTag("plugin", "search");
-        search.collectStats(collector);
-      } finally {
-        collector.clearExtraTag("plugin");
-      }
+
+    try {
+      collector.addExtraTag("plugin", "search");
+      search.collectStats(collector);
+    } finally {
+      collector.clearExtraTag("plugin");
     }
   }
 
-  /** Returns a latency histogram for Put RPCs used to store data points. */
+  /**
+   * Returns a latency histogram for Put RPCs used to store data points.
+   */
   public Histogram getPutLatencyHistogram() {
     return IncomingDataPoints.putlatency;
   }
 
-  /** Returns a latency histogram for Scan RPCs used to fetch data points.  */
+  /**
+   * Returns a latency histogram for Scan RPCs used to fetch data points.
+   */
   public Histogram getScanLatencyHistogram() {
     return Query.scanlatency;
   }
 
   /**
    * Returns a new {@link WritableDataPoints} instance suitable for this TSDB.
-   * <p>
+   * <p/>
    * If you want to add a single data-point, consider using {@link #addPoint}
    * instead.
    */
@@ -291,21 +314,22 @@ public class TSDB {
 
   /**
    * Adds a single integer value data point in the TSDB.
-   * @param metric A non-empty string.
+   *
+   * @param metric    A non-empty string.
    * @param timestamp The timestamp associated with the value.
-   * @param value The value of the data point.
-   * @param tags The tags on this series.  This map must be non-empty.
+   * @param value     The value of the data point.
+   * @param tags      The tags on this series.  This map must be non-empty.
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null} (think
    * of it as {@code Deferred<Void>}). But you probably want to attach at
    * least an errback to this {@code Deferred} to handle failures.
    * @throws IllegalArgumentException if the timestamp is less than or equal
-   * to the previous timestamp added or 0 for the first timestamp, or if the
-   * difference with the previous timestamp is too large.
+   *                                  to the previous timestamp added or 0 for the first timestamp, or if the
+   *                                  difference with the previous timestamp is too large.
    * @throws IllegalArgumentException if the metric name is empty or contains
-   * illegal characters.
+   *                                  illegal characters.
    * @throws IllegalArgumentException if the tags list is empty or one of the
-   * elements contains illegal characters.
+   *                                  elements contains illegal characters.
    */
   public Deferred<Object> addPoint(final String metric,
                                    final long timestamp,
@@ -313,7 +337,7 @@ public class TSDB {
                                    final Map<String, String> tags) {
     final byte[] v;
     if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
-      v = new byte[] { (byte) value };
+      v = new byte[]{(byte) value};
     } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
       v = Bytes.fromShort((short) value);
     } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
@@ -327,22 +351,23 @@ public class TSDB {
 
   /**
    * Adds a double precision floating-point value data point in the TSDB.
-   * @param metric A non-empty string.
+   *
+   * @param metric    A non-empty string.
    * @param timestamp The timestamp associated with the value.
-   * @param value The value of the data point.
-   * @param tags The tags on this series.  This map must be non-empty.
+   * @param value     The value of the data point.
+   * @param tags      The tags on this series.  This map must be non-empty.
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null} (think
    * of it as {@code Deferred<Void>}). But you probably want to attach at
    * least an errback to this {@code Deferred} to handle failures.
    * @throws IllegalArgumentException if the timestamp is less than or equal
-   * to the previous timestamp added or 0 for the first timestamp, or if the
-   * difference with the previous timestamp is too large.
+   *                                  to the previous timestamp added or 0 for the first timestamp, or if the
+   *                                  difference with the previous timestamp is too large.
    * @throws IllegalArgumentException if the metric name is empty or contains
-   * illegal characters.
+   *                                  illegal characters.
    * @throws IllegalArgumentException if the value is NaN or infinite.
    * @throws IllegalArgumentException if the tags list is empty or one of the
-   * elements contains illegal characters.
+   *                                  elements contains illegal characters.
    * @since 1.2
    */
   public Deferred<Object> addPoint(final String metric,
@@ -351,33 +376,34 @@ public class TSDB {
                                    final Map<String, String> tags) {
     if (Double.isNaN(value) || Double.isInfinite(value)) {
       throw new IllegalArgumentException("value is NaN or Infinite: " + value
-                                         + " for metric=" + metric
-                                         + " timestamp=" + timestamp);
+              + " for metric=" + metric
+              + " timestamp=" + timestamp);
     }
     final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 8 bytes.
     return addPointInternal(metric, timestamp,
-                            Bytes.fromLong(Double.doubleToRawLongBits(value)),
-                            tags, flags);
+            Bytes.fromLong(Double.doubleToRawLongBits(value)),
+            tags, flags);
   }
 
   /**
    * Adds a single floating-point value data point in the TSDB.
-   * @param metric A non-empty string.
+   *
+   * @param metric    A non-empty string.
    * @param timestamp The timestamp associated with the value.
-   * @param value The value of the data point.
-   * @param tags The tags on this series.  This map must be non-empty.
+   * @param value     The value of the data point.
+   * @param tags      The tags on this series.  This map must be non-empty.
    * @return A deferred object that indicates the completion of the request.
    * The {@link Object} has not special meaning and can be {@code null} (think
    * of it as {@code Deferred<Void>}). But you probably want to attach at
    * least an errback to this {@code Deferred} to handle failures.
    * @throws IllegalArgumentException if the timestamp is less than or equal
-   * to the previous timestamp added or 0 for the first timestamp, or if the
-   * difference with the previous timestamp is too large.
+   *                                  to the previous timestamp added or 0 for the first timestamp, or if the
+   *                                  difference with the previous timestamp is too large.
    * @throws IllegalArgumentException if the metric name is empty or contains
-   * illegal characters.
+   *                                  illegal characters.
    * @throws IllegalArgumentException if the value is NaN or infinite.
    * @throws IllegalArgumentException if the tags list is empty or one of the
-   * elements contains illegal characters.
+   *                                  elements contains illegal characters.
    */
   public Deferred<Object> addPoint(final String metric,
                                    final long timestamp,
@@ -385,8 +411,8 @@ public class TSDB {
                                    final Map<String, String> tags) {
     if (Float.isNaN(value) || Float.isInfinite(value)) {
       throw new IllegalArgumentException("value is NaN or Infinite: " + value
-                                         + " for metric=" + metric
-                                         + " timestamp=" + timestamp);
+              + " for metric=" + metric
+              + " timestamp=" + timestamp);
     }
     final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
     return addPointInternal(metric, timestamp,
@@ -411,11 +437,6 @@ public class TSDB {
         // timing in a moving Histogram (once we have a class for this).
         Deferred<Object> result = tsdb_store.addPoint(tsuid, value, timestamp, flags);
 
-        if (!config.enable_realtime_ts() && !config.enable_tsuid_incrementing() &&
-                !config.enable_tsuid_tracking() && rt_publisher == null) {
-          return result;
-        }
-
         // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
         // counter field for a TSUID with the proper timestamp. If the user would
         // rather have TSUID incrementing enabled, that will trump the PUT
@@ -425,9 +446,8 @@ public class TSDB {
           incrementAndGetCounter(tsuid);
         }
 
-        if (rt_publisher != null) {
-          rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
-        }
+        rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
+
         return result;
       }
     }
@@ -439,8 +459,9 @@ public class TSDB {
 
   /**
    * Validates that the timestamp is within valid bounds.
+   *
    * @throws java.lang.IllegalArgumentException if the timestamp isn't within
-   * bounds.
+   *                                            bounds.
    */
   static long checkTimestamp(long timestamp) {
     checkArgument(timestamp >= 0, "The timestamp must be positive but was %s", timestamp);
@@ -451,10 +472,11 @@ public class TSDB {
   }
 
   /**
-   * Forces a flush of any un-committed in memory data including left over 
+   * Forces a flush of any un-committed in memory data including left over
    * compactions.
-   * <p>
+   * <p/>
    * For instance, any data point not persisted will be sent to the TsdbStore.
+   *
    * @return A {@link Deferred} that will be called once all the un-committed
    * data has been successfully and durably stored.  The value of the deferred
    * object return is meaningless and unspecified, and can be {@code null}.
@@ -465,27 +487,29 @@ public class TSDB {
 
   /**
    * Gracefully shuts down this TSD instance.
-   * <p>
+   * <p/>
    * The method must call {@code shutdown()} on all plugins as well as flush the
    * compaction queue.
+   *
    * @return A {@link Deferred} that will be called once all the un-committed
    * data has been successfully and durably stored, and all resources used by
    * this instance have been released.  The value of the deferred object
    * return is meaningless and unspecified, and can be {@code null}.
    */
   public Deferred<Object> shutdown() {
-    final ArrayList<Deferred<Object>> deferreds = 
-      new ArrayList<Deferred<Object>>();
-    
+    final ArrayList<Deferred<Object>> deferreds =
+            new ArrayList<Deferred<Object>>();
+
     final class StoreShutdown implements Callback<Object, ArrayList<Object>> {
       public Object call(final ArrayList<Object> args) {
         return tsdb_store.shutdown();
       }
+
       public String toString() {
         return "shutdown TsdbStore";
       }
     }
-    
+
     final class ShutdownErrback implements Callback<Object, Exception> {
       public Object call(final Exception e) {
         final Logger LOG = LoggerFactory.getLogger(ShutdownErrback.class);
@@ -501,31 +525,28 @@ public class TSDB {
         }
         return tsdb_store.shutdown();
       }
+
       public String toString() {
         return "shutdown TsdbStore after error";
       }
     }
 
-    if (search != null) {
-      LOG.info("Shutting down search plugin: {}", search.getClass().getCanonicalName());
-      deferreds.add(search.shutdown());
-    }
-    if (rt_publisher != null) {
-      LOG.info("Shutting down RT plugin: {}", rt_publisher.getClass().getCanonicalName());
-      deferreds.add(rt_publisher.shutdown());
-    }
-    
+    LOG.info("Shutting down search plugin: {}", search.getClass().getCanonicalName());
+    deferreds.add(search.shutdown());
+
+    LOG.info("Shutting down RT plugin: {}", rt_publisher.getClass().getCanonicalName());
+    deferreds.add(rt_publisher.shutdown());
+
     // wait for plugins to shutdown before we close the TsdbStore
-    return deferreds.size() > 0
-      ? Deferred.group(deferreds).addCallbacks(new StoreShutdown(),
-                                               new ShutdownErrback())
-      : tsdb_store.shutdown();
+    return Deferred.group(deferreds)
+            .addCallbacks(new StoreShutdown(), new ShutdownErrback());
   }
 
   /**
    * Given a prefix search, returns matching names from the specified id
    * type.
-   * @param type The type of ids to search
+   *
+   * @param type   The type of ids to search
    * @param search A prefix to search.
    * @since 2.0
    */
@@ -538,8 +559,9 @@ public class TSDB {
   /**
    * Given a prefix search, returns matching names from the specified id
    * type.
-   * @param type The type of ids to search
-   * @param search A prefix to search.
+   *
+   * @param type        The type of ids to search
+   * @param search      A prefix to search.
    * @param max_results Maximum number of results to return.
    * @since 2.0
    */
@@ -550,97 +572,98 @@ public class TSDB {
     return uniqueId.suggest(search, max_results);
   }
 
-  /** @return the name of the UID table as a byte array for TsdbStore requests */
+  /**
+   * @return the name of the UID table as a byte array for TsdbStore requests
+   */
   public byte[] uidTable() {
     return this.uidtable;
   }
-  
-  /** @return the name of the data table as a byte array for TsdbStore requests */
+
+  /**
+   * @return the name of the data table as a byte array for TsdbStore requests
+   */
   public byte[] dataTable() {
     return this.table;
   }
-  
-  /** @return the name of the tree table as a byte array for TsdbStore requests */
+
+  /**
+   * @return the name of the tree table as a byte array for TsdbStore requests
+   */
   public byte[] treeTable() {
     return this.treetable;
   }
-  
-  /** @return the name of the meta table as a byte array for TsdbStore requests */
+
+  /**
+   * @return the name of the meta table as a byte array for TsdbStore requests
+   */
   public byte[] metaTable() {
     return this.meta_table;
   }
 
   /**
    * Index the given timeseries meta object via the configured search plugin
+   *
    * @param meta The meta data object to index
    * @since 2.0
    */
   public void indexTSMeta(final TSMeta meta) {
-    if (search != null) {
-      search.indexTSMeta(meta).addErrback(new PluginError());
-    }
+    search.indexTSMeta(meta).addErrback(new PluginError());
   }
-  
+
   /**
    * Delete the timeseries meta object from the search index
+   *
    * @param tsuid The TSUID to delete
    * @since 2.0
    */
   public void deleteTSMeta(final String tsuid) {
-    if (search != null) {
-      search.deleteTSMeta(tsuid).addErrback(new PluginError());
-    }
+    search.deleteTSMeta(tsuid).addErrback(new PluginError());
   }
-  
+
   /**
    * Index the given UID meta object via the configured search plugin
+   *
    * @param meta The meta data object to index
    * @since 2.0
    */
   public void indexUIDMeta(final UIDMeta meta) {
-    if (search != null) {
-      search.indexUIDMeta(meta).addErrback(new PluginError());
-    }
+    search.indexUIDMeta(meta).addErrback(new PluginError());
   }
-  
+
   /**
    * Delete the UID meta object from the search index
+   *
    * @param meta The UID meta object to delete
    * @since 2.0
    */
   public void deleteUIDMeta(final UIDMeta meta) {
-    if (search != null) {
-      search.deleteUIDMeta(meta).addErrback(new PluginError());
-    }
+    search.deleteUIDMeta(meta).addErrback(new PluginError());
   }
-  
+
   /**
    * Index the given Annotation object via the configured search plugin
+   *
    * @param note The annotation object to index
    * @since 2.0
    */
   public void indexAnnotation(final Annotation note) {
-    if (search != null) {
-      search.indexAnnotation(note).addErrback(new PluginError());
-    }
-    if( rt_publisher != null ) {
-    	rt_publisher.publishAnnotation(note);
-    }
+    search.indexAnnotation(note).addErrback(new PluginError());
+    rt_publisher.publishAnnotation(note);
   }
-  
+
   /**
    * Delete the annotation object from the search index
+   *
    * @param note The annotation object to delete
    * @since 2.0
    */
   public void deleteAnnotation(final Annotation note) {
-    if (search != null) {
-      search.deleteAnnotation(note).addErrback(new PluginError());
-    }
+    search.deleteAnnotation(note).addErrback(new PluginError());
   }
-  
+
   /**
    * Processes the TSMeta through all of the trees if configured to do so
+   *
    * @param meta The meta data to process
    * @since 2.0
    */
@@ -650,33 +673,30 @@ public class TSDB {
     }
     return Deferred.fromResult(false);
   }
-  
+
   /**
    * Executes a search query using the search plugin
+   *
    * @param query The query to execute
    * @return A deferred object to wait on for the results to be fetched
    * @throws IllegalStateException if the search plugin has not been enabled or
-   * configured
+   *                               configured
    * @since 2.0
    */
   public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
-    if (search == null) {
-      throw new IllegalStateException(
-          "Searching has not been enabled on this TSD");
-    }
-    
     return search.executeQuery(query);
   }
 
   /**
    * Executes the query asynchronously
+   *
+   * @param query
    * @return The data points matched by this query.
-   * <p>
+   * <p/>
    * Each element in the non-{@code null} but possibly empty array returned
    * corresponds to one time series for which some data points have been
    * matched by the query.
    * @since 1.2
-   * @param query
    */
   public Deferred<DataPoints[]> executeQuery(Query query) {
     return tsdb_store.executeQuery(query)
@@ -700,7 +720,7 @@ public class TSDB {
      * Creates the {@link SpanGroup}s to form the final results of this query.
      *
      * @param dps The {@link Span}s found for this query ({@link TSDB#findSpans}).
-     *              Can be {@code null}, in which case the array returned will be empty.
+     *            Can be {@code null}, in which case the array returned will be empty.
      * @return A possibly empty array of {@link SpanGroup}s built according to
      * any 'GROUP BY' formulated in this query.
      */
@@ -784,8 +804,8 @@ public class TSDB {
   }
 
   /**
-   * Simply logs plugin errors when they're thrown by attaching as an errorback. 
-   * Without this, exceptions will just disappear (unless logged by the plugin) 
+   * Simply logs plugin errors when they're thrown by attaching as an errorback.
+   * Without this, exceptions will just disappear (unless logged by the plugin)
    * since we don't wait for a result.
    */
   final class PluginError implements Callback<Object, Exception> {
@@ -809,11 +829,11 @@ public class TSDB {
    * was
    * modified in storage during the CAS call. If false, retry the call. Other
    * failures will result in an exception being thrown.
-   * @throws org.hbase.async.HBaseException     If there was an issue fetching
-   * @throws IllegalArgumentException           If parsing failed
-   * @throws net.opentsdb.uid.NoSuchUniqueId    If the UID does not exist
-   * @throws IllegalStateException              If the data hasn't changed. This is OK!
-   * @throws net.opentsdb.utils.JSONException   If the object could not be serialized
+   * @throws org.hbase.async.HBaseException   If there was an issue fetching
+   * @throws IllegalArgumentException         If parsing failed
+   * @throws net.opentsdb.uid.NoSuchUniqueId  If the UID does not exist
+   * @throws IllegalStateException            If the data hasn't changed. This is OK!
+   * @throws net.opentsdb.utils.JSONException If the object could not be serialized
    */
   public Deferred<Boolean> syncUIDMetaToStorage(final UIDMeta meta,
                                                 final boolean overwrite) {
@@ -823,12 +843,12 @@ public class TSDB {
     }
 
     return this.uniqueIdClient.getUidName(meta.getType(), meta.getUID()).addCallbackDeferring(
-      new Callback<Deferred<Boolean>, String>() {
-        @Override
-        public Deferred<Boolean> call(String arg) {
-          return tsdb_store.updateMeta(meta, overwrite);
-        }
-      }
+            new Callback<Deferred<Boolean>, String>() {
+              @Override
+              public Deferred<Boolean> call(String arg) {
+                return tsdb_store.updateMeta(meta, overwrite);
+              }
+            }
     );
   }
 
@@ -849,10 +869,11 @@ public class TSDB {
    * <b>Warning:</b> This should not be called by user accessible methods as it
    * will overwrite any data already in the column. This method does not use
    * a CAS, instead it uses a PUT to overwrite anything in the column.
+   *
    * @param meta The meta object to store
    * @return A deferred without meaning. The response may be null and should
    * only be used to track completion.
-   * @throws IllegalArgumentException if data was missing
+   * @throws IllegalArgumentException         if data was missing
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Object> add(final UIDMeta meta) {
@@ -865,35 +886,37 @@ public class TSDB {
 
   /**
    * Convenience overload of {@code getUIDMeta(UniqueIdType, byte[])}
+   *
    * @param type The type of UID to fetch
-   * @param uid The ID of the meta to fetch
+   * @param uid  The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   * @throws org.hbase.async.HBaseException  if there was an issue fetching
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
-                                             final String uid) {
+                                      final String uid) {
     return getUIDMeta(type, UniqueId.stringToUid(uid));
   }
 
   /**
    * Verifies the UID object exists, then attempts to fetch the meta from
    * storage and if not found, returns a default object.
-   * <p>
+   * <p/>
    * The reason for returning a default object (with the type, uid and name set)
    * is due to users who may have just enabled meta data or have upgraded; we
    * want to return valid data. If they modify the entry, it will write to
    * storage. You can tell it's a default if the {@code created} value is 0. If
    * the meta was generated at UID assignment or updated by the meta sync CLI
    * command, it will have a valid created timestamp.
+   *
    * @param type The type of UID to fetch
-   * @param uid The ID of the meta to fetch
+   * @param uid  The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   * @throws org.hbase.async.HBaseException  if there was an issue fetching
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
-                                       final byte[] uid) {
+                                      final byte[] uid) {
     /**
      * Callback used to verify that the UID to name mapping exists. Uses the TSD
      * for verification so the name may be cached. If the name does not exist
@@ -906,7 +929,7 @@ public class TSDB {
       /**
        * Called after verifying that the name mapping exists
        * @return The results of {@link TsdbStore#getMeta(
-       *      byte[], String, net.opentsdb.uid.UniqueIdType)}
+       *byte[], String, net.opentsdb.uid.UniqueIdType)}
        */
       @Override
       public Deferred<UIDMeta> call(final String name) throws Exception {
@@ -921,7 +944,7 @@ public class TSDB {
   /**
    * Attempts to store the tree definition via a CompareAndSet call.
    *
-   * @param tree The Tree to be stored.
+   * @param tree      The Tree to be stored.
    * @param overwrite Whether or not tree data should be overwritten
    * @return True if the write was successful, false if an error occurred
    * @throws IllegalArgumentException if the tree ID is missing or invalid
@@ -940,12 +963,13 @@ public class TSDB {
   /**
    * Attempts to fetch the given tree from storage, loading the rule set at
    * the same time.
+   *
    * @param tree_id The Tree to fetch
    * @return A tree object if found, null if the tree did not exist
-   * @throws IllegalArgumentException if the tree ID was invalid
-   * @throws org.hbase.async.HBaseException if a storage exception occurred
+   * @throws IllegalArgumentException         if the tree ID was invalid
+   * @throws org.hbase.async.HBaseException   if a storage exception occurred
    * @throws net.opentsdb.utils.JSONException if the object could not be deserialized
-  */
+   */
   public Deferred<Tree> fetchTree(final int tree_id) {
     Tree.validateTreeID(tree_id);
 
@@ -974,6 +998,7 @@ public class TSDB {
     }
     return tsdb_store.createNewTree(tree);
   }
+
   /**
    * Attempts to delete all branches, leaves, collisions and not-matched entries
    * for the given tree. Optionally can delete the tree definition and rules as
@@ -982,9 +1007,10 @@ public class TSDB {
    * only be done from a command line or issues once via RPC and allowed to
    * process. Multiple deletes running at the same time on the same tree
    * shouldn't be an issue but it's a waste of resources.
-   * @param tree_id ID of the tree to delete
+   *
+   * @param tree_id           ID of the tree to delete
    * @param delete_definition Whether or not the tree definition and rule set
-   * should be deleted as well
+   *                          should be deleted as well
    * @return True if the deletion completed successfully, false if there was an
    * issue.
    * @throws IllegalArgumentException if the tree ID was invalid
@@ -1005,9 +1031,9 @@ public class TSDB {
    * without a list of TSUIDs if you feel confident the number is small.
    *
    * @param tree_id ID of the tree to fetch collisions for
-   * @param tsuids An optional list of TSUIDs to fetch collisions for. This may
-   * be empty or null, in which case all collisions for the tree will be
-   * returned.
+   * @param tsuids  An optional list of TSUIDs to fetch collisions for. This may
+   *                be empty or null, in which case all collisions for the tree will be
+   *                returned.
    * @return A list of collisions or null if nothing was found
    * @throws IllegalArgumentException if the tree ID was invalid
    */
@@ -1026,9 +1052,9 @@ public class TSDB {
    * without a list of TSUIDs if you feel confident the number is small.
    *
    * @param tree_id ID of the tree to fetch non matches for
-   * @param tsuids An optional list of TSUIDs to fetch non-matches for. This may
-   * be empty or null, in which case all non-matches for the tree will be
-   * returned.
+   * @param tsuids  An optional list of TSUIDs to fetch non-matches for. This may
+   *                be empty or null, in which case all non-matches for the tree will be
+   *                returned.
    * @return A list of not-matched mappings or null if nothing was found
    * @throws IllegalArgumentException if the tree ID was invalid
    */
@@ -1045,7 +1071,6 @@ public class TSDB {
    * <b>Note:</b> This will also clear the {@link Tree#collisions} map
    *
    * @param tree The Tree to flush to storage.
-   *
    * @return A meaningless deferred (will always be true since we need to group
    * it with tree store calls) for the caller to wait on
    */
@@ -1057,11 +1082,13 @@ public class TSDB {
 
     return tsdb_store.flushTreeCollisions(tree);
   }
+
   /**
    * Attempts to flush the non-matches to storage. The storage call is a PUT so
    * it will overwrite any existing columns, but since each column is the TSUID
    * it should only exist once and the data shouldn't change.
    * <b>Note:</b> This will also clear the local {@link Tree#not_matched} map
+   *
    * @param tree The Tree to flush to storage.
    * @return A meaningless deferred (will always be true since we need to group
    * it with tree store calls) for the caller to wait on
@@ -1082,12 +1109,13 @@ public class TSDB {
    * different, we store a collision in the tree and return false.
    * <b>Note:</b> You MUST write the tree to storage after calling this as there
    * may be a new collision. Check the tree's collision set.
-   * @param leaf The Leaf to put to storage
+   *
+   * @param leaf   The Leaf to put to storage
    * @param branch The branch this leaf belongs to
-   * @param tree Tree the leaf and branch belong to
+   * @param tree   Tree the leaf and branch belong to
    * @return True if the leaf was stored successful or already existed, false
    * if there was a collision
-   * @throws org.hbase.async.HBaseException if there was an issue
+   * @throws org.hbase.async.HBaseException   if there was an issue
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
@@ -1104,13 +1132,14 @@ public class TSDB {
    * Some of these may be false, which is OK, because if the branch
    * definition already exists, we don't need to re-write it. Leaves will
    * return false if there was a collision.
-   * @param tree The tree to record collisions to
-   * @param branch The branch to be stored
+   *
+   * @param tree         The tree to record collisions to
+   * @param branch       The branch to be stored
    * @param store_leaves Whether or not child leaves should be written to
-   * storage
+   *                     storage
    * @return A list of deferreds to wait on for completion.
    * @throws IllegalArgumentException if the tree ID was missing or data was
-   * missing
+   *                                  missing
    */
   public Deferred<ArrayList<Boolean>> storeBranch(final Tree tree,
                                                   final Branch branch,
@@ -1125,6 +1154,7 @@ public class TSDB {
    * much faster than scanning many rows for child branches as per the
    * {@link #fetchBranch} call. Useful when building trees, particularly to
    * fetch the root branch.
+   *
    * @param branch_id ID of the branch to retrieve
    * @return A branch if found, null if it did not exist
    * @throws net.opentsdb.utils.JSONException if the object could not be deserialized
@@ -1136,7 +1166,8 @@ public class TSDB {
   /**
    * Attempts to fetch the branch, it's leaves and all child branches.
    * The UID names for each leaf may also be loaded if configured.
-   * @param branch_id ID of the branch to retrieve
+   *
+   * @param branch_id      ID of the branch to retrieve
    * @param load_leaf_uids Whether or not to load UID names for each leaf
    * @return A branch if found, null if it did not exist
    * @throws net.opentsdb.utils.JSONException if the object could not be deserialized
@@ -1145,6 +1176,7 @@ public class TSDB {
                                       final boolean load_leaf_uids) {
     return tsdb_store.fetchBranch(branch_id, load_leaf_uids, this);
   }
+
   /**
    * Attempts to write the rule to storage via CompareAndSet, merging changes
    * with an existing rule.
@@ -1153,18 +1185,19 @@ public class TSDB {
    * exception will be thrown.
    * <b>Note:</b> This method also validates the rule, making sure that proper
    * combinations of data exist before writing to storage.
-   * @param rule The TreeRule to be stored
+   *
+   * @param rule      The TreeRule to be stored
    * @param overwrite When the RPC method is PUT, will overwrite all user
-   * accessible fields
+   *                  accessible fields
    * @return True if the CAS call succeeded, false if the stored data was
    * modified in flight. This should be retried if that happens.
-   * @throws IllegalArgumentException if parsing failed or the tree ID was
-   * invalid or validation failed
-   * @throws IllegalStateException if the data hasn't changed. This is OK!
+   * @throws IllegalArgumentException         if parsing failed or the tree ID was
+   *                                          invalid or validation failed
+   * @throws IllegalStateException            if the data hasn't changed. This is OK!
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule,
-                                         final boolean overwrite) {
+                                                 final boolean overwrite) {
     Tree.validateTreeID(rule.getTreeId());
 
     return tsdb_store.syncTreeRuleToStorage(rule, overwrite);
@@ -1172,12 +1205,13 @@ public class TSDB {
 
   /**
    * Attempts to retrieve the specified tree rule from storage.
+   *
    * @param tree_id ID of the tree the rule belongs to
-   * @param level Level where the rule resides
-   * @param order Order where the rule resides
+   * @param level   Level where the rule resides
+   * @param order   Order where the rule resides
    * @return A TreeRule object if found, null if it does not exist
-   * @throws IllegalArgumentException if the one of the required parameters was
-   * missing
+   * @throws IllegalArgumentException         if the one of the required parameters was
+   *                                          missing
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<TreeRule> fetchTreeRule(final int tree_id, final int level,
@@ -1187,19 +1221,21 @@ public class TSDB {
 
     return tsdb_store.fetchTreeRule(tree_id, level, order);
   }
+
   /**
    * Attempts to delete the specified rule from storage
+   *
    * @param tree_id ID of the tree the rule belongs to
-   * @param level Level where the rule resides
-   * @param order Order where the rule resides
+   * @param level   Level where the rule resides
+   * @param order   Order where the rule resides
    * @return A deferred without meaning. The response may be null and should
    * only be used to track completion.
    * @throws IllegalArgumentException if the one of the required parameters was
-   * missing
+   *                                  missing
    */
   public Deferred<Object> deleteTreeRule(final int tree_id,
-                                                final int level,
-                                                final int order) {
+                                         final int level,
+                                         final int order) {
     TreeRule.validateTreeRule(tree_id, level, order);
 
     return tsdb_store.deleteTreeRule(tree_id, level, order);
@@ -1207,11 +1243,12 @@ public class TSDB {
 
   /**
    * Attempts to delete all rules belonging to the given tree.
+   *
    * @param tree_id ID of the tree the rules belongs to
    * @return A deferred to wait on for completion. The value has no meaning and
    * may be null.
    * @throws IllegalArgumentException if the one of the required parameters was
-   * missing
+   *                                  missing
    */
   public Deferred<Object> deleteAllTreeRules(final int tree_id) {
 
@@ -1222,6 +1259,7 @@ public class TSDB {
 
   /**
    * Attempts to delete the meta object from storage
+   *
    * @param tsMeta The TSMeta to be removed.
    * @return A deferred without meaning. The response may be null and should
    * only be used to track completion.
@@ -1244,9 +1282,10 @@ public class TSDB {
    * <b>Note:</b> This call does not guarantee that the UIDs exist before
    * storing as it should only be called *after* a data point has been recorded
    * or during a meta sync.
+   *
    * @param tsMeta The TSMeta to be stored in the database
    * @return A meaningless deferred.
-   * @throws IllegalArgumentException if parsing failed
+   * @throws IllegalArgumentException         if parsing failed
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Boolean> create(final TSMeta tsMeta) {
@@ -1256,6 +1295,7 @@ public class TSDB {
 
   /**
    * Create the counter for a timeseries meta object.
+   *
    * @param ts The Timeseries meta object to create the counter for
    * @return A deferred that indicates the completion of the request
    */
@@ -1277,14 +1317,15 @@ public class TSDB {
    * TSUID that includes that object with the new data. Instead, UIDMetas are
    * merged into the TSMeta on retrieval so we always have canonical data. This
    * also saves space in storage.
-   * @param tsMeta The TSMeta to stored
+   *
+   * @param tsMeta    The TSMeta to stored
    * @param overwrite When the RPC method is PUT, will overwrite all user
-   * accessible fields
+   *                  accessible fields
    * @return True if the storage call was successful, false if the object was
    * modified in storage during the CAS call. If false, retry the call. Other
    * failures will result in an exception being thrown.
-   * @throws IllegalArgumentException if parsing failed
-   * @throws IllegalStateException if the data hasn't changed. This is OK!
+   * @throws IllegalArgumentException         if parsing failed
+   * @throws IllegalStateException            if the data hasn't changed. This is OK!
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Boolean> syncToStorage(final TSMeta tsMeta,
@@ -1345,6 +1386,7 @@ public class TSDB {
    * This is used by the UID Manager tool to determine if we need to write a
    * new TSUID entry or not. It will not attempt to verify if the stored data is
    * valid, just checks to see if something is stored in the proper column.
+   *
    * @param tsuid The UID of the meta to verify
    * @return True if data was found, false if not
    * @throws org.hbase.async.HBaseException if there was an issue fetching
@@ -1358,6 +1400,7 @@ public class TSDB {
    * This is used by the UID Manager tool to determine if we need to write a
    * new TSUID entry or not. It will not attempt to verify if the stored data is
    * valid, just checks to see if something is stored in the proper column.
+   *
    * @param tsuid The UID of the meta to verify
    * @return True if data was found, false if not
    * @throws org.hbase.async.HBaseException if there was an issue fetching
@@ -1373,9 +1416,10 @@ public class TSDB {
    * <ul><li>Passes the new TSMeta object to the Search plugin after loading
    * UIDMeta objects</li>
    * <li>Passes the new TSMeta through all configured trees if enabled</li></ul>
+   *
    * @param tsuid The TSUID to increment or create
    * @return 0 if the put failed, a positive LONG if the put was successful
-   * @throws org.hbase.async.HBaseException if there was a storage issue
+   * @throws org.hbase.async.HBaseException   if there was a storage issue
    * @throws net.opentsdb.utils.JSONException if the data was corrupted
    */
   public Deferred<Long> incrementAndGetCounter(final byte[] tsuid) {
@@ -1480,7 +1524,6 @@ public class TSDB {
   }
 
 
-
   /**
    * Attempts to fetch the timeseries meta data from storage.
    * This method will fetch the {@code counter} and {@code meta} columns.
@@ -1488,20 +1531,21 @@ public class TSDB {
    * <b>Note:</b> Until we have a caching layer implemented, this will make at
    * least 4 reads to the storage system, 1 for the TSUID meta, 1 for the
    * metric UIDMeta and 1 each for every tagk/tagv UIDMeta object.
-   * <p>
-   * @param tsuid The UID of the meta to fetch
+   * <p/>
+   *
+   * @param tsuid     The UID of the meta to fetch
    * @param load_uids Set this you true if you also want to load the UIDs
    * @return A TSMeta object if found, null if not
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
-   * @throws IllegalArgumentException if parsing failed
+   * @throws org.hbase.async.HBaseException   if there was an issue fetching
+   * @throws IllegalArgumentException         if parsing failed
    * @throws net.opentsdb.utils.JSONException if the data was corrupted
    */
   public Deferred<TSMeta> getTSMeta(final String tsuid, final boolean load_uids) {
     if (load_uids)
-    return tsdb_store.getTSMeta(UniqueId.stringToUid(tsuid))
-            .addCallbackDeferring(new LoadUIDs( tsuid));
+      return tsdb_store.getTSMeta(UniqueId.stringToUid(tsuid))
+              .addCallbackDeferring(new LoadUIDs(tsuid));
 
-    return  tsdb_store.getTSMeta(UniqueId.stringToUid(tsuid));
+    return tsdb_store.getTSMeta(UniqueId.stringToUid(tsuid));
 
   }
 
@@ -1509,8 +1553,8 @@ public class TSDB {
    * Parses a TSMeta object from the given column, optionally loading the
    * UIDMeta objects
    *
-   * @param column_key The KeyValue.key() of the column to parse also know as uid
-   * @param column_value The KeyValue.value() of the column to parse
+   * @param column_key    The KeyValue.key() of the column to parse also know as uid
+   * @param column_value  The KeyValue.value() of the column to parse
    * @param load_uidmetas Whether or not UIDmeta objects should be loaded
    * @return A TSMeta if parsed successfully
    * @throws net.opentsdb.utils.JSONException if the data was corrupted
@@ -1560,7 +1604,7 @@ public class TSDB {
 
     /**
      * @return A TSMeta object loaded with UIDMetas if successful
-     * @throws org.hbase.async.HBaseException if there was a storage issue
+     * @throws org.hbase.async.HBaseException   if there was a storage issue
      * @throws net.opentsdb.utils.JSONException if the data was corrupted
      */
     @Override
@@ -1574,7 +1618,7 @@ public class TSDB {
 
       Iterator<byte[]> tag_iter = tags.iterator();
 
-      while(tag_iter.hasNext()) {
+      while (tag_iter.hasNext()) {
         uid_group.add(getUIDMeta(UniqueIdType.TAGK, tag_iter.next()));
         uid_group.add(getUIDMeta(UniqueIdType.TAGV, tag_iter.next()));
       }
