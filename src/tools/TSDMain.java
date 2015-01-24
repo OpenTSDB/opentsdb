@@ -54,7 +54,6 @@ final class TSDMain {
   private static final boolean MUST_BE_WRITEABLE = true;
   
   private static TSDB tsdb = null;
-  private static RpcPluginsManager rpc_plugins_manager = null;
   
   public static void main(String[] args) throws IOException {
     Logger log = LoggerFactory.getLogger(TSDMain.class);
@@ -151,10 +150,11 @@ final class TSDMain {
       registerShutdownHook();
       final ServerBootstrap server = new ServerBootstrap(factory);
       
-      rpc_plugins_manager = new RpcPluginsManager();
-      rpc_plugins_manager.initialize(tsdb);
+      // This manager is capable of lazy init, but we force an init
+      // here to fail fast.
+      final RpcPluginsManager manager = RpcPluginsManager.instance(tsdb);
 
-      server.setPipelineFactory(new PipelineFactory(tsdb, rpc_plugins_manager));
+      server.setPipelineFactory(new PipelineFactory(tsdb, manager));
       if (config.hasProperty("tsd.network.backlog")) {
         server.setOption("backlog", config.getInt("tsd.network.backlog")); 
       }
@@ -196,8 +196,10 @@ final class TSDMain {
       }
       public void run() {
         try {
-          if (rpc_plugins_manager != null) {
-            rpc_plugins_manager.shutdown().join();
+          if (RpcPluginsManager.isInitialized()) {
+            // Check that its actually been initialized.  We don't want to
+            // create a new instance only to shutdown!
+            RpcPluginsManager.instance(tsdb).shutdown().join();
           }
           if (tsdb != null) {
             tsdb.shutdown().join();

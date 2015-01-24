@@ -72,8 +72,7 @@ public final class TestRpcHandler {
     PowerMockito.whenNew(HBaseClient.class)
       .withArguments(anyString(), anyString()).thenReturn(client);
     tsdb = new TSDB(config);
-    pluginsManager = new RpcPluginsManager();
-    pluginsManager.initialize(tsdb);
+    pluginsManager = RpcPluginsManager.instance(tsdb);
   }
   
   @After

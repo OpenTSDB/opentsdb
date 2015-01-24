@@ -48,8 +48,26 @@ import net.opentsdb.utils.PluginLoader;
 
 /**
  * Manager for the lifecycle of <code>HttpRpc</code>s, <code>TelnetRpc</code>s,
- * <code>RpcPlugin</code>s, and <code>HttpRpcPlugin</code>.  This is intended
- * to be a singleton.
+ * <code>RpcPlugin</code>s, and <code>HttpRpcPlugin</code>.  This is a
+ * singleton.  Its lifecycle must be managed by the "container".  If you are 
+ * launching via {@code TSDMain} then shutdown (and non-lazy initialization) 
+ * is taken care of. Outside of the use of {@code TSDMain}, you are responsible
+ * for shutdown, at least.
+ * 
+ * <p> Here's an example of how to correctly handle shutdown manually:
+ * 
+ * <pre>
+ * // Startup our TSDB instance...
+ * TSDB tsdb_instance = ...;
+ * 
+ * // ... later, during shtudown ..
+ * 
+ * if (RpcPluginsManager.isInitialized()) {
+ *   // Check that its actually been initialized.  We don't want to
+ *   // create a new instance only to shutdown!
+ *   RpcPluginsManager.instance(tsdb_instance).shutdown().join();
+ * }
+ * </pre>
  * 
  * @since 2.2
  */
@@ -80,74 +98,123 @@ public final class RpcPluginsManager {
   /** HTTP commands from user plugins. */
   private ImmutableMap<String, HttpRpcPlugin> http_plugin_commands;
   /** List of activated RPC plugins */
-  private ImmutableList<RpcPlugin> rpc_plugins = null;
+  private ImmutableList<RpcPlugin> rpc_plugins;
   
   /** The TSDB that owns us. */
   private TSDB tsdb;
   
   /**
-   * Create a new RPC plugins manager with no plugins initially registered.
-   * Users must call {@link #initialize(TSDB)} after construction.
+   * Constructor used by singleton factory method.
+   * @param tsdb the owning TSDB instance.
    */
-  public RpcPluginsManager() {
-    // Default values before initialize is called.
-    telnet_commands = ImmutableMap.of();
-    http_commands = ImmutableMap.of();
-    http_plugin_commands = ImmutableMap.of();
-    rpc_plugins = ImmutableList.of();
+  private RpcPluginsManager(final TSDB tsdb) {
+    this.tsdb = tsdb;
   }
   
   /**
-   * Load plugins enabled in the given TSDB's {@link Config}.  This method should
-   * be called exactly once!  Subsequent invocations will throw an exception.
-   * @param tsdb The parent TSDB object
-   * @throws IllegalStateException if the manager has already been initialized.
+   * Get or create the singleton instance of the manager, loading all the
+   * plugins enabled in the given TSDB's {@link Config}.
+   * @return the shared instance of {@link RpcPluginsManager}. It's okay to
+   * hold this reference once obtained.
    */
-  public void initialize(final TSDB tsdb) {
-    if (!INSTANCE.compareAndSet(null, this)) {
-      throw new IllegalStateException("Already initialized!");
+  public static synchronized RpcPluginsManager instance(final TSDB tsdb) {
+    final RpcPluginsManager existing = INSTANCE.get();
+    if (existing != null) {
+      return existing;
     }
-    this.tsdb = tsdb;
+
+    final RpcPluginsManager manager = new RpcPluginsManager(tsdb);
     final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
     
+    // Load any plugins that are enabled via Config.  Fail if any plugin cannot be loaded.
+  
+    final ImmutableList.Builder<RpcPlugin> rpcBuilder = ImmutableList.builder();
     if (tsdb.getConfig().hasProperty("tsd.rpc.plugins")) {
       final String[] plugins = tsdb.getConfig().getString("tsd.rpc.plugins").split(",");
-      final ImmutableList.Builder<RpcPlugin> rpcBuilder = ImmutableList.builder();
-      initializeRpcPlugins(plugins, rpcBuilder);
-      rpc_plugins = rpcBuilder.build();
+      manager.initializeRpcPlugins(plugins, rpcBuilder);
     }
-    
+    manager.rpc_plugins = rpcBuilder.build();
+
     final ImmutableMap.Builder<String, TelnetRpc> telnetBuilder = ImmutableMap.builder();
     final ImmutableMap.Builder<String, HttpRpc> httpBuilder = ImmutableMap.builder();
-    initializeBuiltinRpcs(mode, telnetBuilder, httpBuilder);
-    telnet_commands = telnetBuilder.build();
-    http_commands = httpBuilder.build();
-    
+    manager.initializeBuiltinRpcs(mode, telnetBuilder, httpBuilder);
+    manager.telnet_commands = telnetBuilder.build();
+    manager.http_commands = httpBuilder.build();
+
+    final ImmutableMap.Builder<String, HttpRpcPlugin> httpPluginsBuilder = ImmutableMap.builder();
     if (tsdb.getConfig().hasProperty("tsd.http.rpc.plugins")) {
       final String[] plugins = tsdb.getConfig().getString("tsd.http.rpc.plugins").split(",");
-      final ImmutableMap.Builder<String, HttpRpcPlugin> httpPluginsBuilder = ImmutableMap.builder();
-      initializeHttpRpcPlugins(mode, plugins, httpPluginsBuilder);
-      http_plugin_commands = httpPluginsBuilder.build();
+      manager.initializeHttpRpcPlugins(mode, plugins, httpPluginsBuilder);
     }
+    manager.http_plugin_commands = httpPluginsBuilder.build();
+    
+    INSTANCE.set(manager);
+    return manager;
   }
   
+  /**
+   * @return {@code true} if the shared instance has been initialized; 
+   * {@code false} otherwise.
+   */
+  public static synchronized boolean isInitialized() {
+    return INSTANCE.get() != null;
+  }
+
+  /**
+   * @return list of loaded {@link RpcPlugin}s.  Possibly empty but 
+   * never {@code null}.
+   */
   @VisibleForTesting
   protected ImmutableList<RpcPlugin> getRpcPlugins() {
     return rpc_plugins;
   }
   
+  /**
+   * Lookup a {@link TelnetRpc} based on given command name.  Note that this
+   * lookup is case sensitive in that the {@code command} passed in must 
+   * match a registered RPC command exactly.
+   * @param command a telnet API command name.
+   * @return the {@link TelnetRpc} for the given {@code command} or {@code null}
+   * if not found.
+   */
   TelnetRpc lookupTelnetRpc(final String command) {
     return telnet_commands.get(command);
   }
   
+  /**
+   * Lookup a built-in {@link HttpRpc} based on the given {@code queryBaseRoute}.
+   * The lookup is based on exact match of the input parameter and the registered
+   * {@link HttpRpc}s.
+   * @param queryBaseRoute the HTTP query's base route, with no trailing or 
+   * leading slashes.  For example: {@code api/query}
+   * @return the {@link HttpRpc} for the given {@code queryBaseRoute} or 
+   * {@code null} if not found.
+   */
   HttpRpc lookupHttpRpc(final String queryBaseRoute) {
     return http_commands.get(queryBaseRoute);
   }
   
+  /**
+   * Lookup a user-supplied {@link HttpRpcPlugin} for the given 
+   * {@code queryBaseRoute}. The lookup is based on exact match of the input 
+   * parameter and the registered {@link HttpRpcPlugin}s.
+   * @param queryBaseRoute the value of {@link HttpRpcPlugin#getPath()} with no
+   * trailing or leading slashes.
+   * @return the {@link HttpRpcPlugin} for the given {@code queryBaseRoute} or 
+   * {@code null} if not found.
+   */
   HttpRpcPlugin lookupHttpRpcPlugin(final String queryBaseRoute) {
     return http_plugin_commands.get(queryBaseRoute);
   }
   
+  /**
+   * @param uri HTTP request URI, with or without query parameters.
+   * @return {@code true} if the URI represents a request for a 
+   * {@link HttpRpcPlugin}; {@code false} otherwise.  Note that this
+   * method returning true <strong>says nothing</strong> about
+   * whether or not there is a {@link HttpRpcPlugin} registered
+   * at the given URI, only that it's a valid RPC plugin request.
+   */
   boolean isHttpRpcPluginPath(final String uri) {
     return !Strings.isNullOrEmpty(uri)
         && PLUGIN_WEBPATH_FOR_REQUESTS.matcher(uri).matches();
@@ -227,6 +294,12 @@ public final class RpcPluginsManager {
     }
   }
 
+  /**
+   * Ensure that the given path for an {@link HttpRpcPlugin} is valid.  This 
+   * method simply returns for valid inputs; throws and exception otherwise.
+   * @param path a request path, no query parameters, etc.
+   * @throws IllegalArgumentException on invalid paths.
+   */
   @VisibleForTesting
   protected void validateHttpRpcPluginPath(final String path) {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(path),
@@ -245,6 +318,12 @@ public final class RpcPluginsManager {
         "Invalid HttpRpcPlugin path %s. Path contains query parameters.", testPath);
   }
 
+  /**
+   * @param origPath a request path, no query parameters, etc.
+   * @return a canonical representation of the input, with trailing and leading
+   * slashes removed.
+   * @throws IllegalArgumentException if the given path is a root.
+   */
   @VisibleForTesting
   protected String canonicalizePluginPath(final String origPath) {
     Preconditions.checkArgument(!(Strings.isNullOrEmpty(origPath) || origPath.equals("/")),
@@ -303,6 +382,7 @@ public final class RpcPluginsManager {
   public Deferred<ArrayList<Object>> shutdown() {
     // Clear shared instance.
     INSTANCE.set(null);
+
     final Collection<Deferred<Object>> deferreds = Lists.newArrayList();
     
     if (http_plugin_commands != null) {
@@ -320,33 +400,33 @@ public final class RpcPluginsManager {
     return Deferred.groupInOrder(deferreds);
   }
   
-  public static void collectStats(final StatsCollector collector) {
-    RpcPluginsManager mgr = INSTANCE.get();
-    if (mgr != null) {
-      mgr.doCollectStats(collector);
-    }
-  }
-  
-  private void doCollectStats(final StatsCollector collector) {
-    if (rpc_plugins != null) {
-      try {
-        collector.addExtraTag("plugin", "rpc");
-        for (final RpcPlugin rpc : rpc_plugins) {
-          rpc.collectStats(collector);
+  /**
+   * Collect stats on the shared instance of {@link RpcPluginsManager}.
+   */
+  static void collectStats(final StatsCollector collector) {
+    final RpcPluginsManager manager = INSTANCE.get();
+    if (manager != null) {
+      if (manager.rpc_plugins != null) {
+        try {
+          collector.addExtraTag("plugin", "rpc");
+          for (final RpcPlugin rpc : manager.rpc_plugins) {
+            rpc.collectStats(collector);
+          }
+        } finally {
+          collector.clearExtraTag("plugin");
         }
-      } finally {
-        collector.clearExtraTag("plugin");
       }
-    }
-    
-    if (http_plugin_commands != null) {
-      try {
-        collector.addExtraTag("plugin", "httprpc");
-        for (final Map.Entry<String, HttpRpcPlugin> entry : http_plugin_commands.entrySet()) {
-          entry.getValue().collectStats(collector);
+
+      if (manager.http_plugin_commands != null) {
+        try {
+          collector.addExtraTag("plugin", "httprpc");
+          for (final Map.Entry<String, HttpRpcPlugin> entry 
+              : manager.http_plugin_commands.entrySet()) {
+            entry.getValue().collectStats(collector);
+          }
+        } finally {
+          collector.clearExtraTag("plugin");
         }
-      } finally {
-        collector.clearExtraTag("plugin");
       }
     }
   }
