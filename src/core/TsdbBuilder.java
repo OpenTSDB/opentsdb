@@ -2,6 +2,7 @@ package net.opentsdb.core;
 
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.storage.StorePlugin;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
@@ -12,6 +13,8 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ServiceLoader;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -38,8 +41,11 @@ public class TsdbBuilder {
 
     TsdbBuilder builder = new TsdbBuilder();
 
+    StoreSupplier storeSupplier = new StoreSupplier(config,
+        ServiceLoader.load(StorePlugin.class));
+
     builder.withConfig(config)
-            .withStoreSupplier(new StoreSupplier(config))
+            .withStoreSupplier(storeSupplier)
             .withSearchPlugin(loadSearchPlugin(config))
             .withRealtimePublisher(loadRealtimePublisher(config));
 

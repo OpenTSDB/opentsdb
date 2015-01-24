@@ -1,17 +1,12 @@
 package net.opentsdb.storage.hbase;
 
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.storage.TsdbStorePlugin;
+import net.opentsdb.storage.StorePlugin;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.HBaseClient;
 
-public class HBaseStorePlugin extends TsdbStorePlugin {
-  @Override
-  public String identifier() {
-    return "HBase";
-  }
-
+public class HBaseStorePlugin extends StorePlugin {
   @Override
   public TsdbStore createStore(final Config config) {
     return new HBaseStore(createHBaseClient(config), config);
