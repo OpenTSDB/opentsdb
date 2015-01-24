@@ -35,7 +35,7 @@ import net.opentsdb.stats.StatsCollector;
  *    and {@link collectStats} methods <strong>must be thread safe</strong> 
  *    with respect to the plugin's internal state and external resources.
  * </ul>
- * @since 2.1
+ * @since 2.2
  */
 public abstract class HttpRpcPlugin {
   /**

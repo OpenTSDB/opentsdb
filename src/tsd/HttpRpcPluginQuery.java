@@ -21,7 +21,7 @@ import net.opentsdb.core.TSDB;
  * Query class for {@link HttpRpcPlugin}s.  Binds together a request, its 
  * owning channel, and reponse helpers.
  * 
- * @since 2.1
+ * @since 2.2
  */
 public final class HttpRpcPluginQuery extends AbstractHttpQuery {
   public HttpRpcPluginQuery(final TSDB tsdb, final HttpRequest request, final Channel chan) {

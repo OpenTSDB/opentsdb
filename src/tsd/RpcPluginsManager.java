@@ -42,6 +42,7 @@ import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 import net.opentsdb.utils.PluginLoader;
 
@@ -50,7 +51,7 @@ import net.opentsdb.utils.PluginLoader;
  * <code>RpcPlugin</code>s, and <code>HttpRpcPlugin</code>.  This is intended
  * to be a singleton.
  * 
- * @since 2.1
+ * @since 2.2
  */
 public final class RpcPluginsManager {
   private static final Logger LOG = LoggerFactory.getLogger(RpcPluginsManager.class);
@@ -84,6 +85,10 @@ public final class RpcPluginsManager {
   /** The TSDB that owns us. */
   private TSDB tsdb;
   
+  /**
+   * Create a new RPC plugins manager with no plugins initially registered.
+   * Users must call {@link #initialize(TSDB)} after construction.
+   */
   public RpcPluginsManager() {
     // Default values before initialize is called.
     telnet_commands = ImmutableMap.of();
@@ -93,7 +98,10 @@ public final class RpcPluginsManager {
   }
   
   /**
+   * Load plugins enabled in the given TSDB's {@link Config}.  This method should
+   * be called exactly once!  Subsequent invocations will throw an exception.
    * @param tsdb The parent TSDB object
+   * @throws IllegalStateException if the manager has already been initialized.
    */
   public void initialize(final TSDB tsdb) {
     if (!INSTANCE.compareAndSet(null, this)) {

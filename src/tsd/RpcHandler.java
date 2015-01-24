@@ -148,11 +148,12 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   }
 
   /**
-   * Creates a query instance capable of handling the given request.
-   * @param tsdb
-   * @param request
-   * @param chan
-   * @return a sublcass of {@link AbstractHttpQuery}
+   * Using the request URI, creates a query instance capable of handling 
+   * the given request.
+   * @param tsdb the TSDB instance we are running within
+   * @param request the incoming HTTP request
+   * @param chan the {@link Channel} the request came in on.
+   * @return a subclass of {@link AbstractHttpQuery}
    * @throws BadRequestException if the request is invalid in a way that
    * can be detected early, here.
    */

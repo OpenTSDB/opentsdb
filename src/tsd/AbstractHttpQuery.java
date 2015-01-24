@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Abstract base class for HTTP queries.
  * 
- * @since 2.1
+ * @since 2.2
  */
 public abstract class AbstractHttpQuery {
   private static final Logger LOG = LoggerFactory.getLogger(AbstractHttpQuery.class);
@@ -60,6 +60,12 @@ public abstract class AbstractHttpQuery {
   private final DefaultHttpResponse response =
     new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
+  /**
+   * Set up required internal state.  For subclasses.
+   * 
+   * @param request the incoming HTTP request
+   * @param chan the {@link Channel} the request was received on
+   */
   protected AbstractHttpQuery(final HttpRequest request, final Channel chan) {
     this.request = request;
     this.chan = chan;
@@ -126,7 +132,6 @@ public abstract class AbstractHttpQuery {
    * parameters manually.
    * @return The path component of the URI
    * @throws NullPointerException if the URI is null
-   * @since 2.0
    */
   public String getQueryPath() {
     return new QueryStringDecoder(request.getUri()).getPath();
@@ -145,7 +150,6 @@ public abstract class AbstractHttpQuery {
    * @throws BadRequestException if the URI is empty or does not start with a
    * slash
    * @throws NullPointerException if the URI is null
-   * @since 2.0
    */
   public String[] explodePath() {
     final String path = getQueryPath();
@@ -167,7 +171,6 @@ public abstract class AbstractHttpQuery {
    * @return the base route
    * @throws BadRequestException if some necessary part of the query cannot
    * be parsed.
-   * @since 2.0
    */
   public abstract String getQueryBaseRoute();
   
@@ -176,7 +179,6 @@ public abstract class AbstractHttpQuery {
    * defaults to UTF-8
    * @return A Charset object
    * @throws UnsupportedCharsetException if the parsed character set is invalid
-   * @since 2.0
    */
   public Charset getCharset() {
     // RFC2616 3.7
@@ -190,7 +192,7 @@ public abstract class AbstractHttpQuery {
     return Charset.forName("UTF-8");
   }
   
-  /** @return True if the request has content, false if not @since 2.0 */
+  /** @return True if the request has content, false if not. */
   public boolean hasContent() {
     return this.request.getContent() != null &&
       this.request.getContent().readable();
@@ -201,7 +203,6 @@ public abstract class AbstractHttpQuery {
    * @return Decoded content or an empty string if the request did not include
    * content
    * @throws UnsupportedCharsetException if the parsed character set is invalid
-   * @since 2.0
    */
   public String getContent() {
     return this.request.getContent().toString(this.getCharset());
@@ -245,7 +246,6 @@ public abstract class AbstractHttpQuery {
   /**
    * Send just the status code without a body, used for 204 or 304
    * @param status The response code to reply with
-   * @since 2.0
    */
   public void sendStatusOnly(final HttpResponseStatus status) {
     if (!chan.isConnected()) {
