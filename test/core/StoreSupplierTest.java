@@ -19,6 +19,11 @@ public class StoreSupplierTest {
      * A constant that describes the number of stores that the corev project
      * comes with and thus how many store plugins that the {@link java.util
      * .ServiceLoader} should be able to find.
+     *
+     * Note that the {@link net.opentsdb.storage.MemoryStore} is not included
+     * in this number. This is intentional. The memory store should only be
+     * used in tests and leaving it out of this prevents anyone of
+     * accidentally using it in production.
      */
     private static final int NUM_STORES = 1;
 
