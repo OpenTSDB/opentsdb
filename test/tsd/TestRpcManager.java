@@ -37,7 +37,7 @@ import net.opentsdb.utils.PluginLoader;
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({ TSDB.class, Config.class, HBaseClient.class, RpcManager.class })
-public class TestRpcPluginsManager {
+public class TestRpcManager {
   private TSDB mock_tsdb_no_plugins;
   
   // Set in individual test methods; shutdown by after() if set.
