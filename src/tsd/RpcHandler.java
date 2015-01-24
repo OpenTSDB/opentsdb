@@ -59,7 +59,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
    * set of known-to-work headers */
   private final String cors_headers;
   /** RPC plugins.  Contains the handlers we dispatch requests to. */
-  private final RpcPluginsManager plugins_manager;
+  private final RpcManager rpc_manager;
 
   /** The TSDB to use. */
   private final TSDB tsdb;
@@ -71,9 +71,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
    * @throws IllegalArgumentException if there was an error with the CORS domain
    * list
    */
-  public RpcHandler(final TSDB tsdb, final RpcPluginsManager pluginsManager) {
+  public RpcHandler(final TSDB tsdb, final RpcManager manager) {
     this.tsdb = tsdb;
-    this.plugins_manager = pluginsManager;
+    this.rpc_manager = manager;
 
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
     final String mode = tsdb.getConfig().getString("tsd.mode");
@@ -139,7 +139,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
    * @param command The split telnet-style command.
    */
   private void handleTelnetRpc(final Channel chan, final String[] command) {
-    TelnetRpc rpc = plugins_manager.lookupTelnetRpc(command[0]);
+    TelnetRpc rpc = rpc_manager.lookupTelnetRpc(command[0]);
     if (rpc == null) {
       rpc = unknown_cmd;
     }
@@ -166,7 +166,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       throw new BadRequestException("Request URI is empty");
     } else if (uri.charAt(0) != '/') {
       throw new BadRequestException("Request URI doesn't start with a slash");
-    } else if (plugins_manager.isHttpRpcPluginPath(uri)) {
+    } else if (rpc_manager.isHttpRpcPluginPath(uri)) {
       http_plugin_rpcs_received.incrementAndGet();
       return new HttpRpcPluginQuery(tsdb, request, chan);
     } else {
@@ -251,7 +251,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
           return;
         }
         final HttpRpcPluginQuery pluginQuery = (HttpRpcPluginQuery) abstractQuery;
-        final HttpRpcPlugin rpc = plugins_manager.lookupHttpRpcPlugin(route);
+        final HttpRpcPlugin rpc = rpc_manager.lookupHttpRpcPlugin(route);
         if (rpc != null) {
           rpc.execute(tsdb, pluginQuery);
         } else {
@@ -263,7 +263,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         if (applyCorsConfig(req, abstractQuery)) {
           return;
         }
-        final HttpRpc rpc = plugins_manager.lookupHttpRpc(route);
+        final HttpRpc rpc = rpc_manager.lookupHttpRpc(route);
         if (rpc != null) {
           rpc.execute(tsdb, builtinQuery);
         } else {

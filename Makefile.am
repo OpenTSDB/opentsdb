@@ -108,7 +108,7 @@ tsdb_SRC := \
 	src/tsd/QueryRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
-	src/tsd/RpcPluginsManager.java	\
+	src/tsd/RpcManager.java	\
 	src/tsd/RTPublisher.java	\
 	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\

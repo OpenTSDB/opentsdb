@@ -62,17 +62,17 @@ import net.opentsdb.utils.PluginLoader;
  * 
  * // ... later, during shtudown ..
  * 
- * if (RpcPluginsManager.isInitialized()) {
+ * if (RpcManager.isInitialized()) {
  *   // Check that its actually been initialized.  We don't want to
  *   // create a new instance only to shutdown!
- *   RpcPluginsManager.instance(tsdb_instance).shutdown().join();
+ *   RpcManager.instance(tsdb_instance).shutdown().join();
  * }
  * </pre>
  * 
  * @since 2.2
  */
-public final class RpcPluginsManager {
-  private static final Logger LOG = LoggerFactory.getLogger(RpcPluginsManager.class);
+public final class RpcManager {
+  private static final Logger LOG = LoggerFactory.getLogger(RpcManager.class);
   
   @VisibleForTesting
   protected static final String PLUGIN_BASE_WEBPATH = "plugin";
@@ -89,7 +89,7 @@ public final class RpcPluginsManager {
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
   
   /** Reference to our singleton instance.  Set in {@link #initialize}. */
-  private static final AtomicReference<RpcPluginsManager> INSTANCE = Atomics.newReference();
+  private static final AtomicReference<RpcManager> INSTANCE = Atomics.newReference();
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
   private ImmutableMap<String, TelnetRpc> telnet_commands;
@@ -107,23 +107,23 @@ public final class RpcPluginsManager {
    * Constructor used by singleton factory method.
    * @param tsdb the owning TSDB instance.
    */
-  private RpcPluginsManager(final TSDB tsdb) {
+  private RpcManager(final TSDB tsdb) {
     this.tsdb = tsdb;
   }
   
   /**
    * Get or create the singleton instance of the manager, loading all the
    * plugins enabled in the given TSDB's {@link Config}.
-   * @return the shared instance of {@link RpcPluginsManager}. It's okay to
+   * @return the shared instance of {@link RpcManager}. It's okay to
    * hold this reference once obtained.
    */
-  public static synchronized RpcPluginsManager instance(final TSDB tsdb) {
-    final RpcPluginsManager existing = INSTANCE.get();
+  public static synchronized RpcManager instance(final TSDB tsdb) {
+    final RpcManager existing = INSTANCE.get();
     if (existing != null) {
       return existing;
     }
 
-    final RpcPluginsManager manager = new RpcPluginsManager(tsdb);
+    final RpcManager manager = new RpcManager(tsdb);
     final String mode = Strings.nullToEmpty(tsdb.getConfig().getString("tsd.mode"));
     
     // Load any plugins that are enabled via Config.  Fail if any plugin cannot be loaded.
@@ -401,10 +401,10 @@ public final class RpcPluginsManager {
   }
   
   /**
-   * Collect stats on the shared instance of {@link RpcPluginsManager}.
+   * Collect stats on the shared instance of {@link RpcManager}.
    */
   static void collectStats(final StatsCollector collector) {
-    final RpcPluginsManager manager = INSTANCE.get();
+    final RpcManager manager = INSTANCE.get();
     if (manager != null) {
       if (manager.rpc_plugins != null) {
         try {

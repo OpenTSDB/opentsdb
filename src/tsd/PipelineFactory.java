@@ -60,26 +60,26 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   
   /**
    * Constructor that initializes the RPC router and loads HTTP formatter 
-   * plugins. This constructor creates it's own {@link RpcPluginsManager}.
+   * plugins. This constructor creates it's own {@link RpcManager}.
    * @param tsdb The TSDB to use.
    * @throws RuntimeException if there is an issue loading plugins
    * @throws Exception if the HttpQuery handler is unable to load 
    * serializers
    */
   public PipelineFactory(final TSDB tsdb) {
-    this(tsdb, RpcPluginsManager.instance(tsdb));
+    this(tsdb, RpcManager.instance(tsdb));
   }
 
   /**
    * Constructor that initializes the RPC router and loads HTTP formatter 
-   * plugins using an already-configured {@link RpcPluginsManager}.
+   * plugins using an already-configured {@link RpcManager}.
    * @param tsdb The TSDB to use.
-   * @param manager instance of a ready-to-use {@link RpcPluginsManager}.
+   * @param manager instance of a ready-to-use {@link RpcManager}.
    * @throws RuntimeException if there is an issue loading plugins
    * @throws Exception if the HttpQuery handler is unable to load 
    * serializers
    */
-  public PipelineFactory(final TSDB tsdb, final RpcPluginsManager manager) {
+  public PipelineFactory(final TSDB tsdb, final RpcManager manager) {
     this.tsdb = tsdb;
     this.socketTimeout = tsdb.getConfig().getInt("tsd.core.socket.timeout");
     this.timeoutHandler = new IdleStateHandler(this.timer, 0, 0, this.socketTimeout);

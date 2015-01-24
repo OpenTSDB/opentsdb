@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.tsd.PipelineFactory;
-import net.opentsdb.tsd.RpcPluginsManager;
+import net.opentsdb.tsd.RpcManager;
 import net.opentsdb.utils.Config;
 
 /**
@@ -152,7 +152,7 @@ final class TSDMain {
       
       // This manager is capable of lazy init, but we force an init
       // here to fail fast.
-      final RpcPluginsManager manager = RpcPluginsManager.instance(tsdb);
+      final RpcManager manager = RpcManager.instance(tsdb);
 
       server.setPipelineFactory(new PipelineFactory(tsdb, manager));
       if (config.hasProperty("tsd.network.backlog")) {
@@ -196,10 +196,10 @@ final class TSDMain {
       }
       public void run() {
         try {
-          if (RpcPluginsManager.isInitialized()) {
+          if (RpcManager.isInitialized()) {
             // Check that its actually been initialized.  We don't want to
             // create a new instance only to shutdown!
-            RpcPluginsManager.instance(tsdb).shutdown().join();
+            RpcManager.instance(tsdb).shutdown().join();
           }
           if (tsdb != null) {
             tsdb.shutdown().join();
