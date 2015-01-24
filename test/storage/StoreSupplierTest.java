@@ -1,7 +1,8 @@
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import net.opentsdb.storage.StoreSupplier;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.StorePlugin;
 import net.opentsdb.storage.hbase.HBaseStore;

@@ -1,11 +1,9 @@
-package net.opentsdb.core;
+package net.opentsdb.storage;
 
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.storage.StorePlugin;
 import net.opentsdb.utils.Config;
 
 import static com.google.common.base.Preconditions.checkNotNull;

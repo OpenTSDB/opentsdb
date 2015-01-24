@@ -1,6 +1,7 @@
 package net.opentsdb.core;
 
 import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.storage.StoreSupplier;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.StorePlugin;
 import net.opentsdb.tsd.RTPublisher;
@@ -121,7 +122,7 @@ public class TsdbBuilder {
   /**
    * Set the store supplier that will be used by the TSDB instance created by
    * this builder.
-   * @param supplier The {@link net.opentsdb.core.StoreSupplier} to use
+   * @param supplier The {@link net.opentsdb.storage.StoreSupplier} to use
    * @return This instance
    */
   public TsdbBuilder withStoreSupplier(final Supplier<TsdbStore> supplier) {
