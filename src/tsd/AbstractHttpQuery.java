@@ -129,6 +129,62 @@ public abstract class AbstractHttpQuery {
   }
   
   /**
+   * Returns the value of the given query string parameter.
+   * <p>
+   * If this parameter occurs multiple times in the URL, only the last value
+   * is returned and others are silently ignored.
+   * @param paramname Name of the query string parameter to get.
+   * @return The value of the parameter or {@code null} if this parameter
+   * wasn't passed in the URI.
+   */
+  public String getQueryStringParam(final String paramname) {
+    final List<String> params = getQueryString().get(paramname);
+    return params == null ? null : params.get(params.size() - 1);
+  }
+
+  /**
+   * Returns the non-empty value of the given required query string parameter.
+   * <p>
+   * If this parameter occurs multiple times in the URL, only the last value
+   * is returned and others are silently ignored.
+   * @param paramname Name of the query string parameter to get.
+   * @return The value of the parameter.
+   * @throws BadRequestException if this query string parameter wasn't passed
+   * or if its last occurrence had an empty value ({@code &amp;a=}).
+   */
+  public String getRequiredQueryStringParam(final String paramname)
+    throws BadRequestException {
+    final String value = getQueryStringParam(paramname);
+    if (value == null || value.isEmpty()) {
+      throw BadRequestException.missingParameter(paramname);
+    }
+    return value;
+  }
+
+  /**
+   * Returns whether or not the given query string parameter was passed.
+   * @param paramname Name of the query string parameter to get.
+   * @return {@code true} if the parameter
+   */
+  public boolean hasQueryStringParam(final String paramname) {
+    return getQueryString().get(paramname) != null;
+  }
+
+  /**
+   * Returns all the values of the given query string parameter.
+   * <p>
+   * In case this parameter occurs multiple times in the URL, this method is
+   * useful to get all the values.
+   * @param paramname Name of the query string parameter to get.
+   * @return The values of the parameter or {@code null} if this parameter
+   * wasn't passed in the URI.
+   */
+  public List<String> getQueryStringParams(final String paramname) {
+    return getQueryString().get(paramname);
+  }
+
+  
+  /**
    * Returns only the path component of the URI as a string
    * This call strips the protocol, host, port and query string parameters
    * leaving only the path e.g. "/path/starts/here"
