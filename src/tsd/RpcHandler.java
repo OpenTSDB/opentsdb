@@ -65,9 +65,22 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   private final TSDB tsdb;
   
   /**
-   * Constructor that loads the CORS domain list and configures the route maps 
-   * for telnet and HTTP requests
+   * Constructor that loads the CORS domain list and prepares for
+   * handling requests. This constructor creates its own {@link RpcManager}.
    * @param tsdb The TSDB to use.
+   * @param manager instance of a ready-to-use {@link RpcManager}.
+   * @throws IllegalArgumentException if there was an error with the CORS domain
+   * list
+   */
+  public RpcHandler(final TSDB tsdb) {
+    this(tsdb, RpcManager.instance(tsdb));
+  }
+  
+  /**
+   * Constructor that loads the CORS domain list and prepares for handling 
+   * requests.
+   * @param tsdb The TSDB to use.
+   * @param manager instance of a ready-to-use {@link RpcManager}.
    * @throws IllegalArgumentException if there was an error with the CORS domain
    * list
    */
@@ -359,39 +372,17 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   // Logging helpers. //
   // ---------------- //
 
-  //private static void logInfo(final HttpQuery query, final String msg) {
-  //  LOG.info(query.channel().toString() + ' ' + msg);
-  //}
-
   private static void logWarn(final AbstractHttpQuery query, final String msg) {
     LOG.warn(query.channel().toString() + ' ' + msg);
   }
-
-  //private void logWarn(final HttpQuery query, final String msg,
-  //                     final Exception e) {
-  //  LOG.warn(query.channel().toString() + ' ' + msg, e);
-  //}
 
   private void logError(final AbstractHttpQuery query, final String msg) {
     LOG.error(query.channel().toString() + ' ' + msg);
   }
 
-  //private static void logError(final HttpQuery query, final String msg,
-  //                             final Exception e) {
-  //  LOG.error(query.channel().toString() + ' ' + msg, e);
-  //}
-
-  //private void logInfo(final Channel chan, final String msg) {
-  //  LOG.info(chan.toString() + ' ' + msg);
-  //}
-
   private static void logWarn(final Channel chan, final String msg) {
     LOG.warn(chan.toString() + ' ' + msg);
   }
-
-  //private void logWarn(final Channel chan, final String msg, final Exception e) {
-  //  LOG.warn(chan.toString() + ' ' + msg, e);
-  //}
 
   private void logError(final Channel chan, final String msg) {
     LOG.error(chan.toString() + ' ' + msg);
