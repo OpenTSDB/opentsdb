@@ -25,7 +25,7 @@ import net.opentsdb.core.TSDB;
  */
 public final class HttpRpcPluginQuery extends AbstractHttpQuery {
   public HttpRpcPluginQuery(final TSDB tsdb, final HttpRequest request, final Channel chan) {
-    super(request, chan);
+    super(tsdb, request, chan);
   }
 
   /**

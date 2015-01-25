@@ -33,6 +33,8 @@ import org.jboss.netty.handler.codec.http.QueryStringDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.core.TSDB;
+
 /**
  * Abstract base class for HTTP queries.
  * 
@@ -60,13 +62,17 @@ public abstract class AbstractHttpQuery {
   private final DefaultHttpResponse response =
     new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
+  /** The {@code TSDB} instance we belong to */
+  protected final TSDB tsdb;
+  
   /**
    * Set up required internal state.  For subclasses.
    * 
    * @param request the incoming HTTP request
    * @param chan the {@link Channel} the request was received on
    */
-  protected AbstractHttpQuery(final HttpRequest request, final Channel chan) {
+  protected AbstractHttpQuery(final TSDB tsdb, final HttpRequest request, final Channel chan) {
+    this.tsdb = tsdb;
     this.request = request;
     this.chan = chan;
     this.method = request.getMethod();

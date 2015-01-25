@@ -92,9 +92,6 @@ final class HttpQuery extends AbstractHttpQuery {
   /** Deferred result of this query, to allow asynchronous processing.  */
   private final Deferred<Object> deferred = new Deferred<Object>();
 
-  /** The {@code TSDB} instance we belong to */
-  private final TSDB tsdb;
-
   /** Whether or not to show stack traces in the output */
   private final boolean show_stack_trace;
 
@@ -104,8 +101,7 @@ final class HttpQuery extends AbstractHttpQuery {
    * @param chan The channel on which the request was received.
    */
   public HttpQuery(final TSDB tsdb, final HttpRequest request, final Channel chan) {
-    super(request, chan);
-    this.tsdb = tsdb;
+    super(tsdb, request, chan);
     this.show_stack_trace =
       tsdb.getConfig().getBoolean("tsd.http.show_stack_trace");
     this.serializer = new HttpJsonSerializer(this);
