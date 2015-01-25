@@ -18,12 +18,14 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -74,17 +76,22 @@ import net.opentsdb.utils.PluginLoader;
 public final class RpcManager {
   private static final Logger LOG = LoggerFactory.getLogger(RpcManager.class);
   
+  /** This is base path where {@link HttpRpcPlugin}s are rooted.  It's used
+   * to match incoming requests. */
   @VisibleForTesting
   protected static final String PLUGIN_BASE_WEBPATH = "plugin";
   
-  /** Matches incoming HTTP requests if they are for HTTP RPC plugins. */
-  private static final Pattern PLUGIN_WEBPATH_FOR_REQUESTS = Pattern.compile(
-      "^/?" + PLUGIN_BASE_WEBPATH + "/.+", 
-      Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+  /** Splitter for web paths.  Removes empty strings to handle trailing or
+   * leading slashes.  For instance, all of <code>/plugin/mytest</code>,
+   * <code>plugin/mytest/</code>, and <code>plugin/mytest</code> will be
+   * split to <code>[plugin, mytest]</code>. */
+  private static final Splitter WEBPATH_SPLITTER = Splitter.on('/')
+      .trimResults()
+      .omitEmptyStrings();
   
   /** Matches paths declared by {@link HttpRpcPlugin}s that are rooted in
    * the system's plugins path. */
-  private static final Pattern PAT = Pattern.compile(
+  private static final Pattern HAS_PLUGIN_BASE_WEBPATH = Pattern.compile(
       "^/?" + PLUGIN_BASE_WEBPATH + "/?.*", 
       Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
   
@@ -216,8 +223,19 @@ public final class RpcManager {
    * at the given URI, only that it's a valid RPC plugin request.
    */
   boolean isHttpRpcPluginPath(final String uri) {
-    return !Strings.isNullOrEmpty(uri)
-        && PLUGIN_WEBPATH_FOR_REQUESTS.matcher(uri).matches();
+    if (Strings.isNullOrEmpty(uri) || uri.length() <= PLUGIN_BASE_WEBPATH.length()) {
+      return false;
+    } else {
+      // Don't consider the query portion, if any.
+      int qmark = uri.indexOf('?');
+      String path = uri;
+      if (qmark != -1) {
+        path = uri.substring(0, qmark);
+      }
+      
+      final List<String> parts = WEBPATH_SPLITTER.splitToList(path);
+      return (parts.size() > 1 && parts.get(0).equals(PLUGIN_BASE_WEBPATH));
+    }
   }
   
   /**
@@ -325,7 +343,7 @@ public final class RpcManager {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(path),
         "Invalid HttpRpcPlugin path. Path is null or empty.");
     final String testPath = path.trim();
-    Preconditions.checkArgument(!PAT.matcher(path).matches(),
+    Preconditions.checkArgument(!HAS_PLUGIN_BASE_WEBPATH.matcher(path).matches(),
         "Invalid HttpRpcPlugin path %s. Path contains system's plugin base path.", 
         testPath);
     

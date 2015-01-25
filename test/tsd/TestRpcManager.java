@@ -107,6 +107,7 @@ public class TestRpcManager {
     assertTrue(mgr_under_test.isHttpRpcPluginPath("plugin/my/http/plugin"));
     assertTrue(mgr_under_test.isHttpRpcPluginPath("/plugin/my?hey=hi&howdy=ho"));
     assertTrue(mgr_under_test.isHttpRpcPluginPath("plugin/my?hey=hi&howdy=ho"));
+    assertTrue(mgr_under_test.isHttpRpcPluginPath("plugin/my/?hey=hi&howdy=ho"));
   }
   
   @Test
@@ -116,6 +117,8 @@ public class TestRpcManager {
     assertFalse(mgr_under_test.isHttpRpcPluginPath("plugin/"));
     assertFalse(mgr_under_test.isHttpRpcPluginPath("plugin"));
     assertFalse(mgr_under_test.isHttpRpcPluginPath("/plugin"));
+    assertFalse(mgr_under_test.isHttpRpcPluginPath("/plugin?howdy=ho"));
+    assertFalse(mgr_under_test.isHttpRpcPluginPath("/plugin/?howdy=ho"));
     assertFalse(mgr_under_test.isHttpRpcPluginPath("api/query"));
   }
   
