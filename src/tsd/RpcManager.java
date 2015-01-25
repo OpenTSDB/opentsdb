@@ -220,6 +220,15 @@ public final class RpcManager {
         && PLUGIN_WEBPATH_FOR_REQUESTS.matcher(uri).matches();
   }
   
+  /**
+   * Load and init instances of {@link TelnetRpc}s and {@link HttpRpc}s.
+   * These are not generally configurable via TSDB config.
+   * @param mode is this TSD in read/write ("rw") or read-only ("ro")
+   * mode?
+   * @param telnet a map of telnet command names to {@link TelnetRpc}
+   * instances.
+   * @param http a map of API endpoints to {@link HttpRpc} instances.
+   */
   private void initializeBuiltinRpcs(final String mode, 
         final ImmutableMap.Builder<String, TelnetRpc> telnet,
         final ImmutableMap.Builder<String, HttpRpc> http) {
@@ -280,6 +289,17 @@ public final class RpcManager {
     }
   }
 
+  /**
+   * Load and init the {@link HttpRpcPlugin}s provided as an array of
+   * {@code pluginClassNames}.
+   * @param mode is this TSD in read/write ("rw") or read-only ("ro")
+   * mode?
+   * @param pluginClassNames fully-qualified class names that are 
+   * instances of {@link HttpRpcPlugin}s
+   * @param http a map of canonicalized paths 
+   * (obtained via {@link #canonicalizePluginPath(String)}) 
+   * to {@link HttpRpcPlugin} instance.
+   */
   @VisibleForTesting
   protected void initializeHttpRpcPlugins(final String mode,
         final String[] pluginClassNames,
@@ -288,9 +308,9 @@ public final class RpcManager {
       final HttpRpcPlugin rpc = createAndInitialize(plugin, HttpRpcPlugin.class);
       validateHttpRpcPluginPath(rpc.getPath());
       final String path = rpc.getPath().trim();
-      final String canonicalizedPath = canonicalizePluginPath(path);
-      http.put(canonicalizedPath, rpc);
-      LOG.info("Mounted HttpRpcPlugin [{}] at path \"{}\"", rpc.getClass().getName(), canonicalizedPath);
+      final String canonicalized_path = canonicalizePluginPath(path);
+      http.put(canonicalized_path, rpc);
+      LOG.info("Mounted HttpRpcPlugin [{}] at path \"{}\"", rpc.getClass().getName(), canonicalized_path);
     }
   }
 
@@ -328,16 +348,23 @@ public final class RpcManager {
   protected String canonicalizePluginPath(final String origPath) {
     Preconditions.checkArgument(!(Strings.isNullOrEmpty(origPath) || origPath.equals("/")),
         "Path %s is a root.", origPath);
-    String newPath = origPath;
-    if (newPath.startsWith("/")) {
-      newPath = newPath.substring(1);
+    String new_path = origPath;
+    if (new_path.startsWith("/")) {
+      new_path = new_path.substring(1);
     }
-    if (newPath.endsWith("/")) {
-      newPath = newPath.substring(0, newPath.length()-1);
+    if (new_path.endsWith("/")) {
+      new_path = new_path.substring(0, new_path.length()-1);
     }
-    return newPath;
+    return new_path;
   }
 
+  /**
+   * Load and init the {@link RpcPlugin}s provided as an array of
+   * {@code pluginClassNames}.
+   * @param pluginClassNames fully-qualified class names that are 
+   * instances of {@link RpcPlugin}s
+   * @param rpcs a list of loaded and initialized plugins
+   */
   private void initializeRpcPlugins(final String[] pluginClassNames, 
         final ImmutableList.Builder<RpcPlugin> rpcs) {
     for (final String plugin : pluginClassNames) {

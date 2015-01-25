@@ -60,7 +60,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   
   /**
    * Constructor that initializes the RPC router and loads HTTP formatter 
-   * plugins. This constructor creates it's own {@link RpcManager}.
+   * plugins. This constructor creates its own {@link RpcManager}.
    * @param tsdb The TSDB to use.
    * @throws RuntimeException if there is an issue loading plugins
    * @throws Exception if the HttpQuery handler is unable to load 
