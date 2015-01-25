@@ -89,9 +89,6 @@ final class HttpQuery extends AbstractHttpQuery {
   /** The serializer to use for parsing input and responding */
   private HttpSerializer serializer = null;
 
-  /** Deferred result of this query, to allow asynchronous processing.  */
-  private final Deferred<Object> deferred = new Deferred<Object>();
-
   /** Whether or not to show stack traces in the output */
   private final boolean show_stack_trace;
 

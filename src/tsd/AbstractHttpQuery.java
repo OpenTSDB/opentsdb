@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Objects;
+import com.stumbleupon.async.Deferred;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
@@ -57,6 +58,10 @@ public abstract class AbstractHttpQuery {
 
   /** Parsed query string (lazily built on first access). */
   private Map<String, List<String>> querystring;
+  
+  /** Deferred result of this query, to allow asynchronous processing.
+   * (Optional.) */
+  protected final Deferred<Object> deferred = new Deferred<Object>();
   
   /** The response object we'll fill with data */
   private final DefaultHttpResponse response =
