@@ -22,7 +22,7 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
  * optional detailed response. The default "message" field is still used for
  * short error descriptions, typically one sentence long.
  */
-final class BadRequestException extends RuntimeException {
+public final class BadRequestException extends RuntimeException {
 
   /** The HTTP status code to return to the user 
    * @since 2.0 */
