@@ -19,6 +19,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
+import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
@@ -88,7 +89,7 @@ public class CassandraStore implements TsdbStore {
 
     /**
      * If you need a CassandraStore, try to change the config file and use
-     * the {@link net.opentsdb.core.StoreSupplier#get()}.
+     * the {@link net.opentsdb.storage.StoreSupplier#get()}.
      * @param cluster The configured Cassandra cluster.
      */
     public CassandraStore(final Cluster cluster) {
@@ -154,6 +155,10 @@ public class CassandraStore implements TsdbStore {
         insert_tags_statement = session.prepare(CQL);
     }
 
+    public Session getSession() {
+        return session;
+    }
+
     @Override
     public Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time) {
         return null;
@@ -190,17 +195,21 @@ public class CassandraStore implements TsdbStore {
     }
 
     @Override
-    public Deferred<Object> addPoint(final byte[] tsuid, byte[] value,
-                                     long timestamp, short flags) {
+    public Deferred<Object> addPoint(final byte[] tsuid, final byte[] value,
+                                     final long timestamp, final short flags) {
 
         final long base_time = buildBaseTime(timestamp);
 
 
         final ResultSetFuture future = session.executeAsync(add_point_statement
-                .bind(tsuid, base_time, timestamp, flags, value));
+                .bind(UniqueId.uidToString(tsuid), base_time, timestamp,
+                        new Integer(flags),
+                        StringCoder.fromBytes(value)));
 
-        final byte[] metric_uid = RowKey.metric(tsuid);
-        final Map<byte[], byte[]> tags_uids = RowKey.tags(tsuid);
+        final byte[] metric_uid = UniqueId.getMetricFromTSUID(UniqueId
+                .uidToString(tsuid));
+        final List<byte[]> tags_uids = UniqueId.getTagsFromTSUID(UniqueId
+                .uidToString(tsuid));
 
         final Deferred<Object> d = new Deferred<Object>();
 
@@ -210,17 +219,20 @@ public class CassandraStore implements TsdbStore {
                 d.callback(null);
                 session.executeAsync(insert_tags_statement.bind(
                         UniqueId.uidToLong(metric_uid, UniqueIdType.METRIC.width),
-                        UniqueIdType.METRIC, tsuid));
-                for (Map.Entry<byte[], byte[]> entry : tags_uids.entrySet())
-                {
+                        UniqueIdType.METRIC.qualifier, UniqueId.uidToString
+                                (tsuid)));
+                for (int i = 0 ; i < tags_uids.size(); i+=2) {
                     session.executeAsync(insert_tags_statement.bind(
-                            UniqueId.uidToLong(entry.getKey(), UniqueIdType.TAGK.width),
-                            UniqueIdType.TAGK, tsuid));
+                            UniqueId.uidToLong(tags_uids.get(i),
+                                    UniqueIdType.TAGK.width),
+                            UniqueIdType.TAGK.qualifier, UniqueId.uidToString
+                                    (tsuid)));
 
                     session.executeAsync(insert_tags_statement.bind(
-                            UniqueId.uidToLong(entry.getValue(), UniqueIdType
-                                    .TAGV.width),
-                            UniqueIdType.TAGV, tsuid));
+                            UniqueId.uidToLong(tags_uids.get(i + 1),
+                                    UniqueIdType.TAGV.width),
+                            UniqueIdType.TAGV.qualifier, UniqueId.uidToString
+                                    (tsuid)));
                 }
             }
 
@@ -274,8 +286,12 @@ public class CassandraStore implements TsdbStore {
         Futures.addCallback(f, new FutureCallback<ResultSet>() {
             @Override
             public void onSuccess(ResultSet rows) {
-                final long uid = rows.one().getLong("uid");
-                d.callback(Optional.of(UniqueId.longToUID(uid, type.width)));
+                if (!rows.isExhausted()) {
+                    final long uid = rows.one().getLong("uid");
+                    d.callback(Optional.of(UniqueId.longToUID(uid, type.width)));
+                    return;
+                }
+                d.callback(Optional.absent());
             }
 
             @Override
@@ -392,6 +408,8 @@ public class CassandraStore implements TsdbStore {
                                         "allocated this uid concurrently or " +
                                                 "name is already taken for " +
                                                 "this uid.", next_uid);
+                                d.callback(new IllegalStateException("Could " +
+                                        "not allocate UID. Try again."));
                             }
 
                             @Override
