@@ -9,7 +9,6 @@ import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
 
 import com.google.common.base.Optional;
-import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import org.slf4j.Logger;
@@ -38,8 +37,6 @@ public class TsdbBuilder {
   public static TsdbBuilder createFromConfig(final Config config) {
     checkNotNull(config);
 
-    addPluginPath(config);
-
     TsdbBuilder builder = new TsdbBuilder();
 
     StoreSupplier storeSupplier = new StoreSupplier(config,
@@ -51,24 +48,6 @@ public class TsdbBuilder {
             .withRealtimePublisher(loadRealtimePublisher(config));
 
     return builder;
-  }
-
-  /**
-   * Add the plugin path that is read from the config to the class path.
-   * @param config The config object to read from
-   */
-  private static void addPluginPath(final Config config) {
-    final String plugin_path = config.getString("tsd.core.plugin_path");
-
-    if (!Strings.isNullOrEmpty(plugin_path)) {
-      try {
-        PluginLoader.loadJARs(plugin_path);
-      } catch (Exception e) {
-        LOG.error("Error loading plugins from plugin path: {}", plugin_path, e);
-        throw new RuntimeException("Error loading plugins from plugin path: " +
-                plugin_path, e);
-      }
-    }
   }
 
   /**

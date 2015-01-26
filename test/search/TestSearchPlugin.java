@@ -49,7 +49,6 @@ public final class TestSearchPlugin {
             .build();
 
     // setups a good default for the config
-    PluginLoader.loadJAR("plugin_test.jar");
     search = PluginLoader.loadSpecificPlugin(
         "net.opentsdb.search.DummySearchPlugin", SearchPlugin.class);
   }

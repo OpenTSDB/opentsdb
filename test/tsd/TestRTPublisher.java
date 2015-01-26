@@ -44,7 +44,6 @@ public final class TestRTPublisher {
             .withStore(new MemoryStore())
             .build();
 
-    PluginLoader.loadJAR("plugin_test.jar");
     rt_publisher = PluginLoader.loadSpecificPlugin(
         "net.opentsdb.tsd.DummyRTPublisher", RTPublisher.class);
   }

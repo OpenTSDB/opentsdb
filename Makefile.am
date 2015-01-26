@@ -21,7 +21,6 @@ package = net.opentsdb
 spec_title = OpenTSDB
 spec_vendor = The OpenTSDB Authors
 jar := tsdb-$(PACKAGE_VERSION).jar
-plugin_test_jar := plugin_test.jar
 builddata_SRC := src/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
@@ -30,102 +29,134 @@ dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
   build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
 tsdb_SRC := \
-	src/core/AggregationIterator.java	\
-	src/core/Aggregator.java	\
-	src/core/Aggregators.java	\
-	src/core/ByteBufferList.java	\
-	src/core/ColumnDatapointIterator.java	\
-	src/core/CompactionQueue.java	\
-	src/core/Const.java	\
-	src/core/DataPoint.java	\
-	src/core/DataPoints.java	\
-	src/core/DataPointsIterator.java	\
+	src/core/AggregationIterator.java \
+	src/core/Aggregator.java \
+	src/core/Aggregators.java \
+	src/core/Const.java \
+	src/core/DataPoint.java \
+	src/core/DataPointsIterator.java \
+	src/core/DataPoints.java \
+	src/core/DefaultRealtimePublisher.java \
+	src/core/DefaultSearchPlugin.java \
 	src/core/Downsampler.java \
-	src/core/IncomingDataPoint.java	\
-	src/core/IncomingDataPoints.java	\
-	src/core/IllegalDataException.java	\
-	src/core/Internal.java	\
+	src/core/IllegalDataException.java \
+	src/core/IncomingDataPoint.java \
+	src/core/IncomingDataPoints.java \
+	src/core/Internal.java \
+	src/core/MetaClient.java \
 	src/core/MutableDataPoint.java \
-	src/core/Query.java	\
-	src/core/RateOptions.java  \
-	src/core/RateSpan.java  \
-	src/core/RowKey.java	\
-	src/core/RowSeq.java	\
-	src/core/SeekableView.java	\
-	src/core/Span.java	\
-	src/core/SpanGroup.java	\
+	src/core/QueryBuilder.java \
+	src/core/Query.java \
+	src/core/RateOptions.java \
+	src/core/RateSpan.java \
+	src/core/RowKey.java \
+	src/core/SeekableView.java \
+	src/core/SpanGroup.java \
+	src/core/Span.java \
 	src/core/StringCoder.java \
-	src/core/TSDB.java	\
-	src/core/Tags.java	\
-	src/core/TsdbQuery.java	\
-	src/core/TSQuery.java	\
-	src/core/TSSubQuery.java	\
-	src/core/WritableDataPoints.java	\
-	src/graph/Plot.java	\
-	src/meta/Annotation.java	\
-	src/meta/TSMeta.java	\
-	src/meta/TSUIDQuery.java	\
-	src/meta/UIDMeta.java	\
-	src/search/SearchPlugin.java	\
-	src/search/SearchQuery.java	\
-	src/search/TimeSeriesLookup.java	\
-	src/stats/Histogram.java	\
-	src/stats/StatsCollector.java	\
+	src/core/Tags.java \
+	src/core/Timestamp.java \
+	src/core/TsdbBuilder.java \
+	src/core/TSDB.java \
+	src/core/TSQuery.java \
+	src/core/TSSubQuery.java \
+	src/core/UniqueIdClient.java \
+	src/core/WritableDataPoints.java \
+	src/graph/Plot.java \
+	src/meta/Annotation.java \
+	src/meta/TSMeta.java \
+	src/meta/TSUIDQuery.java \
+	src/meta/UIDMeta.java \
+	src/search/SearchPlugin.java \
+	src/search/SearchQuery.java \
+	src/search/TimeSeriesLookup.java \
+	src/stats/Histogram.java \
+	src/stats/StatsCollector.java \
+	src/storage/hbase/ByteBufferList.java \
+	src/storage/hbase/ColumnDatapointIterator.java \
+	src/storage/hbase/CompactedRow.java \
+	src/storage/hbase/CompactionQueue.java \
+	src/storage/hbase/HBaseConst.java \
+	src/storage/hbase/HBaseStoreDescriptor.java \
+	src/storage/hbase/HBaseStore.java \
+	src/storage/hbase/QueryRunner.java \
+	src/storage/hbase/SpanCmp.java \
+	src/storage/json/AnnotationMixIn.java \
+	src/storage/json/BranchMixIn.java \
+	src/storage/json/LeafMixIn.java \
+	src/storage/json/StorageModule.java \
+	src/storage/json/TreeMixIn.java \
+	src/storage/json/TreeRuleMixIn.java \
+	src/storage/json/TreeRuleTypeDeserializer.java \
+	src/storage/json/TSMetaMixIn.java \
+	src/storage/json/UIDMetaMixIn.java \
+	src/storage/json/UniqueIdTypeDeserializer.java \
+	src/storage/StoreDescriptor.java \
+	src/storage/StoreSupplier.java \
 	src/storage/TsdbStore.java \
-	src/storage/HBaseStore.java \
-	src/tools/ArgP.java	\
-	src/tools/CliOptions.java	\
-	src/tools/CliQuery.java	\
-	src/tools/CliUtils.java	\
-	src/tools/DumpSeries.java	\
-	src/tools/Fsck.java	\
-	src/tools/FsckOptions.java	\
-	src/tools/MetaPurge.java	\
-	src/tools/MetaSync.java	\
-	src/tools/Search.java	\
-	src/tools/TSDMain.java	\
-	src/tools/TextImporter.java	\
-	src/tools/TreeSync.java	\
-	src/tools/UidManager.java	\
-	src/tree/Branch.java	\
-	src/tree/Leaf.java	\
-	src/tree/Tree.java	\
-	src/tree/TreeBuilder.java	\
-	src/tree/TreeRule.java	\
-	src/tsd/AnnotationRpc.java	\
-	src/tsd/BadRequestException.java	\
-	src/tsd/ConnectionManager.java	\
-	src/tsd/GnuplotException.java	\
-	src/tsd/GraphHandler.java	\
-	src/tsd/HttpJsonSerializer.java	\
-	src/tsd/HttpSerializer.java	\
-	src/tsd/HttpQuery.java	\
-	src/tsd/HttpRpc.java	\
-	src/tsd/LineBasedFrameDecoder.java	\
-	src/tsd/LogsRpc.java	\
-	src/tsd/PipelineFactory.java	\
-	src/tsd/PutDataPointRpc.java	\
-	src/tsd/QueryRpc.java	\
-	src/tsd/RpcHandler.java	\
-	src/tsd/RTPublisher.java	\
-	src/tsd/SearchRpc.java	\
-	src/tsd/StaticFileRpc.java	\
-	src/tsd/StatsRpc.java	\
-	src/tsd/SuggestRpc.java	\
-	src/tsd/TelnetRpc.java	\
-	src/tsd/TreeRpc.java	\
-	src/tsd/UniqueIdRpc.java	\
-	src/tsd/WordSplitter.java	\
-	src/uid/NoSuchUniqueId.java	\
-	src/uid/NoSuchUniqueName.java	\
-	src/uid/UniqueId.java	\
-	src/uid/UniqueIdInterface.java \
+	src/tools/ArgP.java \
+	src/tools/CliOptions.java \
+	src/tools/CliQuery.java \
+	src/tools/CliUtils.java \
+	src/tools/DumpSeries.java \
+	src/tools/Fsck.java \
+	src/tools/FsckOptions.java \
+	src/tools/MetaPurge.java \
+	src/tools/MetaSync.java \
+	src/tools/Search.java \
+	src/tools/TextImporter.java \
+	src/tools/TreeSync.java \
+	src/tools/TSDMain.java \
+	src/tools/UidManager.java \
+	src/tree/Branch.java \
+	src/tree/Leaf.java \
+	src/tree/TreeBuilder.java \
+	src/tree/Tree.java \
+	src/tree/TreeRule.java \
+	src/tsd/AnnotationRpc.java \
+	src/tsd/BadRequestException.java \
+	src/tsd/client/DateTimeBox.java \
+	src/tsd/client/EventsHandler.java \
+	src/tsd/client/GotJsonCallback.java \
+	src/tsd/client/MetricForm.java \
+	src/tsd/client/QueryString.java \
+	src/tsd/client/QueryUi.java \
+	src/tsd/client/RemoteOracle.java \
+	src/tsd/client/ValidatedTextBox.java \
+	src/tsd/ConnectionManager.java \
+	src/tsd/GnuplotException.java \
+	src/tsd/GraphHandler.java \
+	src/tsd/HttpJsonSerializer.java \
+	src/tsd/HttpQuery.java \
+	src/tsd/HttpRpc.java \
+	src/tsd/HttpSerializer.java \
+	src/tsd/LineBasedFrameDecoder.java \
+	src/tsd/LogsRpc.java \
+	src/tsd/PipelineFactory.java \
+	src/tsd/PutDataPointRpc.java \
+	src/tsd/QueryRpc.java \
+	src/tsd/RpcHandler.java \
+	src/tsd/RTPublisher.java \
+	src/tsd/SearchRpc.java \
+	src/tsd/StaticFileRpc.java \
+	src/tsd/StatsRpc.java \
+	src/tsd/SuggestRpc.java \
+	src/tsd/TelnetRpc.java \
+	src/tsd/TreeRpc.java \
+	src/tsd/UniqueIdRpc.java \
+	src/tsd/WordSplitter.java \
+	src/uid/NoSuchUniqueId.java \
+	src/uid/NoSuchUniqueName.java \
+	src/uid/UidFormatter.java \
+	src/uid/UidResolver.java \
+	src/uid/UniqueId.java \
+	src/uid/UniqueIdType.java \
 	src/utils/ByteArrayPair.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
+	src/utils/JSONException.java \
 	src/utils/JSON.java \
-	src/utils/JSONException.java	\
-	src/utils/Pair.java	\
+	src/utils/Pair.java \
 	src/utils/PluginLoader.java
 
 tsdb_DEPS = \
@@ -144,80 +175,86 @@ tsdb_DEPS = \
 	$(ZOOKEEPER)
 
 test_SRC := \
-	test/core/SeekableViewsForTest.java \
-	test/core/TestAggregationIterator.java \
-	test/core/TestAggregators.java \
-	test/core/TestCompactionQueue.java	\
-	test/core/TestDownsampler.java \
-	test/core/TestInternal.java	\
-	test/core/TestMutableDataPoint.java	\
-	test/core/TestRateSpan.java	\
-	test/core/TestRowSeq.java	\
-	test/core/TestSpan.java	\
-	test/core/TestTags.java	\
-	test/core/TestTSDB.java	\
-	test/core/TestTsdbQueryDownsample.java	\
-	test/core/TestTsdbQuery.java	\
-	test/core/TestTSQuery.java	\
-	test/core/TestTSSubQuery.java	\
-	test/plugin/DummyPlugin.java \
-	test/meta/TestAnnotation.java	\
-	test/meta/TestTSMeta.java	\
-	test/meta/TestTSUIDQuery.java	\
-	test/meta/TestUIDMeta.java	\
-	test/search/TestSearchPlugin.java	\
-	test/search/TestSearchQuery.java	\
-	test/search/TestTimeSeriesLookup.java	\
-	test/stats/TestHistogram.java	\
-	test/storage/MemoryStore.java \
-	test/storage/MockBase.java	\
-	test/tools/TestDumpSeries.java	\
-	test/tools/TestFsck.java	\
-	test/tools/TestTextImporter.java	\
-	test/tools/TestUID.java	\
-	test/tree/TestBranch.java	\
-	test/tree/TestLeaf.java	\
-	test/tree/TestTree.java	\
-	test/tree/TestTreeBuilder.java	\
-	test/tree/TestTreeRule.java	\
-	test/tsd/NettyMocks.java	\
-	test/tsd/TestAnnotationRpc.java	\
-	test/tsd/TestGraphHandler.java	\
-	test/tsd/TestHttpJsonSerializer.java	\
-	test/tsd/TestHttpQuery.java	\
-	test/tsd/TestPutRpc.java	\
-	test/tsd/TestQueryRpc.java	\
-	test/tsd/TestRpcHandler.java	\
-	test/tsd/TestRTPublisher.java	\
-	test/tsd/TestSearchRpc.java	\
-	test/tsd/TestSuggestRpc.java	\
-	test/tsd/TestTreeRpc.java	\
-	test/tsd/TestUniqueIdRpc.java	\
-	test/uid/TestNoSuchUniqueId.java	\
-	test/uid/TestUniqueId.java \
-	test/utils/TestByteArrayPair.java \
-	test/utils/TestConfig.java \
-	test/utils/TestDateTime.java \
-	test/utils/TestJSON.java \
-	test/utils/TestPair.java \
-	test/utils/TestPluginLoader.java
-	
-test_plugin_SRC := \
+  test/core/MetaClientAnnotationTest.java \
+  test/core/RowKeyTest.java \
+  test/core/SeekableViewsForTest.java \
+  test/core/TestAggregationIterator.java \
+  test/core/TestAggregators.java \
+  test/core/TestDownsampler.java \
+  test/core/TestInternal.java \
+  test/core/TestMutableDataPoint.java \
+  test/core/TestQueryBuilder.java \
+  test/core/TestRateSpan.java \
+  test/core/TestSpan.java \
+  test/core/TestTags.java \
+  test/core/TestTSDBExecuteQuery.java \
+  test/core/TestTSDB.java \
+  test/core/TestTsdbQueryDownsample.java \
+  test/core/TestTSQuery.java \
+  test/core/TestTSSubQuery.java \
+  test/core/TsdbBuilderTest.java \
+  test/core/UniqueIdClientTest.java \
+  test/meta/TestTSMeta.java \
+  test/meta/TestTSUIDQuery.java \
+  test/meta/TestUIDMeta.java \
   test/plugin/DummyPluginA.java \
   test/plugin/DummyPluginB.java \
+  test/plugin/DummyPlugin.java \
   test/search/DummySearchPlugin.java \
+  test/search/TestSearchPlugin.java \
+  test/search/TestSearchQuery.java \
+  test/search/TestTimeSeriesLookup.java \
+  test/stats/TestHistogram.java \
+  test/storage/hbase/TestCompactedRow.java \
+  test/storage/hbase/TestCompactionQueue.java \
+  test/storage/hbase/TestHBaseStore.java \
+  test/storage/json/AnnotationMixInTest.java \
+  test/storage/json/BranchMixInTest.java \
+  test/storage/json/LeafMixInTest.java \
+  test/storage/json/TreeMixInTest.java \
+  test/storage/json/TreeRuleMixInTest.java \
+  test/storage/json/TSMetaMixInTest.java \
+  test/storage/json/UIDMetaMixInTest.java \
+  test/storage/MemoryStore.java \
+  test/storage/MockBase.java \
+  test/storage/StoreSupplierTest.java \
+  test/storage/TestMemoryStore.java \
+  test/storage/TestTsdbStore.java \
+  test/tools/TestDumpSeries.java \
+  test/tools/TestFsck.java \
+  test/tools/TestTextImporter.java \
+  test/tools/TestUID.java \
+  test/tree/TestBranch.java \
+  test/tree/TestLeaf.java \
+  test/tree/TestTreeBuilder.java \
+  test/tree/TestTree.java \
+  test/tree/TestTreeRule.java \
   test/tsd/DummyHttpSerializer.java \
-  test/tsd/DummyRTPublisher.java
-
-# Do NOT include the test dir path, just the META portion
-test_plugin_SVCS := \
-  META-INF/services/net.opentsdb.plugin.DummyPlugin \
-  META-INF/services/net.opentsdb.search.SearchPlugin \
-  META-INF/services/net.opentsdb.tsd.HttpSerializer \
-  META-INF/services/net.opentsdb.tsd.RTPublisher
-  
-test_plugin_MF := \
-  test/META-INF/MANIFEST.MF
+  test/tsd/DummyRTPublisher.java \
+  test/tsd/NettyMocks.java \
+  test/tsd/RpcJSONUtils.java \
+  test/tsd/TestAnnotationRpc.java \
+  test/tsd/TestGraphHandler.java \
+  test/tsd/TestHttpJsonSerializer.java \
+  test/tsd/TestHttpQuery.java \
+  test/tsd/TestPutRpc.java \
+  test/tsd/TestQueryRpc.java \
+  test/tsd/TestRpcHandler.java \
+  test/tsd/TestRTPublisher.java \
+  test/tsd/TestSearchRpc.java \
+  test/tsd/TestSuggestRpc.java \
+  test/tsd/TestTreeRpc.java \
+  test/tsd/TestUniqueIdRpc.java \
+  test/uid/TestNoSuchUniqueId.java \
+  test/uid/TestUidFormatter.java \
+  test/uid/TestUidResolver.java \
+  test/uid/TestUniqueId.java \
+  test/utils/TestByteArrayPair.java \
+  test/utils/TestConfig.java \
+  test/utils/TestDateTime.java \
+  test/utils/TestJSON.java \
+  test/utils/TestPair.java \
+  test/utils/TestPluginLoader.java
 
 test_DEPS = \
 	$(tsdb_DEPS) \
@@ -245,7 +282,6 @@ httpui_DEPS = src/tsd/QueryUi.gwt.xml
 dist_static_DATA = src/tsd/static/favicon.ico
 
 EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) \
-        $(test_plugin_SRC) $(test_plugin_MF) $(test_plugin_SVCS:%=test/%) \
         $(THIRD_PARTY) $(THIRD_PARTY:=.md5) \
         $(httpui_SRC) $(httpui_DEPS) \
 	tools/check_tsd	\
@@ -260,8 +296,6 @@ GWTC_ARGS = -ea -strict  # Additional arguments like -style PRETTY or -logLevel 
 
 package_dir := $(subst .,/,$(package))
 UNITTESTS := $(test_SRC:test/%.java=$(package_dir)/%.class)
-PLUGINTESTS := $(test_plugin_SRC:test/%.java=$(package_dir)/%.class)
-PLUGINSVCS := $(test_plugin_SVCS:%=-C $(srcdir)/test %)
 AM_JAVACFLAGS = -Xlint -source 6 -encoding utf-8
 JVM_ARGS =
 classes := $(tsdb_SRC:src/%.java=$(package_dir)/%.class) \
@@ -494,17 +528,6 @@ uninstall-hook:
 get_runtime_dep_classpath = `for jar in $(test_DEPS); do $(find_jar); done | tr '\n' ':'`
 $(test_SRC): $(test_DEPS)
 	@$(refresh_src)
-	
-$(test_plugin_SRC): $(test_DEPS)
-	@$(refresh_src)
-
-# compile the plugin unittest jar before the unittests
-.javac-unittests-plugin-stamp: $(jar) $(test_plugin_SRC)
-	@$(filter_src); cp=$(get_runtime_dep_classpath); \
-          echo "$(JAVA_COMPILE) -cp $$cp $$src"; \
-                $(JAVA_COMPILE) -cp $$cp $$src
-	@touch "$@"
-	@touch .javac-unittests-plugin-stamp
 
 .javac-unittests-stamp: $(jar) $(test_SRC)
 	@$(filter_src); cp=$(get_runtime_dep_classpath); \
@@ -515,11 +538,10 @@ $(test_plugin_SRC): $(test_DEPS)
 
 classes_with_nested_classes := $(classes:.class=*.class)
 test_classes_with_nested_classes := $(UNITTESTS:.class=*.class)
-test_plugin_classes := $(PLUGINTESTS:.class=*.class)
 
 # Little set script to make a pretty-ish banner.
 BANNER := sed 's/^.*/  &  /;h;s/./=/g;p;x;p;x'
-check-local: .javac-unittests-stamp .javac-unittests-plugin-stamp $(plugin_test_jar)
+check-local: .javac-unittests-stamp
 	classes=`echo $(test_classes_with_nested_classes)` \
         && tests=0 && failures=0 \
         && cp="$(get_runtime_dep_classpath):$(srcdir)/src" && \
@@ -552,9 +574,6 @@ $(jar): manifest .javac-stamp $(classes)
 #                       ^^^^^^^^^^^^^^^^^^^^^^^
 # I've seen cases where `jar' exits with an error but leaves a partially built .jar file!
 
-$(plugin_test_jar): .javac-unittests-plugin-stamp
-	$(JAR) cvfm $(plugin_test_jar) $(srcdir)/$(test_plugin_MF) $(test_plugin_classes) $(PLUGINSVCS)
-
 # Generate the file for those who get a tarball without it.  This happens if
 # you download a tarball off GitHub for instance.
 .git/HEAD:
@@ -576,10 +595,10 @@ dist-hook:
 	echo $(git_version) >$(distdir)/.git/HEAD
 
 mostlyclean-local:
-	@rm -f .javac-stamp .javac-unittests-stamp .javac-unittests-plugin-stamp .gwtc-stamp* .staticroot-stamp
+	@rm -f .javac-stamp .javac-unittests-stamp .gwtc-stamp* .staticroot-stamp
 	rm -rf gwt gwt-unitCache staticroot
 	rm -f manifest $(BUILT_SOURCES)
-	rm -f $(classes_with_nested_classes) $(test_classes_with_nested_classes) $(test_plugin_classes)
+	rm -f $(classes_with_nested_classes) $(test_classes_with_nested_classes)
 	test -d $(package_dir) || exit 0 \
 	  && find $(package_dir) -depth -type d -exec rmdir {} ';' \
 	  && dir=$(package_dir) && dir=$${dir%/*} \
@@ -589,7 +608,7 @@ mostlyclean-local:
 	  && rmdir "$$dir"
 
 clean-local:
-	rm -f $(jar) $(plugin_test_jar) tsdb $(srcdir)/pom.xml
+	rm -f $(jar) tsdb $(srcdir)/pom.xml
 	rm -rf $(JAVADOC_DIR)
 
 distclean-local:

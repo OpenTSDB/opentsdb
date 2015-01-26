@@ -18,8 +18,10 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.StatsCollector;
 
+import com.google.auto.service.AutoService;
 import com.stumbleupon.async.Deferred;
 
+@AutoService(RTPublisher.class)
 public final class DummyRTPublisher extends RTPublisher {
 
   @Override

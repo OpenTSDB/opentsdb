@@ -18,8 +18,10 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
 
+import com.google.auto.service.AutoService;
 import com.stumbleupon.async.Deferred;
 
+@AutoService(SearchPlugin.class)
 public final class DummySearchPlugin extends SearchPlugin {
 
   @Override

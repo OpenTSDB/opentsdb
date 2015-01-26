@@ -12,70 +12,18 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.utils;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-
-import java.io.FileNotFoundException;
 import java.util.List;
 
 import net.opentsdb.plugin.DummyPlugin;
-import net.opentsdb.utils.PluginLoader;
 
 import org.junit.Test;
 
-public final class TestPluginLoader {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
-  @Test
-  public void loadJar() throws Exception {
-    PluginLoader.loadJAR("plugin_test.jar");
-  }
-  
-  @Test (expected = FileNotFoundException.class)
-  public void loadJarDoesNotExist() throws Exception {
-    PluginLoader.loadJAR("jardoesnotexist.jar");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void loadJarDoesNotAJar() throws Exception {
-    PluginLoader.loadJAR("notajar.png");
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void loadJarNull() throws Exception {
-    PluginLoader.loadJAR(null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void loadJarEmpty() throws Exception {
-    PluginLoader.loadJAR("");
-  }
-  
-  // todo - test for security exceptions?
-  
-  @Test
-  public void loadJars() throws Exception {
-    PluginLoader.loadJARs("./");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void loadJarsDoesNotExist() throws Exception {
-    PluginLoader.loadJARs("./dirdoesnotexist");
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void loadJarsNull() throws Exception {
-    PluginLoader.loadJARs(null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void loadJarsEmpty() throws Exception {
-    PluginLoader.loadJARs("");
-  }
-  
+public final class TestPluginLoader {
   @Test
   public void loadSpecificPlugin() throws Exception {
-    PluginLoader.loadJAR("plugin_test.jar");
     DummyPlugin plugin = PluginLoader.loadSpecificPlugin(
         "net.opentsdb.plugin.DummyPluginA", 
         DummyPlugin.class);
@@ -85,7 +33,6 @@ public final class TestPluginLoader {
   
   @Test (expected = IllegalArgumentException.class)
   public void loadSpecificPluginImplementationNotFound() throws Exception {
-    PluginLoader.loadJAR("plugin_test.jar");
     PluginLoader.loadSpecificPlugin(
         "net.opentsdb.plugin.DummyPluginC", 
         DummyPlugin.class);
@@ -93,7 +40,6 @@ public final class TestPluginLoader {
 
   @Test (expected = IllegalArgumentException.class)
   public void loadSpecificPluginNotFound() throws Exception {
-    PluginLoader.loadJAR("plugin_test.jar");
     PluginLoader.loadSpecificPlugin(
         "net.opentsdb.plugin.DummyPluginC", 
         DummyPluginBad.class);
