@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -64,28 +65,32 @@ public class CassandraStore implements TsdbStore {
      * The statement used by the {@link #addPoint} method.
      */
     private PreparedStatement add_point_statement;
+    private PreparedStatement insert_tags_statement;
     /**
      * The statement used by the {@link #allocateUID} method.
      */
-
     private PreparedStatement get_max_uid_statement;
     private PreparedStatement increment_uid_statement;
     private PreparedStatement create_new_uid_name_statement;
     private PreparedStatement create_new_name_uid_statement;
-
     private PreparedStatement lock_uid_name_combination;
-
+    /**
+     * Used for {@link #allocateUID}, the one that does rename.
+     */
     private PreparedStatement update_uid_name_statement;
     private PreparedStatement update_name_uid_statement;
     /**
-     * The statement used when trying to
+     * The statement used when trying to get name or id.
      */
     private PreparedStatement get_name_statement;
     private PreparedStatement get_id_statement;
 
-    private PreparedStatement insert_tags_statement;
 
-
+    /**
+     * If you need a CassandraStore, try to change the config file and use
+     * the {@link net.opentsdb.core.StoreSupplier#get()}.
+     * @param cluster The configured Cassandra cluster.
+     */
     public CassandraStore(final Cluster cluster) {
 
         this.cluster = cluster;
@@ -102,6 +107,10 @@ public class CassandraStore implements TsdbStore {
         prepareStatements();
     }
 
+    /**
+     * In this method we prepare all the statements used for accessing
+     * Cassandra.
+     */
     private void prepareStatements() {
         checkNotNull(session);
         checkNotNull(cluster);
@@ -256,6 +265,7 @@ public class CassandraStore implements TsdbStore {
     public Deferred<Optional<byte[]>> getId(final String name, final
     UniqueIdType
             type) {
+
         ResultSetFuture f = session.executeAsync(get_id_statement.bind(
                 name, type.qualifier));
 
@@ -424,7 +434,8 @@ public class CassandraStore implements TsdbStore {
     public Deferred<byte[]> allocateUID(final String name, final byte[] uid,
                                         final UniqueIdType type) {
 
-        // Get old name
+        // Get old name, we do this manually because the other method returns
+        // a deferred and we want to avoid to mix deferreds between functions.
         ResultSetFuture f = session.executeAsync(get_name_statement.bind(
                 UniqueId.uidToLong(uid), type.qualifier));
 
