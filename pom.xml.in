@@ -103,49 +103,6 @@
               <goal>exec</goal>
             </goals>
           </execution>
-          <execution>
-            <id>create-plugin-test-jar</id>
-            <!-- TODO: Put the jar in the target dir and fix surefire conf. -->
-            <configuration>
-              <executable>jar</executable>
-              <arguments>
-                <argument>cvfm</argument>
-                <argument>plugin_test.jar</argument>
-                <argument>test/META-INF/MANIFEST.MF</argument>
-                <argument>-C</argument>
-                <argument>target/test-classes</argument>
-                <argument>net/opentsdb/plugin/DummyPluginA.class</argument>
-                <argument>-C</argument>
-                <argument>target/test-classes</argument>
-                <argument>net/opentsdb/plugin/DummyPluginB.class</argument>
-                <argument>-C</argument>
-                <argument>target/test-classes</argument>
-                <argument>net/opentsdb/search/DummySearchPlugin.class</argument>
-                <argument>-C</argument>
-                <argument>target/test-classes</argument>
-                <argument>net/opentsdb/tsd/DummyHttpSerializer.class</argument>
-                <argument>-C</argument>
-                <argument>target/test-classes</argument>
-                <argument>net/opentsdb/tsd/DummyRTPublisher.class</argument>
-                <argument>-C</argument>
-                <argument>test</argument>
-                <argument>META-INF/services/net.opentsdb.plugin.DummyPlugin</argument>
-                <argument>-C</argument>
-                <argument>test</argument>
-                <argument>META-INF/services/net.opentsdb.search.SearchPlugin</argument>
-                <argument>-C</argument>
-                <argument>test</argument>
-                <argument>META-INF/services/net.opentsdb.tsd.HttpSerializer</argument>
-                <argument>-C</argument>
-                <argument>test</argument>
-                <argument>META-INF/services/net.opentsdb.tsd.RTPublisher</argument>
-              </arguments>
-            </configuration>
-            <phase>test-compile</phase>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-          </execution>
         </executions>
       </plugin>
 

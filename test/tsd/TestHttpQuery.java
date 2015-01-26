@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.PluginLoader;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -719,7 +718,6 @@ public final class TestHttpQuery {
   
   @Test
   public void setSerializerDummyQS() throws Exception {
-    PluginLoader.loadJAR("plugin_test.jar");
     HttpQuery.initializeSerializerMaps(tsdb);
     HttpQuery query = NettyMocks.getQuery(tsdb, "/aggregators?serializer=dummy");
     query.setSerializer();
@@ -742,7 +740,6 @@ public final class TestHttpQuery {
   
   @Test
   public void setSerializerDummyCT() throws Exception {
-    PluginLoader.loadJAR("plugin_test.jar");
     HttpQuery.initializeSerializerMaps(tsdb);
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 

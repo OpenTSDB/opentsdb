@@ -12,10 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.plugin;
 
+import com.google.auto.service.AutoService;
 import org.junit.Ignore;
 
 // need to ignore this class so JUnit doesn't try to run tests on it
 @Ignore
+@AutoService(DummyPlugin.class)
 public class DummyPluginB extends DummyPlugin {
   
   public DummyPluginB() {

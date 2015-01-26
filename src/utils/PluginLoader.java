@@ -12,44 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.utils;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Super simple ServiceLoader based plugin framework for OpenTSDB that lets us
- * add files or directories to the class path after startup and then search for
- * a specific plugin type or any plugins that match a given class. This isn't 
- * meant to be a rich plugin manager, it only handles the basics of searching
- * and instantiating a given class.
- * <p>
- * Before attempting any of the plugin loader calls, users should call one or 
- * more of the jar loader methods to append files to the class path that may
- * have not been loaded on startup. This is particularly useful for plugins that
- * have dependencies not included by OpenTSDB. 
- * <p>
- * For example, a typical process may be:
- * <ul>
- * <li>loadJARs(&lt;plugin_path&gt;) where &lt;plugin_path&gt; contains JARs of 
- * the plugins and their dependencies</li>
- * <li>loadSpecificPlugin() or loadPlugins() to instantiate the proper plugin
- * types</li>
- * </ul>     
+ * search for a specific plugin type or any plugins that match a given class.
+ * This isn't meant to be a rich plugin manager, it only handles the basics
+ * of searching and instantiating a given class.
  * <p>   
  * Plugin creation is pretty simple, just implement the abstract plugin class,
  * create a Manifest file, add the "services" folder and plugin file and export 
@@ -68,19 +44,9 @@ import org.slf4j.LoggerFactory;
  */
 public final class PluginLoader {
   private static final Logger LOG = LoggerFactory.getLogger(PluginLoader.class);
-  
-  /** Static list of types for the class loader */
-  private static final Class<?>[] PARAMETER_TYPES = new Class[] {
-    URL.class
-  };
-  
+
   /**
    * Searches the class path for the a plugin with the given name and type.
-   * <p>
-   * <b>Note:</b> If you want to load JARs dynamically, you need to call 
-   * {@link #loadJAR} or {@link #loadJARs} methods with the proper file
-   * or directory first, otherwise this will only search whatever was loaded
-   * on startup.
    * <p>
    * <b>WARNING:</b> If there are multiple versions of the request plugin in the
    * class path, only one will be returned, so check the logs to see that the
@@ -114,11 +80,6 @@ public final class PluginLoader {
    * Searches the class path for implementations of the given type, returning a 
    * list of all plugins that were found.
    * <p>
-   * <b>Note:</b> If you want to load JARs dynamically, you need to call 
-   * {@link #loadJAR} or {@link #loadJARs} methods with the proper file
-   * or directory first, otherwise this will only search whatever was loaded
-   * on startup.
-   * <p>
    * <b>WARNING:</b> If there are multiple versions of the request plugin in the 
    * class path, only one will be returned, so check the logs to see that the
    * correct version was loaded.
@@ -134,136 +95,5 @@ public final class PluginLoader {
     final ImmutableList<T> plugins = ImmutableList.copyOf(serviceLoader);
     LOG.info("Found {} plugins of type {}", plugins.size(), type);
     return plugins;
-  }
-  
-  /**
-   * Attempts to load the given jar into the class path
-   * @param jar Full path to a .jar file
-   * @throws IOException if the file does not exist or cannot be accessed
-   * @throws SecurityException if there is a security manager present and the
-   * operation is denied
-   * @throws IllegalArgumentException if the filename did not end with .jar
-   * @throws NoSuchMethodException if there is an error with the class loader 
-   * @throws IllegalAccessException if a security manager is present and the
-   * operation was denied
-   * @throws InvocationTargetException if there is an issue loading the jar
-   */
-  public static void loadJAR(String jar) throws IOException, SecurityException, 
-  IllegalArgumentException, NoSuchMethodException, IllegalAccessException, 
-  InvocationTargetException {
-    if (!jar.toLowerCase().endsWith(".jar")) {
-      throw new IllegalArgumentException(
-          "File specified did not end with .jar");
-    }
-    File file = new File(jar);
-    if (!file.exists()) {
-      throw new FileNotFoundException(jar);
-    }
-    addFile(file);
-  }
-  
-  /**
-   * Recursively traverses a directory searching for files ending with .jar and
-   * loads them into the class path
-   * <p>
-   * <b>WARNING:</b> This can be pretty slow if you have a directory with many 
-   * sub-directories. Keep the directory structure shallow.
-   * 
-   * @param directory The directory 
-   * @throws IOException if the directory does not exist or cannot be accessed
-   * @throws SecurityException if there is a security manager present and the
-   * operation is denied
-   * @throws IllegalArgumentException if the path was not a directory
-   * @throws NoSuchMethodException if there is an error with the class loader 
-   * @throws IllegalAccessException if a security manager is present and the
-   * operation was denied
-   * @throws InvocationTargetException if there is an issue loading the jar
-   */
-  public static void loadJARs(String directory) throws SecurityException, 
-  IllegalArgumentException, IOException, NoSuchMethodException, 
-  IllegalAccessException, InvocationTargetException {
-    File file = new File(directory);
-    if (!file.isDirectory()) {
-      throw new IllegalArgumentException(
-          "The path specified was not a directory");
-    }
-    
-    ArrayList<File> jars = new ArrayList<File>();
-    searchForJars(file, jars);
-    if (jars.size() < 1) {
-      LOG.debug("No JAR files found in path: {}", directory);
-      return;
-    }
-    
-    for (File jar : jars) {
-      addFile(jar);
-    }
-  }
-  
-  /**
-   * Recursive method to search for JAR files starting at a given level
-   * @param file The directory to search in
-   * @param jars A list of file objects that will be loaded with discovered
-   * jar files
-   * @throws SecurityException if a security manager exists and prevents reading
-   */
-  private static void searchForJars(final File file, List<File> jars) {
-    if (file.isFile()) {
-      if (file.getAbsolutePath().toLowerCase().endsWith(".jar")) {
-        jars.add(file);
-        LOG.debug("Found a jar: {}", file.getAbsolutePath());
-      }
-    } else if (file.isDirectory()) {
-      File[] files = file.listFiles();
-      if (files == null) {
-        // if this is null, it's due to a security issue
-        LOG.warn("Access denied to directory: {}", file.getAbsolutePath());
-      } else {
-        for (File f : files) {
-          searchForJars(f, jars);
-        }
-      }
-    }    
-  }
-  
-  /**
-   * Attempts to add the given file object to the class loader
-   * @param f The JAR file object to load
-   * @throws IOException if the file does not exist or cannot be accessed
-   * @throws SecurityException if there is a security manager present and the
-   * operation is denied
-   * @throws IllegalArgumentException if the file was invalid
-   * @throws NoSuchMethodException if there is an error with the class loader 
-   * @throws IllegalAccessException if a security manager is present and the
-   * operation was denied
-   * @throws InvocationTargetException if there is an issue loading the jar
-   */
-  private static void addFile(File f) throws IOException, SecurityException, 
-  IllegalArgumentException, NoSuchMethodException, IllegalAccessException, 
-  InvocationTargetException {
-    addURL(f.toURI().toURL());
-  }
-  
-  /**
-   * Attempts to add the given file/URL to the class loader
-   * @param url Full path to the file to add
-   * @throws SecurityException if there is a security manager present and the
-   * operation is denied
-   * @throws IllegalArgumentException if the path was not a directory
-   * @throws NoSuchMethodException if there is an error with the class loader 
-   * @throws IllegalAccessException if a security manager is present and the
-   * operation was denied
-   * @throws InvocationTargetException if there is an issue loading the jar
-   */
-  private static void addURL(final URL url) throws SecurityException, 
-  NoSuchMethodException, IllegalArgumentException, IllegalAccessException, 
-  InvocationTargetException {
-    URLClassLoader sysloader = (URLClassLoader)ClassLoader.getSystemClassLoader();
-    Class<?> sysclass = URLClassLoader.class;
-    
-    Method method = sysclass.getDeclaredMethod("addURL", PARAMETER_TYPES);
-    method.setAccessible(true);
-    method.invoke(sysloader, new Object[]{ url });
-    LOG.debug("Successfully added JAR to class loader: {}", url.getFile());
   }
 }

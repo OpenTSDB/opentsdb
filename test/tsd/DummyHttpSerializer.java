@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import net.opentsdb.core.TSDB;
 
+import com.google.auto.service.AutoService;
 import com.stumbleupon.async.Deferred;
 import org.junit.Ignore;
 
@@ -22,6 +23,7 @@ import org.junit.Ignore;
  * @since 2.0
  */
 @Ignore
+@AutoService(HttpSerializer.class)
 public class DummyHttpSerializer extends HttpSerializer {
 
   public DummyHttpSerializer() {
