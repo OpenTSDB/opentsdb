@@ -3,7 +3,7 @@ package net.opentsdb.core;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.StoreSupplier;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.storage.StorePlugin;
+import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
@@ -43,7 +43,7 @@ public class TsdbBuilder {
     TsdbBuilder builder = new TsdbBuilder();
 
     StoreSupplier storeSupplier = new StoreSupplier(config,
-        ServiceLoader.load(StorePlugin.class));
+        ServiceLoader.load(StoreDescriptor.class));
 
     builder.withConfig(config)
             .withStoreSupplier(storeSupplier)

@@ -2,13 +2,13 @@ package net.opentsdb.storage.hbase;
 
 import com.google.auto.service.AutoService;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.storage.StorePlugin;
+import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.HBaseClient;
 
-@AutoService(StorePlugin.class)
-public class HBaseStorePlugin extends StorePlugin {
+@AutoService(StoreDescriptor.class)
+public class HBaseStoreDescriptor extends StoreDescriptor {
   @Override
   public TsdbStore createStore(final Config config) {
     return new HBaseStore(createHBaseClient(config), config);

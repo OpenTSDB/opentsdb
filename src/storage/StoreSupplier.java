@@ -23,7 +23,7 @@ public class StoreSupplier implements Supplier<TsdbStore> {
   /**
    * The store plugins to look among.
    */
-  private final Iterable<StorePlugin> storePlugins;
+  private final Iterable<StoreDescriptor> storePlugins;
 
 
   /**
@@ -33,7 +33,7 @@ public class StoreSupplier implements Supplier<TsdbStore> {
    *               TsdbStore object.
    * @param storePlugins The store plugins to look among for a matching one.
    */
-  public StoreSupplier(final Config config, Iterable<StorePlugin> storePlugins) {
+  public StoreSupplier(final Config config, Iterable<StoreDescriptor> storePlugins) {
     this.config = checkNotNull(config);
     this.storePlugins = checkNotNull(storePlugins);
   }
@@ -56,11 +56,11 @@ public class StoreSupplier implements Supplier<TsdbStore> {
           "configured correctly.");
     }
 
-    for (final StorePlugin storePlugin : storePlugins) {
-      String pluginName = storePlugin.getClass().getCanonicalName();
+    for (final StoreDescriptor storeDescriptor : storePlugins) {
+      String pluginName = storeDescriptor.getClass().getCanonicalName();
 
       if (pluginName.equals(adapter_type))
-        return storePlugin.createStore(config);
+        return storeDescriptor.createStore(config);
     }
 
     throw new IllegalArgumentException("The config could not find a valid" +
