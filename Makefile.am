@@ -34,8 +34,8 @@ tsdb_SRC := \
 	src/core/Aggregators.java \
 	src/core/Const.java \
 	src/core/DataPoint.java \
-	src/core/DataPointsIterator.java \
 	src/core/DataPoints.java \
+	src/core/DataPointsIterator.java \
 	src/core/DefaultRealtimePublisher.java \
 	src/core/DefaultSearchPlugin.java \
 	src/core/Downsampler.java \
@@ -45,19 +45,19 @@ tsdb_SRC := \
 	src/core/Internal.java \
 	src/core/MetaClient.java \
 	src/core/MutableDataPoint.java \
-	src/core/QueryBuilder.java \
 	src/core/Query.java \
+	src/core/QueryBuilder.java \
 	src/core/RateOptions.java \
 	src/core/RateSpan.java \
 	src/core/RowKey.java \
 	src/core/SeekableView.java \
-	src/core/SpanGroup.java \
 	src/core/Span.java \
+	src/core/SpanGroup.java \
 	src/core/StringCoder.java \
 	src/core/Tags.java \
 	src/core/Timestamp.java \
-	src/core/TsdbBuilder.java \
 	src/core/TSDB.java \
+	src/core/TsdbBuilder.java \
 	src/core/TSQuery.java \
 	src/core/TSSubQuery.java \
 	src/core/UniqueIdClient.java \
@@ -77,8 +77,8 @@ tsdb_SRC := \
 	src/storage/hbase/CompactedRow.java \
 	src/storage/hbase/CompactionQueue.java \
 	src/storage/hbase/HBaseConst.java \
-	src/storage/hbase/HBaseStoreDescriptor.java \
 	src/storage/hbase/HBaseStore.java \
+	src/storage/hbase/HBaseStoreDescriptor.java \
 	src/storage/hbase/QueryRunner.java \
 	src/storage/hbase/SpanCmp.java \
 	src/storage/json/AnnotationMixIn.java \
@@ -110,8 +110,8 @@ tsdb_SRC := \
 	src/tools/UidManager.java \
 	src/tree/Branch.java \
 	src/tree/Leaf.java \
-	src/tree/TreeBuilder.java \
 	src/tree/Tree.java \
+	src/tree/TreeBuilder.java \
 	src/tree/TreeRule.java \
 	src/tsd/AnnotationRpc.java \
 	src/tsd/BadRequestException.java \
@@ -154,8 +154,8 @@ tsdb_SRC := \
 	src/utils/ByteArrayPair.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
-	src/utils/JSONException.java \
 	src/utils/JSON.java \
+	src/utils/JSONException.java \
 	src/utils/Pair.java \
 	src/utils/PluginLoader.java
 
@@ -175,86 +175,86 @@ tsdb_DEPS = \
 	$(ZOOKEEPER)
 
 test_SRC := \
-  test/core/MetaClientAnnotationTest.java \
-  test/core/RowKeyTest.java \
-  test/core/SeekableViewsForTest.java \
-  test/core/TestAggregationIterator.java \
-  test/core/TestAggregators.java \
-  test/core/TestDownsampler.java \
-  test/core/TestInternal.java \
-  test/core/TestMutableDataPoint.java \
-  test/core/TestQueryBuilder.java \
-  test/core/TestRateSpan.java \
-  test/core/TestSpan.java \
-  test/core/TestTags.java \
-  test/core/TestTSDBExecuteQuery.java \
-  test/core/TestTSDB.java \
-  test/core/TestTsdbQueryDownsample.java \
-  test/core/TestTSQuery.java \
-  test/core/TestTSSubQuery.java \
-  test/core/TsdbBuilderTest.java \
-  test/core/UniqueIdClientTest.java \
-  test/meta/TestTSMeta.java \
-  test/meta/TestTSUIDQuery.java \
-  test/meta/TestUIDMeta.java \
-  test/plugin/DummyPluginA.java \
-  test/plugin/DummyPluginB.java \
-  test/plugin/DummyPlugin.java \
-  test/search/DummySearchPlugin.java \
-  test/search/TestSearchPlugin.java \
-  test/search/TestSearchQuery.java \
-  test/search/TestTimeSeriesLookup.java \
-  test/stats/TestHistogram.java \
-  test/storage/hbase/TestCompactedRow.java \
-  test/storage/hbase/TestCompactionQueue.java \
-  test/storage/hbase/TestHBaseStore.java \
-  test/storage/json/AnnotationMixInTest.java \
-  test/storage/json/BranchMixInTest.java \
-  test/storage/json/LeafMixInTest.java \
-  test/storage/json/TreeMixInTest.java \
-  test/storage/json/TreeRuleMixInTest.java \
-  test/storage/json/TSMetaMixInTest.java \
-  test/storage/json/UIDMetaMixInTest.java \
-  test/storage/MemoryStore.java \
-  test/storage/MockBase.java \
-  test/storage/StoreSupplierTest.java \
-  test/storage/TestMemoryStore.java \
-  test/storage/TestTsdbStore.java \
-  test/tools/TestDumpSeries.java \
-  test/tools/TestFsck.java \
-  test/tools/TestTextImporter.java \
-  test/tools/TestUID.java \
-  test/tree/TestBranch.java \
-  test/tree/TestLeaf.java \
-  test/tree/TestTreeBuilder.java \
-  test/tree/TestTree.java \
-  test/tree/TestTreeRule.java \
-  test/tsd/DummyHttpSerializer.java \
-  test/tsd/DummyRTPublisher.java \
-  test/tsd/NettyMocks.java \
-  test/tsd/RpcJSONUtils.java \
-  test/tsd/TestAnnotationRpc.java \
-  test/tsd/TestGraphHandler.java \
-  test/tsd/TestHttpJsonSerializer.java \
-  test/tsd/TestHttpQuery.java \
-  test/tsd/TestPutRpc.java \
-  test/tsd/TestQueryRpc.java \
-  test/tsd/TestRpcHandler.java \
-  test/tsd/TestRTPublisher.java \
-  test/tsd/TestSearchRpc.java \
-  test/tsd/TestSuggestRpc.java \
-  test/tsd/TestTreeRpc.java \
-  test/tsd/TestUniqueIdRpc.java \
-  test/uid/TestNoSuchUniqueId.java \
-  test/uid/TestUidFormatter.java \
-  test/uid/TestUidResolver.java \
-  test/uid/TestUniqueId.java \
-  test/utils/TestByteArrayPair.java \
-  test/utils/TestConfig.java \
-  test/utils/TestDateTime.java \
-  test/utils/TestJSON.java \
-  test/utils/TestPair.java \
-  test/utils/TestPluginLoader.java
+	test/core/MetaClientAnnotationTest.java \
+	test/core/RowKeyTest.java \
+	test/core/SeekableViewsForTest.java \
+	test/core/TestAggregationIterator.java \
+	test/core/TestAggregators.java \
+	test/core/TestDownsampler.java \
+	test/core/TestInternal.java \
+	test/core/TestMutableDataPoint.java \
+	test/core/TestQueryBuilder.java \
+	test/core/TestRateSpan.java \
+	test/core/TestSpan.java \
+	test/core/TestTags.java \
+	test/core/TestTSDB.java \
+	test/core/TestTSDBExecuteQuery.java \
+	test/core/TestTsdbQueryDownsample.java \
+	test/core/TestTSQuery.java \
+	test/core/TestTSSubQuery.java \
+	test/core/TsdbBuilderTest.java \
+	test/core/UniqueIdClientTest.java \
+	test/meta/TestTSMeta.java \
+	test/meta/TestTSUIDQuery.java \
+	test/meta/TestUIDMeta.java \
+	test/plugin/DummyPlugin.java \
+	test/plugin/DummyPluginA.java \
+	test/plugin/DummyPluginB.java \
+	test/search/DummySearchPlugin.java \
+	test/search/TestSearchPlugin.java \
+	test/search/TestSearchQuery.java \
+	test/search/TestTimeSeriesLookup.java \
+	test/stats/TestHistogram.java \
+	test/storage/hbase/TestCompactedRow.java \
+	test/storage/hbase/TestCompactionQueue.java \
+	test/storage/hbase/TestHBaseStore.java \
+	test/storage/json/AnnotationMixInTest.java \
+	test/storage/json/BranchMixInTest.java \
+	test/storage/json/LeafMixInTest.java \
+	test/storage/json/TreeMixInTest.java \
+	test/storage/json/TreeRuleMixInTest.java \
+	test/storage/json/TSMetaMixInTest.java \
+	test/storage/json/UIDMetaMixInTest.java \
+	test/storage/MemoryStore.java \
+	test/storage/MockBase.java \
+	test/storage/StoreSupplierTest.java \
+	test/storage/TestMemoryStore.java \
+	test/storage/TestTsdbStore.java \
+	test/tools/TestDumpSeries.java \
+	test/tools/TestFsck.java \
+	test/tools/TestTextImporter.java \
+	test/tools/TestUID.java \
+	test/tree/TestBranch.java \
+	test/tree/TestLeaf.java \
+	test/tree/TestTree.java \
+	test/tree/TestTreeBuilder.java \
+	test/tree/TestTreeRule.java \
+	test/tsd/DummyHttpSerializer.java \
+	test/tsd/DummyRTPublisher.java \
+	test/tsd/NettyMocks.java \
+	test/tsd/RpcJSONUtils.java \
+	test/tsd/TestAnnotationRpc.java \
+	test/tsd/TestGraphHandler.java \
+	test/tsd/TestHttpJsonSerializer.java \
+	test/tsd/TestHttpQuery.java \
+	test/tsd/TestPutRpc.java \
+	test/tsd/TestQueryRpc.java \
+	test/tsd/TestRpcHandler.java \
+	test/tsd/TestRTPublisher.java \
+	test/tsd/TestSearchRpc.java \
+	test/tsd/TestSuggestRpc.java \
+	test/tsd/TestTreeRpc.java \
+	test/tsd/TestUniqueIdRpc.java \
+	test/uid/TestNoSuchUniqueId.java \
+	test/uid/TestUidFormatter.java \
+	test/uid/TestUidResolver.java \
+	test/uid/TestUniqueId.java \
+	test/utils/TestByteArrayPair.java \
+	test/utils/TestConfig.java \
+	test/utils/TestDateTime.java \
+	test/utils/TestJSON.java \
+	test/utils/TestPair.java \
+	test/utils/TestPluginLoader.java
 
 test_DEPS = \
 	$(tsdb_DEPS) \
