@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 import java.nio.charset.Charset;
 import java.util.Map;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
@@ -134,7 +135,8 @@ public final class TestAnnotationRpc {
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.TRACE, "/api/annotation");
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, new
+            TsdStats(new MetricRegistry()));
     rpc.execute(tsdb, query);
   }
   

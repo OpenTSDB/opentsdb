@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Throwables;
 import net.opentsdb.core.Const;
 
@@ -40,6 +41,7 @@ import org.hbase.async.Scanner;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -326,7 +328,7 @@ final class UidManager {
                                                 final byte[] table,
                                                 final String stype) {
     final UniqueIdType type = UniqueIdType.fromString(stype);
-    return new UniqueId(hbase_store, table, type);
+    return new UniqueId(hbase_store, table, type, new Metrics(new MetricRegistry()));
   }
 
   /**

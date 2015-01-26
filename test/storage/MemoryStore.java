@@ -27,7 +27,6 @@ import net.opentsdb.core.*;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
@@ -223,11 +222,6 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> shutdown() {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public void recordStats(StatsCollector collector) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

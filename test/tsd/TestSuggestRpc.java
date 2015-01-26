@@ -22,6 +22,7 @@ import net.opentsdb.uid.UniqueIdType;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
+import com.codahale.metrics.MetricRegistry;
 import com.stumbleupon.async.Deferred;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
@@ -141,7 +142,8 @@ public final class TestSuggestRpc {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/api/suggest?type=metrics&q=h");
     req.setMethod(HttpMethod.PUT);
-    s.execute(tsdb, new HttpQuery(tsdb, req, channelMock));
+    s.execute(tsdb, new HttpQuery(tsdb, req, channelMock, new TsdStats(new
+            MetricRegistry())));
   }
   
   @Test (expected = BadRequestException.class)

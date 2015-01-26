@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricSet;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
@@ -42,7 +44,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
@@ -188,6 +189,10 @@ public class HBaseStore implements TsdbStore {
     System.arraycopy(tsuid, Const.METRICS_WIDTH, row, Const.METRICS_WIDTH +
         Const.TIMESTAMP_BYTES, (tsuid.length - Const.METRICS_WIDTH));
     return row;
+  }
+
+  CompactionQueue getCompactionQueue() {
+    return compactionq;
   }
 
   /**
@@ -447,29 +452,6 @@ public class HBaseStore implements TsdbStore {
     } else {
       return client.shutdown();
     }
-  }
-
-  @Override
-  public void recordStats(StatsCollector col) {
-    compactionq.collectStats(col);
-
-    final ClientStats stats = client.stats();
-
-    col.record("hbase.root_lookups", stats.rootLookups());
-    col.record("hbase.meta_lookups", stats.uncontendedMetaLookups(), "type=uncontended");
-    col.record("hbase.meta_lookups", stats.contendedMetaLookups(), "type=contended");
-    col.record("hbase.rpcs", stats.atomicIncrements(), "type=increment");
-    col.record("hbase.rpcs", stats.deletes(), "type=delete");
-    col.record("hbase.rpcs", stats.gets(), "type=get");
-    col.record("hbase.rpcs", stats.puts(), "type=put");
-    col.record("hbase.rpcs", stats.rowLocks(), "type=rowLock");
-    col.record("hbase.rpcs", stats.scannersOpened(), "type=openScanner");
-    col.record("hbase.rpcs", stats.scans(), "type=scan");
-    col.record("hbase.rpcs.batched", stats.numBatchedRpcSent());
-    col.record("hbase.flushes", stats.flushes());
-    col.record("hbase.connections.created", stats.connectionsCreated());
-    col.record("hbase.nsre", stats.noSuchRegionExceptions());
-    col.record("hbase.nsre.rpcs_delayed", stats.numRpcDelayedDueToNSRE());
   }
 
   @Override

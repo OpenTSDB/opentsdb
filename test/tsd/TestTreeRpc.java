@@ -35,6 +35,7 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -61,6 +62,7 @@ public final class TestTreeRpc {
   private MemoryStore tsdb_store;
   private ObjectMapper jsonMapper;
   private TreeRpc rpc = new TreeRpc();
+  private TsdStats tsdStats;
 
   @Before
   public void before() throws Exception {
@@ -72,6 +74,8 @@ public final class TestTreeRpc {
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());
+
+    tsdStats = new TsdStats(new MetricRegistry());
   }
   
   @Test
@@ -89,7 +93,8 @@ public final class TestTreeRpc {
   public void handleTreeBadMethod() throws Exception {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.TRACE, "/api/tree");
-    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel());
+    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel()
+            , tsdStats);
     rpc.execute(tsdb, query);
   }
   
@@ -378,7 +383,7 @@ public final class TestTreeRpc {
   public void handleBranchBadMethod() throws Exception {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.TRACE, "/api/tree/branch");
-    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel());
+    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel(), tsdStats);
     rpc.execute(tsdb, query);
   }
   
@@ -600,7 +605,7 @@ public final class TestTreeRpc {
   public void handleRuleBadMethod() throws Exception {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.TRACE, "/api/tree/rule");
-    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel());
+    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel(), tsdStats);
     rpc.execute(tsdb, query);
   }
   
@@ -857,7 +862,7 @@ public final class TestTreeRpc {
   public void handleTestBadMethod() throws Exception {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.TRACE, "/api/tree/test");
-    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel());
+    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel(), tsdStats);
     rpc.execute(tsdb, query);
   }
   
@@ -969,7 +974,7 @@ public final class TestTreeRpc {
   public void handleCollissionsBadMethod() throws Exception {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.TRACE, "/api/tree/collisions");
-    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel());
+    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel(), tsdStats);
     rpc.execute(tsdb, query);
   }
   
@@ -1081,7 +1086,7 @@ public final class TestTreeRpc {
   public void handleNotMatchedBadMethod() throws Exception {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.TRACE, "/api/tree/notmatched");
-    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel());
+    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel(), tsdStats);
     rpc.execute(tsdb, query);
   }
   

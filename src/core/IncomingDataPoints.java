@@ -22,10 +22,8 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.storage.hbase.HBaseStore;
 import org.hbase.async.Bytes;
-import org.hbase.async.PutRequest;
 
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.stats.Histogram;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.TSDB.checkTimestamp;
@@ -34,16 +32,8 @@ import static net.opentsdb.core.TSDB.checkTimestamp;
  * Receives new data points and stores them in HBase.
  */
 class IncomingDataPoints implements WritableDataPoints {
-
   /** For how long to buffer edits when doing batch imports (in ms).  */
   private static final short DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL = 5000;
-
-  /**
-   * Keep track of the latency (in ms) we perceive sending edits to HBase.
-   * We want buckets up to 16s, with 2 ms interval between each bucket up to
-   * 100 ms after we which we switch to exponential buckets.
-   */
-  static final Histogram putlatency = new Histogram(16000, (short) 2, 100);
 
   /** The {@code TSDB} instance we belong to. */
   private final TSDB tsdb;

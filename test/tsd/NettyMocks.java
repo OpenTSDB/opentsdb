@@ -21,6 +21,7 @@ import java.util.HashMap;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
+import com.codahale.metrics.MetricRegistry;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.DefaultChannelPipeline;
@@ -80,7 +81,7 @@ public final class NettyMocks {
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, uri);
-    return new HttpQuery(tsdb, req, channelMock);
+    return new HttpQuery(tsdb, req, channelMock, new TsdStats(new MetricRegistry()));
   }
   
   /**
@@ -190,7 +191,7 @@ public final class NettyMocks {
           Charset.forName("UTF-8")));
     }
     req.headers().set("Content-Type", type);
-    return new HttpQuery(tsdb, req, channelMock);
+    return new HttpQuery(tsdb, req, channelMock, new TsdStats(new MetricRegistry()));
   }
   
   /**

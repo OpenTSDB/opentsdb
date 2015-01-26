@@ -16,8 +16,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.concurrent.atomic.AtomicLong;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.net.HttpHeaders;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -36,7 +36,6 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -45,10 +44,6 @@ import net.opentsdb.utils.JSON;
 final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(RpcHandler.class);
-
-  private static final AtomicLong telnet_rpcs_received = new AtomicLong();
-  private static final AtomicLong http_rpcs_received = new AtomicLong();
-  private static final AtomicLong exceptions_caught = new AtomicLong();
 
   /** Commands we can serve on the simple, telnet-style RPC interface. */
   private final HashMap<String, TelnetRpc> telnet_commands;
@@ -66,15 +61,22 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   /** The TSDB to use. */
   private final TSDB tsdb;
 
+  /** The metric registry to use */
+  private final MetricRegistry metricRegistry;
+  private final TsdStats tsdStats;
+
   /**
    * Constructor that loads the CORS domain list and configures the route maps 
    * for telnet and HTTP requests
    * @param tsdb The TSDB to use.
-   * @throws IllegalArgumentException if there was an error with the CORS domain
+   * @param metricRegistry
+   *@param tsdStats @throws IllegalArgumentException if there was an error with the CORS domain
    * list
    */
-  public RpcHandler(final TSDB tsdb) {
+  public RpcHandler(final TSDB tsdb, final MetricRegistry metricRegistry, final TsdStats tsdStats) {
     this.tsdb = tsdb;
+    this.metricRegistry = metricRegistry;
+    this.tsdStats = tsdStats;
 
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
     final String mode = tsdb.getConfig().getString("tsd.mode");
@@ -111,7 +113,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     telnet_commands = new HashMap<String, TelnetRpc>();
     http_commands = new HashMap<String, HttpRpc>();
     if (mode.equals("rw") || mode.equals("wo")) {
-      final PutDataPointRpc put = new PutDataPointRpc();
+      final PutDataPointRpc put = new PutDataPointRpc(this.tsdStats);
       telnet_commands.put("put", put);
       http_commands.put("api/put", put);
     }
@@ -122,7 +124,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("favicon.ico", staticfile);
       http_commands.put("s", staticfile);
 
-      final StatsRpc stats = new StatsRpc();
+      final StatsRpc stats = new StatsRpc(this.metricRegistry);
       telnet_commands.put("stats", stats);
       http_commands.put("stats", stats);
       http_commands.put("api/stats", stats);
@@ -141,7 +143,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("api/suggest", suggest_rpc);
 
       http_commands.put("logs", new LogsRpc());
-      http_commands.put("q", new GraphHandler());
+      http_commands.put("q", new GraphHandler(this.tsdStats));
       http_commands.put("api/serializers", new Serializers());
       http_commands.put("api/uid", new UniqueIdRpc());
       http_commands.put("api/query", new QueryRpc());
@@ -179,7 +181,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       } else {
         logError(msgevent.getChannel(), "Unexpected message type "
                  + message.getClass() + ": " + message);
-        exceptions_caught.incrementAndGet();
+        tsdStats.getExceptions_caught().inc();
       }
     } catch (Exception e) {
       Object pretty_message = msgevent.getMessage();
@@ -188,7 +190,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
       logError(msgevent.getChannel(), "Unexpected exception caught"
                + " while serving " + pretty_message, e);
-      exceptions_caught.incrementAndGet();
+      tsdStats.getExceptions_caught().inc();
     }
   }
 
@@ -202,7 +204,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     if (rpc == null) {
       rpc = unknown_cmd;
     }
-    telnet_rpcs_received.incrementAndGet();
+    tsdStats.getTelnet_rpcs_received().inc();
     rpc.execute(tsdb, chan, command);
   }
 
@@ -214,8 +216,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
    * @param req The parsed HTTP request.
    */
   private void handleHttpQuery(final TSDB tsdb, final Channel chan, final HttpRequest req) {
-    http_rpcs_received.incrementAndGet();
-    final HttpQuery query = new HttpQuery(tsdb, req, chan);
+    tsdStats.getHttp_rpcs_received().inc();
+    final HttpQuery query = new HttpQuery(tsdb, req, chan, tsdStats);
     if (!tsdb.getConfig().enable_chunked_requests() && req.isChunked()) {
       logError(query, "Received an unsupported chunked request: "
                + query.request());
@@ -278,21 +280,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
     } catch (Exception ex) {
       query.internalError(ex);
-      exceptions_caught.incrementAndGet();
+      tsdStats.getExceptions_caught().inc();
     }
-  }
-
-  /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
-   */
-  public static void collectStats(final StatsCollector collector) {
-    collector.record("rpc.received", telnet_rpcs_received, "type=telnet");
-    collector.record("rpc.received", http_rpcs_received, "type=http");
-    collector.record("rpc.exceptions", exceptions_caught);
-    HttpQuery.collectStats(collector);
-    GraphHandler.collectStats(collector);
-    PutDataPointRpc.collectStats(collector);
   }
 
   // ---------------------------- //

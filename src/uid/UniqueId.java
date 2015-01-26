@@ -23,6 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import javax.xml.bind.DatatypeConverter;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.DerivativeGauge;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.stumbleupon.async.Callback;
@@ -31,6 +35,7 @@ import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +50,8 @@ import org.hbase.async.Bytes.ByteMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.stats.Metrics.name;
+import static net.opentsdb.stats.Metrics.tag;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
@@ -89,9 +96,9 @@ public class UniqueId {
     new HashMap<String, Deferred<byte[]>>();
 
   /** Number of times we avoided reading from TsdbStore thanks to the cache. */
-  private volatile int cache_hits;
+  private final Counter cache_hits;
   /** Number of times we had to read from TsdbStore and populate the cache. */
-  private volatile int cache_misses;
+  private final Counter cache_misses;
 
   /** Whether or not to generate new UIDMetas */
   private TSDB tsdb;
@@ -101,29 +108,47 @@ public class UniqueId {
    * @param tsdb_store The TsdbStore to use.
    * @param table The name of the table to use.
    * @param type The type of UIDs this instance represents
+   * @param metrics
    */
   public UniqueId(final TsdbStore tsdb_store,
                   final byte[] table,
-                  final UniqueIdType type) {
+                  final UniqueIdType type,
+                  final Metrics metrics) {
     this.tsdb_store = checkNotNull(tsdb_store);
     this.table = checkNotNull(table);
     this.type = checkNotNull(type);
     this.id_width = type.width;
+
+    cache_hits = new Counter();
+    cache_misses = new Counter();
+    registerMetrics(metrics);
+
   }
 
-  /** The number of times we avoided reading from TsdbStore thanks to the cache. */
-  public int cacheHits() {
-    return cache_hits;
-  }
+  private void registerMetrics(final Metrics metrics) {
+    final MetricRegistry registry = metrics.getRegistry();
 
-  /** The number of times we had to read from TsdbStore and populate the cache. */
-  public int cacheMisses() {
-    return cache_misses;
-  }
+    Metrics.Tag typeTag = tag("kind", type().qualifier);
+    registry.register(name("uid.cache-hit", typeTag), cache_hits);
+    registry.register(name("uid.cache-miss", typeTag), cache_misses);
 
-  /** Returns the number of elements stored in the internal cache. */
-  public int cacheSize() {
-    return name_cache.size() + id_cache.size();
+    registry.register(name("uid.cache-size", typeTag), new Gauge<Integer>() {
+      @Override
+      public Integer getValue() {
+        return name_cache.size() + id_cache.size();
+      }
+    });
+
+    UsedUidsGauge usedUidsGauge = new UsedUidsGauge(type, tsdb_store, table);
+    registry.register(name("uid.ids-used", typeTag), usedUidsGauge);
+
+    registry.register(name("uid.ids-available", typeTag),
+        new DerivativeGauge<Long,Long>(usedUidsGauge) {
+      @Override
+      protected Long transform(final Long usedIds) {
+        return maxPossibleId() - usedIds;
+      }
+    });
   }
 
   public UniqueIdType type() {
@@ -168,10 +193,10 @@ public class UniqueId {
   public Deferred<String> getName(final byte[] id) {
     final String name = getNameFromCache(id);
     if (name != null) {
-      cache_hits++;
+      cache_hits.inc();
       return Deferred.fromResult(name);
     }
-    cache_misses++;
+    cache_misses.inc();
     class GetNameCB implements Callback<String, Optional<String>> {
       public String call(final Optional<String> name) {
         if (name.isPresent()) {
@@ -205,10 +230,10 @@ public class UniqueId {
   public Deferred<byte[]> getId(final String name) {
     final byte[] id = getIdFromCache(name);
     if (id != null) {
-      cache_hits++;
+      cache_hits.inc();
       return Deferred.fromResult(id);
     }
-    cache_misses++;
+    cache_misses.inc();
     class GetIdCB implements Callback<byte[], Optional<byte[]>> {
       public byte[] call(final Optional<byte[]> id) {
         if (id.isPresent()) {
@@ -710,12 +735,14 @@ public class UniqueId {
    * Returns a map of max UIDs from storage for the given list of UID types 
    * @param tsdb The TSDB to which we belong
    * @param kinds A list of qualifiers to fetch
+   * @param table
    * @return A map with the "kind" as the key and the maximum assigned UID as
    * the value
    * @since 2.0
    */
-  public static Deferred<Map<String, Long>> getUsedUIDs(final TSDB tsdb,
-      final byte[][] kinds) {
+  public static Deferred<Map<String, Long>> getUsedUIDs(final TsdbStore store,
+                                                        final byte[][] kinds,
+                                                        final byte[] table) {
     
     /**
      * Returns a map with 0 if the max ID row hasn't been initialized yet, 
@@ -756,10 +783,11 @@ public class UniqueId {
       
     }
     
-    final GetRequest get = new GetRequest(tsdb.uidTable(), MAXID_ROW);
-    get.family(ID_FAMILY);
-    get.qualifiers(kinds);
-    return tsdb.getTsdbStore().get(get).addCallback(new GetCB());
+    final GetRequest get = new GetRequest(table, MAXID_ROW)
+        .family(ID_FAMILY)
+        .qualifiers(kinds);
+
+    return store.get(get).addCallback(new GetCB());
   }
 
   /**

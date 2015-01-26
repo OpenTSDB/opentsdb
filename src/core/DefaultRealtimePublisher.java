@@ -4,7 +4,6 @@ import java.util.Map;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.tsd.RTPublisher;
 
 import com.stumbleupon.async.Deferred;
@@ -30,10 +29,6 @@ public class DefaultRealtimePublisher extends RTPublisher {
   @Override
   public String version() {
     return BuildData.version();
-  }
-
-  @Override
-  public void collectStats(final StatsCollector collector) {
   }
 
   @Override

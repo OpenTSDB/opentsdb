@@ -18,13 +18,16 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.MetricSet;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -33,15 +36,22 @@ import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.utils.Config;
-import org.hbase.async.*;
+import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.GetRequest;
+import org.hbase.async.HBaseRpc;
+import org.hbase.async.KeyValue;
+import org.hbase.async.PleaseThrottleException;
+import org.hbase.async.PutRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSONException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.stats.Metrics.name;
+import static net.opentsdb.stats.Metrics.tag;
 
 /**
  * "Queue" of rows to compact.
@@ -67,13 +77,13 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    * How many items are currently in the queue.
    * Because {@link ConcurrentSkipListMap#size} has O(N) complexity.
    */
-  private final AtomicInteger size = new AtomicInteger();
+  private final Counter size = new Counter();
 
-  private final AtomicLong duplicates_different = new AtomicLong();
-  private final AtomicLong duplicates_same = new AtomicLong();
-  private final AtomicLong compaction_count = new AtomicLong();
-  private final AtomicLong written_cells = new AtomicLong();
-  private final AtomicLong deleted_cells = new AtomicLong();
+  private final Counter duplicates_different = new Counter();
+  private final Counter duplicates_same = new Counter();
+  private final Counter compaction_count = new Counter();
+  private final Counter written_cells = new Counter();
+  private final Counter deleted_cells = new Counter();
 
   private final HBaseStore tsdb_store;
   private final ObjectMapper jsonMapper;
@@ -81,6 +91,35 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   private final byte[] table_name;
   private final byte[] column_family;
+
+  static class CompactionQueueMetrics implements MetricSet {
+    private CompactionQueue cQueue;
+
+    CompactionQueueMetrics(final CompactionQueue compactionQueue) {
+      this.cQueue = checkNotNull(compactionQueue);
+    }
+
+    @Override
+    public Map<String, Metric> getMetrics() {
+      ImmutableMap.Builder<String, Metric> metrics = ImmutableMap.builder();
+
+      metrics.put(name("compaction.count"), cQueue.compaction_count);
+      metrics.put(name("compaction.duplicates", tag("type", "identical")), cQueue.duplicates_same);
+      metrics.put(name("compaction.duplicates", tag("type", "variant")), cQueue.duplicates_different);
+
+      if (cQueue.config.enable_compactions()) {
+        // The remaining stats only make sense with compactions enabled.
+        metrics.put(name("compaction.queue.size"), cQueue.size);
+        metrics.put(name("compaction.errors", tag("rpc", "read")), cQueue.handle_read_error.errors);
+        metrics.put(name("compaction.errors", tag("rpc", "put")), cQueue.handle_write_error.errors);
+        metrics.put(name("compaction.errors", tag("rpc", "delete")), cQueue.handle_delete_error.errors);
+        metrics.put(name("compaction.writes"), cQueue.written_cells);
+        metrics.put(name("compaction.deletes"), cQueue.deleted_cells);
+      }
+
+      return metrics.build();
+    }
+  }
 
   /**
    * Constructor.
@@ -106,34 +145,13 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
   @Override
   public int size() {
-    return size.get();
+    return (int) size.getCount();
   }
 
   public void add(final byte[] row) {
     if (super.put(row, Boolean.TRUE) == null) {
-      size.incrementAndGet();  // We added a new entry, count it.
+      size.inc();  // We added a new entry, count it.
     }
-  }
-
-  /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
-   */
-  void collectStats(final StatsCollector collector) {
-    collector.record("compaction.count", compaction_count);
-    collector.record("compaction.duplicates", duplicates_same, "type=identical");
-    collector.record("compaction.duplicates", duplicates_different, "type=variant");
-    if (!config.enable_compactions()) {
-      return;
-    }
-    // The remaining stats only make sense with compactions enabled.
-    collector.record("compaction.queue.size", size);
-    collector.record("compaction.errors", handle_read_error.errors, "rpc=read");
-    collector.record("compaction.errors", handle_write_error.errors, "rpc=put");
-    collector.record("compaction.errors", handle_delete_error.errors,
-            "rpc=delete");
-    collector.record("compaction.writes", written_cells);
-    collector.record("compaction.deletes", deleted_cells);
   }
 
   /**
@@ -196,7 +214,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
       nflushes++;
       maxflushes--;
-      size.decrementAndGet();
+      size.dec();
       final GetRequest request = new GetRequest(table_name, row);
       ds.add(tsdb_store.get(request).addCallbacks(compactcb, handle_read_error));
     }
@@ -349,7 +367,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       // merge the datapoints, ordered by timestamp and removing duplicates
       final ByteBufferList compacted_qual = new ByteBufferList(tot_values);
       final ByteBufferList compacted_val = new ByteBufferList(tot_values);
-      compaction_count.incrementAndGet();
+      compaction_count.inc();
       mergeDatapoints(compacted_qual, compacted_val);
 
       // if we wound up with no data in the compacted column, we are done
@@ -378,9 +396,9 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
       final byte[] key = compact.key();
       //LOG.debug("Compacting row " + Arrays.toString(key));
-      deleted_cells.addAndGet(to_delete.size());  // We're going to delete this.
+      deleted_cells.inc(to_delete.size());  // We're going to delete this.
       if (write) {
-        written_cells.incrementAndGet();
+        written_cells.inc();
         Deferred<Object> deferred = tsdb_store.put(new PutRequest(table_name, key,
                 column_family, compact.qualifier(), compact.value()));
         if (!to_delete.isEmpty()) {
@@ -472,7 +490,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           final byte[] existingVal = compacted_val.getLastSegment();
           final byte[] discardedVal = col.getCopyOfCurrentValue();
           if (!Arrays.equals(existingVal, discardedVal)) {
-            duplicates_different.incrementAndGet();
+            duplicates_different.inc();
             if (!config.fix_duplicates()) {
               throw new IllegalDataException("Duplicate timestamp for key="
                   + Arrays.toString(row.get(0).key()) + ", ms_offset=" + ts + ", older="
@@ -481,7 +499,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
             }
             LOG.warn("Duplicate timestamp for key={}, ms_offset={}, kept={}, discarded={}", Arrays.toString(row.get(0).key()), ts, Arrays.toString(existingVal), Arrays.toString(discardedVal));
           } else {
-            duplicates_same.incrementAndGet();
+            duplicates_same.inc();
           }
         } else {
           prevTs = ts;
@@ -625,7 +643,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
    */
   private final class HandleErrorCB implements Callback<Object, Exception> {
 
-    private volatile int errors;
+    private final Counter errors;
 
     private final String what;
 
@@ -635,6 +653,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
      */
     public HandleErrorCB(final String what) {
       this.what = what;
+      this.errors = new Counter();
     }
 
     @Override
@@ -651,8 +670,9 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           LOG.error("WTF?  Cannot retry this RPC, and this shouldn't happen: {}", rpc);
         }
       }
+      errors.inc();
       // `++' is not atomic but doesn't matter if we miss some increments.
-      if (++errors % 100 == 1) {  // Basic rate-limiting to not flood logs.
+      if (errors.getCount() % 100 == 1) {  // Basic rate-limiting to not flood logs.
         LOG.error("Failed to {} a row to re-compact", what, e);
       }
       return e;
@@ -737,9 +757,9 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           LOG.error("Uncaught exception in compaction thread", e);
         } catch (OutOfMemoryError e) {
           // Let's free up some memory by throwing away the compaction queue.
-          final int sz = size.get();
+          final long sz = size.getCount();
           CompactionQueue.super.clear();
-          size.set(0);
+          size.dec(sz);
           LOG.error("Discarded the compaction queue, size={}", sz, e);
         } catch (Throwable e) {
           LOG.error("Uncaught *Throwable* in compaction thread", e);

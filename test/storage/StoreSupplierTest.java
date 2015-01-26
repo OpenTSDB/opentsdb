@@ -1,8 +1,10 @@
 package net.opentsdb.storage;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.storage.hbase.HBaseStoreDescriptor;
 import net.opentsdb.utils.Config;
@@ -28,24 +30,31 @@ public class StoreSupplierTest {
 
     private Config config;
     private Iterable<StoreDescriptor> storeDescriptors;
-    StoreSupplier supplier;
+    private StoreSupplier supplier;
+    private Metrics metrics;
 
     @Before
     public void setUp() throws Exception {
         config = new Config(false);
         storeDescriptors = ImmutableSet.<StoreDescriptor>of(new HBaseStoreDescriptor());
+        metrics = new Metrics(new MetricRegistry());
     }
 
     /*  Constructor */
 
     @Test (expected = NullPointerException.class)
     public void storeSupplierNullConfig() {
-        new StoreSupplier(null, storeDescriptors);
+        new StoreSupplier(null, storeDescriptors, metrics);
     }
 
     @Test (expected = NullPointerException.class)
     public void storeSupplierNullIterable() {
-        new StoreSupplier(config, null);
+        new StoreSupplier(config, null, metrics);
+    }
+
+    @Test (expected = NullPointerException.class)
+    public void storeSupplierNullMetrics() {
+        new StoreSupplier(config, storeDescriptors, null);
     }
 
     /*  get() */
@@ -53,7 +62,7 @@ public class StoreSupplierTest {
     @Test (expected = IllegalArgumentException.class)
     public void testGetEmptyConfig() throws Exception {
         config.overrideConfig("tsd.storage.adapter", "");
-        supplier = new StoreSupplier(config, storeDescriptors);
+        supplier = new StoreSupplier(config, storeDescriptors, metrics);
         supplier.get();
     }
 
@@ -61,7 +70,7 @@ public class StoreSupplierTest {
     public void testGetMatchingStore() throws Exception {
         config.overrideConfig("tsd.storage.adapter",
             "net.opentsdb.storage.hbase.HBaseStoreDescriptor");
-        supplier = new StoreSupplier(config, storeDescriptors);
+        supplier = new StoreSupplier(config, storeDescriptors, metrics);
         TsdbStore store = supplier.get();
         assertTrue(store instanceof HBaseStore);
     }
@@ -69,7 +78,7 @@ public class StoreSupplierTest {
     @Test
     public void testGetNoMatchingStore() throws Exception {
         config.overrideConfig("tsd.storage.adapter", "FooBar4711");
-        supplier = new StoreSupplier(config, storeDescriptors);
+        supplier = new StoreSupplier(config, storeDescriptors, metrics);
         try {
             supplier.get();
             fail("Should have thrown an IllegalArgumentException but did not!");

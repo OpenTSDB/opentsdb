@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import net.opentsdb.stats.StatsCollector;
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -40,15 +40,18 @@ public class UniqueIdClient {
   /** Name of the table in which UID information is stored. */
   final byte[] uidtable;
 
-  public UniqueIdClient(final TsdbStore tsdbStore, final Config config, final TSDB tsdb) {
+  public UniqueIdClient(final TsdbStore tsdbStore,
+                        final Config config,
+                        final TSDB tsdb,
+                        final Metrics metricsRegistry) {
     this.tsdbStore = checkNotNull(tsdbStore);
     this.config = checkNotNull(config);
 
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(Const.CHARSET_ASCII);
 
-    metrics = new UniqueId(tsdbStore, uidtable, UniqueIdType.METRIC);
-    tag_names = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGK);
-    tag_values = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGV);
+    metrics = new UniqueId(tsdbStore, uidtable, UniqueIdType.METRIC, metricsRegistry);
+    tag_names = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGK, metricsRegistry);
+    tag_values = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGV, metricsRegistry);
 
     if (config.enable_realtime_ts() || config.enable_realtime_uid()) {
       // this is cleaner than another constructor and defaults to null. UIDs
@@ -65,18 +68,6 @@ public class UniqueIdClient {
       uid_cache_map.put(Const.TAG_VALUE_QUAL.getBytes(Const.CHARSET_ASCII), tag_values);
       UniqueId.preloadUidCache(tsdb, uid_cache_map);
     }
-  }
-
-  /**
-   * Collects the stats for a {@link net.opentsdb.uid.UniqueId}.
-   * @param uid The instance from which to collect stats.
-   * @param collector The collector to use.
-   */
-  static void collectUidStats(final UniqueId uid,
-                              final StatsCollector collector) {
-    collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.type().qualifier);
-    collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.type().qualifier);
-    collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.type().qualifier);
   }
 
   /**
@@ -320,24 +311,6 @@ public class UniqueIdClient {
     return uniqueId.getId(name);
   }
 
-  /** Number of cache hits during lookups involving UIDs. */
-  public int uidCacheHits() {
-    return (metrics.cacheHits() + tag_names.cacheHits()
-            + tag_values.cacheHits());
-  }
-
-  /** Number of cache misses during lookups involving UIDs. */
-  public int uidCacheMisses() {
-    return (metrics.cacheMisses() + tag_names.cacheMisses()
-            + tag_values.cacheMisses());
-  }
-
-  /** Number of cache entries currently in RAM for lookups involving UIDs. */
-  public int uidCacheSize() {
-    return (metrics.cacheSize() + tag_names.cacheSize()
-            + tag_values.cacheSize());
-  }
-
   /**
    * Returns a initialized TSUID for this metric and these tags.
    * @since 2.0
@@ -412,41 +385,6 @@ public class UniqueIdClient {
    */
   private void copyInRowKey(final byte[] row, final short offset, final byte[] bytes) {
     System.arraycopy(bytes, 0, row, offset, bytes.length);
-  }
-
-  void collectStats(final StatsCollector collector, final TSDB tsdb) {
-    final byte[][] kinds = {
-            Const.METRICS_QUAL.getBytes(Const.CHARSET_ASCII),
-            Const.TAG_NAME_QUAL.getBytes(Const.CHARSET_ASCII),
-            Const.TAG_VALUE_QUAL.getBytes(Const.CHARSET_ASCII)
-    };
-    try {
-      final Map<String, Long> used_uids = UniqueId.getUsedUIDs(tsdb, kinds)
-              .joinUninterruptibly();
-
-      collectUidStats(metrics, collector);
-      collector.record("uid.ids-used", used_uids.get(Const.METRICS_QUAL),
-              "kind=" + Const.METRICS_QUAL);
-      collector.record("uid.ids-available",
-              (metrics.maxPossibleId() - used_uids.get(Const.METRICS_QUAL)),
-              "kind=" + Const.METRICS_QUAL);
-
-      collectUidStats(tag_names, collector);
-      collector.record("uid.ids-used", used_uids.get(Const.TAG_NAME_QUAL),
-              "kind=" + Const.TAG_NAME_QUAL);
-      collector.record("uid.ids-available",
-              (tag_names.maxPossibleId() - used_uids.get(Const.TAG_NAME_QUAL)),
-              "kind=" + Const.TAG_NAME_QUAL);
-
-      collectUidStats(tag_values, collector);
-      collector.record("uid.ids-used", used_uids.get(Const.TAG_VALUE_QUAL),
-              "kind=" + Const.TAG_VALUE_QUAL);
-      collector.record("uid.ids-available",
-              (tag_values.maxPossibleId() - used_uids.get(Const.TAG_VALUE_QUAL)),
-              "kind=" + Const.TAG_VALUE_QUAL);
-    } catch (Exception e) {
-      throw new RuntimeException("Shouldn't be here", e);
-    }
   }
 
   /**

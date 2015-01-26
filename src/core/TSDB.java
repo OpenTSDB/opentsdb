@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Iterator;
 
+import com.codahale.metrics.MetricSet;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
@@ -30,6 +31,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tree.TreeRule;
 
@@ -56,8 +58,6 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.stats.StatsCollector;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -91,6 +91,11 @@ public class TSDB {
   /** Configuration object for all TSDB components */
   final Config config;
 
+  /**
+   * Metrics instance used by all TSDB related objects
+   */
+  private final Metrics metrics;
+
   private final MetaClient metaClient;
   private final UniqueIdClient uniqueIdClient;
 
@@ -110,14 +115,17 @@ public class TSDB {
    * @param config An initialized configuration object
    * @param searchPlugin The search plugin to use
    * @param realTimePublisher The realtime publisher to use
+   * @param metrics Metrics instance used by all TSDB related objects
    * @since 2.1
    */
   public TSDB(final TsdbStore client,
               final Config config,
               final SearchPlugin searchPlugin,
-              final RTPublisher realTimePublisher) {
+              final RTPublisher realTimePublisher,
+              final Metrics metrics) {
     this.config = checkNotNull(config);
     this.tsdb_store = checkNotNull(client);
+    this.metrics = checkNotNull(metrics);
 
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
@@ -132,7 +140,7 @@ public class TSDB {
     this.rt_publisher = checkNotNull(realTimePublisher);
 
     metaClient = new MetaClient(tsdb_store);
-    uniqueIdClient = new UniqueIdClient(tsdb_store, config, this);
+    uniqueIdClient = new UniqueIdClient(tsdb_store, config, this, metrics);
 
     LOG.debug(config.dumpConfiguration());
   }
@@ -210,6 +218,10 @@ public class TSDB {
     return this.config;
   }
 
+  public MetricSet getMetrics() {
+    return metrics.getRegistry();
+  }
+
   /**
    * Verifies that the data and UID tables exist in TsdbStore and optionally the
    * tree and meta data tables if the user has enabled meta tracking or tree
@@ -219,61 +231,6 @@ public class TSDB {
    */
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
     return tsdb_store.checkNecessaryTablesExist();
-  }
-
-  /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
-   */
-  public void collectStats(final StatsCollector collector) {
-    uniqueIdClient.collectStats(collector, this);
-
-    {
-      final Runtime runtime = Runtime.getRuntime();
-      collector.record("jvm.ramfree", runtime.freeMemory());
-      collector.record("jvm.ramused", runtime.totalMemory());
-    }
-
-    collector.addExtraTag("class", "IncomingDataPoints");
-    try {
-      collector.record("hbase.latency", IncomingDataPoints.putlatency, "method=put");
-    } finally {
-      collector.clearExtraTag("class");
-    }
-
-    collector.addExtraTag("class", "TsdbQuery");
-    try {
-      collector.record("hbase.latency", Query.scanlatency, "method=scan");
-    } finally {
-      collector.clearExtraTag("class");
-    }
-
-    tsdb_store.recordStats(collector);
-
-    // Collect Stats from Plugins
-    try {
-      collector.addExtraTag("plugin", "publish");
-      rt_publisher.collectStats(collector);
-    } finally {
-      collector.clearExtraTag("plugin");
-    }
-
-    try {
-      collector.addExtraTag("plugin", "search");
-      search.collectStats(collector);
-    } finally {
-      collector.clearExtraTag("plugin");
-    }
-  }
-
-  /** Returns a latency histogram for Put RPCs used to store data points. */
-  public Histogram getPutLatencyHistogram() {
-    return IncomingDataPoints.putlatency;
-  }
-
-  /** Returns a latency histogram for Scan RPCs used to fetch data points.  */
-  public Histogram getScanLatencyHistogram() {
-    return Query.scanlatency;
   }
 
   /**

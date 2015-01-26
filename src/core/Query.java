@@ -24,19 +24,10 @@ import com.google.common.base.Optional;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.TSDB.checkTimestamp;
 
-import net.opentsdb.stats.Histogram;
-
 /**
  * Non-synchronized implementation of {@link Query}.
  */
 public final class Query {
-  /**
-   * Keep track of the latency we perceive when doing Scans on HBase.
-   * We want buckets up to 16s, with 2 ms interval between each bucket up to
-   * 100 ms after we which we switch to exponential buckets.
-   */
-  static final Histogram scanlatency = new Histogram(16000, (short) 2, 100);
-
   /**
    * ID of the metric being looked up.
    */

@@ -29,6 +29,7 @@ import java.util.Map;
 
 import net.opentsdb.core.TSDB;
 
+import com.codahale.metrics.MetricRegistry;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
@@ -48,6 +49,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @PrepareForTest({TSDB.class, HttpQuery.class})
 public final class TestHttpQuery {
   private TSDB tsdb = null;
+  private TsdStats tsdStats;
+
   final static private Method guessMimeTypeFromUri;
   static {
     try {
@@ -78,10 +81,11 @@ public final class TestHttpQuery {
       throw new RuntimeException("Failed in static initializer", e);
     }
   }
-  
+
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
+    tsdStats = new TsdStats(new MetricRegistry());
   }
   
   @Test
@@ -89,7 +93,7 @@ public final class TestHttpQuery {
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/api/v1/put?param=value&param2=value2");
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     Map<String, List<String>> params = query.getQueryString();
     assertNotNull(params);
     assertEquals("value", params.get("param").get(0));
@@ -421,7 +425,7 @@ public final class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.headers().add("Content-Type", "text/plain");
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     assertEquals(Charset.forName("UTF-8"), query.getCharset());
   }
   
@@ -437,7 +441,7 @@ public final class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.headers().add("Content-Type", "text/plain; charset=UTF-16");
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     assertEquals(Charset.forName("UTF-16"), query.getCharset());
   }
   
@@ -447,7 +451,7 @@ public final class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.headers().add("Content-Type", "text/plain; charset=foobar");
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     assertEquals(Charset.forName("UTF-16"), query.getCharset());
   }
   
@@ -478,7 +482,7 @@ public final class TestHttpQuery {
     final ChannelBuffer buf = ChannelBuffers.copiedBuffer("S\u00ED Se\u00F1or", 
         CharsetUtil.UTF_16);
     req.setContent(buf);
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     assertEquals("S\u00ED Se\u00F1or", query.getContent());
   }
   
@@ -490,7 +494,7 @@ public final class TestHttpQuery {
     final ChannelBuffer buf = ChannelBuffers.copiedBuffer("S\u00ED Se\u00F1or", 
         CharsetUtil.UTF_8);
     req.setContent(buf);
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     assertEquals("S\u00ED Se\u00F1or", query.getContent());
   }
   
@@ -502,7 +506,7 @@ public final class TestHttpQuery {
     final ChannelBuffer buf = ChannelBuffers.copiedBuffer("S\u00ED Se\u00F1or", 
         CharsetUtil.ISO_8859_1);
     req.setContent(buf);
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     assertThat("S\u00ED Se\u00F1or", not(equalTo(query.getContent())));
   }
   
@@ -528,7 +532,7 @@ public final class TestHttpQuery {
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.PUT, "/");
-    HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     assertEquals(HttpMethod.PUT, query.getAPIMethod());
   }
   
@@ -537,7 +541,7 @@ public final class TestHttpQuery {
     final Channel channelMock = NettyMocks.fakeChannel();
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.DELETE, "/");
-    HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     assertEquals(HttpMethod.DELETE, query.getAPIMethod());
   }
   
@@ -732,7 +736,7 @@ public final class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.headers().add("Content-Type", "application/json");
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     query.setSerializer();
     assertEquals(HttpJsonSerializer.class.getCanonicalName(), 
         query.serializer().getClass().getCanonicalName());
@@ -745,7 +749,7 @@ public final class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.headers().add("Content-Type", "application/tsdbdummy");
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     query.setSerializer();
     assertEquals("net.opentsdb.tsd.DummyHttpSerializer", 
         query.serializer().getClass().getCanonicalName());
@@ -758,7 +762,7 @@ public final class TestHttpQuery {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.GET, "/");
     req.headers().add("Content-Type", "invalid/notfoundtype");
-    final HttpQuery query = new HttpQuery(tsdb, req, channelMock);
+    final HttpQuery query = new HttpQuery(tsdb, req, channelMock, tsdStats);
     query.setSerializer();
     assertEquals(HttpJsonSerializer.class.getCanonicalName(), 
         query.serializer().getClass().getCanonicalName());

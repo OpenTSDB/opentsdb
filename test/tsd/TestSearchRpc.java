@@ -42,6 +42,7 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
+import com.codahale.metrics.MetricRegistry;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -73,10 +74,13 @@ public final class TestSearchRpc {
     test_tsuids.add(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 });
     test_tsuids.add(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1 });
   }
-  
+
+  private TsdStats tsdStats;
+
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
+    tsdStats = new TsdStats(new MetricRegistry());
   }
   
   @Test
@@ -194,7 +198,7 @@ public final class TestSearchRpc {
   public void searchBadMethod() throws Exception {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.PUT, "/api/search");
-    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel());
+    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel(), tsdStats);
     rpc.execute(tsdb, query);
   }
   
