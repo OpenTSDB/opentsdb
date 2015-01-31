@@ -22,7 +22,6 @@ public final class TestAggregators {
   private static final Random random;
   static {
     final long seed = System.nanoTime();
-    System.out.println("Random seed: " + seed);
     random = new Random(seed);
   }
 
