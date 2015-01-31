@@ -149,12 +149,19 @@ public final class TestAggregators {
     assertEquals(990, Aggregators.get("p99"), values);
     assertEquals(999, Aggregators.get("p999"), values);
 
-    assertEquals(500, Aggregators.get("ep50"), values);
-    assertEquals(750, Aggregators.get("ep75"), values);
-    assertEquals(900, Aggregators.get("ep90"), values);
-    assertEquals(950, Aggregators.get("ep95"), values);
-    assertEquals(990, Aggregators.get("ep99"), values);
-    assertEquals(999, Aggregators.get("ep999"), values);
+    assertEquals(500, Aggregators.get("ep50r3"), values);
+    assertEquals(750, Aggregators.get("ep75r3"), values);
+    assertEquals(900, Aggregators.get("ep90r3"), values);
+    assertEquals(950, Aggregators.get("ep95r3"), values);
+    assertEquals(990, Aggregators.get("ep99r3"), values);
+    assertEquals(999, Aggregators.get("ep999r3"), values);
+    
+    assertEquals(500, Aggregators.get("ep50r7"), values);
+    assertEquals(750, Aggregators.get("ep75r7"), values);
+    assertEquals(900, Aggregators.get("ep90r7"), values);
+    assertEquals(950, Aggregators.get("ep95r7"), values);
+    assertEquals(990, Aggregators.get("ep99r7"), values);
+    assertEquals(999, Aggregators.get("ep999r7"), values);
   }
 
   private void assertEquals(long value, Aggregator agg, Numbers numbers) {

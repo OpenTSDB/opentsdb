@@ -96,17 +96,42 @@ public final class Aggregators {
   public static final PercentileAgg p50 = new PercentileAgg(50d, "p50");
 
   /** Aggregator that returns estimated 99.9th percentile. */
-  public static final PercentileAgg ep999 = new PercentileAgg(99.9d, "ep999", EstimationType.R_3);
+  public static final PercentileAgg ep999r3 = 
+      new PercentileAgg(99.9d, "ep999r3", EstimationType.R_3);
   /** Aggregator that returns estimated 99th percentile. */
-  public static final PercentileAgg ep99 = new PercentileAgg(99d, "ep99", EstimationType.R_3);
+  public static final PercentileAgg ep99r3 = 
+      new PercentileAgg(99d, "ep99r3", EstimationType.R_3);
   /** Aggregator that returns estimated 95th percentile. */
-  public static final PercentileAgg ep95 = new PercentileAgg(95d, "ep95", EstimationType.R_3);
+  public static final PercentileAgg ep95r3 = 
+      new PercentileAgg(95d, "ep95r3", EstimationType.R_3);
   /** Aggregator that returns estimated 75th percentile. */
-  public static final PercentileAgg ep90 = new PercentileAgg(90d, "ep90", EstimationType.R_3);
+  public static final PercentileAgg ep90r3 = 
+      new PercentileAgg(90d, "ep90r3", EstimationType.R_3);
   /** Aggregator that returns estimated 50th percentile. */
-  public static final PercentileAgg ep75 = new PercentileAgg(75d, "ep75", EstimationType.R_3);
+  public static final PercentileAgg ep75r3 = 
+      new PercentileAgg(75d, "ep75r3", EstimationType.R_3);
   /** Aggregator that returns estimated 50th percentile. */
-  public static final PercentileAgg ep50 = new PercentileAgg(50d, "ep50", EstimationType.R_3);
+  public static final PercentileAgg ep50r3 = 
+      new PercentileAgg(50d, "ep50r3", EstimationType.R_3);
+
+  /** Aggregator that returns estimated 99.9th percentile. */
+  public static final PercentileAgg ep999r7 = 
+      new PercentileAgg(99.9d, "ep999r7", EstimationType.R_7);
+  /** Aggregator that returns estimated 99th percentile. */
+  public static final PercentileAgg ep99r7 = 
+      new PercentileAgg(99d, "ep99r7", EstimationType.R_7);
+  /** Aggregator that returns estimated 95th percentile. */
+  public static final PercentileAgg ep95r7 = 
+      new PercentileAgg(95d, "ep95r7", EstimationType.R_7);
+  /** Aggregator that returns estimated 75th percentile. */
+  public static final PercentileAgg ep90r7 = 
+      new PercentileAgg(90d, "ep90r7", EstimationType.R_7);
+  /** Aggregator that returns estimated 50th percentile. */
+  public static final PercentileAgg ep75r7 = 
+      new PercentileAgg(75d, "ep75r7", EstimationType.R_7);
+  /** Aggregator that returns estimated 50th percentile. */
+  public static final PercentileAgg ep50r7 = 
+      new PercentileAgg(50d, "ep50r7", EstimationType.R_7);
 
   static {
     aggregators = new HashMap<String, Aggregator>(8);
@@ -121,7 +146,9 @@ public final class Aggregators {
     aggregators.put("mimmax", MIMMAX);
 
     PercentileAgg[] percentiles = {
-       p999, p99, p95, p90, p75, p50, ep999, ep99, ep95, ep90, ep75, ep50
+       p999, p99, p95, p90, p75, p50, 
+       ep999r3, ep99r3, ep95r3, ep90r3, ep75r3, ep50r3,
+       ep999r7, ep99r7, ep95r7, ep90r7, ep75r7, ep50r7
     };
     for (PercentileAgg agg : percentiles) {
         aggregators.put(agg.getName(), agg);
@@ -419,6 +446,11 @@ public final class Aggregators {
 
   /**
    * Percentile aggregator based on apache commons math3 implementation
+   * The default calculation is:
+   * index=(N+1)p 
+   * estimate=x⌈h−1/2⌉
+   * minLimit=0
+   * maxLimit=1
    */
   private static final class PercentileAgg implements Aggregator {
     private final Double percentile;

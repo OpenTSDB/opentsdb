@@ -2599,15 +2599,21 @@ public final class TestTsdbQuery {
     testPercentile(Aggregators.p95, 150, 150);
     testPercentile(Aggregators.p99, 150, 150);
     testPercentile(Aggregators.p999, 150, 150);
-    testPercentile(Aggregators.ep50, 150, 150);
-    testPercentile(Aggregators.ep75, 150, 150);
-    testPercentile(Aggregators.ep90, 150, 150);
-    testPercentile(Aggregators.ep95, 150, 150);
-    testPercentile(Aggregators.ep99, 150, 150);
-    testPercentile(Aggregators.ep999, 150, 150);
+    testPercentile(Aggregators.ep50r3, 150, 150);
+    testPercentile(Aggregators.ep75r3, 150, 150);
+    testPercentile(Aggregators.ep90r3, 150, 150);
+    testPercentile(Aggregators.ep95r3, 150, 150);
+    testPercentile(Aggregators.ep99r3, 150, 150);
+    testPercentile(Aggregators.ep999r3, 150, 150);
+    testPercentile(Aggregators.ep50r7, 150, 150);
+    testPercentile(Aggregators.ep75r7, 150, 150);
+    testPercentile(Aggregators.ep90r7, 150, 150);
+    testPercentile(Aggregators.ep95r7, 150, 150);
+    testPercentile(Aggregators.ep99r7, 150, 150);
+    testPercentile(Aggregators.ep999r7, 150, 150);
   }
 
-private void testPercentile(Aggregator agg, long value, double delta) {
+  private void testPercentile(Aggregator agg, long value, double delta) {
     HashMap<String, String> tags = new HashMap<String, String>(0);
     query.setStartTime(1356998400);
     query.setEndTime(1357041600);
@@ -2629,7 +2635,7 @@ private void testPercentile(Aggregator agg, long value, double delta) {
       counter++;
     }
     assertEquals(600, size);
-}
+  }
   
   public void runCount() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
