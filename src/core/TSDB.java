@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 
+import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
@@ -139,8 +140,9 @@ public class TSDB {
     this.search = checkNotNull(searchPlugin);
     this.rt_publisher = checkNotNull(realTimePublisher);
 
-    metaClient = new MetaClient(tsdb_store);
-    uniqueIdClient = new UniqueIdClient(tsdb_store, config, this, metrics);
+    EventBus idEventBus = new EventBus();
+    uniqueIdClient = new UniqueIdClient(tsdb_store, config, this, metrics, idEventBus);
+    metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config);
 
     LOG.debug(config.dumpConfiguration());
   }

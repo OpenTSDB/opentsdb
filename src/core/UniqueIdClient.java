@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.eventbus.EventBus;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -43,23 +44,16 @@ public class UniqueIdClient {
   public UniqueIdClient(final TsdbStore tsdbStore,
                         final Config config,
                         final TSDB tsdb,
-                        final Metrics metricsRegistry) {
+                        final Metrics metricsRegistry,
+                        final EventBus idEventBus) {
     this.tsdbStore = checkNotNull(tsdbStore);
     this.config = checkNotNull(config);
 
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(Const.CHARSET_ASCII);
 
-    metrics = new UniqueId(tsdbStore, uidtable, UniqueIdType.METRIC, metricsRegistry);
-    tag_names = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGK, metricsRegistry);
-    tag_values = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGV, metricsRegistry);
-
-    if (config.enable_realtime_ts() || config.enable_realtime_uid()) {
-      // this is cleaner than another constructor and defaults to null. UIDs
-      // will be refactored with DAL code anyways
-      metrics.setTSDB(tsdb);
-      tag_names.setTSDB(tsdb);
-      tag_values.setTSDB(tsdb);
-    }
+    metrics = new UniqueId(tsdbStore, uidtable, UniqueIdType.METRIC, metricsRegistry, idEventBus);
+    tag_names = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGK, metricsRegistry, idEventBus);
+    tag_values = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGV, metricsRegistry, idEventBus);
 
     if (config.getBoolean("tsd.core.preload_uid_cache")) {
       final Bytes.ByteMap<UniqueId> uid_cache_map = new Bytes.ByteMap<UniqueId>();

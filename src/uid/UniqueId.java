@@ -29,6 +29,7 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
+import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -100,8 +101,11 @@ public class UniqueId {
   /** Number of times we had to read from TsdbStore and populate the cache. */
   private final Counter cache_misses;
 
-  /** Whether or not to generate new UIDMetas */
-  private TSDB tsdb;
+  /**
+   * The event bus to which the id changes done by this instance will be
+   * published.
+   */
+  private final EventBus idEventBus;
   
   /**
    * Constructor.
@@ -109,15 +113,18 @@ public class UniqueId {
    * @param table The name of the table to use.
    * @param type The type of UIDs this instance represents
    * @param metrics
+   * @param idEventBus
    */
   public UniqueId(final TsdbStore tsdb_store,
                   final byte[] table,
                   final UniqueIdType type,
-                  final Metrics metrics) {
+                  final Metrics metrics,
+                  final EventBus idEventBus) {
     this.tsdb_store = checkNotNull(tsdb_store);
     this.table = checkNotNull(table);
     this.type = checkNotNull(type);
     this.id_width = type.width;
+    this.idEventBus = checkNotNull(idEventBus);
 
     cache_hits = new Counter();
     cache_misses = new Counter();
@@ -157,11 +164,6 @@ public class UniqueId {
 
   public short width() {
     return id_width;
-  }
-
-  /** @param tsdb Whether or not to track new UIDMeta objects */
-  public void setTSDB(final TSDB tsdb) {
-    this.tsdb = tsdb;
   }
   
   /** The largest possible ID given the number of bytes the IDs are represented on. */
@@ -310,12 +312,7 @@ public class UniqueId {
           pending_assignments.remove(name);
         }
 
-        if (tsdb != null && tsdb.getConfig().enable_realtime_uid()) {
-          final UIDMeta meta = new UIDMeta(type, uid, name);
-          tsdb_store.add(meta);
-          LOG.info("Wrote UIDMeta for: {}", name);
-          tsdb.indexUIDMeta(meta);
-        }
+        idEventBus.post(new IdCreatedEvent(uid, name, type));
 
         return uid;
       }

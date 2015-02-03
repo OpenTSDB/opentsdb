@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.eventbus.EventBus;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
@@ -38,7 +39,7 @@ public class UniqueIdClientTest {
             .build();
 
     uniqueIdClient = new UniqueIdClient(tsdb_store, config, tsdb, new Metrics
-            (new MetricRegistry()));
+            (new MetricRegistry()), new EventBus());
   }
 
   /**

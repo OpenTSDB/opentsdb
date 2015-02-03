@@ -19,8 +19,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 
-import com.codahale.metrics.*;
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
+import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 
 import net.opentsdb.core.TSDB;
@@ -32,8 +33,13 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 
-import org.hbase.async.*;
-
+import org.hbase.async.AtomicIncrementRequest;
+import org.hbase.async.Bytes;
+import org.hbase.async.GetRequest;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.hbase.async.PutRequest;
+import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -47,6 +53,7 @@ import org.mockito.ArgumentMatcher;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -70,6 +77,7 @@ public final class TestUniqueId {
   private Config config;
   private Metrics metrics;
   private MetricRegistry registry;
+  private EventBus idEventBus;
 
   @Before
   public void setUp() throws IOException{
@@ -77,45 +85,51 @@ public final class TestUniqueId {
     config = new Config(false);
     registry = new MetricRegistry();
     metrics = new Metrics(registry);
+    idEventBus = mock(EventBus.class);
   }
 
   @Test(expected=NullPointerException.class)
   public void testCtorNoTsdbStore() {
-    uid = new UniqueId(null, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(null, table, UniqueIdType.METRIC, metrics, idEventBus);
   }
 
   @Test(expected=NullPointerException.class)
   public void testCtorNoTable() {
-    uid = new UniqueId(client, null, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, null, UniqueIdType.METRIC, metrics, idEventBus);
   }
 
   @Test(expected=NullPointerException.class)
   public void testCtorNoType() {
-    uid = new UniqueId(client, table, null, metrics);
+    uid = new UniqueId(client, table, null, metrics, idEventBus);
+  }
+
+  @Test(expected=NullPointerException.class)
+  public void testCtorNoEventbus() {
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, null);
   }
 
   @Test
   public void typeEqual() {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
     assertEquals(UniqueIdType.METRIC, uid.type());
   }
 
   @Test
   public void widthEqual() {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
     assertEquals(3, uid.width());
   }
 
   @Test
   public void testMaxPossibleId() {
-    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.METRIC, metrics)).maxPossibleId());
-    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGK, metrics)).maxPossibleId());
-    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGV, metrics)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGK, metrics, idEventBus)).maxPossibleId());
+    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGV, metrics, idEventBus)).maxPossibleId());
   } 
   
   @Test
   public void getNameSuccessfulLookup() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
 
     final byte[] id = { 0, 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
@@ -132,19 +146,19 @@ public final class TestUniqueId {
 
   @Test(expected=NoSuchUniqueId.class)
   public void getNameForNonexistentId() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getName(new byte[]{1, 2, 3}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test(expected=IllegalArgumentException.class)
   public void getNameWithInvalidId() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getName(new byte[]{1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
   public void getIdSuccessfulLookup() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
 
     final byte[] id = { 0, 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
@@ -164,7 +178,7 @@ public final class TestUniqueId {
   // The table contains IDs encoded on 2 bytes but the instance wants 3.
   @Test(expected=IllegalStateException.class)
   public void getIdMisconfiguredWidth() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
 
     final byte[] id = { 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
@@ -174,13 +188,13 @@ public final class TestUniqueId {
 
   @Test(expected=NoSuchUniqueName.class)
   public void getIdForNonexistentName() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
   public void createIdWithExistingId() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
 
     final byte[] id = { 0, 0, 1};
     uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -199,7 +213,7 @@ public final class TestUniqueId {
 
   @Test  // Test the creation of an ID with no problem.
   public void createIdIdWithSuccess() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
     // Due to the implementation in the memoryStore used for testing the first
     // call will always return 1
     final byte[] id = { 0, 0, 1 };
@@ -216,10 +230,17 @@ public final class TestUniqueId {
     assertEquals(0, counters.get("uid.cache-miss:kind=metrics").getCount());
   }
 
+  @Test
+  public void createIdPublishesEventOnSuccess() throws Exception {
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    verify(idEventBus).post(any(IdCreatedEvent.class));
+  }
+
   @PrepareForTest({HBaseStore.class, Scanner.class})
   @Test
   public void suggestWithNoMatch() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
 
 
     // Watch this! ______,^   I'm writing C++ in Java!
@@ -236,7 +257,7 @@ public final class TestUniqueId {
   @PrepareForTest({Scanner.class})
   @Test
   public void suggestWithMatches() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics);
+    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
 
 
 
