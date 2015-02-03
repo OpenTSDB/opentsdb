@@ -21,7 +21,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.stats.StatsCollector;
 
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
@@ -65,8 +64,6 @@ public interface TsdbStore {
   Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags);
 
   public Deferred<Object> shutdown();
-
-  public void recordStats(StatsCollector collector);
 
   public Deferred<com.google.common.base.Optional<byte[]>> getId(final String name, final UniqueIdType type);
   public Deferred<com.google.common.base.Optional<String>> getName(final byte[] id, final UniqueIdType type);

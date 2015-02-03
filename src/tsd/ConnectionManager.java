@@ -14,7 +14,6 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,55 +28,32 @@ import org.jboss.netty.handler.timeout.IdleState;
 import org.jboss.netty.handler.timeout.IdleStateAwareChannelHandler;
 import org.jboss.netty.handler.timeout.IdleStateEvent;
 
-import net.opentsdb.stats.StatsCollector;
-
 /**
  * Keeps track of all existing connections.
  */
 final class ConnectionManager extends IdleStateAwareChannelHandler {
-
   private static final Logger LOG = LoggerFactory.getLogger(ConnectionManager.class);
 
-  private static final AtomicLong connections_established = new AtomicLong();
-  private static final AtomicLong exceptions_unknown = new AtomicLong();
-  private static final AtomicLong exceptions_closed = new AtomicLong();
-  private static final AtomicLong exceptions_reset = new AtomicLong();
-  private static final AtomicLong exceptions_timeout = new AtomicLong();
-
-  private static final DefaultChannelGroup channels =
+  static final DefaultChannelGroup channels =
     new DefaultChannelGroup("all-channels");
+  private final TsdStats.ConnectionManagerStats stats;
 
   static void closeAllConnections() {
     channels.close().awaitUninterruptibly();
   }
 
-  /** Constructor. */
-  public ConnectionManager() {
-  }
-
   /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
+   * Constructor.
    */
-  public static void collectStats(final StatsCollector collector) {
-    collector.record("connectionmgr.connections", channels.size(), "type=open");
-    collector.record("connectionmgr.connections", connections_established, 
-        "type=total");
-    collector.record("connectionmgr.exceptions", exceptions_closed, 
-        "type=closed");
-    collector.record("connectionmgr.exceptions", exceptions_reset, 
-        "type=reset");
-    collector.record("connectionmgr.exceptions", exceptions_timeout, 
-        "type=timeout");
-    collector.record("connectionmgr.exceptions", exceptions_unknown, 
-        "type=unknown");
+  public ConnectionManager(final TsdStats tsdStats) {
+    this.stats = tsdStats.getConnectionManagerStats();
   }
 
   @Override
   public void channelOpen(final ChannelHandlerContext ctx,
                           final ChannelStateEvent e) {
     channels.add(e.getChannel());
-    connections_established.incrementAndGet();
+    stats.getConnections_established().inc();
   }
 
   @Override
@@ -95,17 +71,17 @@ final class ConnectionManager extends IdleStateAwareChannelHandler {
     final Throwable cause = e.getCause();
     final Channel chan = ctx.getChannel();
     if (cause instanceof ClosedChannelException) {
-      exceptions_closed.incrementAndGet();
+      stats.getExceptions_closed().inc();
       LOG.warn("Attempt to write to closed channel {}", chan);
       return;
     }
     if (cause instanceof IOException) {
       final String message = cause.getMessage();
       if ("Connection reset by peer".equals(message)) {
-        exceptions_reset.incrementAndGet();
+        stats.getExceptions_reset().inc();
         return;
       } else if ("Connection timed out".equals(message)) {
-        exceptions_timeout.incrementAndGet();
+        stats.getExceptions_timeout().inc();
         // Do nothing.  A client disconnecting isn't really our problem.  Oh,
         // and I'm not kidding you, there's no better way to detect ECONNRESET
         // in Java.  Like, people have been bitching about errno for years,
@@ -119,7 +95,7 @@ final class ConnectionManager extends IdleStateAwareChannelHandler {
     	e.getChannel().close();
     	return;
     }
-    exceptions_unknown.incrementAndGet();
+    stats.getExceptions_unknown().inc();
     LOG.error("Unexpected exception from downstream for {}", chan, cause);
     e.getChannel().close();
   }

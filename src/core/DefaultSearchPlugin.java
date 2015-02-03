@@ -6,7 +6,6 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.stats.StatsCollector;
 
 import com.stumbleupon.async.Deferred;
 
@@ -30,10 +29,6 @@ public class DefaultSearchPlugin extends SearchPlugin {
   @Override
   public String version() {
     return BuildData.version();
-  }
-
-  @Override
-  public void collectStats(final StatsCollector collector) {
   }
 
   @Override

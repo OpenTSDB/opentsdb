@@ -16,7 +16,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.stats.StatsCollector;
 
 import com.google.auto.service.AutoService;
 import com.stumbleupon.async.Deferred;
@@ -49,11 +48,6 @@ public final class DummySearchPlugin extends SearchPlugin {
   @Override
   public String version() {
     return "2.0.0";
-  }
-
-  @Override
-  public void collectStats(StatsCollector collector) {
-    // Nothing to do now
   }
   
   @Override

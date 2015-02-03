@@ -30,8 +30,15 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static net.opentsdb.stats.Metrics.name;
+import static net.opentsdb.stats.Metrics.tag;
+
+import com.codahale.metrics.Metric;
+import com.codahale.metrics.Timer;
+import com.google.common.collect.ImmutableMap;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -51,8 +58,6 @@ import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.graph.Plot;
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
@@ -68,28 +73,16 @@ final class GraphHandler implements HttpRpc {
   private static final boolean IS_WINDOWS =
     System.getProperty("os.name", "").contains("Windows");
 
-  /** Number of times we had to do all the work up to running Gnuplot. */
-  private static final AtomicInteger graphs_generated
-    = new AtomicInteger();
-  /** Number of times a graph request was served from disk, no work needed. */
-  private static final AtomicInteger graphs_diskcache_hit
-    = new AtomicInteger();
-
-  /** Keep track of the latency of graphing requests. */
-  private static final Histogram graphlatency =
-    new Histogram(16000, (short) 2, 100);
-
-  /** Keep track of the latency (in ms) introduced by running Gnuplot. */
-  private static final Histogram gnuplotlatency =
-    new Histogram(16000, (short) 2, 100);
-
   /** Executor to run Gnuplot in separate bounded thread pool. */
   private final ThreadPoolExecutor gnuplot;
 
+  private final TsdStats.GraphHandlerStats stats;
+
   /**
    * Constructor.
+   * @param tsdStats
    */
-  public GraphHandler() {
+  public GraphHandler(final TsdStats tsdStats) {
     // Gnuplot is mostly CPU bound and does only a little bit of IO at the
     // beginning to read the input data and at the end to write its output.
     // We want to avoid running too many Gnuplot instances concurrently as
@@ -106,6 +99,8 @@ final class GraphHandler implements HttpRpc {
     // ArrayBlockingQueue does not scale as much as LinkedBlockingQueue in terms
     // of throughput but we don't need high throughput here.  We use ABQ instead
     // of LBQ because it creates far fewer references.
+
+    this.stats = checkNotNull(tsdStats).getGraphHandlerStats();
   }
 
   public void execute(final TSDB tsdb, final HttpQuery query) {
@@ -218,7 +213,7 @@ final class GraphHandler implements HttpRpc {
 
     try {
       gnuplot.execute(new RunGnuplot(query, max_age, plot, basepath,
-                                     aggregated_tags, npoints));
+                                     aggregated_tags, npoints, stats));
     } catch (RejectedExecutionException e) {
       query.internalError(new Exception("Too many requests pending,"
                                         + " please try again later", e));
@@ -270,16 +265,19 @@ final class GraphHandler implements HttpRpc {
     private final String basepath;
     private final HashSet<String>[] aggregated_tags;
     private final int npoints;
+    private final TsdStats.GraphHandlerStats stats;
 
     public RunGnuplot(final HttpQuery query,
                       final int max_age,
                       final Plot plot,
                       final String basepath,
                       final HashSet<String>[] aggregated_tags,
-                      final int npoints) {
+                      final int npoints,
+                      final TsdStats.GraphHandlerStats stats) {
       this.query = query;
       this.max_age = max_age;
       this.plot = plot;
+      this.stats = stats;
       if (IS_WINDOWS)
         this.basepath = basepath.replace("\\", "\\\\").replace("/", "\\\\");
       else
@@ -303,7 +301,7 @@ final class GraphHandler implements HttpRpc {
     }
 
     private void execute() throws IOException {
-      final int nplotted = runGnuplot(query, basepath, plot);
+      final int nplotted = runGnuplot(query, basepath, plot, stats);
       if (query.hasQueryStringParam("json")) {
         final HashMap<String, Object> results = new HashMap<String, Object>();
         results.put("plotted", nplotted);
@@ -325,8 +323,8 @@ final class GraphHandler implements HttpRpc {
       }
 
       // TODO(tsuna): Expire old files from the on-disk cache.
-      graphlatency.add(query.processingTimeMillis());
-      graphs_generated.incrementAndGet();
+      query.getGraphlatencyctx().stop();
+      stats.getGraphs_generated().inc();
     }
 
   }
@@ -334,17 +332,6 @@ final class GraphHandler implements HttpRpc {
   /** Shuts down the thread pool used to run Gnuplot.  */
   public void shutdown() {
     gnuplot.shutdown();
-  }
-
-  /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
-   */
-  public static void collectStats(final StatsCollector collector) {
-    collector.record("http.latency", graphlatency, "type=graph");
-    collector.record("http.latency", gnuplotlatency, "type=gnuplot");
-    collector.record("http.graph.requests", graphs_diskcache_hit, "cache=disk");
-    collector.record("http.graph.requests", graphs_generated, "cache=miss");
   }
 
   /** Returns the base path to use for the Gnuplot files. */
@@ -408,7 +395,7 @@ final class GraphHandler implements HttpRpc {
             "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
             + "<small>(served from disk cache)</small>"));
       }
-      graphs_diskcache_hit.incrementAndGet();
+      stats.getGraphs_diskcache_hit().inc();
       return true;
     }
     // We didn't find an image.  Do a negative cache check.  If we've seen
@@ -432,7 +419,7 @@ final class GraphHandler implements HttpRpc {
             "Sorry, your query didn't return anything.<br/>"
             + "<small>(served from disk cache)</small>"));
     }
-    graphs_diskcache_hit.incrementAndGet();
+    stats.getGraphs_diskcache_hit().inc();
     return true;
   }
 
@@ -708,6 +695,7 @@ final class GraphHandler implements HttpRpc {
    * @param query The query being handled (for logging purposes).
    * @param basepath The base path used for the Gnuplot files.
    * @param plot The plot object to generate Gnuplot's input files.
+   * @param stats
    * @return The number of points plotted by Gnuplot (0 or more).
    * @throws IOException if the Gnuplot files can't be written, or
    * the Gnuplot subprocess fails to start, or we can't read the
@@ -716,9 +704,11 @@ final class GraphHandler implements HttpRpc {
    */
   static int runGnuplot(final HttpQuery query,
                         final String basepath,
-                        final Plot plot) throws IOException {
+                        final Plot plot,
+                        final TsdStats.GraphHandlerStats stats) throws IOException {
     final int nplotted = plot.dumpToFiles(basepath);
-    final long start_time = System.nanoTime();
+    final Timer.Context timer = stats.getGnuplotlatency().time();
+
     final Process gnuplot = new ProcessBuilder(GNUPLOT,
       basepath + ".out", basepath + ".err", basepath + ".gnuplot").start();
     final int rv;
@@ -736,8 +726,8 @@ final class GraphHandler implements HttpRpc {
       // that closes the pipes, because I've never seen this issue on long
       // running TSDs, except where ulimit -n was low (the default, 1024).
       gnuplot.destroy();
+      timer.stop();
     }
-    gnuplotlatency.add((int) ((System.nanoTime() - start_time) / 1000000));
     if (rv != 0) {
       final byte[] stderr = readFile(query, new File(basepath + ".err"),
                                      4096);

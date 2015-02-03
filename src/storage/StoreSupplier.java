@@ -4,6 +4,8 @@ package net.opentsdb.storage;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
+
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.utils.Config;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -25,6 +27,10 @@ public class StoreSupplier implements Supplier<TsdbStore> {
    */
   private final Iterable<StoreDescriptor> storePlugins;
 
+  /**
+   * The metrics instance to use with the store supplied by this supplier.
+   */
+  private final Metrics metrics;
 
   /**
    * Instantiates a supplier for further use.
@@ -32,10 +38,15 @@ public class StoreSupplier implements Supplier<TsdbStore> {
    * @param config The configuration object used when generating a
    *               TsdbStore object.
    * @param storePlugins The store plugins to look among for a matching one.
+   * @param metrics The metrics instance to use with the store supplied by
+   *                this supplier.
    */
-  public StoreSupplier(final Config config, Iterable<StoreDescriptor> storePlugins) {
+  public StoreSupplier(final Config config,
+                       final Iterable<StoreDescriptor> storePlugins,
+                       final Metrics metrics) {
     this.config = checkNotNull(config);
     this.storePlugins = checkNotNull(storePlugins);
+    this.metrics = checkNotNull(metrics);
   }
 
   /**
@@ -60,7 +71,7 @@ public class StoreSupplier implements Supplier<TsdbStore> {
       String pluginName = storeDescriptor.getClass().getCanonicalName();
 
       if (pluginName.equals(adapter_type))
-        return storeDescriptor.createStore(config);
+        return storeDescriptor.createStore(config, metrics);
     }
 
     throw new IllegalArgumentException("The config could not find a valid" +

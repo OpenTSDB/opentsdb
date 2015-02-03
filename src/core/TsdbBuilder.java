@@ -1,6 +1,7 @@
 package net.opentsdb.core;
 
 import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreSupplier;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.StoreDescriptor;
@@ -8,6 +9,7 @@ import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -22,11 +24,32 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * A builder helper class to create TSDB instances.
  */
 public class TsdbBuilder {
-  private static final Logger LOG = LoggerFactory.getLogger(TsdbBuilder.class);
+  /**
+   * The config instance used by this builder and any objects it creates.
+   */
+  private final Config config;
 
+  /**
+   * The metrics instance used by this builder and any objects it creates.
+   */
+  private final Metrics metrics;
+
+  /**
+   * The provided supplier that will provide a {@link net.opentsdb.storage.TsdbStore}
+   * instance to the {@link net.opentsdb.core.TSDB} that this builder will create.
+   */
   private Supplier<TsdbStore> storeSupplier;
-  private Config config;
+
+  /**
+   * The search plugin that the {@link net.opentsdb.core.TSDB} instance built by
+   * this builder will use.
+   */
   private SearchPlugin searchPlugin;
+
+  /**
+   * The realtime publisher that the {@link net.opentsdb.core.TSDB} instance
+   * built by this builder will use.
+   */
   private RTPublisher realtimePublisher;
 
   /**
@@ -37,17 +60,29 @@ public class TsdbBuilder {
   public static TsdbBuilder createFromConfig(final Config config) {
     checkNotNull(config);
 
-    TsdbBuilder builder = new TsdbBuilder();
+    final Metrics metrics = new Metrics(new MetricRegistry());
+    final TsdbBuilder builder = new TsdbBuilder(config, metrics);
 
     StoreSupplier storeSupplier = new StoreSupplier(config,
-        ServiceLoader.load(StoreDescriptor.class));
+        ServiceLoader.load(StoreDescriptor.class), metrics);
 
-    builder.withConfig(config)
-            .withStoreSupplier(storeSupplier)
+    builder.withStoreSupplier(storeSupplier)
             .withSearchPlugin(loadSearchPlugin(config))
             .withRealtimePublisher(loadRealtimePublisher(config));
 
     return builder;
+  }
+
+  /***
+   * Create a new builder with the provided config and metrics instance.
+   */
+  public TsdbBuilder(final Config config,
+                     final Metrics metrics) {
+    this.config = checkNotNull(config);
+    this.metrics = checkNotNull(metrics);
+
+    searchPlugin = defaultSearchPlugin();
+    realtimePublisher = defaultRealtimePublisher();
   }
 
   /**
@@ -89,16 +124,6 @@ public class TsdbBuilder {
   }
 
   /**
-   * Set the config to use with the TSDB instance that will be created.
-   * @param config The config object to use
-   * @return This instance
-   */
-  public TsdbBuilder withConfig(final Config config) {
-    this.config = checkNotNull(config);
-    return this;
-  }
-
-  /**
    * Set the store supplier that will be used by the TSDB instance created by
    * this builder.
    * @param supplier The {@link net.opentsdb.storage.StoreSupplier} to use
@@ -127,7 +152,7 @@ public class TsdbBuilder {
    * @return This instance
    */
   public TsdbBuilder withSearchPlugin(final SearchPlugin searchPlugin) {
-    this.searchPlugin = searchPlugin;
+    this.searchPlugin = checkNotNull(searchPlugin);
     return this;
   }
 
@@ -139,8 +164,12 @@ public class TsdbBuilder {
    * @see com.google.common.base.Optional
    */
   public TsdbBuilder withSearchPlugin(final Optional<SearchPlugin> searchPlugin) {
-    withSearchPlugin(searchPlugin.or(new DefaultSearchPlugin()));
+    withSearchPlugin(searchPlugin.or(defaultSearchPlugin()));
     return this;
+  }
+
+  private SearchPlugin defaultSearchPlugin() {
+    return new DefaultSearchPlugin();
   }
 
   /**
@@ -150,7 +179,7 @@ public class TsdbBuilder {
    * @return This instance
    */
   public TsdbBuilder withRealtimePublisher(final RTPublisher realtimePublisher) {
-    this.realtimePublisher = realtimePublisher;
+    this.realtimePublisher = checkNotNull(realtimePublisher);
     return this;
   }
 
@@ -162,8 +191,12 @@ public class TsdbBuilder {
    * @see com.google.common.base.Optional
    */
   public TsdbBuilder withRealtimePublisher(final Optional<RTPublisher> realtimePublisher) {
-    withRealtimePublisher(realtimePublisher.or(new DefaultRealtimePublisher()));
+    withRealtimePublisher(realtimePublisher.or(defaultRealtimePublisher()));
     return this;
+  }
+
+  private RTPublisher defaultRealtimePublisher() {
+    return new DefaultRealtimePublisher();
   }
 
   /**
@@ -171,6 +204,10 @@ public class TsdbBuilder {
    * @return A newly created {@link net.opentsdb.core.TSDB} instance
    */
   public TSDB build() {
-    return new TSDB(storeSupplier.get(), config, searchPlugin, realtimePublisher);
+    metrics.getRegistry().registerAll(realtimePublisher.metrics());
+    metrics.getRegistry().registerAll(searchPlugin.metrics());
+
+    return new TSDB(storeSupplier.get(), config, searchPlugin,
+            realtimePublisher, metrics);
   }
 }

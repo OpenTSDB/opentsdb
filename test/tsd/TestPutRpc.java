@@ -23,6 +23,7 @@ import java.util.HashMap;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.NoSuchUniqueName;
 
+import com.codahale.metrics.MetricRegistry;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
@@ -36,6 +37,7 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({TSDB.class, HttpQuery.class})
 public final class TestPutRpc {
   private TSDB tsdb = null;
+  private PutDataPointRpc put;
   
   @Before
   public void before() throws Exception {
@@ -62,13 +64,17 @@ public final class TestPutRpc {
       .thenReturn(Deferred.fromResult(new Object()));
     when(tsdb.addPoint("doesnotexist", 1365465600, 42, tags1))
       .thenThrow(new NoSuchUniqueName("metric", "doesnotexist"));
+
+    final TsdStats tsdStats = new TsdStats(new MetricRegistry());
+    put = new PutDataPointRpc(tsdStats);
   }
-  
+
   @Test
   public void constructor() {
-    assertNotNull(new PutDataPointRpc());
+    final TsdStats tsdStats = new TsdStats(new MetricRegistry());
+    assertNotNull(new PutDataPointRpc(tsdStats));
   }
-  
+
   // HTTP RPC Tests --------------------------------------
   
   @Test
@@ -76,7 +82,6 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -88,7 +93,6 @@ public final class TestPutRpc {
         + ":42,\"tags\":{\"host\":\"web01\"}},{\"metric\":\"sys.cpu.system\","
         + "\"timestamp\":1365465600,\"value\":24,\"tags\":"
         + "{\"host\":\"web01\"}}]");
-    PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -98,7 +102,6 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String response = 
@@ -112,7 +115,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String response = 
@@ -127,7 +130,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary&details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String response = 
@@ -144,7 +147,7 @@ public final class TestPutRpc {
         + ":42,\"tags\":{\"host\":\"web01\"}},{\"metric\":\"sys.cpu.system\","
         + "\"timestamp\":1365465600,\"value\":24,\"tags\":"
         + "{\"host\":\"web01\"}}]");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     final String response = 
@@ -158,7 +161,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -168,7 +171,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42.2,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -178,7 +181,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-42.2,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -188,7 +191,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":4.22e3,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -198,7 +201,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":4.22E3,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -208,7 +211,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-4.22e3,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -218,7 +221,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-4.22E3,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -228,7 +231,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":4.2e-3,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -238,7 +241,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":4.2E-3,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -248,7 +251,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-4.2e-3,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -258,7 +261,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-4.2E-3,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
@@ -266,7 +269,7 @@ public final class TestPutRpc {
   @Test (expected = BadRequestException.class)
   public void badMethod() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, "/api/put");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
   }
   
@@ -276,7 +279,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp:1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
   }
   
@@ -284,7 +287,7 @@ public final class TestPutRpc {
   public void notJSON() throws Exception {
     // missing a quotation mark
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", "Hello World");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
   }
   
@@ -292,7 +295,7 @@ public final class TestPutRpc {
   public void noContent() throws Exception {
     // missing a quotation mark
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", "");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
   }
 
@@ -301,7 +304,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"doesnotexist\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -316,7 +319,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -331,7 +334,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":null,\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -346,7 +349,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -361,7 +364,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":null,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -376,7 +379,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":-1,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -391,7 +394,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"tags\":"
         + "{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -406,7 +409,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":null,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -421,7 +424,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":\"\",\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -436,7 +439,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":\"notanumber\",\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -451,7 +454,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":NaN,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -466,7 +469,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":Nan,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
   }
   
@@ -475,7 +478,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":+INF,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -490,7 +493,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-INF,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -505,7 +508,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":INF,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
   }
   
@@ -514,7 +517,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":+inf,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
   }
   
@@ -523,7 +526,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":+Infinity,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -538,7 +541,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-Infinity,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -553,7 +556,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":Infinity,\"tags\":{\"host\":\"web01\"}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
   }
   
@@ -562,7 +565,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\":42"
         + "}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -577,7 +580,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":null}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 
@@ -592,7 +595,7 @@ public final class TestPutRpc {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{}}");
-    PutDataPointRpc put = new PutDataPointRpc();
+
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
     final String response = 

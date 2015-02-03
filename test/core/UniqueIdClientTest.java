@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -12,6 +13,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
+import com.codahale.metrics.MetricRegistry;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -35,7 +37,8 @@ public class UniqueIdClientTest {
             .withStore(tsdb_store)
             .build();
 
-    uniqueIdClient = new UniqueIdClient(tsdb_store, config, tsdb);
+    uniqueIdClient = new UniqueIdClient(tsdb_store, config, tsdb, new Metrics
+            (new MetricRegistry()));
   }
 
   /**

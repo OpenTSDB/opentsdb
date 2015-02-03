@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -30,21 +29,21 @@ import org.slf4j.LoggerFactory;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 /** Implements the "put" telnet-style command. */
 final class PutDataPointRpc implements TelnetRpc, HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
-  private static final AtomicLong requests = new AtomicLong();
-  private static final AtomicLong hbase_errors = new AtomicLong();
-  private static final AtomicLong invalid_values = new AtomicLong();
-  private static final AtomicLong illegal_arguments = new AtomicLong();
-  private static final AtomicLong unknown_metrics = new AtomicLong();
+
+  private final TsdStats.PutDataPointRpcStats stats;
+
+  public PutDataPointRpc(final TsdStats tsdStats) {
+    stats = tsdStats.getPutDataPointRpcStats();
+  }
 
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
-    requests.incrementAndGet();
+    stats.getRequests().inc();
     String errmsg = null;
     try {
       final class PutErrback implements Callback<Exception, Exception> {
@@ -52,7 +51,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           if (chan.isConnected()) {
             chan.write("put: HBase error: " + arg.getMessage() + '\n');
           }
-          hbase_errors.incrementAndGet();
+          stats.getHbase_errors().inc();
           return arg;
         }
         public String toString() {
@@ -62,13 +61,13 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       return importDataPoint(tsdb, cmd).addErrback(new PutErrback());
     } catch (NumberFormatException x) {
       errmsg = "put: invalid value: " + x.getMessage() + '\n';
-      invalid_values.incrementAndGet();
+      stats.getInvalid_values().inc();
     } catch (IllegalArgumentException x) {
       errmsg = "put: illegal argument: " + x.getMessage() + '\n';
-      illegal_arguments.incrementAndGet();
+      stats.getIllegal_arguments().inc();
     } catch (NoSuchUniqueName x) {
       errmsg = "put: unknown metric: " + x.getMessage() + '\n';
-      unknown_metrics.incrementAndGet();
+      stats.getUnknown_metrics().inc();
     }
     if (errmsg != null && chan.isConnected()) {
       chan.write(errmsg);
@@ -87,7 +86,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    */
   public void execute(final TSDB tsdb, final HttpQuery query) 
     throws IOException {
-    requests.incrementAndGet();
+    stats.getRequests().inc();
     
     // only accept POST
     if (query.method() != HttpMethod.POST) {
@@ -153,19 +152,19 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
               dp));
         }
         LOG.warn("Unable to parse value to a number: {}", dp);
-        invalid_values.incrementAndGet();
+        stats.getInvalid_values().inc();
       } catch (IllegalArgumentException iae) {
         if (show_details) {
           details.add(this.getHttpDetails(iae.getMessage(), dp));
         }
         LOG.warn("{}: {}", iae.getMessage(), dp);
-        illegal_arguments.incrementAndGet();
+        stats.getIllegal_arguments().inc();
       } catch (NoSuchUniqueName nsu) {
         if (show_details) {
           details.add(this.getHttpDetails("Unknown metric", dp));
         }
         LOG.warn("Unknown metric: {}", dp);
-        unknown_metrics.incrementAndGet();
+        stats.getUnknown_metrics().inc();
       }
     }
     
@@ -193,18 +192,6 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
         query.sendReply(query.serializer().formatPutV1(summary));
       }
     }
-  }
-  
-  /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
-   */
-  public static void collectStats(final StatsCollector collector) {
-    collector.record("rpc.received", requests, "type=put");
-    collector.record("rpc.errors", hbase_errors, "type=hbase_errors");
-    collector.record("rpc.errors", invalid_values, "type=invalid_values");
-    collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
-    collector.record("rpc.errors", unknown_metrics, "type=unknown_metrics");
   }
 
   /**

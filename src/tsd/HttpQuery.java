@@ -30,6 +30,7 @@ import java.util.Map;
 import ch.qos.logback.classic.spi.ThrowableProxy;
 import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 
+import com.codahale.metrics.Timer;
 import com.stumbleupon.async.Deferred;
 
 import org.slf4j.Logger;
@@ -53,9 +54,6 @@ import org.jboss.netty.util.CharsetUtil;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
-import net.opentsdb.stats.Histogram;
-import net.opentsdb.stats.StatsCollector;
-import net.opentsdb.tsd.HttpSerializer;
 import net.opentsdb.utils.PluginLoader;
 
 /**
@@ -73,12 +71,6 @@ final class HttpQuery {
   /** The maximum implemented API version, set when the user doesn't */
   private static final int MAX_API_VERSION = 1;
 
-  /**
-   * Keep track of the latency of HTTP requests.
-   */
-  private static final Histogram httplatency =
-    new Histogram(16000, (short) 2, 100);
-
   /** Maps Content-Type to a serializer */
   private static HashMap<String, Constructor<? extends HttpSerializer>>
     serializer_map_content_type = null;
@@ -92,6 +84,15 @@ final class HttpQuery {
 
   /** When the query was started (useful for timing). */
   private final long start_time = System.nanoTime();
+
+  /** TsdStats interface */
+  private final TsdStats stats;
+
+  /** HTTP latency timing context **/
+  private final Timer.Context httplatencyctx;
+
+  /** graph latency timing context */
+  private final Timer.Context graphlatencyctx;
 
   /** The request in this HTTP query. */
   private final HttpRequest request;
@@ -129,7 +130,10 @@ final class HttpQuery {
    * @param request The request in this HTTP query.
    * @param chan The channel on which the request was received.
    */
-  public HttpQuery(final TSDB tsdb, final HttpRequest request, final Channel chan) {
+  public HttpQuery(final TSDB tsdb,
+                   final HttpRequest request,
+                   final Channel chan,
+                   final TsdStats stats) {
     this.tsdb = tsdb;
     this.request = request;
     this.chan = chan;
@@ -137,14 +141,11 @@ final class HttpQuery {
       tsdb.getConfig().getBoolean("tsd.http.show_stack_trace");
     this.method = request.getMethod();
     this.serializer = new HttpJsonSerializer(this);
-  }
 
-  /**
-   * Collects the stats and metrics tracked by this instance.
-   * @param collector The collector to use.
-   */
-  public static void collectStats(final StatsCollector collector) {
-    collector.record("http.latency", httplatency, "type=all");
+    this.httplatencyctx = stats.getHttplatency().time();
+    this.graphlatencyctx = stats.getGraphHandlerStats().getGraphlatency().time();
+
+    this.stats = stats;
   }
 
   /**
@@ -217,6 +218,10 @@ final class HttpQuery {
       }
     }
     return querystring;
+  }
+
+  public Timer.Context getGraphlatencyctx() {
+    return graphlatencyctx;
   }
 
   /**
@@ -867,7 +872,7 @@ final class HttpQuery {
       final String basepath =
         tsdb.getConfig().getDirectoryName("tsd.http.cachedir")
         + Integer.toHexString(msg.hashCode());
-      GraphHandler.runGnuplot(this, basepath, plot);
+      GraphHandler.runGnuplot(this, basepath, plot, stats.getGraphHandlerStats());
       plot = null;
       sendFile(status, basepath + ".png", max_age);
     } catch (Exception e) {
@@ -962,8 +967,9 @@ final class HttpQuery {
    * Method to call after writing the HTTP response to the wire.
    */
   private void done() {
-    final int processing_time = processingTimeMillis();
-    httplatency.add(processing_time);
+    // Stop the http latency timer and record it. Also convert its return value
+    // from nanoseconds and log it.
+    final long processing_time = httplatencyctx.stop() / 1000000;
     logInfo("HTTP " + request.getUri() + " done in " + processing_time + "ms");
     deferred.callback(null);
   }

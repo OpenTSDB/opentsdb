@@ -18,8 +18,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 
+import com.codahale.metrics.ConsoleReporter;
+import com.codahale.metrics.MetricRegistry;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -35,7 +38,6 @@ import org.hbase.async.PutRequest;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.utils.Config;
 
@@ -66,6 +68,16 @@ final class TextImporter {
     Config config = CliOptions.getConfig(argp);
     
     final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
+    final MetricRegistry metrics = new MetricRegistry();
+    metrics.registerAll(tsdb.getMetrics());
+
+    // TODO(tsuna): Figure out something better than just writing to stderr.
+    ConsoleReporter reporter = ConsoleReporter.forRegistry(metrics)
+        .outputTo(System.err)
+        .convertRatesTo(TimeUnit.SECONDS)
+        .convertDurationsTo(TimeUnit.MILLISECONDS)
+        .build();
+
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     try {
@@ -78,13 +90,7 @@ final class TextImporter {
       LOG.info(String.format("Total: imported %d data points in %.3fs"
                              + " (%.1f points/s)",
                              points, time_delta, (points / time_delta)));
-      // TODO(tsuna): Figure out something better than just writing to stderr.
-      tsdb.collectStats(new StatsCollector("tsd") {
-        @Override
-        public final void emit(final String line) {
-          System.err.print(line);
-        }
-      });
+      reporter.report();
     } finally {
       try {
         tsdb.shutdown().joinUninterruptibly();

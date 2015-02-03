@@ -14,6 +14,12 @@ package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
+import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
+import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
+import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
+import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
@@ -44,7 +50,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
 
   // Those are sharable but maintain some state, so a single instance per
   // PipelineFactory is needed.
-  private final ConnectionManager connmgr = new ConnectionManager();
+  private final ConnectionManager connmgr;
   private final DetectHttpOrRpc HTTP_OR_RPC = new DetectHttpOrRpc();
   private final Timer timer = new HashedWheelTimer();
   private final ChannelHandler timeoutHandler;
@@ -58,6 +64,9 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   /** The server side socket timeout. **/
   private final int socketTimeout;
 
+  private final TsdStats tsdStats;
+  private final MetricRegistry metricRegistry;
+
   /**
    * Constructor that initializes the RPC router and loads HTTP formatter 
    * plugins
@@ -70,7 +79,18 @@ public final class PipelineFactory implements ChannelPipelineFactory {
     this.tsdb = tsdb;
     this.socketTimeout = tsdb.getConfig().getInt("tsd.core.socket.timeout");
     this.timeoutHandler = new IdleStateHandler(this.timer, 0, 0, this.socketTimeout);
-    this.rpchandler = new RpcHandler(tsdb);
+
+    this.metricRegistry = new MetricRegistry();
+    this.tsdStats = new TsdStats(metricRegistry);
+    this.connmgr = new ConnectionManager(tsdStats);
+
+    metricRegistry.registerAll(new ClassLoadingGaugeSet());
+    metricRegistry.registerAll(new GarbageCollectorMetricSet());
+    metricRegistry.registerAll(new MemoryUsageGaugeSet());
+    metricRegistry.registerAll(new ThreadStatesGaugeSet());
+    metricRegistry.register("descriptor-usage", new FileDescriptorRatioGauge());
+
+    this.rpchandler = new RpcHandler(tsdb, metricRegistry, tsdStats);
     try {
       HttpQuery.initializeSerializerMaps(tsdb);
     } catch (RuntimeException e) {
