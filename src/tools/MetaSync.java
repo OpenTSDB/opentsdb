@@ -246,7 +246,7 @@ final class MetaSync extends Thread {
                 TSMeta new_meta = new TSMeta(tsuid, timestamp);
                 tsdb.indexTSMeta(new_meta);
                 LOG.info("Counter exists but meta was null, creating meta data for timeseries [{}]", tsuid_string);
-                return tsdb.create(new_meta);
+                return tsdb.getMetaClient().create(new_meta);
               }
             }
           }
@@ -254,7 +254,7 @@ final class MetaSync extends Thread {
           // Take care of situations where the counter is created but the
           // meta data is not. May happen if the TSD crashes or is killed
           // improperly before the meta is flushed to storage.
-          return tsdb.TSMetaCounterExists(tsuid)
+          return tsdb.getMetaClient().TSMetaCounterExists(tsuid)
             .addCallbackDeferring(new CounterCB());
         }
 
@@ -265,7 +265,7 @@ final class MetaSync extends Thread {
           LOG.warn("Replacing corrupt meta data for timeseries [{}]", tsuid_string);
           TSMeta new_meta = new TSMeta(tsuid, timestamp);
           tsdb.indexTSMeta(new_meta);
-          return tsdb.create(new_meta);
+          return tsdb.getMetaClient().create(new_meta);
         } else {
           // we only want to update the time if it was outside of an 
           // hour otherwise it's probably an accurate timestamp

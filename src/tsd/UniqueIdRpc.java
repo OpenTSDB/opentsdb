@@ -25,8 +25,6 @@ import net.opentsdb.core.Const;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import org.hbase.async.Bytes;
-import org.hbase.async.PutRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
@@ -357,7 +355,7 @@ final class UniqueIdRpc implements HttpRpc {
           @Override
           public Boolean call(Boolean exists) throws Exception {
             if (!exists && create) {
-              tsdb.createTimeseriesCounter(new TSMeta(tsuid));
+              tsdb.getMetaClient().createTimeseriesCounter(new TSMeta(tsuid));
             }
 
             return exists;
@@ -366,18 +364,18 @@ final class UniqueIdRpc implements HttpRpc {
 
         try {
           // Check whether we have a TSMeta stored already
-          final boolean exists = tsdb.TSMetaExists(tsuid)
+          final boolean exists = tsdb.getMetaClient().TSMetaExists(tsuid)
                   .joinUninterruptibly();
           // set TSUID
           meta.setTSUID(tsuid);
           
           if (!exists && create) {
             // Write 0 to counter column if not present
-            tsdb.TSMetaCounterExists(UniqueId.stringToUid(tsuid))
+            tsdb.getMetaClient().TSMetaCounterExists(UniqueId.stringToUid(tsuid))
                     .addCallback(new WriteCounterIfNotPresentCB())
                 .joinUninterruptibly();
             // set TSUID
-            final Deferred<TSMeta> process_meta = tsdb.create(meta)
+            final Deferred<TSMeta> process_meta = tsdb.getMetaClient().create(meta)
                     .addCallbackDeferring(new SyncCB());
             final TSMeta updated_meta = process_meta.joinUninterruptibly();
             tsdb.indexTSMeta(updated_meta);
@@ -437,7 +435,7 @@ final class UniqueIdRpc implements HttpRpc {
         meta = this.parseTSMetaQS(query);
       }
       try {
-        tsdb.delete(meta);
+        tsdb.getMetaClient().delete(meta);
         tsdb.deleteTSMeta(meta.getTSUID());
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete TSMeta information", e);

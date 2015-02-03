@@ -1144,50 +1144,6 @@ public class TSDB {
     return tsdb_store.deleteAllTreeRule(tree_id);
   }
 
-  /**
-   * Attempts to delete the meta object from storage
-   * @param tsMeta The TSMeta to be removed.
-   * @return A deferred without meaning. The response may be null and should
-   * only be used to track completion.
-   * @throws IllegalArgumentException if data was missing (uid and type)
-   */
-  public Deferred<Object> delete(final TSMeta tsMeta) {
-    tsMeta.checkTSUI();
-    return tsdb_store.delete(tsMeta);
-  }
-
-  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
-    ts.checkTSUI();
-    return tsdb_store.deleteTimeseriesCounter(ts);
-  }
-
-  /**
-   * Attempts to store a new, blank timeseries meta object via a Put
-   * <b>Note:</b> This should not be called by user accessible methods as it will
-   * overwrite any data already in the column.
-   * <b>Note:</b> This call does not guarantee that the UIDs exist before
-   * storing as it should only be called *after* a data point has been recorded
-   * or during a meta sync.
-   * @param tsMeta The TSMeta to be stored in the database
-   * @return A meaningless deferred.
-   * @throws IllegalArgumentException if parsing failed
-   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
-   */
-  public Deferred<Boolean> create(final TSMeta tsMeta) {
-    tsMeta.checkTSUI();
-    return tsdb_store.create(tsMeta);
-  }
-
-  /**
-   * Create the counter for a timeseries meta object.
-   * @param ts The Timeseries meta object to create the counter for
-   * @return A deferred that indicates the completion of the request
-   */
-  public Deferred<Object> createTimeseriesCounter(final TSMeta ts) {
-    ts.checkTSUI();
-    return tsdb_store.setTSMetaCounter(UniqueId.stringToUid(ts.getTSUID()), 0);
-  }
-
 
   /**
    * Attempts a CompareAndSet storage call, loading the object from storage,
@@ -1262,32 +1218,6 @@ public class TSDB {
     }
 
     return tsdb_store.syncToStorage(tsMeta, Deferred.group(uid_group), overwrite);
-  }
-
-  /**
-   * Determines if an entry exists in storage or not.
-   * This is used by the UID Manager tool to determine if we need to write a
-   * new TSUID entry or not. It will not attempt to verify if the stored data is
-   * valid, just checks to see if something is stored in the proper column.
-   * @param tsuid The UID of the meta to verify
-   * @return True if data was found, false if not
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
-   */
-  public Deferred<Boolean> TSMetaExists(final String tsuid) {
-    return tsdb_store.TSMetaExists(tsuid);
-  }
-
-  /**
-   * Determines if the counter column exists for the TSUID.
-   * This is used by the UID Manager tool to determine if we need to write a
-   * new TSUID entry or not. It will not attempt to verify if the stored data is
-   * valid, just checks to see if something is stored in the proper column.
-   * @param tsuid The UID of the meta to verify
-   * @return True if data was found, false if not
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
-   */
-  public Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid) {
-    return tsdb_store.TSMetaCounterExists(tsuid);
   }
 
   /**
@@ -1391,7 +1321,7 @@ public class TSDB {
         }
 
         // store the new TSMeta object and setup the callback chain
-        return create(meta).addCallbackDeferring(new StoreNewCB());
+        return metaClient.create(meta).addCallbackDeferring(new StoreNewCB());
       }
 
     }

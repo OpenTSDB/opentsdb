@@ -3,6 +3,7 @@ package net.opentsdb.core;
 import java.util.List;
 
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.UniqueId;
 
@@ -17,10 +18,80 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class MetaClient {
   private static final Logger LOG = LoggerFactory.getLogger(MetaClient.class);
 
-  private final TsdbStore tsdbStore;
+  private final TsdbStore store;
 
-  public MetaClient(final TsdbStore tsdb_store) {
-    this.tsdbStore = checkNotNull(tsdb_store);
+  public MetaClient(final TsdbStore store) {
+    this.store = checkNotNull(store);
+  }
+
+  /**
+   * Determines if the counter column exists for the TSUID.
+   * This is used by the UID Manager tool to determine if we need to write a
+   * new TSUID entry or not. It will not attempt to verify if the stored data is
+   * valid, just checks to see if something is stored in the proper column.
+   * @param tsuid The UID of the meta to verify
+   * @return True if data was found, false if not
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   */
+  public Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid) {
+    return store.TSMetaCounterExists(tsuid);
+  }
+
+  /**
+   * Determines if an entry exists in storage or not.
+   * This is used by the UID Manager tool to determine if we need to write a
+   * new TSUID entry or not. It will not attempt to verify if the stored data is
+   * valid, just checks to see if something is stored in the proper column.
+   * @param tsuid The UID of the meta to verify
+   * @return True if data was found, false if not
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   */
+  public Deferred<Boolean> TSMetaExists(final String tsuid) {
+    return store.TSMetaExists(tsuid);
+  }
+
+  /**
+   * Attempts to store a new, blank timeseries meta object via a Put
+   * <b>Note:</b> This should not be called by user accessible methods as it will
+   * overwrite any data already in the column.
+   * <b>Note:</b> This call does not guarantee that the UIDs exist before
+   * storing as it should only be called *after* a data point has been recorded
+   * or during a meta sync.
+   * @param tsMeta The TSMeta to be stored in the database
+   * @return A meaningless deferred.
+   * @throws IllegalArgumentException if parsing failed
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   */
+  public Deferred<Boolean> create(final TSMeta tsMeta) {
+    tsMeta.checkTSUI();
+    return store.create(tsMeta);
+  }
+
+  /**
+   * Create the counter for a timeseries meta object.
+   * @param ts The Timeseries meta object to create the counter for
+   * @return A deferred that indicates the completion of the request
+   */
+  public Deferred<Object> createTimeseriesCounter(final TSMeta ts) {
+    ts.checkTSUI();
+    return store.setTSMetaCounter(UniqueId.stringToUid(ts.getTSUID()), 0);
+  }
+
+  /**
+   * Attempts to delete the meta object from storage
+   * @param tsMeta The TSMeta to be removed.
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws IllegalArgumentException if data was missing (uid and type)
+   */
+  public Deferred<Object> delete(final TSMeta tsMeta) {
+    tsMeta.checkTSUI();
+    return store.delete(tsMeta);
+  }
+
+  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
+    ts.checkTSUI();
+    return store.deleteTimeseriesCounter(ts);
   }
 
   /**
@@ -42,7 +113,7 @@ public class MetaClient {
           "The end timestamp cannot be less than the start timestamp");
     }
 
-    return tsdbStore.getGlobalAnnotations(start_time, end_time);
+    return store.getGlobalAnnotations(start_time, end_time);
   }
 
   /**
@@ -54,10 +125,10 @@ public class MetaClient {
    */
   public Deferred<Annotation> getAnnotation(final String tsuid, final long start_time) {
     if (Strings.isNullOrEmpty(tsuid)) {
-      return tsdbStore.getAnnotation(null, start_time);
+      return store.getAnnotation(null, start_time);
     }
 
-    return tsdbStore.getAnnotation(UniqueId.stringToUid(tsuid), start_time);
+    return store.getAnnotation(UniqueId.stringToUid(tsuid), start_time);
   }
 
   /**
@@ -75,7 +146,7 @@ public class MetaClient {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
-    return tsdbStore.delete(annotation);
+    return store.delete(annotation);
   }
 
   /**
@@ -115,7 +186,7 @@ public class MetaClient {
           annotation.syncNote(stored_note, overwrite);
         }
 
-        return tsdbStore.updateAnnotation(stored_note, annotation);
+        return store.updateAnnotation(stored_note, annotation);
       }
     }
 
@@ -126,7 +197,7 @@ public class MetaClient {
       tsuid = UniqueId.stringToUid(annotation.getTSUID());
     }
 
-    return tsdbStore.getAnnotation(tsuid, annotation.getStartTime()).addCallbackDeferring(new StoreCB());
+    return store.getAnnotation(tsuid, annotation.getStartTime()).addCallbackDeferring(new StoreCB());
   }
 
   /**
@@ -148,6 +219,6 @@ public class MetaClient {
           "The end timestamp cannot be less than the start timestamp");
     }
 
-    return tsdbStore.deleteAnnotationRange(tsuid, start_time, end_time);
+    return store.deleteAnnotationRange(tsuid, start_time, end_time);
   }
 }

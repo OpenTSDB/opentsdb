@@ -212,18 +212,6 @@ public final class TestTSMeta {
   }
   
   @Test
-  public void delete() throws Exception {
-    meta = tsdb.getTSMeta( "000001000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.delete(meta);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void deleteNull() throws Exception {
-    meta = new TSMeta();
-    tsdb.delete(meta);
-  }
-  
-  @Test
   public void syncToStorage() throws Exception {
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
     meta.setDisplayName("New DN");
@@ -258,52 +246,6 @@ public final class TestTSMeta {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
     tsdb.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-  
-  @Test
-  public void storeNew() throws Exception {
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
-    meta.setDisplayName("New DN");
-    tsdb.create(meta);
-    assertEquals("New DN", meta.getDisplayName());
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void storeNewNull() throws Exception {
-    meta = new TSMeta((String) null);
-    tsdb.create(meta);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void storeNewEmpty() throws Exception {
-    meta = new TSMeta("");
-    tsdb.create(meta);
-  }
-  
-  @Test
-  public void metaExistsInStorage() throws Exception {
-    assertTrue(tsdb.TSMetaExists("000001000001000001")
-        .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-  }
-  
-  @Test
-  public void metaExistsInStorageNot() throws Exception {
-    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
-    assertFalse(tsdb.TSMetaExists("000001000001000001")
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-  }
-  
-  @Test
-  public void counterExistsInStorage() throws Exception {
-    assertTrue(tsdb.TSMetaCounterExists(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-  }
-  
-  @Test
-  public void counterExistsInStorageNot() throws Exception {
-    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
-    assertFalse(tsdb.TSMetaCounterExists(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
   @Test

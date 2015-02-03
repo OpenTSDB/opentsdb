@@ -23,7 +23,6 @@ import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.UniqueIdType;
 
 import org.hbase.async.Bytes;
-import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -244,11 +243,11 @@ final class MetaPurge extends Thread {
 
           for (KeyValue column : row) {
             if (Bytes.equals(TSMeta.META_QUALIFIER(), column.qualifier())) {
-              delete_calls.add(tsdb.delete(ts));
+              delete_calls.add(tsdb.getMetaClient().delete(ts));
               ++columns;
             } else if (Bytes.equals(TSMeta.COUNTER_QUALIFIER(), 
                 column.qualifier())) {
-              delete_calls.add(tsdb.deleteTimeseriesCounter(ts));
+              delete_calls.add(tsdb.getMetaClient().deleteTimeseriesCounter(ts));
               ++columns;
             }
           }
