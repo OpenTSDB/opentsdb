@@ -1,5 +1,6 @@
 package net.opentsdb.core;
 
+import net.opentsdb.search.DefaultSearchPlugin;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreSupplier;
@@ -10,11 +11,8 @@ import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
 
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ServiceLoader;
 
@@ -73,6 +71,44 @@ public class TsdbBuilder {
     return builder;
   }
 
+  /**
+   * Load the realtime publisher that the config describes and return it.
+   * @param config The config object to read from
+   * @return The configured realtime publisher or the default discarding one.
+   */
+  private static RTPublisher loadRealtimePublisher(final Config config) {
+    // load the realtime publisher plugin if enabled
+    if (config.getBoolean("tsd.rtpublisher.enable")) {
+      return PluginLoader.loadSpecificPlugin(
+              config.getString("tsd.rtpublisher.plugin"), RTPublisher.class);
+    }
+
+    return defaultRealtimePublisher();
+  }
+
+  /**
+   * Load the search plugin that the config describes and return it.
+   * @param config The config object to read from
+   * @return The configured search plugin or the default discarding one.
+   */
+  private static SearchPlugin loadSearchPlugin(final Config config) {
+    // load the search plugin if enabled
+    if (config.getBoolean("tsd.search.enable")) {
+      return PluginLoader.loadSpecificPlugin(
+              config.getString("tsd.search.plugin"), SearchPlugin.class);
+    }
+
+    return defaultSearchPlugin();
+  }
+
+  private static RTPublisher defaultRealtimePublisher() {
+    return new DefaultRealtimePublisher();
+  }
+
+  private static SearchPlugin defaultSearchPlugin() {
+    return new DefaultSearchPlugin();
+  }
+
   /***
    * Create a new builder with the provided config and metrics instance.
    */
@@ -83,44 +119,6 @@ public class TsdbBuilder {
 
     searchPlugin = defaultSearchPlugin();
     realtimePublisher = defaultRealtimePublisher();
-  }
-
-  /**
-   * Load the search plugin that the config describes and return it.
-   * @param config The config object to read from
-   * @return An optional that contains a search plugin or is absent if search
-   * plugins are disabled
-   * @see com.google.common.base.Optional
-   */
-  private static Optional<SearchPlugin> loadSearchPlugin(final Config config) {
-    // load the search plugin if enabled
-    if (config.getBoolean("tsd.search.enable")) {
-      final SearchPlugin search = PluginLoader.loadSpecificPlugin(
-              config.getString("tsd.search.plugin"), SearchPlugin.class);
-
-      return Optional.of(search);
-    }
-
-    return Optional.absent();
-  }
-
-  /**
-   * Load the realtime publisher that the config describes and return it.
-   * @param config The config object to read from
-   * @return An optional that contains a realtime publisher or is absent if
-   * realtime publishers are disabled
-   * @see com.google.common.base.Optional
-   */
-  private static Optional<RTPublisher> loadRealtimePublisher(final Config config) {
-    // load the realtime publisher plugin if enabled
-    if (config.getBoolean("tsd.rtpublisher.enable")) {
-      RTPublisher rt_publisher = PluginLoader.loadSpecificPlugin(
-              config.getString("tsd.rtpublisher.plugin"), RTPublisher.class);
-
-      return Optional.of(rt_publisher);
-    }
-
-    return Optional.absent();
   }
 
   /**
@@ -157,22 +155,6 @@ public class TsdbBuilder {
   }
 
   /**
-   * Set the search plugin that will be used by the TSDB instance created by
-   * this builder.
-   * @param searchPlugin The {@link net.opentsdb.search.SearchPlugin} to use
-   * @return This instance
-   * @see com.google.common.base.Optional
-   */
-  public TsdbBuilder withSearchPlugin(final Optional<SearchPlugin> searchPlugin) {
-    withSearchPlugin(searchPlugin.or(defaultSearchPlugin()));
-    return this;
-  }
-
-  private SearchPlugin defaultSearchPlugin() {
-    return new DefaultSearchPlugin();
-  }
-
-  /**
    * Set the realtime publisher that will be used by the TSDB instance
    * created by this builder.
    * @param realtimePublisher The {@link net.opentsdb.tsd.RTPublisher} to use
@@ -181,22 +163,6 @@ public class TsdbBuilder {
   public TsdbBuilder withRealtimePublisher(final RTPublisher realtimePublisher) {
     this.realtimePublisher = checkNotNull(realtimePublisher);
     return this;
-  }
-
-  /**
-   * Set the realtime publisher that will be used by the TSDB instance
-   * created by this builder.
-   * @param realtimePublisher The {@link net.opentsdb.tsd.RTPublisher} to use
-   * @return This instance
-   * @see com.google.common.base.Optional
-   */
-  public TsdbBuilder withRealtimePublisher(final Optional<RTPublisher> realtimePublisher) {
-    withRealtimePublisher(realtimePublisher.or(defaultRealtimePublisher()));
-    return this;
-  }
-
-  private RTPublisher defaultRealtimePublisher() {
-    return new DefaultRealtimePublisher();
   }
 
   /**

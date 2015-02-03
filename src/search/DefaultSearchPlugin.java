@@ -1,6 +1,7 @@
-package net.opentsdb.core;
+package net.opentsdb.search;
 
 import net.opentsdb.BuildData;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
