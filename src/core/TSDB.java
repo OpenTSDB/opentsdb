@@ -347,16 +347,4 @@ public class TSDB {
     return search.executeQuery(query);
   }
 
-  /**
-   * Simply logs plugin errors when they're thrown by attaching as an errorback. 
-   * Without this, exceptions will just disappear (unless logged by the plugin) 
-   * since we don't wait for a result.
-   */
-  public static final class PluginError implements Callback<Object, Exception> {
-    @Override
-    public Object call(final Exception e) throws Exception {
-      LOG.error("Exception from Search plugin indexer", e);
-      return null;
-    }
-  }
 }

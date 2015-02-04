@@ -163,7 +163,7 @@ public class MetaClient {
    * @since 2.0
    */
   public void deleteAnnotation(final Annotation note) {
-    searchPlugin.deleteAnnotation(note).addErrback(new TSDB.PluginError());
+    searchPlugin.deleteAnnotation(note).addErrback(new PluginError(searchPlugin));
   }
 
   /**
@@ -172,7 +172,7 @@ public class MetaClient {
    * @since 2.0
    */
   public void deleteTSMeta(final String tsuid) {
-    searchPlugin.deleteTSMeta(tsuid).addErrback(new TSDB.PluginError());
+    searchPlugin.deleteTSMeta(tsuid).addErrback(new PluginError(searchPlugin));
   }
 
   public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
@@ -186,7 +186,7 @@ public class MetaClient {
    * @since 2.0
    */
   public void deleteUIDMeta(final UIDMeta meta) {
-    searchPlugin.deleteUIDMeta(meta).addErrback(new TSDB.PluginError());
+    searchPlugin.deleteUIDMeta(meta).addErrback(new PluginError(searchPlugin));
   }
 
   /**
@@ -441,8 +441,8 @@ public class MetaClient {
    * @since 2.0
    */
   public void indexAnnotation(final Annotation note) {
-    searchPlugin.indexAnnotation(note).addErrback(new TSDB.PluginError());
-    realtimePublisher.publishAnnotation(note);
+    searchPlugin.indexAnnotation(note).addErrback(new PluginError(searchPlugin));
+    realtimePublisher.publishAnnotation(note).addErrback(new PluginError(realtimePublisher));
   }
 
   /**
@@ -451,7 +451,7 @@ public class MetaClient {
    * @since 2.0
    */
   public void indexTSMeta(final TSMeta meta) {
-    searchPlugin.indexTSMeta(meta).addErrback(new TSDB.PluginError());
+    searchPlugin.indexTSMeta(meta).addErrback(new PluginError(searchPlugin));
   }
 
   /**
@@ -460,7 +460,7 @@ public class MetaClient {
    * @since 2.0
    */
   public void indexUIDMeta(final UIDMeta meta) {
-    searchPlugin.indexUIDMeta(meta).addErrback(new TSDB.PluginError());
+    searchPlugin.indexUIDMeta(meta).addErrback(new PluginError(searchPlugin));
   }
 
   /**

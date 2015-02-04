@@ -17,6 +17,7 @@ import java.util.Map;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Plugin;
+import net.opentsdb.core.PluginError;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 
@@ -59,11 +60,12 @@ public abstract class RTPublisher extends Plugin {
       final byte[] tsuid, final short flags) {
     if ((flags & Const.FLAG_FLOAT) == 0x0) {
       return publishDataPoint(metric, timestamp, 
-          Internal.extractFloatingPointValue(value, 0, (byte) flags), 
-          tags, tsuid);
+          Internal.extractFloatingPointValue(value, 0, (byte) flags), tags, tsuid)
+              .addErrback(new PluginError(this));
     } else {
       return publishDataPoint(metric, timestamp, 
-          Internal.extractIntegerValue(value, 0, (byte) flags), tags, tsuid);
+          Internal.extractIntegerValue(value, 0, (byte) flags), tags, tsuid)
+              .addErrback(new PluginError(this));
     }
   }
   
