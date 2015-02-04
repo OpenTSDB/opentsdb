@@ -580,9 +580,9 @@ public abstract class TestTsdbStore {
   }
   public void TestFetchBranchNSU() throws Exception {
 
-    final Branch branch = tsdb.fetchBranch(
+    final Branch branch = tsdb.getTreeClient().fetchBranch(
             Branch.stringToId("00010001BECD000181A8"),
-            false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+            false, tsdb).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(branch);
     assertEquals(1, branch.getTreeId());

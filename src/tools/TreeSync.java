@@ -325,7 +325,7 @@ final class TreeSync extends Thread {
     } else {
       LOG.info("Deleting tree branches for: {}", tree_id);
     }
-    tsdb.deleteTree(tree_id, delete_definition).joinUninterruptibly();
+    tsdb.getTreeClient().deleteTree(tree_id, delete_definition).joinUninterruptibly();
     LOG.info("Completed tree deletion for: {}", tree_id);
     return 0;
   }

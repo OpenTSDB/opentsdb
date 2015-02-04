@@ -199,7 +199,7 @@ public final class TreeBuilder {
           if ( tree.getNotMatched() != null &&
               !tree.getNotMatched().isEmpty()) {
             tree.addNotMatched(meta.getTSUID(), not_matched);
-            storage_calls.add(tsdb.flushTreeNotMatched(tree));
+            storage_calls.add(tsdb.getTreeClient().flushTreeNotMatched(tree));
           }
           
         } else if (current_branch == null) {
@@ -245,7 +245,7 @@ public final class TreeBuilder {
                 }
                 
               }
-              final Deferred<Boolean> deferred = tsdb.storeBranch(tree, cb, true)
+              final Deferred<Boolean> deferred = tsdb.getTreeClient().storeBranch(tree, cb, true)
                 .addCallbackDeferring(new BranchCB());
               storage_calls.add(deferred);
               processed_branches.put(cb.getBranchId(), true);
@@ -265,7 +265,7 @@ public final class TreeBuilder {
           
           // if we have collisions, flush em
           if (tree.getCollisions() != null && !tree.getCollisions().isEmpty()) {
-            storage_calls.add(tsdb.flushTreeCollisions(tree));
+            storage_calls.add(tsdb.getTreeClient().flushTreeCollisions(tree));
           }
 
         LOG.debug("Completed processing meta [{}] through tree: {}", meta, tree.getTreeId());
@@ -362,7 +362,7 @@ public final class TreeBuilder {
           root_path.put(0, "ROOT");
           root.prependParentPath(root_path);
 
-          return tsdb.storeBranch(null, root, true).addCallbackDeferring(
+          return tsdb.getTreeClient().storeBranch(null, root, true).addCallbackDeferring(
                   new NewRootCB(root));
         } else {
           return Deferred.fromResult(branch);
@@ -379,7 +379,7 @@ public final class TreeBuilder {
     }
 
     LOG.debug("Loading or initializing root for tree: {}", tree_id);
-    return tsdb.fetchBranchOnly(Tree.idToBytes(tree_id))
+    return tsdb.getTreeClient().fetchBranchOnly(Tree.idToBytes(tree_id), tsdb)
       .addCallbackDeferring(new RootCB());
   }
   

@@ -1,6 +1,5 @@
 package net.opentsdb.storage;
 
-import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.TestBranch;
@@ -46,7 +45,7 @@ public class TestMemoryStore extends TestTsdbStore {
     setupBranchMemoryStore(!STORE_DATA);//test for memory store
 
     final Branch branch = TestBranch.buildTestBranch(tree);
-    tsdb.storeBranch(tree, branch, true);
+    tsdb.getTreeClient().storeBranch(tree, branch, true);
     super.testStoreBranchExistingLeaf();
   }
   @Test
