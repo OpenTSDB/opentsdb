@@ -24,12 +24,13 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import org.hbase.async.GetRequest;
@@ -219,19 +220,19 @@ public class CassandraStore implements TsdbStore {
                 d.callback(null);
                 session.executeAsync(insert_tags_statement.bind(
                         UniqueId.uidToLong(metric_uid, UniqueIdType.METRIC.width),
-                        UniqueIdType.METRIC.qualifier, UniqueId.uidToString
+                        UniqueIdType.METRIC.toValue(), UniqueId.uidToString
                                 (tsuid)));
                 for (int i = 0 ; i < tags_uids.size(); i+=2) {
                     session.executeAsync(insert_tags_statement.bind(
                             UniqueId.uidToLong(tags_uids.get(i),
                                     UniqueIdType.TAGK.width),
-                            UniqueIdType.TAGK.qualifier, UniqueId.uidToString
+                            UniqueIdType.TAGK.toValue(), UniqueId.uidToString
                                     (tsuid)));
 
                     session.executeAsync(insert_tags_statement.bind(
                             UniqueId.uidToLong(tags_uids.get(i + 1),
                                     UniqueIdType.TAGV.width),
-                            UniqueIdType.TAGV.qualifier, UniqueId.uidToString
+                            UniqueIdType.TAGV.toValue(), UniqueId.uidToString
                                     (tsuid)));
                 }
             }
@@ -269,17 +270,12 @@ public class CassandraStore implements TsdbStore {
     }
 
     @Override
-    public void recordStats(StatsCollector collector) {
-
-    }
-
-    @Override
     public Deferred<Optional<byte[]>> getId(final String name, final
     UniqueIdType
             type) {
 
         ResultSetFuture f = session.executeAsync(get_id_statement.bind(
-                name, type.qualifier));
+                name, type.toValue()));
 
         final Deferred<Optional<byte[]>> d = new Deferred<Optional<byte[]>>();
 
@@ -307,7 +303,7 @@ public class CassandraStore implements TsdbStore {
     UniqueIdType type) {
 
         ResultSetFuture f = session.executeAsync(get_name_statement.bind(
-                UniqueId.uidToLong(id), type.qualifier));
+                UniqueId.uidToLong(id), type.toValue()));
 
         final Deferred<Optional<String>> d = new Deferred<Optional<String>>();
 
@@ -362,7 +358,7 @@ public class CassandraStore implements TsdbStore {
         final Deferred<byte[]> d = new Deferred<byte[]>();
 
         final ResultSetFuture future = session.executeAsync(get_max_uid_statement.bind
-                (type.qualifier));
+                (type.toValue()));
 
         Futures.addCallback(future, new FutureCallback<ResultSet>() {
             @Override
@@ -371,11 +367,11 @@ public class CassandraStore implements TsdbStore {
                 final long next_uid = rows.one().getLong("max") + 1;
                 //next step is to lock down this resource in a non blocking way.
                 BatchStatement lock_batch = new BatchStatement();
-                lock_batch.add(lock_uid_name_combination.bind(UniqueId
-                        .uidToString(UniqueId.longToUID(next_uid, type.width)), type
-                        .qualifier));
                 lock_batch.add(lock_uid_name_combination.bind(
-                        name, type.qualifier));
+                        UniqueId.uidToString(UniqueId.longToUID(next_uid, type.width)),
+                        type.toValue()));
+                lock_batch.add(lock_uid_name_combination.bind(
+                        name, type.toValue()));
                 // We have a 'lock' table that we write to. We write two
                 // rows one for each the name and the uid with the
                 // UniqueIdType as an additional key.
@@ -392,9 +388,9 @@ public class CassandraStore implements TsdbStore {
                                 // keep track of this callback at from this point.
 
                                 if (rows.wasApplied()) {
-                                    session.executeAsync(increment_uid_statement.bind(type.qualifier));
-                                    session.executeAsync(create_new_name_uid_statement.bind(name, type.qualifier, next_uid));
-                                    session.executeAsync(create_new_uid_name_statement.bind(next_uid, type.qualifier, name));
+                                    session.executeAsync(increment_uid_statement.bind(type.toValue()));
+                                    session.executeAsync(create_new_name_uid_statement.bind(name, type.toValue(), next_uid));
+                                    session.executeAsync(create_new_uid_name_statement.bind(next_uid, type.toValue(), name));
                                     //TODO (zeeck) maybe check callback?
                                     // returned the used UID
                                     // we will assume the write will be fine, Cassandra
@@ -455,13 +451,13 @@ public class CassandraStore implements TsdbStore {
         // Get old name, we do this manually because the other method returns
         // a deferred and we want to avoid to mix deferreds between functions.
         ResultSetFuture f = session.executeAsync(get_name_statement.bind(
-                UniqueId.uidToLong(uid), type.qualifier));
+                UniqueId.uidToLong(uid), type.toValue()));
 
         final Deferred<byte[]> d = new Deferred<byte[]>();
 
         //CQL = "UPDATE tsdb.uid_id SET name = ? WHERE uid = ? AND type = ?;";
         final BoundStatement s1 = new BoundStatement(update_uid_name_statement)
-                .bind(name, UniqueId.uidToLong(uid), type.qualifier);
+                .bind(name, UniqueId.uidToLong(uid), type.toValue());
 
         Futures.addCallback(f, new FutureCallback<ResultSet>() {
             @Override
@@ -475,8 +471,8 @@ public class CassandraStore implements TsdbStore {
                 // DELETE FROM tsdb.name_id WHERE name = ? AND type = ?
                 // INSERT INTO tsdb.name_id (name, type, uid) VALUES (?, ?, ?)
                 // APPLY BATCH;
-                session.executeAsync(s.bind(old_name, type.qualifier,
-                        name, type.qualifier, UniqueId.uidToLong(uid)));
+                session.executeAsync(s.bind(old_name, type.toValue(),
+                        name, type.toValue(), UniqueId.uidToLong(uid)));
                 //TODO (zeeck) maybe check if this was ok
                 d.callback(uid);
             }
@@ -519,7 +515,12 @@ public class CassandraStore implements TsdbStore {
         return null;
     }
 
-    @Override
+  @Override
+  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+    throw new UnsupportedOperationException("Not implemented yet!");
+  }
+
+  @Override
     public Deferred<Tree> fetchTree(int tree_id) {
         return null;
     }

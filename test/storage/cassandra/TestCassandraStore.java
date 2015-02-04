@@ -1,9 +1,11 @@
 package net.opentsdb.storage.cassandra;
 
+import com.codahale.metrics.MetricRegistry;
 import com.datastax.driver.core.Cluster;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.net.HostAndPort;
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
@@ -53,7 +55,7 @@ public class TestCassandraStore {
      * Use this to connect to cassandra.
      */
     private void setUpCassandraConnection() {
-        store = new CassandraStoreDescriptor().createStore(config);
+        store = new CassandraStoreDescriptor().createStore(config, new Metrics(new MetricRegistry()));
     }
 
     /**
