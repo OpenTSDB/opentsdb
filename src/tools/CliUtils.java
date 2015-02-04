@@ -159,7 +159,7 @@ final class CliUtils {
     try {
       return StringCoder.fromBytes(b);
     } catch (Exception e) {
-      throw new RuntimeException("fromBytes=" + b, e);
+      throw new RuntimeException("fromBytes=" + Arrays.toString(b), e);
     }
   }
 }
