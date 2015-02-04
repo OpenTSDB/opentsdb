@@ -125,7 +125,7 @@ final class UniqueIdRpc implements HttpRpc {
       final TreeMap<String, String> errors = 
         new TreeMap<String, String>();
 
-      final UniqueIdType type = UniqueIdType.fromString(entry.getKey());
+      final UniqueIdType type = UniqueIdType.fromValue(entry.getKey());
       
       for (String name : entry.getValue()) {
         try {
@@ -164,7 +164,7 @@ final class UniqueIdRpc implements HttpRpc {
     if (method == HttpMethod.GET) {
       
       final String uid = query.getRequiredQueryStringParam("uid");
-      final UniqueIdType type = UniqueIdType.fromString(
+      final UniqueIdType type = UniqueIdType.fromValue(
               query.getRequiredQueryStringParam("type"));
       try {
         final UIDMeta meta = tsdb.getUIDMeta(type, uid)
@@ -458,7 +458,7 @@ final class UniqueIdRpc implements HttpRpc {
   private UIDMeta parseUIDMetaQS(final HttpQuery query) {
     final byte[] uid = UniqueId.stringToUid(query.getRequiredQueryStringParam("uid"));
     final String type = query.getRequiredQueryStringParam("type");
-    final UIDMeta meta = new UIDMeta(UniqueIdType.fromString(type), uid);
+    final UIDMeta meta = new UIDMeta(UniqueIdType.fromValue(type), uid);
     final String display_name = query.getQueryStringParam("display_name");
     if (display_name != null) {
       meta.setDisplayName(display_name);

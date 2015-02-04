@@ -79,7 +79,7 @@ final class SuggestRpc implements HttpRpc {
 
     UniqueIdType utype;
     try {
-      utype = UniqueIdType.fromString(type);
+      utype = UniqueIdType.fromValue(type);
     } catch (IllegalArgumentException e) {
       throw new BadRequestException("Invalid 'type' parameter:" + type, e);
     }

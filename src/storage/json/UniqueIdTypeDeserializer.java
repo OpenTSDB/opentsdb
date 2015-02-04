@@ -18,6 +18,6 @@ public class UniqueIdTypeDeserializer
   public UniqueIdType deserialize(final JsonParser parser,
                                   final DeserializationContext context)
           throws IOException {
-    return UniqueIdType.fromString(parser.getValueAsString());
+    return UniqueIdType.fromValue(parser.getValueAsString());
   }
 }

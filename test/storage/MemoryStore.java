@@ -232,7 +232,7 @@ public class MemoryStore implements TsdbStore {
     if (id != null && id.length != type.width) {
       throw new IllegalStateException("Found id.length = " + id.length
               + " which is != " + type.width
-              + " required for '" + type.qualifier + '\'');
+              + " required for '" + type + '\'');
     }
 
     return Deferred.fromResult(Optional.fromNullable(id));
@@ -243,7 +243,7 @@ public class MemoryStore implements TsdbStore {
     if (id.length != type.width) {
       throw new IllegalArgumentException("Wrong id.length = " + id.length
               + " which is != " + type.width
-              + " required for '" + type.qualifier + '\'');
+              + " required for '" + type + '\'');
     }
 
     String str_uid = new String(id, Const.CHARSET_ASCII);
@@ -291,7 +291,7 @@ public class MemoryStore implements TsdbStore {
 
     UniqueIdType effective_type = type;
     if (effective_type == null) {
-      effective_type = UniqueIdType.fromString(qualifier.substring(0,
+      effective_type = UniqueIdType.fromValue(qualifier.substring(0,
               qualifier.indexOf("_meta")));
     }
 
@@ -383,7 +383,7 @@ public class MemoryStore implements TsdbStore {
     // limits.
     for (int i = 0; i < row.length - type.width; i++) {
       if (row[i] != 0) {
-        throw new IllegalArgumentException("All Unique IDs for " + type.qualifier
+        throw new IllegalArgumentException("All Unique IDs for " + type
                 + " on " + type.width + " bytes are already assigned!");
       }
     }

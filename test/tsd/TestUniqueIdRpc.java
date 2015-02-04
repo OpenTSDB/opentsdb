@@ -702,39 +702,6 @@ public final class TestUniqueIdRpc {
     this.rpc.execute(tsdb, query);
   }
 
-  @Test
-  public void stringToUniqueIdTypeMetric() throws Exception {
-    setupAssign();
-    assertEquals(UniqueIdType.METRIC, UniqueIdType.fromString("Metric"));
-  }
-  
-  @Test
-  public void stringToUniqueIdTypeTagk() throws Exception {
-    setupAssign();
-    assertEquals(UniqueIdType.TAGK, UniqueIdType.fromString("TagK"));
-  }
-  
-  @Test
-  public void stringToUniqueIdTypeTagv() throws Exception {
-    setupAssign();
-    assertEquals(UniqueIdType.TAGV, UniqueIdType.fromString("TagV"));
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void stringToUniqueIdTypeNull() throws Exception {
-    UniqueIdType.fromString(null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void stringToUniqueIdTypeEmpty() throws Exception {
-    UniqueIdType.fromString("");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void stringToUniqueIdTypeInvalid() throws Exception {setupAssign();
-    UniqueIdType.fromString("Not a type");
-  }
-
   // Teset /api/uid/uidmeta --------------------
   
   @Test

@@ -57,7 +57,7 @@ class UsedUidsGauge extends CachedGauge<Long> {
     }
 
     try {
-      return usedUids.joinUninterruptibly().get(type.qualifier);
+      return usedUids.joinUninterruptibly().get(type.toValue());
     } catch (Exception e) {
       LOG.error("Received an error while attempting to fetch the number of " +
           "used uids", e);

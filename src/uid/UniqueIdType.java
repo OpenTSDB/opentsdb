@@ -6,40 +6,52 @@ import com.google.common.base.Strings;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-/** Enumerator for different types of UIDS @since 2.0 */
+/**
+ * Enumerator for different types of UIDs
+ */
 public enum UniqueIdType {
   METRIC(Const.METRICS_QUAL, Const.METRICS_WIDTH),
   TAGK(Const.TAG_NAME_QUAL, Const.TAG_NAME_WIDTH),
   TAGV(Const.TAG_VALUE_QUAL, Const.TAG_VALUE_WIDTH);
 
-  public final String qualifier;
+  private final String identifier;
+
   public final short width;
 
-  UniqueIdType(String qualifier, short width) {
-    checkArgument(!Strings.isNullOrEmpty(qualifier), "Empty string as 'qualifier' argument!");
+  UniqueIdType(String identifier, short width) {
+    checkArgument(!Strings.isNullOrEmpty(identifier), "Empty string as 'identifier' argument!");
     checkArgument(width > 0 && width <= 8, "Invalid width: %s", width);
 
-    this.qualifier = qualifier;
+    this.identifier = identifier;
     this.width = width;
   }
 
   /**
-   * Attempts to convert the given string to a type enumerator
+   * Attempts to convert the given string to an instance of this enum. This is
+   * the reverse of {@link #toValue}.
+   *
    * @param type The string to convert
    * @return a valid UniqueIdType if matched
    * @throws IllegalArgumentException if the string did not match a type
-   * @since 2.0
    */
-  public static UniqueIdType fromString(final String type) {
-    if (type.toLowerCase().equals("metric") ||
-        type.toLowerCase().equals("metrics")) {
+  public static UniqueIdType fromValue(final String type) {
+    if ("metric".equals(type.toLowerCase()) ||
+        "metrics".equals(type.toLowerCase())) {
       return METRIC;
-    } else if (type.toLowerCase().equals("tagk")) {
+    } else if ("tagk".equals(type.toLowerCase())) {
       return TAGK;
-    } else if (type.toLowerCase().equals("tagv")) {
+    } else if ("tagv".equals(type.toLowerCase())) {
       return TAGV;
     } else {
       throw new IllegalArgumentException("Invalid type requested: " + type);
     }
+  }
+
+  /**
+   * Returns a string that uniquely identifies the enum value and is safe to use
+   * with external systems (databases). This is the reverse of {@link #fromValue}.
+   */
+  public String toValue() {
+    return identifier;
   }
 }

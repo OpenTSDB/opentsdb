@@ -135,7 +135,7 @@ public class UniqueId {
   private void registerMetrics(final Metrics metrics) {
     final MetricRegistry registry = metrics.getRegistry();
 
-    Metrics.Tag typeTag = tag("kind", type().qualifier);
+    Metrics.Tag typeTag = tag("kind", type.toValue());
     registry.register(name("uid.cache-hit", typeTag), cache_hits);
     registry.register(name("uid.cache-miss", typeTag), cache_misses);
 
@@ -244,7 +244,7 @@ public class UniqueId {
           return id.get();
         }
 
-        throw new NoSuchUniqueName(type.qualifier, name);
+        throw new NoSuchUniqueName(type.toValue(), name);
       }
     }
     return tsdb_store.getId(name, type).addCallback(new GetIdCB());
@@ -497,7 +497,7 @@ public class UniqueId {
     scanner.setStopKey(end_row);
     scanner.setFamily(ID_FAMILY);
     if (type != null) {
-      scanner.setQualifier(type.qualifier.getBytes(Const.CHARSET_ASCII));
+      scanner.setQualifier(type.toValue().getBytes(Const.CHARSET_ASCII));
     }
     scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;

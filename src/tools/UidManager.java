@@ -27,7 +27,6 @@ import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import net.opentsdb.core.Const;
 
-import net.opentsdb.core.MetaClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -329,7 +328,7 @@ final class UidManager {
   private static UniqueId buildUniqueIdInstance(final HBaseStore hbase_store,
                                                 final byte[] table,
                                                 final String stype) {
-    final UniqueIdType type = UniqueIdType.fromString(stype);
+    final UniqueIdType type = UniqueIdType.fromValue(stype);
     // TODO we don't create a MetaClient here which means there will be no
     // listeners on the EventBus and in turn nothing that creates or indexes
     // meta objects when we are configured to do so.
@@ -781,7 +780,7 @@ final class UidManager {
                               final byte[] table,
                               final long lid,
                               final String kind) {
-    UniqueIdType type = UniqueIdType.fromString(kind);
+    UniqueIdType type = UniqueIdType.fromValue(kind);
     final byte[] id = UniqueId.longToUID(lid, type.width);
 
     if (id == null) {

@@ -474,7 +474,7 @@ public class HBaseStore implements TsdbStore {
     if (id.length != type.width) {
       throw new IllegalArgumentException("Wrong id.length = " + id.length
               + " which is != " + type.width
-              + " required for '" + type.qualifier + '\'');
+              + " required for '" + type + '\'');
     }
 
     class GetCB implements Callback<Optional<String>, Optional<KeyValue>> {
@@ -489,7 +489,7 @@ public class HBaseStore implements TsdbStore {
 
     final GetRequest request = new GetRequest(uid_table_name, id)
             .family(NAME_FAMILY)
-            .qualifier(type.qualifier.getBytes(HBaseConst.CHARSET));
+            .qualifier(type.toValue().getBytes(HBaseConst.CHARSET));
 
     return client.get(request)
             .addCallback(new GetCellNotEmptyCB())
@@ -502,7 +502,7 @@ public class HBaseStore implements TsdbStore {
   }
 
   private Deferred<Optional<byte[]>> getId(final byte[] name, final UniqueIdType type) {
-    final byte[] qualifier = type.qualifier.getBytes(HBaseConst.CHARSET);
+    final byte[] qualifier = type.toValue().getBytes(HBaseConst.CHARSET);
 
     final GetRequest get = new GetRequest(uid_table_name, name)
             .family(ID_FAMILY)
@@ -516,7 +516,7 @@ public class HBaseStore implements TsdbStore {
           if (id.length != type.width) {
             throw new IllegalStateException("Found id.length = " + id.length
                     + " which is != " + type.width
-                    + " required for '" + type.qualifier + '\'');
+                    + " required for '" + type + '\'');
           }
 
           return Optional.of(id);
@@ -707,7 +707,7 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Object> deleteUID(final byte[] name, final UniqueIdType type) {
     try {
-      final byte[] qualifier = type.qualifier.getBytes(HBaseConst.CHARSET);
+      final byte[] qualifier = type.toValue().getBytes(HBaseConst.CHARSET);
       final DeleteRequest request = new DeleteRequest(
               uid_table_name, name, ID_FAMILY, qualifier);
       return client.delete(request);
@@ -728,7 +728,7 @@ public class HBaseStore implements TsdbStore {
           throw new IllegalStateException("Got a negative ID from HBase: " + id);
         }
 
-        LOG.info("Got ID={} for kind='{}' name='{}'", id, type.qualifier, name);
+        LOG.info("Got ID={} for kind='{}' name='{}'", id, type, name);
 
         final byte[] row = Bytes.fromLong(id);
 
@@ -737,7 +737,7 @@ public class HBaseStore implements TsdbStore {
         // limits.
         for (int i = 0; i < row.length - type.width; i++) {
           if (row[i] != 0) {
-            throw new IllegalStateException("All Unique IDs for " + type.qualifier
+            throw new IllegalStateException("All Unique IDs for " + type
                     + " on " + type.width + " bytes are already assigned!");
           }
         }
@@ -750,7 +750,7 @@ public class HBaseStore implements TsdbStore {
       }
     }
 
-    final byte[] qualifier = type.qualifier.getBytes(HBaseConst.CHARSET);
+    final byte[] qualifier = type.toValue().getBytes(HBaseConst.CHARSET);
     Deferred<Long> new_id_d = client.atomicIncrement(
             new AtomicIncrementRequest(
                     uid_table_name,
@@ -843,7 +843,7 @@ public class HBaseStore implements TsdbStore {
     }
 
     final byte[] b_name = toBytes(name);
-    final byte[] qualifier = type.qualifier.getBytes(HBaseConst.CHARSET);
+    final byte[] qualifier = type.toValue().getBytes(HBaseConst.CHARSET);
     final PutRequest reverse_mapping = new PutRequest(uid_table_name, uid, NAME_FAMILY, qualifier, b_name);
     final PutRequest forward_mapping = new PutRequest(uid_table_name, b_name, ID_FAMILY, qualifier, uid);
 
