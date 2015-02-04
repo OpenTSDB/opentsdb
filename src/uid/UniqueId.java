@@ -38,6 +38,7 @@ import net.opentsdb.meta.UIDMeta;
 
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.utils.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -790,24 +791,27 @@ public class UniqueId {
   /**
    * Pre-load UID caches, scanning up to "tsd.core.preload_uid_cache.max_entries"
    * rows from the UID table.
-   * @param tsdb The TSDB to use 
-   * @param uid_cache_map A map of {@link UniqueId} objects keyed on the kind.
+   * @param uid_cache_map A map of {@link net.opentsdb.uid.UniqueId} objects keyed on the kind.
    * @throws HBaseException Passes any HBaseException from HBase scanner.
    * @throws RuntimeException Wraps any non HBaseException from HBase scanner.
    * @2.1
    */
-  public static void preloadUidCache(final TSDB tsdb,
-      final ByteMap<UniqueId> uid_cache_map) throws HBaseException {
-    int max_results = tsdb.getConfig().getInt(
+  public static void preloadUidCache(final Config config,
+                                     final TsdbStore store,
+                                     final ByteMap<UniqueId> uid_cache_map) throws HBaseException {
+    int max_results = config.getInt(
         "tsd.core.preload_uid_cache.max_entries");
     LOG.info("Preloading uid cache with max_results={}", max_results);
+
+    final byte[] uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
+
     if (max_results <= 0) {
       return;
     }
     Scanner scanner = null;
     try {
       int num_rows = 0;
-      scanner = getSuggestScanner(tsdb.getTsdbStore(), tsdb.uidTable(), "", null,
+      scanner = getSuggestScanner(store, uidtable, "", null,
           max_results);
       for (ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
           rows != null;

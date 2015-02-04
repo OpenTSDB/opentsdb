@@ -43,7 +43,6 @@ public class UniqueIdClient {
 
   public UniqueIdClient(final TsdbStore tsdbStore,
                         final Config config,
-                        final TSDB tsdb,
                         final Metrics metricsRegistry,
                         final EventBus idEventBus) {
     this.tsdbStore = checkNotNull(tsdbStore);
@@ -60,7 +59,7 @@ public class UniqueIdClient {
       uid_cache_map.put(UniqueIdType.METRIC.toValue().getBytes(Const.CHARSET_ASCII), metrics);
       uid_cache_map.put(UniqueIdType.TAGK.toValue().getBytes(Const.CHARSET_ASCII), tag_names);
       uid_cache_map.put(UniqueIdType.TAGV.toValue().getBytes(Const.CHARSET_ASCII), tag_values);
-      UniqueId.preloadUidCache(tsdb, uid_cache_map);
+      UniqueId.preloadUidCache(config, tsdbStore, uid_cache_map);
     }
   }
 

@@ -151,7 +151,7 @@ final class MetaSync extends Thread {
           tsdb.indexUIDMeta(new_meta);
           LOG.info("Replacing corrupt UID [{}] of type [{}]", UniqueId.uidToString(uid), type);
           
-          return tsdb.syncUIDMetaToStorage(new_meta, true);
+          return tsdb.getMetaClient().syncUIDMetaToStorage(new_meta, true);
         }
         
       }
@@ -173,7 +173,7 @@ final class MetaSync extends Thread {
           tsdb.indexUIDMeta(meta);
           LOG.info("Syncing valid UID [{}] of type [{}]",
                   UniqueId.uidToString(uid), type);
-          return tsdb.syncUIDMetaToStorage(meta, false);
+          return tsdb.getMetaClient().syncUIDMetaToStorage(meta, false);
         } else {
           LOG.debug("UID [{}] of type [{}] is up to date in storage",
                   UniqueId.uidToString(uid), type);
@@ -361,8 +361,8 @@ final class MetaSync extends Thread {
             // entry
             final UidCB cb = new UidCB(UniqueIdType.METRIC, 
                 metric_uid_bytes, timestamp);
-            final Deferred<Boolean> process_uid = tsdb.getUIDMeta
-              (UniqueIdType.METRIC, metric_uid_bytes).addCallbackDeferring(cb);
+            final Deferred<Boolean> process_uid = tsdb.getMetaClient().getUIDMeta
+                    (UniqueIdType.METRIC, metric_uid_bytes).addCallbackDeferring(cb);
             storage_calls.add(process_uid);
             metric_uids.put(metric_uid, timestamp);
           }
@@ -390,7 +390,7 @@ final class MetaSync extends Thread {
             // exist, so we can just call sync on this to create a missing
             // entry
             final UidCB cb = new UidCB(type, tag, timestamp);
-            final Deferred<Boolean> process_uid = tsdb.getUIDMeta(type, tag)
+            final Deferred<Boolean> process_uid = tsdb.getMetaClient().getUIDMeta(type, tag)
               .addCallbackDeferring(cb);
             storage_calls.add(process_uid);
             if (type == UniqueIdType.TAGK) {

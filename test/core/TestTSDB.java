@@ -541,17 +541,6 @@ public final class TestTSDB {
     assertEquals(42, value[0]);
   }
 
-  @Test (expected = IllegalArgumentException.class)
-  public void storeNewNoName() throws Exception {
-    UIDMeta meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "");
-    try {
-      tsdb.add(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    } catch (Exception e) {
-      assertEquals("Missing name", e.getMessage());
-      throw(e);
-    }
-  }
-
   /**
    * Configures storage for the addPoint() tests to validate that we're storing
    * data points correctly.
@@ -566,7 +555,6 @@ public final class TestTSDB {
   public void getHBaseStore() {
     fail();
   }
-
 
   /**
    * Mocks classes for testing the storage calls

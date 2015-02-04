@@ -1,9 +1,11 @@
 package net.opentsdb.core;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
@@ -43,7 +45,8 @@ public class MetaClientTSMetaTest {
     idEventBus = new EventBus();
     searchPlugin = mock(SearchPlugin.class);
 
-    metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config);
+    UniqueIdClient uniqueIdClient = new UniqueIdClient(tsdb_store, config, new Metrics(new MetricRegistry()), idEventBus);
+    metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config, uniqueIdClient);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,

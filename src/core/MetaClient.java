@@ -16,6 +16,7 @@ import net.opentsdb.uid.UniqueId;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +30,15 @@ public class MetaClient {
   private static final Logger LOG = LoggerFactory.getLogger(MetaClient.class);
 
   private final TsdbStore store;
+  private final UniqueIdClient uniqueIdClient;
 
   public MetaClient(final TsdbStore store,
                     final EventBus idEventBus,
                     final SearchPlugin searchPlugin,
-                    final Config config) {
+                    final Config config,
+                    final UniqueIdClient uniqueIdClient) {
     this.store = checkNotNull(store);
+    this.uniqueIdClient = checkNotNull(uniqueIdClient);
 
     checkNotNull(idEventBus);
     checkNotNull(searchPlugin);
@@ -68,6 +72,25 @@ public class MetaClient {
    */
   public Deferred<Boolean> TSMetaExists(final String tsuid) {
     return store.TSMetaExists(tsuid);
+  }
+
+  /**
+   * Attempts to store a blank, new UID meta object in the proper location.
+   * <b>Warning:</b> This should not be called by user accessible methods as it
+   * will overwrite any data already in the column. This method does not use
+   * a CAS, instead it uses a PUT to overwrite anything in the column.
+   * @param meta The meta object to store
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws IllegalArgumentException if data was missing
+   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
+   */
+  public Deferred<Object> add(final UIDMeta meta) {
+    if (Strings.isNullOrEmpty(meta.getName())) {
+      throw new IllegalArgumentException("Missing name");
+    }
+
+    return store.add(meta);
   }
 
   /**
@@ -107,6 +130,18 @@ public class MetaClient {
   public Deferred<Object> delete(final TSMeta tsMeta) {
     tsMeta.checkTSUI();
     return store.delete(tsMeta);
+  }
+
+  /**
+   * Attempts to delete the meta object from storage
+   *
+   * @param meta The meta object to delete
+   * @return A deferred without meaning. The response may be null and should
+   * only be used to track completion.
+   * @throws IllegalArgumentException if data was missing (uid and type)
+   */
+  public Deferred<Object> delete(final UIDMeta meta) {
+    return store.delete(meta);
   }
 
   public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
@@ -157,7 +192,6 @@ public class MetaClient {
    * error.
    *
    * @param annotation The Annotation we want to store.
-   * @param tsdb
    * @return A meaningless Deferred for the caller to wait on until the call is
    * complete. The value may be null.
    */
@@ -167,6 +201,61 @@ public class MetaClient {
     }
 
     return store.delete(annotation);
+  }
+
+  /**
+   * Convenience overload of {@code getUIDMeta(UniqueIdType, byte[])}
+   * @param type The type of UID to fetch
+   * @param uid The ID of the meta to fetch
+   * @return A UIDMeta from storage or a default
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
+   */
+  public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
+                                      final String uid) {
+    return getUIDMeta(type, UniqueId.stringToUid(uid));
+  }
+
+  /**
+   * Verifies the UID object exists, then attempts to fetch the meta from
+   * storage and if not found, returns a default object.
+   * <p>
+   * The reason for returning a default object (with the type, uid and name set)
+   * is due to users who may have just enabled meta data or have upgraded; we
+   * want to return valid data. If they modify the entry, it will write to
+   * storage. You can tell it's a default if the {@code created} value is 0. If
+   * the meta was generated at UID assignment or updated by the meta sync CLI
+   * command, it will have a valid created timestamp.
+   * @param type The type of UID to fetch
+   * @param uid The ID of the meta to fetch
+   * @return A UIDMeta from storage or a default
+   * @throws org.hbase.async.HBaseException if there was an issue fetching
+   * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
+   */
+  public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
+                                      final byte[] uid) {
+    /**
+     * Callback used to verify that the UID to name mapping exists. Uses the TSD
+     * for verification so the name may be cached. If the name does not exist
+     * it will throw a NoSuchUniqueId and the meta data will not be returned.
+     * This helps in case the user deletes a UID but the meta data is still
+     * stored. The fsck utility can be used later to cleanup orphaned objects.
+     */
+    class NameCB implements Callback<Deferred<UIDMeta>, String> {
+
+      /**
+       * Called after verifying that the name mapping exists
+       * @return The results of {@link net.opentsdb.storage.TsdbStore#getMeta(
+       *      byte[], String, net.opentsdb.uid.UniqueIdType)}
+       */
+      @Override
+      public Deferred<UIDMeta> call(final String name) throws Exception {
+        return store.getMeta(uid, name, type);
+      }
+    }
+
+    // verify that the UID is still in the map before fetching from storage
+    return uniqueIdClient.getUidName(type, uid).addCallbackDeferring(new NameCB());
   }
 
   /**
@@ -181,7 +270,6 @@ public class MetaClient {
    * True if the storage call was successful, false if the object was
    * modified in storage during the CAS call. If false, retry the call. Other
    * failures will result in an exception being thrown.
-   * @param tsdb
    * @throws IllegalArgumentException if required data was missing such as the
    * {@code #start_time}
    * @throws IllegalStateException if the data hasn't changed. This is OK!
@@ -240,6 +328,42 @@ public class MetaClient {
     }
 
     return store.deleteAnnotationRange(tsuid, start_time, end_time);
+  }
+
+  /**
+   * Attempts a CompareAndSet storage call, loading the object from storage,
+   * synchronizing changes, and attempting a put.
+   * <b>Note:</b> If the local object didn't have any fields set by the caller
+   * then the data will not be written.
+   *
+   * @param meta      The UIDMeta to store.
+   * @param overwrite When the RPC method is PUT, will overwrite all user
+   *                  accessible fields
+   * @return True if the storage call was successful, false if the object
+   * was
+   * modified in storage during the CAS call. If false, retry the call. Other
+   * failures will result in an exception being thrown.
+   * @throws org.hbase.async.HBaseException     If there was an issue fetching
+   * @throws IllegalArgumentException           If parsing failed
+   * @throws net.opentsdb.uid.NoSuchUniqueId    If the UID does not exist
+   * @throws IllegalStateException              If the data hasn't changed. This is OK!
+   * @throws net.opentsdb.utils.JSONException   If the object could not be serialized
+   */
+  public Deferred<Boolean> syncUIDMetaToStorage(final UIDMeta meta,
+                                                final boolean overwrite) {
+    if (!meta.hasChanges()) {
+      LOG.debug("{} does not have changes, skipping sync to storage", meta);
+      throw new IllegalStateException("No changes detected in UID meta data");
+    }
+
+    return uniqueIdClient.getUidName(meta.getType(), meta.getUID()).addCallbackDeferring(
+      new Callback<Deferred<Boolean>, String>() {
+        @Override
+        public Deferred<Boolean> call(String arg) {
+          return store.updateMeta(meta, overwrite);
+        }
+      }
+    );
   }
 
   /**

@@ -38,7 +38,7 @@ public class UniqueIdClientTest {
             .withStore(tsdb_store)
             .build();
 
-    uniqueIdClient = new UniqueIdClient(tsdb_store, config, tsdb, new Metrics
+    uniqueIdClient = new UniqueIdClient(tsdb_store, config, new Metrics
             (new MetricRegistry()), new EventBus());
   }
 

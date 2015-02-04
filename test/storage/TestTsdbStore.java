@@ -28,6 +28,7 @@ import java.util.TreeMap;
 
 
 import static net.opentsdb.core.StringCoder.toBytes;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
@@ -638,5 +639,16 @@ public abstract class TestTsdbStore {
     root.addLeaf(leaf, tree);
 
     return root;
+  }
+
+  @Test
+  public void storeNew() throws Exception {
+    meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
+    meta.setDisplayName("System CPU");
+    tsdb_store.add(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    meta = tsdb_store.getMeta(new byte[] { 0, 0, 1 },meta.getName() ,METRIC)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+
+    assertEquals("System CPU", meta.getDisplayName());
   }
 }
