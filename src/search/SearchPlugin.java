@@ -19,6 +19,10 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
+
+import java.util.List;
 
 /**
  * Search plugins allow data from OpenTSDB to be published to a search indexer.
@@ -110,5 +114,14 @@ public abstract class SearchPlugin extends Plugin {
    * @param query The query to execute against the search engine
    * @return The query results
    */
-  public abstract Deferred<SearchQuery> executeQuery(final SearchQuery query); 
+  public abstract Deferred<SearchQuery> executeQuery(final SearchQuery query);
+
+  /**
+   * Should look up IDs that match the parameters described in the provided
+   * {@link net.opentsdb.uid.IdQuery}.
+   *
+   * @param query The parameters for the query
+   * @return A deferred with a list of matching IDs.
+   */
+  public abstract Deferred<List<Label>> executeIdQuery(final IdQuery query);
 }

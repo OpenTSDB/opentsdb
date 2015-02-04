@@ -3,13 +3,17 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.eventbus.EventBus;
+import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -41,12 +45,17 @@ public class UniqueIdClient {
   /** Name of the table in which UID information is stored. */
   final byte[] uidtable;
 
+  private final SearchPlugin searchPlugin;
+
   public UniqueIdClient(final TsdbStore tsdbStore,
                         final Config config,
                         final Metrics metricsRegistry,
-                        final EventBus idEventBus) {
+                        final EventBus idEventBus,
+                        final SearchPlugin searchPlugin) {
     this.tsdbStore = checkNotNull(tsdbStore);
     this.config = checkNotNull(config);
+
+    this.searchPlugin = checkNotNull(searchPlugin);
 
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(Const.CHARSET_ASCII);
 
@@ -55,10 +64,10 @@ public class UniqueIdClient {
     tag_values = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGV, metricsRegistry, idEventBus);
 
     if (config.getBoolean("tsd.core.preload_uid_cache")) {
-      final Bytes.ByteMap<UniqueId> uid_cache_map = new Bytes.ByteMap<UniqueId>();
-      uid_cache_map.put(UniqueIdType.METRIC.toValue().getBytes(Const.CHARSET_ASCII), metrics);
-      uid_cache_map.put(UniqueIdType.TAGK.toValue().getBytes(Const.CHARSET_ASCII), tag_names);
-      uid_cache_map.put(UniqueIdType.TAGV.toValue().getBytes(Const.CHARSET_ASCII), tag_values);
+      final Map<UniqueIdType, UniqueId> uid_cache_map = new EnumMap<UniqueIdType, UniqueId>(UniqueIdType.class);
+      uid_cache_map.put(UniqueIdType.METRIC, metrics);
+      uid_cache_map.put(UniqueIdType.TAGK, tag_names);
+      uid_cache_map.put(UniqueIdType.TAGV, tag_values);
       UniqueId.preloadUidCache(config, tsdbStore, uid_cache_map);
     }
   }
@@ -223,33 +232,14 @@ public class UniqueIdClient {
   }
 
   /**
-   * Given a prefix search, returns matching names from the specified id
-   * type.
-   * @param type The type of ids to search
-   * @param search A prefix to search.
-   * @param tsdb
-   * @since 2.0
+   * Given an {@link net.opentsdb.uid.IdQuery} instance this method will perform
+   * a search using the configured {@link net.opentsdb.search.SearchPlugin}.
+   *
+   * @param query The query specifying the search parameters.
+   * @return A deferred that contains the result of the query.
    */
-  public Deferred<List<String>> suggest(final UniqueIdType type,
-                                        final String search, final TSDB tsdb) {
-    UniqueId uniqueId = uniqueIdInstanceForType(type);
-    return uniqueId.suggest(search);
-  }
-
-  /**
-   * Given a prefix search, returns matching names from the specified id
-   * type.
-   * @param type The type of ids to search
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @param tsdb
-   * @since 2.0
-   */
-  public Deferred<List<String>> suggest(final UniqueIdType type,
-                                        final String search,
-                                        final int max_results, final TSDB tsdb) {
-    UniqueId uniqueId = uniqueIdInstanceForType(type);
-    return uniqueId.suggest(search, max_results);
+  public Deferred<List<Label>> suggest(final IdQuery query) {
+    return searchPlugin.executeIdQuery(query);
   }
 
   UniqueId uniqueIdInstanceForType(UniqueIdType type) {

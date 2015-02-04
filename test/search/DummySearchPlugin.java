@@ -19,6 +19,10 @@ import net.opentsdb.meta.UIDMeta;
 
 import com.google.auto.service.AutoService;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
+
+import java.util.List;
 
 @AutoService(SearchPlugin.class)
 public final class DummySearchPlugin extends SearchPlugin {
@@ -115,5 +119,10 @@ public final class DummySearchPlugin extends SearchPlugin {
     }
   }
 
-  
+  @Override
+  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+    throw new UnsupportedOperationException("Not implemented yet!");
+  }
+
+
 }

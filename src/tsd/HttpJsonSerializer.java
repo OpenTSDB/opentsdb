@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import com.google.common.base.Throwables;
+import net.opentsdb.uid.Label;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -482,7 +483,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if serialization failed
    */
   @Override
-  public ChannelBuffer formatSuggestV1(final List<String> suggestions) {
+  public ChannelBuffer formatSuggestV1(final List<Label> suggestions) {
     return this.serializeJSON(suggestions);
   }
   

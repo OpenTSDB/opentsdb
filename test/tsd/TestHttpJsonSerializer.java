@@ -22,6 +22,9 @@ import java.util.List;
 
 import net.opentsdb.core.TSDB;
 
+import net.opentsdb.uid.Label;
+import net.opentsdb.uid.StaticLabel;
+import net.opentsdb.uid.UniqueIdType;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.junit.Before;
 import org.junit.Test;
@@ -120,8 +123,11 @@ public final class TestHttpJsonSerializer {
   public void formatSuggestV1() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     HttpJsonSerializer serdes = new HttpJsonSerializer(query);
-    final List<String> metrics = new ArrayList<String>();
-    metrics.add("sys.cpu.0.system"); 
+
+    final List<Label> metrics = new ArrayList<Label>();
+    metrics.add(new StaticLabel(new byte[] {0,0,1},
+            UniqueIdType.METRIC, "sys.cpu.0.system"));
+
     ChannelBuffer cb = serdes.formatSuggestV1(metrics);
     assertNotNull(cb);
     assertEquals("[\"sys.cpu.0.system\"]", 
@@ -132,8 +138,11 @@ public final class TestHttpJsonSerializer {
   public void formatSuggestV1JSONP() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, "?jsonp=func");
     HttpJsonSerializer serdes = new HttpJsonSerializer(query);
-    final List<String> metrics = new ArrayList<String>();
-    metrics.add("sys.cpu.0.system"); 
+
+    final List<Label> metrics = new ArrayList<Label>();
+    metrics.add(new StaticLabel(new byte[] {0,0,1},
+            UniqueIdType.METRIC, "sys.cpu.0.system"));
+
     ChannelBuffer cb = serdes.formatSuggestV1(metrics);
     assertNotNull(cb);
     assertEquals("func([\"sys.cpu.0.system\"])", 
@@ -156,4 +165,5 @@ public final class TestHttpJsonSerializer {
         serdes.formatSerializersV1().toString(Charset.forName("UTF-8"))
         .substring(0, 15));
   }
+
 }

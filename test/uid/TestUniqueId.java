@@ -237,65 +237,6 @@ public final class TestUniqueId {
     verify(idEventBus).post(any(IdCreatedEvent.class));
   }
 
-  @PrepareForTest({HBaseStore.class, Scanner.class})
-  @Test
-  public void suggestWithNoMatch() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
-
-
-    // Watch this! ______,^   I'm writing C++ in Java!
-
-    final List<String> suggestions = uid.suggest("nomatch").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertEquals(0, suggestions.size());  // No results.
-
-    //verify(fake_scanner).setStartKey("nomatch".getBytes());
-    //verify(fake_scanner).setStopKey("nomatci".getBytes());
-    //verify(fake_scanner).setFamily(ID);
-    //verify(fake_scanner).setQualifier(kind_array);
-  }
-
-  @PrepareForTest({Scanner.class})
-  @Test
-  public void suggestWithMatches() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
-
-
-
-    final ArrayList<ArrayList<KeyValue>> rows = new ArrayList<ArrayList<KeyValue>>(2);
-    final byte[] foo_bar_id = { 0, 0, 1 };
-    {
-      ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
-      row.add(new KeyValue("foo.bar".getBytes(), ID, kind_array, foo_bar_id));
-      rows.add(row);
-      row = new ArrayList<KeyValue>(1);
-      row.add(new KeyValue("foo.baz".getBytes(), ID, kind_array,
-                           new byte[] { 0, 0, 2 }));
-      rows.add(row);
-    }
-    //when(fake_scanner.nextRows())
-    //  .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(rows))
-    //  .thenReturn(Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
-    // Watch this! ______,^   I'm writing C++ in Java!
-
-    final List<String> suggestions = uid.suggest("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    final ArrayList<String> expected = new ArrayList<String>(2);
-    expected.add("foo.bar");
-    expected.add("foo.baz");
-    assertEquals(expected, suggestions);
-    // Verify that we cached the forward + backwards mapping for both results
-    // we "discovered" as a result of the scan.
-    final SortedMap<String, Counter> counters = registry.getCounters();
-    assertEquals(0, counters.get("uid.cache-hit:kind=metrics").getCount());
-    assertEquals(4, registry.getGauges().get("uid.cache-size:kind=metrics").getValue());
-
-    // Verify that the cached results are usable.
-    // Should be a cache hit ...
-    assertArrayEquals(foo_bar_id, uid.getId("foo.bar").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-    assertEquals(1, counters.get("uid.cache-hit:kind=metrics").getCount());
-    // ... so verify there was no HBase Get.
-    verify(client, never()).get(anyGet());
-  }
-
   @Test
   public void uidToString() {
     assertEquals("01", UniqueId.uidToString(new byte[] { 1 }));

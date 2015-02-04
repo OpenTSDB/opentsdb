@@ -5,10 +5,13 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.search.SearchQuery;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
+
+import java.util.List;
 
 /**
  * A default search plugin to use when no other search plugin has been
@@ -18,8 +21,11 @@ import com.stumbleupon.async.Deferred;
  * @see net.opentsdb.search.SearchPlugin
  */
 public class DefaultSearchPlugin extends SearchPlugin {
+  private TsdbStore store;
+
   @Override
   public void initialize(final TSDB tsdb) {
+    this.store = tsdb.getTsdbStore();
   }
 
   @Override
@@ -66,5 +72,10 @@ public class DefaultSearchPlugin extends SearchPlugin {
   public Deferred<SearchQuery> executeQuery(final SearchQuery query) {
     throw new IllegalStateException("The default search plugin does " +
             "not support executing search queries");
+  }
+
+  @Override
+  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+    return store.executeIdQuery(query);
   }
 }

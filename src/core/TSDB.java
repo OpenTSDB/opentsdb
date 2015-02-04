@@ -112,7 +112,7 @@ public class TSDB {
     this.rt_publisher = checkNotNull(realTimePublisher);
 
     EventBus idEventBus = new EventBus();
-    uniqueIdClient = new UniqueIdClient(tsdb_store, config, metrics, idEventBus);
+    uniqueIdClient = new UniqueIdClient(tsdb_store, config, metrics, idEventBus, search);
     treeClient = new TreeClient(tsdb_store);
     metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, rt_publisher);
     dataPointsClient = new DataPointsClient(tsdb_store, config, uniqueIdClient, metaClient, rt_publisher);
