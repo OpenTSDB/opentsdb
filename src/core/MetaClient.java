@@ -2,26 +2,46 @@ package net.opentsdb.core;
 
 import java.util.List;
 
+import com.google.common.eventbus.AllowConcurrentEvents;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdCreatedEvent;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.utils.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * The exposed interface for managing meta objects.
+ */
 public class MetaClient {
   private static final Logger LOG = LoggerFactory.getLogger(MetaClient.class);
 
   private final TsdbStore store;
 
-  public MetaClient(final TsdbStore store) {
+  public MetaClient(final TsdbStore store,
+                    final EventBus idEventBus,
+                    final SearchPlugin searchPlugin,
+                    final Config config) {
     this.store = checkNotNull(store);
+
+    checkNotNull(idEventBus);
+    checkNotNull(searchPlugin);
+
+    if (config.enable_realtime_uid()) {
+      idEventBus.register(new IdChangeListener(store, searchPlugin));
+    }
   }
 
   /**
@@ -220,5 +240,36 @@ public class MetaClient {
     }
 
     return store.deleteAnnotationRange(tsuid, start_time, end_time);
+  }
+
+  /**
+   * A Guava {@link com.google.common.eventbus.EventBus} listener that listens
+   * for ID changes and creates UIDMeta objects and indexes them with the
+   * {@link net.opentsdb.search.SearchPlugin} when appropriate.
+   */
+  private static class IdChangeListener {
+    private final TsdbStore store;
+    private SearchPlugin searchPlugin;
+
+    public IdChangeListener(final TsdbStore store,
+                            final SearchPlugin searchPlugin) {
+      this.store = store;
+      this.searchPlugin = searchPlugin;
+    }
+
+    /**
+     * The method that subscribes to {@link net.opentsdb.uid.IdCreatedEvent}s.
+     * You should not call this directly, post messages to the event bus that
+     * this listener is registered to instead.
+     * @param event The published event.
+     */
+    @Subscribe
+    @AllowConcurrentEvents
+    public final void recordIdCreated(IdCreatedEvent event) {
+      UIDMeta meta = new UIDMeta(event.getType(), event.getId(), event.getName());
+      store.add(meta);
+      LOG.info("Wrote UIDMeta for: {}", event.getName());
+      searchPlugin.indexUIDMeta(meta);
+    }
   }
 }

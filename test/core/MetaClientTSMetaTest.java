@@ -1,7 +1,9 @@
 package net.opentsdb.core;
 
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.utils.Config;
@@ -14,6 +16,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class MetaClientTSMetaTest {
   private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
@@ -22,6 +25,8 @@ public class MetaClientTSMetaTest {
   private MemoryStore tsdb_store;
   private TSMeta meta = new TSMeta();
   private MetaClient metaClient;
+  private EventBus idEventBus;
+  private SearchPlugin searchPlugin;
 
   @Before
   public void before() throws Exception {
@@ -35,7 +40,10 @@ public class MetaClientTSMetaTest {
             .withStore(tsdb_store)
             .build();
 
-    metaClient = new MetaClient(tsdb_store);
+    idEventBus = new EventBus();
+    searchPlugin = mock(SearchPlugin.class);
+
+    metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
