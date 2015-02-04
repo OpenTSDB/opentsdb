@@ -82,7 +82,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -129,7 +129,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -178,7 +178,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -229,7 +229,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -277,7 +277,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -326,7 +326,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -375,7 +375,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -427,7 +427,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());

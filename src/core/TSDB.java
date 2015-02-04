@@ -12,41 +12,27 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.codahale.metrics.MetricSet;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Sets;
-import com.google.common.collect.TreeMultimap;
-
 import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
-
+import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Metrics;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.hbase.HBaseStore;
-
+import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.hbase.async.Bytes.ByteMap;
-
-import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.search.SearchQuery;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -359,121 +345,6 @@ public class TSDB {
    */
   public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
     return search.executeQuery(query);
-  }
-
-  /**
-   * Executes the query asynchronously
-   * @return The data points matched by this query.
-   * <p>
-   * Each element in the non-{@code null} but possibly empty array returned
-   * corresponds to one time series for which some data points have been
-   * matched by the query.
-   * @since 1.2
-   * @param query
-   */
-  public Deferred<DataPoints[]> executeQuery(Query query) {
-    return tsdb_store.executeQuery(query)
-            .addCallback(new GroupByAndAggregateCB(query));
-  }
-
-  /**
-   * Callback that should be attached the the output of
-   * {@link net.opentsdb.storage.TsdbStore#executeQuery} to group and sort the results.
-   */
-  private class GroupByAndAggregateCB implements
-          Callback<DataPoints[], ImmutableList<DataPoints>> {
-
-    private final Query query;
-
-    public GroupByAndAggregateCB(final Query query) {
-      this.query = query;
-    }
-
-    /**
-     * Creates the {@link SpanGroup}s to form the final results of this query.
-     *
-     * @param dps The {@link Span}s found for this query ({@link TSDB#findSpans}).
-     *            Can be {@code null}, in which case the array returned will be empty.
-     * @return A possibly empty array of {@link SpanGroup}s built according to
-     * any 'GROUP BY' formulated in this query.
-     */
-    @Override
-    public DataPoints[] call(final ImmutableList<DataPoints> dps) {
-      if (dps.isEmpty()) {
-        // Result is empty so return an empty array
-        return new DataPoints[0];
-      }
-
-      TreeMultimap<String, DataPoints> spans2 = TreeMultimap.create();
-
-      for (DataPoints dp : dps) {
-        List<String> tsuids = dp.getTSUIDs();
-        spans2.put(tsuids.get(0), dp);
-      }
-
-      Set<Span> spans = Sets.newTreeSet();
-      for (String tsuid : spans2.keySet()) {
-        spans.add(new Span(ImmutableSortedSet.copyOf(spans2.get(tsuid))));
-      }
-
-      final List<byte[]> group_bys = query.getGroupBys();
-      if (group_bys == null) {
-        // We haven't been asked to find groups, so let's put all the spans
-        // together in the same group.
-        final SpanGroup group = SpanGroup.create(query, spans);
-        return new SpanGroup[]{group};
-      }
-
-      // Maps group value IDs to the SpanGroup for those values. Say we've
-      // been asked to group by two things: foo=* bar=* Then the keys in this
-      // map will contain all the value IDs combinations we've seen. If the
-      // name IDs for `foo' and `bar' are respectively [0, 0, 7] and [0, 0, 2]
-      // then we'll have group_bys=[[0, 0, 2], [0, 0, 7]] (notice it's sorted
-      // by ID, so bar is first) and say we find foo=LOL bar=OMG as well as
-      // foo=LOL bar=WTF and that the IDs of the tag values are:
-      // LOL=[0, 0, 1] OMG=[0, 0, 4] WTF=[0, 0, 3]
-      // then the map will have two keys:
-      // - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
-      // - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
-      final ByteMap<SpanGroup> groups = new ByteMap<SpanGroup>();
-      final byte[] group = new byte[group_bys.size() * Const.TAG_VALUE_WIDTH];
-
-      for (final Span span : spans) {
-        final Map<byte[], byte[]> dp_tags = span.tags();
-
-        int i = 0;
-        // TODO(tsuna): The following loop has a quadratic behavior. We can
-        // make it much better since both the row key and group_bys are sorted.
-        for (final byte[] tag_id : group_bys) {
-          final byte[] value_id = dp_tags.get(tag_id);
-
-          if (value_id == null) {
-            throw new IllegalDataException("The " + span + " did not contain a " +
-                    "value for the tag key " + Arrays.toString(tag_id));
-          }
-
-          System.arraycopy(value_id, 0, group, i, Const.TAG_VALUE_WIDTH);
-          i += Const.TAG_VALUE_WIDTH;
-        }
-
-        //LOG.info("Span belongs to group " + Arrays.toString(group) + ": " + Arrays.toString(row));
-        SpanGroup thegroup = groups.get(group);
-        if (thegroup == null) {
-          // Copy the array because we're going to keep `group' and overwrite
-          // its contents. So we want the collection to have an immutable copy.
-          final byte[] group_copy = Arrays.copyOf(group, group.length);
-
-          thegroup = SpanGroup.create(query, null);
-          groups.put(group_copy, thegroup);
-        }
-        thegroup.add(span);
-      }
-
-      //for (final Map.Entry<byte[], SpanGroup> entry : groups) {
-      // LOG.info("group for " + Arrays.toString(entry.getKey()) + ": " + entry.getValue());
-      //}
-      return groups.values().toArray(new SpanGroup[groups.size()]);
-    }
   }
 
   /**

@@ -124,7 +124,7 @@ final class QueryRpc implements HttpRpc {
 
     try {
       for (Deferred<Query> tsdbquery : tsdbqueries) {
-        deferreds.add(tsdb.executeQuery(tsdbquery.joinUninterruptibly()));
+        deferreds.add(tsdb.getDataPointsClient().executeQuery(tsdbquery.joinUninterruptibly()));
       }
     } catch (Exception e) {
       throw Throwables.propagate(e);

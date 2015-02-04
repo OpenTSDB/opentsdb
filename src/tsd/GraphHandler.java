@@ -33,12 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static net.opentsdb.stats.Metrics.name;
-import static net.opentsdb.stats.Metrics.tag;
 
-import com.codahale.metrics.Metric;
 import com.codahale.metrics.Timer;
-import com.google.common.collect.ImmutableMap;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -184,7 +180,7 @@ final class GraphHandler implements HttpRpc {
         // XXX This is slow and will block Netty.  TODO(tsuna): Don't block.
         // TODO(tsuna): Optimization: run each query in parallel.
 
-        final DataPoints[] series = tsdb.executeQuery(tsdbqueries[i]).joinUninterruptibly();
+        final DataPoints[] series = tsdb.getDataPointsClient().executeQuery(tsdbqueries[i]).joinUninterruptibly();
         for (final DataPoints datapoints : series) {
           plot.add(datapoints, options.get(i));
           aggregated_tags[i] = new HashSet<String>();

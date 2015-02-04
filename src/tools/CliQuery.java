@@ -133,7 +133,7 @@ final class CliQuery {
       final StringBuilder buf = want_plot ? null : new StringBuilder();
 
       try {
-        DataPoints[] dps = tsdb.executeQuery(queries.get(i)).joinUninterruptibly();
+        DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queries.get(i)).joinUninterruptibly();
 
         for (final DataPoints datapoints : dps) {
           if (want_plot) {
