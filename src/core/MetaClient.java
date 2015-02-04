@@ -12,6 +12,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
@@ -187,6 +188,19 @@ public class MetaClient {
    */
   public void deleteUIDMeta(final UIDMeta meta) {
     searchPlugin.deleteUIDMeta(meta).addErrback(new PluginError(searchPlugin));
+  }
+
+  /**
+   * Executes a search query using the search plugin
+   * @param query The query to execute
+   * @param tsdb
+   * @return A deferred object to wait on for the results to be fetched
+   * @throws IllegalStateException if the search plugin has not been enabled or
+   * configured
+   * @since 2.0
+   */
+  public Deferred<SearchQuery> executeSearch(final SearchQuery query, final TSDB tsdb) {
+    return searchPlugin.executeQuery(query);
   }
 
   /**

@@ -18,7 +18,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.hbase.HBaseStore;
@@ -302,18 +301,6 @@ public class TSDB {
   /** @return the name of the meta table as a byte array for TsdbStore requests */
   public byte[] metaTable() {
     return this.meta_table;
-  }
-
-  /**
-   * Executes a search query using the search plugin
-   * @param query The query to execute
-   * @return A deferred object to wait on for the results to be fetched
-   * @throws IllegalStateException if the search plugin has not been enabled or
-   * configured
-   * @since 2.0
-   */
-  public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
-    return search.executeQuery(query);
   }
 
 }

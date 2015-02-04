@@ -24,7 +24,6 @@ import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
@@ -83,7 +82,7 @@ final class SearchRpc implements HttpRpc {
     
     try {
       final SearchQuery results = 
-        tsdb.executeSearch(search_query).joinUninterruptibly();
+        tsdb.getMetaClient().executeSearch(search_query, tsdb).joinUninterruptibly();
       query.sendReply(query.serializer().formatSearchResultsV1(results));
     } catch (IllegalStateException e) {
       throw new BadRequestException("Searching is not enabled", e);

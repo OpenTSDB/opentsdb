@@ -31,7 +31,6 @@ import java.util.List;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -223,7 +222,7 @@ public final class TestSearchRpc {
   
   @Test (expected = BadRequestException.class)
   public void searchPluginNotEnabled() throws Exception {
-    when(tsdb.executeSearch((SearchQuery)any()))
+    when(tsdb.getMetaClient().executeSearch((SearchQuery) any(), tsdb))
         .thenThrow(new IllegalStateException(
             "Searching has not been enabled on this TSD"));
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -296,7 +295,7 @@ public final class TestSearchRpc {
    * responses for parsing tests.
    */
   private void setupAnswerSearchQuery() {
-    when(tsdb.executeSearch((SearchQuery)any())).thenAnswer(
+    when(tsdb.getMetaClient().executeSearch((SearchQuery)any(), tsdb)).thenAnswer(
       new Answer<Deferred<SearchQuery>>() {
 
         @Override
