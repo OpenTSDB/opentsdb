@@ -87,9 +87,9 @@ final class SuggestRpc implements HttpRpc {
     final List<String> suggestions;
     try {
       if (max_results > 0)
-        suggestions = tsdb.suggest(utype, q, max_results).joinUninterruptibly();
+        suggestions = tsdb.getUniqueIdClient().suggest(utype, q, max_results, tsdb).joinUninterruptibly();
       else
-        suggestions = tsdb.suggest(utype, q).joinUninterruptibly();
+        suggestions = tsdb.getUniqueIdClient().suggest(utype, q, tsdb).joinUninterruptibly();
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }

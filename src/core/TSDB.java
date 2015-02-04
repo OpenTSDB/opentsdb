@@ -23,8 +23,6 @@ import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 import org.slf4j.Logger;
@@ -32,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -285,34 +282,6 @@ public class TSDB {
     // wait for plugins to shutdown before we close the TsdbStore
     return Deferred.group(deferreds)
             .addCallbacks(new StoreShutdown(), new ShutdownErrback());
-  }
-
-  /**
-   * Given a prefix search, returns matching names from the specified id
-   * type.
-   * @param type The type of ids to search
-   * @param search A prefix to search.
-   * @since 2.0
-   */
-  public Deferred<List<String>> suggest(final UniqueIdType type,
-                                        final String search) {
-    UniqueId uniqueId = uniqueIdClient.uniqueIdInstanceForType(type);
-    return uniqueId.suggest(search);
-  }
-
-  /**
-   * Given a prefix search, returns matching names from the specified id
-   * type.
-   * @param type The type of ids to search
-   * @param search A prefix to search.
-   * @param max_results Maximum number of results to return.
-   * @since 2.0
-   */
-  public Deferred<List<String>> suggest(final UniqueIdType type,
-                                        final String search,
-                                        final int max_results) {
-    UniqueId uniqueId = uniqueIdClient.uniqueIdInstanceForType(type);
-    return uniqueId.suggest(search, max_results);
   }
 
   /** @return the name of the UID table as a byte array for TsdbStore requests */

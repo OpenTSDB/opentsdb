@@ -222,6 +222,36 @@ public class UniqueIdClient {
     return Deferred.groupInOrder(deferreds).addCallback(new GroupCB());
   }
 
+  /**
+   * Given a prefix search, returns matching names from the specified id
+   * type.
+   * @param type The type of ids to search
+   * @param search A prefix to search.
+   * @param tsdb
+   * @since 2.0
+   */
+  public Deferred<List<String>> suggest(final UniqueIdType type,
+                                        final String search, final TSDB tsdb) {
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.suggest(search);
+  }
+
+  /**
+   * Given a prefix search, returns matching names from the specified id
+   * type.
+   * @param type The type of ids to search
+   * @param search A prefix to search.
+   * @param max_results Maximum number of results to return.
+   * @param tsdb
+   * @since 2.0
+   */
+  public Deferred<List<String>> suggest(final UniqueIdType type,
+                                        final String search,
+                                        final int max_results, final TSDB tsdb) {
+    UniqueId uniqueId = uniqueIdInstanceForType(type);
+    return uniqueId.suggest(search, max_results);
+  }
+
   UniqueId uniqueIdInstanceForType(UniqueIdType type) {
     switch (type) {
       case METRIC:

@@ -48,16 +48,16 @@ public final class TestSuggestRpc {
     final List<String> metrics = new ArrayList<String>();
     metrics.add("sys.cpu.0.system"); 
     metrics.add("sys.mem.free");
-    when(tsdb.suggest(UniqueIdType.METRIC, "s")).thenReturn(Deferred.fromResult(metrics));
+    when(tsdb.getUniqueIdClient().suggest(UniqueIdType.METRIC, "s", tsdb)).thenReturn(Deferred.fromResult(metrics));
     final List<String> metrics_one = new ArrayList<String>();
     metrics_one.add("sys.cpu.0.system"); 
-    when(tsdb.suggest(UniqueIdType.METRIC, "s", 1)).thenReturn(Deferred.fromResult(metrics_one));
+    when(tsdb.getUniqueIdClient().suggest(UniqueIdType.METRIC, "s", 1, tsdb)).thenReturn(Deferred.fromResult(metrics_one));
     final List<String> tagks = new ArrayList<String>();
     tagks.add("host");
-    when(tsdb.suggest(UniqueIdType.TAGK, "h")).thenReturn(Deferred.fromResult(tagks));
+    when(tsdb.getUniqueIdClient().suggest(UniqueIdType.TAGK, "h", tsdb)).thenReturn(Deferred.fromResult(tagks));
     final List<String> tagvs = new ArrayList<String>();
     tagvs.add("web01.mysite.com");
-    when(tsdb.suggest(UniqueIdType.TAGV, "w")).thenReturn(Deferred.fromResult(tagvs));
+    when(tsdb.getUniqueIdClient().suggest(UniqueIdType.TAGV, "w", tsdb)).thenReturn(Deferred.fromResult(tagvs));
   }
   
   @Test
