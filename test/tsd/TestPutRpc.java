@@ -44,25 +44,25 @@ public final class TestPutRpc {
     tsdb = NettyMocks.getMockedHTTPTSDB();
     final HashMap<String, String> tags1 = new HashMap<String, String>();
     tags1.put("host", "web01");
-    when(tsdb.addPoint("sys.cpu.nice", 1365465600, 42, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.nice", 1365465600, 42, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("sys.cpu.nice", 1365465600, -42, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.nice", 1365465600, -42, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("sys.cpu.nice", 1365465600, 42.2f, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.nice", 1365465600, 42.2f, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("sys.cpu.nice", 1365465600, -42.2f, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.nice", 1365465600, -42.2f, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("sys.cpu.nice", 1365465600, 4220.0f, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.nice", 1365465600, 4220.0f, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("sys.cpu.nice", 1365465600, -4220.0f, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.nice", 1365465600, -4220.0f, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("sys.cpu.nice", 1365465600, .0042f, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.nice", 1365465600, .0042f, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("sys.cpu.nice", 1365465600, -0.0042f, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.nice", 1365465600, -0.0042f, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("sys.cpu.system", 1365465600, 24, tags1))
+    when(tsdb.getDataPointsClient().addPoint("sys.cpu.system", 1365465600, 24, tags1))
       .thenReturn(Deferred.fromResult(new Object()));
-    when(tsdb.addPoint("doesnotexist", 1365465600, 42, tags1))
+    when(tsdb.getDataPointsClient().addPoint("doesnotexist", 1365465600, 42, tags1))
       .thenThrow(new NoSuchUniqueName("metric", "doesnotexist"));
 
     final TsdStats tsdStats = new TsdStats(new MetricRegistry());

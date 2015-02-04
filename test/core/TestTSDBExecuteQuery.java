@@ -811,7 +811,7 @@ public final class TestTSDBExecuteQuery {
     storeLongTimeSeriesSeconds(true, false);
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
-    tsdb.addPoint(METRIC_1, 1356998430, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, 1356998430, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -977,7 +977,7 @@ public final class TestTSDBExecuteQuery {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
     long timestamp = 1356998410;
-    tsdb.addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     final List<String> tsuids = new ArrayList<String>(1);
     tsuids.add(TSUID_1);
@@ -999,7 +999,7 @@ public final class TestTSDBExecuteQuery {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
     long timestamp = 1356998410;
-    tsdb.addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     tsdb_store.flushRow(MockBase.stringToBytes(E23510000001000001));
     final Annotation note = new Annotation();
     note.setTSUID(TSUID_1);
@@ -1119,9 +1119,9 @@ public final class TestTSDBExecuteQuery {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
-    tsdb.addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 55, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 25, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.addPoint(METRIC_1, timestamp += 30, 5, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 55, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 25, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 5, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     RateOptions ro = new RateOptions(true, Long.MAX_VALUE, 0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -1142,9 +1142,9 @@ public final class TestTSDBExecuteQuery {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
-    tsdb.addPoint(METRIC_1, timestamp += 30, 30, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.addPoint(METRIC_1, timestamp += 30, 60, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.addPoint(METRIC_1, timestamp += 30, 90, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 30, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 60, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 90, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     RateOptions ro = new RateOptions(true, Long.MAX_VALUE, 0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -1165,9 +1165,9 @@ public final class TestTSDBExecuteQuery {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
-    tsdb.addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.addPoint(METRIC_1, timestamp += 30, 75, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.addPoint(METRIC_1, timestamp += 30, 5, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 75, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 5, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     RateOptions ro = new RateOptions(true, 100, 0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -1188,9 +1188,9 @@ public final class TestTSDBExecuteQuery {
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
-    tsdb.addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.addPoint(METRIC_1, timestamp += 30, 75, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.addPoint(METRIC_1, timestamp += 30, 25, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 75, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 25, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     RateOptions ro = new RateOptions(true, 10000, 35);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -1320,14 +1320,14 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (int i = 1; i <= 300; i++) {
-      tsdb.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
     tags.put(HOST, WEB_02);
     timestamp = TIMESTAMP_5;
     for (int i = 300; i > 0; i--) {
-      tsdb.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
@@ -1367,14 +1367,14 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (int i = 1; i <= 300; i++) {
-      tsdb.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
     tags.put(HOST, WEB_02);
     timestamp = START_TIME_1250L;
     for (int i = 300; i > 0; i--) {
-      tsdb.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
@@ -1428,7 +1428,7 @@ public final class TestTSDBExecuteQuery {
     long timestamp = START_TIME_1000L;
     for (int i = 1; i <= 120; i++) {
       timestamp += i <= 100 ? 500 : 5000;
-      tsdb.addPoint(METRIC_1, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     // ts = START_TIME_1750, v = 300
@@ -1444,7 +1444,7 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_02);
     timestamp = START_TIME_1250L;
     for (int i = 300; i > 0; i--) {
-      tsdb.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
@@ -2550,9 +2550,9 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (int i = 1; i <= 300; i++) {
-      tsdb.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
 
@@ -2561,9 +2561,9 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_02);
     timestamp = offset ? TIMESTAMP_5 : START_TIME_1;
     for (int i = 300; i > 0; i--) {
-      tsdb.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -2575,8 +2575,8 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (int i = 1; i <= 300; i++) {
-      tsdb.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     // dump a parallel set but invert the values
@@ -2584,8 +2584,8 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_02);
     timestamp = START_TIME_1000L;
     for (int i = 300; i > 0; i--) {
-      tsdb.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
 
@@ -2597,9 +2597,9 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
-      tsdb.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
 
@@ -2608,9 +2608,9 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_02);
     timestamp = offset ? TIMESTAMP_5 : START_TIME_1;
     for (float i = 75F; i > 0; i -= 0.25F) {
-      tsdb.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -2622,8 +2622,8 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
-      tsdb.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     // dump a parallel set but invert the values
@@ -2631,8 +2631,8 @@ public final class TestTSDBExecuteQuery {
     tags.put(HOST, WEB_02);
     timestamp = START_TIME_1000L;
     for (float i = 75F; i > 0; i -= 0.25F) {
-      tsdb.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
 
@@ -2642,9 +2642,9 @@ public final class TestTSDBExecuteQuery {
     long timestamp = START_TIME_1;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
       if (i % 2 == 0) {
-        tsdb.addPoint(METRIC_1, timestamp += 30, (long)i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, (long) i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       } else {
-        tsdb.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -2660,9 +2660,9 @@ public final class TestTSDBExecuteQuery {
         ts /= 1000;
       }
       if (i % 2 == 0) {
-        tsdb.addPoint(METRIC_1, ts, (long)i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        tsdb.getDataPointsClient().addPoint(METRIC_1, ts, (long) i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       } else {
-        tsdb.addPoint(METRIC_1, ts, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        tsdb.getDataPointsClient().addPoint(METRIC_1, ts, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }

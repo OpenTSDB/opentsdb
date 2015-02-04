@@ -309,11 +309,9 @@ public class UniqueIdClient {
    * @since 2.0
    * @param metric The metric to use in the TSUID
    * @param tags The string tags to use in the TSUID
-   * @param tsdb TSDB instance used with Tags class
    */
   Deferred<byte[]> getTSUID(final String metric,
-                            final Map<String, String> tags,
-                            final TSDB tsdb) {
+                            final Map<String, String> tags) {
     final short metric_width = metrics.width();
     final short tag_name_width = tag_names.width();
     final short tag_value_width = tag_values.width();

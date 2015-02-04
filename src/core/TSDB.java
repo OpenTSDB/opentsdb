@@ -42,14 +42,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.hbase.async.Bytes.ByteMap;
-import org.hbase.async.Bytes;
 
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -67,7 +65,7 @@ public class TSDB {
   private static final Charset CHARSET = Charset.forName("ISO-8859-1");
 
   /** TsdbStore, the database cluster to use for storage.  */
-  final TsdbStore tsdb_store;
+  private final TsdbStore tsdb_store;
 
   /** Name of the table in which timeseries are stored.  */
   final byte[] table;
@@ -87,6 +85,7 @@ public class TSDB {
   private final Metrics metrics;
 
   private final UniqueIdClient uniqueIdClient;
+  private final DataPointsClient dataPointsClient;
   private final MetaClient metaClient;
   private final TreeClient treeClient;
 
@@ -134,6 +133,7 @@ public class TSDB {
     uniqueIdClient = new UniqueIdClient(tsdb_store, config, metrics, idEventBus);
     treeClient = new TreeClient(tsdb_store);
     metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, rt_publisher);
+    dataPointsClient = new DataPointsClient(tsdb_store, config, uniqueIdClient, metaClient, rt_publisher);
 
     LOG.debug(config.dumpConfiguration());
   }
@@ -145,6 +145,10 @@ public class TSDB {
 
   public MetaClient getMetaClient() {
     return metaClient;
+  }
+
+  public DataPointsClient getDataPointsClient() {
+    return dataPointsClient;
   }
 
   public UniqueIdClient getUniqueIdClient() {
@@ -228,171 +232,6 @@ public class TSDB {
    */
   public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
     return tsdb_store.checkNecessaryTablesExist();
-  }
-
-  /**
-   * Returns a new {@link WritableDataPoints} instance suitable for this TSDB.
-   * <p>
-   * If you want to add a single data-point, consider using {@link #addPoint}
-   * instead.
-   */
-  public WritableDataPoints newDataPoints() {
-    return new IncomingDataPoints(this);
-  }
-
-  /**
-   * Adds a single integer value data point in the TSDB.
-   * @param metric A non-empty string.
-   * @param timestamp The timestamp associated with the value.
-   * @param value The value of the data point.
-   * @param tags The tags on this series.  This map must be non-empty.
-   * @return A deferred object that indicates the completion of the request.
-   * The {@link Object} has not special meaning and can be {@code null} (think
-   * of it as {@code Deferred<Void>}). But you probably want to attach at
-   * least an errback to this {@code Deferred} to handle failures.
-   * @throws IllegalArgumentException if the timestamp is less than or equal
-   * to the previous timestamp added or 0 for the first timestamp, or if the
-   * difference with the previous timestamp is too large.
-   * @throws IllegalArgumentException if the metric name is empty or contains
-   * illegal characters.
-   * @throws IllegalArgumentException if the tags list is empty or one of the
-   * elements contains illegal characters.
-   */
-  public Deferred<Object> addPoint(final String metric,
-                                   final long timestamp,
-                                   final long value,
-                                   final Map<String, String> tags) {
-    final byte[] v;
-    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
-      v = new byte[] { (byte) value };
-    } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
-      v = Bytes.fromShort((short) value);
-    } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
-      v = Bytes.fromInt((int) value);
-    } else {
-      v = Bytes.fromLong(value);
-    }
-    final short flags = (short) (v.length - 1);  // Just the length.
-    return addPointInternal(metric, timestamp, v, tags, flags);
-  }
-
-  /**
-   * Adds a double precision floating-point value data point in the TSDB.
-   * @param metric A non-empty string.
-   * @param timestamp The timestamp associated with the value.
-   * @param value The value of the data point.
-   * @param tags The tags on this series.  This map must be non-empty.
-   * @return A deferred object that indicates the completion of the request.
-   * The {@link Object} has not special meaning and can be {@code null} (think
-   * of it as {@code Deferred<Void>}). But you probably want to attach at
-   * least an errback to this {@code Deferred} to handle failures.
-   * @throws IllegalArgumentException if the timestamp is less than or equal
-   * to the previous timestamp added or 0 for the first timestamp, or if the
-   * difference with the previous timestamp is too large.
-   * @throws IllegalArgumentException if the metric name is empty or contains
-   * illegal characters.
-   * @throws IllegalArgumentException if the value is NaN or infinite.
-   * @throws IllegalArgumentException if the tags list is empty or one of the
-   * elements contains illegal characters.
-   * @since 1.2
-   */
-  public Deferred<Object> addPoint(final String metric,
-                                   final long timestamp,
-                                   final double value,
-                                   final Map<String, String> tags) {
-    if (Double.isNaN(value) || Double.isInfinite(value)) {
-      throw new IllegalArgumentException("value is NaN or Infinite: " + value
-                                         + " for metric=" + metric
-                                         + " timestamp=" + timestamp);
-    }
-    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 8 bytes.
-    return addPointInternal(metric, timestamp,
-                            Bytes.fromLong(Double.doubleToRawLongBits(value)),
-                            tags, flags);
-  }
-
-  /**
-   * Adds a single floating-point value data point in the TSDB.
-   * @param metric A non-empty string.
-   * @param timestamp The timestamp associated with the value.
-   * @param value The value of the data point.
-   * @param tags The tags on this series.  This map must be non-empty.
-   * @return A deferred object that indicates the completion of the request.
-   * The {@link Object} has not special meaning and can be {@code null} (think
-   * of it as {@code Deferred<Void>}). But you probably want to attach at
-   * least an errback to this {@code Deferred} to handle failures.
-   * @throws IllegalArgumentException if the timestamp is less than or equal
-   * to the previous timestamp added or 0 for the first timestamp, or if the
-   * difference with the previous timestamp is too large.
-   * @throws IllegalArgumentException if the metric name is empty or contains
-   * illegal characters.
-   * @throws IllegalArgumentException if the value is NaN or infinite.
-   * @throws IllegalArgumentException if the tags list is empty or one of the
-   * elements contains illegal characters.
-   */
-  public Deferred<Object> addPoint(final String metric,
-                                   final long timestamp,
-                                   final float value,
-                                   final Map<String, String> tags) {
-    if (Float.isNaN(value) || Float.isInfinite(value)) {
-      throw new IllegalArgumentException("value is NaN or Infinite: " + value
-                                         + " for metric=" + metric
-                                         + " timestamp=" + timestamp);
-    }
-    final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
-    return addPointInternal(metric, timestamp,
-            Bytes.fromInt(Float.floatToRawIntBits(value)),
-            tags, flags);
-  }
-
-  private Deferred<Object> addPointInternal(final String metric,
-                                            final long timestamp,
-                                            final byte[] value,
-                                            final Map<String, String> tags,
-                                            final short flags) {
-    checkTimestamp(timestamp);
-    IncomingDataPoints.checkMetricAndTags(metric, tags);
-
-
-    class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
-      @Override
-      public Deferred<Object> call(final byte[] tsuid) throws Exception {
-
-        // TODO(tsuna): Add a callback to time the latency of HBase and store the
-        // timing in a moving Histogram (once we have a class for this).
-        Deferred<Object> result = tsdb_store.addPoint(tsuid, value, timestamp, flags);
-
-        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-        // counter field for a TSUID with the proper timestamp. If the user would
-        // rather have TSUID incrementing enabled, that will trump the PUT
-        if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
-          tsdb_store.setTSMetaCounter(tsuid, 1);
-        } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
-          metaClient.incrementAndGetCounter(tsuid);
-        }
-
-        rt_publisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
-
-        return result;
-      }
-    }
-
-    return this.uniqueIdClient.getTSUID(metric, tags, this)
-            .addCallbackDeferring(new RowKeyCB());
-
-  }
-
-  /**
-   * Validates that the timestamp is within valid bounds.
-   * @throws java.lang.IllegalArgumentException if the timestamp isn't within
-   * bounds.
-   */
-  static long checkTimestamp(long timestamp) {
-    checkArgument(timestamp >= 0, "The timestamp must be positive but was %s", timestamp);
-    checkArgument((timestamp & Const.SECOND_MASK) == 0 || timestamp <= Const.MAX_MS_TIMESTAMP,
-            "The timestamp was too large (%s)", timestamp);
-
-    return timestamp;
   }
 
   /**

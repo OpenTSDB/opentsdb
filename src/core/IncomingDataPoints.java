@@ -20,13 +20,14 @@ import java.util.Map;
 
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.hbase.HBaseStore;
 import org.hbase.async.Bytes;
 
 import net.opentsdb.meta.Annotation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.core.TSDB.checkTimestamp;
+import static net.opentsdb.core.DataPointsClient.checkTimestamp;
 
 /**
  * Receives new data points and stores them in HBase.
@@ -35,8 +36,8 @@ class IncomingDataPoints implements WritableDataPoints {
   /** For how long to buffer edits when doing batch imports (in ms).  */
   private static final short DEFAULT_BATCH_IMPORT_BUFFER_INTERVAL = 5000;
 
-  /** The {@code TSDB} instance we belong to. */
-  private final TSDB tsdb;
+  private final TsdbStore store;
+  private final UniqueIdClient uniqueIdClient;
 
   /**
    * The row key.
@@ -66,17 +67,15 @@ class IncomingDataPoints implements WritableDataPoints {
   /** Are we doing a batch import? */
   private boolean batch_import;
 
-  /**
-   * Constructor.
-   * @param tsdb The TSDB we belong to.
-   */
-  IncomingDataPoints(final TSDB tsdb) {
-    this.tsdb = tsdb;
+  IncomingDataPoints(final TsdbStore store,
+                     final UniqueIdClient uniqueIdClient) {
     // the qualifiers and values were meant for pre-compacting the rows. We 
     // could implement this later, but for now we don't need to track the values
     // as they'll just consume space during an import
     //this.qualifiers = new short[3];
     //this.values = new long[3];
+    this.store = checkNotNull(store);
+    this.uniqueIdClient = checkNotNull(uniqueIdClient);
   }
 
   /**
@@ -102,7 +101,7 @@ class IncomingDataPoints implements WritableDataPoints {
   public void setSeries(final String metric, final Map<String, String> tags) {
     checkMetricAndTags(metric, tags);
     try {
-      byte[] tsuid = tsdb.getUniqueIdClient().getTSUID(metric, tags, tsdb).joinUninterruptibly();
+      byte[] tsuid = uniqueIdClient.getTSUID(metric, tags).joinUninterruptibly();
       // we have a tsuid so we need to add some bytes(4) for the timestamp
       row = RowKey.partialRowKeyFromTSUID(tsuid);
     } catch (RuntimeException e) {
@@ -127,8 +126,8 @@ class IncomingDataPoints implements WritableDataPoints {
     // because the TsdbStore may still hold a reference to it in its
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
-    Bytes.setInt(row, (int) base_time, tsdb.getUniqueIdClient().metrics.width());
-    tsdb.getTsdbStore().scheduleForCompaction(row);
+    Bytes.setInt(row, (int) base_time, uniqueIdClient.metrics.width());
+    store.scheduleForCompaction(row);
   }
 
   /**
@@ -168,7 +167,7 @@ class IncomingDataPoints implements WritableDataPoints {
     // TODO(luuse): This will start compaction early. The import
     // functionality will need to be rewritten. Maybe with streams? Also it
     // won't add with durable set to true (see bellow).
-    return tsdb.getTsdbStore().addPoint(RowKey.tsuid(row), value, timestamp, flags);
+    return store.addPoint(RowKey.tsuid(row), value, timestamp, flags);
 
     // TODO(tsuna): The following timing is rather useless.  First of all,
     // the histogram never resets, so it tends to converge to a certain
@@ -234,14 +233,14 @@ class IncomingDataPoints implements WritableDataPoints {
     if (time < 0) {
       throw new IllegalArgumentException("negative time: " + time);
     }
-    tsdb.tsdb_store.setFlushInterval(time);
+    store.setFlushInterval(time);
   }
 
   public void setBatchImport(final boolean batchornot) {
     if (batch_import == batchornot) {
       return;
     }
-    final long current_interval = tsdb.tsdb_store.getFlushInterval();
+    final long current_interval = store.getFlushInterval();
     if (batchornot) {
       batch_import = true;
       // If we already were given a larger interval, don't override it.

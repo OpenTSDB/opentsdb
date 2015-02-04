@@ -22,7 +22,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.core.TSDB.checkTimestamp;
+import static net.opentsdb.core.DataPointsClient.checkTimestamp;
 
 /**
  * Non-synchronized implementation of {@link Query}.

@@ -27,7 +27,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TsdbBuilder;
-import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -228,7 +227,7 @@ final class TextImporter {
     if (dp != null) {
       return dp;
     }
-    dp = tsdb.newDataPoints();
+    dp = tsdb.getDataPointsClient().newDataPoints();
     dp.setSeries(metric, tags);
     dp.setBatchImport(true);
     datapoints.put(key, dp);
