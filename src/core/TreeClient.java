@@ -114,7 +114,7 @@ public class TreeClient {
    */
   public Deferred<Branch> fetchBranch(final byte[] branch_id,
                                       final boolean load_leaf_uids, final TSDB tsdb) {
-    return tsdb.tsdb_store.fetchBranch(branch_id, load_leaf_uids, tsdb);
+    return store.fetchBranch(branch_id, load_leaf_uids, tsdb);
   }
 
   /**
@@ -123,12 +123,11 @@ public class TreeClient {
    * {@link #fetchBranch} call. Useful when building trees, particularly to
    * fetch the root branch.
    * @param branch_id ID of the branch to retrieve
-   * @param tsdb
    * @return A branch if found, null if it did not exist
    * @throws net.opentsdb.utils.JSONException if the object could not be deserialized
    */
-  public Deferred<Branch> fetchBranchOnly(final byte[] branch_id, final TSDB tsdb) {
-    return tsdb.tsdb_store.fetchBranchOnly(branch_id);
+  public Deferred<Branch> fetchBranchOnly(final byte[] branch_id) {
+    return store.fetchBranchOnly(branch_id);
   }
 
   /**
@@ -277,16 +276,14 @@ public class TreeClient {
    * @param leaf The Leaf to put to storage
    * @param branch The branch this leaf belongs to
    * @param tree Tree the leaf and branch belong to
-   * @param tsdb
    * @return True if the leaf was stored successful or already existed, false
    * if there was a collision
    * @throws org.hbase.async.HBaseException if there was an issue
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
-                                     final Tree tree, final TSDB tsdb) {
-
-    return tsdb.tsdb_store.storeLeaf(leaf, branch, tree);
+                                     final Tree tree) {
+    return store.storeLeaf(leaf, branch, tree);
   }
 
   /**

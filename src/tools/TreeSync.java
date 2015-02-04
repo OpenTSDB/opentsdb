@@ -205,7 +205,7 @@ final class TreeSync extends Thread {
                   if (!tree.getEnabled()) {
                     continue;
                   }
-                  final TreeBuilder builder = new TreeBuilder(tsdb, tree);
+                  final TreeBuilder builder = new TreeBuilder(tsdb.getTreeClient(), tree);
                   tree_builders.add(builder);
                 }
                 
@@ -250,7 +250,7 @@ final class TreeSync extends Thread {
           // associated UIDMeta objects, then pass it off to callbacks for 
           // parsing through the trees.
           final Deferred<Boolean> process_tsmeta = 
-            tsdb.parseFromColumn(row.get(0).key(), row.get(0).value(), true)
+            tsdb.getMetaClient().parseFromColumn(row.get(0).key(), row.get(0).value(), true)
               .addCallbackDeferring(new ParseCB());
           process_tsmeta.addErrback(new ErrBack());
           tree_calls.add(process_tsmeta);

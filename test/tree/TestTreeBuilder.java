@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.TreeMap;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TreeClient;
 import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -66,7 +67,8 @@ public final class TestTreeBuilder {
     tsdb = TsdbBuilder.createFromConfig(new Config(false))
             .withStore(tsdb_store)
             .build();
-    treebuilder = new TreeBuilder(tsdb, tree);
+
+    treebuilder = new TreeBuilder(tsdb.getTreeClient(), tree);
 
     meta.setMetric(metric);
     

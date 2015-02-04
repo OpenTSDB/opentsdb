@@ -8,6 +8,7 @@ import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.IdCreatedEvent;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
@@ -32,9 +33,11 @@ public class MetaClientUIDMetaTest {
   private TsdbStore store;
 
   private UniqueIdClient uniqueIdClient;
+  private TreeClient treeClient;
   private MetaClient metaClient;
 
   @Mock private SearchPlugin searchPlugin;
+  @Mock private RTPublisher realtimePublisher;
 
   @Before
   public void setUp() throws Exception {
@@ -45,7 +48,8 @@ public class MetaClientUIDMetaTest {
     store = new MemoryStore();
 
     uniqueIdClient = new UniqueIdClient(store, config, new Metrics(new MetricRegistry()), idEventBus);
-    metaClient = new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient);
+    treeClient = new TreeClient(store);
+    metaClient = new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
 
     store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
     store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
@@ -63,7 +67,7 @@ public class MetaClientUIDMetaTest {
   public void createdIdEventCreatesUIDMetaWhenEnabled() {
     config.overrideConfig("tsd.core.meta.enable_realtime_uid", "true");
     store = mock(TsdbStore.class);
-    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient);
+    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
     idEventBus.post(new IdCreatedEvent(new byte[]{0, 0, 1}, "test", UniqueIdType.METRIC));
     verify(store).add(any(UIDMeta.class));
     verify(searchPlugin).indexUIDMeta(any(UIDMeta.class));
@@ -72,7 +76,7 @@ public class MetaClientUIDMetaTest {
   @Test
   public void createdIdEventCreatesUIDMetaWhenDisabled() {
     store = mock(TsdbStore.class);
-    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient);
+    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
     idEventBus.post(new IdCreatedEvent(new byte[] {0, 0, 1}, "test", UniqueIdType.METRIC));
     verify(store, never()).add(any(UIDMeta.class));
     verify(searchPlugin, never()).indexUIDMeta(any(UIDMeta.class));

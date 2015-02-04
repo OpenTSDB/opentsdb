@@ -148,7 +148,7 @@ final class MetaSync extends Thread {
         public Deferred<Boolean> call(final String name) throws Exception {
           UIDMeta new_meta = new UIDMeta(type, uid, name);
           new_meta.setCreated(timestamp);
-          tsdb.indexUIDMeta(new_meta);
+          tsdb.getMetaClient().indexUIDMeta(new_meta);
           LOG.info("Replacing corrupt UID [{}] of type [{}]", UniqueId.uidToString(uid), type);
           
           return tsdb.getMetaClient().syncUIDMetaToStorage(new_meta, true);
@@ -170,7 +170,7 @@ final class MetaSync extends Thread {
 
           // the meta was good, just needed a timestamp update so sync to
           // search and storage
-          tsdb.indexUIDMeta(meta);
+          tsdb.getMetaClient().indexUIDMeta(meta);
           LOG.info("Syncing valid UID [{}] of type [{}]",
                   UniqueId.uidToString(uid), type);
           return tsdb.getMetaClient().syncUIDMetaToStorage(meta, false);
@@ -240,11 +240,11 @@ final class MetaSync extends Thread {
                 // note that the increment call will create the meta object
                 // and send it to the search plugin so we don't have to do that
                 // here or in the local callback
-                return tsdb.incrementAndGetCounter(tsuid)
+                return tsdb.getMetaClient().incrementAndGetCounter(tsuid)
                   .addCallbackDeferring(new CreatedCB());
               } else {
                 TSMeta new_meta = new TSMeta(tsuid, timestamp);
-                tsdb.indexTSMeta(new_meta);
+                tsdb.getMetaClient().indexTSMeta(new_meta);
                 LOG.info("Counter exists but meta was null, creating meta data for timeseries [{}]", tsuid_string);
                 return tsdb.getMetaClient().create(new_meta);
               }
@@ -264,7 +264,7 @@ final class MetaSync extends Thread {
             meta.getTSUID().isEmpty()) {
           LOG.warn("Replacing corrupt meta data for timeseries [{}]", tsuid_string);
           TSMeta new_meta = new TSMeta(tsuid, timestamp);
-          tsdb.indexTSMeta(new_meta);
+          tsdb.getMetaClient().indexTSMeta(new_meta);
           return tsdb.getMetaClient().create(new_meta);
         } else {
           // we only want to update the time if it was outside of an 
@@ -272,9 +272,9 @@ final class MetaSync extends Thread {
           if (meta.getCreated() > (timestamp + 3600) || 
               meta.getCreated() == 0) {
             meta.setCreated(timestamp);
-            tsdb.indexTSMeta(meta);
+            tsdb.getMetaClient().indexTSMeta(meta);
             LOG.info("Updated created timestamp for timeseries [{}]", tsuid_string);
-            return tsdb.syncToStorage(meta, false);
+            return tsdb.getMetaClient().syncToStorage(meta, false);
           }
 
           LOG.debug("TSUID [{}] is up to date in storage", tsuid_string);
@@ -439,7 +439,7 @@ final class MetaSync extends Thread {
           // handle the timeseries meta last so we don't record it if one
           // or more of the UIDs had an issue
           final Deferred<Boolean> process_tsmeta = 
-            tsdb.getTSMeta(tsuid_string, true)
+            tsdb.getMetaClient().getTSMeta(tsuid_string, true)
               .addCallbackDeferring(new TSMetaCB(tsuid, timestamp));
           process_tsmeta.addErrback(new ErrBack());
           storage_calls.add(process_tsmeta);

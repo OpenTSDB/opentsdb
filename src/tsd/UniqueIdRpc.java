@@ -210,7 +210,7 @@ final class UniqueIdRpc implements HttpRpc {
         final Deferred<UIDMeta> process_meta = tsdb.getMetaClient().syncUIDMetaToStorage(meta,
                 method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
         final UIDMeta updated_meta = process_meta.joinUninterruptibly();
-        tsdb.indexUIDMeta(updated_meta);
+        tsdb.getMetaClient().indexUIDMeta(updated_meta);
         query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -233,7 +233,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       try {
         tsdb.getMetaClient().delete(meta).joinUninterruptibly();
-        tsdb.deleteUIDMeta(meta);
+        tsdb.getMetaClient().deleteUIDMeta(meta);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete UIDMeta information", e);
       } catch (NoSuchUniqueId e) {
@@ -266,7 +266,7 @@ final class UniqueIdRpc implements HttpRpc {
       if (query.hasQueryStringParam("tsuid")) {
         tsuid = query.getQueryStringParam("tsuid");
         try {
-          final TSMeta meta = tsdb.getTSMeta(tsuid, true).joinUninterruptibly();
+          final TSMeta meta = tsdb.getMetaClient().getTSMeta(tsuid, true).joinUninterruptibly();
           if (meta != null) {
             query.sendReply(query.serializer().formatTSMetaV1(meta));
           } else {
@@ -337,7 +337,7 @@ final class UniqueIdRpc implements HttpRpc {
                 "This may be caused by another process modifying storage data");
           }
 
-          return tsdb.getTSMeta(meta.getTSUID(), true);
+          return tsdb.getMetaClient().getTSMeta(meta.getTSUID(), true);
         }
 
       }
@@ -378,14 +378,14 @@ final class UniqueIdRpc implements HttpRpc {
             final Deferred<TSMeta> process_meta = tsdb.getMetaClient().create(meta)
                     .addCallbackDeferring(new SyncCB());
             final TSMeta updated_meta = process_meta.joinUninterruptibly();
-            tsdb.indexTSMeta(updated_meta);
-            tsdb.processTSMetaThroughTrees(updated_meta);
+            tsdb.getMetaClient().indexTSMeta(updated_meta);
+            tsdb.getMetaClient().processTSMetaThroughTrees(updated_meta);
             query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
           } else if (exists) {
-            final Deferred<TSMeta> process_meta = tsdb.syncToStorage(meta,
-                method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+            final Deferred<TSMeta> process_meta = tsdb.getMetaClient().syncToStorage(meta,
+                    method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
             final TSMeta updated_meta = process_meta.joinUninterruptibly();
-            tsdb.indexTSMeta(updated_meta);
+            tsdb.getMetaClient().indexTSMeta(updated_meta);
             query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
           } else {
             throw new BadRequestException(
@@ -407,10 +407,10 @@ final class UniqueIdRpc implements HttpRpc {
         }
       } else {
         try {
-          final Deferred<TSMeta> process_meta = tsdb.syncToStorage(meta,
-              method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+          final Deferred<TSMeta> process_meta = tsdb.getMetaClient().syncToStorage(meta,
+                  method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
           final TSMeta updated_meta = process_meta.joinUninterruptibly();
-          tsdb.indexTSMeta(updated_meta);
+          tsdb.getMetaClient().indexTSMeta(updated_meta);
           query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
         } catch (IllegalStateException e) {
           query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -436,7 +436,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       try {
         tsdb.getMetaClient().delete(meta);
-        tsdb.deleteTSMeta(meta.getTSUID());
+        tsdb.getMetaClient().deleteTSMeta(meta.getTSUID());
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete TSMeta information", e);
       }

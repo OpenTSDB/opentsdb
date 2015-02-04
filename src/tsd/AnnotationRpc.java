@@ -106,7 +106,7 @@ final class AnnotationRpc implements HttpRpc {
         final Deferred<Annotation> process_meta = tsdb.getMetaClient().syncToStorage(
                 note, method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
         final Annotation updated_meta = process_meta.joinUninterruptibly();
-        tsdb.indexAnnotation(note);
+        tsdb.getMetaClient().indexAnnotation(note);
         query.sendReply(query.serializer().formatAnnotationV1(updated_meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -120,7 +120,7 @@ final class AnnotationRpc implements HttpRpc {
 
       try {
         tsdb.getMetaClient().delete(note).joinUninterruptibly();
-        tsdb.deleteAnnotation(note);
+        tsdb.getMetaClient().deleteAnnotation(note);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException(
             "Unable to delete Annotation information", e);
@@ -207,7 +207,7 @@ final class AnnotationRpc implements HttpRpc {
     class IndexCB implements Callback<Deferred<Annotation>, Annotation> {
       @Override
       public Deferred<Annotation> call(final Annotation note) throws Exception {
-        tsdb.indexAnnotation(note);
+        tsdb.getMetaClient().indexAnnotation(note);
         return Deferred.fromResult(note);
       }
     }

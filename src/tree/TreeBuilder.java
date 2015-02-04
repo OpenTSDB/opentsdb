@@ -22,9 +22,10 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TreeClient;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueIdType;
 
@@ -77,9 +78,9 @@ public final class TreeBuilder {
   /** Lock used to synchronize loading of the tree list */
   private static final Lock trees_lock = new ReentrantLock();
   
-  /** The TSDB to use for fetching/writing data */
-  private final TSDB tsdb;
-  
+  /** The TreeClient to use for fetching/writing data */
+  private final TreeClient treeClient;
+
   /** Stores merged branches for testing */
   private Branch root;
   
@@ -128,12 +129,12 @@ public final class TreeBuilder {
   /**
    * Constructor to initialize the builder. Also calculates the 
    * {@link #max_rule_level} based on the tree's rules
-   * @param tsdb The TSDB to use for access
+   * @param treeClient The TreeClient to use for access
    * @param tree A tree with rules configured and ready for parsing
    */
-  public TreeBuilder(final TSDB tsdb, final Tree tree) {
-    this.tsdb = checkNotNull(tsdb);
+  public TreeBuilder(final TreeClient treeClient, final Tree tree) {
     this.tree = checkNotNull(tree);
+    this.treeClient = checkNotNull(treeClient);
     calculateMaxLevel();
   }
   
@@ -199,7 +200,7 @@ public final class TreeBuilder {
           if ( tree.getNotMatched() != null &&
               !tree.getNotMatched().isEmpty()) {
             tree.addNotMatched(meta.getTSUID(), not_matched);
-            storage_calls.add(tsdb.getTreeClient().flushTreeNotMatched(tree));
+            storage_calls.add(treeClient.flushTreeNotMatched(tree));
           }
           
         } else if (current_branch == null) {
@@ -245,7 +246,7 @@ public final class TreeBuilder {
                 }
                 
               }
-              final Deferred<Boolean> deferred = tsdb.getTreeClient().storeBranch(tree, cb, true)
+              final Deferred<Boolean> deferred = treeClient.storeBranch(tree, cb, true)
                 .addCallbackDeferring(new BranchCB());
               storage_calls.add(deferred);
               processed_branches.put(cb.getBranchId(), true);
@@ -265,7 +266,7 @@ public final class TreeBuilder {
           
           // if we have collisions, flush em
           if (tree.getCollisions() != null && !tree.getCollisions().isEmpty()) {
-            storage_calls.add(tsdb.getTreeClient().flushTreeCollisions(tree));
+            storage_calls.add(treeClient.flushTreeCollisions(tree));
           }
 
         LOG.debug("Completed processing meta [{}] through tree: {}", meta, tree.getTreeId());
@@ -295,7 +296,7 @@ public final class TreeBuilder {
       // if this is a new object or the root has been reset, we need to fetch
       // it from storage or initialize it
       LOG.debug("Fetching root branch for tree: {}", tree.getTreeId());
-      return loadOrInitializeRoot(tsdb, tree.getTreeId())
+      return loadOrInitializeRoot(treeClient, tree.getTreeId())
         .addCallbackDeferring(new LoadRootCB());
     } else {
       // the root has been set, so just reuse it
@@ -314,12 +315,12 @@ public final class TreeBuilder {
    * object.
    * <b>Note:</b> This will also cache the root in the local store since we 
    * don't want to keep loading on every TSMeta during real-time processing
-   * @param tsdb The tsdb to use for storage calls
+   * @param treeClient The tree client to use for storage calls
    * @param tree_id ID of the tree the root should be fetched/initialized for
    * @return True if loading or initialization was successful.
    */
-  public static Deferred<Branch> loadOrInitializeRoot(final TSDB tsdb, 
-      final int tree_id) {
+  public static Deferred<Branch> loadOrInitializeRoot(final TreeClient treeClient,
+                                                      final int tree_id) {
 
     /**
      * Final callback executed after the storage put completed. It also caches
@@ -362,7 +363,7 @@ public final class TreeBuilder {
           root_path.put(0, "ROOT");
           root.prependParentPath(root_path);
 
-          return tsdb.getTreeClient().storeBranch(null, root, true).addCallbackDeferring(
+          return treeClient.storeBranch(null, root, true).addCallbackDeferring(
                   new NewRootCB(root));
         } else {
           return Deferred.fromResult(branch);
@@ -379,21 +380,22 @@ public final class TreeBuilder {
     }
 
     LOG.debug("Loading or initializing root for tree: {}", tree_id);
-    return tsdb.getTreeClient().fetchBranchOnly(Tree.idToBytes(tree_id), tsdb)
+    return treeClient.fetchBranchOnly(Tree.idToBytes(tree_id))
       .addCallbackDeferring(new RootCB());
   }
   
   /**
    * Attempts to run the given TSMeta object through all of the trees in the
    * system.
-   * @param tsdb The TSDB to use for access
+   * @param treeClient The tree client to use for access
    * @param meta The timeseries meta object to process
    * @return A meaningless deferred to wait on for all trees to process the 
    * meta object
    * @throws IllegalArgumentException if the tree has not been set or is invalid
    * @throws HBaseException if a storage exception occurred
    */
-  public static Deferred<Boolean> processAllTrees(final TSDB tsdb, 
+  public static Deferred<Boolean> processAllTrees(final TreeClient treeClient,
+                                                  final TsdbStore store,
       final TSMeta meta) {
 
     /**
@@ -434,7 +436,7 @@ public final class TreeBuilder {
           if (!tree.getEnabled()) {
             continue;
           }
-          final TreeBuilder builder = new TreeBuilder(tsdb, new Tree(tree));
+          final TreeBuilder builder = new TreeBuilder(treeClient, new Tree(tree));
           processed_trees.add(builder.processTimeseriesMeta(meta));
         }
         
@@ -490,7 +492,7 @@ public final class TreeBuilder {
     
     // if we haven't loaded our trees in a while or we've just started, load
     if (((System.currentTimeMillis() / 1000) - last_tree_load) > 300) {
-      final Deferred<List<Tree>> load_deferred = tsdb.getTsdbStore().fetchAllTrees()
+      final Deferred<List<Tree>> load_deferred = store.fetchAllTrees()
         .addCallback(new FetchedTreesCB()).addErrback(new ErrorCB());
       last_tree_load = (System.currentTimeMillis() / 1000);
       return load_deferred.addCallbackDeferring(new ProcessTreesCB());

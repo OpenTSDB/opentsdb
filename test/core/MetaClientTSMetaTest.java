@@ -3,26 +3,52 @@ package net.opentsdb.core;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.tsd.RTPublisher;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Config;
+import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.GetRequest;
+import org.hbase.async.KeyValue;
+import org.hbase.async.PutRequest;
+import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-public class MetaClientTSMetaTest {
+@PowerMockIgnore({"javax.management.*", "javax.xml.*",
+          "ch.qos.*", "org.slf4j.*",
+          "com.sum.*", "org.xml.*"})
+@RunWith(PowerMockRunner.class)
+@PrepareForTest({TSDB.class, Config.class,
+          GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class,
+          Scanner.class, TSMeta.class, AtomicIncrementRequest.class})
+ public class MetaClientTSMetaTest {
   private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
-  private TSDB tsdb;
   private Config config;
   private MemoryStore tsdb_store;
   private TSMeta meta = new TSMeta();
@@ -38,15 +64,14 @@ public class MetaClientTSMetaTest {
     config = new Config(false, overrides);
 
     tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
 
     idEventBus = new EventBus();
     searchPlugin = mock(SearchPlugin.class);
+    final RTPublisher realtimePublisher = mock(RTPublisher.class);
 
     UniqueIdClient uniqueIdClient = new UniqueIdClient(tsdb_store, config, new Metrics(new MetricRegistry()), idEventBus);
-    metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config, uniqueIdClient);
+    TreeClient treeClient = new TreeClient(tsdb_store);
+    metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
@@ -100,7 +125,7 @@ public class MetaClientTSMetaTest {
 
   @Test
   public void delete() throws Exception {
-    meta = tsdb.getTSMeta( "000001000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    meta = metaClient.getTSMeta( "000001000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     metaClient.delete(meta);
   }
 
@@ -154,5 +179,193 @@ public class MetaClientTSMetaTest {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     assertFalse(metaClient.TSMetaCounterExists(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
+  }
+
+  @Test
+  public void getTSMeta() throws Exception {
+    meta = metaClient.getTSMeta("000001000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertNotNull(meta);
+    assertEquals("000001000001000001", meta.getTSUID());
+    assertEquals("sys.cpu.0", meta.getMetric().getName());
+    assertEquals(2, meta.getTags().size());
+    assertEquals("host", meta.getTags().get(0).getName());
+    assertEquals("web01", meta.getTags().get(1).getName());
+    assertEquals(1, meta.getTotalDatapoints());
+    // no support for timestamps in mockbase yet
+    //assertEquals(1328140801L, meta.getLastReceived());
+  }
+
+  @Test
+  public void getTSMetaDoesNotExist() throws Exception {
+    meta = metaClient.getTSMeta("000002000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertNull(meta);
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void getTSMetaNSUMetric() throws Throwable {
+    tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 1, 0, 0, 1},
+            NAME_FAMILY,
+            "ts_meta".getBytes(Const.CHARSET_ASCII),
+            ("{\"tsuid\":\"000002000001000001\",\"" +
+                    "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
+                    "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
+                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
+                    .getBytes(Const.CHARSET_ASCII));
+    try {
+      metaClient.getTSMeta( "000002000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    } catch (DeferredGroupException e) {
+      throw e.getCause();
+    }
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void getTSMetaNSUTagk() throws Throwable {
+    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 2, 0, 0, 1},
+            NAME_FAMILY,
+            "ts_meta".getBytes(Const.CHARSET_ASCII),
+            ("{\"tsuid\":\"000001000002000001\",\"" +
+                    "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
+                    "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
+                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
+                    .getBytes(Const.CHARSET_ASCII));
+    try {
+      metaClient.getTSMeta( "000001000002000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    } catch (DeferredGroupException e) {
+      throw e.getCause();
+    }
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void getTSMetaNSUTagv() throws Throwable {
+    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2},
+            NAME_FAMILY,
+            "ts_meta".getBytes(Const.CHARSET_ASCII),
+            ("{\"tsuid\":\"000001000001000002\",\"" +
+                    "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
+                    "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
+                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
+                    .getBytes(Const.CHARSET_ASCII));
+    try {
+      metaClient.getTSMeta( "000001000001000002", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    } catch (DeferredGroupException e) {
+      throw e.getCause();
+    }
+  }
+
+  @Test
+  public void syncToStorage() throws Exception {
+    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    meta.setDisplayName("New DN");
+    metaClient.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals("New DN", meta.getDisplayName());
+    assertEquals(42, meta.getRetention());
+  }
+
+  @Test
+  public void syncToStorageOverwrite() throws Exception {
+    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    meta.setDisplayName("New DN");
+    metaClient.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals("New DN", meta.getDisplayName());
+    assertEquals(0, meta.getRetention());
+  }
+
+  @Test (expected = IllegalStateException.class)
+  public void syncToStorageNoChanges() throws Exception {
+    meta = new TSMeta("ABCD");
+    metaClient.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void syncToStorageNullTSUID() throws Exception {
+    meta = new TSMeta();
+    metaClient.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void syncToStorageDoesNotExist() throws Exception {
+    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
+    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    metaClient.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  @Test
+  public void incrementAndGetCounter() throws Exception {
+    final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
+    metaClient.incrementAndGetCounter(tsuid).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    verify(tsdb_store).incrementAndGetCounter(any(byte[].class));
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void incrementAndGetCounterNSU() throws Exception {
+    final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 2 };
+    class ErrBack implements Callback<Object, Exception> {
+      @Override
+      public Object call(Exception e) throws Exception {
+        Throwable ex = e;
+        while (ex.getClass().equals(DeferredGroupException.class)) {
+          ex = ex.getCause();
+        }
+        throw (Exception)ex;
+      }
+    }
+
+    metaClient.incrementAndGetCounter(tsuid).addErrback(new ErrBack())
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  @Test
+  public void parseFromColumn() throws Exception {
+    final KeyValue column = PowerMockito.mock(KeyValue.class);
+    when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    when(column.value()).thenReturn(tsdb_store.getColumn(
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
+            NAME_FAMILY,
+            "ts_meta".getBytes(Const.CHARSET_ASCII)));
+    final TSMeta meta = metaClient.parseFromColumn(column.key(), column.value(), false)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertNotNull(meta);
+    assertEquals("000001000001000001", meta.getTSUID());
+    assertNull(meta.getMetric());
+  }
+
+  @Test
+  public void parseFromColumnWithUIDMeta() throws Exception {
+    final KeyValue column = PowerMockito.mock(KeyValue.class);
+    when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    when(column.value()).thenReturn(tsdb_store.getColumn(
+            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
+            NAME_FAMILY,
+            "ts_meta".getBytes(Const.CHARSET_ASCII)));
+    final TSMeta meta = metaClient.parseFromColumn(column.key(), column.value(), true)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertNotNull(meta);
+    assertEquals("000001000001000001", meta.getTSUID());
+    assertNotNull(meta.getMetric());
+    assertEquals("sys.cpu.0", meta.getMetric().getName());
+  }
+
+  @Test (expected = NoSuchUniqueId.class)
+  public void parseFromColumnWithUIDMetaNSU() throws Exception {
+    class ErrBack implements Callback<Object, Exception> {
+      @Override
+      public Object call(Exception e) throws Exception {
+        Throwable ex = e;
+        while (ex.getClass().equals(DeferredGroupException.class)) {
+          ex = ex.getCause();
+        }
+        throw (Exception)ex;
+      }
+    }
+
+    final KeyValue column = PowerMockito.mock(KeyValue.class);
+    when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 });
+    when(column.value()).thenReturn(("{\"tsuid\":\"000001000001000002\",\"" +
+            "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
+            "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
+            "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
+            .getBytes(Const.CHARSET_ASCII));
+    metaClient.parseFromColumn(column.key(), column.value(), true).addErrback(new ErrBack())
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 }

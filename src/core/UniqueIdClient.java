@@ -325,7 +325,7 @@ public class UniqueIdClient {
     final byte[] row = new byte[row_size];
 
     final boolean auto_create_metrics =
-            tsdb.config.getBoolean("tsd.core.auto_create_metrics");
+            config.getBoolean("tsd.core.auto_create_metrics");
 
     // Lookup or create the metric ID.
     final Deferred<byte[]> metric_id = metrics.getId(metric);

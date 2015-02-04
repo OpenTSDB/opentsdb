@@ -443,13 +443,13 @@ final class TreeRpc implements HttpRpc {
         
         final HashMap<String, HashMap<String, Object>> results = 
           new HashMap<String, HashMap<String, Object>>(tsuids.size());
-        final TreeBuilder builder = new TreeBuilder(tsdb, tree);
+        final TreeBuilder builder = new TreeBuilder(tsdb.getTreeClient(), tree);
         for (String tsuid : tsuids) {
           final HashMap<String, Object> tsuid_results = 
             new HashMap<String, Object>();
           
           try {
-            final TSMeta meta = tsdb.getTSMeta(tsuid, true)
+            final TSMeta meta = tsdb.getMetaClient().getTSMeta(tsuid, true)
               .joinUninterruptibly();
             // if the meta doesn't exist, we can't process, so just log a 
             // message to the results and move on to the next TSUID
