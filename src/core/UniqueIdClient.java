@@ -57,9 +57,9 @@ public class UniqueIdClient {
 
     if (config.getBoolean("tsd.core.preload_uid_cache")) {
       final Bytes.ByteMap<UniqueId> uid_cache_map = new Bytes.ByteMap<UniqueId>();
-      uid_cache_map.put(Const.METRICS_QUAL.getBytes(Const.CHARSET_ASCII), metrics);
-      uid_cache_map.put(Const.TAG_NAME_QUAL.getBytes(Const.CHARSET_ASCII), tag_names);
-      uid_cache_map.put(Const.TAG_VALUE_QUAL.getBytes(Const.CHARSET_ASCII), tag_values);
+      uid_cache_map.put(UniqueIdType.METRIC.toValue().getBytes(Const.CHARSET_ASCII), metrics);
+      uid_cache_map.put(UniqueIdType.TAGK.toValue().getBytes(Const.CHARSET_ASCII), tag_names);
+      uid_cache_map.put(UniqueIdType.TAGV.toValue().getBytes(Const.CHARSET_ASCII), tag_values);
       UniqueId.preloadUidCache(tsdb, uid_cache_map);
     }
   }

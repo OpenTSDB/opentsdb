@@ -85,10 +85,6 @@ public final class Const {
   public static final short TAG_NAME_WIDTH = 3;
   public static final short TAG_VALUE_WIDTH = 3;
 
-  public static final String METRICS_QUAL = "metrics";
-  public static final String TAG_NAME_QUAL = "tagk";
-  public static final String TAG_VALUE_QUAL = "tagv";
-
   public static final Charset CHARSET_ASCII = Charsets.ISO_8859_1;
 
   /**

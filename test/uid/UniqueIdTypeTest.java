@@ -1,6 +1,5 @@
 package net.opentsdb.uid;
 
-import net.opentsdb.core.Const;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
@@ -18,7 +17,7 @@ public class UniqueIdTypeTest {
 
   @Test
   public void uniqueIdTypeMetricToValue() {
-    assertEquals(Const.METRICS_QUAL, UniqueIdType.METRIC.toValue());
+    assertEquals("metrics", UniqueIdType.METRIC.toValue());
   }
 
   @Test
@@ -28,7 +27,7 @@ public class UniqueIdTypeTest {
 
   @Test
   public void uniqueIdTypeTagKeyToValue() {
-    assertEquals(Const.TAG_NAME_QUAL, UniqueIdType.TAGK.toValue());
+    assertEquals("tagk", UniqueIdType.TAGK.toValue());
   }
 
   @Test
@@ -38,7 +37,7 @@ public class UniqueIdTypeTest {
 
   @Test
   public void uniqueIdTypeTagValueToValue() {
-    assertEquals(Const.TAG_VALUE_QUAL, UniqueIdType.TAGV.toValue());
+    assertEquals("tagv", UniqueIdType.TAGV.toValue());
   }
 
   @Test (expected = NullPointerException.class)

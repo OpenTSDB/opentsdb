@@ -10,9 +10,12 @@ import static com.google.common.base.Preconditions.checkArgument;
  * Enumerator for different types of UIDs
  */
 public enum UniqueIdType {
-  METRIC(Const.METRICS_QUAL, Const.METRICS_WIDTH),
-  TAGK(Const.TAG_NAME_QUAL, Const.TAG_NAME_WIDTH),
-  TAGV(Const.TAG_VALUE_QUAL, Const.TAG_VALUE_WIDTH);
+  // Think long and hard before changing the identifier arguments bellow.
+  // Changing any of them without updating UniqueIdType#fromValue bellow will
+  // wreck all deployments.
+  METRIC("metrics", Const.METRICS_WIDTH),
+  TAGK("tagk", Const.TAG_NAME_WIDTH),
+  TAGV("tagv", Const.TAG_VALUE_WIDTH);
 
   private final String identifier;
 

@@ -38,9 +38,9 @@ class UsedUidsGauge extends CachedGauge<Long> {
   @Override
   protected Long loadValue() {
     final byte[][] kinds = {
-        Const.METRICS_QUAL.getBytes(Const.CHARSET_ASCII),
-        Const.TAG_NAME_QUAL.getBytes(Const.CHARSET_ASCII),
-        Const.TAG_VALUE_QUAL.getBytes(Const.CHARSET_ASCII)
+            UniqueIdType.METRIC.toValue().getBytes(Const.CHARSET_ASCII),
+            UniqueIdType.TAGK.toValue().getBytes(Const.CHARSET_ASCII),
+            UniqueIdType.TAGV.toValue().getBytes(Const.CHARSET_ASCII)
     };
 
     synchronized (LOCK) {
