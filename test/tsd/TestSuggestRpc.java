@@ -12,18 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
-
-import net.opentsdb.core.TSDB;
-
-import net.opentsdb.uid.UniqueIdType;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.when;
-
 import com.codahale.metrics.MetricRegistry;
-import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.TSDB;
+import net.opentsdb.core.TsdbBuilder;
+import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.utils.Config;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -31,33 +26,32 @@ import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class})
+import java.io.IOException;
+import java.nio.charset.Charset;
+
+import static org.junit.Assert.assertEquals;
+
 public final class TestSuggestRpc {
   private TSDB tsdb = null;
   private SuggestRpc s = null;
   
   @Before
-  public void before() {
+  public void before() throws IOException {
     s = new SuggestRpc();
-    tsdb = NettyMocks.getMockedHTTPTSDB();
-    final List<String> metrics = new ArrayList<String>();
-    metrics.add("sys.cpu.0.system"); 
-    metrics.add("sys.mem.free");
-    when(tsdb.getUniqueIdClient().suggest(UniqueIdType.METRIC, "s", tsdb)).thenReturn(Deferred.fromResult(metrics));
-    final List<String> metrics_one = new ArrayList<String>();
-    metrics_one.add("sys.cpu.0.system"); 
-    when(tsdb.getUniqueIdClient().suggest(UniqueIdType.METRIC, "s", 1, tsdb)).thenReturn(Deferred.fromResult(metrics_one));
-    final List<String> tagks = new ArrayList<String>();
-    tagks.add("host");
-    when(tsdb.getUniqueIdClient().suggest(UniqueIdType.TAGK, "h", tsdb)).thenReturn(Deferred.fromResult(tagks));
-    final List<String> tagvs = new ArrayList<String>();
-    tagvs.add("web01.mysite.com");
-    when(tsdb.getUniqueIdClient().suggest(UniqueIdType.TAGV, "w", tsdb)).thenReturn(Deferred.fromResult(tagvs));
+
+    final Config config = new Config(false);
+    final TsdbStore store = new MemoryStore();
+
+    tsdb = TsdbBuilder.createFromConfig(config)
+            .withStore(store)
+            .build();
+    tsdb.initializePlugins();
+
+    store.allocateUID("sys.cpu.0.system", UniqueIdType.METRIC);
+    store.allocateUID("sys.mem.free", UniqueIdType.METRIC);
+    store.allocateUID("host", UniqueIdType.TAGK);
+    store.allocateUID("web01.mysite.com", UniqueIdType.TAGV);
   }
   
   @Test

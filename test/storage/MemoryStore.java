@@ -15,6 +15,7 @@ package net.opentsdb.storage;
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
@@ -23,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import net.opentsdb.core.*;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
@@ -32,6 +34,8 @@ import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Pair;
 import org.hbase.async.*;
@@ -1082,6 +1086,49 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
     throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+    Function<UniqueIdType, Boolean> typeMatchFunction = new Function<UniqueIdType, Boolean>() {
+      @Override
+      public Boolean apply(final UniqueIdType input) {
+        return query.getType() == null || query.getType() == input;
+      }
+    };
+
+    Function<String, Boolean> nameMatchFunction = new Function<String, Boolean>() {
+      @Override
+      public Boolean apply(final String name) {
+        return query.getQuery() == null || name.startsWith(query.getQuery());
+      }
+    };
+
+    final List<Label> result = new ArrayList<Label>();
+
+    for (final Table.Cell<String, UniqueIdType, byte[]> cell : uid_forward_mapping.cellSet()) {
+      if (typeMatchFunction.apply(cell.getColumnKey()) &&
+          nameMatchFunction.apply(cell.getRowKey())) {
+        result.add(new Label() {
+          @Override
+          public byte[] getId() {
+            return cell.getValue();
+          }
+
+          @Override
+          public UniqueIdType getType() {
+            return cell.getColumnKey();
+          }
+
+          @Override
+          public String getName() {
+            return cell.getRowKey();
+          }
+        });
+      }
+    }
+
+    return Deferred.fromResult(result);
   }
 
   /**

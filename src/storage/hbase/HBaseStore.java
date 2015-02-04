@@ -19,8 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricSet;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.InjectableValues;
@@ -50,6 +48,8 @@ import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
@@ -1049,6 +1049,14 @@ public class HBaseStore implements TsdbStore {
             TS_FAMILY);
 
     return r.run().addCallback(new QueryCB());
+  }
+
+  /**
+   * @see net.opentsdb.storage.TsdbStore#executeIdQuery
+   */
+  @Override
+  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+    return new IdQueryRunner(client, uid_table_name, query).search();
   }
 
   /**

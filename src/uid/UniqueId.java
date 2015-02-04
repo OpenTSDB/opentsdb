@@ -16,7 +16,6 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,12 +28,11 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.UIDMeta;
 
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
@@ -47,8 +45,6 @@ import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
-import org.hbase.async.Bytes.ByteMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -107,7 +103,7 @@ public class UniqueId {
    * published.
    */
   private final EventBus idEventBus;
-  
+
   /**
    * Constructor.
    * @param tsdb_store The TsdbStore to use.
@@ -166,12 +162,12 @@ public class UniqueId {
   public short width() {
     return id_width;
   }
-  
+
   /** The largest possible ID given the number of bytes the IDs are represented on. */
   public long maxPossibleId() {
     return (1 << id_width * Byte.SIZE) - 1;
   }
-  
+
   /**
    * Causes this instance to discard all its in-memory caches.
    * @since 1.1
@@ -323,88 +319,6 @@ public class UniqueId {
   }
 
   /**
-   * Attempts to find suggestions of names given a search term.
-   * @param search The search term (possibly empty).
-   * @return A list of known valid names that have UIDs that sort of match
-   * the search term.  If the search term is empty, returns the first few
-   * terms.
-   * @throws HBaseException if there was a problem getting suggestions from
-   * HBase.
-   */
-  public Deferred<List<String>> suggest(final String search) throws HBaseException {
-    return suggest(search, MAX_SUGGESTIONS);
-  }
-
-  /**
-   * Attempts to find suggestions of names given a search term.
-   * @param search The search term (possibly empty).
-   * @return A list of known valid names that have UIDs that sort of match
-   * the search term.  If the search term is empty, returns the first few
-   * terms.
-   * @throws HBaseException if there was a problem getting suggestions from
-   * HBase.
-   * @since 1.1
-   */
-  public Deferred<List<String>> suggest(final String search,
-                                        final int max_results) {
-    checkArgument(max_results > 0, "Count must be greater than 0 but was %s", max_results);
-    return new SuggestCB(search, max_results).search();
-  }
-
-  /**
-   * Helper callback to asynchronously scan TsdbStore for suggestions.
-   */
-  private final class SuggestCB
-    implements Callback<Deferred<List<String>>, ArrayList<ArrayList<KeyValue>>> {
-    private final List<String> suggestions = new LinkedList<String>();
-    private final Scanner scanner;
-    private final int max_results;
-
-    SuggestCB(final String search, final int max_results) {
-      this.max_results = max_results;
-      this.scanner = getSuggestScanner(tsdb_store, table, search, type, max_results);
-    }
-
-    Deferred<List<String>> search() {
-      return scanner.nextRows().addCallbackDeferring(this);
-    }
-
-    @Override
-    public Deferred<List<String>> call(final ArrayList<ArrayList<KeyValue>> rows) {
-      if (rows == null) {  // We're done scanning.
-        return Deferred.fromResult(suggestions);
-      }
-      
-      for (final ArrayList<KeyValue> row : rows) {
-        if (row.size() != 1) {
-          LOG.error("WTF shouldn't happen!  Scanner {} returned a row that " +
-                  "doesn't have exactly 1 KeyValue: {}", scanner, row);
-          if (row.isEmpty()) {
-            continue;
-          }
-        }
-        final byte[] key = row.get(0).key();
-        final String name = StringCoder.fromBytes(key);
-        final byte[] id = row.get(0).value();
-        final byte[] cached_id = name_cache.get(name);
-        if (cached_id == null) {
-          cacheMapping(name, id); 
-        } else if (!Arrays.equals(id, cached_id)) {
-          throw new IllegalStateException("For type=" + type
-            + " name=" + name + ", we have id=" + Arrays.toString(cached_id)
-            + " in cache, but just scanned id=" + Arrays.toString(id));
-        }
-        suggestions.add(name);
-        if ((short) suggestions.size() >= max_results) {  // We have enough.
-          return Deferred.fromResult(suggestions);
-        }
-        row.clear();  // free()
-      }
-      return search();  // Get more suggestions.
-    }
-  }
-
-  /**
    * Reassigns the UID to a different name (non-atomic).
    * <p>
    * Whatever was the UID of {@code oldname} will be given to {@code newname}.
@@ -466,44 +380,6 @@ public class UniqueId {
     return getId(newname).addCallbacks(new NoId(), new NoSuchId());
   }
 
-  /** The start row to scan on empty search strings.  `!' = first ASCII char. */
-  private static final byte[] START_ROW = new byte[] { '!' };
-
-  /** The end row to scan on empty search strings.  `~' = last ASCII char. */
-  private static final byte[] END_ROW = new byte[] { '~' };
-
-  /**
-   * Creates a scanner that scans the right range of rows for suggestions.
-   * @param tsdb_store The TsdbStore to use.
-   * @param tsd_uid_table Table where IDs are stored.
-   * @param search The string to start searching at
-   * @param type The type of UID to search or null for any types.
-   * @param max_results The max number of results to return
-   */
-  private static Scanner getSuggestScanner(final TsdbStore tsdb_store,
-      final byte[] tsd_uid_table, final String search,
-      final UniqueIdType type, final int max_results) {
-    final byte[] start_row;
-    final byte[] end_row;
-    if (search.isEmpty()) {
-      start_row = START_ROW;
-      end_row = END_ROW;
-    } else {
-      start_row = toBytes(search);
-      end_row = Arrays.copyOf(start_row, start_row.length);
-      end_row[start_row.length - 1]++;
-    }
-    final Scanner scanner = tsdb_store.newScanner(tsd_uid_table);
-    scanner.setStartKey(start_row);
-    scanner.setStopKey(end_row);
-    scanner.setFamily(ID_FAMILY);
-    if (type != null) {
-      scanner.setQualifier(type.toValue().getBytes(Const.CHARSET_ASCII));
-    }
-    scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
-    return scanner;
-  }
-
   private static byte[] toBytes(final String s) {
     return s.getBytes(CHARSET);
   }
@@ -527,13 +403,13 @@ public class UniqueId {
   public static String uidToString(final byte[] uid) {
     return DatatypeConverter.printHexBinary(uid);
   }
-  
+
   /**
    * Converts a hex string to a byte array
    * If the {@code uid} is less than {@code uid_length * 2} characters wide, it
    * will be padded with 0s to conform to the spec. E.g. if the tagk width is 3
-   * and the given {@code uid} string is "1", the string will be padded to 
-   * "000001" and then converted to a byte array to reach 3 bytes. 
+   * and the given {@code uid} string is "1", the string will be padded to
+   * "000001" and then converted to a byte array to reach 3 bytes.
    * All {@code uid}s are padded to 1 byte. If given "1", and {@code uid_length}
    * is 0, the uid will be padded to "01" then converted.
    * @param uid The UID to convert
@@ -545,7 +421,7 @@ public class UniqueId {
   public static byte[] stringToUid(final String uid) {
     return stringToUid(uid, (short) 0);
   }
-  
+
   /**
    * Converts a UID to an integer value. The array must be the same length as
    * uid_length or an exception will be thrown.
@@ -558,10 +434,10 @@ public class UniqueId {
    */
   public static long uidToLong(final byte[] uid, final short uid_length) {
     if (uid.length != uid_length) {
-      throw new IllegalArgumentException("UID was " + uid.length 
+      throw new IllegalArgumentException("UID was " + uid.length
           + " bytes long but expected to be " + uid_length);
     }
-    
+
     final byte[] uid_raw = new byte[8];
     System.arraycopy(uid, 0, uid_raw, 8 - uid_length, uid_length);
     return Bytes.getLong(uid_raw);
@@ -582,7 +458,7 @@ public class UniqueId {
     System.arraycopy(uid, 0, uid_raw, 8 - uid.length, uid.length);
     return Bytes.getLong(uid_raw);
   }
- 
+
   /**
    * Converts a Long to a byte array with the proper UID width
    * @param uid The UID to convert
@@ -601,7 +477,7 @@ public class UniqueId {
     // Verify that we're going to drop bytes that are 0.
     for (int i = 0; i < padded.length - width; i++) {
       if (padded[i] != 0) {
-        final String message = "UID " + Long.toString(uid) + 
+        final String message = "UID " + Long.toString(uid) +
           " was too large for " + width + " bytes";
         LOG.error("OMG {}", message);
         throw new IllegalStateException(message);
@@ -611,7 +487,7 @@ public class UniqueId {
     // Shrink the ID on the requested number of bytes.
     return Arrays.copyOfRange(padded, padded.length - width, padded.length);
   }
-  
+
   /**
    * Appends the given UID to the given string buffer, followed by "\\E".
    * @param buf The buffer to append
@@ -637,8 +513,8 @@ public class UniqueId {
    * Converts a hex string to a byte array
    * If the {@code uid} is less than {@code uid_length * 2} characters wide, it
    * will be padded with 0s to conform to the spec. E.g. if the tagk width is 3
-   * and the given {@code uid} string is "1", the string will be padded to 
-   * "000001" and then converted to a byte array to reach 3 bytes. 
+   * and the given {@code uid} string is "1", the string will be padded to
+   * "000001" and then converted to a byte array to reach 3 bytes.
    * All {@code uid}s are padded to 1 byte. If given "1", and {@code uid_length}
    * is 0, the uid will be padded to "01" then converted.
    * @param uid The UID to convert
@@ -681,10 +557,10 @@ public class UniqueId {
       throw new IllegalArgumentException(
           "TSUID is too short, may be missing tags");
     }
-     
+
     final List<byte[]> tags = new ArrayList<byte[]>();
     final int pair_width = (Const.TAG_NAME_WIDTH * 2) + (Const.TAG_VALUE_WIDTH * 2);
-    
+
     // start after the metric then iterate over each tagk/tagv pair
     for (int i = Const.METRICS_WIDTH * 2; i < tsuid.length(); i+= pair_width) {
       if (i + pair_width > tsuid.length()){
@@ -698,7 +574,7 @@ public class UniqueId {
     }
     return tags;
   }
-  
+
   /**
    * Extracts a list of tagk/tagv pairs from a tsuid
    * @param tsuid The tsuid to parse
@@ -714,10 +590,10 @@ public class UniqueId {
       throw new IllegalArgumentException(
           "TSUID is too short, may be missing tags");
     }
-     
+
     final List<byte[]> tags = new ArrayList<byte[]>();
     final int pair_width = Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH;
-    
+
     // start after the metric then iterate over each tagk/tagv pair
     for (int i = Const.METRICS_WIDTH; i < tsuid.length; i+= pair_width) {
       if (i + pair_width > tsuid.length){
@@ -728,9 +604,9 @@ public class UniqueId {
     }
     return tags;
   }
-  
+
   /**
-   * Returns a map of max UIDs from storage for the given list of UID types 
+   * Returns a map of max UIDs from storage for the given list of UID types
    * @param tsdb The TSDB to which we belong
    * @param kinds A list of qualifiers to fetch
    * @param table
@@ -741,18 +617,18 @@ public class UniqueId {
   public static Deferred<Map<String, Long>> getUsedUIDs(final TsdbStore store,
                                                         final byte[][] kinds,
                                                         final byte[] table) {
-    
+
     /**
      * Returns a map with 0 if the max ID row hasn't been initialized yet, 
      * otherwise the map has actual data
      */
-    final class GetCB implements Callback<Map<String, Long>, 
+    final class GetCB implements Callback<Map<String, Long>,
       ArrayList<KeyValue>> {
 
       @Override
       public Map<String, Long> call(final ArrayList<KeyValue> row)
           throws Exception {
-        
+
         final Map<String, Long> results = new HashMap<String, Long>(3);
         if (row == null || row.isEmpty()) {
           // it could be the case that this is the first time the TSD has run
@@ -763,12 +639,12 @@ public class UniqueId {
           }
           return results;
         }
-        
+
         for (final KeyValue column : row) {
-          results.put(new String(column.qualifier(), CHARSET), 
+          results.put(new String(column.qualifier(), CHARSET),
               Bytes.getLong(column.value()));
         }
-        
+
         // if the user is starting with a fresh UID table, we need to account
         // for missing columns
         for (final byte[] kind : kinds) {
@@ -778,9 +654,9 @@ public class UniqueId {
         }
         return results;
       }
-      
+
     }
-    
+
     final GetRequest get = new GetRequest(table, MAXID_ROW)
         .family(ID_FAMILY)
         .qualifiers(kinds);
@@ -791,68 +667,39 @@ public class UniqueId {
   /**
    * Pre-load UID caches, scanning up to "tsd.core.preload_uid_cache.max_entries"
    * rows from the UID table.
-   * @param uid_cache_map A map of {@link net.opentsdb.uid.UniqueId} objects keyed on the kind.
+   * @param uniqueIdInstances A map of {@link net.opentsdb.uid.UniqueId} objects keyed on the kind.
    * @throws HBaseException Passes any HBaseException from HBase scanner.
    * @throws RuntimeException Wraps any non HBaseException from HBase scanner.
    * @2.1
    */
   public static void preloadUidCache(final Config config,
                                      final TsdbStore store,
-                                     final ByteMap<UniqueId> uid_cache_map) throws HBaseException {
-    int max_results = config.getInt(
-        "tsd.core.preload_uid_cache.max_entries");
+                                     final Map<UniqueIdType,UniqueId> uniqueIdInstances) {
+    int max_results = config.getInt("tsd.core.preload_uid_cache.max_entries");
     LOG.info("Preloading uid cache with max_results={}", max_results);
-
-    final byte[] uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
 
     if (max_results <= 0) {
       return;
     }
-    Scanner scanner = null;
+
     try {
-      int num_rows = 0;
-      scanner = getSuggestScanner(store, uidtable, "", null,
-          max_results);
-      for (ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
-          rows != null;
-          rows = scanner.nextRows().join()) {
-        for (final ArrayList<KeyValue> row : rows) {
-          for (KeyValue kv: row) {
-            final String name = StringCoder.fromBytes(kv.key());
-            final byte[] kind = kv.qualifier();
-            final byte[] id = kv.value();
-            LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
-                name, StringCoder.fromBytes(kind));
-            UniqueId uid_cache = uid_cache_map.get(kind);
-            if (uid_cache != null) {
-              uid_cache.cacheMapping(name, id);
-            }
-          }
-          num_rows += row.size();
-          row.clear();  // free()
-          if (num_rows >= max_results) {
-            break;
-          }
-        }
+      IdQuery idQuery = new IdQuery(null, null, max_results);
+      List<Label> ids = store.executeIdQuery(idQuery).join();
+
+      for (final Label id : ids) {
+        LOG.debug("Preloaded {}", id);
+        UniqueId uid_cache = uniqueIdInstances.get(id.getType());
+        uid_cache.cacheMapping(id.getName(), id.getId());
       }
-      for (UniqueId unique_id_table : uid_cache_map.values()) {
+
+      for (UniqueId unique_id_table : uniqueIdInstances.values()) {
         LOG.info("After preloading, uid cache '{}' has {} ids and {} names.",
-                 unique_id_table.type,
-                 unique_id_table.id_cache.size(),
-                 unique_id_table.name_cache.size());
+                unique_id_table.type,
+                unique_id_table.id_cache.size(),
+                unique_id_table.name_cache.size());
       }
     } catch (Exception e) {
-      if (e instanceof HBaseException) {
-        throw (HBaseException)e;
-      } else if (e instanceof RuntimeException) {
-        throw (RuntimeException)e;
-      } else {
-        throw new RuntimeException("Error while preloading IDs", e);
-      }
-    } finally {
-      if (scanner != null) {
-        scanner.close();
-      }
+      Throwables.propagate(e);
     }
   }
 }

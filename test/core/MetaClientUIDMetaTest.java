@@ -47,7 +47,7 @@ public class MetaClientUIDMetaTest {
     idEventBus = new EventBus();
     store = new MemoryStore();
 
-    uniqueIdClient = new UniqueIdClient(store, config, new Metrics(new MetricRegistry()), idEventBus);
+    uniqueIdClient = new UniqueIdClient(store, config, new Metrics(new MetricRegistry()), idEventBus, searchPlugin);
     treeClient = new TreeClient(store);
     metaClient = new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
 

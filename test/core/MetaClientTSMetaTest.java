@@ -69,7 +69,7 @@ import static org.mockito.Mockito.when;
     searchPlugin = mock(SearchPlugin.class);
     final RTPublisher realtimePublisher = mock(RTPublisher.class);
 
-    UniqueIdClient uniqueIdClient = new UniqueIdClient(tsdb_store, config, new Metrics(new MetricRegistry()), idEventBus);
+    UniqueIdClient uniqueIdClient = new UniqueIdClient(tsdb_store, config, new Metrics(new MetricRegistry()), idEventBus, searchPlugin);
     TreeClient treeClient = new TreeClient(tsdb_store);
     metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
 

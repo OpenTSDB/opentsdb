@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 
 import com.google.common.base.Throwables;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
@@ -84,12 +86,10 @@ final class SuggestRpc implements HttpRpc {
       throw new BadRequestException("Invalid 'type' parameter:" + type, e);
     }
 
-    final List<String> suggestions;
+    final List<Label> suggestions;
     try {
-      if (max_results > 0)
-        suggestions = tsdb.getUniqueIdClient().suggest(utype, q, max_results, tsdb).joinUninterruptibly();
-      else
-        suggestions = tsdb.getUniqueIdClient().suggest(utype, q, tsdb).joinUninterruptibly();
+      IdQuery idQuery = new IdQuery(q, utype, max_results);
+      suggestions = tsdb.getUniqueIdClient().suggest(idQuery).joinUninterruptibly();
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }

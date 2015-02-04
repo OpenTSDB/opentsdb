@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.eventbus.EventBus;
+import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
@@ -17,6 +18,8 @@ import net.opentsdb.utils.Config;
 import com.codahale.metrics.MetricRegistry;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static net.opentsdb.uid.UniqueIdType.TAGK;
@@ -29,8 +32,12 @@ public class UniqueIdClientTest {
   private MemoryStore tsdb_store;
   private UniqueIdClient uniqueIdClient;
 
+  @Mock private SearchPlugin searchPlugin;
+
   @Before
   public void before() throws Exception {
+    MockitoAnnotations.initMocks(this);
+
     config = new Config(false);
     config.setFixDuplicates(true); // TODO(jat): test both ways
     tsdb_store = new MemoryStore();
@@ -39,7 +46,7 @@ public class UniqueIdClientTest {
             .build();
 
     uniqueIdClient = new UniqueIdClient(tsdb_store, config, new Metrics
-            (new MetricRegistry()), new EventBus());
+            (new MetricRegistry()), new EventBus(), searchPlugin);
   }
 
   /**

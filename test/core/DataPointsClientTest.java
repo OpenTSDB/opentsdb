@@ -38,7 +38,7 @@ public class DataPointsClientTest {
     store = new MemoryStore();
 
     EventBus idEventBus = new EventBus();
-    final UniqueIdClient uniqueIdClient = new UniqueIdClient(store, config, new Metrics(new MetricRegistry()), idEventBus);
+    final UniqueIdClient uniqueIdClient = new UniqueIdClient(store, config, new Metrics(new MetricRegistry()), idEventBus, searchPlugin);
     final TreeClient treeClient = new TreeClient(store);
     final MetaClient metaClient = new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
     dataPointsClient = new DataPointsClient(store, config, uniqueIdClient, metaClient, realtimePublisher);

@@ -26,6 +26,8 @@ import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.Label;
 import org.hbase.async.*;
 
 import java.util.ArrayList;
@@ -117,6 +119,17 @@ public interface TsdbStore {
    * @param query The query to execute
    */
   Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
+
+  /**
+   * Lookup all IDs that matches the provided {@link net.opentsdb.uid.IdQuery}.
+   * There are no demands on how the exact the results are but the lookup should
+   * be efficient. In fact, the provided should be viewed as a hint about what
+   * should be returned but in reality all IDs or nothing at all may be returned.
+   *
+   * @param query An object that describes the query parameters
+   * @return A deferred with a list of matching IDs
+   */
+  Deferred<List<Label>> executeIdQuery(final IdQuery query);
 
   Deferred<Tree> fetchTree(final int tree_id);
 
