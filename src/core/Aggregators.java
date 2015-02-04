@@ -15,6 +15,7 @@ package net.opentsdb.core;
 import java.util.HashMap;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.Random;
 
 /**
  * Utility class that provides common, generally useful aggregators.
@@ -65,6 +66,18 @@ public final class Aggregators {
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
+
+  /** Returns the first data point. */
+  public static final Aggregator FIRST = new First(
+      Interpolation.LERP, "first");  
+
+  /** Returns the first data point. */
+  public static final Aggregator Last = new Last(
+      Interpolation.LERP, "last");  
+
+  /** Returns a random data point.*/
+  public static final Aggregator RAND = new Rand(
+      Interpolation.LERP, "random"); 
   
   /** Maps an aggregator name to its instance. */
   private static final HashMap<String, Aggregator> aggregators;
@@ -79,6 +92,9 @@ public final class Aggregators {
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
     aggregators.put("mimmax", MIMMAX);
+    aggregators.put("first", FIRST);
+    aggregators.put("last", FIRST);
+    aggregators.put("random", RAND);
   }
 
   private Aggregators() {
@@ -331,5 +347,140 @@ public final class Aggregators {
     }
     
   }
+
+
+  /**
+  *     Aggregator downsampling by returning the first item
+  */
+  private static final class First implements Aggregator {
+    private final Interpolation method;
+    private final String name;
+    
+    public First(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
+    public long runLong(final Longs values) {
+      final long x = values.nextLongValue();
+      //must run through values
+      while (values.hasNextValue()) {
+        values.nextLongValue();
+      }
+      return x;
+    }
+
+    public double runDouble(final Doubles values) {
+      final double x = values.nextDoubleValue();
+      //must run through values
+      while (values.hasNextValue()) {
+        values.nextDoubleValue();
+      }
+      return x;
+    }
+
+    public String toString() {
+      return name;
+    }
+  
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+  }
+  
+  /**
+  *     Aggregator downsampling by returning the last item
+  */
+  private static final class Last implements Aggregator {
+    private final Interpolation method;
+    private final String name;
+    
+    public Last(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
+    public long runLong(final Longs values) {
+      long x = values.nextLongValue();
+      //must run through values
+      while (values.hasNextValue()) {
+        x = values.nextLongValue();
+      }
+      return x;
+    }
+
+    public double runDouble(final Doubles values) {
+      double x = values.nextDoubleValue();
+      //must run through values
+      while (values.hasNextValue()) {
+        x = values.nextDoubleValue();
+      }
+      return x;
+    }
+
+    public String toString() {
+      return name;
+    }
+  
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+  }
+  
+  /**
+  *     Aggregator downsampling by returning a randomly selected item.
+  *     Uses Reservoir Sampling to generate random item.
+  */
+  private static final class Rand implements Aggregator {
+    private final Interpolation method;
+    private final String name;
+    
+    public Rand(final Interpolation method, final String name) {
+      this.method = method;
+      this.name = name;
+    }
+    
+    public long runLong(final Longs values) {
+      long x = values.nextLongValue();
+      double n = 1.0;
+      Random r = new Random(); 
+      double rval = 0.0;
+      while (values.hasNextValue()) {
+        rval = r.nextDouble() * (n + 2.0);
+        if( rval < 1.0)
+          x = values.nextLongValue();
+        else
+          values.nextLongValue();
+        n++;
+      }
+      return x;
+    }
+
+    public double runDouble(final Doubles values) {
+      double x = values.nextDoubleValue();
+      double n = 1.0;
+      Random r = new Random(); 
+      double rval = 0.0;
+      while (values.hasNextValue()) {
+        rval = r.nextDouble() * (n + 2.0);
+        if( rval < 1.0)
+          x = values.nextDoubleValue();
+        else
+          values.nextDoubleValue();
+        n++;
+      }
+      return x;
+    }
+
+    public String toString() {
+      return name;
+    }
+  
+    public Interpolation interpolationMethod() {
+      return method;
+    }
+  }
+
+
 
 }
