@@ -12,108 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.search;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
-import com.google.common.collect.Maps;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
+import com.stumbleupon.async.Callback;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.utils.Config;
-import net.opentsdb.utils.PluginLoader;
-
-import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import com.stumbleupon.async.Callback;
+import static org.junit.Assert.assertNotNull;
 
-import java.util.Map;
-
-public final class TestSearchPlugin {
-  private TSDB tsdb;
-  private Config config;
-  private SearchPlugin search;
-  
-  @Before
-  public void before() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.search.DummySearchPlugin.hosts", "localhost");
-    overrides.put("tsd.search.DummySearchPlugin.port", "42");
-    config = new Config(false, overrides);
-
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .build();
-
-    // setups a good default for the config
-    search = PluginLoader.loadSpecificPlugin(
-        "net.opentsdb.search.DummySearchPlugin", SearchPlugin.class);
-  }
-  
-  @Test
-  public void initialize() throws Exception {
-    search.initialize(tsdb);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void initializeMissingHost() throws Exception {
-    tsdb = TsdbBuilder.createFromConfig(new Config(false))
-            .withStore(new MemoryStore())
-            .withSearchPlugin(search)
-            .build();
-    search.initialize(tsdb);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void initializeEmptyHost() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.search.DummySearchPlugin.hosts", "");
-    config = new Config(false, overrides);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .withSearchPlugin(search)
-            .build();
-
-    search.initialize(tsdb);
-  }
-  
-  @Test (expected = NumberFormatException.class)
-  public void initializeMissingPort() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.search.DummySearchPlugin.hosts", "localhost");
-    config = new Config(false, overrides);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .withSearchPlugin(search)
-            .build();
-
-    search.initialize(tsdb);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void initializeInvalidPort() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.search.DummySearchPlugin.port", "no number");
-    config = new Config(false, overrides);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .withSearchPlugin(search)
-            .build();
-
-    search.initialize(tsdb);
-  }
+public abstract class TestSearchPlugin {
+  protected SearchPlugin search;
   
   @Test
   public void shutdown() throws Exception  {
     assertNotNull(search.shutdown());
-  }
-  
-  @Test
-  public void version() throws Exception  {
-    assertEquals("2.0.0", search.version());
   }
   
   @Test

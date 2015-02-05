@@ -200,7 +200,6 @@ test_SRC := \
 	test/plugin/DummyPlugin.java \
 	test/plugin/DummyPluginA.java \
 	test/plugin/DummyPluginB.java \
-	test/search/DummySearchPlugin.java \
 	test/search/TestSearchPlugin.java \
 	test/search/TestSearchQuery.java \
 	test/search/TestTimeSeriesLookup.java \
@@ -230,7 +229,6 @@ test_SRC := \
 	test/tree/TestTreeBuilder.java \
 	test/tree/TestTreeRule.java \
 	test/tsd/DummyHttpSerializer.java \
-	test/tsd/DummyRTPublisher.java \
 	test/tsd/NettyMocks.java \
 	test/tsd/RpcJSONUtils.java \
 	test/tsd/TestAnnotationRpc.java \

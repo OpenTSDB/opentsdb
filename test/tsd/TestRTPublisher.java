@@ -12,105 +12,19 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import com.google.common.collect.Maps;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.utils.Config;
-import net.opentsdb.utils.PluginLoader;
-
-import org.junit.Before;
 import org.junit.Test;
 
-public final class TestRTPublisher {
-  private TSDB tsdb;
-  private Config config;
-  private RTPublisher rt_publisher;
+import java.util.HashMap;
 
-  @Before
-  public void before() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
-    overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
-    config = new Config(false, overrides);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .build();
+import static org.junit.Assert.assertNotNull;
 
-    rt_publisher = PluginLoader.loadSpecificPlugin(
-        "net.opentsdb.tsd.DummyRTPublisher", RTPublisher.class);
-  }
-  
-  @Test
-  public void initialize() throws Exception {
-    rt_publisher.initialize(tsdb);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void initializeMissingHost() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
-    config = new Config(false, overrides);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .build();
-
-    rt_publisher.initialize(tsdb);
-  }
-
-  @Test (expected = IllegalArgumentException.class)
-  public void initializeEmptyHost() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "");
-    overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "42");
-    config = new Config(false, overrides);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .build();
-
-    rt_publisher.initialize(tsdb);
-  }
-  
-  @Test (expected = NumberFormatException.class)
-  public void initializeMissingPort() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
-    config = new Config(false, overrides);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .build();
-
-    rt_publisher.initialize(tsdb);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void initializeInvalidPort() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.rtpublisher.DummyRTPublisher.hosts", "localhost");
-    overrides.put("tsd.rtpublisher.DummyRTPublisher.port", "not a number");
-    config = new Config(false, overrides);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(new MemoryStore())
-            .build();
-
-    rt_publisher.initialize(tsdb);
-  }
+public abstract class TestRTPublisher {
+  protected RTPublisher rt_publisher;
   
   @Test
   public void shutdown() throws Exception  {
     assertNotNull(rt_publisher.shutdown());
-  }
-  
-  @Test
-  public void version() throws Exception  {
-    assertEquals("2.0.0", rt_publisher.version());
   }
   
   @Test
@@ -131,5 +45,4 @@ public final class TestRTPublisher {
 	  ann.setStartTime(System.currentTimeMillis());	  
 	  assertNotNull(rt_publisher.publishAnnotation(ann));
   }
-  
 }
