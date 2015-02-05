@@ -131,11 +131,6 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
   public Deferred<Object> flush() {
     return Deferred.fromResult(null);
   }

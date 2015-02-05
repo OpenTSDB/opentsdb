@@ -79,7 +79,6 @@ final class DumpSeries {
     
     final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
     formatter = new UidFormatter(tsdb);
-    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     final byte[] table = config.getString("tsd.storage.hbase.data_table").getBytes();
     final boolean delete = argp.has("--delete");
     final boolean importformat = delete || argp.has("--import");

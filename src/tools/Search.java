@@ -69,7 +69,6 @@ final class Search {
     
     Config config = CliOptions.getConfig(argp);
     final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
-    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     
     int rc;
     try {
@@ -128,10 +127,6 @@ final class Search {
   private static int lookup(final TSDB tsdb,
                             final boolean use_data_table,
                             final String[] args) throws Exception {
-    if (!use_data_table) {
-      tsdb.checkNecessaryTablesExist().joinUninterruptibly();
-    }
-    
     final SearchQuery query = new SearchQuery();
     query.setType(SearchType.LOOKUP);
     
