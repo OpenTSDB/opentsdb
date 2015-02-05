@@ -9,6 +9,7 @@ import net.opentsdb.tree.TreeRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ public class TreeClient {
 
   private final TsdbStore store;
 
+  @Inject
   public TreeClient(final TsdbStore store) {
     this.store = checkNotNull(store);
   }

@@ -26,6 +26,8 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import org.hbase.async.Bytes;
 
+import javax.inject.Inject;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -47,6 +49,7 @@ public class UniqueIdClient {
 
   private final SearchPlugin searchPlugin;
 
+  @Inject
   public UniqueIdClient(final TsdbStore tsdbStore,
                         final Config config,
                         final Metrics metricsRegistry,
