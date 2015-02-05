@@ -18,7 +18,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.RowKey;
 import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
@@ -42,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Future;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -58,11 +56,11 @@ public class CassandraStore implements TsdbStore {
     /**
      * The Cassandra cluster that we are connected to.
      */
-    private Cluster cluster;
+    private final Cluster cluster;
     /**
      * The current Cassandra session.
      */
-    private Session session;
+    private final Session session;
     /**
      * The statement used by the {@link #addPoint} method.
      */
@@ -653,7 +651,7 @@ public class CassandraStore implements TsdbStore {
     /**
      * Calculate the base time based on a timestamp to be used in a row key.
      */
-    public static long buildBaseTime(final long timestamp) {
+    private static long buildBaseTime(final long timestamp) {
         if ((timestamp & Const.SECOND_MASK) != 0) {
             // drop the ms timestamp to seconds to calculate the base timestamp
             return ((timestamp / 1000) - ((timestamp / 1000) % Const.MAX_TIMESPAN));
