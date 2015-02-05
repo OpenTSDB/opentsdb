@@ -248,6 +248,14 @@
   </build>
 
   <dependencies>
+
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service</artifactId>
+      <version>@AUTO_SERVICE_VERSION@</version>
+      <optional>true</optional>
+    </dependency>
+
     <dependency>
       <groupId>com.datastax.cassandra</groupId>
       <artifactId>cassandra-driver-core</artifactId>
@@ -255,9 +263,15 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.auto.service</groupId>
-      <artifactId>auto-service</artifactId>
-      <version>@AUTO_SERVICE_VERSION@</version>
+      <groupId>com.squareup.dagger</groupId>
+      <artifactId>dagger</artifactId>
+      <version>@DAGGER_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.squareup.dagger</groupId>
+      <artifactId>dagger-compiler</artifactId>
+      <version>@DAGGER_VERSION@</version>
       <optional>true</optional>
     </dependency>
 
