@@ -181,7 +181,6 @@ final class UidManager {
       // so that update meta data can be pushed to search engines
       try {
         tsdb.checkNecessaryTablesExist().joinUninterruptibly();
-        tsdb.initializePlugins();
         return metaSync(tsdb);
       } catch (Exception e) {
         LOG.error("Unexpected exception", e);

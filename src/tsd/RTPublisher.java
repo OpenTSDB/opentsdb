@@ -16,22 +16,17 @@ import java.util.Map;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Internal;
-import net.opentsdb.core.Plugin;
-import net.opentsdb.core.PluginError;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.Plugin;
+import net.opentsdb.core.PluginError;
 
 /**
  * Real Time publisher plugin interface that is used to emit data from a TSD
  * as data comes in. Initially it supports publishing data points immediately
  * after they are queued for storage. In the future we may support publishing
  * meta data or other types of information as changes are made.
- * <p>
- * <b>Note:</b> Implementations must have a parameterless constructor. The 
- * {@link #initialize(TSDB)} method will be called immediately after the plugin is
- * instantiated and before any other methods are called.
  * <p>
  * <b>Warning:</b> All processing should be performed asynchronously and return
  * a Deferred as quickly as possible.

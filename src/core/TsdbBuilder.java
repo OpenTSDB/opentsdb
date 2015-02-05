@@ -1,7 +1,9 @@
 package net.opentsdb.core;
 
+import net.opentsdb.tsd.RTPublisherDescriptor;
 import net.opentsdb.search.DefaultSearchPlugin;
 import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.search.SearchPluginDescriptor;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreSupplier;
 import net.opentsdb.storage.TsdbStore;
@@ -58,17 +60,21 @@ public class TsdbBuilder {
   public static TsdbBuilder createFromConfig(final Config config) {
     checkNotNull(config);
 
-    final Metrics metrics = new Metrics(new MetricRegistry());
-    final TsdbBuilder builder = new TsdbBuilder(config, metrics);
+    try {
+      final Metrics metrics = new Metrics(new MetricRegistry());
+      final TsdbBuilder builder = new TsdbBuilder(config, metrics);
 
-    StoreSupplier storeSupplier = new StoreSupplier(config,
-        ServiceLoader.load(StoreDescriptor.class), metrics);
+      StoreSupplier storeSupplier = new StoreSupplier(config,
+              ServiceLoader.load(StoreDescriptor.class), metrics);
 
-    builder.withStoreSupplier(storeSupplier)
-            .withSearchPlugin(loadSearchPlugin(config))
-            .withRealtimePublisher(loadRealtimePublisher(config));
+      builder.withStoreSupplier(storeSupplier)
+              .withSearchPlugin(loadSearchPlugin(config, storeSupplier))
+              .withRealtimePublisher(loadRealtimePublisher(config));
 
-    return builder;
+      return builder;
+    } catch (Exception e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   /**
@@ -76,11 +82,14 @@ public class TsdbBuilder {
    * @param config The config object to read from
    * @return The configured realtime publisher or the default discarding one.
    */
-  private static RTPublisher loadRealtimePublisher(final Config config) {
+  private static RTPublisher loadRealtimePublisher(final Config config) throws Exception {
     // load the realtime publisher plugin if enabled
     if (config.getBoolean("tsd.rtpublisher.enable")) {
-      return PluginLoader.loadSpecificPlugin(
-              config.getString("tsd.rtpublisher.plugin"), RTPublisher.class);
+      RTPublisherDescriptor descriptor = PluginLoader.loadSpecificPlugin(
+              config.getString("tsd.rtpublisher.plugin"),
+              RTPublisherDescriptor.class);
+
+      return descriptor.create(config);
     }
 
     return defaultRealtimePublisher();
@@ -89,24 +98,29 @@ public class TsdbBuilder {
   /**
    * Load the search plugin that the config describes and return it.
    * @param config The config object to read from
+   * @param storeSupplier
    * @return The configured search plugin or the default discarding one.
    */
-  private static SearchPlugin loadSearchPlugin(final Config config) {
+  private static SearchPlugin loadSearchPlugin(final Config config,
+                                               final StoreSupplier storeSupplier) throws Exception {
     // load the search plugin if enabled
     if (config.getBoolean("tsd.search.enable")) {
-      return PluginLoader.loadSpecificPlugin(
-              config.getString("tsd.search.plugin"), SearchPlugin.class);
+      SearchPluginDescriptor descriptor = PluginLoader.loadSpecificPlugin(
+              config.getString("tsd.search.plugin"),
+              SearchPluginDescriptor.class);
+
+      return descriptor.create(config);
     }
 
-    return defaultSearchPlugin();
+    return defaultSearchPlugin(storeSupplier.get());
   }
 
   private static RTPublisher defaultRealtimePublisher() {
     return new DefaultRealtimePublisher();
   }
 
-  private static SearchPlugin defaultSearchPlugin() {
-    return new DefaultSearchPlugin();
+  private static SearchPlugin defaultSearchPlugin(final TsdbStore store) {
+    return new DefaultSearchPlugin(store);
   }
 
   /***
@@ -116,9 +130,6 @@ public class TsdbBuilder {
                      final Metrics metrics) {
     this.config = checkNotNull(config);
     this.metrics = checkNotNull(metrics);
-
-    searchPlugin = defaultSearchPlugin();
-    realtimePublisher = defaultRealtimePublisher();
   }
 
   /**

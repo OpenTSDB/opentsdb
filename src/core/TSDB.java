@@ -140,34 +140,6 @@ public class TSDB {
   public TreeClient getTreeClient() {
     return treeClient;
   }
-
-  /**
-   * Should be called immediately after construction to initialize plugins and
-   * objects that rely on such. It also moves most of the potential exception
-   * throwing code out of the constructor so TSDMain can shutdown clients and
-   * such properly.
-   * @throws RuntimeException if the plugin path could not be processed
-   * @throws IllegalArgumentException if a plugin could not be initialized
-   * @since 2.0
-   */
-  public void initializePlugins() {
-    try {
-      search.initialize(this);
-      LOG.info("Successfully initialized search plugin [{}] version: {}",
-              search.getClass().getCanonicalName(), search.version());
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to initialize search plugin", e);
-    }
-
-    try {
-      rt_publisher.initialize(this);
-      LOG.info("Successfully initialized real time publisher plugin [{}] version: {}",
-              rt_publisher.getClass().getCanonicalName(), rt_publisher.version());
-    } catch (Exception e) {
-      throw new RuntimeException(
-              "Failed to initialize real time publisher plugin", e);
-    }
-  }
   
   /** 
    * Returns the configured TsdbStore

@@ -18,10 +18,6 @@ import com.stumbleupon.async.Deferred;
  */
 public class DefaultRealtimePublisher extends RTPublisher {
   @Override
-  public void initialize(final TSDB tsdb) {
-  }
-
-  @Override
   public Deferred<Object> shutdown() {
     return Deferred.fromResult(null);
   }

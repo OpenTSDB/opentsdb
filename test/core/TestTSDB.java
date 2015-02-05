@@ -47,12 +47,6 @@ public final class TestTSDB {
   }
   
   @Test
-  public void initializePlugins() {
-    // no configured plugin path, plugins disabled, no exceptions
-    tsdb.initializePlugins();
-  }
-  
-  @Test
   public void getClient() {
     assertNotNull(tsdb.getTsdbStore());
   }

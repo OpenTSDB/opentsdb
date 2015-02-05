@@ -46,7 +46,6 @@ public final class TestSuggestRpc {
     tsdb = TsdbBuilder.createFromConfig(config)
             .withStore(store)
             .build();
-    tsdb.initializePlugins();
 
     store.allocateUID("sys.cpu.0.system", UniqueIdType.METRIC);
     store.allocateUID("sys.mem.free", UniqueIdType.METRIC);

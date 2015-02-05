@@ -142,7 +142,6 @@ final class TSDMain {
     TSDB tsdb = null;
     try {
       tsdb = TsdbBuilder.createFromConfig(config).build();
-      tsdb.initializePlugins();
       
       // Make sure we don't even start if we can't find our tables.
       tsdb.checkNecessaryTablesExist().joinUninterruptibly();
