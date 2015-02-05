@@ -401,7 +401,7 @@ public class TSUIDQuery {
         final byte[] key = RowKey.rowKeyFromTSUID(tsuid, previous_time);
         final GetRequest get = new GetRequest(tsdb.dataTable(), key);
         get.family(TSDB.FAMILY());
-        tsdb.getTsdbStore().get(get).addCallback(
+        tsdb.getHBaseStore().get(get).addCallback(
             new Internal.GetLastDataPointCB(tsdb))
             .addCallback(new ReturnCB(previous_time))
             .addErrback(new ErrBack());
@@ -427,7 +427,7 @@ public class TSUIDQuery {
         final GetRequest get = new GetRequest(tsdb.dataTable(), key);
         get.family(TSDB.FAMILY());
         
-        tsdb.getTsdbStore().get(get).addCallback(
+        tsdb.getHBaseStore().get(get).addCallback(
             new Internal.GetLastDataPointCB(tsdb))
             .addCallback(new ReturnCB(0))
             .addErrback(new ErrBack());
@@ -445,7 +445,7 @@ public class TSUIDQuery {
         final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
         get.family(TSMeta.FAMILY());
         get.qualifier(TSMeta.COUNTER_QUALIFIER());
-        tsdb.getTsdbStore().get(get)
+        tsdb.getHBaseStore().get(get)
           .addCallback(new ExistsCB())
           .addErrback(new ErrBack());
       } else {
@@ -453,7 +453,7 @@ public class TSUIDQuery {
         final GetRequest get = new GetRequest(tsdb.dataTable(), key);
         get.family(TSDB.FAMILY());
         
-        tsdb.getTsdbStore().get(get).addCallback(
+        tsdb.getHBaseStore().get(get).addCallback(
             new Internal.GetLastDataPointCB(tsdb))
             .addCallback(new ReturnCB(0))
             .addErrback(new ErrBack());
@@ -462,7 +462,7 @@ public class TSUIDQuery {
       final byte[] key = RowKey.rowKeyFromTSUID(tsuid, start_time);
       final GetRequest get = new GetRequest(tsdb.dataTable(), key);
       get.family(TSDB.FAMILY());
-      tsdb.getTsdbStore().get(get).addCallback(
+      tsdb.getHBaseStore().get(get).addCallback(
           new Internal.GetLastDataPointCB(tsdb))
           .addCallback(new ReturnCB(start_time))
           .addErrback(new ErrBack());
@@ -476,7 +476,7 @@ public class TSUIDQuery {
    * @return A configured scanner
    */
   private Scanner getScanner() {
-    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.metaTable());
+    final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.metaTable());
     scanner.setStartKey(metric);
     
     // increment the metric UID by one so we can scan all of the rows for the

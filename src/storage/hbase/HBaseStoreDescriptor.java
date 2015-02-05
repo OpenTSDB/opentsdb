@@ -8,11 +8,13 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.StoreDescriptor;
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.HBaseClient;
 
-import java.util.ArrayList;
+import static net.opentsdb.stats.Metrics.name;
+import static net.opentsdb.stats.Metrics.tag;
 
 @AutoService(StoreDescriptor.class)
 public class HBaseStoreDescriptor extends StoreDescriptor {
@@ -27,6 +29,8 @@ public class HBaseStoreDescriptor extends StoreDescriptor {
     registry.registerAll(new HBaseClientStats(client));
     registry.registerAll(new CompactionQueue
             .CompactionQueueMetrics(store.getCompactionQueue()));
+
+    registerIdUsageGuages(client, registry, config);
 
     return store;
   }
@@ -92,5 +96,46 @@ public class HBaseStoreDescriptor extends StoreDescriptor {
         return checkTableExists(client, table);
       }
     });
+  }
+
+  /**
+   * Register ID usage guages for all {@link net.opentsdb.uid.UniqueIdType} on
+   * the provided registry.
+   *
+   * @param client    The client to use for communication with HBase
+   * @param registry  The registry to register the gauges on
+   * @param config    A config instance used to looking up which table to look in.
+   */
+  private void registerIdUsageGuages(final HBaseClient client,
+                                     final MetricRegistry registry,
+                                     final Config config) {
+    final byte[] table = config.getString("tsd.storage.hbase.uid_table")
+            .getBytes(HBaseConst.CHARSET);
+
+    registerIdUsageGauge(client, registry, table, UniqueIdType.METRIC);
+    registerIdUsageGauge(client, registry, table, UniqueIdType.TAGK);
+    registerIdUsageGauge(client, registry, table, UniqueIdType.TAGV);
+  }
+
+  /**
+   * Register ID usage guages for a single {@link net.opentsdb.uid.UniqueIdType}
+   * on the provided registry.
+   *
+   * @param client   The client to use for communication with HBase
+   * @param registry The registry to register the gauges on
+   * @param table    The table to look for ID usage information in
+   * @param type     The type of IDs to register a gauge for
+   */
+  private void registerIdUsageGauge(final HBaseClient client,
+                                    final MetricRegistry registry,
+                                    final byte[] table,
+                                    final UniqueIdType type) {
+    Metrics.Tag typeTag = tag("kind", type.toValue());
+
+    UsedIdsGauge usedIdsGauge = new UsedIdsGauge(type, client, table);
+    registry.register(name("uid.ids-used", typeTag), usedIdsGauge);
+
+    registry.register(name("uid.ids-available", typeTag),
+            new AvailableIdsGauge(usedIdsGauge, type.width));
   }
 }

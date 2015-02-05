@@ -106,13 +106,6 @@ public final class TestUniqueId {
     uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
     assertEquals(3, uid.width());
   }
-
-  @Test
-  public void testMaxPossibleId() {
-    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus)).maxPossibleId());
-    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGK, metrics, idEventBus)).maxPossibleId());
-    assertEquals(16777215L, (new UniqueId(client, table, UniqueIdType.TAGV, metrics, idEventBus)).maxPossibleId());
-  } 
   
   @Test
   public void getNameSuccessfulLookup() throws Exception {
@@ -405,44 +398,7 @@ public final class TestUniqueId {
   public void getTagFromTSUIDEmpty() {
     UniqueId.getTagsFromTSUID("");
   }
-  
-  @Test
-  public void getUsedUIDs() throws Exception {
-    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3);
-    final byte[] metrics = { 'm', 'e', 't', 'r', 'i', 'c', 's' };
-    final byte[] tagk = { 't', 'a', 'g', 'k' };
-    final byte[] tagv = { 't', 'a', 'g', 'v' };
-    kvs.add(new KeyValue(MAXID, ID, metrics, Bytes.fromLong(64L)));
-    kvs.add(new KeyValue(MAXID, ID, tagk, Bytes.fromLong(42L)));
-    kvs.add(new KeyValue(MAXID, ID, tagv, Bytes.fromLong(1024L)));
-    
-    final byte[][] kinds = { metrics, tagk, tagv };
-    final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb.getTsdbStore(), kinds, table)
-      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertNotNull(uids);
-    assertEquals(3, uids.size());
-    assertEquals(64L, uids.get("metrics").longValue());
-    assertEquals(42L, uids.get("tagk").longValue());
-    assertEquals(1024L, uids.get("tagv").longValue());
-  }
-  
-  @Test
-  public void getUsedUIDsEmptyRow() throws Exception {
-    final byte[] metrics = { 'm', 'e', 't', 'r', 'i', 'c', 's' };
-    final byte[] tagk = { 't', 'a', 'g', 'k' };
-    final byte[] tagv = { 't', 'a', 'g', 'v' };
-    
-    final byte[][] kinds = { metrics, tagk, tagv };
-    final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb.getTsdbStore(), kinds, table)
-      .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertNotNull(uids);
-    assertEquals(3, uids.size());
-    assertEquals(0L, uids.get("metrics").longValue());
-    assertEquals(0L, uids.get("tagk").longValue());
-    assertEquals(0L, uids.get("tagv").longValue());
-  }
-  
-  @Test
+
   public void uidToLong() throws Exception {
     assertEquals(42, UniqueId.uidToLong(new byte[] { 0, 0, 0x2A }, (short)3));
   }

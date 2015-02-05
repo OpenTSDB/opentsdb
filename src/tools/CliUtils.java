@@ -126,7 +126,7 @@ final class CliUtils {
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
 
-    final Scanner scanner = tsdb.getTsdbStore().newScanner(tsdb.dataTable());
+    final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(TSDB.FAMILY());

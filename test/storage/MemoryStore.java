@@ -24,8 +24,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import com.sun.org.apache.xpath.internal.operations.Bool;
-import net.opentsdb.core.*;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.Internal;
+import net.opentsdb.core.Query;
+import net.opentsdb.core.RowKey;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -38,24 +42,24 @@ import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.Label;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Pair;
-import org.hbase.async.*;
-import org.hbase.async.Scanner;
-import org.mockito.Matchers;
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.JSONException;
+import org.hbase.async.Bytes;
 
 import static com.google.common.collect.Maps.newHashMap;
 import static net.opentsdb.uid.UniqueId.uidToString;
@@ -105,7 +109,6 @@ public class MemoryStore implements TsdbStore {
   private final Table<String, UniqueIdType, byte[]> uid_forward_mapping;
   private final Table<String, UniqueIdType, String> uid_reverse_mapping;
 
-  private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
   private byte[] default_family = "t".getBytes(ASCII);
 
   /** Incremented every time a new value is stored (without a timestamp) */
@@ -135,75 +138,9 @@ public class MemoryStore implements TsdbStore {
     return Deferred.fromResult(null);
   }
 
-  /**
-   * Gets one or more columns from a row. If the row does not exist, a null is
-   * returned. If no qualifiers are given, the entire row is returned.
-   * NOTE: all timestamp, value pairs are returned.
-   */
-  @Override
-  public Deferred<ArrayList<KeyValue>> get(GetRequest get) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(get.key());
-
-    if (row == null) {
-      return Deferred.fromResult((ArrayList<KeyValue>)null);
-    }
-
-    final byte[] family = get.family();
-    if (family != null && family.length > 0) {
-      if (!row.containsKey(family)) {
-        return Deferred.fromResult((ArrayList<KeyValue>)null);
-      }
-    }
-
-    // compile a set of qualifiers to use as a filter if necessary
-    Bytes.ByteMap<Object> qualifiers = new Bytes.ByteMap<Object>();
-    if (get.qualifiers() != null && get.qualifiers().length > 0) {
-      for (byte[] q : get.qualifiers()) {
-        qualifiers.put(q, null);
-      }
-    }
-
-    final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(row.size());
-    for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf :
-      row.entrySet()) {
-
-      // column family filter
-      if (family != null && family.length > 0 &&
-        !Bytes.equals(family, cf.getKey())) {
-        continue;
-      }
-
-      for (Map.Entry<byte[], TreeMap<Long, byte[]>> column :
-        cf.getValue().entrySet()) {
-        // qualifier filter
-        if (!qualifiers.isEmpty() && !qualifiers.containsKey(column.getKey())) {
-          continue;
-        }
-
-        // TODO - if we want to support multiple values, iterate over the
-        // tree map. Otherwise Get returns just the latest value.
-        KeyValue kv = PowerMockito.mock(KeyValue.class);
-        Mockito.when(kv.timestamp()).thenReturn(column.getValue().firstKey());
-        Mockito.when(kv.value()).thenReturn(column.getValue().firstEntry().getValue());
-        Mockito.when(kv.qualifier()).thenReturn(column.getKey());
-        Mockito.when(kv.key()).thenReturn(get.key());
-        kvs.add(kv);
-      }
-    }
-    return Deferred.fromResult(kvs);
-  }
-
   @Override
   public long getFlushInterval() {
     return 0;
-  }
-
-  @Override
-  public Scanner newScanner(byte[] table) {
-    final Scanner scanner = PowerMockito.mock(Scanner.class);
-    scanners.add(new MockScanner(scanner));
-    return scanner;
   }
 
   @Override
@@ -1073,8 +1010,6 @@ public class MemoryStore implements TsdbStore {
    * @return A map from HBase row key to the {@link net.opentsdb.core.Span} for that row key.
    * Since a {@link net.opentsdb.core.Span} actually contains multiple HBase rows, the row key
    * stored in the map has its timestamp zero'ed out.
-   * @throws org.hbase.async.HBaseException if there was a problem communicating with HBase to
-   * perform the search.
    * @throws IllegalArgumentException if bad data was retreived from HBase.
    * @param query
    */
@@ -1124,195 +1059,5 @@ public class MemoryStore implements TsdbStore {
     }
 
     return Deferred.fromResult(result);
-  }
-
-  /**
-   * This is a limited implementation of the scanner object. The only fields
-   * caputred and acted on are:
-   * <ul><li>KeyRegexp</li>
-   * <li>StartKey</li>
-   * <li>StopKey</li>
-   * <li>Qualifier</li>
-   * <li>Qualifiers</li></ul>
-   * Hence timestamps are ignored as are the max number of rows and qualifiers.
-   * All matching rows/qualifiers will be returned in the first {@code nextRows}
-   * call. The second {@code nextRows} call will always return null. Multiple
-   * qualifiers are supported for matching.
-   * <p>
-   * The KeyRegexp can be set and it will run against the hex value of the
-   * row key. In testing it seems to work nicely even with byte patterns.
-   */
-  private class MockScanner implements
-    Answer<Deferred<ArrayList<ArrayList<KeyValue>>>> {
-
-    private byte[] start = null;
-    private byte[] stop = null;
-    private HashSet<String> scnr_qualifiers = null;
-    private byte[] family = null;
-    private String regex = null;
-    private boolean called;
-
-    public MockScanner(final Scanner mock_scanner) {
-
-      // capture the scanner fields when set
-      Mockito.doAnswer(new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          final Object[] args = invocation.getArguments();
-          regex = (String) args[0];
-          return null;
-        }
-      }).when(mock_scanner).setKeyRegexp(Matchers.anyString());
-
-      Mockito.doAnswer(new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          final Object[] args = invocation.getArguments();
-          regex = (String) args[0];
-          return null;
-        }
-      }).when(mock_scanner).setKeyRegexp(Matchers.anyString(), (Charset) Matchers.any());
-
-      Mockito.doAnswer(new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          final Object[] args = invocation.getArguments();
-          start = (byte[]) args[0];
-          return null;
-        }
-      }).when(mock_scanner).setStartKey((byte[]) Matchers.any());
-
-      Mockito.doAnswer(new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          final Object[] args = invocation.getArguments();
-          stop = (byte[]) args[0];
-          return null;
-        }
-      }).when(mock_scanner).setStopKey((byte[]) Matchers.any());
-
-      Mockito.doAnswer(new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          final Object[] args = invocation.getArguments();
-          family = (byte[]) args[0];
-          return null;
-        }
-      }).when(mock_scanner).setFamily((byte[]) Matchers.any());
-
-      Mockito.doAnswer(new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          final Object[] args = invocation.getArguments();
-          scnr_qualifiers = new HashSet<String>(1);
-          scnr_qualifiers.add(bytesToString((byte[]) args[0]));
-          return null;
-        }
-      }).when(mock_scanner).setQualifier((byte[]) Matchers.any());
-
-      Mockito.doAnswer(new Answer<Object>() {
-        @Override
-        public Object answer(InvocationOnMock invocation) throws Throwable {
-          final Object[] args = invocation.getArguments();
-          final byte[][] qualifiers = (byte[][]) args[0];
-          scnr_qualifiers = new HashSet<String>(qualifiers.length);
-          for (byte[] qualifier : qualifiers) {
-            scnr_qualifiers.add(bytesToString(qualifier));
-          }
-          return null;
-        }
-      }).when(mock_scanner).setQualifiers((byte[][]) Matchers.any());
-
-      Mockito.when(mock_scanner.nextRows()).thenAnswer(this);
-
-    }
-
-    @Override
-    public Deferred<ArrayList<ArrayList<KeyValue>>> answer(
-      final InvocationOnMock invocation) throws Throwable {
-
-      // It's critical to see if this scanner has been processed before,
-      // otherwise the code under test will likely wind up in an infinite loop.
-      // If the scanner has been seen before, we return null.
-      if (called) {
-        return Deferred.fromResult(null);
-      }
-      called = true;
-
-      Pattern pattern = null;
-      if (regex != null && !regex.isEmpty()) {
-        try {
-          pattern = Pattern.compile(regex);
-        } catch (PatternSyntaxException e) {
-          e.printStackTrace();
-        }
-      }
-
-      // return all matches
-      ArrayList<ArrayList<KeyValue>> results =
-        new ArrayList<ArrayList<KeyValue>>();
-      for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> row :
-        storage.entrySet()) {
-
-        // if it's before the start row, after the end row or doesn't
-        // match the given regex, continue on to the next row
-        if (start != null && Bytes.memcmp(row.getKey(), start) < 0) {
-          continue;
-        }
-        if (stop != null && Bytes.memcmp(row.getKey(), stop) > 0) {
-          continue;
-        }
-        if (pattern != null) {
-          final String from_bytes = new String(row.getKey(), ASCII);
-          if (!pattern.matcher(from_bytes).find()) {
-            continue;
-          }
-        }
-
-        // loop on the column families
-        final ArrayList<KeyValue> kvs =
-          new ArrayList<KeyValue>(row.getValue().size());
-        for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf :
-          row.getValue().entrySet()) {
-
-          // column family filter
-          if (family != null && family.length > 0 &&
-            !Bytes.equals(family, cf.getKey())) {
-            continue;
-          }
-
-          for (Map.Entry<byte[], TreeMap<Long, byte[]>> column :
-            cf.getValue().entrySet()) {
-
-            // if the qualifier isn't in the set, continue
-            if (scnr_qualifiers != null &&
-              !scnr_qualifiers.contains(bytesToString(column.getKey()))) {
-              continue;
-            }
-
-            KeyValue kv = PowerMockito.mock(KeyValue.class);
-            Mockito.when(kv.key()).thenReturn(row.getKey());
-            Mockito.when(kv.value()).thenReturn(column.getValue().firstEntry().getValue());
-            Mockito.when(kv.qualifier()).thenReturn(column.getKey());
-            Mockito.when(kv.timestamp()).thenReturn(column.getValue().firstKey());
-            Mockito.when(kv.family()).thenReturn(cf.getKey());
-            Mockito.when(kv.toString()).thenReturn("[k '" + bytesToString(row.getKey()) +
-              "' q '" + bytesToString(column.getKey()) + "' v '" +
-              bytesToString(column.getValue().firstEntry().getValue()) + "']");
-            kvs.add(kv);
-          }
-
-        }
-
-        if (!kvs.isEmpty()) {
-          results.add(kvs);
-        }
-      }
-
-      if (results.isEmpty()) {
-        return Deferred.fromResult(null);
-      }
-      return Deferred.fromResult(results);
-    }
   }
 }

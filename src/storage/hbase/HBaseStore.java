@@ -370,12 +370,12 @@ public class HBaseStore implements TsdbStore {
             : client.flush();
   }
 
-  @Override
+  @Deprecated
   public Deferred<ArrayList<KeyValue>> get(GetRequest request) {
     return this.client.get(request);
   }
 
-  @Override
+  @Deprecated
   public Scanner newScanner(byte[] table) {
     return this.client.newScanner(table);
   }
