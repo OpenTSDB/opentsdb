@@ -621,6 +621,7 @@ pom.xml: pom.xml.in Makefile
 	  sed <$< \
 	    -e 's/@AUTO_SERVICE_VERSION@/$(AUTO_SERVICE_VERSION)/' \
 	    -e 's/@ASYNCHBASE_VERSION@/$(ASYNCHBASE_VERSION)/' \
+	    -e 's/@CASSANDRA_VERSION@/$(CASSANDRA_VERSION)/' \
 	    -e 's/@GUAVA_VERSION@/$(GUAVA_VERSION)/' \
 	    -e 's/@GWT_VERSION@/$(GWT_VERSION)/' \
 	    -e 's/@HAMCREST_VERSION@/$(HAMCREST_VERSION)/' \

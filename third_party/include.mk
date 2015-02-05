@@ -19,6 +19,7 @@ all-am: build-aux/fetchdep.sh
 THIRD_PARTY =
 
 include third_party/auto-service/include.mk
+include third_party/cassandra/include.mk
 include third_party/guava/include.mk
 include third_party/gwt/include.mk
 include third_party/hamcrest/include.mk

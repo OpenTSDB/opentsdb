@@ -30,6 +30,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
+import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.StringCoder;
@@ -540,6 +541,23 @@ public class UniqueId {
       }
     }
     return DatatypeConverter.parseHexBinary(id);
+  }
+
+  /**
+   * Extracts a metric from the tsuid.
+   * @param tsuid The tsuid to parse.
+   * @return A byte array representing the metric.
+   * @throws IllegalArgumentException if the TSUID is malformed
+   */
+  public static byte[] getMetricFromTSUID(final String tsuid){
+    if (Strings.isNullOrEmpty(tsuid)){
+      throw new IllegalArgumentException("Missing TSUID");
+    }
+    if (tsuid.length() <= Const.METRICS_WIDTH * 2) {
+      throw new IllegalArgumentException(
+              "TSUID is too short, may be missing tags");
+    }
+    return UniqueId.stringToUid(tsuid.substring(0, Const.METRICS_WIDTH * 2));
   }
 
   /**
