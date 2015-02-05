@@ -79,7 +79,6 @@ final class CliQuery {
     Config config = CliOptions.getConfig(argp);
     
     final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
-    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     final String basepath = argp.get("--graph");
     argp = null;
 

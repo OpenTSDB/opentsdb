@@ -51,8 +51,6 @@ public interface TsdbStore {
    */
   Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time);
 
-  public Deferred<ArrayList<Object>> checkNecessaryTablesExist();
-
   public Deferred<Object> flush();
 
   public Deferred<ArrayList<KeyValue>> get(final GetRequest request);

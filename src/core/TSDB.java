@@ -178,17 +178,6 @@ public class TSDB {
   }
 
   /**
-   * Verifies that the data and UID tables exist in TsdbStore and optionally the
-   * tree and meta data tables if the user has enabled meta tracking or tree
-   * building
-   * @return An ArrayList of objects to wait for
-   * @since 2.0
-   */
-  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    return tsdb_store.checkNecessaryTablesExist();
-  }
-
-  /**
    * Forces a flush of any un-committed in memory data including left over 
    * compactions.
    * <p>

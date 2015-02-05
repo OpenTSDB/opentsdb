@@ -1113,7 +1113,6 @@ final class Fsck {
     if (queries.isEmpty() && !argp.has("--full-scan")) {
       usage(argp, "Must supply a query or use the '--full-scan' flag", 1);
     }
-    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
      
     argp = null;
     final Fsck fsck = new Fsck(tsdb, options);

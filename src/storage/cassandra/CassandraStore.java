@@ -164,11 +164,6 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    return null;
-  }
-
-  @Override
   public Deferred<Object> flush() {
     return null;
   }

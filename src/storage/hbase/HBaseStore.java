@@ -130,10 +130,6 @@ public class HBaseStore implements TsdbStore {
    */
   private final CompactionQueue compactionq;
 
-  private final boolean enable_realtime_ts;
-  private final boolean enable_realtime_uid;
-  private final boolean enable_tsuid_incrementing;
-  private final boolean enable_tree_processing;
   private final boolean enable_compactions;
 
   private final byte[] data_table_name;
@@ -145,18 +141,12 @@ public class HBaseStore implements TsdbStore {
     this.client = checkNotNull(client);
     checkNotNull(config);
 
-    enable_tree_processing = config.enable_tree_processing();
-    enable_realtime_ts = config.enable_realtime_ts();
-    enable_realtime_uid = config.enable_realtime_uid();
-    enable_tsuid_incrementing = config.enable_tsuid_incrementing();
     enable_compactions = config.enable_compactions();
 
     data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(HBaseConst.CHARSET);
     uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(HBaseConst.CHARSET);
     tree_table_name = config.getString("tsd.storage.hbase.tree_table").getBytes(HBaseConst.CHARSET);
     meta_table_name = config.getString("tsd.storage.hbase.meta_table").getBytes(HBaseConst.CHARSET);
-
-    client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());
@@ -362,25 +352,6 @@ public class HBaseStore implements TsdbStore {
   @Deprecated
   public Deferred<Object> delete(DeleteRequest request) {
     return this.client.delete(request);
-  }
-
-  @Override
-  public Deferred<ArrayList<Object>> checkNecessaryTablesExist() {
-    final ArrayList<Deferred<Object>> checks
-            = new ArrayList<Deferred<Object>>(4);
-    checks.add(client.ensureTableExists(data_table_name));
-    checks.add(client.ensureTableExists(uid_table_name));
-
-    if (enable_tree_processing) {
-      checks.add(client.ensureTableExists(tree_table_name));
-    }
-    if (enable_realtime_ts ||
-        enable_realtime_uid ||
-        enable_tsuid_incrementing) {
-      checks.add(client.ensureTableExists(meta_table_name));
-    }
-
-    return Deferred.group(checks);
   }
 
   @Override

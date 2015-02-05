@@ -77,7 +77,6 @@ final class TextImporter {
         .convertDurationsTo(TimeUnit.MILLISECONDS)
         .build();
 
-    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     try {
       int points = 0;
