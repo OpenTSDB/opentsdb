@@ -15,15 +15,14 @@ package net.opentsdb.storage.hbase;
 import java.util.NoSuchElementException;
 
 import com.google.common.collect.Lists;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.SeekableView;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.utils.Config;
+import net.opentsdb.storage.TsdbStore;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -34,7 +33,6 @@ import net.opentsdb.uid.UniqueIdType;
 import static org.junit.Assert.*;
 
 public final class TestCompactedRow {
-  private TSDB tsdb;
   private static final byte[] KEY = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
   private static final byte[] FAMILY = { 't' };
@@ -42,10 +40,8 @@ public final class TestCompactedRow {
   
   @Before
   public void before() throws Exception {
-    final MemoryStore tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(new Config(false))
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    final TsdbStore tsdb_store = objectGraph.get(TsdbStore.class);
 
     tsdb_store.allocateUID("sys.cpu.user", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
   }

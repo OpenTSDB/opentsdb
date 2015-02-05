@@ -25,12 +25,12 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Table;
 
-import net.opentsdb.core.TsdbBuilder;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.utils.Config;
+import net.opentsdb.storage.TsdbStore;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
@@ -43,7 +43,7 @@ import org.junit.Test;
 
 public final class TestAnnotationRpc {
   private TSDB tsdb = null;
-  private MemoryStore tsdb_store;
+  private TsdbStore tsdb_store;
   private AnnotationRpc rpc = new AnnotationRpc();
 
   private static final String TSUID_GLOBAL_ANNOTATION = null;
@@ -106,11 +106,9 @@ public final class TestAnnotationRpc {
 
   @Before
   public void before() throws Exception {
-    final Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    tsdb_store = objectGraph.get(TsdbStore.class);
+    tsdb = objectGraph.get(TSDB.class);
 
     // add a global
     tsdb_store.updateAnnotation(null, global_one);

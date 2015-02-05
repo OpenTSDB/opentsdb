@@ -23,13 +23,13 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -80,11 +80,9 @@ public class TestTextImporter {
   
   @Before
   public void before() throws Exception {
-    Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    tsdb_store = objectGraph.get(MemoryStore.class);
+    tsdb = objectGraph.get(TSDB.class);
     
     PowerMockito.spy(TextImporter.class);
     // we need to purge the hash map before each unit test since it's a static

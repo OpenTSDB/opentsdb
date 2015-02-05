@@ -5,21 +5,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.eventbus.EventBus;
-import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.stats.Metrics;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModule;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
-import com.codahale.metrics.MetricRegistry;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+
+import javax.inject.Inject;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static net.opentsdb.uid.UniqueIdType.TAGK;
@@ -28,25 +28,15 @@ import static org.junit.Assert.*;
 
 public class UniqueIdClientTest {
   private Config config;
-  private TSDB tsdb;
-  private MemoryStore tsdb_store;
-  private UniqueIdClient uniqueIdClient;
-
-  @Mock private SearchPlugin searchPlugin;
+  @Inject TsdbStore tsdb_store;
+  @Inject UniqueIdClient uniqueIdClient;
 
   @Before
   public void before() throws Exception {
-    MockitoAnnotations.initMocks(this);
-
     config = new Config(false);
     config.setFixDuplicates(true); // TODO(jat): test both ways
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
 
-    uniqueIdClient = new UniqueIdClient(tsdb_store, config, new Metrics
-            (new MetricRegistry()), new EventBus(), searchPlugin);
+    ObjectGraph.create(new TestModule(config)).inject(this);
   }
 
   /**
@@ -389,9 +379,6 @@ public class UniqueIdClientTest {
   private void setupStorage() throws Exception {
     config = new Config(false);
     tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
   }
 
   private void setupResolveIds() throws Exception {

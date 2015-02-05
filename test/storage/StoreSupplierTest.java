@@ -1,6 +1,7 @@
 package net.opentsdb.storage;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
@@ -94,4 +95,5 @@ public class StoreSupplierTest {
         ServiceLoader<StoreDescriptor> storeDescriptors = ServiceLoader.load(StoreDescriptor.class);
         assertEquals(NUM_STORES, Iterables.size(storeDescriptors));
     }
+
 }

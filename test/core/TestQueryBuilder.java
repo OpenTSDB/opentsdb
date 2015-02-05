@@ -3,8 +3,11 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.Map;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModule;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
@@ -42,12 +45,9 @@ public class TestQueryBuilder {
 
   @Before
   public void before() throws Exception {
-    MemoryStore tsdb_store = new MemoryStore();
-    Config config = new Config(false);
-
-    final TSDB tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    final ObjectGraph objectGraph = ObjectGraph.create(new TestModule());
+    final TsdbStore tsdb_store = objectGraph.get(TsdbStore.class);
+    final TSDB tsdb = objectGraph.get(TSDB.class);
 
     tsdb_store.allocateUID(SYS_CPU_USER_NAME, SYS_CPU_USER_ID, UniqueIdType.METRIC);
     tsdb_store.allocateUID(HOST_NAME, HOST_ID, UniqueIdType.TAGK);

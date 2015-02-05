@@ -15,9 +15,9 @@ package net.opentsdb.tools;
 import java.util.ArrayList;
 import java.util.List;
 
+import dagger.ObjectGraph;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
@@ -66,9 +66,9 @@ final class Search {
     }
     
     final boolean use_data_table = argp.has("--use-data-table");
-    
-    Config config = CliOptions.getConfig(argp);
-    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
+
+    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final TSDB tsdb = objectGraph.get(TSDB.class);
     
     int rc;
     try {

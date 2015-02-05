@@ -11,6 +11,7 @@ import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.storage.StoreSupplier;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.tools.ToolsModule;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.RTPublisherDescriptor;
 import net.opentsdb.utils.Config;
@@ -19,19 +20,16 @@ import net.opentsdb.utils.PluginLoader;
 import java.util.ServiceLoader;
 
 @Module(library = true,
+        complete = false,
         injects = {
                 TSDB.class,
                 UniqueIdClient.class,
                 TreeClient.class,
                 MetaClient.class,
-                DataPointsClient.class
+                DataPointsClient.class,
+                TsdbStore.class
         })
 public class TsdbModule {
-  @Provides
-  MetricRegistry provideMetricRegistry() {
-    return new MetricRegistry();
-  }
-
   @Provides
   EventBus provideEventBus() {
     return new EventBus();

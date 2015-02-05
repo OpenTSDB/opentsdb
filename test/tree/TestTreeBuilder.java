@@ -15,7 +15,6 @@ package net.opentsdb.tree;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -23,9 +22,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.TreeMap;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TreeClient;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
@@ -33,7 +32,6 @@ import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.opentsdb.utils.Pair;
@@ -63,10 +61,9 @@ public final class TestTreeBuilder {
 
   @Before
   public void before() throws Exception {
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(new Config(false))
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    tsdb_store = objectGraph.get(MemoryStore.class);
+    tsdb = objectGraph.get(TSDB.class);
 
     treebuilder = new TreeBuilder(tsdb.getTreeClient(), tree);
 

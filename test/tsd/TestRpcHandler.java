@@ -17,12 +17,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
-import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.utils.Config;
 
 import com.codahale.metrics.MetricRegistry;
@@ -42,7 +41,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -59,21 +57,14 @@ import com.google.common.net.HttpHeaders;
 public final class TestRpcHandler {
   private TSDB tsdb = null;
   private ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-  private HBaseClient client = mock(HBaseClient.class);
   private MessageEvent message = mock(MessageEvent.class);
   private MetricRegistry metricRegistry;
   private TsdStats tsdStats;
 
   @Before
   public void before() throws Exception {
-    final Config config = new Config(false);
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withSearchPlugin((SearchPlugin)null)
-            .withRealtimePublisher((RTPublisher) null)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    tsdb = objectGraph.get(TSDB.class);
 
     metricRegistry = new MetricRegistry();
     tsdStats = new TsdStats(metricRegistry);

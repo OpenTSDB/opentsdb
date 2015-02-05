@@ -13,12 +13,12 @@
 package net.opentsdb.tsd;
 
 import com.codahale.metrics.MetricRegistry;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -40,12 +40,9 @@ public final class TestSuggestRpc {
   public void before() throws IOException {
     s = new SuggestRpc();
 
-    final Config config = new Config(false);
-    final TsdbStore store = new MemoryStore();
-
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    final TsdbStore store = objectGraph.get(MemoryStore.class);
+    tsdb = objectGraph.get(TSDB.class);
 
     store.allocateUID("sys.cpu.0.system", UniqueIdType.METRIC);
     store.allocateUID("sys.mem.free", UniqueIdType.METRIC);

@@ -18,6 +18,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
+import dagger.ObjectGraph;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
@@ -28,7 +29,6 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.utils.Config;
 
@@ -87,8 +87,9 @@ final class TSDMain {
     args = CliOptions.parse(argp, args);
     args = null; // free().
 
+    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
     // get a config object
-    Config config = CliOptions.getConfig(argp);
+    Config config = objectGraph.get(Config.class);
     
     // check for the required parameters
     try {
@@ -141,7 +142,7 @@ final class TSDMain {
     
     TSDB tsdb = null;
     try {
-      tsdb = TsdbBuilder.createFromConfig(config).build();
+      tsdb = objectGraph.get(TSDB.class);
 
       registerShutdownHook(tsdb);
       final ServerBootstrap server = new ServerBootstrap(factory);

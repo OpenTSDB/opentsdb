@@ -2,10 +2,11 @@ package net.opentsdb.storage.hbase;
 
 import com.stumbleupon.async.Deferred;
 
+import dagger.ObjectGraph;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TestTsdbStore;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
@@ -726,14 +727,11 @@ public class TestHBaseStore extends TestTsdbStore {
   /**
    * Mocks HBase Branch stuff
    */
-  private void setupBranchHBaseStore(final boolean store) throws Exception{
-
-    config = new Config(false);
+  private void setupBranchHBaseStore(final boolean store) throws Exception {
     client = PowerMockito.mock(HBaseClient.class);
-    tsdb_store = new HBaseStore(client, config);
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new HBaseTestModule(client));
+    tsdb_store = objectGraph.get(TsdbStore.class);
+    tsdb = objectGraph.get(TSDB.class);
 
     setUpBranchesAndLeafs();
     if (!store)

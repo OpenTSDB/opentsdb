@@ -15,11 +15,10 @@ package net.opentsdb.tree;
 import static net.opentsdb.uid.UniqueIdType.*;
 import static org.junit.Assert.*;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.KeyValue;
 import org.junit.Before;
@@ -35,27 +34,20 @@ import org.powermock.modules.junit4.PowerMockRunner;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({KeyValue.class})
 public final class TestLeaf {
-  private TSDB tsdb;
-  private MemoryStore tsdb_store;
-  private Branch branch;
-  
+
   @Before
   public void before() throws Exception {
-    final Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
-    branch = new Branch(1);
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    final MemoryStore tsdb_store = objectGraph.get(MemoryStore.class);
 
     tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
     tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
 
     tsdb_store.addColumn(new byte[]{0, 1}, Tree.TREE_FAMILY(),
-      new Leaf("0", "000001000001000001").columnQualifier(),
-      ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
-        .getBytes(Const.CHARSET_ASCII));
+            new Leaf("0", "000001000001000001").columnQualifier(),
+            ("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}")
+                    .getBytes(Const.CHARSET_ASCII));
   }
   
   @Test

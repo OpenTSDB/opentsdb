@@ -2,9 +2,13 @@ package net.opentsdb.core;
 
 import java.util.List;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModule;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -14,12 +18,15 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.inject.Inject;
+
 import static org.junit.Assert.*;
 
 public class MetaClientAnnotationTest {
   private Annotation note;
-  private TSDB tsdb;
-  private MemoryStore tsdb_store;
+
+  @Inject TSDB tsdb;
+  @Inject MemoryStore tsdb_store;
 
   final private byte[] tsuid_row_key =
           new byte[] { 0, 0, 1, (byte) 0x52, (byte) 0xC2, (byte) 0x09, 0, 0, 0,
@@ -27,12 +34,7 @@ public class MetaClientAnnotationTest {
 
   @Before
   public void before() throws Exception {
-    final Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
 
     note = new Annotation();
 

@@ -18,8 +18,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.TreeMap;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -33,7 +34,6 @@ import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
 
 import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,11 +66,9 @@ public final class TestTreeRpc {
 
   @Before
   public void before() throws Exception {
-    final Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    tsdb_store = objectGraph.get(MemoryStore.class);
+    tsdb = objectGraph.get(TSDB.class);
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());

@@ -15,35 +15,27 @@ package net.opentsdb.search;
 import java.util.ArrayList;
 import java.util.List;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
+
+import javax.inject.Inject;
+
 import static org.junit.Assert.*;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@PrepareForTest({KeyValue.class, Scanner.class})
 public class TestTimeSeriesLookup {
-  private TSDB tsdb = null;
-  private MemoryStore tsdb_store;
+  @Inject TSDB tsdb;
+  @Inject MemoryStore tsdb_store;
   
   // tsuids
   private static List<byte[]> test_tsuids = new ArrayList<byte[]>(7);
@@ -61,11 +53,7 @@ public class TestTimeSeriesLookup {
   
   @Before
   public void before() throws Exception {
-    Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
 
     tsdb_store.allocateUID("sys.cpu.user", new byte[] {0, 0, 1}, UniqueIdType.METRIC);
     tsdb_store.allocateUID("sys.cpu.nice", new byte[] {0, 0, 2}, UniqueIdType.METRIC);

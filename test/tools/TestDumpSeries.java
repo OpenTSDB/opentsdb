@@ -17,9 +17,10 @@ import java.io.PrintStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
@@ -38,6 +39,9 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
+
+import javax.inject.Inject;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -47,10 +51,11 @@ import static org.junit.Assert.assertNotNull;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({KeyValue.class, Scanner.class})
 public class TestDumpSeries {
-  private Config config;
-  private TSDB tsdb = null;
-  private MemoryStore tsdb_store;
+  @Inject TSDB tsdb;
+  @Inject MemoryStore tsdb_store;
+
   private ByteArrayOutputStream buffer;
+
   // the simplest way to test is to capture the System.out.print() data so we
   // need to capture a reference to the original stdout stream here and reset
   // it after each test so a failed unit test doesn't block stdout for 
@@ -71,11 +76,7 @@ public class TestDumpSeries {
 
   @Before
   public void before() throws Exception {
-    config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
 
     buffer = new ByteArrayOutputStream();
     System.setOut(new PrintStream(buffer));

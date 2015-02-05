@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import com.google.common.base.Throwables;
+import dagger.ObjectGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,10 +30,8 @@ import net.opentsdb.core.QueryBuilder;
 import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.graph.Plot;
 import net.opentsdb.uid.UidFormatter;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.DateTime;
 
 final class CliQuery {
@@ -75,10 +74,9 @@ final class CliQuery {
       usage(argp, "Not enough arguments.", 2);
     }
 
-    // get a config object
-    Config config = CliOptions.getConfig(argp);
-    
-    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
+    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final TSDB tsdb = objectGraph.get(TSDB.class);
+
     final String basepath = argp.get("--graph");
     argp = null;
 

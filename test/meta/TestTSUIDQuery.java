@@ -16,9 +16,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -54,10 +55,9 @@ public final class TestTSUIDQuery {
     overrides.put("tsd.core.meta.enable_realtime_ts", "TRUE");
     Config config = new Config(false, overrides);
 
-    MemoryStore tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore(config));
+    final MemoryStore tsdb_store = objectGraph.get(MemoryStore.class);
+    tsdb = objectGraph.get(TSDB.class);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
       "metrics".getBytes(Const.CHARSET_ASCII),

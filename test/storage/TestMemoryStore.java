@@ -1,9 +1,10 @@
 package net.opentsdb.storage;
 
-import net.opentsdb.core.TsdbBuilder;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.TestBranch;
-import net.opentsdb.utils.Config;
 import org.junit.Test;
 
 
@@ -81,12 +82,9 @@ public class TestMemoryStore extends TestTsdbStore {
      *  Classes for testing the storage calls for branch tests
      */
   private void setupBranchMemoryStore(final boolean store) throws Exception {
-
-    config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    tsdb_store = objectGraph.get(TsdbStore.class);
+    tsdb = objectGraph.get(TSDB.class);
 
     setUpBranchesAndLeafs();
     if (!store)

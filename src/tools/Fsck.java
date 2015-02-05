@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+import dagger.ObjectGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
@@ -38,8 +39,6 @@ import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
-import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
@@ -1103,9 +1102,12 @@ final class Fsck {
       usage(argp, "", 0);
     }
 
-    Config config = CliOptions.getConfig(argp);
+    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final Config config = objectGraph.get(Config.class);
+    final TSDB tsdb = objectGraph.get(TSDB.class);
+
     final FsckOptions options = new FsckOptions(argp, config);
-    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
+
     final ArrayList<Query> queries = new ArrayList<Query>();
     if (args != null && args.length > 0) {
       CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);

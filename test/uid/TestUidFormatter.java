@@ -3,11 +3,11 @@ package net.opentsdb.uid;
 import java.io.IOException;
 import java.util.Map;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.utils.Config;
+import net.opentsdb.storage.TsdbStore;
 
 import com.google.common.collect.Maps;
 import com.stumbleupon.async.DeferredGroupException;
@@ -20,15 +20,14 @@ import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.junit.Assert.assertEquals;
 
 public class TestUidFormatter {
-  private MemoryStore client;
   private UidFormatter formatter;
 
   @Before
   public void setUp() throws IOException {
-    client = new MemoryStore();
-    TSDB tsdb = TsdbBuilder.createFromConfig(new Config(false))
-            .withStore(client)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    final TsdbStore client = objectGraph.get(TsdbStore.class);
+    final TSDB tsdb = objectGraph.get(TSDB.class);
+
     formatter = new UidFormatter(tsdb);
 
     client.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
