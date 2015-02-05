@@ -4,24 +4,14 @@ import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricSet;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.utils.Config;
 
 import java.util.Map;
 
+/**
+ * Base plugin interface for all plugin types used by TSDB.
+ */
 public abstract class Plugin {
-  /**
-   * Called by TSDB to initialize the plugin
-   * Implementations are responsible for setting up any IO they need as well
-   * as starting any required background threads.
-   * <b>Note:</b> Implementations should throw exceptions if they can't start
-   * up properly. The TSD will then shutdown so the operator can fix the
-   * problem. Please use IllegalArgumentException for configuration issues.
-   * @param tsdb The parent TSDB object
-   * @throws IllegalArgumentException if required configuration parameters are
-   * missing
-   * @throws Exception if something else goes wrong
-   */
-  public abstract void initialize(final TSDB tsdb) throws Exception;
-
   /**
    * Called to gracefully shutdown the plugin. Implementations should close
    * any IO they have open

@@ -13,7 +13,6 @@
 package net.opentsdb.search;
 
 import net.opentsdb.core.Plugin;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -28,11 +27,7 @@ import java.util.List;
  * Search plugins allow data from OpenTSDB to be published to a search indexer.
  * Many great products already exist for searching so it doesn't make sense to
  * re-implement an engine within OpenTSDB. Likewise, going directly to the 
- * storage system for searching isn't efficient. 
- * <p>
- * <b>Note:</b> Implementations must have a parameterless constructor. The 
- * {@link #initialize(TSDB)} method will be called immediately after the plugin 
- * is instantiated and before any other methods are called.
+ * storage system for searching isn't efficient.
  * <p>
  * <b>Note:</b> Since canonical information is stored in the underlying OpenTSDB 
  * database, the same document may be re-indexed more than once. This may happen

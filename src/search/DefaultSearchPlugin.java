@@ -10,8 +10,11 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.Label;
+import net.opentsdb.utils.Config;
 
 import java.util.List;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A default search plugin to use when no other search plugin has been
@@ -21,11 +24,10 @@ import java.util.List;
  * @see net.opentsdb.search.SearchPlugin
  */
 public class DefaultSearchPlugin extends SearchPlugin {
-  private TsdbStore store;
+  private final TsdbStore store;
 
-  @Override
-  public void initialize(final TSDB tsdb) {
-    this.store = tsdb.getTsdbStore();
+  public DefaultSearchPlugin(final TsdbStore store) {
+    this.store = checkNotNull(store);
   }
 
   @Override
