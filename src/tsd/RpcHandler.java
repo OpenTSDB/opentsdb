@@ -28,10 +28,12 @@ import org.slf4j.LoggerFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.timeout.IdleState;
+import org.jboss.netty.handler.timeout.IdleStateAwareChannelUpstreamHandler;
+import org.jboss.netty.handler.timeout.IdleStateEvent;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
@@ -42,7 +44,7 @@ import net.opentsdb.utils.JSON;
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
  */
-final class RpcHandler extends SimpleChannelUpstreamHandler {
+final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(RpcHandler.class);
 
@@ -577,6 +579,14 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
     }
     
+  }
+
+  @Override
+  public void channelIdle(ChannelHandlerContext ctx, IdleStateEvent e) {
+    if (e.getState() == IdleState.ALL_IDLE) {
+      LOG.debug("Closed idle socket.");
+      e.getChannel().close();
+    }
   }
   
   // ---------------- //
