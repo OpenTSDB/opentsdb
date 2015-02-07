@@ -76,6 +76,18 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
   /** On how many bytes do we encode metrics IDs.  */
   private final short metric_width;
 
+  /** How frequently the compaction thread wakes up to flush stuff.  */
+  private final int flush_interval;  // seconds
+
+  /** Minimum number of rows we'll attempt to compact at once.  */
+  private final int min_flush_threshold;  // rows
+
+  /** Maximum number of rows we'll compact concurrently.  */
+  private final int max_concurrent_flushes;  // rows
+
+  /** If this is X then we'll flush X times faster than we really need.  */
+  private final int flush_speed;  // multiplicative factor
+
   /**
    * Constructor.
    * @param tsdb The TSDB we belong to.
@@ -84,6 +96,10 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     super(new Cmp(tsdb));
     this.tsdb = tsdb;
     metric_width = tsdb.metrics.width();
+    flush_interval = tsdb.config.getInt("tsd.storage.compaction.flush_interval");
+    min_flush_threshold = tsdb.config.getInt("tsd.storage.compaction.min_flush_threshold");
+    max_concurrent_flushes = tsdb.config.getInt("tsd.storage.compaction.max_concurrent_flushes");
+    flush_speed = tsdb.config.getInt("tsd.storage.compaction.flush_speed");
     if (tsdb.config.enable_compactions()) {
       startCompactionThread();
     }
@@ -153,8 +169,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       return Deferred.fromResult(new ArrayList<Object>(0));
     }
     final ArrayList<Deferred<Object>> ds =
-      new ArrayList<Deferred<Object>>(Math.min(maxflushes,
-                                               MAX_CONCURRENT_FLUSHES));
+      new ArrayList<Deferred<Object>>(Math.min(maxflushes, max_concurrent_flushes));
     int nflushes = 0;
     int seed = (int) (System.nanoTime() % 3);
     for (final byte[] row : this.keySet()) {
@@ -167,7 +182,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       final long base_time = Bytes.getUnsignedInt(row, metric_width);
       if (base_time > cut_off) {
         break;
-      } else if (nflushes == MAX_CONCURRENT_FLUSHES) {
+      } else if (nflushes == max_concurrent_flushes) {
         // We kicked off the compaction of too many rows already, let's wait
         // until they're done before kicking off more.
         break;
@@ -185,7 +200,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       ds.add(tsdb.get(row).addCallbacks(compactcb, handle_read_error));
     }
     final Deferred<ArrayList<Object>> group = Deferred.group(ds);
-    if (nflushes == MAX_CONCURRENT_FLUSHES && maxflushes > 0) {
+    if (nflushes == max_concurrent_flushes && maxflushes > 0) {
       // We're not done yet.  Once this group of flushes completes, we need
       // to kick off more.
       tsdb.flush();  // Speed up this batch by telling the client to flush.
@@ -650,21 +665,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     thread.start();
   }
 
-  /** How frequently the compaction thread wakes up flush stuff.  */
-  // TODO(tsuna): Make configurable?
-  private static final int FLUSH_INTERVAL = 10;  // seconds
 
-  /** Minimum number of rows we'll attempt to compact at once.  */
-  // TODO(tsuna): Make configurable?
-  private static final int MIN_FLUSH_THRESHOLD = 100;  // rows
-
-  /** Maximum number of rows we'll compact concurrently.  */
-  // TODO(tsuna): Make configurable?
-  private static final int MAX_CONCURRENT_FLUSHES = 10000;  // rows
-
-  /** If this is X then we'll flush X times faster than we really need.  */
-  // TODO(tsuna): Make configurable?
-  private static final int FLUSH_SPEED = 2;  // multiplicative factor
 
   /**
    * Background thread to trigger periodic compactions.
@@ -682,7 +683,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           // Flush if  we have too many rows to recompact.
           // Note that in we might not be able to actually
           // flush anything if the rows aren't old enough.
-          if (size > MIN_FLUSH_THRESHOLD) {
+          if (size > min_flush_threshold) {
             // How much should we flush during this iteration?  This scheme is
             // adaptive and flushes at a rate that is proportional to the size
             // of the queue, so we flush more aggressively if the queue is big.
@@ -701,8 +702,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
             // FLUSH_SPEED is 2, then instead of taking 1h to flush what we have
             // for the previous hour, we'll take only 30m.  This is desirable so
             // that we evict old entries from the queue a bit faster.
-            final int maxflushes = Math.max(MIN_FLUSH_THRESHOLD,
-              size * FLUSH_INTERVAL * FLUSH_SPEED / Const.MAX_TIMESPAN);
+            final int maxflushes = Math.max(min_flush_threshold,
+              size * flush_interval * flush_speed / Const.MAX_TIMESPAN);
             final long now = System.currentTimeMillis();
             flush(now / 1000 - Const.MAX_TIMESPAN - 1, maxflushes);
             if (LOG.isDebugEnabled()) {
@@ -740,7 +741,7 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           return;
         }
         try {
-          Thread.sleep(FLUSH_INTERVAL * 1000);
+          Thread.sleep(flush_interval * 1000);
         } catch (InterruptedException e) {
           LOG.error("Compaction thread interrupted, doing one last flush", e);
           flush();
