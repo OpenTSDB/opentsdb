@@ -13,6 +13,8 @@
 package tsd.client;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.BlurHandler;
@@ -275,7 +277,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   }
 
   public void setAggregators(final ArrayList<String> aggs) {
-    for (final String agg : aggs) {
+      final String[] aggArray = (String[])aggs.toArray();
+      Arrays.sort(aggArray);
+      for (final String agg : aggArray) {
       aggregators.addItem(agg);
       downsampler.addItem(agg);
     }
