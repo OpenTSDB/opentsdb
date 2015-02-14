@@ -10,6 +10,13 @@ import org.hbase.async.HBaseClient;
 
 import java.io.IOException;
 
+/**
+ * This is the dagger module that should be used by all HBase tests. It provides
+ * a live HBaseStore as its TsdbStore.
+ *
+ * @see net.opentsdb.core.TsdbModule
+ * @see net.opentsdb.TestModule
+ */
 @Module(includes = TsdbModule.class,
         overrides = true)
 class HBaseTestModule {

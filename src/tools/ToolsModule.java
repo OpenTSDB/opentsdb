@@ -11,6 +11,11 @@ import java.io.IOException;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * This is the main dagger entrypoint for all tools.
+ *
+ * @see net.opentsdb.core.TsdbModule
+ */
 @Module(includes = TsdbModule.class)
 public class ToolsModule {
   private final ArgP argp;

@@ -11,7 +11,6 @@ import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.storage.StoreSupplier;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tools.ToolsModule;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.RTPublisherDescriptor;
 import net.opentsdb.utils.Config;
@@ -19,6 +18,12 @@ import net.opentsdb.utils.PluginLoader;
 
 import java.util.ServiceLoader;
 
+/**
+ * This is the main dagger module for the TSDB core library. It is not complete
+ * however, it needs to be complemented with an extending module that provides a
+ * {@link net.opentsdb.utils.Config}, a {@link net.opentsdb.storage.TsdbStore}
+ * and a {@link com.codahale.metrics.MetricRegistry}.
+ */
 @Module(library = true,
         complete = false,
         injects = {
