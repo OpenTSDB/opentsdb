@@ -24,14 +24,12 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.hbase.HBaseStore;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -39,10 +37,8 @@ import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
-import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -54,35 +50,26 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
-@RunWith(PowerMockRunner.class)
-// "Classloader hell"...  It's real.  Tell PowerMock to ignore these classes
-// because they fiddle with the class loader.  We don't test them anyway.
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-                  "ch.qos.*", "org.slf4j.*",
-                  "com.sum.*", "org.xml.*"})
 public final class TestUniqueId {
   private TsdbStore client;
+  private TSDB tsdb;
   private static final byte[] table = { 't', 'a', 'b', 'l', 'e' };
   private static final byte[] ID = { 'i', 'd' };
   private UniqueId uid;
   private static final String kind = "metrics";
   private static final byte[] kind_array = { 'm', 'e', 't', 'r', 'i', 'c' };
-  private Config config;
   private Metrics metrics;
   private MetricRegistry registry;
   private EventBus idEventBus;
 
   @Before
   public void setUp() throws IOException{
-    client = new MemoryStore();
-    config = new Config(false);
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    client = objectGraph.get(TsdbStore.class);
+    tsdb = objectGraph.get(TSDB.class);
+
     registry = new MetricRegistry();
     metrics = new Metrics(registry);
     idEventBus = mock(EventBus.class);
@@ -428,10 +415,6 @@ public final class TestUniqueId {
     kvs.add(new KeyValue(MAXID, ID, metrics, Bytes.fromLong(64L)));
     kvs.add(new KeyValue(MAXID, ID, tagk, Bytes.fromLong(42L)));
     kvs.add(new KeyValue(MAXID, ID, tagv, Bytes.fromLong(1024L)));
-    TSDB tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(client)
-            .build();
-
     
     final byte[][] kinds = { metrics, tagk, tagv };
     final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb.getTsdbStore(), kinds, table)
@@ -448,9 +431,6 @@ public final class TestUniqueId {
     final byte[] metrics = { 'm', 'e', 't', 'r', 'i', 'c', 's' };
     final byte[] tagk = { 't', 'a', 'g', 'k' };
     final byte[] tagv = { 't', 'a', 'g', 'v' };
-    TSDB tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(client)
-            .build();
     
     final byte[][] kinds = { metrics, tagk, tagv };
     final Map<String, Long> uids = UniqueId.getUsedUIDs(tsdb.getTsdbStore(), kinds, table)

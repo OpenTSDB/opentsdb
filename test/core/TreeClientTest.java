@@ -1,23 +1,26 @@
 package net.opentsdb.core;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModule;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.inject.Inject;
+
 import static org.junit.Assert.*;
 
 public class TreeClientTest {
-  private MemoryStore tsdb_store;
-  private TreeClient treeClient;
+  @Inject TreeClient treeClient;
 
   @Before
   public void before() throws Exception {
-    tsdb_store = new MemoryStore();
-    treeClient = new TreeClient(tsdb_store);
+    ObjectGraph.create(new TestModule()).inject(this);
   }
 
   @Test(expected = IllegalArgumentException.class)

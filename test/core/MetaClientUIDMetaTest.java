@@ -1,11 +1,10 @@
 package net.opentsdb.core;
 
-import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModule;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.stats.Metrics;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
@@ -18,6 +17,8 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import javax.inject.Inject;
+
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -28,28 +29,22 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 public class MetaClientUIDMetaTest {
-  private Config config;
-  private EventBus idEventBus;
-  private TsdbStore store;
+  @Inject Config config;
+  @Inject EventBus idEventBus;
+  @Inject TsdbStore store;
 
-  private UniqueIdClient uniqueIdClient;
-  private TreeClient treeClient;
-  private MetaClient metaClient;
+  @Inject UniqueIdClient uniqueIdClient;
+  @Inject TreeClient treeClient;
+  @Inject MetaClient metaClient;
+
+  @Inject RTPublisher realtimePublisher;
 
   @Mock private SearchPlugin searchPlugin;
-  @Mock private RTPublisher realtimePublisher;
 
   @Before
   public void setUp() throws Exception {
+    ObjectGraph.create(new TestModule()).inject(this);
     MockitoAnnotations.initMocks(this);
-
-    config = new Config(false);
-    idEventBus = new EventBus();
-    store = new MemoryStore();
-
-    uniqueIdClient = new UniqueIdClient(store, config, new Metrics(new MetricRegistry()), idEventBus, searchPlugin);
-    treeClient = new TreeClient(store);
-    metaClient = new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
 
     store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
     store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);

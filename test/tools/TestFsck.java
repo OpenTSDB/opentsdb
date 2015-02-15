@@ -12,12 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import net.opentsdb.core.TsdbBuilder;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.uid.UniqueIdType;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
@@ -30,7 +30,6 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -41,6 +40,8 @@ import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import javax.inject.Inject;
 
 @RunWith(PowerMockRunner.class)
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -56,17 +57,14 @@ public final class TestFsck {
   private final static byte[] ROW3 = 
       MockBase.stringToBytes("00000150E24320000001000001");
 
-  private TSDB tsdb;
-  private MemoryStore tsdb_store;
+  @Inject TSDB tsdb;
+  @Inject MemoryStore tsdb_store;
+
   private FsckOptions options = mock(FsckOptions.class);
 
   @Before
   public void before() throws Exception {
-    Config config = new Config(false);
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
 
     when(options.fix()).thenReturn(false);
     when(options.compact()).thenReturn(false);

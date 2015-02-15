@@ -18,13 +18,12 @@ import static org.junit.Assert.assertNull;
 
 import java.lang.reflect.Method;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TsdbBuilder;
-import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
@@ -44,8 +43,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({KeyValue.class, Scanner.class})
 public class TestUID {
-  private Config config;
-  private TSDB tsdb = null;
   private MemoryStore tsdb_store;
   
   // names used for testing
@@ -68,13 +65,8 @@ public class TestUID {
   
   @Before
   public void before() throws Exception {
-    config = new Config(false);
-    tsdb_store = new MemoryStore();
-
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withSearchPlugin((SearchPlugin)null)
-            .withRealtimePublisher((RTPublisher) null)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    tsdb_store = objectGraph.get(MemoryStore.class);
 
     // replace the "real" field objects with mocks
 //    Field cl = tsdb.getClass().getDeclaredField("tsdb_store");

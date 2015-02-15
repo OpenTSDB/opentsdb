@@ -28,6 +28,8 @@ import net.opentsdb.utils.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -43,6 +45,7 @@ public class MetaClient {
   private final TreeClient treeClient;
   private final RTPublisher realtimePublisher;
 
+  @Inject
   public MetaClient(final TsdbStore store,
                     final EventBus idEventBus,
                     final SearchPlugin searchPlugin,

@@ -2,16 +2,17 @@ package net.opentsdb.uid;
 
 import com.google.common.collect.ImmutableSet;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.utils.Config;
+import net.opentsdb.storage.TsdbStore;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;
@@ -23,15 +24,14 @@ import static org.junit.Assert.assertEquals;
 public class TestUidResolver {
   public static final ImmutableSet<String> METRICS_1 = ImmutableSet.of("sys.cpu.0", "sys.cpu.1", "sys.cpu.2");
   public static final ImmutableSet<String> METRICS_2 = ImmutableSet.of("sys.cpu.2", "sys.cpu.0", "sys.cpu.1");
-  private MemoryStore client;
   private UidResolver resolver;
 
   @Before
   public void setUp() throws IOException {
-    client = new MemoryStore();
-    TSDB tsdb = TsdbBuilder.createFromConfig(new Config(false))
-            .withStore(client)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    final TsdbStore client = objectGraph.get(TsdbStore.class);
+    final TSDB tsdb = objectGraph.get(TSDB.class);
+
     resolver = new UidResolver(tsdb);
 
     client.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);

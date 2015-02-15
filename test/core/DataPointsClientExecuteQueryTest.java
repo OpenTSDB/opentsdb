@@ -17,9 +17,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModule;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Config;
 
@@ -34,6 +38,9 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
+
+import javax.inject.Inject;
+
 import static org.junit.Assert.*;
 
 /**
@@ -85,9 +92,10 @@ public final class DataPointsClientExecuteQueryTest {
   public static final long TIMESTAMP_2L = TIMESTAMP_4L;
   public static final long TIMESTAMP_3L = 1356998550000L;
   private Config config;
-  private TSDB tsdb;
-  private MemoryStore tsdb_store;
   private QueryBuilder queryBuilder = null;
+
+  @Inject TSDB tsdb;
+  @Inject MemoryStore tsdb_store;
 
   private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
   private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};
@@ -99,11 +107,8 @@ public final class DataPointsClientExecuteQueryTest {
   public void before() throws Exception {
     config = new Config(false);
     config.setFixDuplicates(true);  // TODO(jat): test both ways
-    tsdb_store = new MemoryStore();
 
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 
     queryBuilder = new QueryBuilder(tsdb);
 

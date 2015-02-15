@@ -18,9 +18,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 
-
-import net.opentsdb.core.TsdbBuilder;
-import net.opentsdb.storage.TsdbStore;
+import dagger.ObjectGraph;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -74,10 +72,10 @@ final class DumpSeries {
       usage(argp, "Not enough arguments.", 2);
     }
 
-    // get a config object
-    Config config = CliOptions.getConfig(argp);
-    
-    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
+    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final Config config = objectGraph.get(Config.class);
+    final TSDB tsdb = objectGraph.get(TSDB.class);
+
     formatter = new UidFormatter(tsdb);
     final byte[] table = config.getString("tsd.storage.hbase.data_table").getBytes();
     final boolean delete = argp.has("--delete");

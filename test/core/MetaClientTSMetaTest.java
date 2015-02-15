@@ -1,16 +1,13 @@
 package net.opentsdb.core;
 
-import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
-import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.DeferredGroupException;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Config;
 import org.hbase.async.AtomicIncrementRequest;
@@ -28,6 +25,7 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.inject.Inject;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -44,34 +42,21 @@ import static org.mockito.Mockito.when;
           "ch.qos.*", "org.slf4j.*",
           "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class,
-          GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class,
-          Scanner.class, TSMeta.class, AtomicIncrementRequest.class})
+@PrepareForTest({KeyValue.class, Scanner.class, TSMeta.class})
  public class MetaClientTSMetaTest {
   private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
-  private Config config;
-  private MemoryStore tsdb_store;
-  private TSMeta meta = new TSMeta();
-  private MetaClient metaClient;
-  private EventBus idEventBus;
-  private SearchPlugin searchPlugin;
+
+  @Inject MetaClient metaClient;
+  @Inject MemoryStore tsdb_store;
 
   @Before
   public void before() throws Exception {
     Map<String, String> overrides = Maps.newHashMap();
     overrides.put("tsd.core.meta.enable_tsuid_incrementing", "TRUE");
     overrides.put("tsd.core.meta.enable_realtime_ts", "TRUE");
-    config = new Config(false, overrides);
+    final Config config = new Config(false, overrides);
 
-    tsdb_store = new MemoryStore();
-
-    idEventBus = new EventBus();
-    searchPlugin = mock(SearchPlugin.class);
-    final RTPublisher realtimePublisher = mock(RTPublisher.class);
-
-    UniqueIdClient uniqueIdClient = new UniqueIdClient(tsdb_store, config, new Metrics(new MetricRegistry()), idEventBus, searchPlugin);
-    TreeClient treeClient = new TreeClient(tsdb_store);
-    metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
@@ -125,19 +110,20 @@ import static org.mockito.Mockito.when;
 
   @Test
   public void delete() throws Exception {
-    meta = metaClient.getTSMeta( "000001000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final TSMeta meta = metaClient.getTSMeta("000001000001000001", true)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     metaClient.delete(meta);
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void deleteNull() throws Exception {
-    meta = new TSMeta();
+    final TSMeta meta = new TSMeta();
     metaClient.delete(meta);
   }
 
   @Test
   public void storeNew() throws Exception {
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    final TSMeta meta = new TSMeta(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1357300800000L);
     meta.setDisplayName("New DN");
     metaClient.create(meta);
     assertEquals("New DN", meta.getDisplayName());
@@ -145,13 +131,13 @@ import static org.mockito.Mockito.when;
 
   @Test (expected = IllegalArgumentException.class)
   public void storeNewNull() throws Exception {
-    meta = new TSMeta((String) null);
+    final TSMeta meta = new TSMeta((String) null);
     metaClient.create(meta);
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void storeNewEmpty() throws Exception {
-    meta = new TSMeta("");
+    final TSMeta meta = new TSMeta("");
     metaClient.create(meta);
   }
 
@@ -183,7 +169,8 @@ import static org.mockito.Mockito.when;
 
   @Test
   public void getTSMeta() throws Exception {
-    meta = metaClient.getTSMeta("000001000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final TSMeta meta = metaClient.getTSMeta("000001000001000001", true)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
     assertEquals("sys.cpu.0", meta.getMetric().getName());
@@ -197,7 +184,8 @@ import static org.mockito.Mockito.when;
 
   @Test
   public void getTSMetaDoesNotExist() throws Exception {
-    meta = metaClient.getTSMeta("000002000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final TSMeta meta = metaClient.getTSMeta("000002000001000001", true)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(meta);
   }
 
@@ -212,7 +200,8 @@ import static org.mockito.Mockito.when;
                     "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
                     .getBytes(Const.CHARSET_ASCII));
     try {
-      metaClient.getTSMeta( "000002000001000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      metaClient.getTSMeta( "000002000001000001", true)
+              .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
       throw e.getCause();
     }
@@ -254,7 +243,7 @@ import static org.mockito.Mockito.when;
 
   @Test
   public void syncToStorage() throws Exception {
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    final TSMeta meta = new TSMeta(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1357300800000L);
     meta.setDisplayName("New DN");
     metaClient.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("New DN", meta.getDisplayName());
@@ -263,7 +252,7 @@ import static org.mockito.Mockito.when;
 
   @Test
   public void syncToStorageOverwrite() throws Exception {
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    final TSMeta meta = new TSMeta(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1357300800000L);
     meta.setDisplayName("New DN");
     metaClient.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("New DN", meta.getDisplayName());
@@ -272,20 +261,20 @@ import static org.mockito.Mockito.when;
 
   @Test (expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
-    meta = new TSMeta("ABCD");
+    final TSMeta meta = new TSMeta("ABCD");
     metaClient.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageNullTSUID() throws Exception {
-    meta = new TSMeta();
+    final TSMeta meta = new TSMeta();
     metaClient.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void syncToStorageDoesNotExist() throws Exception {
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
-    meta = new TSMeta(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 }, 1357300800000L);
+    final TSMeta meta = new TSMeta(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1357300800000L);
     metaClient.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 

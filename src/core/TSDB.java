@@ -27,6 +27,7 @@ import net.opentsdb.utils.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Inject;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 
@@ -90,11 +91,16 @@ public class TSDB {
    * @param metrics Metrics instance used by all TSDB related objects
    * @since 2.1
    */
+  @Inject
   public TSDB(final TsdbStore client,
               final Config config,
               final SearchPlugin searchPlugin,
               final RTPublisher realTimePublisher,
-              final Metrics metrics) {
+              final Metrics metrics,
+              final UniqueIdClient uniqueIdClient,
+              final TreeClient treeClient,
+              final MetaClient metaClient,
+              final DataPointsClient dataPointsClient) {
     this.config = checkNotNull(config);
     this.tsdb_store = checkNotNull(client);
     this.metrics = checkNotNull(metrics);
@@ -111,11 +117,10 @@ public class TSDB {
     this.search = checkNotNull(searchPlugin);
     this.rt_publisher = checkNotNull(realTimePublisher);
 
-    EventBus idEventBus = new EventBus();
-    uniqueIdClient = new UniqueIdClient(tsdb_store, config, metrics, idEventBus, search);
-    treeClient = new TreeClient(tsdb_store);
-    metaClient = new MetaClient(tsdb_store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, rt_publisher);
-    dataPointsClient = new DataPointsClient(tsdb_store, config, uniqueIdClient, metaClient, rt_publisher);
+    this.uniqueIdClient = checkNotNull(uniqueIdClient);
+    this.treeClient = checkNotNull(treeClient);
+    this.metaClient = checkNotNull(metaClient);
+    this.dataPointsClient = checkNotNull(dataPointsClient);
 
     LOG.debug(config.dumpConfiguration());
   }

@@ -14,9 +14,10 @@ package net.opentsdb.core;
 
 import java.util.HashMap;
 
-import net.opentsdb.storage.MemoryStore;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.utils.Config;
+import net.opentsdb.storage.TsdbStore;
 
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -28,6 +29,9 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
+
+import javax.inject.Inject;
+
 import static org.junit.Assert.*;
 
 /**
@@ -39,23 +43,20 @@ import static org.junit.Assert.*;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({KeyValue.class, Scanner.class})
 public class TestTsdbQueryDownsample {
-  private TSDB tsdb;
-  private QueryBuilder builder;
-
   private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
   private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};
   private static final byte[] HOST_ID = new byte[]{0, 0, 1};
   private static final byte[] WEB01_ID = new byte[]{0, 0, 1};
   private static final byte[] WEB02_ID = new byte[]{0, 0, 2};
 
+  private TSDB tsdb;
+  private QueryBuilder builder;
+
   @Before
   public void before() throws Exception {
-    MemoryStore tsdb_store = new MemoryStore();
-    Config config = new Config(false);
-
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    final TsdbStore tsdb_store = objectGraph.get(TsdbStore.class);
+    tsdb = objectGraph.get(TSDB.class);
 
     builder = new QueryBuilder(tsdb);
 

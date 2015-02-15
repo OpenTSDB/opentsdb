@@ -132,6 +132,14 @@ public class Config {
   }
 
   /**
+   * Constructor that initializes default configuration values and doesn't
+   * attempt to load any files.
+   */
+  public Config() {
+    this.setDefaults();
+  }
+
+  /**
    * Constructor that initializes default values and attempts to load the given
    * properties file
    * @param file Path to the file to load

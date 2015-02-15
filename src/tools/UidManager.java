@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
+import dagger.ObjectGraph;
 import net.opentsdb.core.Const;
 
 import org.slf4j.Logger;
@@ -40,7 +41,6 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.hbase.HBaseStore;
@@ -113,11 +113,11 @@ final class UidManager {
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
     
     // get a config object
-    Config config = CliOptions.getConfig(argp);
-    final byte[] table = config.getString("tsd.storage.hbase.uid_table")
-      .getBytes();
-    
-    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
+    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final Config config = objectGraph.get(Config.class);
+    final TSDB tsdb = objectGraph.get(TSDB.class);
+
+    final byte[] table = config.getString("tsd.storage.hbase.uid_table").getBytes();
     argp = null;
     int rc;
     try {

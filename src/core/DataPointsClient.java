@@ -11,6 +11,7 @@ import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.utils.Config;
 import org.hbase.async.Bytes;
 
+import javax.inject.Inject;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,7 @@ public class DataPointsClient {
     return timestamp;
   }
 
+  @Inject
   public DataPointsClient(final TsdbStore store,
                           final Config config,
                           final UniqueIdClient uniqueIdClient,

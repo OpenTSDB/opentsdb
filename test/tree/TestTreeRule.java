@@ -14,13 +14,12 @@ package net.opentsdb.tree;
 
 import java.util.regex.PatternSyntaxException;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TSDB;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
-import net.opentsdb.utils.Config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
@@ -30,8 +29,6 @@ import static org.junit.Assert.*;
 
 
 public final class TestTreeRule {
-  private MemoryStore tsdb_store;
-  private TSDB tsdb;
   private TreeRule rule;
   private ObjectMapper jsonMapper;
 
@@ -384,10 +381,8 @@ public final class TestTreeRule {
    * Mocks classes for testing the storage calls
    */
   private void setupStorage() throws Exception {
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(new Config(false))
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
+    final MemoryStore tsdb_store = objectGraph.get(MemoryStore.class);
 
     final TreeRule stored_rule = new TreeRule(1);
     stored_rule.setLevel(2);
@@ -399,12 +394,12 @@ public final class TestTreeRule {
     stored_rule.setNotes("Owner of the host machine");
     
     // pretend there's a tree definition in the storage row
-    tsdb_store.addColumn(new byte[] { 0, 1 }, "tree".getBytes(Const.CHARSET_ASCII),
-        new byte[] { 1 });
+    tsdb_store.addColumn(new byte[]{0, 1}, "tree".getBytes(Const.CHARSET_ASCII),
+            new byte[]{1});
     
     // add a rule to the row
     tsdb_store.addColumn(new byte[]{0, 1},
-      "tree_rule:2:1".getBytes(Const.CHARSET_ASCII),
-      jsonMapper.writeValueAsBytes(stored_rule));
+            "tree_rule:2:1".getBytes(Const.CHARSET_ASCII),
+            jsonMapper.writeValueAsBytes(stored_rule));
   }
 }

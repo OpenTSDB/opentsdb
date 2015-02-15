@@ -16,8 +16,9 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.TsdbBuilder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -57,10 +58,9 @@ public final class TestUniqueIdRpc {
     properties.put("tsd.http.show_stack_trace", "true");
     Config config = new Config(false, properties);
 
-    tsdb_store = new MemoryStore();
-    tsdb = TsdbBuilder.createFromConfig(config)
-            .withStore(tsdb_store)
-            .build();
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore(config));
+    tsdb_store = objectGraph.get(MemoryStore.class);
+    tsdb = objectGraph.get(TSDB.class);
   }
 
   @Test

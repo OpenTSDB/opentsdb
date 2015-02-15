@@ -26,7 +26,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import net.opentsdb.core.TsdbBuilder;
+import dagger.ObjectGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,12 +63,9 @@ final class TextImporter {
       usage(argp, 2);
     }
 
-    // get a config object
-    Config config = CliOptions.getConfig(argp);
-    
-    final TSDB tsdb = TsdbBuilder.createFromConfig(config).build();
-    final MetricRegistry metrics = new MetricRegistry();
-    metrics.registerAll(tsdb.getMetrics());
+    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final TSDB tsdb = objectGraph.get(TSDB.class);
+    final MetricRegistry metrics = objectGraph.get(MetricRegistry.class);
 
     // TODO(tsuna): Figure out something better than just writing to stderr.
     ConsoleReporter reporter = ConsoleReporter.forRegistry(metrics)

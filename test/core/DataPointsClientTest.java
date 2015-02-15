@@ -1,9 +1,8 @@
 package net.opentsdb.core;
 
-import com.codahale.metrics.MetricRegistry;
-import com.google.common.eventbus.EventBus;
+import dagger.ObjectGraph;
+import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.tsd.RTPublisher;
@@ -35,13 +34,10 @@ public class DataPointsClientTest {
 
     final Config config = new Config(false);
     config.setFixDuplicates(true); // TODO(jat): test both ways
-    store = new MemoryStore();
 
-    EventBus idEventBus = new EventBus();
-    final UniqueIdClient uniqueIdClient = new UniqueIdClient(store, config, new Metrics(new MetricRegistry()), idEventBus, searchPlugin);
-    final TreeClient treeClient = new TreeClient(store);
-    final MetaClient metaClient = new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
-    dataPointsClient = new DataPointsClient(store, config, uniqueIdClient, metaClient, realtimePublisher);
+    final ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore(config));
+    store = objectGraph.get(MemoryStore.class);
+    dataPointsClient = objectGraph.get(DataPointsClient.class);
   }
 
   @Test
