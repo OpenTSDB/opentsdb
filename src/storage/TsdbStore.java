@@ -28,7 +28,6 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.Label;
-import org.hbase.async.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,11 +52,7 @@ public interface TsdbStore {
 
   public Deferred<Object> flush();
 
-  public Deferred<ArrayList<KeyValue>> get(final GetRequest request);
-
   long getFlushInterval();
-
-  public Scanner newScanner(final byte[] table);
 
   void setFlushInterval(short aShort);
 

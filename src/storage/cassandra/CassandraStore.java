@@ -32,9 +32,6 @@ import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.Label;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
-import org.hbase.async.GetRequest;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -169,18 +166,8 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<ArrayList<KeyValue>> get(GetRequest request) {
-    return null;
-  }
-
-  @Override
   public long getFlushInterval() {
     return 0;
-  }
-
-  @Override
-  public Scanner newScanner(byte[] table) {
-    return null;
   }
 
   @Override

@@ -23,7 +23,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.xml.bind.DatatypeConverter;
 
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.DerivativeGauge;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.MoreObjects;
@@ -43,12 +42,10 @@ import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseException;
-import org.hbase.async.KeyValue;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.core.StringCoder.toBytes;
 import static net.opentsdb.stats.Metrics.name;
 import static net.opentsdb.stats.Metrics.tag;
 
@@ -143,17 +140,6 @@ public class UniqueId {
         return name_cache.size() + id_cache.size();
       }
     });
-
-    UsedUidsGauge usedUidsGauge = new UsedUidsGauge(type, tsdb_store, table);
-    registry.register(name("uid.ids-used", typeTag), usedUidsGauge);
-
-    registry.register(name("uid.ids-available", typeTag),
-        new DerivativeGauge<Long,Long>(usedUidsGauge) {
-      @Override
-      protected Long transform(final Long usedIds) {
-        return maxPossibleId() - usedIds;
-      }
-    });
   }
 
   public UniqueIdType type() {
@@ -162,11 +148,6 @@ public class UniqueId {
 
   public short width() {
     return id_width;
-  }
-
-  /** The largest possible ID given the number of bytes the IDs are represented on. */
-  public long maxPossibleId() {
-    return (1 << id_width * Byte.SIZE) - 1;
   }
 
   /**
@@ -185,7 +166,6 @@ public class UniqueId {
    * @see #getId(String)
    * @see #createId(String)
    * @throws NoSuchUniqueId if the given ID is not assigned.
-   * @throws HBaseException if there is a problem communicating with HBase.
    * @throws IllegalArgumentException if the ID given in argument is encoded
    * on the wrong number of bytes.
    * @since 1.1
@@ -333,8 +313,6 @@ public class UniqueId {
    * @param newname The new name.
    * @throws NoSuchUniqueName if {@code oldname} wasn't assigned.
    * @throws IllegalArgumentException if {@code newname} was already assigned.
-   * @throws HBaseException if there was a problem with HBase while trying to
-   * update the mapping.
    */
   public Deferred<Object> rename(final String oldname, final String newname) {
     return checkUidExists(newname).addCallback(new Callback<Object, Boolean>() {
@@ -380,11 +358,6 @@ public class UniqueId {
 
     return getId(newname).addCallbacks(new NoId(), new NoSuchId());
   }
-
-  private static byte[] toBytes(final String s) {
-    return s.getBytes(CHARSET);
-  }
-
 
   /** Returns a human readable string representation of the object. */
   public String toString() {
@@ -624,70 +597,9 @@ public class UniqueId {
   }
 
   /**
-   * Returns a map of max UIDs from storage for the given list of UID types
-   * @param tsdb The TSDB to which we belong
-   * @param kinds A list of qualifiers to fetch
-   * @param table
-   * @return A map with the "kind" as the key and the maximum assigned UID as
-   * the value
-   * @since 2.0
-   */
-  public static Deferred<Map<String, Long>> getUsedUIDs(final TsdbStore store,
-                                                        final byte[][] kinds,
-                                                        final byte[] table) {
-
-    /**
-     * Returns a map with 0 if the max ID row hasn't been initialized yet, 
-     * otherwise the map has actual data
-     */
-    final class GetCB implements Callback<Map<String, Long>,
-      ArrayList<KeyValue>> {
-
-      @Override
-      public Map<String, Long> call(final ArrayList<KeyValue> row)
-          throws Exception {
-
-        final Map<String, Long> results = new HashMap<String, Long>(3);
-        if (row == null || row.isEmpty()) {
-          // it could be the case that this is the first time the TSD has run
-          // and the user hasn't put any metrics in, so log and return 0s
-          LOG.info("Could not find the UID assignment row");
-          for (final byte[] kind : kinds) {
-            results.put(new String(kind, CHARSET), 0L);
-          }
-          return results;
-        }
-
-        for (final KeyValue column : row) {
-          results.put(new String(column.qualifier(), CHARSET),
-              Bytes.getLong(column.value()));
-        }
-
-        // if the user is starting with a fresh UID table, we need to account
-        // for missing columns
-        for (final byte[] kind : kinds) {
-          if (results.get(new String(kind, CHARSET)) == null) {
-            results.put(new String(kind, CHARSET), 0L);
-          }
-        }
-        return results;
-      }
-
-    }
-
-    final GetRequest get = new GetRequest(table, MAXID_ROW)
-        .family(ID_FAMILY)
-        .qualifiers(kinds);
-
-    return store.get(get).addCallback(new GetCB());
-  }
-
-  /**
    * Pre-load UID caches, scanning up to "tsd.core.preload_uid_cache.max_entries"
    * rows from the UID table.
    * @param uniqueIdInstances A map of {@link net.opentsdb.uid.UniqueId} objects keyed on the kind.
-   * @throws HBaseException Passes any HBaseException from HBase scanner.
-   * @throws RuntimeException Wraps any non HBaseException from HBase scanner.
    * @2.1
    */
   public static void preloadUidCache(final Config config,

@@ -15,5 +15,10 @@ class HBaseConst {
      * The column family that maps names to IDs
      */
     static final byte[] ID_FAMILY = "id".getBytes(CHARSET);
+
+    /**
+     * Row key of the special row used to track the max ID already assigned.
+     */
+    static final byte[] MAXID_ROW = {0};
   }
 }

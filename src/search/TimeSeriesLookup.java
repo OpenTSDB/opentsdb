@@ -194,8 +194,8 @@ public class TimeSeriesLookup {
    * @return A configured scanner
    */
   private Scanner getScanner(final StringBuilder tagv_filter) {
-    final Scanner scanner = tsdb.getTsdbStore().newScanner(
-        query.useMeta() ? tsdb.metaTable() : tsdb.dataTable());
+    final Scanner scanner = tsdb.getHBaseStore().newScanner(
+            query.useMeta() ? tsdb.metaTable() : tsdb.dataTable());
 
     // if a metric is given, we need to resolve it's UID and set the start key
     // to the UID and the stop key to the next row by incrementing the UID. 
