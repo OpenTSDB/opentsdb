@@ -85,7 +85,6 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   public ChannelPipeline getPipeline() throws Exception {
    final ChannelPipeline pipeline = pipeline();
 
-    pipeline.addLast("timeout", this.timeoutHandler);
     pipeline.addLast("connmgr", connmgr);
     pipeline.addLast("detect", HTTP_OR_RPC);
     return pipeline;
@@ -126,6 +125,8 @@ public final class PipelineFactory implements ChannelPipelineFactory {
         pipeline.addLast("encoder", ENCODER);
         pipeline.addLast("decoder", DECODER);
       }
+
+      pipeline.addLast("timeout", timeoutHandler);
       pipeline.remove(this);
       pipeline.addLast("handler", rpchandler);
 
