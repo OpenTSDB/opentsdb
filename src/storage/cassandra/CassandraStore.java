@@ -180,15 +180,19 @@ public class CassandraStore implements TsdbStore {
                                    final long timestamp, final short flags) {
     final long base_time = buildBaseTime(timestamp);
 
-    final ResultSetFuture future = session.executeAsync(add_point_statement
-            .bind(UniqueId.uidToString(tsuid), base_time, timestamp,
+    final ResultSetFuture future = session.executeAsync(
+            add_point_statement.bind(
+                    UniqueId.uidToString(tsuid),
+                    base_time,
+                    timestamp,
                     new Integer(flags),
                     StringCoder.fromBytes(value)));
 
-    final byte[] metric_uid = UniqueId.getMetricFromTSUID(UniqueId
-            .uidToString(tsuid));
-    final List<byte[]> tags_uids = UniqueId.getTagsFromTSUID(UniqueId
-            .uidToString(tsuid));
+    final byte[] metric_uid = UniqueId.getMetricFromTSUID(
+            UniqueId.uidToString(tsuid));
+
+    final List<byte[]> tags_uids = UniqueId.getTagsFromTSUID(
+            UniqueId.uidToString(tsuid));
 
     final Deferred<Object> d = new Deferred<Object>();
 
@@ -196,22 +200,22 @@ public class CassandraStore implements TsdbStore {
       @Override
       public void onSuccess(ResultSet rows) {
         d.callback(null);
+
         session.executeAsync(insert_tags_statement.bind(
                 UniqueId.uidToLong(metric_uid, UniqueIdType.METRIC.width),
-                UniqueIdType.METRIC.toValue(), UniqueId.uidToString
-                        (tsuid)));
+                UniqueIdType.METRIC.toValue(),
+                UniqueId.uidToString(tsuid)));
+
         for (int i = 0; i < tags_uids.size(); i += 2) {
           session.executeAsync(insert_tags_statement.bind(
-                  UniqueId.uidToLong(tags_uids.get(i),
-                          UniqueIdType.TAGK.width),
-                  UniqueIdType.TAGK.toValue(), UniqueId.uidToString
-                          (tsuid)));
+                  UniqueId.uidToLong(tags_uids.get(i), UniqueIdType.TAGK.width),
+                  UniqueIdType.TAGK.toValue(),
+                  UniqueId.uidToString(tsuid)));
 
           session.executeAsync(insert_tags_statement.bind(
-                  UniqueId.uidToLong(tags_uids.get(i + 1),
-                          UniqueIdType.TAGV.width),
-                  UniqueIdType.TAGV.toValue(), UniqueId.uidToString
-                          (tsuid)));
+                  UniqueId.uidToLong(tags_uids.get(i + 1), UniqueIdType.TAGV.width),
+                  UniqueIdType.TAGV.toValue(),
+                  UniqueId.uidToString(tsuid)));
         }
       }
 
@@ -248,12 +252,10 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Optional<byte[]>> getId(final String name, final
-  UniqueIdType
-          type) {
-
-    ResultSetFuture f = session.executeAsync(get_id_statement.bind(
-            name, type.toValue()));
+  public Deferred<Optional<byte[]>> getId(final String name,
+                                          final UniqueIdType type) {
+    ResultSetFuture f = session.executeAsync(
+            get_id_statement.bind(name, type.toValue()));
 
     final Deferred<Optional<byte[]>> d = new Deferred<Optional<byte[]>>();
 
@@ -277,9 +279,8 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Optional<String>> getName(final byte[] id, final
-  UniqueIdType type) {
-
+  public Deferred<Optional<String>> getName(final byte[] id,
+                                            final UniqueIdType type) {
     ResultSetFuture f = session.executeAsync(get_name_statement.bind(
             UniqueId.uidToLong(id), type.toValue()));
 
