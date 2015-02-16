@@ -1,6 +1,6 @@
 language: java
 before_script: ./build.sh pom.xml
-script: mvn test-compile --quiet
+script: mvn test-compile
 jdk:
   - oraclejdk7
   - openjdk6

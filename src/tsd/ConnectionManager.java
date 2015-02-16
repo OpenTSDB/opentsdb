@@ -90,10 +90,10 @@ final class ConnectionManager extends IdleStateAwareChannelHandler {
       }
     }
     if (cause instanceof CodecEmbedderException) {
-    	// payload was not compressed as it was announced to be
+      // payload was not compressed as it was announced to be
       LOG.warn("Http codec error : {}", cause.getMessage());
-    	e.getChannel().close();
-    	return;
+      e.getChannel().close();
+      return;
     }
     stats.getExceptions_unknown().inc();
     LOG.error("Unexpected exception from downstream for {}", chan, cause);

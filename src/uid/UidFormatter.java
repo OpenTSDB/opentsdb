@@ -14,7 +14,9 @@ import com.stumbleupon.async.Deferred;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import static net.opentsdb.uid.UniqueIdType.*;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueIdType.TAGK;
+import static net.opentsdb.uid.UniqueIdType.TAGV;
 
 /**
  * Looks up uid names based on uids.

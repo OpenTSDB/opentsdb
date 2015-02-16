@@ -21,28 +21,28 @@ import static org.junit.Assert.assertNotNull;
 
 public abstract class TestRTPublisher {
   protected RTPublisher rt_publisher;
-  
+
   @Test
-  public void shutdown() throws Exception  {
+  public void shutdown() throws Exception {
     assertNotNull(rt_publisher.shutdown());
   }
-  
+
   @Test
   public void sinkDataPoint() throws Exception {
-    assertNotNull(rt_publisher.sinkDataPoint("sys.cpu.user", 
-        System.currentTimeMillis(), new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 }, 
-        null, null, (short)0x7));
+    assertNotNull(rt_publisher.sinkDataPoint("sys.cpu.user",
+            System.currentTimeMillis(), new byte[]{0, 0, 0, 0, 0, 0, 0, 1},
+            null, null, (short) 0x7));
   }
-  
+
   @Test
   public void publishAnnotation() throws Exception {
-	  Annotation ann = new Annotation();
-	  HashMap<String, String> customMap = new HashMap<String, String>(1);
-	  customMap.put("test-custom-key", "test-custom-value");
-	  ann.setCustom(customMap);
-	  ann.setDescription("A test annotation");
-	  ann.setNotes("Test annotation notes");
-	  ann.setStartTime(System.currentTimeMillis());	  
-	  assertNotNull(rt_publisher.publishAnnotation(ann));
+    Annotation ann = new Annotation();
+    HashMap<String, String> customMap = new HashMap<String, String>(1);
+    customMap.put("test-custom-key", "test-custom-value");
+    ann.setCustom(customMap);
+    ann.setDescription("A test annotation");
+    ann.setNotes("Test annotation notes");
+    ann.setStartTime(System.currentTimeMillis());
+    assertNotNull(rt_publisher.publishAnnotation(ann));
   }
 }
