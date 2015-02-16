@@ -584,8 +584,10 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
   @Override
   public void channelIdle(ChannelHandlerContext ctx, IdleStateEvent e) {
     if (e.getState() == IdleState.ALL_IDLE) {
-      LOG.debug("Closed idle socket.");
+      final String channel_info = e.getChannel().toString();
+      LOG.debug("Closing idle socket: " + channel_info);
       e.getChannel().close();
+      LOG.info("Closed idle socket: " + channel_info);
     }
   }
   
