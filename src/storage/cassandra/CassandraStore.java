@@ -157,30 +157,28 @@ public class CassandraStore implements TsdbStore {
 
   @Override
   public Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> flush() {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public long getFlushInterval() {
-    return 0;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public void setFlushInterval(short aShort) {
-
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> addPoint(final byte[] tsuid, final byte[] value,
                                    final long timestamp, final short flags) {
-
     final long base_time = buildBaseTime(timestamp);
-
 
     final ResultSetFuture future = session.executeAsync(add_point_statement
             .bind(UniqueId.uidToString(tsuid), base_time, timestamp,
@@ -308,33 +306,32 @@ public class CassandraStore implements TsdbStore {
 
   @Override
   public Deferred<Object> add(UIDMeta meta) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> delete(UIDMeta meta) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<UIDMeta> getMeta(byte[] uid, String name, UniqueIdType type) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> updateMeta(UIDMeta meta, boolean overwrite) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> deleteUID(byte[] name, UniqueIdType type) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<byte[]> allocateUID(final String name, final UniqueIdType
-          type) {
-
+  public Deferred<byte[]> allocateUID(final String name,
+                                      final UniqueIdType type) {
     final Deferred<byte[]> d = new Deferred<byte[]>();
 
     final ResultSetFuture future = session.executeAsync(get_max_uid_statement.bind
@@ -467,32 +464,32 @@ public class CassandraStore implements TsdbStore {
 
   @Override
   public void scheduleForCompaction(byte[] row) {
-
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> delete(Annotation annotation) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<List<Annotation>> getGlobalAnnotations(long start_time, long end_time) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Integer> deleteAnnotationRange(byte[] tsuid, long start_time, long end_time) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<ImmutableList<DataPoints>> executeQuery(Query query) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
@@ -502,132 +499,132 @@ public class CassandraStore implements TsdbStore {
 
   @Override
   public Deferred<Tree> fetchTree(int tree_id) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> storeTree(Tree tree, boolean overwrite) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Integer> createNewTree(Tree tree) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<List<Tree>> fetchAllTrees() {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> deleteTree(int tree_id, boolean delete_definition) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Map<String, String>> fetchCollisions(int tree_id, List<String> tsuids) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Map<String, String>> fetchNotMatched(int tree_id, List<String> tsuids) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> flushTreeCollisions(Tree tree) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> flushTreeNotMatched(Tree tree) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> storeLeaf(Leaf leaf, Branch branch, Tree tree) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<ArrayList<Boolean>> storeBranch(Tree tree, Branch branch, boolean store_leaves) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Branch> fetchBranchOnly(byte[] branch_id) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Branch> fetchBranch(byte[] branch_id, boolean load_leaf_uids, TSDB tsdb) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<TreeRule> fetchTreeRule(int tree_id, int level, int order) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> deleteTreeRule(int tree_id, int level, int order) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> deleteAllTreeRule(int tree_id) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> syncTreeRuleToStorage(TreeRule rule, boolean overwrite) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> delete(TSMeta tsMeta) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> deleteTimeseriesCounter(TSMeta ts) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> create(TSMeta tsMeta) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<TSMeta> getTSMeta(byte[] tsuid) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> syncToStorage(TSMeta tsMeta, Deferred<ArrayList<Object>> uid_group, boolean overwrite) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> TSMetaExists(String tsuid) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Boolean> TSMetaCounterExists(byte[] tsuid) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Long> incrementAndGetCounter(byte[] tsuid) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<Object> setTSMetaCounter(byte[] tsuid, long number) {
-    return null;
+    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   /**
