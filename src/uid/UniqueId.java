@@ -614,9 +614,9 @@ public class UniqueId {
 
     try {
       IdQuery idQuery = new IdQuery(null, null, max_results);
-      List<Label> ids = store.executeIdQuery(idQuery).join();
+      List<IdentifierDecorator> ids = store.executeIdQuery(idQuery).join();
 
-      for (final Label id : ids) {
+      for (final IdentifierDecorator id : ids) {
         LOG.debug("Preloaded {}", id);
         UniqueId uid_cache = uniqueIdInstances.get(id.getType());
         uid_cache.cacheMapping(id.getName(), id.getId());

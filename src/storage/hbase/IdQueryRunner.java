@@ -5,7 +5,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.UniqueIdType;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
@@ -105,7 +105,7 @@ class IdQueryRunner {
    * Once an instance of this class has been instantiated through the constructor
    * this method should be called which will start the scan.
    */
-  Deferred<List<Label>> search() {
+  Deferred<List<IdentifierDecorator>> search() {
     return scanner.nextRows()
             .addCallbackDeferring(new ScannerCB(scanner, maxResults));
   }
@@ -114,8 +114,8 @@ class IdQueryRunner {
    * Callback to scan a HBase database for matching IDs.
    */
   private static final class ScannerCB
-          implements Callback<Deferred<List<Label>>, ArrayList<ArrayList<KeyValue>>> {
-    private final List<Label> suggestions = new LinkedList<Label>();
+          implements Callback<Deferred<List<IdentifierDecorator>>, ArrayList<ArrayList<KeyValue>>> {
+    private final List<IdentifierDecorator> suggestions = new LinkedList<IdentifierDecorator>();
     private final Scanner scanner;
     private final int max_results;
 
@@ -124,12 +124,12 @@ class IdQueryRunner {
       this.scanner = scanner;
     }
 
-    Deferred<List<Label>> search() {
+    Deferred<List<IdentifierDecorator>> search() {
       return scanner.nextRows().addCallbackDeferring(this);
     }
 
     @Override
-    public Deferred<List<Label>> call(final ArrayList<ArrayList<KeyValue>> rows) {
+    public Deferred<List<IdentifierDecorator>> call(final ArrayList<ArrayList<KeyValue>> rows) {
       // Once the scanner returns null there is nothing more for us so we are
       // done.
       if (rows == null) {
@@ -140,7 +140,7 @@ class IdQueryRunner {
       // their names and types.
       for (final ArrayList<KeyValue> row : rows) {
         for (final KeyValue kv : row) {
-          suggestions.add(new HBaseLabel(kv));
+          suggestions.add(new HBaseIdentifierDecorator(kv));
 
           if (suggestions.size() >= max_results) {  // We have enough.
             return Deferred.fromResult(suggestions);
@@ -158,10 +158,10 @@ class IdQueryRunner {
    * {@link org.hbase.async.KeyValue} and calculates the values based on that
    * when requested.
    */
-  private static class HBaseLabel implements Label {
+  private static class HBaseIdentifierDecorator implements IdentifierDecorator {
     private final KeyValue keyValue;
 
-    public HBaseLabel(final KeyValue keyValue) {
+    public HBaseIdentifierDecorator(final KeyValue keyValue) {
       this.keyValue = keyValue;
     }
 

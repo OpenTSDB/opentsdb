@@ -39,7 +39,7 @@ import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Pair;
 
@@ -1019,7 +1019,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+  public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     Function<UniqueIdType, Boolean> typeMatchFunction = new Function<UniqueIdType, Boolean>() {
       @Override
       public Boolean apply(final UniqueIdType input) {
@@ -1034,12 +1034,12 @@ public class MemoryStore implements TsdbStore {
       }
     };
 
-    final List<Label> result = new ArrayList<Label>();
+    final List<IdentifierDecorator> result = new ArrayList<IdentifierDecorator>();
 
     for (final Table.Cell<String, UniqueIdType, byte[]> cell : uid_forward_mapping.cellSet()) {
       if (typeMatchFunction.apply(cell.getColumnKey()) &&
           nameMatchFunction.apply(cell.getRowKey())) {
-        result.add(new Label() {
+        result.add(new IdentifierDecorator() {
           @Override
           public byte[] getId() {
             return cell.getValue();

@@ -18,7 +18,7 @@ import java.util.List;
 
 import com.google.common.base.Throwables;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
@@ -86,7 +86,7 @@ final class SuggestRpc implements HttpRpc {
       throw new BadRequestException("Invalid 'type' parameter:" + type, e);
     }
 
-    final List<Label> suggestions;
+    final List<IdentifierDecorator> suggestions;
     try {
       IdQuery idQuery = new IdQuery(q, utype, max_results);
       suggestions = tsdb.getUniqueIdClient().suggest(idQuery).joinUninterruptibly();

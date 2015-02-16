@@ -1,7 +1,6 @@
 package net.opentsdb.search;
 
 import net.opentsdb.BuildData;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -9,8 +8,7 @@ import net.opentsdb.meta.UIDMeta;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
-import net.opentsdb.utils.Config;
+import net.opentsdb.uid.IdentifierDecorator;
 
 import java.util.List;
 
@@ -77,7 +75,7 @@ public class DefaultSearchPlugin extends SearchPlugin {
   }
 
   @Override
-  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+  public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     return store.executeIdQuery(query);
   }
 }

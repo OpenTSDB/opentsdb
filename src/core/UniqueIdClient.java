@@ -13,7 +13,7 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
@@ -241,7 +241,7 @@ public class UniqueIdClient {
    * @param query The query specifying the search parameters.
    * @return A deferred that contains the result of the query.
    */
-  public Deferred<List<Label>> suggest(final IdQuery query) {
+  public Deferred<List<IdentifierDecorator>> suggest(final IdQuery query) {
     return searchPlugin.executeIdQuery(query);
   }
 

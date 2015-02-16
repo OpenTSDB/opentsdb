@@ -27,7 +27,7 @@ import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -122,7 +122,7 @@ public interface TsdbStore {
    * @param query An object that describes the query parameters
    * @return A deferred with a list of matching IDs
    */
-  Deferred<List<Label>> executeIdQuery(final IdQuery query);
+  Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
 
   Deferred<Tree> fetchTree(final int tree_id);
 

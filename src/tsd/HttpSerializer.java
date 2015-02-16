@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -370,7 +370,7 @@ public abstract class HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public ChannelBuffer formatSuggestV1(final List<Label> suggestions) {
+  public ChannelBuffer formatSuggestV1(final List<IdentifierDecorator> suggestions) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 

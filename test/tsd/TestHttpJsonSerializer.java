@@ -22,8 +22,8 @@ import java.util.List;
 
 import net.opentsdb.core.TSDB;
 
-import net.opentsdb.uid.Label;
-import net.opentsdb.uid.StaticLabel;
+import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.StaticIdentifierDecorator;
 import net.opentsdb.uid.UniqueIdType;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.junit.Before;
@@ -124,8 +124,8 @@ public final class TestHttpJsonSerializer {
     HttpQuery query = NettyMocks.getQuery(tsdb, "");
     HttpJsonSerializer serdes = new HttpJsonSerializer(query);
 
-    final List<Label> metrics = new ArrayList<Label>();
-    metrics.add(new StaticLabel(new byte[] {0,0,1},
+    final List<IdentifierDecorator> metrics = new ArrayList<IdentifierDecorator>();
+    metrics.add(new StaticIdentifierDecorator(new byte[] {0,0,1},
             UniqueIdType.METRIC, "sys.cpu.0.system"));
 
     ChannelBuffer cb = serdes.formatSuggestV1(metrics);
@@ -139,8 +139,8 @@ public final class TestHttpJsonSerializer {
     HttpQuery query = NettyMocks.getQuery(tsdb, "?jsonp=func");
     HttpJsonSerializer serdes = new HttpJsonSerializer(query);
 
-    final List<Label> metrics = new ArrayList<Label>();
-    metrics.add(new StaticLabel(new byte[] {0,0,1},
+    final List<IdentifierDecorator> metrics = new ArrayList<IdentifierDecorator>();
+    metrics.add(new StaticIdentifierDecorator(new byte[] {0,0,1},
             UniqueIdType.METRIC, "sys.cpu.0.system"));
 
     ChannelBuffer cb = serdes.formatSuggestV1(metrics);

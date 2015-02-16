@@ -19,7 +19,7 @@ import net.opentsdb.meta.UIDMeta;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 
 import java.util.List;
 
@@ -118,5 +118,5 @@ public abstract class SearchPlugin extends Plugin {
    * @param query The parameters for the query
    * @return A deferred with a list of matching IDs.
    */
-  public abstract Deferred<List<Label>> executeIdQuery(final IdQuery query);
+  public abstract Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
 }

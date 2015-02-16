@@ -49,7 +49,7 @@ import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
@@ -1026,7 +1026,7 @@ public class HBaseStore implements TsdbStore {
    * @see net.opentsdb.storage.TsdbStore#executeIdQuery
    */
   @Override
-  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+  public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     return new IdQueryRunner(client, uid_table_name, query).search();
   }
 

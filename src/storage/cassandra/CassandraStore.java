@@ -29,7 +29,7 @@ import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.Label;
+import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import org.slf4j.Logger;
@@ -496,7 +496,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<List<Label>> executeIdQuery(final IdQuery query) {
+  public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     throw new UnsupportedOperationException("Not implemented yet!");
   }
 
