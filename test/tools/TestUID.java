@@ -50,7 +50,7 @@ public class TestUID {
   private byte[] TAGK = "tagk".getBytes(Const.CHARSET_ASCII);
   private byte[] TAGV = "tagv".getBytes(Const.CHARSET_ASCII);
 
-  private final static Method fsck;
+  private static final Method fsck;
   static {
     try {
       fsck = UidManager.class.getDeclaredMethod("fsck", TsdbStore.class,

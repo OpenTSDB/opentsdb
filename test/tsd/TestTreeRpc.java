@@ -91,8 +91,7 @@ public final class TestTreeRpc {
   public void handleTreeBadMethod() throws Exception {
     final HttpRequest req = new DefaultHttpRequest(HttpVersion.HTTP_1_1, 
         HttpMethod.TRACE, "/api/tree");
-    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel()
-            , tsdStats);
+    final HttpQuery query = new HttpQuery(tsdb, req, NettyMocks.fakeChannel(), tsdStats);
     rpc.execute(tsdb, query);
   }
   

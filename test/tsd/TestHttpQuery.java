@@ -51,7 +51,7 @@ public final class TestHttpQuery {
   private TSDB tsdb = null;
   private TsdStats tsdStats;
 
-  final static private Method guessMimeTypeFromUri;
+  private static final Method guessMimeTypeFromUri;
   static {
     try {
       guessMimeTypeFromUri = HttpQuery.class.getDeclaredMethod(
@@ -61,7 +61,7 @@ public final class TestHttpQuery {
       throw new RuntimeException("Failed in static initializer", e);
     }
   }
-  final static private Method guessMimeTypeFromContents;
+  private static final Method guessMimeTypeFromContents;
   static {
     try {
       guessMimeTypeFromContents = HttpQuery.class.getDeclaredMethod(
@@ -71,7 +71,7 @@ public final class TestHttpQuery {
       throw new RuntimeException("Failed in static initializer", e);
     }
   }
-  final static private Method sendBuffer;
+  private static final Method sendBuffer;
   static {
     try {
       sendBuffer = HttpQuery.class.getDeclaredMethod(
@@ -134,43 +134,43 @@ public final class TestHttpQuery {
   @Test
   public void getQueryStringParamNull() {
     assertNull(NettyMocks.getQuery(tsdb, 
-        "/api/v1/put?param=value&param2=value2").
-        getQueryStringParam("nothere"));
+        "/api/v1/put?param=value&param2=value2")
+            .getQueryStringParam("nothere"));
   }
   
   @Test
   public void getRequiredQueryStringParam() {
     assertEquals("value", 
         NettyMocks.getQuery(tsdb, 
-        "/api/v1/put?param=value&param2=value2").
-        getRequiredQueryStringParam("param"));
+        "/api/v1/put?param=value&param2=value2")
+                .getRequiredQueryStringParam("param"));
   }
   
   @Test (expected = BadRequestException.class)
   public void getRequiredQueryStringParamMissing() {
-    NettyMocks.getQuery(tsdb, "/api/v1/put?param=value&param2=value2").
-      getRequiredQueryStringParam("nothere");
+    NettyMocks.getQuery(tsdb, "/api/v1/put?param=value&param2=value2")
+            .getRequiredQueryStringParam("nothere");
   }
   
   @Test
   public void hasQueryStringParam() {
     assertTrue(NettyMocks.getQuery(tsdb, 
-        "/api/v1/put?param=value&param2=value2").
-        hasQueryStringParam("param"));
+        "/api/v1/put?param=value&param2=value2")
+            .hasQueryStringParam("param"));
   }
   
   @Test
   public void hasQueryStringMissing() {
     assertFalse(NettyMocks.getQuery(tsdb, 
-        "/api/v1/put?param=value&param2=value2").
-        hasQueryStringParam("nothere"));
+        "/api/v1/put?param=value&param2=value2")
+            .hasQueryStringParam("nothere"));
   }
   
   @Test
   public void getQueryStringParams() {
     List<String> params = NettyMocks.getQuery(tsdb, 
-        "/api/v1/put?param=v1&param=v2&param=v3").
-      getQueryStringParams("param");
+        "/api/v1/put?param=v1&param=v2&param=v3")
+            .getQueryStringParams("param");
     assertNotNull(params);
     assertEquals(3, params.size());
   }
@@ -178,8 +178,8 @@ public final class TestHttpQuery {
   @Test
   public void getQueryStringParamsNull() {
     List<String> params = NettyMocks.getQuery(tsdb, 
-        "/api/v1/put?param=v1&param=v2&param=v3").
-      getQueryStringParams("nothere");
+        "/api/v1/put?param=v1&param=v2&param=v3")
+            .getQueryStringParams("nothere");
     assertNull(params);
   }
   
@@ -187,8 +187,8 @@ public final class TestHttpQuery {
   public void getQueryPathA() {
     assertEquals("/api/v1/put", 
         NettyMocks.getQuery(tsdb, 
-        "/api/v1/put?param=value&param2=value2").
-        getQueryPath());
+        "/api/v1/put?param=value&param2=value2")
+                .getQueryPath());
   }
   
   @Test

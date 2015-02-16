@@ -504,7 +504,7 @@ final class QueryRpc implements HttpRpc {
    * @throws BadRequestException if the parameter is malformed
    * @since 2.0
    */
-   static final public RateOptions parseRateOptions(final boolean rate,
+  public static final RateOptions parseRateOptions(final boolean rate,
        final String spec) {
      if (!rate || spec.length() == 4) {
        return new RateOptions(false, Long.MAX_VALUE,

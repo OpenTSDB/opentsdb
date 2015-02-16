@@ -43,7 +43,7 @@ import com.stumbleupon.async.Deferred;
   Deferred.class, TSQuery.class})
 public final class TestQueryRpc {
   private TSDB tsdb = null;
-  final private QueryRpc rpc = new QueryRpc();
+  private final QueryRpc rpc = new QueryRpc();
   
   private static final Method parseQuery;
   static {

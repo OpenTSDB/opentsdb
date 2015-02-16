@@ -104,7 +104,7 @@ final class CliQuery {
   }
 
   private static Plot doQuery(final TSDB tsdb,
-                              final String args[],
+                              final String[] args,
                               final boolean want_plot) {
     final ArrayList<String> plotparams = new ArrayList<String>();
     final ArrayList<Query> queries = new ArrayList<Query>();

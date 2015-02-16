@@ -1142,7 +1142,7 @@ public class HBaseStore implements TsdbStore {
      */
     final class StoreTreeCB implements Callback<Deferred<Boolean>, Tree> {
 
-      final private Tree local_tree;
+      private final Tree local_tree;
 
       public StoreTreeCB(final Tree local_tree) {
         this.local_tree = local_tree;

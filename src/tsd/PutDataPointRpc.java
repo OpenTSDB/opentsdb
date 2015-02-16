@@ -248,7 +248,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @return A hashmap with information
    * @since 2.0
    */
-  final private HashMap<String, Object> getHttpDetails(final String message, 
+  private final HashMap<String, Object> getHttpDetails(final String message,
       final IncomingDataPoint dp) {
     final HashMap<String, Object> map = new HashMap<String, Object>();
     map.put("error", message);

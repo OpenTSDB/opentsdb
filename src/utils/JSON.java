@@ -349,7 +349,7 @@ public final class JSON {
    * Returns a reference to the static ObjectMapper
    * @return The ObjectMapper
    */
-  public final static ObjectMapper getMapper() {
+  public static final ObjectMapper getMapper() {
     return jsonMapper;
   }
 
@@ -357,7 +357,7 @@ public final class JSON {
    * Returns a reference to the JsonFactory for streaming creation
    * @return The JsonFactory object
    */
-  public final static JsonFactory getFactory() {
+  public static final JsonFactory getFactory() {
     return jsonMapper.getFactory();
   }
 

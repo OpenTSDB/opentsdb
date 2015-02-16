@@ -61,7 +61,7 @@ public class TestDumpSeries {
   // subsequent tests.
   private final PrintStream stdout = System.out;
   
-  private final static Method doDump;
+  private static final Method doDump;
   static {
     try {
       doDump = DumpSeries.class.getDeclaredMethod("doDump", TSDB.class, 

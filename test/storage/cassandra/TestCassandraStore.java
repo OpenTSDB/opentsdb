@@ -146,8 +146,7 @@ public class TestCassandraStore {
                 builder.addContactPoint(host.getHostText()).withPort(host
                         .getPortOrDefault(CassandraConst
                                 .DEFAULT_CASSANDRA_PORT));
-            }
-            catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("There was an error in the" +
                         " configuration file in the field 'tsd.storage" +
                         ".cassandra.clusters'.", e);

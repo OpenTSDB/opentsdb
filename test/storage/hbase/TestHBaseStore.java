@@ -154,8 +154,8 @@ public class TestHBaseStore extends TestTsdbStore {
     setupBranchHBaseStore(!STORE_DATA);
 
     //answer is mocked so this compareAndSet does not do anything really
-    when(client.compareAndSet(anyPut(),emptyArray())).
-            thenReturn(Deferred.fromResult(true));
+    when(client.compareAndSet(anyPut(),emptyArray()))
+            .thenReturn(Deferred.fromResult(true));
 
     when(client.newScanner(anyBytes())).thenReturn(scanner);
 
@@ -265,8 +265,8 @@ public class TestHBaseStore extends TestTsdbStore {
     // exception
     long id = -1;
     //mock negative answer from atomic increment
-    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.
-            fromResult(id));
+    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred
+            .fromResult(id));
     try {
       Deferred<byte[]> uid = tsdb_store.allocateUID(foo_name,
               UniqueIdType.METRIC
@@ -284,8 +284,8 @@ public class TestHBaseStore extends TestTsdbStore {
   // Test the creation of an ID when all possible IDs are already in use
   public void allocateUIDWithOverflow() throws Exception {
     //mock overflow answer from atomic Increment
-    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.
-            fromResult(16777216L));
+    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred
+            .fromResult(16777216L));
     try {
       Deferred<byte[]> uid = tsdb_store.allocateUID(foo_name,
               UniqueIdType.METRIC
@@ -302,11 +302,11 @@ public class TestHBaseStore extends TestTsdbStore {
   @Test  // Test that the reverse mapping is created before the forward one.
   public void allocateUIDPutsReverseMappingFirst() throws Exception{
     //mock valid
-    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.
-            fromResult(6L));
+    when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred
+            .fromResult(6L));
     // next is compare and set make it return false and catch the exception
-    when(client.compareAndSet(anyPut(), emptyArray())).
-            thenReturn(Deferred.fromResult(false));
+    when(client.compareAndSet(anyPut(), emptyArray()))
+            .thenReturn(Deferred.fromResult(false));
 
     try {
       Deferred<byte[]> uid = tsdb_store.allocateUID(foo_name,
@@ -371,8 +371,8 @@ public class TestHBaseStore extends TestTsdbStore {
   // ID has already been assigned.
 
   //make sur ethe atomicIncrement pass with valid long
-  when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred.
-    fromResult(6L));
+  when(client.atomicIncrement(incrementForRow(MAX_UID))).thenReturn(Deferred
+          .fromResult(6L));
   // First call to compareAndSet should return true, basically we would create
   // the reverse mapping.
   // However the second call to compare and set should return false, we fail to

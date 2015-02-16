@@ -25,7 +25,7 @@ public class MetaClientAnnotationTest {
   @Inject TSDB tsdb;
   @Inject MemoryStore tsdb_store;
 
-  final private byte[] tsuid_row_key =
+  private final byte[] tsuid_row_key =
           new byte[] { 0, 0, 1, (byte) 0x52, (byte) 0xC2, (byte) 0x09, 0, 0, 0,
                   1, 0, 0, 1 };
 

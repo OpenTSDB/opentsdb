@@ -180,7 +180,7 @@ final class AnnotationRpc implements HttpRpc {
      * or not. Also returns the updated object from storage.
      */
     class SyncCB implements Callback<Deferred<Annotation>, Boolean> {
-      final private Annotation note;
+      private final Annotation note;
       
       public SyncCB(final Annotation note) {
         this.note = note;

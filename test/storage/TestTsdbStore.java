@@ -624,7 +624,9 @@ public abstract class TestTsdbStore {
     return any(GetRequest.class);
   }
 
-  protected byte[] anyBytes() { return any(byte[].class); }
+  protected byte[] anyBytes() {
+    return any(byte[].class);
+  }
 
   protected Branch getLeafCollision(boolean sameTsuid) {
     /*Collision object*/

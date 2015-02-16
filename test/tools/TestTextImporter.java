@@ -57,7 +57,7 @@ public class TestTextImporter {
   private TSDB tsdb = null;
   private MemoryStore tsdb_store;
   
-  private final static Field datapoints;
+  private static final Field datapoints;
   static {
     try {
       datapoints = TextImporter.class.getDeclaredField("datapoints");
@@ -67,7 +67,7 @@ public class TestTextImporter {
     }
   }
   
-  private final static Method importFile;
+  private static final Method importFile;
   static {
     try {
       importFile = TextImporter.class.getDeclaredMethod("importFile", 

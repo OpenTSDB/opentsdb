@@ -50,11 +50,11 @@ import javax.inject.Inject;
 @PrepareForTest({KeyValue.class, Fsck.class, FsckOptions.class,
         Scanner.class, RowKey.class, Tags.class})
 public final class TestFsck {
-  private final static byte[] ROW = 
+  private static final byte[] ROW =
     MockBase.stringToBytes("00000150E22700000001000001");
-  private final static byte[] ROW2 = 
+  private static final byte[] ROW2 =
       MockBase.stringToBytes("00000150E23510000001000001");
-  private final static byte[] ROW3 = 
+  private static final byte[] ROW3 =
       MockBase.stringToBytes("00000150E24320000001000001");
 
   @Inject TSDB tsdb;

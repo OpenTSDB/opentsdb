@@ -175,7 +175,11 @@ final class TextImporter {
           throttle_time = System.nanoTime() - throttle_time;
           if (throttle_time < 1000000000L) {
             LOG.info("Got throttled for only {}ns, sleeping a bit now", throttle_time);
-            try { Thread.sleep(1000); } catch (InterruptedException e) { throw new RuntimeException("interrupted", e); }
+            try {
+              Thread.sleep(1000);
+            } catch (InterruptedException e) {
+              throw new RuntimeException("interrupted", e);
+            }
           }
           LOG.info("Done throttling...");
           throttle = false;

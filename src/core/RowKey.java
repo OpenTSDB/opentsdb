@@ -20,7 +20,7 @@ import net.opentsdb.storage.hbase.HBaseStore;
 import org.hbase.async.Bytes;
 
 /** Helper functions to deal with the row key. */
-final public class RowKey {
+public final class RowKey {
   private RowKey() {
     // Can't create instances of this utility class.
   }

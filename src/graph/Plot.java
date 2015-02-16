@@ -202,7 +202,7 @@ public final class Plot {
   public int dumpToFiles(final String basepath) throws IOException {
     int npoints = 0;
     final int nseries = datapoints.size();
-    final String datafiles[] = nseries > 0 ? new String[nseries] : null;
+    final String[] datafiles = nseries > 0 ? new String[nseries] : null;
     for (int i = 0; i < nseries; i++) {
       datafiles[i] = basepath + "_" + i + ".dat";
       final PrintWriter datafile = new PrintWriter(datafiles[i]);
