@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.util.NoSuchElementException;
-
 import net.opentsdb.core.Aggregators.Interpolation;
 
 /**
@@ -41,8 +39,9 @@ public interface Aggregator {
 
     /**
      * Returns the next {@code long} value in this sequence.
-     * @throws NoSuchElementException if calling {@link #hasNextValue} returns
-     * {@code false}.
+     *
+     * @throws java.util.NoSuchElementException if calling {@link #hasNextValue}
+     *                                          returns {@code false}.
      */
     long nextLongValue();
 

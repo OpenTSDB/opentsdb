@@ -15,7 +15,6 @@ package net.opentsdb.tree;
 
 import java.util.HashMap;
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 import com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.Const;
@@ -106,7 +105,7 @@ public final class TreeRule {
    * Copy constructor that creates a completely independent copy of the original
    * object
    * @param original The original object to copy from
-   * @throws PatternSyntaxException if the regex is invalid
+   * @throws java.util.regex.PatternSyntaxException if the regex is invalid
    */
   public TreeRule(final TreeRule original) {
     custom_field = original.custom_field;
@@ -395,7 +394,7 @@ public final class TreeRule {
 
   /** 
    * @param regex Stores AND compiles the regex string for use in processing
-   * @throws PatternSyntaxException if the regex is invalid
+   * @throws java.util.regex.PatternSyntaxException if the regex is invalid
    */
   public void setRegex(String regex) {
     if (!this.regex.equals(regex)) {

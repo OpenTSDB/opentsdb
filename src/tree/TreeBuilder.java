@@ -29,7 +29,6 @@ import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueIdType;
 
-import org.hbase.async.HBaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,7 +147,7 @@ public final class TreeBuilder {
    * @param meta The timeseries meta object to process
    * @return A list of deferreds to wait on for storage completion
    * @throws IllegalArgumentException if the tree has not been set or is invalid
-   * @throws HBaseException if a storage exception occurred
+   * @throws org.hbase.async.HBaseException if a storage exception occurred
    */
   public Deferred<ArrayList<Boolean>> processTimeseriesMeta(final TSMeta meta) {
     Tree.validateTreeID(tree.getTreeId());
@@ -392,7 +391,7 @@ public final class TreeBuilder {
    * @return A meaningless deferred to wait on for all trees to process the 
    * meta object
    * @throws IllegalArgumentException if the tree has not been set or is invalid
-   * @throws HBaseException if a storage exception occurred
+   * @throws org.hbase.async.HBaseException if a storage exception occurred
    */
   public static Deferred<Boolean> processAllTrees(final TreeClient treeClient,
                                                   final TsdbStore store,

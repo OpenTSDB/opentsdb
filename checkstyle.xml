@@ -12,7 +12,10 @@
   </module>
 
   <module name="TreeWalker">
-    <module name="AvoidStarImport"/>
+    <module name="AvoidStarImport">
+      <property name="excludes" value="org.junit.Assert.*"/>
+    </module>
+    <module name="UnusedImports"/>
     <module name="NoFinalizer"/>
   </module>
 </module>

@@ -13,7 +13,6 @@
 package net.opentsdb.core;
 
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 /**
  * Provides a <em>zero-copy view</em> to iterate through data points.
@@ -42,12 +41,15 @@ public interface SeekableView extends Iterator<DataPoint> {
   boolean hasNext();
 
   /**
-   * Returns a <em>view</em> on the next data point.
-   * No new object gets created, the referenced returned is always the same
-   * and must not be stored since its internal data structure will change the
-   * next time {@code next()} is called.
-   * @throws NoSuchElementException if there were no more elements to iterate
-   * on (in which case {@link #hasNext} would have returned {@code false}.
+   * Returns a <em>view</em> on the next data point. No new object gets created,
+   * the referenced returned is always the same and must not be stored since its
+   * internal data structure will change the next time {@code next()} is
+   * called.
+   *
+   * @throws java.util.NoSuchElementException if there were no more elements to
+   *                                          iterate on (in which case {@link
+   *                                          #hasNext} would have returned
+   *                                          {@code false}.
    */
   DataPoint next();
 

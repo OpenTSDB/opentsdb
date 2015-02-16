@@ -12,7 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import static net.opentsdb.uid.UniqueIdType.*;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueIdType.TAGK;
+import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.junit.Assert.*;
 
 import dagger.ObjectGraph;

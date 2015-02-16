@@ -26,7 +26,6 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
@@ -77,13 +76,14 @@ public class TSUIDQuery {
   public TSUIDQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
   }
-  
+
   /**
    * Sets the query to perform
+   *
    * @param metric Name of the metric to search for
-   * @param tags A map of tag value pairs or simply an empty map
-   * @throws NoSuchUniqueName if the metric or any of the tag names/values did
-   * not exist
+   * @param tags   A map of tag value pairs or simply an empty map
+   * @throws net.opentsdb.uid.NoSuchUniqueName if the metric or any of the tag
+   *                                           names/values did not exist
    */
   public void setQuery(final String metric, final HashMap<String, String> tags) {
     try {

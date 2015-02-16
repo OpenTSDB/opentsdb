@@ -19,7 +19,8 @@ import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import static net.opentsdb.uid.UniqueIdType.*;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueIdType.TAGK;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
 

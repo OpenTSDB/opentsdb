@@ -17,7 +17,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.regex.PatternSyntaxException;
 
 import net.opentsdb.core.Const;
 
@@ -114,12 +113,14 @@ public final class Tree {
     this.created = System.currentTimeMillis() / 1000;
     initializeChangedMap();
   }
-  
+
   /**
    * Copy constructor that creates a completely independent copy of the original
    * object.
+   *
    * @param original The original object to copy from
-   * @throws PatternSyntaxException if one of the rule's regex is invalid
+   * @throws java.util.regex.PatternSyntaxException if one of the rule's regex
+   *                                                is invalid
    */
   public Tree(final Tree original) {
     created = original.created;
