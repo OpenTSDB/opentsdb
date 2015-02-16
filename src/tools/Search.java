@@ -21,7 +21,6 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
 import org.slf4j.Logger;

@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.SortedMap;
 
 import com.codahale.metrics.Counter;
@@ -32,7 +31,6 @@ import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 
 import org.hbase.async.AtomicIncrementRequest;
-import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;

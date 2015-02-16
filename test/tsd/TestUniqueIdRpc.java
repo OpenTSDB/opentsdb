@@ -27,7 +27,10 @@ import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.hbase.async.*;
+import org.hbase.async.Bytes;
+import org.hbase.async.KeyValue;
+import org.hbase.async.RowLock;
+import org.hbase.async.Scanner;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
@@ -37,7 +40,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",

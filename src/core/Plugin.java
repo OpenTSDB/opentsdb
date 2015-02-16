@@ -4,7 +4,6 @@ import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricSet;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.utils.Config;
 
 import java.util.Map;
 

@@ -18,12 +18,10 @@ import java.util.HashMap;
 import java.util.List;
 
 import dagger.ObjectGraph;
-import net.opentsdb.TestModule;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.utils.Config;
 

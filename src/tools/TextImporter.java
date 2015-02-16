@@ -38,7 +38,6 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.storage.hbase.HBaseStore;
-import net.opentsdb.utils.Config;
 
 final class TextImporter {
 

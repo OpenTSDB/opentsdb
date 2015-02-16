@@ -19,8 +19,6 @@ import net.opentsdb.storage.hbase.HBaseStore;
 
 import org.hbase.async.Bytes;
 
-import com.stumbleupon.async.Deferred;
-
 /** Helper functions to deal with the row key. */
 final public class RowKey {
   private RowKey() {

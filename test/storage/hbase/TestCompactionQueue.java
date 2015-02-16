@@ -18,7 +18,8 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.*;
 
 import java.nio.charset.Charset;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
@@ -26,13 +27,16 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
-import org.hbase.async.*;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.utils.Config;
 
+import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.KeyValue;
+import org.hbase.async.PutRequest;
 import org.junit.Before;
 import org.junit.Test;
 

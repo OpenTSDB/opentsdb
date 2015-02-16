@@ -17,9 +17,6 @@ import java.io.InputStream;
 
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.SearchQuery.SearchType;
-import net.opentsdb.tree.TreeRule;
-import net.opentsdb.tree.TreeRule.TreeRuleType;
-import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;

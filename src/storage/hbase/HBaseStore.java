@@ -55,7 +55,15 @@ import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSONException;
-import org.hbase.async.*;
+import org.hbase.async.AtomicIncrementRequest;
+import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.GetRequest;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.HBaseException;
+import org.hbase.async.KeyValue;
+import org.hbase.async.PutRequest;
+import org.hbase.async.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

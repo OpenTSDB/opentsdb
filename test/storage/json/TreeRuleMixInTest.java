@@ -3,7 +3,6 @@ package net.opentsdb.storage.json;
 import java.io.IOException;
 
 import net.opentsdb.tree.TreeRule;
-import net.opentsdb.utils.JSON;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;

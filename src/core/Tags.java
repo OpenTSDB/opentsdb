@@ -13,19 +13,9 @@
 package net.opentsdb.core;
 
 import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
-
-import org.hbase.async.Bytes;
-
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Pair;
 
 /** Helper functions to deal with tags. */

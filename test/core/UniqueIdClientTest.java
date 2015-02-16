@@ -7,7 +7,6 @@ import java.util.Map;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
-import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;

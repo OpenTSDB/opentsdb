@@ -1,7 +1,6 @@
 package net.opentsdb.storage;
 
 import com.codahale.metrics.MetricRegistry;
-import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 

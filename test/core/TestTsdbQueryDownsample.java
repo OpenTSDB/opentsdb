@@ -30,8 +30,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
 
-import javax.inject.Inject;
-
 import static org.junit.Assert.*;
 
 /**

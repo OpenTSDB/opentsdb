@@ -15,18 +15,11 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
 import org.junit.Test;
 
-import net.opentsdb.uid.UniqueIdType;
 import static org.junit.Assert.*;
 
 public final class TestTags {

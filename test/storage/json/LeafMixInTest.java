@@ -5,7 +5,6 @@ import java.math.BigInteger;
 
 import net.opentsdb.tree.Leaf;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;

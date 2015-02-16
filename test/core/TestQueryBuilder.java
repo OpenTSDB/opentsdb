@@ -5,12 +5,10 @@ import java.util.Map;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;

@@ -2,9 +2,7 @@ package net.opentsdb.core;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;

@@ -22,9 +22,7 @@ import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;

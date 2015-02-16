@@ -13,7 +13,6 @@
 package net.opentsdb.core;
 
 import com.codahale.metrics.MetricSet;
-import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;

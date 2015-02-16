@@ -3,15 +3,12 @@ package net.opentsdb.core;
 import java.util.List;
 
 import dagger.ObjectGraph;
-import net.opentsdb.TestModule;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
