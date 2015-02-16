@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Deferred;
 
@@ -40,41 +41,9 @@ import net.opentsdb.uid.UniqueIdType;
  * Another requirement is tha the database connection has to be asynchronous.
  */
 public interface TsdbStore {
-
-  /**
-   * Attempts to fetch a global or local annotation from storage
-   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
-   * annotation
-   * @param start_time The start time as a Unix epoch timestamp
-   * @return A valid annotation object if found, null if not
-   */
-  Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time);
-
-  public Deferred<Object> flush();
-
-  long getFlushInterval();
-
-  void setFlushInterval(short aShort);
-
-  Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags);
-
-  public Deferred<Object> shutdown();
-
-  public Deferred<com.google.common.base.Optional<byte[]>> getId(final String name, final UniqueIdType type);
-  public Deferred<com.google.common.base.Optional<String>> getName(final byte[] id, final UniqueIdType type);
-
-  public Deferred<Object> add(final UIDMeta meta);
-
-  Deferred<Object> delete(UIDMeta meta);
-
-  public Deferred<UIDMeta> getMeta(byte[] uid, String name,
-                            UniqueIdType type);
-
-  public Deferred<Boolean> updateMeta(final UIDMeta meta,
-                                      final boolean overwrite);
-
-  Deferred<Object> deleteUID(byte[] name, UniqueIdType type);
-
+  //
+  // Identifier management
+  //
   public Deferred<byte[]> allocateUID(final String name,
                                       final UniqueIdType type);
 
@@ -82,26 +51,28 @@ public interface TsdbStore {
                                final byte[] uid,
                                final UniqueIdType type);
 
-  // ------------------ //
-  // Compaction helpers //
-  // ------------------ //
-  void scheduleForCompaction(byte[] row);
+  Deferred<Object> deleteUID(byte[] name, UniqueIdType type);
 
   /**
-   * Attempts to mark an Annotation object for deletion. Note that if the
-   * annoation does not exist in storage, this delete call will not throw an
-   * error.
+   * Lookup all IDs that matches the provided {@link net.opentsdb.uid.IdQuery}.
+   * There are no demands on how the exact the results are but the lookup should
+   * be efficient. In fact, the provided should be viewed as a hint about what
+   * should be returned but in reality all IDs or nothing at all may be
+   * returned.
    *
-   * @param annotation@return A meaningless Deferred for the caller to wait on until the call is
-   * complete. The value may be null.
+   * @param query An object that describes the query parameters
+   * @return A deferred with a list of matching IDs
    */
-  Deferred<Object> delete(Annotation annotation);
+  Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
 
-  Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation);
+  public Deferred<Optional<byte[]>> getId(final String name, final UniqueIdType type);
 
-  Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time);
+  public Deferred<Optional<String>> getName(final byte[] id, final UniqueIdType type);
 
-  Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time);
+  //
+  // Datapoints
+  //
+  Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags);
 
   /**
    * Should execute the provided {@link net.opentsdb.core.Query} and
@@ -113,66 +84,115 @@ public interface TsdbStore {
    */
   Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
 
+  //
+  // Annotations
+  //
   /**
-   * Lookup all IDs that matches the provided {@link net.opentsdb.uid.IdQuery}.
-   * There are no demands on how the exact the results are but the lookup should
-   * be efficient. In fact, the provided should be viewed as a hint about what
-   * should be returned but in reality all IDs or nothing at all may be returned.
+   * Attempts to mark an Annotation object for deletion. Note that if the
+   * annoation does not exist in storage, this delete call will not throw an
+   * error.
    *
-   * @param query An object that describes the query parameters
-   * @return A deferred with a list of matching IDs
+   * @param annotation@return A meaningless Deferred for the caller to wait on until the call is
+   * complete. The value may be null.
    */
-  Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
+  Deferred<Object> delete(Annotation annotation);
 
-  Deferred<Tree> fetchTree(final int tree_id);
+  Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time);
 
-  Deferred<Boolean> storeTree(final Tree tree, final boolean overwrite);
+  /**
+   * Attempts to fetch a global or local annotation from storage
+   * @param tsuid The TSUID as a byte array. May be null if retrieving a global
+   * annotation
+   * @param start_time The start time as a Unix epoch timestamp
+   * @return A valid annotation object if found, null if not
+   */
+  Deferred<Annotation> getAnnotation(byte[] tsuid, long start_time);
 
-  public Deferred<Integer> createNewTree(final Tree tree);
+  Deferred<List<Annotation>> getGlobalAnnotations(final long start_time, final long end_time);
 
-  public Deferred<List<Tree>> fetchAllTrees();
+  Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation);
 
-  Deferred<Boolean> deleteTree(final int tree_id, final boolean delete_definition);
+  //
+  // UIDMeta
+  //
+  public Deferred<Object> add(final UIDMeta meta);
 
-  Deferred<Map<String,String>> fetchCollisions(final int tree_id, final List<String> tsuids);
+  Deferred<Object> delete(UIDMeta meta);
 
-  Deferred<Map<String,String>> fetchNotMatched(final int tree_id,final  List<String> tsuids);
+  public Deferred<UIDMeta> getMeta(byte[] uid, String name,
+                                   UniqueIdType type);
 
-  Deferred<Boolean> flushTreeCollisions(final Tree tree);
+  public Deferred<Boolean> updateMeta(final UIDMeta meta,
+                                      final boolean overwrite);
 
-  Deferred<Boolean> flushTreeNotMatched(final Tree tree);
+  //
+  // TSMeta
+  //
+  Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid);
 
-  Deferred<Boolean> storeLeaf(final Leaf leaf,final Branch branch,final Tree tree);
+  Deferred<Boolean> TSMetaExists(final String tsuid);
 
-  Deferred<ArrayList<Boolean>> storeBranch(final Tree tree, final Branch branch, final boolean store_leaves);
-
-  Deferred<Branch> fetchBranchOnly(final byte[] branch_id);
-
-  Deferred<Branch> fetchBranch(final byte[] branch_id, final boolean load_leaf_uids, final TSDB tsdb);
-
-  Deferred<TreeRule> fetchTreeRule(final int tree_id, final int level, final int order);
-
-  Deferred<Object> deleteTreeRule(final int tree_id, final int level, final int order);
-
-  Deferred<Object> deleteAllTreeRule(final int tree_id);
-
-  Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule, final boolean overwrite);
+  Deferred<Boolean> create(final TSMeta tsMeta);
 
   Deferred<Object> delete(final TSMeta tsMeta);
 
   Deferred<Object> deleteTimeseriesCounter(final TSMeta ts);
 
-  Deferred<Boolean> create(final TSMeta tsMeta);
-
   Deferred<TSMeta> getTSMeta(final byte[] tsuid);
-
-  Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
-
-  Deferred<Boolean> TSMetaExists(final String tsuid);
-
-  Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid);
 
   Deferred<Long> incrementAndGetCounter(final byte[] tsuid);
 
   Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number);
+
+  Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
+
+  //
+  // Trees
+  //
+  public Deferred<Integer> createNewTree(final Tree tree);
+
+  Deferred<Object> deleteAllTreeRule(final int tree_id);
+
+  Deferred<Boolean> deleteTree(final int tree_id, final boolean delete_definition);
+
+  Deferred<Object> deleteTreeRule(final int tree_id, final int level, final int order);
+
+  public Deferred<List<Tree>> fetchAllTrees();
+
+  Deferred<Branch> fetchBranch(final byte[] branch_id, final boolean load_leaf_uids, final TSDB tsdb);
+
+  Deferred<Branch> fetchBranchOnly(final byte[] branch_id);
+
+  Deferred<Map<String,String>> fetchCollisions(final int tree_id, final List<String> tsuids);
+
+  Deferred<Map<String,String>> fetchNotMatched(final int tree_id,final  List<String> tsuids);
+
+  Deferred<Tree> fetchTree(final int tree_id);
+
+  Deferred<TreeRule> fetchTreeRule(final int tree_id, final int level, final int order);
+
+  Deferred<Boolean> flushTreeCollisions(final Tree tree);
+
+  Deferred<Boolean> flushTreeNotMatched(final Tree tree);
+
+  Deferred<ArrayList<Boolean>> storeBranch(final Tree tree, final Branch branch, final boolean store_leaves);
+
+  Deferred<Boolean> storeLeaf(final Leaf leaf,final Branch branch,final Tree tree);
+
+  Deferred<Boolean> storeTree(final Tree tree, final boolean overwrite);
+
+  Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule, final boolean overwrite);
+
+  //
+  // Misc
+  //
+  public Deferred<Object> flush();
+
+  long getFlushInterval();
+
+  void setFlushInterval(short aShort);
+
+  void scheduleForCompaction(byte[] row);
+
+  public Deferred<Object> shutdown();
 }
