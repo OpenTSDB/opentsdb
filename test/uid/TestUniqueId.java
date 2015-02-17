@@ -397,7 +397,7 @@ public final class TestUniqueId {
     UniqueId.getTagsFromTSUID("");
   }
 
-  public void uidToLong() throws Exception {
+  public void uidToLong() {
     assertEquals(42, UniqueId.uidToLong(new byte[] { 0, 0, 0x2A }, (short)3));
   }
 
@@ -441,9 +441,11 @@ public final class TestUniqueId {
 
   private static AtomicIncrementRequest incrementForRow(final byte[] row) {
     return argThat(new ArgumentMatcher<AtomicIncrementRequest>() {
+      @Override
       public boolean matches(Object incr) {
         return Arrays.equals(((AtomicIncrementRequest) incr).key(), row);
       }
+      @Override
       public void describeTo(org.hamcrest.Description description) {
         description.appendText("AtomicIncrementRequest for row "
                                + Arrays.toString(row));
@@ -462,9 +464,11 @@ public final class TestUniqueId {
 
   private static PutRequest putForRow(final byte[] row) {
     return argThat(new ArgumentMatcher<PutRequest>() {
+      @Override
       public boolean matches(Object put) {
         return Arrays.equals(((PutRequest) put).key(), row);
       }
+      @Override
       public void describeTo(org.hamcrest.Description description) {
         description.appendText("PutRequest for row " + Arrays.toString(row));
       }

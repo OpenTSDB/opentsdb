@@ -25,6 +25,7 @@ final class StaticFileRpc implements HttpRpc {
   public StaticFileRpc() {
   }
 
+  @Override
   public void execute(final TSDB tsdb, final HttpQuery query)
     throws IOException {
     final String uri = query.request().getUri();

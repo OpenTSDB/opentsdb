@@ -124,7 +124,7 @@ final class DumpSeries {
               Map<String, String> tag_names = formatter.formatTags(tag_ids).joinUninterruptibly();
               buf.append(tag_names);
             } catch (RuntimeException e) {
-              buf.append(e.getClass().getName() + ": " + e.getMessage());
+              buf.append(e.getClass().getName()).append(": ").append(e.getMessage());
             }
             buf.append('\n');
             System.out.print(buf);

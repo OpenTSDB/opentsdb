@@ -220,10 +220,10 @@ final class CliQuery {
         long resetValue = RateOptions.DEFAULT_RESET_VALUE;
         if (args[i].startsWith("counter")) {
           String[] parts = Tags.splitString(args[i], ',');
-          if (parts.length >= 2 && parts[1].length() > 0) {
+          if (parts.length >= 2 && !parts[1].isEmpty()) {
             counterMax = Long.parseLong(parts[1]);
           }
-          if (parts.length >= 3 && parts[2].length() > 0) {
+          if (parts.length >= 3 && !parts[2].isEmpty()) {
             resetValue = Long.parseLong(parts[2]);
           }
           rate_options = new RateOptions(true, counterMax, resetValue);

@@ -324,6 +324,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   // Iterator interface //
   // ------------------ //
 
+  @Override
   public boolean hasNext() {
     final int size = iterators.length;
     for (int i = 0; i < size; i++) {
@@ -338,6 +339,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     return false;
   }
 
+  @Override
   public DataPoint next() {
     final int size = iterators.length;
     long min_ts = Long.MAX_VALUE;
@@ -412,6 +414,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     }
   }
 
+  @Override
   public void remove() {
     throw new UnsupportedOperationException();
   }
@@ -420,6 +423,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   // SeekableView interface //
   // ---------------------- //
 
+  @Override
   public void seek(final long timestamp) {
     for (final SeekableView it : iterators) {
       it.seek(timestamp);
@@ -430,10 +434,12 @@ final class AggregationIterator implements SeekableView, DataPoint,
   // DataPoint interface //
   // ------------------- //
 
+  @Override
   public long timestamp() {
     return timestamps[current] & TIME_MASK;
   }
 
+  @Override
   public boolean isInteger() {
     if (rate) {
       // An rate can never be precisely represented without floating point.
@@ -449,6 +455,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     return true;
   }
 
+  @Override
   public long longValue() {
     if (isInteger()) {
       pos = -1;
@@ -457,6 +464,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     throw new ClassCastException("current value is a double: " + this);
   }
 
+  @Override
   public double doubleValue() {
     if (!isInteger()) {
       pos = -1;
@@ -471,6 +479,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     throw new ClassCastException("current value is a long: " + this);
   }
 
+  @Override
   public double toDouble() {
     return isInteger() ? longValue() : doubleValue();
   }
@@ -479,6 +488,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   // Aggregator.Longs interface //
   // -------------------------- //
 
+  @Override
   public boolean hasNextValue() {
     return hasNextValue(false);
   }
@@ -504,6 +514,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
     return false;
   }
 
+  @Override
   public long nextLongValue() {
     if (hasNextValue(true)) {
       final long y0 = values[pos];
@@ -554,6 +565,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
   // Aggregator.Doubles interface //
   // ---------------------------- //
 
+  @Override
   public double nextDoubleValue() {
     if (hasNextValue(true)) {
       final double y0 = ((timestamps[pos] & FLAG_FLOAT) == FLAG_FLOAT

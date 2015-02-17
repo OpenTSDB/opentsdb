@@ -72,6 +72,7 @@ public class TestHBaseStore extends TestTsdbStore {
     scanner = PowerMockito.mock(Scanner.class);
   }
 
+  @Override
   @Test
   public void testFetchBranchLoadingMetricsUID() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
@@ -108,6 +109,7 @@ public class TestHBaseStore extends TestTsdbStore {
     super.testFetchBranchLoadingMetricsUID();
   }
 
+  @Override
   @Test
   public void testFetchBranch() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
@@ -120,6 +122,7 @@ public class TestHBaseStore extends TestTsdbStore {
                     Deferred.<ArrayList<ArrayList<KeyValue>>>fromResult(null));
     super.testFetchBranch();
   }
+  @Override
   @Test
   public void testFetchBranchNotFound() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
@@ -130,6 +133,7 @@ public class TestHBaseStore extends TestTsdbStore {
     super.testFetchBranchNotFound();
   }
 
+  @Override
   @Test
   public void testFetchBranchOnly() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
@@ -141,6 +145,7 @@ public class TestHBaseStore extends TestTsdbStore {
     super.testFetchBranchOnly();
   }
 
+  @Override
   @Test
   public void testFetchBranchOnlyNotFound() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
@@ -149,6 +154,7 @@ public class TestHBaseStore extends TestTsdbStore {
     //Could I have sôme C in that Java?
     super.testFetchBranchOnlyNotFound();
   }
+  @Override
   @Test
   public void testStoreBranch() throws Exception {
     setupBranchHBaseStore(!STORE_DATA);
@@ -179,6 +185,7 @@ public class TestHBaseStore extends TestTsdbStore {
     super.testStoreBranch();
   }
 
+  @Override
   @Test
   public void testStoreBranchExistingLeaf() throws Exception {
     setupBranchHBaseStore(!STORE_DATA);//test for HBaseStore
@@ -205,6 +212,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
     super.testStoreBranchExistingLeaf();
   }
+  @Override
   @Test
   public void testStoreBranchCollision() throws Exception {
 
@@ -528,10 +536,12 @@ public class TestHBaseStore extends TestTsdbStore {
 
   private static AtomicIncrementRequest incrementForRow(final byte[] p_row) {
     return argThat(new ArgumentMatcher<AtomicIncrementRequest>() {
+      @Override
       public boolean matches(Object incr) {
         return Arrays.equals(((AtomicIncrementRequest) incr).key(), p_row);
       }
 
+      @Override
       public void describeTo(org.hamcrest.Description description) {
         description.appendText("AtomicIncrementRequest for row "
                 + Arrays.toString(p_row));
@@ -555,6 +565,7 @@ public class TestHBaseStore extends TestTsdbStore {
    *
    * @throws Exception
    */
+  @Override
   @Test
   public void testParseFromStorage() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
@@ -592,6 +603,7 @@ public class TestHBaseStore extends TestTsdbStore {
     super.testParseFromStorage();
   }
 
+  @Override
   @Test
   public void testParseFromStorageNSUMetric() throws Throwable {
     setupBranchHBaseStore(STORE_DATA);
@@ -627,6 +639,7 @@ public class TestHBaseStore extends TestTsdbStore {
     super.testParseFromStorageNSUMetric();
   }
 
+  @Override
   @Test
   public void testParseFromStorageNSUTagk() throws Throwable {
     setupBranchHBaseStore(STORE_DATA);
@@ -662,6 +675,7 @@ public class TestHBaseStore extends TestTsdbStore {
     super.testParseFromStorageNSUTagk();
   }
 
+  @Override
   @Test
   public void testParseFromStorageNSUTagV() throws Throwable {
     setupBranchHBaseStore(STORE_DATA);
@@ -696,6 +710,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
     super.testParseFromStorageNSUTagV();
   }
+  @Override
   @Test
   public void TestFetchBranchNSU() throws Exception {
     setupBranchHBaseStore(STORE_DATA);
@@ -730,6 +745,7 @@ public class TestHBaseStore extends TestTsdbStore {
   /** Creates a new Deferred that's already called back.  */
   private static <T> Answer<Deferred<T>> newDeferred(final T result) {
     return new Answer<Deferred<T>>() {
+      @Override
       public Deferred<T> answer(final InvocationOnMock invocation) {
         return Deferred.fromResult(result);
       }
@@ -739,7 +755,7 @@ public class TestHBaseStore extends TestTsdbStore {
   /**
    * Mocks HBase Branch stuff
    */
-  private void setupBranchHBaseStore(final boolean store) throws Exception {
+  private void setupBranchHBaseStore(final boolean store) {
     client = PowerMockito.mock(HBaseClient.class);
     ObjectGraph objectGraph = ObjectGraph.create(new HBaseTestModule(client));
     tsdb_store = objectGraph.get(TsdbStore.class);

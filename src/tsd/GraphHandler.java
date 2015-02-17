@@ -99,6 +99,7 @@ final class GraphHandler implements HttpRpc {
     this.stats = checkNotNull(tsdStats).getGraphHandlerStats();
   }
 
+  @Override
   public void execute(final TSDB tsdb, final HttpQuery query) {
     if (!query.hasQueryStringParam("json")
         && !query.hasQueryStringParam("png")
@@ -159,7 +160,7 @@ final class GraphHandler implements HttpRpc {
     options = query.getQueryStringParams("o");
     if (options == null) {
       options = new ArrayList<String>(tsdbqueries.length);
-      for (int i = 0; i < tsdbqueries.length; i++) {
+      for (final Query tsdbquery : tsdbqueries) {
         options.add("");
       }
     } else if (options.size() != tsdbqueries.length) {
@@ -282,6 +283,7 @@ final class GraphHandler implements HttpRpc {
       this.npoints = npoints;
     }
 
+    @Override
     public void run() {
       try {
         execute();
@@ -907,6 +909,7 @@ final class GraphHandler implements HttpRpc {
   private static final class PlotThdFactory implements ThreadFactory {
     private final AtomicInteger id = new AtomicInteger(0);
 
+    @Override
     public Thread newThread(final Runnable r) {
       return new Thread(r, "Gnuplot #" + id.incrementAndGet());
     }
@@ -956,20 +959,20 @@ final class GraphHandler implements HttpRpc {
   // ---------------- //
 
   static void logInfo(final HttpQuery query, final String msg) {
-    LOG.info("{}" + ' ' + "{}", query.channel().toString(), msg);
+    LOG.info("{}" + ' ' + "{}", query.channel(), msg);
   }
 
   static void logWarn(final HttpQuery query, final String msg) {
-    LOG.warn("{}" + ' ' + "{}", query.channel().toString(), msg);
+    LOG.warn("{}" + ' ' + "{}", query.channel(), msg);
   }
 
   static void logError(final HttpQuery query, final String msg) {
-    LOG.error("{}" + ' ' + "{}", query.channel().toString(), msg);
+    LOG.error("{}" + ' ' + "{}", query.channel(), msg);
   }
 
   static void logError(final HttpQuery query, final String msg,
                        final Throwable e) {
-    LOG.error("{}" + ' ' + "{}", query.channel().toString(), msg, e);
+    LOG.error("{}" + ' ' + "{}", query.channel(), msg, e);
   }
 
 }

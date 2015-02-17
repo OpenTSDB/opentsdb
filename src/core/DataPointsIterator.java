@@ -35,10 +35,12 @@ final class DataPointsIterator implements SeekableView, DataPoint {
   // Iterator interface //
   // ------------------ //
 
+  @Override
   public boolean hasNext() {
     return index < dp.size() - 1;
   }
 
+  @Override
   public DataPoint next() {
     if (hasNext()) {
       index++;
@@ -47,6 +49,7 @@ final class DataPointsIterator implements SeekableView, DataPoint {
     throw new NoSuchElementException("no more elements in " + this);
   }
 
+  @Override
   public void remove() {
     throw new UnsupportedOperationException();
   }
@@ -55,6 +58,7 @@ final class DataPointsIterator implements SeekableView, DataPoint {
   // SeekableView interface //
   // ---------------------- //
 
+  @Override
   public void seek(final long timestamp) {
     if ((timestamp & 0xFFFFFFFF00000000L) != 0) {  // negative or not 32 bits
       throw new IllegalArgumentException("invalid timestamp: " + timestamp);
@@ -100,22 +104,27 @@ final class DataPointsIterator implements SeekableView, DataPoint {
   // DataPoint interface //
   // ------------------- //
 
+  @Override
   public long timestamp() {
     return dp.timestamp(index);
   }
 
+  @Override
   public boolean isInteger() {
     return dp.isInteger(index);
   }
 
+  @Override
   public long longValue() {
     return dp.longValue(index);
   }
 
+  @Override
   public double doubleValue() {
     return dp.doubleValue(index);
   }
 
+  @Override
   public double toDouble() {
     return isInteger() ? longValue() : doubleValue();
   }

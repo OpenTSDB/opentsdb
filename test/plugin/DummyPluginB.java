@@ -24,7 +24,8 @@ public class DummyPluginB extends DummyPlugin {
     this.myname = "Dummy Plugin B";
   }
   
-  public String mustImplement() { 
+  @Override
+  public String mustImplement() {
     return this.myname;
   }
 }

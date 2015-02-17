@@ -108,6 +108,7 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /** Nothing to do on shutdown */
+  @Override
   public Deferred<Object> shutdown() {
     return new Deferred<Object>();
   }
@@ -183,6 +184,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public HashMap<String, List<String>> parseUidAssignV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -203,6 +205,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public TSQuery parseQueryV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -223,6 +226,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public LastPointQuery parseLastPointQueryV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -242,6 +246,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public UIDMeta parseUidMetaV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -261,6 +266,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public TSMeta parseTSMetaV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -284,6 +290,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public Tree parseTreeV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -344,6 +351,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public TreeRule parseTreeRuleV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -361,6 +369,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public List<TreeRule> parseTreeRulesV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -380,6 +389,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public Map<String, Object> parseTreeTSUIDsListV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -397,6 +407,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public Annotation parseAnnotationV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -414,6 +425,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public List<Annotation> parseAnnotationsV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -431,6 +443,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public AnnotationBulkDelete parseAnnotationBulkDeleteV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -448,6 +461,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if parsing failed
    * @throws BadRequestException if the content was missing or parsing failed
    */
+  @Override
   public SearchQuery parseSearchQueryV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
@@ -472,6 +486,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON formatted byte array
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatPutV1(final Map<String, Object> results) {
     return this.serializeJSON(results);
   }
@@ -492,6 +507,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatSerializersV1() {
     return serializeJSON(HttpQuery.getSerializerStatus());
   }
@@ -502,6 +518,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatAggregatorsV1(final Set<String> aggregators) {
     return this.serializeJSON(aggregators);
   }
@@ -512,6 +529,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatVersionV1(final Map<String, String> version) {
     return this.serializeJSON(version);
   }
@@ -522,6 +540,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatDropCachesV1(final Map<String, String> response) {
     return this.serializeJSON(response);
   }
@@ -533,7 +552,8 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
-  public ChannelBuffer formatUidAssignV1(final 
+  @Override
+  public ChannelBuffer formatUidAssignV1(final
       Map<String, TreeMap<String, String>> response) {
     return this.serializeJSON(response);
   }
@@ -545,7 +565,8 @@ class HttpJsonSerializer extends HttpSerializer {
    * @param globals An optional list of global annotation objects
    * @return A ChannelBuffer object to pass on to the caller
    */
-  public ChannelBuffer formatQueryV1(final TSQuery data_query, 
+  @Override
+  public ChannelBuffer formatQueryV1(final TSQuery data_query,
       final List<DataPoints[]> results, final List<Annotation> globals) {
     
     final boolean as_arrays = this.query.hasQueryStringParam("arrays");
@@ -697,6 +718,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatLastPointQueryV1(
       final List<IncomingDataPoint> data_points) {
     return this.serializeJSON(data_points);
@@ -708,6 +730,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatUidMetaV1(final UIDMeta meta) {
     return this.serializeJSON(meta);
   }
@@ -718,6 +741,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatTSMetaV1(final TSMeta meta) {
     return this.serializeJSON(meta);
   }
@@ -728,6 +752,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatTSMetaListV1(final List<TSMeta> metas) {
     return this.serializeJSON(metas);
   }
@@ -738,6 +763,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatBranchV1(final Branch branch) {
     return this.serializeJSON(branch);
   }
@@ -748,6 +774,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatTreeV1(final Tree tree) {
     return this.serializeJSON(tree);
   }
@@ -759,6 +786,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatTreesV1(final List<Tree> trees) {
     return this.serializeJSON(trees);
   }
@@ -769,6 +797,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatTreeRuleV1(final TreeRule rule) {
     return serializeJSON(rule);
   }
@@ -783,6 +812,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatTreeCollisionNotMatchedV1(
       final Map<String, String> results, final boolean is_collisions) {
     return serializeJSON(results);
@@ -797,7 +827,8 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A JSON structure
    * @throws JSONException if serialization failed
    */
-  public ChannelBuffer formatTreeTestV1(final 
+  @Override
+  public ChannelBuffer formatTreeTestV1(final
       HashMap<String, HashMap<String, Object>> results) {
     return serializeJSON(results);
   }
@@ -808,6 +839,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatAnnotationV1(final Annotation note) {
     return serializeJSON(note);
   }
@@ -818,6 +850,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatAnnotationsV1(final List<Annotation> notes) {
     return serializeJSON(notes);
   }
@@ -828,6 +861,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatAnnotationBulkDeleteV1(
       final AnnotationBulkDelete request) {
     return serializeJSON(request);
@@ -839,6 +873,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatStatsV1(final List<IncomingDataPoint> stats) {
     return serializeJSON(stats);
   }
@@ -849,6 +884,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatSearchResultsV1(final SearchQuery results) {
     return serializeJSON(results);
   }
@@ -859,6 +895,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    * @throws JSONException if serialization failed
    */
+  @Override
   public ChannelBuffer formatConfigV1(final Config config) {
     TreeMap<String, String> map = new TreeMap<String, String>(config.getMap());
     for (Map.Entry<String, String> entry : map.entrySet()) {

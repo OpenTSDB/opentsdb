@@ -547,7 +547,7 @@ final class HttpQuery {
     if (content_type == null || content_type.isEmpty()) {
       return;
     }
-    if (content_type.indexOf(";") > -1) {
+    if (content_type.contains(";")) {
       content_type = content_type.substring(0, content_type.indexOf(";"));
     }
     Constructor<? extends HttpSerializer> ctor =
@@ -682,10 +682,8 @@ final class HttpQuery {
     // set the header AND a meta refresh just in case
     response.headers().set("Location", location);
     sendReply(HttpResponseStatus.OK,
-      new StringBuilder(
-          "<html></head><meta http-equiv=\"refresh\" content=\"0; url="
-           + location + "\"></head></html>")
-         .toString().getBytes(this.getCharset())
+      ("<html></head><meta http-equiv=\"refresh\" content=\"0; url="
+              + location + "\"></head></html>").getBytes(this.getCharset())
     );
   }
 
@@ -953,6 +951,7 @@ final class HttpQuery {
                                                            0, length);
     final ChannelFuture future = chan.write(region);
     future.addListener(new ChannelFutureListener() {
+      @Override
       public void operationComplete(final ChannelFuture future) {
         region.releaseExternalResources();
         done();
@@ -1265,15 +1264,15 @@ final class HttpQuery {
   // ---------------- //
 
   private void logInfo(final String msg) {
-    LOG.info("{}" + ' ' + "{}", chan.toString(), msg);
+    LOG.info("{}" + ' ' + "{}", chan, msg);
   }
 
   private void logWarn(final String msg) {
-    LOG.warn("{}" + ' ' + "{}", chan.toString(), msg);
+    LOG.warn("{}" + ' ' + "{}", chan, msg);
   }
 
   private void logError(final String msg, final Exception e) {
-    LOG.error("{}" + ' ' + "{}", chan.toString(), msg, e);
+    LOG.error("{}" + ' ' + "{}", chan, msg, e);
   }
 
   // -------------------------------------------- //

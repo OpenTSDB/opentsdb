@@ -107,6 +107,7 @@ final class TextImporter {
     int points = 0;
     try {
       final class Errback implements Callback<Object, Exception> {
+        @Override
         public Object call(final Exception arg) {
           if (arg instanceof PleaseThrottleException) {
             final PleaseThrottleException e = (PleaseThrottleException) arg;

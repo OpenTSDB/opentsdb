@@ -47,10 +47,12 @@ public class Downsampler implements SeekableView, DataPoint {
   // Iterator interface //
   // ------------------ //
 
+  @Override
   public boolean hasNext() {
     return values_in_interval.hasNextValue();
   }
 
+  @Override
   public DataPoint next() {
     if (hasNext()) {
       value = downsampler.runDouble(values_in_interval);
@@ -61,6 +63,7 @@ public class Downsampler implements SeekableView, DataPoint {
     throw new NoSuchElementException("no more data points in " + this);
   }
 
+  @Override
   public void remove() {
     throw new UnsupportedOperationException();
   }
@@ -69,6 +72,7 @@ public class Downsampler implements SeekableView, DataPoint {
   // SeekableView interface //
   // ---------------------- //
 
+  @Override
   public void seek(final long timestamp) {
     values_in_interval.seekInterval(timestamp);
   }
@@ -85,22 +89,27 @@ public class Downsampler implements SeekableView, DataPoint {
    return buf.toString();
   }
 
+  @Override
   public long timestamp() {
     return timestamp;
   }
 
+  @Override
   public boolean isInteger() {
     return false;
   }
 
+  @Override
   public long longValue() {
     throw new ClassCastException("Downsampled values are doubles");
   }
 
+  @Override
   public double doubleValue() {
     return value;
   }
 
+  @Override
   public double toDouble() {
     return value;
   }

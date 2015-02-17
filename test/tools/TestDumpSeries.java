@@ -19,7 +19,6 @@ import java.util.HashMap;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
@@ -342,7 +341,7 @@ public class TestDumpSeries {
    * Store a compacted cell in a row so that we can verify the proper raw dump
    * format and that the --import flag will parse it correctly.
    */
-  private void writeCompactedData() throws Exception {
+  private void writeCompactedData() {
     final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { (byte) 0xF0, 0x00, 0x02, 0x07 };

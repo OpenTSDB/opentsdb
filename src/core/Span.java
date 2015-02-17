@@ -89,6 +89,7 @@ class Span implements DataPoints {
    * Unfortunately we must walk the entire array for every row as there may be a 
    * mix of second and millisecond timestamps
    */
+  @Override
   public int size() {
     int size = 0;
     for (final DataPoints row : rows) {
@@ -117,6 +118,7 @@ class Span implements DataPoints {
   /**
    * @return a list of annotations associated with this span. May be empty
    */
+  @Override
   public List<Annotation> getAnnotations() {
     ImmutableList.Builder<Annotation> annot_builder = ImmutableList.builder();
     for (DataPoints row : rows) {
@@ -129,6 +131,7 @@ class Span implements DataPoints {
   /**
    * @return an iterator to run over the list of data points
    */
+  @Override
   public SeekableView iterator() {
     return spanIterator();
   }
@@ -160,6 +163,7 @@ class Span implements DataPoints {
    * @return A Unix epoch timestamp in milliseconds
    * @throws IndexOutOfBoundsException if the index would be out of bounds
    */
+  @Override
   public long timestamp(final int i) {
     return dataPointForIndex(i).timestamp();
   }
@@ -171,6 +175,7 @@ class Span implements DataPoints {
    * @return True if the value is an integer, false if it's a floating point
    * @throws IndexOutOfBoundsException if the index would be out of bounds
    */
+  @Override
   public boolean isInteger(final int i) {
     return dataPointForIndex(i).isInteger();
   }
@@ -185,6 +190,7 @@ class Span implements DataPoints {
    * {@link #isInteger} first
    * @throws IllegalDataException if the data is malformed
    */
+  @Override
   public long longValue(final int i) {
     return dataPointForIndex(i).longValue();
   }
@@ -199,6 +205,7 @@ class Span implements DataPoints {
    * {@link #isInteger} first
    * @throws IllegalDataException if the data is malformed
    */
+  @Override
   public double doubleValue(final int i) {
     return dataPointForIndex(i).doubleValue();
   }
@@ -233,18 +240,22 @@ class Span implements DataPoints {
       iterator = Iterators.peekingIterator(Iterables.concat(rows).iterator());
     }
 
+    @Override
     public boolean hasNext() {
       return iterator.hasNext();
     }
 
+    @Override
     public DataPoint next() {
       return iterator.next();
     }
 
+    @Override
     public void remove() {
       throw new UnsupportedOperationException();
     }
 
+    @Override
     public void seek(final long timestamp) {
       while (iterator.hasNext() && iterator.peek().timestamp() < timestamp) {
         iterator.next();

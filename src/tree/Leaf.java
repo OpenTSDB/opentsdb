@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import java.nio.charset.Charset;
-
 import com.google.common.collect.ImmutableMap;
 import net.opentsdb.storage.hbase.HBaseConst;
 import org.hbase.async.Bytes;

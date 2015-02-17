@@ -42,6 +42,7 @@ public class ByteArrayPair extends Pair<byte[], byte[]>
    * first.
    * @param a The value to compare against.
    */
+  @Override
   public int compareTo(ByteArrayPair a) {
     final int key_compare = Bytes.memcmpMaybeNull(this.key, a.key);
     if (key_compare == 0) {
@@ -53,9 +54,7 @@ public class ByteArrayPair extends Pair<byte[], byte[]>
   /** @return a descriptive string in the format "key=K, value=V" */
   @Override
   public String toString() {
-    return new StringBuilder().append("key=")
-      .append(Arrays.toString(key)).append(", value=")
-      .append(Arrays.toString(value)).toString();
+    return "key=" + Arrays.toString(key) + ", value=" + Arrays.toString(value);
   }
   
   /**

@@ -45,6 +45,7 @@ final class AnnotationRpc implements HttpRpc {
    * @param tsdb The TSD to which we belong
    * @param query The query to parse and respond to
    */
+  @Override
   public void execute(final TSDB tsdb, HttpQuery query) throws IOException {
     final HttpMethod method = query.getAPIMethod();
     

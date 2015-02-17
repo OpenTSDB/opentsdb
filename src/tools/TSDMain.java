@@ -187,6 +187,7 @@ final class TSDMain {
       public TSDBShutdown() {
         super("TSDBShutdown");
       }
+      @Override
       public void run() {
         try {
           tsdb.shutdown().join();

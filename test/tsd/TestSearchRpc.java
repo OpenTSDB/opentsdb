@@ -223,7 +223,7 @@ public final class TestSearchRpc {
   
   @Test (expected = BadRequestException.class)
   public void searchPluginNotEnabled() throws Exception {
-    when(tsdb.getMetaClient().executeSearch((SearchQuery) any(), tsdb))
+    when(tsdb.getMetaClient().executeSearch((SearchQuery) any()))
         .thenThrow(new IllegalStateException(
             "Searching has not been enabled on this TSD"));
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -296,7 +296,7 @@ public final class TestSearchRpc {
    * responses for parsing tests.
    */
   private void setupAnswerSearchQuery() {
-    when(tsdb.getMetaClient().executeSearch((SearchQuery)any(), tsdb)).thenAnswer(
+    when(tsdb.getMetaClient().executeSearch((SearchQuery)any())).thenAnswer(
       new Answer<Deferred<SearchQuery>>() {
 
         @Override

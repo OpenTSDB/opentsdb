@@ -29,7 +29,6 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
-import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
@@ -989,6 +988,7 @@ public class MemoryStore implements TsdbStore {
    * @param start_time The start time as a Unix epoch timestamp
    * @return A valid annotation object if found, null if not
    */
+  @Override
   public Deferred<Annotation> getAnnotation(final byte[] tsuid, final long start_time) {
 
     if (start_time < 1) {

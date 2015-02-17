@@ -41,7 +41,8 @@ final class SuggestRpc implements HttpRpc {
    * the output
    * @throws BadRequestException if the user supplied bad data
    */
-  public void execute(final TSDB tsdb, final HttpQuery query) 
+  @Override
+  public void execute(final TSDB tsdb, final HttpQuery query)
     throws IOException {
     
     // only accept GET/POST

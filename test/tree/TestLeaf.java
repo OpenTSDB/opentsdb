@@ -21,7 +21,6 @@ import static org.junit.Assert.*;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.StringCoder;
 import net.opentsdb.storage.MemoryStore;
 
 import org.hbase.async.KeyValue;

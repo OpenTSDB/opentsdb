@@ -18,7 +18,6 @@ import java.util.Map;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.StringCoder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -1079,7 +1078,7 @@ public final class TestUniqueIdRpc {
    * Sets up common mocks for UID assignment tests
    * @throws Exception if something goes pear shaped
    */
-  private void setupAssign() throws Exception {
+  private void setupAssign() {
     tsdb_store.allocateUID("sys.cpu.0", UniqueIdType.METRIC);
     tsdb_store.allocateUID("myserver", UniqueIdType.TAGV);
     tsdb_store.allocateUID("datacenter", UniqueIdType.TAGK);
@@ -1089,7 +1088,7 @@ public final class TestUniqueIdRpc {
    * Sets up common mocks for UID tests
    * @throws Exception if something goes pear shaped
    */
-  private void setupUID() throws Exception {
+  private void setupUID() {
     tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
     tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, UniqueIdType.METRIC);
 
@@ -1109,7 +1108,7 @@ public final class TestUniqueIdRpc {
    * Sets up common mocks for TSUID tests
    * @throws Exception if something goes pear shaped
    */
-  private void setupTSUID() throws Exception {
+  private void setupTSUID() {
     tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
     tsdb_store.allocateUID("sys.cpu.2", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
 

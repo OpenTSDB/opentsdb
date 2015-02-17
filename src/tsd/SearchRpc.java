@@ -82,7 +82,7 @@ final class SearchRpc implements HttpRpc {
     
     try {
       final SearchQuery results = 
-        tsdb.getMetaClient().executeSearch(search_query, tsdb).joinUninterruptibly();
+        tsdb.getMetaClient().executeSearch(search_query).joinUninterruptibly();
       query.sendReply(query.serializer().formatSearchResultsV1(results));
     } catch (IllegalStateException e) {
       throw new BadRequestException("Searching is not enabled", e);

@@ -253,6 +253,7 @@ public final class Internal {
     }
 
     /** Compares the qualifiers of two cells */
+    @Override
     public int compareTo(final Cell other) {
       return compareQualifiers(qualifier, 0, other.qualifier, 0);
     }
@@ -349,6 +350,7 @@ public final class Internal {
      * @return 0 if they have the same timestamp, -1 if a is less than b, 1 
      * otherwise.
      */
+    @Override
     public int compare(final KeyValue a, final KeyValue b) {
       return compareQualifiers(a.qualifier(), 0, b.qualifier(), 0);
     }
@@ -375,7 +377,8 @@ public final class Internal {
      * @param row The row from HBase
      * @return null if no data was found, a data point if one was
      */
-    public IncomingDataPoint call(final ArrayList<KeyValue> row) 
+    @Override
+    public IncomingDataPoint call(final ArrayList<KeyValue> row)
       throws Exception {
       if (row == null || row.size() < 1) {
         return null;

@@ -221,7 +221,6 @@ public class DataPointsClientTest {
     assertEquals(24, value[0]);
   }
 
-  @SuppressWarnings("unchecked")
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
@@ -504,7 +503,7 @@ public class DataPointsClientTest {
    * Configures storage for the addPoint() tests to validate that we're storing
    * data points correctly.
    */
-  private void setupAddPointStorage() throws Exception {
+  private void setupAddPointStorage() {
     store.allocateUID("sys.cpu.user", new byte[]{0, 0, 1}, METRIC);
     store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
     store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);

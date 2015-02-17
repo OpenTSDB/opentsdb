@@ -55,6 +55,7 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
    * @param chan The netty channel to respond on
    * @param cmd call parameters
    */
+  @Override
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
       final String[] cmd) {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -74,6 +75,7 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
    * @param tsdb The TSDB to which we belong
    * @param query The query to parse and respond to
    */
+  @Override
   public void execute(final TSDB tsdb, final HttpQuery query) {
     // only accept GET/POST
     if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {

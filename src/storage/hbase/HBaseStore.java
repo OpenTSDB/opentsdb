@@ -365,6 +365,7 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Object> flush() {
     final class HClientFlush implements Callback<Object, ArrayList<Object>> {
+      @Override
       public Object call(final ArrayList<Object> args) {
         return client.flush();
       }
@@ -412,12 +413,14 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Object> shutdown() {
     final class CompactCB implements Callback<Object, ArrayList<Object>> {
+      @Override
       public Object call(ArrayList<Object> compactions) throws Exception {
         return client.shutdown();
       }
     }
 
     final class CompactEB implements Callback<Object, Exception> {
+      @Override
       public Object call(final Exception e) {
         LOG.error("Failed to shutdown. Received an error when " +
                 "flushing the compaction queue", e);
@@ -457,6 +460,7 @@ public class HBaseStore implements TsdbStore {
     }
 
     class GetCB implements Callback<Optional<String>, Optional<KeyValue>> {
+      @Override
       public Optional<String> call(final Optional<KeyValue> cell) {
         if (cell.isPresent()) {
           return Optional.of(fromBytes(cell.get().value()));
@@ -488,6 +492,7 @@ public class HBaseStore implements TsdbStore {
             .qualifier(qualifier);
 
     class GetCB implements Callback<Optional<byte[]>, Optional<KeyValue>> {
+      @Override
       public Optional<byte[]> call(final Optional<KeyValue> cell) {
         if (cell.isPresent()) {
           byte[] id = cell.get().value();
@@ -1443,7 +1448,7 @@ public class HBaseStore implements TsdbStore {
             }
           }
 
-          if (qualifiers.size() > 0) {
+          if (!qualifiers.isEmpty()) {
             final DeleteRequest delete = new DeleteRequest(tree_table_name,
                     row.get(0).key(), TREE_FAMILY,
                     qualifiers.toArray(new byte[qualifiers.size()][])
@@ -1462,6 +1467,7 @@ public class HBaseStore implements TsdbStore {
         final class ContinueCB implements Callback<Deferred<Boolean>,
                 ArrayList<Object>> {
 
+          @Override
           public Deferred<Boolean> call(ArrayList<Object> objects) {
             LOG.debug("Purged [{}] columns, continuing", objects.size());
             delete_deferreds.clear();

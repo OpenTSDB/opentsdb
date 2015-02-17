@@ -196,13 +196,12 @@ public class MetaClient {
   /**
    * Executes a search query using the search plugin
    * @param query The query to execute
-   * @param tsdb
    * @return A deferred object to wait on for the results to be fetched
    * @throws IllegalStateException if the search plugin has not been enabled or
    * configured
    * @since 2.0
    */
-  public Deferred<SearchQuery> executeSearch(final SearchQuery query, final TSDB tsdb) {
+  public Deferred<SearchQuery> executeSearch(final SearchQuery query) {
     return searchPlugin.executeQuery(query);
   }
 

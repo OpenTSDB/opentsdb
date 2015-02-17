@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.uid;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -176,6 +175,7 @@ public class UniqueId {
     }
     cache_misses.inc();
     class GetNameCB implements Callback<String, Optional<String>> {
+      @Override
       public String call(final Optional<String> name) {
         if (name.isPresent()) {
           addNameToCache(id, name.get());
@@ -213,6 +213,7 @@ public class UniqueId {
     }
     cache_misses.inc();
     class GetIdCB implements Callback<byte[], Optional<byte[]>> {
+      @Override
       public byte[] call(final Optional<byte[]> id) {
         if (id.isPresent()) {
           addIdToCache(name, id.get());

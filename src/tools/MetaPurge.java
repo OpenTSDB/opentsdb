@@ -78,6 +78,7 @@ final class MetaPurge extends Thread {
    * Loops through the entire tsdb-uid table, then the meta data table and exits 
    * when complete.
    */
+  @Override
   public void run() {
     long purged_columns;
     try {

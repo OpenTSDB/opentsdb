@@ -393,13 +393,13 @@ public class Config {
       return "No configuration settings stored";
 
     StringBuilder response = new StringBuilder("TSD Configuration:\n");
-    response.append("File [" + this.config_location + "]\n");
+    response.append("File [").append(this.config_location).append("]\n");
     int line = 0;
     for (Map.Entry<String, String> entry : this.properties.entrySet()) {
       if (line > 0) {
         response.append("\n");
       }
-      response.append("Key [" + entry.getKey() + "]  Value [");
+      response.append("Key [").append(entry.getKey()).append("]  Value [");
       if (entry.getKey().toUpperCase().contains("PASS")) {
          response.append("********");
       } else {

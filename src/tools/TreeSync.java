@@ -74,6 +74,7 @@ final class TreeSync extends Thread {
    * Performs a tree synchronization using a table scanner across the UID table
    * @return 0 if completed successfully, something else if an error occurred
    */
+  @Override
   public void run() {
     final Scanner scanner = getScanner();
 

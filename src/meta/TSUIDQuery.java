@@ -305,6 +305,7 @@ public class TSUIDQuery {
     }
 
     final class ErrBack implements Callback<Object, Exception> {
+      @Override
       public Object call(final Exception e) throws Exception {
         Throwable ex = e;
         while (ex.getClass().equals(DeferredGroupException.class)) {
@@ -340,7 +341,8 @@ public class TSUIDQuery {
        * null we call the local getPrevious() method to issue a Get on the 
        * previous row.
        */
-      public Object call(final IncomingDataPoint dp) 
+      @Override
+      public Object call(final IncomingDataPoint dp)
         throws Exception {
         if (dp == null) {
           if (time_limit > 0) {
@@ -358,7 +360,8 @@ public class TSUIDQuery {
         }
         
         class TagsCB implements Callback<Object, HashMap<String, String>> {
-          public IncomingDataPoint call(final HashMap<String, String> tags) 
+          @Override
+          public IncomingDataPoint call(final HashMap<String, String> tags)
             throws Exception {
             dp.setTags(tags);
             result.callback(dp);
@@ -367,6 +370,7 @@ public class TSUIDQuery {
         }
         
         class MetricCB implements Callback<Object, String> {
+          @Override
           public Object call(final String name) throws Exception {
             dp.setMetric(name);
             final List<byte[]> tags = UniqueId.getTagPairsFromTSUID(tsuid);
@@ -411,7 +415,8 @@ public class TSUIDQuery {
      * or not
      */
     final class ExistsCB implements Callback<Object, ArrayList<KeyValue>> {
-      public Object call(final ArrayList<KeyValue> row) 
+      @Override
+      public Object call(final ArrayList<KeyValue> row)
         throws Exception {
         if (row == null || row.isEmpty() || row.get(0).value() == null) {
           result.callback(null);

@@ -38,6 +38,7 @@ public interface SeekableView extends Iterator<DataPoint> {
   /**
    * Returns {@code true} if this view has more elements.
    */
+  @Override
   boolean hasNext();
 
   /**
@@ -51,12 +52,14 @@ public interface SeekableView extends Iterator<DataPoint> {
    *                                          #hasNext} would have returned
    *                                          {@code false}.
    */
+  @Override
   DataPoint next();
 
   /**
    * Unsupported operation.
    * @throws UnsupportedOperationException always.
    */
+  @Override
   void remove();
 
   /**

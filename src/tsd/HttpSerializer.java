@@ -690,7 +690,7 @@ public abstract class HttpSerializer {
     StringBuilder output = 
       new StringBuilder(1024);
     if (query.hasQueryStringParam("jsonp")) {
-      output.append(query.getQueryStringParam("jsonp") + "(");
+      output.append(query.getQueryStringParam("jsonp")).append("(");
     }
     output.append("{\"error\":{\"code\":");
     output.append(404);
@@ -722,18 +722,18 @@ public abstract class HttpSerializer {
       new StringBuilder(exception.getMessage().length() * 2);
     final String jsonp = query.getQueryStringParam("jsonp");
     if (jsonp != null && !jsonp.isEmpty()) {
-      output.append(query.getQueryStringParam("jsonp") + "(");
+      output.append(query.getQueryStringParam("jsonp")).append("(");
     }
     output.append("{\"error\":{\"code\":");
     output.append(exception.getStatus().getCode());
     final StringBuilder msg = new StringBuilder(exception.getMessage().length());
     HttpQuery.escapeJson(exception.getMessage(), msg);
-    output.append(",\"message\":\"").append(msg.toString()).append("\"");
+    output.append(",\"message\":\"").append(msg).append("\"");
     if (!exception.getDetails().isEmpty()) {
       final StringBuilder details = new StringBuilder(
           exception.getDetails().length());
       HttpQuery.escapeJson(exception.getDetails(), details);
-      output.append(",\"details\":\"").append(details.toString()).append("\"");
+      output.append(",\"details\":\"").append(details).append("\"");
     }
     if (query.showStackTrace()) {
       ThrowableProxy tp = new ThrowableProxy(exception);
@@ -741,7 +741,7 @@ public abstract class HttpSerializer {
       final String pretty_exc = ThrowableProxyUtil.asString(tp);
       final StringBuilder trace = new StringBuilder(pretty_exc.length());
       HttpQuery.escapeJson(pretty_exc, trace);
-      output.append(",\"trace\":\"").append(trace.toString()).append("\"");
+      output.append(",\"trace\":\"").append(trace).append("\"");
     }
     output.append("}}");
     if (jsonp != null && !jsonp.isEmpty()) {
@@ -772,20 +772,20 @@ public abstract class HttpSerializer {
       new StringBuilder(message.length() * 2);
     final String jsonp = query.getQueryStringParam("jsonp");
     if (jsonp != null && !jsonp.isEmpty()) {
-      output.append(query.getQueryStringParam("jsonp") + "(");
+      output.append(query.getQueryStringParam("jsonp")).append("(");
     }
     output.append("{\"error\":{\"code\":");
     output.append(500);
     final StringBuilder msg = new StringBuilder(message.length());
     HttpQuery.escapeJson(message, msg);
-    output.append(",\"message\":\"").append(msg.toString()).append("\"");
+    output.append(",\"message\":\"").append(msg).append("\"");
     if (query.showStackTrace()) {
       ThrowableProxy tp = new ThrowableProxy(exception);
       tp.calculatePackagingData();
       final String pretty_exc = ThrowableProxyUtil.asString(tp);
       final StringBuilder trace = new StringBuilder(pretty_exc.length());
       HttpQuery.escapeJson(pretty_exc, trace);
-      output.append(",\"trace\":\"").append(trace.toString()).append("\"");
+      output.append(",\"trace\":\"").append(trace).append("\"");
     }
     output.append("}}");
     if (jsonp != null && !jsonp.isEmpty()) {

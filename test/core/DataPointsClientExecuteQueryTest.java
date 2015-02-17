@@ -2670,7 +2670,7 @@ public final class DataPointsClientExecuteQueryTest {
     }
   }
 
-  private void storeLongCompactions() throws Exception {
+  private void storeLongCompactions() {
     long base_timestamp = START_TIME_1;
     long value = 1;
     byte[] qualifier = new byte[119 * 2];
@@ -2730,7 +2730,7 @@ public final class DataPointsClientExecuteQueryTest {
             qualifier, column_qualifier);
   }
 
-  private void storeFloatCompactions() throws Exception {
+  private void storeFloatCompactions() {
     long base_timestamp = START_TIME_1;
     float value = 1.25F;
     byte[] qualifier = new byte[119 * 2];
@@ -2793,7 +2793,7 @@ public final class DataPointsClientExecuteQueryTest {
             qualifier, column_qualifier);
   }
 
-  private void storeMixedCompactions() throws Exception {
+  private void storeMixedCompactions() {
     long base_timestamp = START_TIME_1;
     float q_counter = 1.25F;
     byte[] qualifier = new byte[119 * 2];

@@ -107,7 +107,7 @@ public final class MutableDataPoint implements DataPoint {
     if (is_integer) {
       return value;
     }
-    throw new ClassCastException("Not a long in " + toString());
+    throw new ClassCastException("Not a long in " + this);
   }
 
   @Override
@@ -115,7 +115,7 @@ public final class MutableDataPoint implements DataPoint {
     if (!is_integer) {
       return Double.longBitsToDouble(value);
     }
-    throw new ClassCastException("Not a double in " + toString());
+    throw new ClassCastException("Not a double in " + this);
   }
 
   @Override

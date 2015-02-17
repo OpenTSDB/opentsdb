@@ -68,6 +68,7 @@ public class UidResolver {
    * name UID followed by the tag value UID.
    */
   private static class SortResolvedTagsCB implements Callback<ArrayList<byte[]>, ArrayList<byte[]>> {
+    @Override
     public ArrayList<byte[]> call(final ArrayList<byte[]> tags) {
       // Now sort the tags.
       Collections.sort(tags, Bytes.MEMCMP);

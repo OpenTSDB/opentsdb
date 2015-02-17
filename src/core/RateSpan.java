@@ -76,7 +76,7 @@ public class RateSpan implements SeekableView {
       populateNextRate();
       return prev_rate;
     } else {
-      throw new NoSuchElementException("no more values for " + toString());
+      throw new NoSuchElementException("no more values for " + this);
     }
   }
 

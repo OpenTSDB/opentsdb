@@ -115,6 +115,7 @@ public final class Aggregators {
       this.name = name;
     }
     
+    @Override
     public long runLong(final Longs values) {
       long result = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -123,6 +124,7 @@ public final class Aggregators {
       return result;
     }
 
+    @Override
     public double runDouble(final Doubles values) {
       double result = values.nextDoubleValue();
       while (values.hasNextValue()) {
@@ -135,6 +137,7 @@ public final class Aggregators {
       return name;
     }
 
+    @Override
     public Interpolation interpolationMethod() {
       return method;
     }
@@ -150,6 +153,7 @@ public final class Aggregators {
       this.name = name;
     }
     
+    @Override
     public long runLong(final Longs values) {
       long min = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -161,6 +165,7 @@ public final class Aggregators {
       return min;
     }
 
+    @Override
     public double runDouble(final Doubles values) {
       double min = values.nextDoubleValue();
       while (values.hasNextValue()) {
@@ -176,6 +181,7 @@ public final class Aggregators {
       return name;
     }
 
+    @Override
     public Interpolation interpolationMethod() {
       return method;
     }
@@ -191,6 +197,7 @@ public final class Aggregators {
       this.name = name;
     }
     
+    @Override
     public long runLong(final Longs values) {
       long max = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -202,6 +209,7 @@ public final class Aggregators {
       return max;
     }
 
+    @Override
     public double runDouble(final Doubles values) {
       double max = values.nextDoubleValue();
       while (values.hasNextValue()) {
@@ -217,6 +225,7 @@ public final class Aggregators {
       return name;
     }
 
+    @Override
     public Interpolation interpolationMethod() {
       return method;
     }
@@ -232,6 +241,7 @@ public final class Aggregators {
       this.name = name;
     }
     
+    @Override
     public long runLong(final Longs values) {
       long result = values.nextLongValue();
       int n = 1;
@@ -242,6 +252,7 @@ public final class Aggregators {
       return result / n;
     }
 
+    @Override
     public double runDouble(final Doubles values) {
       double result = values.nextDoubleValue();
       int n = 1;
@@ -256,6 +267,7 @@ public final class Aggregators {
       return name;
     }
   
+    @Override
     public Interpolation interpolationMethod() {
       return method;
     }
@@ -280,6 +292,7 @@ public final class Aggregators {
       this.name = name;
     }
     
+    @Override
     public long runLong(final Longs values) {
       double old_mean = values.nextLongValue();
 
@@ -301,6 +314,7 @@ public final class Aggregators {
       return (long) Math.sqrt(variance / (n - 1));
     }
 
+    @Override
     public double runDouble(final Doubles values) {
       double old_mean = values.nextDoubleValue();
 
@@ -326,6 +340,7 @@ public final class Aggregators {
       return name;
     }
     
+    @Override
     public Interpolation interpolationMethod() {
       return method;
     }

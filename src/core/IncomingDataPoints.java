@@ -98,6 +98,7 @@ class IncomingDataPoints implements WritableDataPoints {
     }
   }
 
+  @Override
   public void setSeries(final String metric, final Map<String, String> tags) {
     checkMetricAndTags(metric, tags);
     try {
@@ -203,6 +204,7 @@ class IncomingDataPoints implements WritableDataPoints {
     qualifiers = Arrays.copyOf(qualifiers, new_size);
   }
 
+  @Override
   public Deferred<Object> addPoint(final long timestamp, final long value) {
     final byte[] v;
     if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
@@ -218,6 +220,7 @@ class IncomingDataPoints implements WritableDataPoints {
     return addPointInternal(timestamp, v, flags);
   }
 
+  @Override
   public Deferred<Object> addPoint(final long timestamp, final float value) {
     if (Float.isNaN(value) || Float.isInfinite(value)) {
       throw new IllegalArgumentException("value is NaN or Infinite: " + value
@@ -229,6 +232,7 @@ class IncomingDataPoints implements WritableDataPoints {
                             flags);
   }
 
+  @Override
   public void setBufferingTime(final short time) {
     if (time < 0) {
       throw new IllegalArgumentException("negative time: " + time);
@@ -236,6 +240,7 @@ class IncomingDataPoints implements WritableDataPoints {
     store.setFlushInterval(time);
   }
 
+  @Override
   public void setBatchImport(final boolean batchornot) {
     if (batch_import == batchornot) {
       return;
@@ -283,22 +288,27 @@ class IncomingDataPoints implements WritableDataPoints {
     return Collections.emptyList();
   }
 
+  @Override
   public List<String> getTSUIDs() {
     return Collections.emptyList();
   }
   
+  @Override
   public List<Annotation> getAnnotations() {
     return null;
   }
   
+  @Override
   public int size() {
     return size;
   }
 
+  @Override
   public int aggregatedSize() {
     return 0;
   }
 
+  @Override
   public SeekableView iterator() {
     return new DataPointsIterator(this);
   }
@@ -319,16 +329,19 @@ class IncomingDataPoints implements WritableDataPoints {
     return (short) ((qualifier & 0xFFFF) >>> Const.FLAG_BITS);
   }
 
+  @Override
   public long timestamp(final int i) {
     checkIndex(i);
     return RowKey.baseTime(row) + (delta(qualifiers[i]) & 0xFFFF);
   }
 
+  @Override
   public boolean isInteger(final int i) {
     checkIndex(i);
     return (qualifiers[i] & Const.FLAG_FLOAT) == 0x0;
   }
 
+  @Override
   public long longValue(final int i) {
     // Don't call checkIndex(i) because isInteger(i) already calls it.
     if (isInteger(i)) {
@@ -337,6 +350,7 @@ class IncomingDataPoints implements WritableDataPoints {
     throw new ClassCastException("value #" + i + " is not a long in " + this);
   }
 
+  @Override
   public double doubleValue(final int i) {
     // Don't call checkIndex(i) because isInteger(i) already calls it.
     if (!isInteger(i)) {

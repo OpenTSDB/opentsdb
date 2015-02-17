@@ -18,7 +18,6 @@ import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.Const;
-import net.opentsdb.core.StringCoder;
 
 import static net.opentsdb.core.StringCoder.toBytes;
 

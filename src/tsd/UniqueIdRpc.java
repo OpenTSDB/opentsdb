@@ -100,12 +100,12 @@ final class UniqueIdRpc implements HttpRpc {
       // cut down on some repetitive code, split the query string values by
       // comma and add them to the source hash
       String[] types = {"metric", "tagk", "tagv"};
-      for (int i = 0; i < types.length; i++) {
-        final String values = query.getQueryStringParam(types[i]);
+      for (final String type : types) {
+        final String values = query.getQueryStringParam(type);
         if (values != null && !values.isEmpty()) {
           final String[] metrics = values.split(",");
-          if (metrics != null && metrics.length > 0) {
-            source.put(types[i], Arrays.asList(metrics));
+          if (metrics.length > 0) {
+            source.put(type, Arrays.asList(metrics));
           }
         }
       }
@@ -139,7 +139,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       
       response.put(entry.getKey(), results);
-      if (errors.size() > 0) {
+      if (!errors.isEmpty()) {
         response.put(entry.getKey() + "_errors", errors);
       }
     }

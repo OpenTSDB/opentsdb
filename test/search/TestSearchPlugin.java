@@ -24,87 +24,87 @@ public abstract class TestSearchPlugin {
   protected SearchPlugin search;
   
   @Test
-  public void shutdown() throws Exception  {
+  public void shutdown() {
     assertNotNull(search.shutdown());
   }
   
   @Test
-  public void indexTSMeta() throws Exception  {
+  public void indexTSMeta() {
     assertNotNull(search.indexTSMeta(new TSMeta()));
   }
   
   @Test
-  public void indexTSMetaNull() throws Exception  {
+  public void indexTSMetaNull() {
     assertNotNull(search.indexTSMeta(null));
   }
   
   @Test
-  public void indexTSMetaNullErrBack() throws Exception  {
+  public void indexTSMetaNullErrBack() {
     assertNotNull(search.indexTSMeta(null).addErrback(new Errback()));
   }
   
   @Test
-  public void deleteTSMeta() throws Exception  {
+  public void deleteTSMeta() {
     assertNotNull(search.deleteTSMeta("hello"));
   }
   
   @Test
-  public void deleteTSMetaNull() throws Exception  {
+  public void deleteTSMetaNull() {
     assertNotNull(search.deleteTSMeta(null));
   }
   
   @Test
-  public void deleteTSMetaNullErrBack() throws Exception  {
+  public void deleteTSMetaNullErrBack() {
     assertNotNull(search.deleteTSMeta(null).addErrback(new Errback()));
   }
   
   @Test
-  public void indexUIDMetaNull() throws Exception  {
+  public void indexUIDMetaNull() {
     assertNotNull(search.indexUIDMeta(null));
   }
   
   @Test
-  public void IndexUIDMetaNullErrBack() throws Exception  {
+  public void IndexUIDMetaNullErrBack() {
     assertNotNull(search.indexUIDMeta(null).addErrback(new Errback()));
   }
   
   @Test
-  public void deleteUIDMetaNull() throws Exception  {
+  public void deleteUIDMetaNull() {
     assertNotNull(search.deleteUIDMeta(null));
   }
   
   @Test
-  public void deleteUIDMetaNullErrBack() throws Exception  {
+  public void deleteUIDMetaNullErrBack() {
     assertNotNull(search.deleteUIDMeta(null).addErrback(new Errback()));
   }
   
   @Test
-  public void indexAnnotation() throws Exception {
+  public void indexAnnotation() {
     assertNotNull(search.indexAnnotation(new Annotation()));
   }
   
   @Test
-  public void indexAnnotationNull() throws Exception {
+  public void indexAnnotationNull() {
     assertNotNull(search.indexAnnotation(null));
   }
   
   @Test
-  public void indexAnnotationNullErrBack() throws Exception {
+  public void indexAnnotationNullErrBack() {
     assertNotNull(search.indexAnnotation(null).addErrback(new Errback()));
   }
   
   @Test
-  public void deleteAnnotation() throws Exception {
+  public void deleteAnnotation() {
     assertNotNull(search.deleteAnnotation(new Annotation()));
   }
   
   @Test
-  public void deleteAnnotationNull() throws Exception {
+  public void deleteAnnotationNull() {
     assertNotNull(search.deleteAnnotation(null));
   }
   
   @Test
-  public void deleteAnnotationNullErrBack() throws Exception {
+  public void deleteAnnotationNullErrBack() {
     assertNotNull(search.deleteAnnotation(null).addErrback(new Errback()));
   }
   
@@ -114,6 +114,7 @@ public abstract class TestSearchPlugin {
    */
   @Ignore
   final class Errback implements Callback<Object, Exception> {
+    @Override
     public Object call(final Exception e) {
       assertNotNull(e);
       return new Object();

@@ -384,7 +384,6 @@ public final class TestFsck {
     assertNull(tsdb_store.getColumn(ROW, qual1));
   }
   
-  @SuppressWarnings("unchecked")
   @Test
   public void noSuchTagId() throws Exception {
     when(options.fix()).thenReturn(true);
@@ -405,7 +404,6 @@ public final class TestFsck {
     assertArrayEquals(val1, tsdb_store.getColumn(ROW, qual1));
   }
   
-  @SuppressWarnings("unchecked")
   @Test
   public void noSuchTagIdFix() throws Exception {
     when(options.fix()).thenReturn(true);

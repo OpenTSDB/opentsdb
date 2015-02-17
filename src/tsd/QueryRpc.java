@@ -135,7 +135,8 @@ final class QueryRpc implements HttpRpc {
     * and add dump the results in an array
     */
     class QueriesCB implements Callback<Object, ArrayList<DataPoints[]>> {
-      public Object call(final ArrayList<DataPoints[]> query_results) 
+      @Override
+      public Object call(final ArrayList<DataPoints[]> query_results)
         throws Exception {
         results.addAll(query_results);
         return null;
@@ -216,6 +217,7 @@ final class QueryRpc implements HttpRpc {
      * Used to catch exceptions 
      */
     final class ErrBack implements Callback<Object, Exception> {
+      @Override
       public Object call(final Exception e) throws Exception {
         Throwable ex = e;
         while (ex.getClass().equals(DeferredGroupException.class)) {
@@ -239,6 +241,7 @@ final class QueryRpc implements HttpRpc {
      * getLastPoint requests, adding the deferreds to the calls list
      */
     final class TSUIDQueryCB implements Callback<Object, ByteMap<Long>> {
+      @Override
       public Object call(final ByteMap<Long> tsuids) throws Exception {
         if (tsuids == null || tsuids.isEmpty()) {
           return null;
@@ -257,6 +260,7 @@ final class QueryRpc implements HttpRpc {
      * Callback used to force the thread to wait for the TSUIDQueries to complete
      */
     final class TSUIDQueryWaitCB implements Callback<Object, ArrayList<Object>> {
+      @Override
       public Object call(ArrayList<Object> arg0) throws Exception {
         return null;
       }
@@ -267,6 +271,7 @@ final class QueryRpc implements HttpRpc {
      * this will return the results to the call via the serializer
      */
     final class FinalCB implements Callback<Object, ArrayList<IncomingDataPoint>> {
+      @Override
       @SuppressWarnings("unchecked")
       public Object call(final ArrayList<IncomingDataPoint> data_points) 
         throws Exception {
@@ -423,7 +428,7 @@ final class QueryRpc implements HttpRpc {
     for (int x = 1; x < parts.length - 1; x++) {
       if (parts[x].toLowerCase().startsWith("rate")) {
         sub_query.setRate(true);
-        if (parts[x].indexOf("{") >= 0) {
+        if (parts[x].contains("{")) {
           sub_query.setRateOptions(QueryRpc.parseRateOptions(true, parts[x]));
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
@@ -476,7 +481,7 @@ final class QueryRpc implements HttpRpc {
     for (int x = 1; x < parts.length - 1; x++) {
       if (parts[x].toLowerCase().startsWith("rate")) {
         sub_query.setRate(true);
-        if (parts[x].indexOf("{") >= 0) {
+        if (parts[x].contains("{")) {
           sub_query.setRateOptions(QueryRpc.parseRateOptions(true, parts[x]));
         }
       } else if (Character.isDigit(parts[x].charAt(0))) {
@@ -527,10 +532,10 @@ final class QueryRpc implements HttpRpc {
 
      final boolean counter = "counter".equals(parts[0]);
      try {
-       final long max = (parts.length >= 2 && parts[1].length() > 0 ? Long
+       final long max = (parts.length >= 2 && !parts[1].isEmpty() ? Long
            .parseLong(parts[1]) : Long.MAX_VALUE);
        try {
-         final long reset = (parts.length >= 3 && parts[2].length() > 0 ? Long
+         final long reset = (parts.length >= 3 && !parts[2].isEmpty() ? Long
              .parseLong(parts[2]) : RateOptions.DEFAULT_RESET_VALUE);
          return new RateOptions(counter, max, reset);
        } catch (NumberFormatException e) {
@@ -659,9 +664,7 @@ final class QueryRpc implements HttpRpc {
       final LastPointSubQuery sub_query = new LastPointSubQuery();
       final String[] tsuids = query.split(",");
       sub_query.tsuids = new ArrayList<String>(tsuids.length);
-      for (String tsuid : tsuids) {
-        sub_query.tsuids.add(tsuid);
-      }
+      Collections.addAll(sub_query.tsuids, tsuids);
       return sub_query;
     }
     

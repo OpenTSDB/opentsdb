@@ -284,7 +284,7 @@ public class TestDownsampler {
   public void testToString() {
     downsampler = new Downsampler(source, THOUSAND_SEC_INTERVAL, AVG);
     DataPoint dp = downsampler.next();
-    System.out.println(downsampler.toString());
+    System.out.println(downsampler);
     assertTrue(downsampler.toString().contains(dp.toString()));
   }
 }

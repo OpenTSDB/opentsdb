@@ -34,7 +34,8 @@ import net.opentsdb.utils.JSON;
 /** The "/logs" endpoint. */
 final class LogsRpc implements HttpRpc {
 
-  public void execute(final TSDB tsdb, final HttpQuery query) 
+  @Override
+  public void execute(final TSDB tsdb, final HttpQuery query)
     throws JsonGenerationException, IOException {
     LogIterator logmsgs = new LogIterator();
     if (query.hasQueryStringParam("json")) {
@@ -95,15 +96,18 @@ final class LogsRpc implements HttpRpc {
       logbuf = (CyclicBufferAppender<ILoggingEvent>) root.getAppender("CYCLIC");
     }
 
+    @Override
     public Iterator<String> iterator() {
       nevents = logbuf.getLength();
       return this;
     }
 
+    @Override
     public boolean hasNext() {
       return nevents > 0;
     }
 
+    @Override
     public String next() {
       if (hasNext()) {
         nevents--;
@@ -111,7 +115,7 @@ final class LogsRpc implements HttpRpc {
         final String msg = event.getFormattedMessage();
         buf.setLength(0);
         buf.append(event.getTimeStamp() / 1000)
-          .append('\t').append(event.getLevel().toString())
+          .append('\t').append(event.getLevel())
           .append('\t').append(event.getThreadName())
           .append('\t').append(event.getLoggerName())
           .append('\t').append(msg);
@@ -124,6 +128,7 @@ final class LogsRpc implements HttpRpc {
       throw new NoSuchElementException("no more elements");
     }
 
+    @Override
     public void remove() {
       throw new UnsupportedOperationException();
     }

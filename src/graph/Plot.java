@@ -281,11 +281,11 @@ public final class Plot {
       }
 
       gp.append("\n"
-                + "set xdata time\n"
-                + "set timefmt \"%s\"\n"
-                + "if (GPVAL_VERSION < 4.6) set xtics rotate; else set xtics rotate right\n"
-                + "set output \"").append(basepath + ".png").append("\"\n"
-                + "set xrange [\"")
+              + "set xdata time\n"
+              + "set timefmt \"%s\"\n"
+              + "if (GPVAL_VERSION < 4.6) set xtics rotate; else set xtics rotate right\n"
+              + "set output \"").append(basepath).append(".png").append("\"\n"
+              + "set xrange [\"")
         .append(String.valueOf((start_time & UNSIGNED) + utc_offset))
         .append("\":\"")
         .append(String.valueOf((end_time & UNSIGNED) + utc_offset))
@@ -329,8 +329,7 @@ public final class Plot {
       
       // compile annotations to determine if we have any to graph
       final List<Annotation> notes = new ArrayList<Annotation>();
-      for (int i = 0; i < nseries; i++) {
-        final DataPoints dp = datapoints.get(i);
+      for (final DataPoints dp : datapoints) {
         final List<Annotation> series_notes = dp.getAnnotations();
         if (series_notes != null && !series_notes.isEmpty()) {
           notes.addAll(series_notes);
@@ -339,7 +338,7 @@ public final class Plot {
       if (globals != null) {
         notes.addAll(globals);
       }
-      if (notes.size() > 0) {
+      if (!notes.isEmpty()) {
         Collections.sort(notes);
         for(Annotation note : notes) {
           String ts = Long.toString(note.getStartTime());

@@ -41,12 +41,14 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     stats = tsdStats.getPutDataPointRpcStats();
   }
 
+  @Override
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
     stats.getRequests().inc();
     String errmsg = null;
     try {
       final class PutErrback implements Callback<Exception, Exception> {
+        @Override
         public Exception call(final Exception arg) {
           if (chan.isConnected()) {
             chan.write("put: HBase error: " + arg.getMessage() + '\n');
@@ -84,7 +86,8 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @throws BadRequestException if the user supplied bad data
    * @since 2.0
    */
-  public void execute(final TSDB tsdb, final HttpQuery query) 
+  @Override
+  public void execute(final TSDB tsdb, final HttpQuery query)
     throws IOException {
     stats.getRequests().inc();
     

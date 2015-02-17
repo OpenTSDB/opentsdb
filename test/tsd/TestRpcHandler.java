@@ -106,7 +106,8 @@ public final class TestRpcHandler {
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
@@ -129,7 +130,8 @@ public final class TestRpcHandler {
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
@@ -154,7 +156,8 @@ public final class TestRpcHandler {
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
@@ -180,7 +183,8 @@ public final class TestRpcHandler {
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
@@ -204,7 +208,8 @@ public final class TestRpcHandler {
 
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
@@ -227,7 +232,8 @@ public final class TestRpcHandler {
     
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
@@ -250,7 +256,8 @@ public final class TestRpcHandler {
     
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
@@ -275,7 +282,8 @@ public final class TestRpcHandler {
     
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];
@@ -301,7 +309,8 @@ public final class TestRpcHandler {
     
     handleHttpRpc(req,
       new Answer<ChannelFuture>() {
-        public ChannelFuture answer(final InvocationOnMock args) 
+        @Override
+        public ChannelFuture answer(final InvocationOnMock args)
           throws Throwable {
           DefaultHttpResponse response = 
             (DefaultHttpResponse)args.getArguments()[0];

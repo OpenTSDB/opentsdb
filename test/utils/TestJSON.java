@@ -87,7 +87,7 @@ public final class TestJSON {
   }
 
   // parseToObject - Byte && Class
-  public void parseToObjectByteUTFString() throws Exception {
+  public void parseToObjectByteUTFString() {
     @SuppressWarnings("unchecked")
     HashMap<String, String> map = JSON.parseToObject(
         "{\"utf\":\"aériennes\",\"ascii\":\"aariennes\"}".getBytes(), 
@@ -164,7 +164,7 @@ public final class TestJSON {
   }
 
   // parseToObject - Byte && Class
-  public void parseToObjectByteTypeUTFString() throws Exception {
+  public void parseToObjectByteTypeUTFString() {
     HashMap<String, String> map = 
       JSON.parseToObject(
           "{\"utf\":\"aériennes\",\"ascii\":\"aariennes\"}".getBytes(), 

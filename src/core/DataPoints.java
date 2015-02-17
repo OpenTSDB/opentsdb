@@ -94,6 +94,7 @@ public interface DataPoints extends Iterable<DataPoint>, Comparable<DataPoints> 
    * want to store individual data points, you need to copy the timestamp
    * and value out of each {@link DataPoint} into your own data structures.
    */
+  @Override
   SeekableView iterator();
 
   /**

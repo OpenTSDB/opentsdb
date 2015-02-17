@@ -136,6 +136,7 @@ public class UniqueIdClient {
       final Deferred<byte[]> value_id = tag_values.getId(entry.getValue());
 
       class NoSuchTagNameCB implements Callback<Object, Exception> {
+        @Override
         public Object call(final Exception e) {
           if (e instanceof NoSuchUniqueName && create && create_tagks) {
             return tag_names.createId(entry.getKey());
@@ -146,6 +147,7 @@ public class UniqueIdClient {
       }
 
       class NoSuchTagValueCB implements Callback<Object, Exception> {
+        @Override
         public Object call(final Exception e) {
           if (e instanceof NoSuchUniqueName && create && create_tagvs) {
             return tag_values.createId(entry.getValue());
@@ -157,9 +159,11 @@ public class UniqueIdClient {
 
       // Then once the tag name is resolved, get the resolved tag value.
       class TagNameResolvedCB implements Callback<Deferred<byte[]>, byte[]> {
+        @Override
         public Deferred<byte[]> call(final byte[] nameid) {
           // And once the tag value too is resolved, paste the two together.
           class TagValueResolvedCB implements Callback<byte[], byte[]> {
+            @Override
             public byte[] call(final byte[] valueid) {
               final byte[] thistag = new byte[nameid.length + valueid.length];
               System.arraycopy(nameid, 0, thistag, 0, nameid.length);
@@ -221,6 +225,7 @@ public class UniqueIdClient {
     }
 
     class GroupCB implements Callback<HashMap<String, String>, ArrayList<String>> {
+      @Override
       public HashMap<String, String> call(final ArrayList<String> names)
           throws Exception {
         for (int i = 0; i < names.size(); i++) {
@@ -354,6 +359,7 @@ public class UniqueIdClient {
 
     // Copy the metric ID at the beginning of the row key.
     class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
+      @Override
       public byte[] call(final byte[] metricid) {
         copyInRowKey(row, (short) 0, metricid);
         return row;
@@ -361,6 +367,7 @@ public class UniqueIdClient {
     }
 
     class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
+      @Override
       public Object call(final Exception e) {
         if (e instanceof NoSuchUniqueName && auto_create_metrics) {
           return metrics.createId(metric);
@@ -373,6 +380,7 @@ public class UniqueIdClient {
     // Copy the tag IDs in the row key.
     class CopyTagsInRowKeyCB
       implements Callback<Deferred<byte[]>, ArrayList<byte[]>> {
+      @Override
       public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
         short pos = metric_width;
         for (final byte[] tag : tags) {
@@ -409,6 +417,7 @@ public class UniqueIdClient {
    */
   private static class SortResolvedTagsCB
     implements Callback<ArrayList<byte[]>, ArrayList<byte[]>> {
+    @Override
     public ArrayList<byte[]> call(final ArrayList<byte[]> tags) {
       // Now sort the tags.
       Collections.sort(tags, Bytes.MEMCMP);

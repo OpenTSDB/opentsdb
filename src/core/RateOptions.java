@@ -108,12 +108,6 @@ public class RateOptions {
    * @return string version of the rate option instance.
    */
   public String toString() {
-    StringBuilder buf = new StringBuilder();
-    buf.append('{');
-    buf.append(counter);
-    buf.append(',').append(counter_max);
-    buf.append(',').append(reset_value);
-    buf.append('}');
-    return buf.toString();
+    return "{" + counter + ',' + counter_max + ',' + reset_value + '}';
   }
 }

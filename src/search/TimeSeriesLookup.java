@@ -162,7 +162,7 @@ public class TimeSeriesLookup {
                 buf.append(tag_pair.getKey()).append("=")
                    .append(tag_pair.getValue()).append(" ");
               }
-              System.out.println(buf.toString());
+              System.out.println(buf);
             } catch (NoSuchUniqueId nsui) {
               LOG.error("Unable to resolve UID in TSUID ({}) {}", UniqueId.uidToString(tsuid), nsui.getMessage());
             }
@@ -270,14 +270,14 @@ public class TimeSeriesLookup {
         // we had one or more tagvs to lookup AND we have tagk or tag pairs to
         // filter on, so we dump the previous regex into the tagv_filter and
         // continue on with a row key
-        tagv_filter.append(buf.toString());
-        LOG.debug("Setting tagv filter: {}", buf.toString());
+        tagv_filter.append(buf);
+        LOG.debug("Setting tagv filter: {}", buf);
       } else if (index >= pairs.size()) {
         // in this case we don't have any tagks to deal with so we can just
         // pass the previously compiled regex to the rowkey filter of the 
         // scanner
         scanner.setKeyRegexp(buf.toString(), HBaseConst.CHARSET);
-        LOG.debug("Setting scanner row key filter with tagvs only: {}", buf.toString());
+        LOG.debug("Setting scanner row key filter with tagvs only: {}", buf);
       }
       
       // catch any left over tagk/tag pairs
@@ -328,7 +328,7 @@ public class TimeSeriesLookup {
         buf.append(")(?:.{").append(tagsize).append("})*").append("$");
         
         scanner.setKeyRegexp(buf.toString(), HBaseConst.CHARSET);
-        LOG.debug("Setting scanner row key filter: {}", buf.toString());
+        LOG.debug("Setting scanner row key filter: {}", buf);
       }
     }
     return scanner;

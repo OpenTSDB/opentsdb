@@ -16,7 +16,6 @@ package net.opentsdb.tree;
 import java.util.Map;
 import java.util.TreeMap;
 
-import net.opentsdb.core.StringCoder;
 import org.junit.Test;
 
 import static net.opentsdb.core.StringCoder.toBytes;

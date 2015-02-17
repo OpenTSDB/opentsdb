@@ -380,12 +380,12 @@ public class UniqueIdClientTest {
     tsdb_store = new MemoryStore();
   }
 
-  private void setupResolveIds() throws Exception {
+  private void setupResolveIds() {
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
     tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
   }
 
-  private void setupResolveAll() throws Exception {
+  private void setupResolveAll() {
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
     tsdb_store.allocateUID("pop", new byte[]{0, 0, 2}, UniqueIdType.TAGK);
     tsdb_store.allocateUID("doesnotexist", new byte[]{0, 0, 3}, UniqueIdType.TAGK);

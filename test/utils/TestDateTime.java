@@ -303,7 +303,6 @@ public final class TestDateTime {
     assertEquals("America/Los_Angeles", fmt.getTimeZone().getID());
   }
   
-  @SuppressWarnings("null")
   @Test (expected = NullPointerException.class)
   public void setTimeZoneNullFmt() {
     SimpleDateFormat fmt = null;

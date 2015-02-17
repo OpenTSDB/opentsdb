@@ -277,6 +277,7 @@ final class Fsck {
      * compiling a list of data points and fixing/compacting them when 
      * appropriate.
      */
+    @Override
     public void run() {
       // TODO This breaks everything in FSCK but we'll need to rewrite
       // it anyway.
@@ -990,6 +991,7 @@ final class Fsck {
        * object was written BEFORE the other data point, 1 if it was written
        * later.
        */
+      @Override
       public int compareTo(final DP dp) {
         if (kv.timestamp() == dp.kv.timestamp()) {
           return 0;
@@ -1021,6 +1023,7 @@ final class Fsck {
     ProgressReporter() {
       super("Progress");
     }
+    @Override
     public void run() {
       long last_progress = 0;
       while(true) {

@@ -207,6 +207,7 @@ final class SpanGroup implements DataPoints {
     return aggregated_tags;
   }
 
+  @Override
   public List<String> getTSUIDs() {
     List<String> tsuids = new ArrayList<String>(spans.size());
     for (Span sp : spans) {
@@ -220,10 +221,12 @@ final class SpanGroup implements DataPoints {
    * @return Null if none of the spans had any annotations, a list if one or
    * more were found
    */
+  @Override
   public List<Annotation> getAnnotations() {
     return annotations.isEmpty() ? null : annotations;
   }
 
+  @Override
   public int size() {
     // TODO(tsuna): There is a way of doing this way more efficiently by
     // inspecting the Spans and counting only data points that fall in
@@ -237,6 +240,7 @@ final class SpanGroup implements DataPoints {
     return size;
   }
 
+  @Override
   public int aggregatedSize() {
     int size = 0;
     for (final Span span : spans) {
@@ -245,6 +249,7 @@ final class SpanGroup implements DataPoints {
     return size;
   }
 
+  @Override
   public SeekableView iterator() {
     return AggregationIterator.create(spans, aggregator,
             aggregator.interpolationMethod(),
@@ -260,18 +265,22 @@ final class SpanGroup implements DataPoints {
     return Iterators.get(iterator(), i);
   }
 
+  @Override
   public long timestamp(final int i) {
     return getDataPoint(i).timestamp();
   }
 
+  @Override
   public boolean isInteger(final int i) {
     return getDataPoint(i).isInteger();
   }
 
+  @Override
   public double doubleValue(final int i) {
     return getDataPoint(i).doubleValue();
   }
 
+  @Override
   public long longValue(final int i) {
     return getDataPoint(i).longValue();
   }

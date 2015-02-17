@@ -70,8 +70,7 @@ public class Pair<K, V> {
   /** @return a descriptive string in the format "key=K, value=V" */
   @Override
   public String toString() {
-    return new StringBuilder().append("key=")
-      .append(key).append(", value=").append(value).toString();
+    return "key=" + key + ", value=" + value;
   }
   
   /**

@@ -206,6 +206,7 @@ public class TSDB {
       new ArrayList<Deferred<Object>>();
     
     final class StoreShutdown implements Callback<Object, ArrayList<Object>> {
+      @Override
       public Object call(final ArrayList<Object> args) {
         return tsdb_store.shutdown();
       }
@@ -215,6 +216,7 @@ public class TSDB {
     }
     
     final class ShutdownErrback implements Callback<Object, Exception> {
+      @Override
       public Object call(final Exception e) {
         final Logger LOG = LoggerFactory.getLogger(ShutdownErrback.class);
         if (e instanceof DeferredGroupException) {

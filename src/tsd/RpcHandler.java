@@ -290,6 +290,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "diediedie" command and "/diediedie" endpoint. */
   private final class DieDieDie implements TelnetRpc, HttpRpc {
+    @Override
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
       logWarn(chan, "shutdown requested");
@@ -297,6 +298,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       return doShutdown(tsdb, chan);
     }
 
+    @Override
     public void execute(final TSDB tsdb, final HttpQuery query) {
       logWarn(query, "shutdown requested");
       query.sendReply(HttpQuery.makePage("TSD Exiting", "You killed me",
@@ -313,6 +315,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         ShutdownNetty() {
           super("ShutdownNetty");
         }
+        @Override
         public void run() {
           chan.getFactory().releaseExternalResources();
         }
@@ -321,6 +324,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
       // Log any error that might occur during shutdown.
       final class ShutdownTSDB implements Callback<Exception, Exception> {
+        @Override
         public Exception call(final Exception arg) {
           LOG.error("Unexpected exception while shutting down", arg);
           return arg;
@@ -335,6 +339,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "exit" command. */
   private static final class Exit implements TelnetRpc {
+    @Override
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
       chan.disconnect();
@@ -344,6 +349,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "help" command. */
   private final class Help implements TelnetRpc {
+    @Override
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
       final StringBuilder buf = new StringBuilder();
@@ -360,24 +366,24 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The home page ("GET /"). */
   private static final class HomePage implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) 
+    @Override
+    public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
-      final StringBuilder buf = new StringBuilder(2048);
-      buf.append("<div id=queryuimain></div>"
-                 + "<noscript>You must have JavaScript enabled.</noscript>"
-                 + "<iframe src=javascript:'' id=__gwt_historyFrame tabIndex=-1"
-                 + " style=position:absolute;width:0;height:0;border:0>"
-                 + "</iframe>");
       query.sendReply(HttpQuery.makePage(
         "<script type=text/javascript language=javascript"
         + " src=/s/queryui.nocache.js></script>",
-        "TSD", "Time Series Database", buf.toString()));
+        "TSD", "Time Series Database", ("<div id=queryuimain></div>"
+                      + "<noscript>You must have JavaScript enabled.</noscript>"
+                      + "<iframe src=javascript:'' id=__gwt_historyFrame tabIndex=-1"
+                      + " style=position:absolute;width:0;height:0;border:0>"
+                      + "</iframe>")));
     }
   }
 
   /** The "/aggregators" endpoint. */
   private static final class ListAggregators implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) 
+    @Override
+    public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
       
       // only accept GET/POST
@@ -398,6 +404,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** For unknown commands. */
   private static final class Unknown implements TelnetRpc {
+    @Override
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
       logWarn(chan, "unknown command : " + Arrays.toString(cmd));
@@ -408,6 +415,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "version" command. */
   private static final class Version implements TelnetRpc, HttpRpc {
+    @Override
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
       if (chan.isConnected()) {
@@ -417,7 +425,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       return Deferred.fromResult(null);
     }
 
-    public void execute(final TSDB tsdb, final HttpQuery query) throws 
+    @Override
+    public void execute(final TSDB tsdb, final HttpQuery query) throws
       IOException {
       
       // only accept GET/POST
@@ -481,6 +490,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
   /** The "dropcaches" command. */
   private static final class DropCaches implements TelnetRpc, HttpRpc {
+    @Override
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
       dropCaches(tsdb, chan);
@@ -488,7 +498,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       return Deferred.fromResult(null);
     }
 
-    public void execute(final TSDB tsdb, final HttpQuery query) 
+    @Override
+    public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
       dropCaches(tsdb, query.channel());
       
@@ -519,7 +530,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   /** The /api/formatters endpoint 
    * @since 2.0 */
   private static final class Serializers implements HttpRpc {
-    public void execute(final TSDB tsdb, final HttpQuery query) 
+    @Override
+    public void execute(final TSDB tsdb, final HttpQuery query)
       throws IOException {
       // only accept GET/POST
       if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
@@ -575,7 +587,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //}
 
   private static void logWarn(final HttpQuery query, final String msg) {
-    LOG.warn("{}" + ' ' + "{}", query.channel().toString(), msg);
+    LOG.warn("{}" + ' ' + "{}", query.channel(), msg);
   }
 
   //private void logWarn(final HttpQuery query, final String msg,
@@ -584,7 +596,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //}
 
   private void logError(final HttpQuery query, final String msg) {
-    LOG.error("{}" + ' ' + "{}", query.channel().toString(), msg);
+    LOG.error("{}" + ' ' + "{}", query.channel(), msg);
   }
 
   //private static void logError(final HttpQuery query, final String msg,
@@ -597,7 +609,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //}
 
   private static void logWarn(final Channel chan, final String msg) {
-    LOG.warn("{}" + ' ' + "{}", chan.toString(), msg);
+    LOG.warn("{}" + ' ' + "{}", chan, msg);
   }
 
   //private void logWarn(final Channel chan, final String msg, final Exception e) {
@@ -605,11 +617,11 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //}
 
   private void logError(final Channel chan, final String msg) {
-    LOG.error("{}" + ' ' + "{}", chan.toString(), msg);
+    LOG.error("{}" + ' ' + "{}", chan, msg);
   }
 
   private void logError(final Channel chan, final String msg, final Exception e) {
-    LOG.error("{}" + ' ' + "{}", chan.toString(), msg, e);
+    LOG.error("{}" + ' ' + "{}", chan, msg, e);
   }
 
 }
