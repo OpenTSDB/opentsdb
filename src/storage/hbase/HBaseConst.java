@@ -4,11 +4,11 @@ import java.nio.charset.Charset;
 
 import com.google.common.base.Charsets;
 
-class HBaseConst {
+public class HBaseConst {
   /**
    * Charset used to convert Strings to byte arrays and back.
    */
-  static final Charset CHARSET = Charsets.ISO_8859_1;
+  public static final Charset CHARSET = Charsets.ISO_8859_1;
 
   static class UniqueId {
     /**

@@ -27,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -42,9 +41,6 @@ public class TSDB {
   private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
   
   static final byte[] FAMILY = { 't' };
-
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
 
   /** TsdbStore, the database cluster to use for storage.  */
   private final TsdbStore tsdb_store;
@@ -104,10 +100,10 @@ public class TSDB {
     this.tsdb_store = checkNotNull(client);
     this.metrics = checkNotNull(metrics);
 
-    table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
-    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
-    treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
-    meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
+    table = config.getString("tsd.storage.hbase.data_table").getBytes(Const.CHARSET_ASCII);
+    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(Const.CHARSET_ASCII);
+    treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(Const.CHARSET_ASCII);
+    meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(Const.CHARSET_ASCII);
 
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));

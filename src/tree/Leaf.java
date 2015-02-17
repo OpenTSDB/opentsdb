@@ -15,6 +15,7 @@ package net.opentsdb.tree;
 import java.nio.charset.Charset;
 
 import com.google.common.collect.ImmutableMap;
+import net.opentsdb.storage.hbase.HBaseConst;
 import org.hbase.async.Bytes;
 
 /**
@@ -34,11 +35,8 @@ import org.hbase.async.Bytes;
  * @since 2.0
  */
 public final class Leaf implements Comparable<Leaf> {
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** ASCII Leaf prefix */
-  private static final byte[] LEAF_PREFIX = "leaf:".getBytes(CHARSET);
+  private static final byte[] LEAF_PREFIX = "leaf:".getBytes(HBaseConst.CHARSET);
 
   /** The metric associated with this TSUID */
   private String metric = "";

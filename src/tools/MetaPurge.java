@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -20,6 +19,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.UniqueIdType;
 
 import org.hbase.async.Bytes;
@@ -40,11 +40,9 @@ import com.stumbleupon.async.Deferred;
  */
 final class MetaPurge extends Thread {
   private static final Logger LOG = LoggerFactory.getLogger(MetaPurge.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+
   /** Name of the CF where trees and branches are stored */
-  private static final byte[] NAME_FAMILY = "name".getBytes(CHARSET);
+  private static final byte[] NAME_FAMILY = "name".getBytes(HBaseConst.CHARSET);
   
   /** TSDB to use for storage access */
   private final TSDB tsdb;
@@ -145,17 +143,17 @@ final class MetaPurge extends Thread {
           for (KeyValue column : row) {
             if (Bytes.equals(TSMeta.META_QUALIFIER(), column.qualifier())) {
               qualifiers.add(column.qualifier());
-            } else if (Bytes.equals("metric_meta".getBytes(CHARSET),
+            } else if (Bytes.equals("metric_meta".getBytes(HBaseConst.CHARSET),
                 column.qualifier())) {
               delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
                       (UniqueIdType.METRIC,row.get(0).key())));
               ++columns;
-            } else if (Bytes.equals("tagk_meta".getBytes(CHARSET), 
+            } else if (Bytes.equals("tagk_meta".getBytes(HBaseConst.CHARSET),
                 column.qualifier())) {
               delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
                       (UniqueIdType.TAGK,row.get(0).key())));
               ++columns;
-            } else if (Bytes.equals("tagv_meta".getBytes(CHARSET), 
+            } else if (Bytes.equals("tagv_meta".getBytes(HBaseConst.CHARSET),
                 column.qualifier())) {
               delete_calls.add(tsdb.getTsdbStore().delete( new UIDMeta
                       (UniqueIdType.TAGV,row.get(0).key())));

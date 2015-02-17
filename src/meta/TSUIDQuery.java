@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,6 +24,7 @@ import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
@@ -48,12 +48,6 @@ import com.stumbleupon.async.DeferredGroupException;
  */
 public class TSUIDQuery {
   private static final Logger LOG = LoggerFactory.getLogger(TSUIDQuery.class);
-  
-  /**
-   * Charset to use with our server-side row-filter.
-   * We use this one because it preserves every possible byte unchanged.
-   */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
 
   /** ID of the metric being looked up. */
   private byte[] metric;
@@ -520,7 +514,7 @@ public class TSUIDQuery {
       } while (tag != null);  // Stop when they both become null.
       // Skip any number of tags before the end.
       buf.append("(?:.{").append(tagsize).append("})*$");
-      scanner.setKeyRegexp(buf.toString(), CHARSET);
+      scanner.setKeyRegexp(buf.toString(), HBaseConst.CHARSET);
     }
     
     return scanner;

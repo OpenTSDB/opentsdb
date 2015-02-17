@@ -28,6 +28,7 @@ import com.google.common.eventbus.EventBus;
 import dagger.ObjectGraph;
 import net.opentsdb.core.Const;
 
+import net.opentsdb.storage.hbase.HBaseConst;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -270,7 +271,7 @@ final class UidManager {
     if (ignorecase) {
       regexp = "(?i)" + regexp;
     }
-    scanner.setKeyRegexp(regexp, CliUtils.CHARSET);
+    scanner.setKeyRegexp(regexp, HBaseConst.CHARSET);
     boolean found = false;
     try {
       ArrayList<ArrayList<KeyValue>> rows;

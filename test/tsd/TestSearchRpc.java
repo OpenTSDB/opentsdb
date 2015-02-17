@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.google.common.base.Charsets;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
@@ -66,7 +67,7 @@ public final class TestSearchRpc {
   private SearchRpc rpc = new SearchRpc();
   private SearchQuery search_query = null;
   private TimeSeriesLookup mock_lookup = null;
-  private static final Charset UTF = Charset.forName("UTF-8");
+  private static final Charset UTF = Charsets.UTF_8;
   private static List<byte[]> test_tsuids = new ArrayList<byte[]>(3);
   static {
     test_tsuids.add(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });

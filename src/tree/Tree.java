@@ -20,6 +20,7 @@ import java.util.TreeMap;
 
 import net.opentsdb.core.Const;
 
+import net.opentsdb.storage.hbase.HBaseConst;
 import org.hbase.async.Bytes;
 
 /**
@@ -45,19 +46,16 @@ import org.hbase.async.Bytes;
  * @since 2.0
  */
 public final class Tree {
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** Width of tree IDs in bytes */
   private static final short TREE_ID_WIDTH = 2;
   /** Name of the CF where trees and branches are stored */
-  private static final byte[] TREE_FAMILY = "t".getBytes(CHARSET);
+  private static final byte[] TREE_FAMILY = "t".getBytes(HBaseConst.CHARSET);
   /** Integer width in bytes */
   private static final short INT_WIDTH = 4;
   /** Byte prefix for collision columns */
-  private static byte[] COLLISION_PREFIX = "tree_collision:".getBytes(CHARSET);
+  private static byte[] COLLISION_PREFIX = "tree_collision:".getBytes(HBaseConst.CHARSET);
   /** Byte prefix for not matched columns */
-  private static byte[] NOT_MATCHED_PREFIX = "tree_not_matched:".getBytes(CHARSET);
+  private static byte[] NOT_MATCHED_PREFIX = "tree_not_matched:".getBytes(HBaseConst.CHARSET);
 
   /** The numeric ID of this tree object */
   private int tree_id;

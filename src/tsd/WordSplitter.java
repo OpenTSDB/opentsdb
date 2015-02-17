@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import java.nio.charset.Charset;
 
+import com.google.common.base.Charsets;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -25,8 +26,7 @@ import net.opentsdb.core.Tags;
  * Splits a ChannelBuffer in multiple space separated words.
  */
 final class WordSplitter extends OneToOneDecoder {
-
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
+  private static final Charset CHARSET = Charsets.ISO_8859_1;
 
   /** Constructor. */
   public WordSplitter() {

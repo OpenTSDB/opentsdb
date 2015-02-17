@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.lang.reflect.Field;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -21,6 +19,7 @@ import java.util.List;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -43,25 +42,6 @@ import com.stumbleupon.async.Deferred;
  */
 final class TreeSync extends Thread {
   private static final Logger LOG = LoggerFactory.getLogger(TreeSync.class);
-  
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET;
-  static {
-    final Class<UniqueId> uidclass = UniqueId.class;
-    try {
-      // Those are all implementation details so they're not part of the
-      // interface.  We access them anyway using reflection.  I think this
-      // is better than marking those public and adding a javadoc comment
-      // "THIS IS INTERNAL DO NOT USE".  If only Java had C++'s "friend" or
-      // a less stupid notion of a package.
-      Field f;
-      f = uidclass.getDeclaredField("CHARSET");
-      f.setAccessible(true);
-      CHARSET = (Charset) f.get(null);
-    } catch (Exception e) {
-      throw new RuntimeException("static initializer failed", e);
-    }
-  }
   
   /** TSDB to use for storage access */
   final TSDB tsdb;
@@ -347,8 +327,8 @@ final class TreeSync extends Thread {
     final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.metaTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
-    scanner.setFamily("name".getBytes(CHARSET));
-    scanner.setQualifier("ts_meta".getBytes(CHARSET));
+    scanner.setFamily("name".getBytes(HBaseConst.CHARSET));
+    scanner.setQualifier("ts_meta".getBytes(HBaseConst.CHARSET));
     return scanner;
   }
 }

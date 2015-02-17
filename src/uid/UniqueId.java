@@ -58,8 +58,6 @@ import static net.opentsdb.stats.Metrics.tag;
 public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
   /** The single column family used by this class. */
   private static final byte[] ID_FAMILY = toBytes("id");
   /** The single column family used by this class. */

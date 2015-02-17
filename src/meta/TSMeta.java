@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Strings;
+import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.collect.Sets;
@@ -46,14 +46,10 @@ import com.google.common.collect.Sets;
  * @since 2.0
  */
 public final class TSMeta {
-
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charset.forName("ISO-8859-1");
-
   //TODO remove these 3
-  private static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(CHARSET);
-  private static final byte[] FAMILY = "name".getBytes(CHARSET);
-  private static final byte[] META_QUALIFIER = "ts_meta".getBytes(CHARSET);
+  private static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(HBaseConst.CHARSET);
+  private static final byte[] FAMILY = "name".getBytes(HBaseConst.CHARSET);
+  private static final byte[] META_QUALIFIER = "ts_meta".getBytes(HBaseConst.CHARSET);
 
   /** Hexadecimal representation of the TSUID this metadata is associated with */
   private String tsuid = "";
