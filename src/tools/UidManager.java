@@ -52,6 +52,9 @@ import net.opentsdb.utils.Config;
 
 import net.opentsdb.uid.UniqueIdType;
 
+import static net.opentsdb.core.StringCoder.fromBytes;
+import static net.opentsdb.core.StringCoder.toBytes;
+
 /**
  * Command line tool to manipulate UIDs.
  * Can be used to find or assign UIDs.
@@ -263,7 +266,7 @@ final class UidManager {
     String regexp;
     scanner.setFamily(CliUtils.ID_FAMILY);
     if (args.length == 3) {
-      scanner.setQualifier(CliUtils.toBytes(args[1]));
+      scanner.setQualifier(toBytes(args[1]));
       regexp = args[2];
     } else {
       regexp = args[1];
@@ -302,7 +305,7 @@ final class UidManager {
                                      final byte[] family,
                                      final boolean formard) {
     final byte[] key = row.get(0).key();
-    String name = formard ? CliUtils.fromBytes(key) : null;
+    String name = formard ? fromBytes(key) : null;
     String id = formard ? null : Arrays.toString(key);
     boolean printed = false;
     for (final KeyValue kv : row) {
@@ -313,9 +316,9 @@ final class UidManager {
       if (formard) {
         id = Arrays.toString(kv.value());
       } else {
-        name = CliUtils.fromBytes(kv.value());
+        name = fromBytes(kv.value());
       }
-      System.out.println(CliUtils.fromBytes(kv.qualifier()) + ' ' + name + ": " + id);
+      System.out.println(fromBytes(kv.qualifier()) + ' ' + name + ": " + id);
     }
     return printed;
   }
@@ -425,8 +428,8 @@ final class UidManager {
       void restoreReverseMap(final String kind, final String name, 
           final String uid) {
         final PutRequest put = new PutRequest(table, 
-            UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, CliUtils.toBytes(kind), 
-            CliUtils.toBytes(name));
+            UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, toBytes(kind),
+            toBytes(name));
         hbase_store.put(put);
         id2name.put(uid, name);
         LOG.info("FIX: Restoring {} reverse mapping: {} -> {}", kind, uid, name);
@@ -439,7 +442,7 @@ final class UidManager {
           final String uid) {
         // clean up meta data too
         final byte[][] qualifiers = new byte[2][];
-        qualifiers[0] = CliUtils.toBytes(kind); 
+        qualifiers[0] = toBytes(kind);
         if (Bytes.equals(CliUtils.METRICS, qualifiers[0])) {
           qualifiers[1] = CliUtils.METRICS_META;
         } else if (Bytes.equals(CliUtils.TAGK, qualifiers[0])) {
@@ -490,7 +493,7 @@ final class UidManager {
               continue;
             }
 
-            final String kind = CliUtils.fromBytes(kv.qualifier());
+            final String kind = fromBytes(kv.qualifier());
             Uids uids = name2uids.get(kind);
             if (uids == null) {
               uids = new Uids();
@@ -513,7 +516,7 @@ final class UidManager {
               short idwidth = 0;
               if (Bytes.equals(family, CliUtils.ID_FAMILY)) {
                 idwidth = (short) value.length;
-                final String skey = CliUtils.fromBytes(key);
+                final String skey = fromBytes(key);
                 final String svalue = UniqueId.uidToString(value);
                 final long max_found_id;
                 if (Bytes.equals(qualifier, CliUtils.METRICS)) {
@@ -534,7 +537,7 @@ final class UidManager {
                 }
               } else if (Bytes.equals(family, CliUtils.NAME_FAMILY)) {
                 final String skey = UniqueId.uidToString(key);
-                final String svalue = CliUtils.fromBytes(value);
+                final String svalue = fromBytes(value);
                 idwidth = (short) key.length;
                 final String name = uids.id2name.put(skey, svalue);
                 if (name != null) {
@@ -664,7 +667,7 @@ final class UidManager {
                      .append(name);
             
             final DeleteRequest delete = new DeleteRequest(table, 
-                CliUtils.toBytes(name), CliUtils.ID_FAMILY, CliUtils.toBytes(kind));
+                toBytes(name), CliUtils.ID_FAMILY, toBytes(kind));
             hbase_store.delete(delete);
             uids.name2id.remove(name);
             LOG.info("FIX: Removed forward {} mapping for {} -> {}", kind, name, id);
@@ -672,8 +675,8 @@ final class UidManager {
           
           // write the new forward map
           final String fsck_name = fsck_builder.toString();
-          final PutRequest put = new PutRequest(table, CliUtils.toBytes(fsck_name), 
-              CliUtils.ID_FAMILY, CliUtils.toBytes(kind), UniqueId.stringToUid(id));
+          final PutRequest put = new PutRequest(table, toBytes(fsck_name),
+              CliUtils.ID_FAMILY, toBytes(kind), UniqueId.stringToUid(id));
           hbase_store.put(put);
           LOG.info("FIX: Created forward {} mapping for fsck'd UID {} -> {}", kind, fsck_name, collision.getKey());
           
@@ -741,7 +744,7 @@ final class UidManager {
           } else {
             final long diff = uids.max_found_id - uids.maxid;
             final AtomicIncrementRequest air = new AtomicIncrementRequest(table, 
-                CliUtils.MAXID_ROW, CliUtils.ID_FAMILY, CliUtils.toBytes(kind), diff);
+                CliUtils.MAXID_ROW, CliUtils.ID_FAMILY, toBytes(kind), diff);
             hbase_store.atomicIncrement(air);
             LOG.info("FIX: Updated max ID for {} to {}", kind, uids.max_found_id);
           }          
@@ -855,7 +858,7 @@ final class UidManager {
     if (kind != null) {
       return extactLookupName(hbase_store, table, kind, name);
     }
-    return findAndPrintRow(hbase_store, table, CliUtils.toBytes(name),
+    return findAndPrintRow(hbase_store, table, toBytes(name),
         CliUtils.ID_FAMILY, true);
   }
 

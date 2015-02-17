@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.UniqueId;
@@ -126,35 +125,5 @@ final class CliUtils {
     scanner.setStopKey(end_row);
     scanner.setFamily(TSDB.FAMILY());
     return scanner;
-  }
-  
-  /**
-   * Invokes the reflected {@code UniqueId.toBytes()} method with the given
-   * string  using the UniqueId character set.
-   * @param s The string to convert to a byte array
-   * @return The byte array
-   * @throws RuntimeException if reflection failed
-   */
-  static byte[] toBytes(final String s) {
-    try {
-      return StringCoder.toBytes(s);
-    } catch (Exception e) {
-      throw new RuntimeException("toBytes=" + s, e);
-    }
-  }
-
-  /**
-   * Invokces the reflected {@code UnqieuiId.fromBytes()} method with the given
-   * byte array using the UniqueId character set.
-   * @param b The byte array to convert to a string
-   * @return The string 
-   * @throws RuntimeException if reflection failed
-   */
-  static String fromBytes(final byte[] b) {
-    try {
-      return StringCoder.fromBytes(b);
-    } catch (Exception e) {
-      throw new RuntimeException("fromBytes=" + Arrays.toString(b), e);
-    }
   }
 }
