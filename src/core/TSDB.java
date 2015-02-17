@@ -30,6 +30,7 @@ import javax.inject.Inject;
 import java.util.ArrayList;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.core.StringCoder.toBytes;
 
 /**
  * Thread-safe implementation of the TSDB client.
@@ -100,10 +101,10 @@ public class TSDB {
     this.tsdb_store = checkNotNull(client);
     this.metrics = checkNotNull(metrics);
 
-    table = config.getString("tsd.storage.hbase.data_table").getBytes(Const.CHARSET_ASCII);
-    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(Const.CHARSET_ASCII);
-    treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(Const.CHARSET_ASCII);
-    meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(Const.CHARSET_ASCII);
+    table = toBytes(config.getString("tsd.storage.hbase.data_table"));
+    uidtable = toBytes(config.getString("tsd.storage.hbase.uid_table"));
+    treetable = toBytes(config.getString("tsd.storage.hbase.tree_table"));
+    meta_table = toBytes(config.getString("tsd.storage.hbase.meta_table"));
 
     if (config.hasProperty("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));

@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
@@ -102,7 +103,7 @@ public final class TestInternal {
     final byte[] qual1 = { 0x00, 0x27 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x01, 0x00, 0x02 };
-    final byte[] val2 = "Annotation".getBytes(Const.CHARSET_ASCII);
+    final byte[] val2 = toBytes("Annotation");
     final byte[] qual3 = { 0x00, 0x47 };
     final byte[] val3 = Bytes.fromLong(6L);
     

@@ -30,6 +30,7 @@ import javax.inject.Inject;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.core.StringCoder.toBytes;
 
 public class UniqueIdClient {
   private static final SortResolvedTagsCB SORT_CB = new SortResolvedTagsCB();
@@ -60,7 +61,7 @@ public class UniqueIdClient {
 
     this.searchPlugin = checkNotNull(searchPlugin);
 
-    uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(Const.CHARSET_ASCII);
+    uidtable = toBytes(config.getString("tsd.storage.hbase.uid_table"));
 
     metrics = new UniqueId(tsdbStore, uidtable, UniqueIdType.METRIC, metricsRegistry, idEventBus);
     tag_names = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGK, metricsRegistry, idEventBus);

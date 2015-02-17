@@ -12,12 +12,12 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import net.opentsdb.core.Const;
-
+import net.opentsdb.core.StringCoder;
 import org.junit.Test;
 
 public final class TestTSMeta {
@@ -34,13 +34,11 @@ public final class TestTSMeta {
   
   @Test
   public void META_QUALIFIER() throws Exception {
-    assertArrayEquals("ts_meta".getBytes(Const.CHARSET_ASCII),
-        TSMeta.META_QUALIFIER());
+    assertArrayEquals(toBytes("ts_meta"), TSMeta.META_QUALIFIER());
   }
   
   @Test
   public void COUNTER_QUALIFIER() throws Exception {
-    assertArrayEquals("ts_ctr".getBytes(Const.CHARSET_ASCII),
-        TSMeta.COUNTER_QUALIFIER());
+    assertArrayEquals(toBytes("ts_ctr"), TSMeta.COUNTER_QUALIFIER());
   }
 }

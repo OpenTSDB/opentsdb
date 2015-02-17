@@ -16,10 +16,10 @@ package net.opentsdb.tree;
 import java.util.Map;
 import java.util.TreeMap;
 
-import net.opentsdb.core.Const;
-
+import net.opentsdb.core.StringCoder;
 import org.junit.Test;
 
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.*;
 
 
@@ -282,8 +282,7 @@ public final class TestBranch {
   
   @Test
   public void BRANCH_QUALIFIER() throws Exception {
-    assertArrayEquals("branch".getBytes(Const.CHARSET_ASCII),
-        Branch.BRANCH_QUALIFIER());
+    assertArrayEquals(toBytes("branch"), Branch.BRANCH_QUALIFIER());
   }
   
   @Test

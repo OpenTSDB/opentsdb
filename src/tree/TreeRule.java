@@ -18,6 +18,9 @@ import java.util.regex.Pattern;
 
 import com.google.common.collect.ImmutableMap;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.StringCoder;
+
+import static net.opentsdb.core.StringCoder.toBytes;
 
 /**
  * Represents single rule in a set of rules for a given tree. Each rule is
@@ -230,7 +233,7 @@ public final class TreeRule {
    * @return A byte array with the column qualifier
    */
   public static byte[] getQualifier(final int level, final int order) {
-    final byte[] suffix = (level + ":" + order).getBytes(Const.CHARSET_ASCII);
+    final byte[] suffix = toBytes(level + ":" + order);
     final byte[] qualifier = new byte[Const.TREE_RULE_PREFIX.length + suffix.length];
     System.arraycopy(Const.TREE_RULE_PREFIX, 0, qualifier, 0, Const.TREE_RULE_PREFIX.length);
     System.arraycopy(suffix, 0, qualifier, Const.TREE_RULE_PREFIX.length, suffix.length);

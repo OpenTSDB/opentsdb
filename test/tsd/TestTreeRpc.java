@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import static net.opentsdb.core.StringCoder.fromBytes;
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -20,7 +22,7 @@ import java.util.TreeMap;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.Const;
+import net.opentsdb.core.StringCoder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -57,7 +59,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
                   "com.sum.*", "org.xml.*"})
 @PrepareForTest({KeyValue.class, Scanner.class})
 public final class TestTreeRpc {
-  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
+  private static byte[] NAME_FAMILY = toBytes("name");
   private TSDB tsdb;
   private MemoryStore tsdb_store;
   private ObjectMapper jsonMapper;
@@ -102,9 +104,9 @@ public final class TestTreeRpc {
       "/api/tree");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
-        .contains("\"name\":\"Test Tree\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
+            .contains("\"name\":\"Test Tree\""));
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"name\":\"2nd Tree\""));
   }
   
@@ -115,9 +117,9 @@ public final class TestTreeRpc {
       "/api/tree?treeid=2");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"name\":\"2nd Tree\""));
-    assertFalse(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertFalse(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"name\":\"Test Tree\""));
   }
   
@@ -156,7 +158,7 @@ public final class TestTreeRpc {
   public void handleTreeQSCreateOutOfIDs() throws Exception {
     setupStorage();
     tsdb_store.addColumn(new byte[]{(byte) 0xFF, (byte) 0xFF},
-      "tree".getBytes(Const.CHARSET_ASCII), "{}".getBytes(Const.CHARSET_ASCII));
+      toBytes("tree"), toBytes("{}"));
     HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/tree?method_override=post");
     rpc.execute(tsdb, query);
@@ -179,9 +181,9 @@ public final class TestTreeRpc {
       "/api/tree?treeid=1&method_override=post&description=HelloWorld");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"HelloWorld\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"name\":\"Test Tree\""));
   }
   
@@ -209,9 +211,9 @@ public final class TestTreeRpc {
       "/api/tree", "{\"treeId\":1,\"description\":\"Hello World\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"Hello World\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"name\":\"Test Tree\""));
   }
   
@@ -239,9 +241,9 @@ public final class TestTreeRpc {
       "/api/tree?treeid=1&method_override=put&description=HelloWorld");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"HelloWorld\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"name\":\"\""));
   }
   
@@ -252,9 +254,9 @@ public final class TestTreeRpc {
       "/api/tree", "{\"treeId\":1,\"description\":\"Hello World\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"Hello World\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"name\":\"\""));
   }
 
@@ -340,9 +342,9 @@ public final class TestTreeRpc {
     HttpQuery query = NettyMocks.getQuery(tsdb, "/api/tree/branch?treeid=1");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"displayName\":\"ROOT\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"branches\":null"));
   }
   
@@ -354,9 +356,9 @@ public final class TestTreeRpc {
         "/api/tree/branch?branch=00010001BECD000181A8");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"metric\":\"sys.cpu.0\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"branches\":["));
   }
   
@@ -391,9 +393,9 @@ public final class TestTreeRpc {
       "/api/tree/rule?treeid=1&level=1&order=0");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"type\":\"METRIC\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"level\":1"));
   }
   
@@ -445,9 +447,9 @@ public final class TestTreeRpc {
       "&method_override=post&type=metric");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"level\":2"));
   }
   
@@ -484,11 +486,11 @@ public final class TestTreeRpc {
       "/api/tree/rule?treeid=1&level=1&order=0&description=Testing&method_override=post");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"level\":1"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"notes\":\"Metric rule\""));
   }
   
@@ -500,9 +502,9 @@ public final class TestTreeRpc {
       "\"Testing\",\"type\":\"metric\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"level\":2"));
   }
 
@@ -514,11 +516,11 @@ public final class TestTreeRpc {
       "\"Testing\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"level\":1"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"notes\":\"Metric rule\""));
   }
   
@@ -538,11 +540,11 @@ public final class TestTreeRpc {
       "&method_override=put&type=metric");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"level\":1"));
-    assertFalse(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertFalse(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"notes\":\"Metric rule\""));
   }
   
@@ -562,11 +564,11 @@ public final class TestTreeRpc {
       "\"Testing\",\"type\":\"metric\"}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"description\":\"Testing\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"level\":1"));
-    assertFalse(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertFalse(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"notes\":\"Metric rule\""));
   }
   
@@ -625,8 +627,8 @@ public final class TestTreeRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     assertEquals(5, tsdb_store.numColumns(new byte[]{0, 1}));
-    final String rule = new String(tsdb_store.getColumn(new byte[] { 0, 1 },
-        "tree_rule:0:0".getBytes(Const.CHARSET_ASCII)), Const.CHARSET_ASCII);
+    final String rule = fromBytes(tsdb_store.getColumn(new byte[]{0, 1},
+            toBytes("tree_rule:0:0")));
     assertTrue(rule.contains("\"type\":\"METRIC\""));
     assertTrue(rule.contains("description\":\"Host Name\""));
   }
@@ -650,8 +652,8 @@ public final class TestTreeRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
     assertEquals(5, tsdb_store.numColumns(new byte[]{0, 1}));
-    final String rule = new String(tsdb_store.getColumn(new byte[] { 0, 1 },
-        "tree_rule:0:0".getBytes(Const.CHARSET_ASCII)), Const.CHARSET_ASCII);
+    final String rule = fromBytes(tsdb_store.getColumn(new byte[] { 0, 1 },
+        toBytes("tree_rule:0:0")));
     assertTrue(rule.contains("\"type\":\"METRIC\""));
     assertFalse(rule.contains("\"description\":\"Host Name\""));
   }
@@ -704,9 +706,9 @@ public final class TestTreeRpc {
         "/api/tree/test?treeid=1&tsuids=000001000001000001000002000002");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000002"));
   }
   
@@ -720,13 +722,13 @@ public final class TestTreeRpc {
         "000001000001000001000002000003");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000002"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000003"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("Unable to locate TSUID meta data"));
   }
   
@@ -740,9 +742,9 @@ public final class TestTreeRpc {
         "\"000001000001000001000002000002\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000002"));
   }
   
@@ -756,9 +758,9 @@ public final class TestTreeRpc {
         "\"000001000001000001000002000002\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000002"));
   }
   
@@ -773,13 +775,13 @@ public final class TestTreeRpc {
         "\"000001000001000001000002000003\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("Adding leaf"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000002"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000003"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("Unable to locate TSUID meta data"));
   }
   
@@ -792,9 +794,9 @@ public final class TestTreeRpc {
         "/api/tree/test?treeid=1&tsuids=000001000001000001000002000003");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("Unable to locate TSUID meta data"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000003"));
     
   }
@@ -809,9 +811,9 @@ public final class TestTreeRpc {
         "/api/tree/test?treeid=1&tsuids=000001000001000001000002000002");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("TSUID was missing a UID name"));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("000001000001000001000002000002"));
   }
   
@@ -872,9 +874,9 @@ public final class TestTreeRpc {
         "/api/tree/collisions?treeid=1");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"010101\":\"AAAAAA\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"020202\":\"BBBBBB\""));
   }
   
@@ -886,7 +888,7 @@ public final class TestTreeRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals("{\"010101\":\"AAAAAA\"}",
-        query.response().getContent().toString(Const.CHARSET_ASCII));
+        query.response().getContent().toString(StringCoder.CHARSET));
   }
   
   @Test
@@ -896,9 +898,9 @@ public final class TestTreeRpc {
         "/api/tree/collisions?treeid=1&tsuids=010101,020202");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"010101\":\"AAAAAA\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"020202\":\"BBBBBB\""));
   }
   
@@ -910,7 +912,7 @@ public final class TestTreeRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals("{}",
-        query.response().getContent().toString(Const.CHARSET_ASCII));
+        query.response().getContent().toString(StringCoder.CHARSET));
   }
   
   @Test
@@ -920,9 +922,9 @@ public final class TestTreeRpc {
         "/api/tree/collisions", "{\"treeId\":1}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"010101\":\"AAAAAA\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"020202\":\"BBBBBB\""));
   }
   
@@ -934,7 +936,7 @@ public final class TestTreeRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals("{\"020202\":\"BBBBBB\"}",
-        query.response().getContent().toString(Const.CHARSET_ASCII));
+        query.response().getContent().toString(StringCoder.CHARSET));
   }
   
   @Test
@@ -945,9 +947,9 @@ public final class TestTreeRpc {
         "[\"010101\",\"020202\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"010101\":\"AAAAAA\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"020202\":\"BBBBBB\""));
   }
   
@@ -982,9 +984,9 @@ public final class TestTreeRpc {
         "/api/tree/notmatched?treeid=1");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"010101\":\"Failed rule 0:0\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
@@ -996,7 +998,7 @@ public final class TestTreeRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals("{\"010101\":\"Failed rule 0:0\"}",
-        query.response().getContent().toString(Const.CHARSET_ASCII));
+        query.response().getContent().toString(StringCoder.CHARSET));
   }
   
   @Test
@@ -1006,9 +1008,9 @@ public final class TestTreeRpc {
         "/api/tree/notmatched?treeid=1&tsuids=010101,020202");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"010101\":\"Failed rule 0:0\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
@@ -1020,7 +1022,7 @@ public final class TestTreeRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals("{}",
-        query.response().getContent().toString(Const.CHARSET_ASCII));
+        query.response().getContent().toString(StringCoder.CHARSET));
   }
   
   @Test
@@ -1030,9 +1032,9 @@ public final class TestTreeRpc {
         "/api/tree/notmatched", "{\"treeId\":1}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"010101\":\"Failed rule 0:0\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
@@ -1044,7 +1046,7 @@ public final class TestTreeRpc {
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
     assertEquals("{\"020202\":\"Failed rule 1:1\"}",
-        query.response().getContent().toString(Const.CHARSET_ASCII));
+        query.response().getContent().toString(StringCoder.CHARSET));
   }
   
   @Test
@@ -1055,9 +1057,9 @@ public final class TestTreeRpc {
         "[\"010101\",\"020202\"]}");
     rpc.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"010101\":\"Failed rule 0:0\""));
-    assertTrue(query.response().getContent().toString(Const.CHARSET_ASCII)
+    assertTrue(query.response().getContent().toString(StringCoder.CHARSET)
         .contains("\"020202\":\"Failed rule 1:1\""));
   }
   
@@ -1102,12 +1104,12 @@ public final class TestTreeRpc {
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
     tsdb_store.addColumn(root.compileBranchId(), Tree.TREE_FAMILY(),
-      "branch".getBytes(Const.CHARSET_ASCII),
+      toBytes("branch"),
             jsonMapper.writeValueAsBytes(root));
     
     // store the first tree
     byte[] key = new byte[] { 0, 1 };
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(Const.CHARSET_ASCII),
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), toBytes("tree"),
             jsonMapper.writeValueAsBytes(TestTree.buildTestTree()));
     
     TreeRule rule = new TreeRule(1);
@@ -1116,7 +1118,7 @@ public final class TestTreeRpc {
     rule.setType(TreeRuleType.TAGK);
     rule.setDescription("Host Name");
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
-      "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
+      toBytes("tree_rule:0:0"),
       jsonMapper.writeValueAsBytes(rule));
 
     rule = new TreeRule(1);
@@ -1125,7 +1127,7 @@ public final class TestTreeRpc {
     rule.setNotes("Metric rule");
     rule.setType(TreeRuleType.METRIC);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
-      "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
+      toBytes("tree_rule:1:0"),
       jsonMapper.writeValueAsBytes(rule));
     
     root = new Branch(1);
@@ -1134,7 +1136,7 @@ public final class TestTreeRpc {
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
-      "branch".getBytes(Const.CHARSET_ASCII),
+      toBytes("branch"),
             jsonMapper.writeValueAsBytes(root));
     
     // tree 2
@@ -1144,14 +1146,14 @@ public final class TestTreeRpc {
     tree2.setTreeId(2);
     tree2.setName("2nd Tree");
     tree2.setDescription("Other Tree");
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), "tree".getBytes(Const.CHARSET_ASCII),
+    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), toBytes("tree"),
             jsonMapper.writeValueAsBytes(tree2));
     
     rule = new TreeRule(2);
     rule.setField("host");
     rule.setType(TreeRuleType.TAGK);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
-      "tree_rule:0:0".getBytes(Const.CHARSET_ASCII),
+      toBytes("tree_rule:0:0"),
       jsonMapper.writeValueAsBytes(rule));
     
     rule = new TreeRule(2);
@@ -1159,7 +1161,7 @@ public final class TestTreeRpc {
     rule.setLevel(1);
     rule.setType(TreeRuleType.METRIC);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
-      "tree_rule:1:0".getBytes(Const.CHARSET_ASCII),
+      toBytes("tree_rule:1:0"),
       jsonMapper.writeValueAsBytes(rule));
     
     root = new Branch(2);
@@ -1168,7 +1170,7 @@ public final class TestTreeRpc {
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
-      "branch".getBytes(Const.CHARSET_ASCII),
+      toBytes("branch"),
             jsonMapper.writeValueAsBytes(root));
     
     // sprinkle in some collisions and no matches for fun
@@ -1183,7 +1185,7 @@ public final class TestTreeRpc {
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length, 
         tsuid_bytes.length);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
-      "AAAAAA".getBytes(Const.CHARSET_ASCII));
+      toBytes("AAAAAA"));
     
     tsuid = "020202";
     qualifier = new byte[Tree.COLLISION_PREFIX().length + 
@@ -1194,7 +1196,7 @@ public final class TestTreeRpc {
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length, 
         tsuid_bytes.length);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
-      "BBBBBB".getBytes(Const.CHARSET_ASCII));
+      toBytes("BBBBBB"));
     
     // not matched
     key = new byte[] { 0, 1, 2 };
@@ -1207,7 +1209,7 @@ public final class TestTreeRpc {
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
     tsuid_bytes.length);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
-      "Failed rule 0:0".getBytes(Const.CHARSET_ASCII));
+      toBytes("Failed rule 0:0"));
     
     tsuid = "020202";
     qualifier = new byte[Tree.NOT_MATCHED_PREFIX().length + 
@@ -1218,7 +1220,7 @@ public final class TestTreeRpc {
     System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
     tsuid_bytes.length);
     tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
-      "Failed rule 1:1".getBytes(Const.CHARSET_ASCII));
+      toBytes("Failed rule 1:1"));
     
     // drop some branches in for tree 1
     Branch branch = new Branch(1);
@@ -1229,7 +1231,7 @@ public final class TestTreeRpc {
     branch.prependParentPath(path);
     branch.setDisplayName("cpu");
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      "branch".getBytes(Const.CHARSET_ASCII),
+      toBytes("branch"),
             jsonMapper.writeValueAsBytes(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
@@ -1248,7 +1250,7 @@ public final class TestTreeRpc {
     branch.prependParentPath(path);
     branch.setDisplayName("mboard");
     tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
-      "branch".getBytes(Const.CHARSET_ASCII),
+      toBytes("branch"),
             jsonMapper.writeValueAsBytes(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");
@@ -1264,14 +1266,14 @@ public final class TestTreeRpc {
    */
   private void setupBranch() {
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
+      toBytes("metrics"),
+      toBytes("sys.cpu.0"));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagk".getBytes(Const.CHARSET_ASCII),
-      "host".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagk"),
+      toBytes("host"));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "web01".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagv"),
+      toBytes("web01"));
   }
   
   /**
@@ -1282,40 +1284,40 @@ public final class TestTreeRpc {
   private void setupTSMeta() throws Exception {
     final TSMeta meta = new TSMeta("000001000001000001000002000002");
     tsdb_store.addColumn(UniqueId.stringToUid("000001000001000001000002000002"),
-      NAME_FAMILY, "ts_meta".getBytes(Const.CHARSET_ASCII),
+      NAME_FAMILY, toBytes("ts_meta"),
             jsonMapper.writeValueAsBytes(meta));
     
     final UIDMeta metric = new UIDMeta(UniqueIdType.METRIC, new byte[] { 0, 0, 1 }, 
         "sys.cpu.0");
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "metric_meta".getBytes(Const.CHARSET_ASCII),
+      toBytes("metric_meta"),
       jsonMapper.writeValueAsBytes(metric));
     final UIDMeta tagk1 = new UIDMeta(UniqueIdType.TAGK, new byte[] { 0, 0, 1 }, 
         "host");
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagk_meta".getBytes(Const.CHARSET_ASCII),
+      toBytes("tagk_meta"),
       jsonMapper.writeValueAsBytes(tagk1));
     final UIDMeta tagv1 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 0, 0, 1 }, 
         "web-01.lga.mysite.com");
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagv_meta".getBytes(Const.CHARSET_ASCII),
+      toBytes("tagv_meta"),
       jsonMapper.writeValueAsBytes(tagv1));
     final UIDMeta tagk2 = new UIDMeta(UniqueIdType.TAGK, new byte[] { 0, 0, 2 }, 
         "type");
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagk_meta".getBytes(Const.CHARSET_ASCII),
+      toBytes("tagk_meta"),
       jsonMapper.writeValueAsBytes(tagk2));
     final UIDMeta tagv2 = new UIDMeta(UniqueIdType.TAGV, new byte[] { 0, 0, 2 }, 
         "user");
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagv_meta".getBytes(Const.CHARSET_ASCII),
+      toBytes("tagv_meta"),
       jsonMapper.writeValueAsBytes(tagv2));
 
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagk".getBytes(Const.CHARSET_ASCII),
-      "type".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagk"),
+      toBytes("type"));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "user".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagv"),
+      toBytes("user"));
   }
 }

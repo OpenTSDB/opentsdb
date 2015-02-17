@@ -364,7 +364,7 @@ public abstract class TestTsdbStore {
     final Tree max_tree = new Tree(65535);
     max_tree.setName("max");
     tsdb_store.addColumn(new byte[]{(byte) 0xFF, (byte) 0xFF},
-            "tree".getBytes(Const.CHARSET_ASCII), JSON.serializeToBytes(max_tree));
+            "tree".getBytes(StringCoder.CHARSET), JSON.serializeToBytes(max_tree));
 
     final Tree tree = new Tree();
     tsdb.createNewTree(tree).joinUninterruptibly();*/

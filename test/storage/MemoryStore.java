@@ -29,6 +29,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
+import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
@@ -62,6 +63,7 @@ import net.opentsdb.utils.JSONException;
 import org.hbase.async.Bytes;
 
 import static com.google.common.collect.Maps.newHashMap;
+import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.uid.UniqueId.uidToString;
 
 /**
@@ -182,7 +184,7 @@ public class MemoryStore implements TsdbStore {
               + " required for '" + type + '\'');
     }
 
-    String str_uid = new String(id, Const.CHARSET_ASCII);
+    String str_uid = fromBytes(id);
 
     final String name = uid_reverse_mapping.get(str_uid, type);
     return Deferred.fromResult(Optional.fromNullable(name));
@@ -338,7 +340,7 @@ public class MemoryStore implements TsdbStore {
     uid_max.get(type).set(Math.max(uid_max.get(type).get(),
             (UniqueId.uidToLong(uid, (short) uid.length) + 1)));
 
-    String str_uid = new String(uid, Const.CHARSET_ASCII);
+    String str_uid = fromBytes(uid);
 
     if (uid_reverse_mapping.contains(str_uid, type)) {
       throw new IllegalArgumentException("A UID with " + str_uid + " already exists");

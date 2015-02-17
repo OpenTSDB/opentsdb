@@ -18,7 +18,7 @@ import java.util.Map;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.Const;
+import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
@@ -36,6 +36,8 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
+
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertEquals;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -44,7 +46,7 @@ import static org.junit.Assert.assertEquals;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({KeyValue.class, Scanner.class})
 public final class TestTSUIDQuery {
-  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
+  private static byte[] NAME_FAMILY = toBytes("name");
   private TSDB tsdb;
   private TSUIDQuery query;
   
@@ -60,100 +62,90 @@ public final class TestTSUIDQuery {
     tsdb = objectGraph.get(TSDB.class);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.user".getBytes(Const.CHARSET_ASCII));
+      toBytes("metrics"),
+      toBytes("sys.cpu.user"));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "metric_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.user\"," +
+      toBytes("metric_meta"),
+      toBytes("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.user\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"System CPU\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "1328140801,\"displayName\":\"System CPU\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "metrics".getBytes(Const.CHARSET_ASCII),
-      "sys.cpu.nice".getBytes(Const.CHARSET_ASCII));
+      toBytes("metrics"),
+      toBytes("sys.cpu.nice"));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "metric_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.nice\"," +
+      toBytes("metric_meta"),
+      toBytes("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.nice\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"System CPU\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "1328140801,\"displayName\":\"System CPU\"}"));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagk".getBytes(Const.CHARSET_ASCII),
-      "host".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagk"),
+      toBytes("host"));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagk_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
+      toBytes("tagk_meta"),
+      toBytes("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"Host server name\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "1328140801,\"displayName\":\"Host server name\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagk".getBytes(Const.CHARSET_ASCII),
-      "datacenter".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagk"),
+      toBytes("datacenter"));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagk_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
+      toBytes("tagk_meta"),
+      toBytes("{\"uid\":\"000002\",\"type\":\"TAGK\",\"name\":\"datacenter\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"Datecenter name\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "1328140801,\"displayName\":\"Datecenter name\"}"));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "web01".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagv"),
+      toBytes("web01"));
     tsdb_store.addColumn(new byte[]{0, 0, 1}, NAME_FAMILY,
-      "tagv_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
+      toBytes("tagv_meta"),
+      toBytes("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"Web server 1\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "1328140801,\"displayName\":\"Web server 1\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "web02".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagv"),
+      toBytes("web02"));
     tsdb_store.addColumn(new byte[]{0, 0, 2}, NAME_FAMILY,
-      "tagv_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"web02\"," +
+      toBytes("tagv_meta"),
+      toBytes("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"web02\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"Web server 2\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "1328140801,\"displayName\":\"Web server 2\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 3}, NAME_FAMILY,
-      "tagv".getBytes(Const.CHARSET_ASCII),
-      "dc01".getBytes(Const.CHARSET_ASCII));
+      toBytes("tagv"),
+      toBytes("dc01"));
     tsdb_store.addColumn(new byte[]{0, 0, 3}, NAME_FAMILY,
-      "tagv_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
+      toBytes("tagv_meta"),
+      toBytes("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-        "1328140801,\"displayName\":\"Web server 2\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "1328140801,\"displayName\":\"Web server 2\"}"));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, NAME_FAMILY,
-      "ts_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"tsuid\":\"000001000001000001\",\"" +
+      toBytes("ts_meta"),
+      toBytes("{\"tsuid\":\"000001000001000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, NAME_FAMILY,
-      "ts_ctr".getBytes(Const.CHARSET_ASCII),
+      toBytes("ts_ctr"),
       Bytes.fromLong(1L));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2}, NAME_FAMILY,
-      "ts_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"tsuid\":\"000001000001000002\",\"" +
+      toBytes("ts_meta"),
+      toBytes("{\"tsuid\":\"000001000001000002\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2}, NAME_FAMILY,
-      "ts_ctr".getBytes(Const.CHARSET_ASCII),
+      toBytes("ts_ctr"),
       Bytes.fromLong(1L));
     tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 2, 0, 0, 3, 0, 0, 1, 0, 0, 1},
-      NAME_FAMILY, "ts_meta".getBytes(Const.CHARSET_ASCII),
-      ("{\"tsuid\":\"000002000002000003000001000001\",\"" +
+      NAME_FAMILY, toBytes("ts_meta"),
+      toBytes("{\"tsuid\":\"000002000002000003000001000001\",\"" +
         "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
         "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-        .getBytes(Const.CHARSET_ASCII));
+        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 2, 0, 0, 3, 0, 0, 1, 0, 0, 1},
-      NAME_FAMILY, "ts_ctr".getBytes(Const.CHARSET_ASCII),
+      NAME_FAMILY, toBytes("ts_ctr"),
       Bytes.fromLong(1L));
 
     tsdb_store.allocateUID("sys.cpu.user", new byte[] {0, 0, 1}, UniqueIdType.METRIC);

@@ -24,6 +24,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import javax.inject.Inject;
 import java.util.Map;
 
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -39,7 +40,7 @@ import static org.mockito.Mockito.when;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({KeyValue.class, Scanner.class, TSMeta.class})
  public class MetaClientTSMetaTest {
-  private static byte[] NAME_FAMILY = "name".getBytes(Const.CHARSET_ASCII);
+  private static byte[] NAME_FAMILY = toBytes("name");
 
   @Inject MetaClient metaClient;
   @Inject MemoryStore tsdb_store;
@@ -55,51 +56,47 @@ import static org.mockito.Mockito.when;
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
-            "metrics".getBytes(Const.CHARSET_ASCII),
-            "sys.cpu.0".getBytes(Const.CHARSET_ASCII));
+            toBytes("metrics"),
+            toBytes("sys.cpu.0"));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
-            "metric_meta".getBytes(Const.CHARSET_ASCII),
-            ("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
+            toBytes("metric_meta"),
+            toBytes("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-                    "1328140801,\"displayName\":\"System CPU\"}")
-                    .getBytes(Const.CHARSET_ASCII));
+                    "1328140801,\"displayName\":\"System CPU\"}"));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
-            "tagk".getBytes(Const.CHARSET_ASCII),
-            "host".getBytes(Const.CHARSET_ASCII));
+            toBytes("tagk"),
+            toBytes("host"));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
-            "tagk_meta".getBytes(Const.CHARSET_ASCII),
-            ("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
+            toBytes("tagk_meta"),
+            toBytes("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-                    "1328140801,\"displayName\":\"Host server name\"}")
-                    .getBytes(Const.CHARSET_ASCII));
+                    "1328140801,\"displayName\":\"Host server name\"}"));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
-            "tagv".getBytes(Const.CHARSET_ASCII),
-            "web01".getBytes(Const.CHARSET_ASCII));
+            toBytes("tagv"),
+            toBytes("web01"));
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
-            "tagv_meta".getBytes(Const.CHARSET_ASCII),
-            ("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
+            toBytes("tagv_meta"),
+            toBytes("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-                    "1328140801,\"displayName\":\"Web server 1\"}")
-                    .getBytes(Const.CHARSET_ASCII));
+                    "1328140801,\"displayName\":\"Web server 1\"}"));
 
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
             NAME_FAMILY,
-            "ts_meta".getBytes(Const.CHARSET_ASCII),
-            ("{\"tsuid\":\"000001000001000001\",\"" +
+            toBytes("ts_meta"),
+            toBytes("{\"tsuid\":\"000001000001000001\",\"" +
                     "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
                     "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-                    .getBytes(Const.CHARSET_ASCII));
+                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
             NAME_FAMILY,
-            "ts_ctr".getBytes(Const.CHARSET_ASCII),
+            toBytes("ts_ctr"),
             Bytes.fromLong(1L));
   }
 
@@ -188,12 +185,11 @@ import static org.mockito.Mockito.when;
   public void getTSMetaNSUMetric() throws Throwable {
     tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 1, 0, 0, 1},
             NAME_FAMILY,
-            "ts_meta".getBytes(Const.CHARSET_ASCII),
-            ("{\"tsuid\":\"000002000001000001\",\"" +
+            toBytes("ts_meta"),
+            toBytes("{\"tsuid\":\"000002000001000001\",\"" +
                     "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
                     "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-                    .getBytes(Const.CHARSET_ASCII));
+                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     try {
       metaClient.getTSMeta( "000002000001000001", true)
               .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -206,12 +202,11 @@ import static org.mockito.Mockito.when;
   public void getTSMetaNSUTagk() throws Throwable {
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 2, 0, 0, 1},
             NAME_FAMILY,
-            "ts_meta".getBytes(Const.CHARSET_ASCII),
-            ("{\"tsuid\":\"000001000002000001\",\"" +
+            toBytes("ts_meta"),
+            toBytes("{\"tsuid\":\"000001000002000001\",\"" +
                     "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
                     "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-                    .getBytes(Const.CHARSET_ASCII));
+                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     try {
       metaClient.getTSMeta( "000001000002000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
@@ -223,12 +218,11 @@ import static org.mockito.Mockito.when;
   public void getTSMetaNSUTagv() throws Throwable {
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2},
             NAME_FAMILY,
-            "ts_meta".getBytes(Const.CHARSET_ASCII),
-            ("{\"tsuid\":\"000001000001000002\",\"" +
+            toBytes("ts_meta"),
+            toBytes("{\"tsuid\":\"000001000001000002\",\"" +
                     "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
                     "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-                    .getBytes(Const.CHARSET_ASCII));
+                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     try {
       metaClient.getTSMeta( "000001000001000002", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     } catch (DeferredGroupException e) {
@@ -305,7 +299,7 @@ import static org.mockito.Mockito.when;
     when(column.value()).thenReturn(tsdb_store.getColumn(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
             NAME_FAMILY,
-            "ts_meta".getBytes(Const.CHARSET_ASCII)));
+            toBytes("ts_meta")));
     final TSMeta meta = metaClient.parseFromColumn(column.key(), column.value(), false)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(meta);
@@ -320,7 +314,7 @@ import static org.mockito.Mockito.when;
     when(column.value()).thenReturn(tsdb_store.getColumn(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
             NAME_FAMILY,
-            "ts_meta".getBytes(Const.CHARSET_ASCII)));
+            toBytes("ts_meta")));
     final TSMeta meta = metaClient.parseFromColumn(column.key(), column.value(), true)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(meta);
@@ -344,11 +338,10 @@ import static org.mockito.Mockito.when;
 
     final KeyValue column = PowerMockito.mock(KeyValue.class);
     when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 });
-    when(column.value()).thenReturn(("{\"tsuid\":\"000001000001000002\",\"" +
+    when(column.value()).thenReturn(toBytes("{\"tsuid\":\"000001000001000002\",\"" +
             "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
             "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-            "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
-            .getBytes(Const.CHARSET_ASCII));
+            "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     metaClient.parseFromColumn(column.key(), column.value(), true).addErrback(new ErrBack())
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }

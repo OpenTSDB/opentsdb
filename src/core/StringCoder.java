@@ -16,14 +16,36 @@ import com.google.common.base.Charsets;
 
 import java.nio.charset.Charset;
 
+/**
+ * A utility class to convert strings from and to byte arrays using a
+ * centralized charset constant.
+ */
 public class StringCoder {
-  /** Charset used to convert Strings to byte arrays and back. */
-  private static final Charset CHARSET = Charsets.ISO_8859_1;
+  /**
+   * Charset used to convert Strings to byte arrays and back. You should always
+   * prefer to use {@link #toBytes} and {@link #fromBytes} rather than using
+   * this constant directly.
+   */
+  public static final Charset CHARSET = Charsets.ISO_8859_1;
 
+  /**
+   * Convert the provded string to its byte representation. This is the inverse
+   * of {@link #fromBytes}.
+   *
+   * @param s The string to convert
+   * @return The byte representation for the provided string
+   */
   public static byte[] toBytes(final String s) {
     return s.getBytes(CHARSET);
   }
 
+  /**
+   * Convert the provided byte array to its string representation. This is the
+   * inverse of {@link #toBytes}.
+   *
+   * @param b The byte array to convert
+   * @return The string representation of the provided byte array
+   */
   public static String fromBytes(final byte[] b) {
     return new String(b, CHARSET);
   }

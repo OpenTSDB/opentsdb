@@ -17,6 +17,7 @@ import java.util.regex.PatternSyntaxException;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
+import net.opentsdb.core.StringCoder;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
@@ -25,6 +26,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
 
+import static net.opentsdb.core.StringCoder.fromBytes;
+import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.*;
 
 
@@ -208,7 +211,7 @@ public final class TestTreeRule {
 //    assertEquals(2, tsdb_store.numColumns(new byte[] { 0, 1 }));
 //    final TreeRule stored = JSON.parseToObject(
 //        tsdb_store.getColumn(new byte[] { 0, 1 },
-//        "tree_rule:2:1".getBytes(Const.CHARSET_ASCII)), TreeRule.class);
+//        "tree_rule:2:1".getBytes(StringCoder.CHARSET)), TreeRule.class);
 //    assertEquals("Host owner", stored.getDescription());
 //    assertEquals("Just some notes", stored.getNotes());
   }
@@ -367,14 +370,12 @@ public final class TestTreeRule {
 
   @Test
   public void RULE_PREFIX() throws Exception {
-    assertEquals("tree_rule:",
-        new String(Const.TREE_RULE_PREFIX, Const.CHARSET_ASCII));
+    assertEquals("tree_rule:", fromBytes(Const.TREE_RULE_PREFIX));
   }
   
   @Test
   public void getQualifier() throws Exception {
-    assertEquals("tree_rule:1:2",
-        new String(TreeRule.getQualifier(1, 2), Const.CHARSET_ASCII));
+    assertEquals("tree_rule:1:2", fromBytes(TreeRule.getQualifier(1, 2)));
   }
   
   /**
@@ -394,12 +395,10 @@ public final class TestTreeRule {
     stored_rule.setNotes("Owner of the host machine");
     
     // pretend there's a tree definition in the storage row
-    tsdb_store.addColumn(new byte[]{0, 1}, "tree".getBytes(Const.CHARSET_ASCII),
-            new byte[]{1});
+    tsdb_store.addColumn(new byte[]{0, 1}, toBytes("tree"), new byte[]{1});
     
     // add a rule to the row
-    tsdb_store.addColumn(new byte[]{0, 1},
-            "tree_rule:2:1".getBytes(Const.CHARSET_ASCII),
+    tsdb_store.addColumn(new byte[]{0, 1}, toBytes("tree_rule:2:1"),
             jsonMapper.writeValueAsBytes(stored_rule));
   }
 }

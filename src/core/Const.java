@@ -12,10 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import com.google.common.base.Charsets;
-
-import java.nio.charset.Charset;
-
 import static net.opentsdb.core.StringCoder.toBytes;
 
 /** Constants used in various places.  */
@@ -84,8 +80,6 @@ public final class Const {
   public static final short METRICS_WIDTH = 3;
   public static final short TAG_NAME_WIDTH = 3;
   public static final short TAG_VALUE_WIDTH = 3;
-
-  public static final Charset CHARSET_ASCII = Charsets.ISO_8859_1;
 
   /**
     * The maximum number of milliseconds allowed in a timestamp.

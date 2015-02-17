@@ -3,7 +3,6 @@ package net.opentsdb.storage.hbase;
 import com.google.common.base.MoreObjects;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.Const;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.UniqueIdType;
@@ -67,7 +66,7 @@ class IdQueryRunner {
   private void configureQualifier(final Scanner scanner,
                                   final UniqueIdType type) {
     if (type != null) {
-      byte[] qualifier = type.toValue().getBytes(Const.CHARSET_ASCII);
+      byte[] qualifier = type.toValue().getBytes(HBaseConst.CHARSET);
       scanner.setQualifier(qualifier);
     }
   }
