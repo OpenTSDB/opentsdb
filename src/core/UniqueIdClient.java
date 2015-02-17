@@ -63,9 +63,9 @@ public class UniqueIdClient {
 
     uidtable = toBytes(config.getString("tsd.storage.hbase.uid_table"));
 
-    metrics = new UniqueId(tsdbStore, uidtable, UniqueIdType.METRIC, metricsRegistry, idEventBus);
-    tag_names = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGK, metricsRegistry, idEventBus);
-    tag_values = new UniqueId(tsdbStore, uidtable, UniqueIdType.TAGV, metricsRegistry, idEventBus);
+    metrics = new UniqueId(tsdbStore, UniqueIdType.METRIC, metricsRegistry, idEventBus);
+    tag_names = new UniqueId(tsdbStore, UniqueIdType.TAGK, metricsRegistry, idEventBus);
+    tag_values = new UniqueId(tsdbStore, UniqueIdType.TAGV, metricsRegistry, idEventBus);
 
     if (config.getBoolean("tsd.core.preload_uid_cache")) {
       final Map<UniqueIdType, UniqueId> uid_cache_map = new EnumMap<UniqueIdType, UniqueId>(UniqueIdType.class);
@@ -203,8 +203,8 @@ public class UniqueIdClient {
    */
   public Deferred<HashMap<String, String>> getTagNames(final List<byte[]> tags)
     throws NoSuchUniqueId {
-    final short name_width = tag_names.width();
-    final short value_width = tag_values.width();
+    final short name_width = UniqueIdType.TAGK.width;
+    final short value_width = UniqueIdType.TAGV.width;
     final short tag_bytes = (short) (name_width + value_width);
     final HashMap<String, String> result
       = new HashMap<String, String>(tags.size());
@@ -341,9 +341,9 @@ public class UniqueIdClient {
    */
   Deferred<byte[]> getTSUID(final String metric,
                             final Map<String, String> tags) {
-    final short metric_width = metrics.width();
-    final short tag_name_width = tag_names.width();
-    final short tag_value_width = tag_values.width();
+    final short metric_width = UniqueIdType.METRIC.width;
+    final short tag_name_width = UniqueIdType.TAGK.width;
+    final short tag_value_width = UniqueIdType.TAGV.width;
     final short num_tags = (short) tags.size();
 
     int row_size = (metric_width

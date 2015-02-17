@@ -22,6 +22,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.hbase.HBaseStore;
+import net.opentsdb.uid.UniqueIdType;
 import org.hbase.async.Bytes;
 
 import net.opentsdb.meta.Annotation;
@@ -127,7 +128,7 @@ class IncomingDataPoints implements WritableDataPoints {
     // because the TsdbStore may still hold a reference to it in its
     // internal datastructures.
     row = Arrays.copyOf(row, row.length);
-    Bytes.setInt(row, (int) base_time, uniqueIdClient.metrics.width());
+    Bytes.setInt(row, (int) base_time, UniqueIdType.METRIC.width);
     store.scheduleForCompaction(row);
   }
 

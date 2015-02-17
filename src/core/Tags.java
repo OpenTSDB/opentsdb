@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Pair;
 
 /** Helper functions to deal with tags. */
@@ -242,17 +243,17 @@ public final class Tags {
   /**
    * Extracts the value ID of the given tag UD name from the given row key.
    * @param tsdb The TSDB instance to use for UniqueId lookups.
-   * @param row The row key in which to search the tag name.
    * @param name The name of the tag to search in the row key.
+   * @param row The row key in which to search the tag name.
    * @return The value ID associated with the given tag ID, or null if this
    * tag ID isn't present in this row key.
    */
-  static byte[] getValueId(final TSDB tsdb, final byte[] row,
+  static byte[] getValueId(final byte[] row,
                            final byte[] tag_id) {
-    final short name_width = tsdb.getUniqueIdClient().tag_names.width();
-    final short value_width = tsdb.getUniqueIdClient().tag_values.width();
+    final short name_width = UniqueIdType.TAGK.width;
+    final short value_width = UniqueIdType.TAGV.width;
     // TODO(tsuna): Can do a binary search.
-    for (short pos = (short) (tsdb.getUniqueIdClient().metrics.width() + Const.TIMESTAMP_BYTES);
+    for (short pos = (short) (UniqueIdType.METRIC.width + Const.TIMESTAMP_BYTES);
          pos < row.length;
          pos += name_width + value_width) {
       if (rowContains(row, pos, tag_id)) {

@@ -330,7 +330,7 @@ final class UidManager {
     // TODO we don't create a MetaClient here which means there will be no
     // listeners on the EventBus and in turn nothing that creates or indexes
     // meta objects when we are configured to do so.
-    return new UniqueId(hbase_store, table, type, new Metrics(new MetricRegistry()), new EventBus());
+    return new UniqueId(hbase_store, type, new Metrics(new MetricRegistry()), new EventBus());
   }
 
   /**

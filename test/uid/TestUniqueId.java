@@ -25,7 +25,6 @@ import com.stumbleupon.async.Callback;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
@@ -52,12 +51,7 @@ import static org.mockito.Mockito.verify;
 
 public final class TestUniqueId {
   private TsdbStore client;
-  private TSDB tsdb;
-  private static final byte[] table = { 't', 'a', 'b', 'l', 'e' };
-  private static final byte[] ID = { 'i', 'd' };
   private UniqueId uid;
-  private static final String kind = "metrics";
-  private static final byte[] kind_array = { 'm', 'e', 't', 'r', 'i', 'c' };
   private Metrics metrics;
   private MetricRegistry registry;
   private EventBus idEventBus;
@@ -66,7 +60,6 @@ public final class TestUniqueId {
   public void setUp() throws IOException{
     ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
     client = objectGraph.get(TsdbStore.class);
-    tsdb = objectGraph.get(TSDB.class);
 
     registry = new MetricRegistry();
     metrics = new Metrics(registry);
@@ -75,39 +68,27 @@ public final class TestUniqueId {
 
   @Test(expected=NullPointerException.class)
   public void testCtorNoTsdbStore() {
-    uid = new UniqueId(null, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(null, UniqueIdType.METRIC, metrics, idEventBus);
   }
 
   @Test(expected=NullPointerException.class)
   public void testCtorNoTable() {
-    uid = new UniqueId(client, null, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
   }
 
   @Test(expected=NullPointerException.class)
   public void testCtorNoType() {
-    uid = new UniqueId(client, table, null, metrics, idEventBus);
+    uid = new UniqueId(client, null, metrics, idEventBus);
   }
 
   @Test(expected=NullPointerException.class)
   public void testCtorNoEventbus() {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, null);
-  }
-
-  @Test
-  public void typeEqual() {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
-    assertEquals(UniqueIdType.METRIC, uid.type());
-  }
-
-  @Test
-  public void widthEqual() {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
-    assertEquals(3, uid.width());
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, null);
   }
   
   @Test
   public void getNameSuccessfulLookup() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
     final byte[] id = { 0, 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
@@ -124,19 +105,19 @@ public final class TestUniqueId {
 
   @Test(expected=NoSuchUniqueId.class)
   public void getNameForNonexistentId() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getName(new byte[]{1, 2, 3}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test(expected=IllegalArgumentException.class)
   public void getNameWithInvalidId() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getName(new byte[]{1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
   public void getIdSuccessfulLookup() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
     final byte[] id = { 0, 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
@@ -156,7 +137,7 @@ public final class TestUniqueId {
   // The table contains IDs encoded on 2 bytes but the instance wants 3.
   @Test(expected=IllegalStateException.class)
   public void getIdMisconfiguredWidth() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
     final byte[] id = { 'a', 0x42 };
     client.allocateUID("foo", id, UniqueIdType.METRIC);
@@ -166,13 +147,13 @@ public final class TestUniqueId {
 
   @Test(expected=NoSuchUniqueName.class)
   public void getIdForNonexistentName() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
   public void createIdWithExistingId() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
     final byte[] id = { 0, 0, 1};
     uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -191,7 +172,7 @@ public final class TestUniqueId {
 
   @Test  // Test the creation of an ID with no problem.
   public void createIdIdWithSuccess() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     // Due to the implementation in the memoryStore used for testing the first
     // call will always return 1
     final byte[] id = { 0, 0, 1 };
@@ -210,7 +191,7 @@ public final class TestUniqueId {
 
   @Test
   public void createIdPublishesEventOnSuccess() throws Exception {
-    uid = new UniqueId(client, table, UniqueIdType.METRIC, metrics, idEventBus);
+    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     verify(idEventBus).post(any(IdCreatedEvent.class));
   }

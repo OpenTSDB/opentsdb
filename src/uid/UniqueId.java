@@ -70,12 +70,9 @@ public class UniqueId {
 
   /** The TsdbStore to use.  */
   private final TsdbStore tsdb_store;
-  /** Table where IDs are stored.  */
-  private final byte[] table;
+
   /** The type of UID represented by this cache */
   private final UniqueIdType type;
-  /** Number of bytes on which each ID is encoded. */
-  private final short id_width;
 
   /** Cache for forward mappings (name to ID). */
   private final ConcurrentHashMap<String, byte[]> name_cache =
@@ -102,20 +99,16 @@ public class UniqueId {
   /**
    * Constructor.
    * @param tsdb_store The TsdbStore to use.
-   * @param table The name of the table to use.
    * @param type The type of UIDs this instance represents
    * @param metrics
    * @param idEventBus
    */
   public UniqueId(final TsdbStore tsdb_store,
-                  final byte[] table,
                   final UniqueIdType type,
                   final Metrics metrics,
                   final EventBus idEventBus) {
     this.tsdb_store = checkNotNull(tsdb_store);
-    this.table = checkNotNull(table);
     this.type = checkNotNull(type);
-    this.id_width = type.width;
     this.idEventBus = checkNotNull(idEventBus);
 
     cache_hits = new Counter();
@@ -137,14 +130,6 @@ public class UniqueId {
         return name_cache.size() + id_cache.size();
       }
     });
-  }
-
-  public UniqueIdType type() {
-    return type;
-  }
-
-  public short width() {
-    return id_width;
   }
 
   /**
@@ -362,7 +347,6 @@ public class UniqueId {
   public String toString() {
     return MoreObjects.toStringHelper(this)
             .add("type", type)
-            .add("id_width", id_width)
             .toString();
   }
 
@@ -420,7 +404,6 @@ public class UniqueId {
    * Converts a UID to an integer value. The array must be the same length as
    * uid_length or an exception will be thrown.
    * @param uid The byte array to convert
-   * @param uid_length Length the array SHOULD be according to the UID config
    * @return The UID converted to an integer
    * @throws IllegalArgumentException if the length of the byte array does not
    * match the uid_length value
