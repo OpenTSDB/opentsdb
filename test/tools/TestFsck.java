@@ -1898,6 +1898,7 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
+    assertEquals(1, fsck.totalFixed());
     assertArrayEquals(val1, storage.getColumn(ROW, qual1));
     assertNull(storage.getColumn(ROW, qual2));
     assertArrayEquals(val3, storage.getColumn(ROW, qual3));
@@ -1923,6 +1924,7 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
+    assertEquals(0, fsck.totalFixed());
     assertArrayEquals(val1, storage.getColumn(ROW, qual1));
     assertArrayEquals(val2, storage.getColumn(ROW, qual2));
     assertArrayEquals(val3, storage.getColumn(ROW, qual3));
@@ -1950,6 +1952,7 @@ public final class TestFsck {
     assertEquals(2, fsck.duplicates.get());
     assertEquals(2, fsck.totalErrors());
     assertEquals(2, fsck.correctable());
+    assertEquals(1, fsck.totalFixed());
     assertNull(storage.getColumn(ROW, qual1));
     assertArrayEquals(val2, storage.getColumn(ROW, qual2));
     assertArrayEquals(val3, storage.getColumn(ROW, qual3));
