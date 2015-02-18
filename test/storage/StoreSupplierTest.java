@@ -26,7 +26,7 @@ public class StoreSupplierTest {
      * used in tests and leaving it out of this prevents anyone of
      * accidentally using it in production.
      */
-    private static final int NUM_STORES = 1;
+    private static final int NUM_STORES = 2;
 
     private Config config;
     private Iterable<StoreDescriptor> storeDescriptors;

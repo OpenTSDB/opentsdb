@@ -1,6 +1,7 @@
 package net.opentsdb.storage.cassandra;
 
 import com.datastax.driver.core.Cluster;
+import com.google.auto.service.AutoService;
 import com.google.common.base.Splitter;
 import com.google.common.net.HostAndPort;
 import net.opentsdb.stats.Metrics;
@@ -11,6 +12,7 @@ import net.opentsdb.utils.Config;
  * Use this to create a CassandraStore object. Will throw
  * IllegalArgumentException if there was an error in the config.
  */
+@AutoService(StoreDescriptor.class)
 public class CassandraStoreDescriptor extends StoreDescriptor {
 
   @Override

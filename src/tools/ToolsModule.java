@@ -16,7 +16,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * @see net.opentsdb.core.TsdbModule
  */
-@Module(includes = TsdbModule.class)
+@Module(includes = TsdbModule.class,
+        injects = {
+                Config.class
+        })
 public class ToolsModule {
   private final ArgP argp;
 
