@@ -85,7 +85,7 @@ public class CassandraStore implements TsdbStore {
 
   /**
    * If you need a CassandraStore, try to change the config file and use the
-   * {@link net.opentsdb.storage.StoreSupplier#get()}.
+   * {@link net.opentsdb.storage.StoreModule#get()}.
    *
    * @param cluster The configured Cassandra cluster.
    */

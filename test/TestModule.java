@@ -1,6 +1,5 @@
 package net.opentsdb;
 
-import com.codahale.metrics.MetricRegistry;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.MetaClientUIDMetaTest;
@@ -8,6 +7,7 @@ import net.opentsdb.core.TreeClientTest;
 import net.opentsdb.core.TsdbModule;
 import net.opentsdb.core.UniqueIdClientTest;
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.StoreModuleTest;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.utils.Config;
 
@@ -36,7 +36,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
         injects = {
                 MetaClientUIDMetaTest.class,
                 TreeClientTest.class,
-                UniqueIdClientTest.class
+                UniqueIdClientTest.class,
+                StoreModuleTest.class
         })
 public class TestModule {
   private final Config config;
@@ -52,11 +53,6 @@ public class TestModule {
   @Provides
   Config provideConfig() {
     return config;
-  }
-
-  @Provides
-  MetricRegistry provideMetricRegistry() {
-    return new MetricRegistry();
   }
 
   @Provides @Singleton

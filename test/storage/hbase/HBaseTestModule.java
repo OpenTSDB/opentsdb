@@ -36,11 +36,6 @@ class HBaseTestModule {
   }
 
   @Provides
-  MetricRegistry provideMetricRegistry() {
-    return new MetricRegistry();
-  }
-
-  @Provides
   TsdbStore provideStore(final Config config) {
     return new HBaseStore(client, config);
   }

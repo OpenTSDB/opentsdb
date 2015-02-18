@@ -3,6 +3,8 @@ package net.opentsdb.stats;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Joiner;
 
+import javax.inject.Inject;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -61,6 +63,7 @@ public class Metrics {
   /**
    * Create a new metrics instance with the given registry.
    */
+  @Inject
   public Metrics(MetricRegistry registry) {
     this.registry = checkNotNull(registry);
   }

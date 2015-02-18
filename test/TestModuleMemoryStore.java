@@ -1,6 +1,5 @@
 package net.opentsdb;
 
-import com.codahale.metrics.MetricRegistry;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.DataPointsClientExecuteQueryTest;
@@ -60,11 +59,6 @@ public class TestModuleMemoryStore {
   @Provides
   Config provideConfig() {
     return config;
-  }
-
-  @Provides
-  MetricRegistry provideMetricRegistry() {
-    return new MetricRegistry();
   }
 
   @Provides @Singleton

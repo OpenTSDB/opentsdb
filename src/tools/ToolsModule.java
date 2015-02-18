@@ -27,11 +27,6 @@ public class ToolsModule {
     this.argp = checkNotNull(argp);
   }
 
-  @Provides
-  MetricRegistry provideMetricRegistry() {
-    return new MetricRegistry();
-  }
-
   @Provides @Singleton
   Config provideConfig() {
     try {

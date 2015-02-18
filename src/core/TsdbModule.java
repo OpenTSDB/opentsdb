@@ -8,15 +8,12 @@ import net.opentsdb.search.DefaultSearchPlugin;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchPluginDescriptor;
 import net.opentsdb.stats.Metrics;
-import net.opentsdb.storage.StoreDescriptor;
-import net.opentsdb.storage.StoreSupplier;
+import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.tsd.RTPublisherDescriptor;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.PluginLoader;
-
-import java.util.ServiceLoader;
 
 /**
  * This is the main dagger module for the TSDB core library. It is not complete
@@ -25,14 +22,16 @@ import java.util.ServiceLoader;
  * and a {@link com.codahale.metrics.MetricRegistry}.
  */
 @Module(library = true,
+        includes = {
+                StoreModule.class
+        },
         complete = false,
         injects = {
                 TSDB.class,
                 UniqueIdClient.class,
                 TreeClient.class,
                 MetaClient.class,
-                DataPointsClient.class,
-                TsdbStore.class
+                DataPointsClient.class
         })
 public class TsdbModule {
   @Provides
@@ -41,16 +40,8 @@ public class TsdbModule {
   }
 
   @Provides
-  Metrics provideMetrics(final MetricRegistry registry) {
-    return new Metrics(registry);
-  }
-
-  @Provides
-  TsdbStore provideStore(final Config config,
-                         final Metrics metrics) {
-    StoreSupplier storeSupplier = new StoreSupplier(config,
-            ServiceLoader.load(StoreDescriptor.class), metrics);
-    return storeSupplier.get();
+  MetricRegistry provideMetricRegistry() {
+    return new MetricRegistry();
   }
 
   @Provides
