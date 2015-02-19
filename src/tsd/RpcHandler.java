@@ -120,7 +120,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
     if (mode.equals("rw") || mode.equals("ro")) {
       http_commands.put("", new HomePage());
-      final StaticFileRpc staticfile = new StaticFileRpc();
+      final StaticFileRpc staticfile = new StaticFileRpc(tsdb.getConfig());
       http_commands.put("favicon.ico", staticfile);
       http_commands.put("s", staticfile);
 

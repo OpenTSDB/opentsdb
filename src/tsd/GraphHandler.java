@@ -124,7 +124,7 @@ final class GraphHandler implements HttpRpc {
 
   private void doGraph(final TSDB tsdb, final HttpQuery query)
     throws IOException {
-    final String basepath = getGnuplotBasePath(tsdb, query);
+    final File basepath = getGnuplotBasePath(tsdb, query);
     long start_time = DateTime.parseDateTimeString(
       query.getRequiredQueryStringParam("start"),
       query.getQueryStringParam("tz"));
@@ -150,7 +150,7 @@ final class GraphHandler implements HttpRpc {
       end_time /= 1000;
     }
     final int max_age = computeMaxAge(query, start_time, end_time, now);
-    if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
+    if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath.getAbsolutePath())) {
       return;
     }
     UidFormatter formatter = new UidFormatter(tsdb);
@@ -204,7 +204,7 @@ final class GraphHandler implements HttpRpc {
     tsdbqueries = null;  // free()
 
     if (query.hasQueryStringParam("ascii")) {
-      respondAsciiQuery(formatter, query, max_age, basepath, plot);
+      respondAsciiQuery(formatter, query, max_age, basepath.getAbsolutePath(), plot);
       return;
     }
 
@@ -259,7 +259,7 @@ final class GraphHandler implements HttpRpc {
     private final HttpQuery query;
     private final int max_age;
     private final Plot plot;
-    private final String basepath;
+    private final File basepath;
     private final HashSet<String>[] aggregated_tags;
     private final int npoints;
     private final TsdStats.GraphHandlerStats stats;
@@ -267,7 +267,7 @@ final class GraphHandler implements HttpRpc {
     public RunGnuplot(final HttpQuery query,
                       final int max_age,
                       final Plot plot,
-                      final String basepath,
+                      final File basepath,
                       final HashSet<String>[] aggregated_tags,
                       final int npoints,
                       final TsdStats.GraphHandlerStats stats) {
@@ -275,10 +275,7 @@ final class GraphHandler implements HttpRpc {
       this.max_age = max_age;
       this.plot = plot;
       this.stats = stats;
-      if (IS_WINDOWS)
-        this.basepath = basepath.replace("\\", "\\\\").replace("/", "\\\\");
-      else
-        this.basepath = basepath;
+      this.basepath = basepath;
       this.aggregated_tags = aggregated_tags;
       this.npoints = npoints;
     }
@@ -313,9 +310,9 @@ final class GraphHandler implements HttpRpc {
         results.put("etags", aggregated_tags);
         results.put("timing", query.processingTimeMillis());
         query.sendReply(JSON.serializeToBytes(results));
-        writeFile(query, basepath + ".json", JSON.serializeToBytes(results));
+        writeFile(query, basepath.getAbsolutePath() + ".json", JSON.serializeToBytes(results));
       } else if (query.hasQueryStringParam("png")) {
-        query.sendFile(basepath + ".png", max_age);
+        query.sendFile(basepath.getAbsolutePath() + ".png", max_age);
       } else {
         query.internalError(new Exception("Should never be here!"));
       }
@@ -333,7 +330,7 @@ final class GraphHandler implements HttpRpc {
   }
 
   /** Returns the base path to use for the Gnuplot files. */
-  private String getGnuplotBasePath(final TSDB tsdb, final HttpQuery query) {
+  private File getGnuplotBasePath(final TSDB tsdb, final HttpQuery query) {
     final Map<String, List<String>> q = query.getQueryString();
     q.remove("ignore");
     // Super cheap caching mechanism: hash the query string.
@@ -343,8 +340,9 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") + 
-        Integer.toHexString(qs.hashCode());
+
+    return new File(tsdb.getConfig().getString("tsd.http.cachedir"),
+            Integer.toHexString(qs.hashCode()));
   }
 
   /**
@@ -701,10 +699,10 @@ final class GraphHandler implements HttpRpc {
    * @throws GnuplotException if Gnuplot returns non-zero.
    */
   static int runGnuplot(final HttpQuery query,
-                        final String basepath,
+                        final File basepath,
                         final Plot plot,
                         final TsdStats.GraphHandlerStats stats) throws IOException {
-    final int nplotted = plot.dumpToFiles(basepath);
+    final int nplotted = plot.dumpToFiles(basepath.getAbsolutePath());
     final Timer.Context timer = stats.getGnuplotlatency().time();
 
     final Process gnuplot = new ProcessBuilder(GNUPLOT,

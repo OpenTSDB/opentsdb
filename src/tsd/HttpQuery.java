@@ -782,7 +782,7 @@ final class HttpQuery {
    */
   public void sendReply(final String buf) {
     sendBuffer(HttpResponseStatus.OK,
-               ChannelBuffers.copiedBuffer(buf, CharsetUtil.UTF_8));
+            ChannelBuffers.copiedBuffer(buf, CharsetUtil.UTF_8));
   }
 
   /**
@@ -867,12 +867,13 @@ final class HttpQuery {
       buf = null;
       plot.setParams(params);
       params = null;
-      final String basepath =
-        tsdb.getConfig().getDirectoryName("tsd.http.cachedir")
-        + Integer.toHexString(msg.hashCode());
+
+      final File basepath = new File(tsdb.getConfig().getString("tsd.http.cachedir"),
+              Integer.toHexString(msg.hashCode()));
+
       GraphHandler.runGnuplot(this, basepath, plot, stats.getGraphHandlerStats());
       plot = null;
-      sendFile(status, basepath + ".png", max_age);
+      sendFile(status, basepath.getAbsolutePath() + ".png", max_age);
     } catch (Exception e) {
       getQueryString().remove("png");  // Avoid recursion.
       this.sendReply(HttpResponseStatus.INTERNAL_SERVER_ERROR,
@@ -897,6 +898,17 @@ final class HttpQuery {
     sendFile(HttpResponseStatus.OK, path, max_age);
   }
 
+  public void sendFile(final File path,
+                       final int max_age) throws IOException {
+    sendFile(HttpResponseStatus.OK, path, max_age);
+  }
+
+  public void sendFile(final HttpResponseStatus status,
+                       final String path,
+                       final int max_age) throws IOException {
+    sendFile(status, new File(path), max_age);
+  }
+
   /**
    * Send a file (with zero-copy) to the client.
    * This method doesn't provide any security guarantee.  The caller is
@@ -909,7 +921,7 @@ final class HttpQuery {
    * caching.
    */
   public void sendFile(final HttpResponseStatus status,
-                       final String path,
+                       final File path,
                        final int max_age) throws IOException {
     if (max_age < 0) {
       throw new IllegalArgumentException("Negative max_age=" + max_age
@@ -932,10 +944,10 @@ final class HttpQuery {
     }
     final long length = file.length();
     {
-      final String mimetype = guessMimeTypeFromUri(path);
+      final String mimetype = guessMimeTypeFromFile(path);
       response.headers().set(HttpHeaders.Names.CONTENT_TYPE,
                          mimetype == null ? "text/plain" : mimetype);
-      final long mtime = new File(path).lastModified();
+      final long mtime = path.lastModified();
       if (mtime > 0) {
         response.headers().set(HttpHeaders.Names.AGE,
                            (System.currentTimeMillis() - mtime) / 1000);
@@ -1011,6 +1023,10 @@ final class HttpQuery {
   private String guessMimeType(final ChannelBuffer buf) {
     final String mimetype = guessMimeTypeFromUri(request.getUri());
     return mimetype == null ? guessMimeTypeFromContents(buf) : mimetype;
+  }
+
+  private static String guessMimeTypeFromFile(final File file) {
+    return guessMimeTypeFromUri(file.getName());
   }
 
   /**

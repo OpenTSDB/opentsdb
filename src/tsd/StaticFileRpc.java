@@ -12,17 +12,30 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.File;
 import java.io.IOException;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.utils.Config;
 
 /** Implements the "/s" endpoint to serve static files. */
 final class StaticFileRpc implements HttpRpc {
+  /**
+   * A file object that points at the configured static root directory.
+   */
+  private final File staticRootDirectory;
 
   /**
    * Constructor.
+   * @param config
    */
-  public StaticFileRpc() {
+  public StaticFileRpc(final Config config) {
+    staticRootDirectory = new File(config.getString("tsd.http.staticroot"));
+
+    if (!staticRootDirectory.isDirectory()) {
+      // TODO(luuse): should throw a ConfigException instead
+      throw new IllegalArgumentException();
+    }
   }
 
   @Override
@@ -30,8 +43,7 @@ final class StaticFileRpc implements HttpRpc {
     throws IOException {
     final String uri = query.request().getUri();
     if ("/favicon.ico".equals(uri)) {
-      query.sendFile(tsdb.getConfig().getDirectoryName("tsd.http.staticroot")
-          + "/favicon.ico", 31536000 /*=1yr*/);
+      query.sendFile(new File(staticRootDirectory, "/favicon.ico"), 31536000 /*=1yr*/);
       return;
     }
     if (uri.length() < 3) {  // Must be at least 3 because of the "/s/".
@@ -44,8 +56,8 @@ final class StaticFileRpc implements HttpRpc {
     }
     final int questionmark = uri.indexOf('?', 3);
     final int pathend = questionmark > 0 ? questionmark : uri.length();
-    query.sendFile(tsdb.getConfig().getDirectoryName("tsd.http.staticroot")
-                 + uri.substring(2, pathend),  // Drop the "/s"
-                   uri.contains("nocache") ? 0 : 31536000 /*=1yr*/);
+    query.sendFile(
+            new File(staticRootDirectory, uri.substring(2, pathend)),  // Drop the "/s"
+            uri.contains("nocache") ? 0 : 31536000 /*=1yr*/);
   }
 }
