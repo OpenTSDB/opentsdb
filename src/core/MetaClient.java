@@ -60,7 +60,7 @@ public class MetaClient {
 
     checkNotNull(idEventBus);
 
-    if (config.enable_realtime_uid()) {
+    if (config.getBoolean("tsd.core.meta.enable_realtime_uid")) {
       idEventBus.register(new IdChangeListener(store, searchPlugin));
     }
   }
@@ -445,7 +445,7 @@ public class MetaClient {
     }
 
     Deferred<Long> res = store.incrementAndGetCounter(tsuid);
-    if (!config.enable_realtime_ts())
+    if (!config.getBoolean("tsd.core.meta.enable_realtime_ts"))
       return res;
     return res.addCallbackDeferring(
             new TSMetaCB());
@@ -521,7 +521,7 @@ public class MetaClient {
    * @since 2.0
    */
   public Deferred<Boolean> processTSMetaThroughTrees(final TSMeta meta) {
-    if (config.enable_tree_processing()) {
+    if (config.getBoolean("tsd.core.tree.enable_processing")) {
       return TreeBuilder.processAllTrees(treeClient, store, meta);
     }
     return Deferred.fromResult(false);

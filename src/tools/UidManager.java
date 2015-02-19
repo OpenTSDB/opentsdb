@@ -200,7 +200,7 @@ final class UidManager {
     } else if (args[0].equals("treesync")) {
       // check for the UID table existence
       try {
-        if (!tsdb.getConfig().enable_tree_processing()) {
+        if (!tsdb.getConfig().getBoolean("tsd.core.tree.enable_processing")) {
           LOG.warn("Tree processing is disabled");
           return 0;
         }

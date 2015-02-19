@@ -107,7 +107,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       metrics.put(name("compaction.duplicates", tag("type", "identical")), cQueue.duplicates_same);
       metrics.put(name("compaction.duplicates", tag("type", "variant")), cQueue.duplicates_different);
 
-      if (cQueue.config.enable_compactions()) {
+      if (cQueue.config.getBoolean("tsd.storage.enable_compaction")) {
         // The remaining stats only make sense with compactions enabled.
         metrics.put(name("compaction.queue.size"), cQueue.size);
         metrics.put(name("compaction.errors", tag("rpc", "read")), cQueue.handle_read_error.errors);
@@ -138,7 +138,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     this.table_name = table_name;
     this.column_family = column_family;
 
-    if (config.enable_compactions()) {
+    if (config.getBoolean("tsd.storage.enable_compaction")) {
       startCompactionThread();
     }
   }
@@ -390,7 +390,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         }
       }
       // if compactions aren't enabled or there is nothing to write, we're done
-      if (!config.enable_compactions() || (!write && to_delete.isEmpty())) {
+      if (!config.getBoolean("tsd.storage.enable_compaction") || (!write && to_delete.isEmpty())) {
         return null;
       }
 
@@ -491,7 +491,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
           final byte[] discardedVal = col.getCopyOfCurrentValue();
           if (!Arrays.equals(existingVal, discardedVal)) {
             duplicates_different.inc();
-            if (!config.fix_duplicates()) {
+            if (!config.getBoolean("tsd.storage.fix_duplicates")) {
               throw new IllegalDataException("Duplicate timestamp for key="
                   + Arrays.toString(row.get(0).key()) + ", ms_offset=" + ts + ", older="
                   + Arrays.toString(existingVal) + ", newer=" + Arrays.toString(discardedVal)

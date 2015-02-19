@@ -218,7 +218,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   private void handleHttpQuery(final TSDB tsdb, final Channel chan, final HttpRequest req) {
     tsdStats.getHttp_rpcs_received().inc();
     final HttpQuery query = new HttpQuery(tsdb, req, chan, tsdStats);
-    if (!tsdb.getConfig().enable_chunked_requests() && req.isChunked()) {
+    if (!tsdb.getConfig().getBoolean("tsd.http.request.enable_chunked") && req.isChunked()) {
       logError(query, "Received an unsupported chunked request: "
                + query.request());
       query.badRequest("Chunked request not supported.");

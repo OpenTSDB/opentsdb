@@ -123,66 +123,6 @@ public class Config {
     this.setDefaults();
   }
 
-  /** @return the auto_metric value */
-  public boolean auto_metric() {
-    return this.getBoolean("tsd.core.auto_create_metrics");
-  }
-  
-  /** @return the auto_tagk value */
-  public boolean auto_tagk() {
-    return this.getBoolean("tsd.core.auto_create_tagks");
-  }
-  
-  /** @return the auto_tagv value */
-  public boolean auto_tagv() {
-    return this.getBoolean("tsd.core.auto_create_tagvs");
-  }
-  
-  /** @return the enable_compaction value */
-  public boolean enable_compactions() {
-    return this.getBoolean("tsd.storage.enable_compaction");
-  }
-  
-  /** @return whether or not to record new TSMeta objects in real time */
-  public boolean enable_realtime_ts() { 
-    return this.getBoolean("tsd.core.meta.enable_realtime_ts");
-  }
-  
-  /** @return whether or not record new UIDMeta objects in real time */
-  public boolean enable_realtime_uid() { 
-    return this.getBoolean("tsd.core.meta.enable_realtime_uid");
-  }
-  
-  /** @return whether or not to increment TSUID counters */
-  public boolean enable_tsuid_incrementing() { 
-    return this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
-  }
-  
-  /** @return whether or not to record a 1 for every TSUID */
-  public boolean enable_tsuid_tracking() {
-    return this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
-  }
-  
-  /** @return whether or not chunked requests are supported */
-  public boolean enable_chunked_requests() {
-    return this.getBoolean("tsd.http.request.enable_chunked");
-  }
-  
-  /** @return max incoming chunk size in bytes */
-  public int max_chunked_requests() {
-    return this.getInt("tsd.http.request.max_chunk");
-  }
-
-  /** @return true if duplicate values should be fixed */
-  public boolean fix_duplicates() {
-    return this.getBoolean("tsd.storage.fix_duplicates");
-  }
-
-  /** @return whether or not to process new or updated TSMetas through trees */
-  public boolean enable_tree_processing() {
-    return this.getBoolean("tsd.core.tree.enable_processing");
-  }
-  
   /**
    * Allows for modifying properties after creation or loading.
    * 
@@ -395,8 +335,7 @@ public class Config {
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.stats.canonical", "false");
     default_map.put("tsd.storage.adapter", "HBase");
-    default_map.put("tsd.storage.cassandra.clusters", "127.0.0.1, " +
-            "127.0.0.2:9043");
+    default_map.put("tsd.storage.cassandra.clusters", "127.0.0.1, 127.0.0.2:9043");
     default_map.put("tsd.storage.fix_duplicates", "false");
     default_map.put("tsd.storage.flush_interval", "1000");
     default_map.put("tsd.storage.hbase.data_table", "tsdb");

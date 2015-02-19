@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -70,7 +69,6 @@ public final class DataPointsClientExecuteQueryTest {
   public static final String METRIC_2 = "sys.cpu.nice";
   public static final String WEB_02 = "web02";
   public static final String WILDCARD = "*";
-  public static final String ENABLE_COMPACTIONS = "enable_compactions";
   public static final String E22700000001000001 = "00000150E22700000001000001";
   public static final String E23510000001000001 = "00000150E23510000001000001";
   public static final String E24320000001000001 = "00000150E24320000001000001";
@@ -647,9 +645,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMixedSingleTSPostCompaction() throws Exception {
     storeMixedTimeSeriesSeconds();
 
-    final Field compact = Config.class.getDeclaredField(ENABLE_COMPACTIONS);
-    compact.setAccessible(true);
-    compact.set(config, true);
+    config.overrideConfig("tsd.storage.enable_compaction", "TRUE");
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
@@ -755,9 +751,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runCompactPostQuery() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
 
-    final Field compact = Config.class.getDeclaredField(ENABLE_COMPACTIONS);
-    compact.setAccessible(true);
-    compact.set(config, true);
+    config.overrideConfig("tsd.storage.enable_compaction", "TRUE");
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
@@ -867,9 +861,7 @@ public final class DataPointsClientExecuteQueryTest {
     note.setDescription(DESCRIPTION);
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final Field compact = Config.class.getDeclaredField(ENABLE_COMPACTIONS);
-    compact.setAccessible(true);
-    compact.set(config, true);
+    config.overrideConfig("tsd.storage.enable_compaction", "TRUE");
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
