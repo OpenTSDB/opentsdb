@@ -33,7 +33,7 @@ public class UniqueIdClientTest {
   @Before
   public void before() throws Exception {
     config = new Config(false);
-    config.setFixDuplicates(true); // TODO(jat): test both ways
+    config.overrideConfig("tsd.storage.fix_duplicates", "TRUE"); // TODO(jat): test both ways
 
     ObjectGraph.create(new TestModule(config)).inject(this);
   }

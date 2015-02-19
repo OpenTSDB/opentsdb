@@ -104,7 +104,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Before
   public void before() throws Exception {
     config = new Config(false);
-    config.setFixDuplicates(true);  // TODO(jat): test both ways
+    config.overrideConfig("tsd.storage.fix_duplicates", "TRUE"); // TODO(jat): test both ways
 
     ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 

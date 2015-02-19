@@ -56,47 +56,6 @@ public class Config {
   public static final boolean IS_WINDOWS = 
       System.getProperty("os.name", "").contains("Windows");
   
-  // These are accessed often so need a set address for fast access (faster
-  // than accessing the map. Their value will be changed when the config is 
-  // loaded
-  // NOTE: edit the setDefaults() method if you add a public field
-
-  /** tsd.core.auto_create_metrics */
-  private boolean auto_metric = false;
-
-  /** tsd.core.auto_create_tagk */
-  private boolean auto_tagk = true;
-  
-  /** tsd.core.auto_create_tagv */
-  private boolean auto_tagv = true;
-  
-  /** tsd.storage.enable_compaction */
-  private boolean enable_compactions = true;
-
-  /** tsd.core.meta.enable_realtime_ts */
-  private boolean enable_realtime_ts = false;
-  
-  /** tsd.core.meta.enable_realtime_uid */
-  private boolean enable_realtime_uid = false;
-  
-  /** tsd.core.meta.enable_tsuid_incrementing */
-  private boolean enable_tsuid_incrementing = false;
-  
-  /** tsd.core.meta.enable_tsuid_tracking */
-  private boolean enable_tsuid_tracking = false;
-  
-  /** tsd.http.request.enable_chunked */
-  private boolean enable_chunked_requests = false;
-
-  /** tsd.storage.fix_duplicates */
-  private boolean fix_duplicates = false;
-
-  /** tsd.http.request.max_chunk */
-  private int max_chunked_requests = 4096; 
-  
-  /** tsd.core.tree.enable_processing */
-  private boolean enable_tree_processing = false;
-  
   /**
    * The list of properties configured to their defaults or modified by users
    */
@@ -128,7 +87,6 @@ public class Config {
           String> overrides) throws IOException {
     this(auto_load_config);
     this.properties.putAll(overrides);
-    loadStaticVariables();
   }
 
   /**
@@ -167,74 +125,62 @@ public class Config {
 
   /** @return the auto_metric value */
   public boolean auto_metric() {
-    return this.auto_metric;
+    return this.getBoolean("tsd.core.auto_create_metrics");
   }
   
   /** @return the auto_tagk value */
   public boolean auto_tagk() {
-    return auto_tagk;
+    return this.getBoolean("tsd.core.auto_create_tagks");
   }
   
   /** @return the auto_tagv value */
   public boolean auto_tagv() {
-    return auto_tagv;
-  }
-  
-  /** @param auto_metric whether or not to auto create metrics */
-  public void setAutoMetric(boolean auto_metric) {
-    this.auto_metric = auto_metric;
-    properties.put("tsd.core.auto_create_metrics", 
-        Boolean.toString(auto_metric));
+    return this.getBoolean("tsd.core.auto_create_tagvs");
   }
   
   /** @return the enable_compaction value */
   public boolean enable_compactions() {
-    return this.enable_compactions;
+    return this.getBoolean("tsd.storage.enable_compaction");
   }
   
   /** @return whether or not to record new TSMeta objects in real time */
   public boolean enable_realtime_ts() { 
-    return enable_realtime_ts;
+    return this.getBoolean("tsd.core.meta.enable_realtime_ts");
   }
   
   /** @return whether or not record new UIDMeta objects in real time */
   public boolean enable_realtime_uid() { 
-    return enable_realtime_uid;
+    return this.getBoolean("tsd.core.meta.enable_realtime_uid");
   }
   
   /** @return whether or not to increment TSUID counters */
   public boolean enable_tsuid_incrementing() { 
-    return enable_tsuid_incrementing;
+    return this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
   }
   
   /** @return whether or not to record a 1 for every TSUID */
   public boolean enable_tsuid_tracking() {
-    return enable_tsuid_tracking;
+    return this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
   }
   
   /** @return whether or not chunked requests are supported */
   public boolean enable_chunked_requests() {
-    return this.enable_chunked_requests;
+    return this.getBoolean("tsd.http.request.enable_chunked");
   }
   
   /** @return max incoming chunk size in bytes */
   public int max_chunked_requests() {
-    return this.max_chunked_requests;
+    return this.getInt("tsd.http.request.max_chunk");
   }
 
   /** @return true if duplicate values should be fixed */
   public boolean fix_duplicates() {
-    return fix_duplicates;
-  }
-
-  /** @param fix_duplicates true if duplicate values should be fixed */
-  public void setFixDuplicates(final boolean fix_duplicates) {
-    this.fix_duplicates = fix_duplicates;
+    return this.getBoolean("tsd.storage.fix_duplicates");
   }
 
   /** @return whether or not to process new or updated TSMetas through trees */
   public boolean enable_tree_processing() {
-    return enable_tree_processing;
+    return this.getBoolean("tsd.core.tree.enable_processing");
   }
   
   /**
@@ -249,7 +195,6 @@ public class Config {
    */
   public void overrideConfig(final String property, final String value) {
     this.properties.put(property, value);
-    loadStaticVariables();
   }
 
   /**
@@ -375,7 +320,7 @@ public class Config {
    * @param property The property to search for
    * @return True if the property exists and has a value, not an empty string
    */
-  public final boolean hasProperty(final String property) {
+  public final boolean hasPath(final String property) {
     final String val = this.properties.get(property);
     if (val == null)
       return false;
@@ -473,8 +418,6 @@ public class Config {
       if (!properties.containsKey(entry.getKey()))
         properties.put(entry.getKey(), entry.getValue());
     }
-
-    loadStaticVariables();
   }
 
   /**
@@ -549,29 +492,6 @@ public class Config {
       }
     }
     return false;
-  }
-
-  /**
-   * Loads the static class variables for values that are called often. This
-   * should be called any time the configuration changes.
-   */
-  protected void loadStaticVariables() {
-    auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
-    auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
-    auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
-    enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
-    enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
-    enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
-    enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
-    enable_tsuid_incrementing = 
-      this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
-    enable_tsuid_tracking = 
-      this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
-    if (this.hasProperty("tsd.http.request.max_chunk")) {
-      max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
-    }
-    enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
-    fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
   }
   
   /**

@@ -106,7 +106,7 @@ public class TSDB {
     treetable = toBytes(config.getString("tsd.storage.hbase.tree_table"));
     meta_table = toBytes(config.getString("tsd.storage.hbase.meta_table"));
 
-    if (config.hasProperty("tsd.core.timezone")) {
+    if (config.hasPath("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
 

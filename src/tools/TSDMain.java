@@ -105,7 +105,7 @@ final class TSDMain {
       usage(argp, "Missing cache directory", 1);
     }
     try {
-      if (!config.hasProperty("tsd.network.port"))
+      if (!config.hasPath("tsd.network.port"))
         usage(argp, "Missing network port", 1);
       config.getInt("tsd.network.port");
     } catch (NumberFormatException nfe) {
@@ -125,7 +125,7 @@ final class TSDMain {
     final ServerSocketChannelFactory factory;
     if (config.getBoolean("tsd.network.async_io")) {
       int workers = Runtime.getRuntime().availableProcessors() * 2;
-      if (config.hasProperty("tsd.network.worker_threads")) {
+      if (config.hasPath("tsd.network.worker_threads")) {
         try {
         workers = config.getInt("tsd.network.worker_threads");
         } catch (NumberFormatException nfe) {
@@ -148,7 +148,7 @@ final class TSDMain {
       final ServerBootstrap server = new ServerBootstrap(factory);
 
       server.setPipelineFactory(new PipelineFactory(tsdb));
-      if (config.hasProperty("tsd.network.backlog")) {
+      if (config.hasPath("tsd.network.backlog")) {
         server.setOption("backlog", config.getInt("tsd.network.backlog")); 
       }
       server.setOption("child.tcpNoDelay", 
@@ -160,7 +160,7 @@ final class TSDMain {
 
       // null is interpreted as the wildcard address.
       InetAddress bindAddress = null;
-      if (config.hasProperty("tsd.network.bind")) {
+      if (config.hasPath("tsd.network.bind")) {
         bindAddress = InetAddress.getByName(config.getString("tsd.network.bind"));
       }
 

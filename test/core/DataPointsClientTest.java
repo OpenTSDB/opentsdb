@@ -33,7 +33,7 @@ public class DataPointsClientTest {
     MockitoAnnotations.initMocks(this);
 
     final Config config = new Config(false);
-    config.setFixDuplicates(true); // TODO(jat): test both ways
+    config.overrideConfig("tsd.storage.fix_duplicates", "TRUE"); // TODO(jat): test both ways
 
     final ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore(config));
     store = objectGraph.get(MemoryStore.class);

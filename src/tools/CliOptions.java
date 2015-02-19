@@ -102,9 +102,6 @@ final class CliOptions {
 
     // load CLI overloads
     overloadConfig(argp, config);
-    // the auto metric is recorded to a class boolean flag since it's used so
-    // often. We have to set it manually after overriding.
-    config.setAutoMetric(config.getBoolean("tsd.core.auto_create_metrics"));
     return config;
   }
   
