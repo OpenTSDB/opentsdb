@@ -81,13 +81,18 @@ rm -rf %{buildroot}
 
 %post
 
-ln -s %{_datarootdir}/opentsdb/etc/opentsdb /etc/opentsdb
-ln -s %{_datarootdir}/opentsdb/etc/init.d/opentsdb /etc/init.d/opentsdb
+if [ $1 -eq 1 ]; then
+  # we're installing the first version of this package
+  ln -s %{_datarootdir}/opentsdb/etc/opentsdb /etc/opentsdb
+  ln -s %{_datarootdir}/opentsdb/etc/init.d/opentsdb /etc/init.d/opentsdb
+fi
 exit 0
 
 %postun
 
-rm -rf /etc/opentsdb
-rm -rf /etc/init.d/opentsdb
-
+if [ $1 -eq 0 ]; then
+  # we're removing last version of this package
+  rm -rf /etc/opentsdb
+  rm -rf /etc/init.d/opentsdb
+fi
 exit 0
