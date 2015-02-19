@@ -6,11 +6,13 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.net.HostAndPort;
 import net.opentsdb.stats.Metrics;
+import net.opentsdb.storage.DatabaseTests;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Config;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -24,6 +26,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+@Category(DatabaseTests.class)
 public class TestCassandraStore {
 
     private CassandraStore store;

@@ -24,6 +24,7 @@ import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
 
+import net.opentsdb.storage.hbase.HBaseStore;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -53,7 +54,7 @@ public class TestUID {
   private static final Method fsck;
   static {
     try {
-      fsck = UidManager.class.getDeclaredMethod("fsck", TsdbStore.class,
+      fsck = UidManager.class.getDeclaredMethod("fsck", HBaseStore.class,
           byte[].class, boolean.class, boolean.class);
       fsck.setAccessible(true);
     } catch (Exception e) {

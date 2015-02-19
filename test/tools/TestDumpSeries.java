@@ -25,6 +25,7 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 
+import net.opentsdb.storage.hbase.HBaseStore;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -64,8 +65,8 @@ public class TestDumpSeries {
   private static final Method doDump;
   static {
     try {
-      doDump = DumpSeries.class.getDeclaredMethod("doDump", TSDB.class, 
-          TsdbStore.class, byte[].class, boolean.class, boolean.class,
+      doDump = DumpSeries.class.getDeclaredMethod("doDump", TSDB.class,
+              HBaseStore.class, byte[].class, boolean.class, boolean.class,
           String[].class);
       doDump.setAccessible(true);
     } catch (Exception e) {

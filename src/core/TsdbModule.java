@@ -7,7 +7,6 @@ import dagger.Provides;
 import net.opentsdb.search.DefaultSearchPlugin;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchPluginDescriptor;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;

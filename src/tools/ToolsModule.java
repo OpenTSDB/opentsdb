@@ -1,6 +1,5 @@
 package net.opentsdb.tools;
 
-import com.codahale.metrics.MetricRegistry;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.TsdbModule;

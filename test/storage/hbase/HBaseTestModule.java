@@ -1,12 +1,10 @@
 package net.opentsdb.storage.hbase;
 
-import com.codahale.metrics.MetricRegistry;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.TsdbModule;
-import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.utils.Config;
-import org.hbase.async.HBaseClient;
 
 import java.io.IOException;
 
@@ -18,14 +16,11 @@ import java.io.IOException;
  * @see net.opentsdb.TestModule
  */
 @Module(includes = TsdbModule.class,
-        overrides = true)
+        overrides = true,
+        injects = {
+                IdQueryRunnerTest.class
+        })
 class HBaseTestModule {
-  private final HBaseClient client;
-
-  HBaseTestModule(final HBaseClient client) {
-    this.client = client;
-  }
-
   @Provides
   Config provideConfig() {
     try {
@@ -36,7 +31,7 @@ class HBaseTestModule {
   }
 
   @Provides
-  TsdbStore provideStore(final Config config) {
-    return new HBaseStore(client, config);
+  StoreDescriptor provideStoreDescriptor() {
+    return new HBaseStoreDescriptor();
   }
 }

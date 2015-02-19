@@ -4,6 +4,7 @@ import com.stumbleupon.async.Deferred;
 
 import dagger.ObjectGraph;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.DatabaseTests;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TestTsdbStore;
 import net.opentsdb.storage.TsdbStore;
@@ -22,6 +23,7 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
@@ -57,6 +59,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({HBaseClient.class, Scanner.class})
+@Category(DatabaseTests.class)
 public class TestHBaseStore extends TestTsdbStore {
   private static final byte[] MAX_UID = {0};
 
@@ -756,8 +759,7 @@ public class TestHBaseStore extends TestTsdbStore {
    * Mocks HBase Branch stuff
    */
   private void setupBranchHBaseStore(final boolean store) {
-    client = PowerMockito.mock(HBaseClient.class);
-    ObjectGraph objectGraph = ObjectGraph.create(new HBaseTestModule(client));
+    ObjectGraph objectGraph = ObjectGraph.create(new HBaseTestModule());
     tsdb_store = objectGraph.get(TsdbStore.class);
     tsdb = objectGraph.get(TSDB.class);
 

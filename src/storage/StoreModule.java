@@ -5,7 +5,6 @@ import com.google.common.base.Strings;
 
 import dagger.Module;
 import dagger.Provides;
-import net.opentsdb.core.TsdbModule;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.utils.Config;
 

@@ -29,6 +29,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 import org.hbase.async.Bytes;
@@ -70,8 +71,8 @@ public class TestTextImporter {
   private static final Method importFile;
   static {
     try {
-      importFile = TextImporter.class.getDeclaredMethod("importFile", 
-          TsdbStore.class, TSDB.class, String.class);
+      importFile = TextImporter.class.getDeclaredMethod("importFile",
+              HBaseStore.class, TSDB.class, String.class);
       importFile.setAccessible(true);
     } catch (Exception e) {
       throw new RuntimeException("Failed in static initializer", e);

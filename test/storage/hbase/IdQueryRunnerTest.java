@@ -1,33 +1,28 @@
 package net.opentsdb.storage.hbase;
 
-import com.codahale.metrics.MetricRegistry;
-import net.opentsdb.stats.Metrics;
+import dagger.ObjectGraph;
 import net.opentsdb.storage.DatabaseTests;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import javax.inject.Inject;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
 @Category(DatabaseTests.class)
 public class IdQueryRunnerTest {
-  private TsdbStore store;
+  @Inject TsdbStore store;
 
   @Before
   public void setUp() throws Exception {
-    Config config = new Config(false);
-    Metrics metrics = new Metrics(new MetricRegistry());
-
-    HBaseStoreDescriptor descriptor = new HBaseStoreDescriptor();
-    store = descriptor.createStore(config, metrics);
+    ObjectGraph.create(new HBaseTestModule()).inject(this);
 
     store.allocateUID("olga1", UniqueIdType.METRIC);
     store.allocateUID("olga2", UniqueIdType.TAGK);
