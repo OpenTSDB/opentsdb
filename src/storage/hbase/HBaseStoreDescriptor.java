@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import com.google.common.primitives.Shorts;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.StoreDescriptor;
@@ -46,9 +47,14 @@ public class HBaseStoreDescriptor extends StoreDescriptor {
             config.getString("tsd.storage.hbase.zk_quorum"),
             config.getString("tsd.storage.hbase.zk_basedir"));
 
-    short flushInterval = Shorts.checkedCast(
-            config.getInt("tsd.storage.flush_interval"));
-    client.setFlushInterval(flushInterval);
+    try {
+      short flushInterval = Shorts.checkedCast(
+              config.getInt("tsd.storage.flush_interval"));
+      client.setFlushInterval(flushInterval);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidConfigException(config.getValue("tsd.storage.flush_interval"),
+              "The flush interval must be 0 < interval < " + Short.MAX_VALUE);
+    }
 
     return client;
   }

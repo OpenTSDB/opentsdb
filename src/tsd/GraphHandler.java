@@ -103,6 +103,17 @@ final class GraphHandler implements HttpRpc {
     this.cacheDirectory = checkCacheDirectory(config);
   }
 
+  /**
+   * Make sure that the configured cache directory exists and is writable.
+   *
+   * @param config The configuration that specifies the cache directory
+   * @return A {@link java.io.File} instance that points to the cache directory
+   * @throws com.typesafe.config.ConfigException      if any config variables
+   *                                                  are missing or are
+   *                                                  malformed
+   * @throws net.opentsdb.core.InvalidConfigException if something with the
+   *                                                  directory is wrong
+   */
   private File checkCacheDirectory(final Config config) {
     File cacheDirectory = new File(config.getString("tsd.http.cachedir"));
 

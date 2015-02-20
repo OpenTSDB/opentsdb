@@ -2,11 +2,12 @@ package net.opentsdb.storage.cassandra;
 
 import com.datastax.driver.core.Cluster;
 import com.google.auto.service.AutoService;
-import com.google.common.base.Splitter;
 import com.google.common.net.HostAndPort;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreDescriptor;
 import com.typesafe.config.Config;
+
+import java.util.List;
 
 /**
  * Use this to create a CassandraStore object. Will throw
@@ -20,17 +21,15 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
                                     final Metrics metrics) {
     Cluster.Builder builder = Cluster.builder();
 
-    Iterable<String> nodes = Splitter.on(',').trimResults()
-            .omitEmptyStrings()
-            .split(config.getString("tsd.storage.cassandra.clusters"));
+    List<String> nodes = config.getStringList("tsd.storage.cassandra.nodes");
 
     for (String node : nodes) {
       try {
-        HostAndPort host = HostAndPort.fromString(node);
+        HostAndPort host = HostAndPort.fromString(node)
+                .withDefaultPort(CassandraConst.DEFAULT_CASSANDRA_PORT);
 
-        builder.addContactPoint(host.getHostText()).withPort(host
-                .getPortOrDefault(CassandraConst
-                        .DEFAULT_CASSANDRA_PORT));
+        builder.addContactPoint(host.getHostText())
+                .withPort(host.getPort());
       } catch (IllegalArgumentException e) {
         throw new IllegalArgumentException("There was an error in the" +
                 " configuration file in the field 'tsd.storage" +

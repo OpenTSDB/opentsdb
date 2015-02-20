@@ -52,7 +52,7 @@ public class TestCassandraStore {
       config = ConfigFactory.load()
               .withValue("tsd.storage.adapter",
                       ConfigValueFactory.fromAnyRef("Cassandra"))
-              .withValue("tsd.storage.cassandra.clusters",
+              .withValue("tsd.storage.cassandra.nodes",
                       ConfigValueFactory.fromAnyRef("127.0.0.1"));
     }
 
@@ -142,7 +142,7 @@ public class TestCassandraStore {
 
         Iterable<String> nodes = Splitter.on(',').trimResults()
                 .omitEmptyStrings()
-                .split(config.getString("tsd.storage.cassandra.clusters"));
+                .split(config.getString("tsd.storage.cassandra.nodes"));
 
         for (String node : nodes) {
             try {
