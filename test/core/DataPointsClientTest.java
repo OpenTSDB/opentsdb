@@ -1,5 +1,7 @@
 package net.opentsdb.core;
 
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.search.SearchPlugin;
@@ -7,7 +9,7 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,8 +34,9 @@ public class DataPointsClientTest {
   public void before() throws Exception {
     MockitoAnnotations.initMocks(this);
 
-    final Config config = new Config(false);
-    config.overrideConfig("tsd.storage.fix_duplicates", "TRUE"); // TODO(jat): test both ways
+    final Config config = ConfigFactory.load()
+            .withValue("tsd.storage.fix_duplicates",
+                    ConfigValueFactory.fromAnyRef(true)); // TODO(jat): test both ways
 
     final ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore(config));
     store = objectGraph.get(MemoryStore.class);

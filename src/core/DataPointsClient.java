@@ -8,7 +8,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 
 import javax.inject.Inject;

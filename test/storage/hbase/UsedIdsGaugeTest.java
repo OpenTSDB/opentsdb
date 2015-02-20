@@ -2,7 +2,7 @@ package net.opentsdb.storage.hbase;
 
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.hbase.async.HBaseClient;
 import org.junit.Test;
 

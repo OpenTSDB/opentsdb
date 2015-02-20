@@ -3,10 +3,12 @@ package net.opentsdb.storage;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
+import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.storage.hbase.HBaseStoreDescriptor;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -40,24 +42,26 @@ public class StoreModuleTest {
     supplier = new StoreModule();
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test(expected = InvalidConfigException.class)
   public void testGetEmptyConfig() throws Exception {
-    config.overrideConfig("tsd.storage.adapter", "");
+    config = config.withValue("tsd.storage.adapter",
+            ConfigValueFactory.fromAnyRef(""));
     supplier.provideStoreDescriptor(config, storeDescriptors);
   }
 
   @Test
   public void testGetMatchingStore() throws Exception {
-    config.overrideConfig("tsd.storage.adapter",
-            "net.opentsdb.storage.hbase.HBaseStoreDescriptor");
+    config = config.withValue("tsd.storage.adapter",
+            ConfigValueFactory.fromAnyRef("net.opentsdb.storage.hbase.HBaseStoreDescriptor"));
     StoreDescriptor storeDescriptor =
             supplier.provideStoreDescriptor(config, storeDescriptors);
     assertTrue(storeDescriptor instanceof HBaseStoreDescriptor);
   }
 
-  @Test (expected = IllegalArgumentException.class)
+  @Test (expected = InvalidConfigException.class)
   public void testGetNoMatchingStore() throws Exception {
-    config.overrideConfig("tsd.storage.adapter", "FooBar4711");
+    config = config.withValue("tsd.storage.adapter",
+            ConfigValueFactory.fromAnyRef("FooBar4711"));
     supplier.provideStoreDescriptor(config, storeDescriptors);
   }
 

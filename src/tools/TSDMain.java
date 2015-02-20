@@ -12,13 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.concurrent.Executors;
 
+import com.typesafe.config.ConfigException;
 import dagger.ObjectGraph;
+import net.opentsdb.core.InvalidConfigException;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
@@ -30,39 +32,25 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.tsd.PipelineFactory;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 /**
  * Main class of the TSD, the Time Series Daemon.
  */
 final class TSDMain {
-
-  /** Prints usage and exits with the given retval. */
-  static void usage(final ArgP argp, final String errmsg, final int retval) {
-    System.err.println(errmsg);
-    System.err.println("Usage: tsd --port=PORT"
-      + " --staticroot=PATH --cachedir=PATH\n"
-      + "Starts the TSD, the Time Series Daemon");
-    if (argp != null) {
-      System.err.print(argp.usage());
-    }
-    System.exit(retval);
-  }
+  private static final Logger LOG = LoggerFactory.getLogger(TSDMain.class);
 
   private static final short DEFAULT_FLUSH_INTERVAL = 1000;
-  private static final boolean DONT_CREATE = false;
-  private static final boolean CREATE_IF_NEEDED = true;
-  private static final boolean MUST_BE_WRITEABLE = true;
 
   public static void main(String[] args) throws IOException {
-    Logger log = LoggerFactory.getLogger(TSDMain.class);
-    log.info("Starting.");
-    log.info(BuildData.revisionString());
-    log.info(BuildData.buildString());
+    LOG.info("Starting.");
+    LOG.info(BuildData.revisionString());
+    LOG.info(BuildData.buildString());
+
     try {
       System.in.close();  // Release a FD we don't need.
     } catch (Exception e) {
-      log.warn("Failed to close stdin", e);
+      LOG.warn("Failed to close stdin", e);
     }
 
     final ArgP argp = new ArgP();
@@ -90,96 +78,153 @@ final class TSDMain {
     ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
     // get a config object
     Config config = objectGraph.get(Config.class);
-    
-    // check for the required parameters
-    try {
-      if (config.getString("tsd.http.staticroot").isEmpty())
-        usage(argp, "Missing static root directory", 1);
-    } catch(NullPointerException npe) {
-      usage(argp, "Missing static root directory", 1);
-    }
-    try {
-      if (config.getString("tsd.http.cachedir").isEmpty())
-        usage(argp, "Missing cache directory", 1);
-    } catch(NullPointerException npe) {
-      usage(argp, "Missing cache directory", 1);
-    }
-    try {
-      if (!config.hasPath("tsd.network.port"))
-        usage(argp, "Missing network port", 1);
-      config.getInt("tsd.network.port");
-    } catch (NumberFormatException nfe) {
-      usage(argp, "Invalid network port setting", 1);
-    }
 
-    // validate the cache and staticroot directories
-    try {
-      checkDirectory(config.getString("tsd.http.staticroot"), 
-          !MUST_BE_WRITEABLE, DONT_CREATE);
-      checkDirectory(config.getString("tsd.http.cachedir"),
-          MUST_BE_WRITEABLE, CREATE_IF_NEEDED);
-    } catch (IllegalArgumentException e) {
-      usage(argp, e.getMessage(), 3);
-    }
-
-    final ServerSocketChannelFactory factory;
-    if (config.getBoolean("tsd.network.async_io")) {
-      int workers = Runtime.getRuntime().availableProcessors() * 2;
-      if (config.hasPath("tsd.network.worker_threads")) {
-        try {
-        workers = config.getInt("tsd.network.worker_threads");
-        } catch (NumberFormatException nfe) {
-          usage(argp, "Invalid worker thread count", 1);
-        }
-      }
-      factory = new NioServerSocketChannelFactory(
-          Executors.newCachedThreadPool(), Executors.newCachedThreadPool(),
-          workers);
-    } else {
-      factory = new OioServerSocketChannelFactory(
-          Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
-    }
-    
+    ServerSocketChannelFactory factory = null;
     TSDB tsdb = null;
+
     try {
       tsdb = objectGraph.get(TSDB.class);
-
       registerShutdownHook(tsdb);
+
+      factory = getServerSocketChannelFactory(config);
       final ServerBootstrap server = new ServerBootstrap(factory);
+      server.shutdown();
 
       server.setPipelineFactory(new PipelineFactory(tsdb));
       if (config.hasPath("tsd.network.backlog")) {
-        server.setOption("backlog", config.getInt("tsd.network.backlog")); 
+        server.setOption("backlog", config.getInt("tsd.network.backlog"));
       }
-      server.setOption("child.tcpNoDelay", 
+      server.setOption("child.tcpNoDelay",
           config.getBoolean("tsd.network.tcp_no_delay"));
-      server.setOption("child.keepAlive", 
+      server.setOption("child.keepAlive",
           config.getBoolean("tsd.network.keep_alive"));
-      server.setOption("reuseAddress", 
+      server.setOption("reuseAddress",
           config.getBoolean("tsd.network.reuse_address"));
 
-      // null is interpreted as the wildcard address.
-      InetAddress bindAddress = null;
-      if (config.hasPath("tsd.network.bind")) {
-        bindAddress = InetAddress.getByName(config.getString("tsd.network.bind"));
-      }
-
-      // we validated the network port config earlier
-      final InetSocketAddress addr = new InetSocketAddress(bindAddress,
-          config.getInt("tsd.network.port"));
+      final InetSocketAddress addr = getBindSocketAddress(config);
       server.bind(addr);
-      log.info("Ready to serve on {}", addr);
+      LOG.info("Ready to serve on {}", addr);
+    } catch (InvalidConfigException e) {
+      shutdown(LOG, factory, tsdb);
+      System.err.println(e.getMessage());
+      LOG.error(e.getMessage());
+      System.exit(1);
+    } catch (ConfigException e) {
+      shutdown(LOG, factory, tsdb);
+      System.err.println(e.getMessage());
+      LOG.error(e.getMessage());
+      System.exit(1);
     } catch (Throwable e) {
-      factory.releaseExternalResources();
-      try {
-        if (tsdb != null)
-          tsdb.shutdown().joinUninterruptibly();
-      } catch (Exception e2) {
-        log.error("Failed to shutdown HBase client", e2);
-      }
+      shutdown(LOG, factory, tsdb);
       throw new RuntimeException("Initialization failed", e);
     }
     // The server is now running in separate threads, we can exit main.
+  }
+
+  /**
+   * Get a {@link org.jboss.netty.channel.socket.ServerSocketChannelFactory}
+   * that has been configured based on the provided {@link
+   * com.typesafe.config.Config}.
+   *
+   * @param config The config to base the returned instance on
+   * @return A configured {@link org.jboss.netty.channel.socket.ServerSocketChannelFactory}
+   * @throws com.typesafe.config.ConfigException if the provided config does not
+   *                                             have the key {@code tsd.network.async_io}
+   *                                             or it is not parsable into a
+   *                                             {@code boolean}
+   */
+  private static ServerSocketChannelFactory getServerSocketChannelFactory(final Config config) {
+    if (config.getBoolean("tsd.network.async_io")) {
+      return new NioServerSocketChannelFactory(
+              Executors.newCachedThreadPool(),
+              Executors.newCachedThreadPool(),
+              getNumberOfWorkers(config));
+    } else {
+      return new OioServerSocketChannelFactory(
+              Executors.newCachedThreadPool(),
+              Executors.newCachedThreadPool());
+    }
+  }
+
+  /**
+   * Get the number of I/O threads to use when using async I/O.
+   *
+   * @param config The configuration to read from
+   * @return The number of threads to use
+   * @throws com.typesafe.config.ConfigException If there is a configuration
+   *                                             variable for the number of
+   *                                             worker threads but it is
+   *                                             malformed
+   */
+  private static int getNumberOfWorkers(final Config config) {
+    if (config.hasPath("tsd.network.worker_threads")) {
+      return config.getInt("tsd.network.worker_threads");
+    } else {
+      return Runtime.getRuntime().availableProcessors() * 2;
+    }
+  }
+
+  /**
+   * Get the {@link java.net.InetSocketAddress} to bind to based on the provided
+   * config.
+   *
+   * @param config The config that specifies what socket address to bind to
+   * @return A configured and validated {@link java.net.InetSocketAddress}
+   * instance
+   * @throws net.opentsdb.core.InvalidConfigException if the address in the
+   *                                                  config could not be
+   *                                                  resolved or if the port
+   *                                                  was not within the valid
+   *                                                  range
+   * @throws com.typesafe.config.ConfigException      if the port or host
+   *                                                  address in the config was
+   *                                                  missing or malformed
+   */
+  private static InetSocketAddress getBindSocketAddress(final Config config) {
+    int bindPort = config.getInt("tsd.network.port");
+    try {
+      return new InetSocketAddress(getBindAddress(config), bindPort);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidConfigException(config.getValue("tsd.network.port"),
+              "The configured bind port (" + bindPort + ") is not within the valid range");
+    }
+  }
+
+  /**
+   * Get the {@link java.net.InetAddress} to bind to based on the provided
+   * config.
+   *
+   * @param config The config that specifies what address to bind to
+   * @return A configured and validated {@link java.net.InetAddress} instance
+   * @throws net.opentsdb.core.InvalidConfigException if the address in the
+   *                                                  config could not be
+   *                                                  resolved
+   * @throws com.typesafe.config.ConfigException      if the address in the
+   *                                                  config was missing or
+   *                                                  malformed
+   */
+  private static InetAddress getBindAddress(final Config config) {
+    String bindAddress = config.getString("tsd.network.bind");
+    try {
+      return InetAddress.getByName(bindAddress);
+    } catch (UnknownHostException e) {
+      throw new InvalidConfigException(config.getValue("tsd.network.bind"),
+              "Unable to resolve the configured bind address (" +bindAddress + ")");
+    }
+  }
+
+  private static void shutdown(final Logger log,
+                               final ServerSocketChannelFactory factory,
+                               final TSDB tsdb) {
+    if (factory != null)
+      factory.releaseExternalResources();
+
+    try {
+      if (tsdb != null)
+        tsdb.shutdown().joinUninterruptibly();
+    } catch (Exception e2) {
+      log.error("Failed to shutdown HBase client", e2);
+    }
   }
 
   private static void registerShutdownHook(final TSDB tsdb) {
@@ -198,31 +243,5 @@ final class TSDMain {
       }
     }
     Runtime.getRuntime().addShutdownHook(new TSDBShutdown());
-  }
-
-  /**
-   * Verifies a directory and checks to see if it's writeable or not if
-   * configured
-   * @param dir The path to check on
-   * @param need_write Set to true if the path needs write access
-   * @param create Set to true if the directory should be created if it does not
-   *          exist
-   * @throws IllegalArgumentException if the path is empty, if it's not there
-   *           and told not to create it or if it needs write access and can't
-   *           be written to
-   */
-  private static void checkDirectory(final String dir,
-      final boolean need_write, final boolean create) {
-    if (dir.isEmpty())
-      throw new IllegalArgumentException("Directory path is empty");
-    final File f = new File(dir);
-    if (!f.exists() && !(create && f.mkdirs())) {
-      throw new IllegalArgumentException("No such directory [" + dir + "]");
-    } else if (!f.isDirectory()) {
-      throw new IllegalArgumentException("Not a directory [" + dir + "]");
-    } else if (need_write && !f.canWrite()) {
-      throw new IllegalArgumentException("Cannot write to directory [" + dir
-          + "]");
-    }
   }
 }

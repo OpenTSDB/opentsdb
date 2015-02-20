@@ -3,7 +3,7 @@ package net.opentsdb.tools;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.TsdbModule;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import javax.inject.Singleton;
 import java.io.IOException;

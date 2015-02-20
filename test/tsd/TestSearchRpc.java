@@ -39,7 +39,7 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import net.opentsdb.utils.Pair;
 
 import com.codahale.metrics.MetricRegistry;

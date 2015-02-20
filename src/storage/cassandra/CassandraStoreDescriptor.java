@@ -6,7 +6,7 @@ import com.google.common.base.Splitter;
 import com.google.common.net.HostAndPort;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreDescriptor;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 /**
  * Use this to create a CassandraStore object. Will throw

@@ -5,11 +5,13 @@ import com.datastax.driver.core.Cluster;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.net.HostAndPort;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.DatabaseTests;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -47,11 +49,11 @@ public class TestCassandraStore {
 
     @BeforeClass
     public static void oneTimeSetUp() throws IOException {
-        Map<String, String> overrides = new HashMap<String, String>();
-        overrides.put("tsd.storage.adapter", "Cassandra");
-        overrides.put("tsd.storage.cassandra.clusters", "127.0.0.1");
-
-        config = new Config(false, overrides);
+      config = ConfigFactory.load()
+              .withValue("tsd.storage.adapter",
+                      ConfigValueFactory.fromAnyRef("Cassandra"))
+              .withValue("tsd.storage.cassandra.clusters",
+                      ConfigValueFactory.fromAnyRef("127.0.0.1"));
     }
 
     /**

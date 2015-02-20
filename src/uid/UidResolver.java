@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.Iterator;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;

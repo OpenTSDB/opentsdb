@@ -19,10 +19,11 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import com.codahale.metrics.MetricRegistry;
 import org.hbase.async.HBaseClient;
@@ -47,6 +48,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.google.common.net.HttpHeaders;
 
+import javax.inject.Inject;
+
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
@@ -55,46 +58,52 @@ import com.google.common.net.HttpHeaders;
   HttpQuery.class, MessageEvent.class, DefaultHttpResponse.class, 
   ChannelHandlerContext.class })
 public final class TestRpcHandler {
-  private TSDB tsdb = null;
   private ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
   private MessageEvent message = mock(MessageEvent.class);
-  private MetricRegistry metricRegistry;
   private TsdStats tsdStats;
+
+  @Inject Config config;
+  @Inject TSDB tsdb;
+  @Inject MetricRegistry metricRegistry;
 
   @Before
   public void before() throws Exception {
-    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
-    tsdb = objectGraph.get(TSDB.class);
-
-    metricRegistry = new MetricRegistry();
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
     tsdStats = new TsdStats(metricRegistry);
   }
   
   @Test
   public void ctorDefaults() {
-    final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
-    assertNotNull(rpc);
+    assertNotNull(new RpcHandler(tsdb, metricRegistry, tsdStats));
   }
   
   @Test
   public void ctorCORSPublic() {
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
-    final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
-    assertNotNull(rpc);
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("*"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
+    assertNotNull(new RpcHandler(tsdb, metricRegistry, tsdStats));
   }
   
   @Test
   public void ctorCORSSeparated() {
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
-        "aurther.com,dent.net,beeblebrox.org");
-    final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
-    assertNotNull(rpc);
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("aurther.com,dent.net,beeblebrox.org"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
+    assertNotNull(new RpcHandler(tsdb, metricRegistry, tsdStats));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void ctorCORSPublicAndDomains() {
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
-        "*,aurther.com,dent.net,beeblebrox.org");
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("*,aurther.com,dent.net,beeblebrox.org"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
     new RpcHandler(tsdb, metricRegistry, tsdStats);
   }
   
@@ -142,8 +151,12 @@ public final class TestRpcHandler {
         }        
       }
     );
-    
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
+
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("*"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
     final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
     rpc.messageReceived(ctx, message);
   }
@@ -168,9 +181,12 @@ public final class TestRpcHandler {
         }        
       }
     );
-    
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
-        "aurther.com,dent.net,42.com,beeblebrox.org");
+
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("aurther.com,dent.net,42.com,beeblebrox.org"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
     final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
     rpc.messageReceived(ctx, message);
   }
@@ -194,9 +210,12 @@ public final class TestRpcHandler {
         }        
       }
     );
-    
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
-        "aurther.com,dent.net,beeblebrox.org");
+
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("aurther.com,dent.net,beeblebrox.org"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
     final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
     rpc.messageReceived(ctx, message);
   }
@@ -268,8 +287,12 @@ public final class TestRpcHandler {
         }        
       }
     );
-    
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", "*");
+
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("*"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
     final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
     rpc.messageReceived(ctx, message);
   }
@@ -294,9 +317,12 @@ public final class TestRpcHandler {
         }        
       }
     );
-    
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
-      "aurther.com,dent.net,42.com,beeblebrox.org");
+
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("aurther.com,dent.net,42.com,beeblebrox.org"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
     final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
     rpc.messageReceived(ctx, message);
   }
@@ -320,9 +346,12 @@ public final class TestRpcHandler {
         }        
       }
     );
-    
-    tsdb.getConfig().overrideConfig("tsd.http.request.cors_domains", 
-      "aurther.com,dent.net,beeblebrox.org");
+
+    config = config.withValue("tsd.http.request.cors_domains",
+            ConfigValueFactory.fromAnyRef("aurther.com,dent.net,beeblebrox.org"));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
     final RpcHandler rpc = new RpcHandler(tsdb, metricRegistry, tsdStats);
     rpc.messageReceived(ctx, message);
   }

@@ -23,7 +23,7 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import net.opentsdb.utils.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

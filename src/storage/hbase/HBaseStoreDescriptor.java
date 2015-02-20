@@ -3,13 +3,14 @@ package net.opentsdb.storage.hbase;
 import com.codahale.metrics.MetricRegistry;
 import com.google.auto.service.AutoService;
 
+import com.google.common.primitives.Shorts;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import org.hbase.async.HBaseClient;
 
@@ -45,7 +46,9 @@ public class HBaseStoreDescriptor extends StoreDescriptor {
             config.getString("tsd.storage.hbase.zk_quorum"),
             config.getString("tsd.storage.hbase.zk_basedir"));
 
-    client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
+    short flushInterval = Shorts.checkedCast(
+            config.getInt("tsd.storage.flush_interval"));
+    client.setFlushInterval(flushInterval);
 
     return client;
   }

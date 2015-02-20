@@ -32,7 +32,7 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.storage.hbase.HBaseStore;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 /**
  * Tool to dump the data straight from TsdbStore.

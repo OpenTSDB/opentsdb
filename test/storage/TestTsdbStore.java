@@ -14,7 +14,7 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;

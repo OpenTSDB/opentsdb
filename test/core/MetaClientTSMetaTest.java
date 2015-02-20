@@ -1,15 +1,16 @@
 package net.opentsdb.core;
 
-import com.google.common.collect.Maps;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.DeferredGroupException;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -22,7 +23,6 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.inject.Inject;
-import java.util.Map;
 
 import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertEquals;
@@ -47,10 +47,11 @@ import static org.mockito.Mockito.when;
 
   @Before
   public void before() throws Exception {
-    Map<String, String> overrides = Maps.newHashMap();
-    overrides.put("tsd.core.meta.enable_tsuid_incrementing", "TRUE");
-    overrides.put("tsd.core.meta.enable_realtime_ts", "TRUE");
-    final Config config = new Config(false, overrides);
+    final Config config = ConfigFactory.load()
+            .withValue("tsd.core.meta.enable_tsuid_incrementing",
+                    ConfigValueFactory.fromAnyRef(true))
+            .withValue("tsd.core.meta.enable_realtime_ts",
+                    ConfigValueFactory.fromAnyRef(true));
 
     ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 

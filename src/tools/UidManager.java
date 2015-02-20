@@ -48,7 +48,7 @@ import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import net.opentsdb.uid.UniqueIdType;
 

@@ -16,13 +16,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -101,8 +103,9 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Before
   public void before() throws Exception {
-    config = new Config(false);
-    config.overrideConfig("tsd.storage.fix_duplicates", "TRUE"); // TODO(jat): test both ways
+    config = ConfigFactory.load()
+            .withValue("tsd.storage.fix_duplicates",
+                    ConfigValueFactory.fromAnyRef(true)); // TODO(jat): test both ways
 
     ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 
@@ -643,9 +646,15 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runMixedSingleTSPostCompaction() throws Exception {
-    storeMixedTimeSeriesSeconds();
+    config = ConfigFactory.load()
+            .withValue("tsd.storage.fix_duplicates",
+                    ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
+            .withValue("tsd.storage.enable_compaction",
+                    ConfigValueFactory.fromAnyRef(true));
 
-    config.overrideConfig("tsd.storage.enable_compaction", "TRUE");
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
+    storeMixedTimeSeriesSeconds();
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
@@ -749,9 +758,15 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runCompactPostQuery() throws Exception {
-    storeLongTimeSeriesSeconds(true, false);
+    config = ConfigFactory.load()
+            .withValue("tsd.storage.fix_duplicates",
+                    ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
+            .withValue("tsd.storage.enable_compaction",
+                    ConfigValueFactory.fromAnyRef(true));
 
-    config.overrideConfig("tsd.storage.enable_compaction", "TRUE");
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
+    storeLongTimeSeriesSeconds(true, false);
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);
@@ -853,6 +868,14 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runWithAnnotationPostCompact() throws Exception {
+    config = ConfigFactory.load()
+            .withValue("tsd.storage.fix_duplicates",
+                    ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
+            .withValue("tsd.storage.enable_compaction",
+                    ConfigValueFactory.fromAnyRef(true));
+
+    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+
     storeLongTimeSeriesSeconds(true, false);
 
     final Annotation note = new Annotation();
@@ -860,8 +883,6 @@ public final class DataPointsClientExecuteQueryTest {
     note.setStartTime(START_TIME_3);
     note.setDescription(DESCRIPTION);
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-
-    config.overrideConfig("tsd.storage.enable_compaction", "TRUE");
 
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put(HOST, WEB_01);

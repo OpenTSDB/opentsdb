@@ -43,7 +43,7 @@ import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 /**
  * Tool to look for and fix corrupted data in a TSDB. FSCK can be used to

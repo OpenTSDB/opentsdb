@@ -28,7 +28,6 @@ import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.WritableDataPoints;
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 

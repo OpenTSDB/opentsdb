@@ -53,7 +53,7 @@ import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import net.opentsdb.utils.JSONException;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;

@@ -14,15 +14,16 @@ package net.opentsdb.meta;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -51,10 +52,11 @@ public final class TestTSUIDQuery {
   
   @Before
   public void before() throws Exception {
-    Map<String, String> overrides = new HashMap<String, String>();
-    overrides.put("tsd.core.meta.enable_tsuid_incrementing", "TRUE");
-    overrides.put("tsd.core.meta.enable_realtime_ts", "TRUE");
-    Config config = new Config(false, overrides);
+    Config config = ConfigFactory.load()
+            .withValue("tsd.core.meta.enable_tsuid_incrementing",
+                    ConfigValueFactory.fromAnyRef(true))
+            .withValue("tsd.core.meta.enable_realtime_ts",
+                    ConfigValueFactory.fromAnyRef(true));
 
     ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore(config));
     final MemoryStore tsdb_store = objectGraph.get(MemoryStore.class);

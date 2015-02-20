@@ -19,7 +19,7 @@ import java.nio.charset.Charset;
 import java.util.HashMap;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import com.codahale.metrics.MetricRegistry;
 import org.jboss.netty.buffer.ChannelBuffers;

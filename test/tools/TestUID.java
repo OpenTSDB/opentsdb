@@ -22,7 +22,6 @@ import java.lang.reflect.Method;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.storage.TsdbStore;
 
 import net.opentsdb.storage.hbase.HBaseStore;
 import org.hbase.async.Bytes;

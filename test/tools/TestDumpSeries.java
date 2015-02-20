@@ -23,7 +23,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.TsdbStore;
 
 import net.opentsdb.storage.hbase.HBaseStore;
 import org.hbase.async.Bytes;

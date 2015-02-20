@@ -5,15 +5,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
-import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -32,8 +33,9 @@ public class UniqueIdClientTest {
 
   @Before
   public void before() throws Exception {
-    config = new Config(false);
-    config.overrideConfig("tsd.storage.fix_duplicates", "TRUE"); // TODO(jat): test both ways
+    config = ConfigFactory.load()
+            .withValue("tsd.storage.fix_duplicates",
+                    ConfigValueFactory.fromAnyRef(false)); // TODO(jat): test both ways
 
     ObjectGraph.create(new TestModule(config)).inject(this);
   }
@@ -246,7 +248,6 @@ public class UniqueIdClientTest {
 
   @Test
   public void getTagNames() throws Exception {
-    setupStorage();
     setupResolveIds();
 
     final List<byte[]> ids = new ArrayList<byte[]>(1);
@@ -258,7 +259,6 @@ public class UniqueIdClientTest {
 
   @Test (expected = NoSuchUniqueId.class)
   public void getTagNamesNSUI() throws Exception {
-    setupStorage();
     setupResolveIds();
 
     final List<byte[]> ids = new ArrayList<byte[]>(1);
@@ -268,7 +268,6 @@ public class UniqueIdClientTest {
 
   @Test
   public void getTagNamesEmptyList() throws Exception {
-    setupStorage();
     setupResolveIds();
 
     final List<byte[]> ids = new ArrayList<byte[]>(0);
@@ -280,7 +279,6 @@ public class UniqueIdClientTest {
 
   @Test (expected = IllegalArgumentException.class)
   public void getTagNamesWrongLength() throws Exception {
-    setupStorage();
     setupResolveIds();
 
     final List<byte[]> ids = new ArrayList<byte[]>(1);
@@ -290,7 +288,6 @@ public class UniqueIdClientTest {
 
   @Test
   public void getOrCreateAllCreate() throws Exception {
-    setupStorage();
     setupResolveAll();
 
     final Map<String, String> tags = new HashMap<String, String>(1);
@@ -303,7 +300,6 @@ public class UniqueIdClientTest {
 
   @Test
   public void getOrCreateTagkAllowed() throws Exception {
-    setupStorage();
     setupResolveAll();
 
     final Map<String, String> tags = new HashMap<String, String>(1);
@@ -315,8 +311,12 @@ public class UniqueIdClientTest {
 
   @Test
   public void getOrCreateTagkNotAllowedGood() throws Exception {
-    setupStorage();
-    config.overrideConfig("tsd.core.auto_create_tagks", "false");
+    config = ConfigFactory.load()
+            .withValue("tsd.core.auto_create_tagks",
+                    ConfigValueFactory.fromAnyRef(false));
+
+    ObjectGraph.create(new TestModule(config)).inject(this);
+
     setupResolveAll();
 
     final Map<String, String> tags = new HashMap<String, String>(1);
@@ -328,8 +328,12 @@ public class UniqueIdClientTest {
 
   @Test (expected = NoSuchUniqueName.class)
   public void getOrCreateTagkNotAllowedBlocked() throws Exception {
-    setupStorage();
-    config.overrideConfig("tsd.core.auto_create_tagks", "false");
+    config = ConfigFactory.load()
+            .withValue("tsd.core.auto_create_tagks",
+                    ConfigValueFactory.fromAnyRef(false));
+
+    ObjectGraph.create(new TestModule(config)).inject(this);
+
     setupResolveAll();
 
     final Map<String, String> tags = new HashMap<String, String>(1);
@@ -339,7 +343,6 @@ public class UniqueIdClientTest {
 
   @Test
   public void getOrCreateTagvAllowed() throws Exception {
-    setupStorage();
     setupResolveAll();
 
     final Map<String, String> tags = new HashMap<String, String>(1);
@@ -351,8 +354,12 @@ public class UniqueIdClientTest {
 
   @Test
   public void getOrCreateTagvNotAllowedGood() throws Exception {
-    setupStorage();
-    config.overrideConfig("tsd.core.auto_create_tagvs", "false");
+    config = ConfigFactory.load()
+            .withValue("tsd.core.auto_create_tagvs",
+                    ConfigValueFactory.fromAnyRef(false));
+
+    ObjectGraph.create(new TestModule(config)).inject(this);
+
     setupResolveAll();
 
     final Map<String, String> tags = new HashMap<String, String>(1);
@@ -364,8 +371,12 @@ public class UniqueIdClientTest {
 
   @Test (expected = NoSuchUniqueName.class)
   public void getOrCreateTagvNotAllowedBlocked() throws Exception {
-    setupStorage();
-    config.overrideConfig("tsd.core.auto_create_tagvs", "false");
+    config = ConfigFactory.load()
+            .withValue("tsd.core.auto_create_tagvs",
+                    ConfigValueFactory.fromAnyRef(false));
+
+    ObjectGraph.create(new TestModule(config)).inject(this);
+
     setupResolveAll();
 
     final Map<String, String> tags = new HashMap<String, String>(1);
@@ -374,11 +385,6 @@ public class UniqueIdClientTest {
   }
 
   // PRIVATE helpers to setup unit tests
-
-  private void setupStorage() throws Exception {
-    config = new Config(false);
-    tsdb_store = new MemoryStore();
-  }
 
   private void setupResolveIds() {
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);

@@ -35,6 +35,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
+import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -73,12 +75,13 @@ final class GraphHandler implements HttpRpc {
   private final ThreadPoolExecutor gnuplot;
 
   private final TsdStats.GraphHandlerStats stats;
+  private final File cacheDirectory;
 
   /**
    * Constructor.
    * @param tsdStats
    */
-  public GraphHandler(final TsdStats tsdStats) {
+  public GraphHandler(final TsdStats tsdStats, final Config config) {
     // Gnuplot is mostly CPU bound and does only a little bit of IO at the
     // beginning to read the input data and at the end to write its output.
     // We want to avoid running too many Gnuplot instances concurrently as
@@ -97,6 +100,34 @@ final class GraphHandler implements HttpRpc {
     // of LBQ because it creates far fewer references.
 
     this.stats = checkNotNull(tsdStats).getGraphHandlerStats();
+    this.cacheDirectory = checkCacheDirectory(config);
+  }
+
+  private File checkCacheDirectory(final Config config) {
+    File cacheDirectory = new File(config.getString("tsd.http.cachedir"));
+
+    if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) {
+      throw new InvalidConfigException(config.getValue("tsd.http.cachedir"),
+              "The configured cache directory ("
+                      + cacheDirectory.getAbsolutePath()
+                      + ") does not exist and could not be created");
+    }
+
+    if (!cacheDirectory.isDirectory()) {
+      throw new InvalidConfigException(config.getValue("tsd.http.cachedir"),
+              "The configured cache directory ("
+                      + cacheDirectory.getAbsolutePath()
+                      + ") is not a directory");
+    }
+
+    if (!cacheDirectory.canWrite()) {
+      throw new InvalidConfigException(config.getValue("tsd.http.cachedir"),
+              "The configured cache directory ("
+                      + cacheDirectory.getAbsolutePath()
+                      + ") is not writable");
+    }
+
+    return cacheDirectory;
   }
 
   @Override
@@ -341,8 +372,7 @@ final class GraphHandler implements HttpRpc {
     qs.remove("json");
     qs.remove("ascii");
 
-    return new File(tsdb.getConfig().getString("tsd.http.cachedir"),
-            Integer.toHexString(qs.hashCode()));
+    return new File(cacheDirectory, Integer.toHexString(qs.hashCode()));
   }
 
   /**

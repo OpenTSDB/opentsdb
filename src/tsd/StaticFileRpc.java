@@ -15,8 +15,9 @@ package net.opentsdb.tsd;
 import java.io.File;
 import java.io.IOException;
 
+import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 /** Implements the "/s" endpoint to serve static files. */
 final class StaticFileRpc implements HttpRpc {
@@ -33,8 +34,10 @@ final class StaticFileRpc implements HttpRpc {
     staticRootDirectory = new File(config.getString("tsd.http.staticroot"));
 
     if (!staticRootDirectory.isDirectory()) {
-      // TODO(luuse): should throw a ConfigException instead
-      throw new IllegalArgumentException();
+      throw new InvalidConfigException(config.getValue("tsd.http.staticroot"),
+              "The configured static root directory ("
+                      + staticRootDirectory.getAbsolutePath()
+                      + ") is not a directory");
     }
   }
 

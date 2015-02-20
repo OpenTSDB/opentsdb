@@ -35,7 +35,7 @@ import net.opentsdb.core.StringCoder;
 
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
