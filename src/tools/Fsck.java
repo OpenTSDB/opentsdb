@@ -623,7 +623,6 @@ final class Fsck {
 
         unique_columns.put(dpToKeep.kv.qualifier(), dpToKeep.kv.value());
         valid_datapoints.getAndIncrement();
-        duplicates.getAndIncrement();
         has_uncorrected_value_error |= Internal.isFloat(dpToKeep.qualifier()) ?
             fsckFloat(dpToKeep) : fsckInteger(dpToKeep);
 
