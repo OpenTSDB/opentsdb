@@ -431,7 +431,9 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       final String thistag = tagname.getValue();
       if (thistag.equals(tag)) {
         return;  // This tag is already in the table.
-      } if (thistag.isEmpty() && tagvalue.getValue().isEmpty()) {
+      }
+
+      if (thistag.isEmpty() && tagvalue.getValue().isEmpty()) {
         unused_row = row;
         break;
       }
@@ -553,7 +555,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
    * @return An initialized LocalRateOptions instance based on the specification
    * @since 2.0
    */
-  static final public LocalRateOptions parseRateOptions(boolean rate, String spec) {
+  public static final LocalRateOptions parseRateOptions(boolean rate, String spec) {
     if (!rate || spec.length() < 6) {
       return new LocalRateOptions();
     }
