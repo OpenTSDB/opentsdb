@@ -1,6 +1,6 @@
 package net.opentsdb.search;
 
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 public abstract class SearchPluginDescriptor {
   /**

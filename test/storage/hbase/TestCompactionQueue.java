@@ -24,19 +24,19 @@ import static org.mockito.Mockito.when;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.stumbleupon.async.Deferred;
 
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.json.StorageModule;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -72,9 +72,9 @@ public final class TestCompactionQueue {
   public void before() throws Exception {
     tsdb_store = mock(HBaseStore.class);
 
-    Map<String,String> overrides = Maps.newHashMap();
-    overrides.put("tsd.storage.fix_duplicates", "TRUE");
-    config = new Config(false, overrides);
+    config = ConfigFactory.load()
+            .withValue("tsd.storage.fix_duplicates",
+                    ConfigValueFactory.fromAnyRef(true));
 
     // Stub out the compaction thread, so it doesn't even start.
     PowerMockito.whenNew(CompactionQueue.Thrd.class).withNoArguments()
@@ -442,7 +442,7 @@ public final class TestCompactionQueue {
   @Test (expected = IllegalDataException.class)
   public void msSameAsSecond() throws Exception {
     tsdb_store = mock(HBaseStore.class);
-    config = new Config(false);
+    config = ConfigFactory.load();
 
     compactionq = new CompactionQueue(tsdb_store, jsonMapper, config, TABLE, FAMILY);
 
@@ -535,7 +535,7 @@ public final class TestCompactionQueue {
   @Test (expected = IllegalDataException.class)
   public void overlappingDataPoints() throws Exception {
     tsdb_store = mock(HBaseStore.class);
-    config = new Config(false);
+    config = ConfigFactory.load();
 
     compactionq = new CompactionQueue(tsdb_store, jsonMapper, config, TABLE, FAMILY);
 
@@ -834,7 +834,7 @@ public final class TestCompactionQueue {
   @Test (expected = IllegalDataException.class)
   public void secondCompactOverwrite() throws Exception {
     tsdb_store = mock(HBaseStore.class);
-    config = new Config(false);
+    config = ConfigFactory.load();
 
     compactionq = new CompactionQueue(tsdb_store, jsonMapper, config, TABLE, FAMILY);
 

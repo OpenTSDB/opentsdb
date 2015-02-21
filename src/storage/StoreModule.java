@@ -1,12 +1,10 @@
 package net.opentsdb.storage;
 
-
-import com.google.common.base.Strings;
-
 import dagger.Module;
 import dagger.Provides;
+import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.stats.Metrics;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import java.util.ServiceLoader;
 
@@ -39,11 +37,6 @@ public class StoreModule {
   StoreDescriptor provideStoreDescriptor(final Config config,
                                          final Iterable<StoreDescriptor> storePlugins) {
     String adapter_type = config.getString("tsd.storage.adapter");
-    if (Strings.isNullOrEmpty(adapter_type)) {
-      throw new IllegalArgumentException("The config could not find the" +
-          " field 'tsd.storage.adapter', please make sure it was " +
-          "configured correctly.");
-    }
 
     for (final StoreDescriptor storeDescriptor : storePlugins) {
       String pluginName = storeDescriptor.getClass().getCanonicalName();
@@ -52,9 +45,8 @@ public class StoreModule {
         return storeDescriptor;
     }
 
-    throw new IllegalArgumentException("The config could not find a valid" +
-        " value for the field 'tsd.storage.adapter', please make sure" +
-        " it was configured correctly. It was '" + adapter_type + "'.");
+    throw new InvalidConfigException(config.getValue("tsd.storage.adapter"),
+            "Found no storage adapter that matches '" + adapter_type + "'");
   }
 
   /**

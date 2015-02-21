@@ -35,6 +35,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.codahale.metrics.Timer;
+import com.typesafe.config.Config;
+import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.core.JsonParseException;
@@ -73,12 +75,13 @@ final class GraphHandler implements HttpRpc {
   private final ThreadPoolExecutor gnuplot;
 
   private final TsdStats.GraphHandlerStats stats;
+  private final File cacheDirectory;
 
   /**
    * Constructor.
    * @param tsdStats
    */
-  public GraphHandler(final TsdStats tsdStats) {
+  public GraphHandler(final TsdStats tsdStats, final Config config) {
     // Gnuplot is mostly CPU bound and does only a little bit of IO at the
     // beginning to read the input data and at the end to write its output.
     // We want to avoid running too many Gnuplot instances concurrently as
@@ -97,6 +100,45 @@ final class GraphHandler implements HttpRpc {
     // of LBQ because it creates far fewer references.
 
     this.stats = checkNotNull(tsdStats).getGraphHandlerStats();
+    this.cacheDirectory = checkCacheDirectory(config);
+  }
+
+  /**
+   * Make sure that the configured cache directory exists and is writable.
+   *
+   * @param config The configuration that specifies the cache directory
+   * @return A {@link java.io.File} instance that points to the cache directory
+   * @throws com.typesafe.config.ConfigException      if any config variables
+   *                                                  are missing or are
+   *                                                  malformed
+   * @throws net.opentsdb.core.InvalidConfigException if something with the
+   *                                                  directory is wrong
+   */
+  private File checkCacheDirectory(final Config config) {
+    File cacheDirectory = new File(config.getString("tsd.http.cachedir"));
+
+    if (!cacheDirectory.exists() && !cacheDirectory.mkdirs()) {
+      throw new InvalidConfigException(config.getValue("tsd.http.cachedir"),
+              "The configured cache directory ("
+                      + cacheDirectory.getAbsolutePath()
+                      + ") does not exist and could not be created");
+    }
+
+    if (!cacheDirectory.isDirectory()) {
+      throw new InvalidConfigException(config.getValue("tsd.http.cachedir"),
+              "The configured cache directory ("
+                      + cacheDirectory.getAbsolutePath()
+                      + ") is not a directory");
+    }
+
+    if (!cacheDirectory.canWrite()) {
+      throw new InvalidConfigException(config.getValue("tsd.http.cachedir"),
+              "The configured cache directory ("
+                      + cacheDirectory.getAbsolutePath()
+                      + ") is not writable");
+    }
+
+    return cacheDirectory;
   }
 
   @Override
@@ -124,7 +166,7 @@ final class GraphHandler implements HttpRpc {
 
   private void doGraph(final TSDB tsdb, final HttpQuery query)
     throws IOException {
-    final String basepath = getGnuplotBasePath(tsdb, query);
+    final File basepath = getGnuplotBasePath(tsdb, query);
     long start_time = DateTime.parseDateTimeString(
       query.getRequiredQueryStringParam("start"),
       query.getQueryStringParam("tz"));
@@ -150,7 +192,7 @@ final class GraphHandler implements HttpRpc {
       end_time /= 1000;
     }
     final int max_age = computeMaxAge(query, start_time, end_time, now);
-    if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
+    if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath.getAbsolutePath())) {
       return;
     }
     UidFormatter formatter = new UidFormatter(tsdb);
@@ -204,7 +246,7 @@ final class GraphHandler implements HttpRpc {
     tsdbqueries = null;  // free()
 
     if (query.hasQueryStringParam("ascii")) {
-      respondAsciiQuery(formatter, query, max_age, basepath, plot);
+      respondAsciiQuery(formatter, query, max_age, basepath.getAbsolutePath(), plot);
       return;
     }
 
@@ -259,7 +301,7 @@ final class GraphHandler implements HttpRpc {
     private final HttpQuery query;
     private final int max_age;
     private final Plot plot;
-    private final String basepath;
+    private final File basepath;
     private final HashSet<String>[] aggregated_tags;
     private final int npoints;
     private final TsdStats.GraphHandlerStats stats;
@@ -267,7 +309,7 @@ final class GraphHandler implements HttpRpc {
     public RunGnuplot(final HttpQuery query,
                       final int max_age,
                       final Plot plot,
-                      final String basepath,
+                      final File basepath,
                       final HashSet<String>[] aggregated_tags,
                       final int npoints,
                       final TsdStats.GraphHandlerStats stats) {
@@ -275,10 +317,7 @@ final class GraphHandler implements HttpRpc {
       this.max_age = max_age;
       this.plot = plot;
       this.stats = stats;
-      if (IS_WINDOWS)
-        this.basepath = basepath.replace("\\", "\\\\").replace("/", "\\\\");
-      else
-        this.basepath = basepath;
+      this.basepath = basepath;
       this.aggregated_tags = aggregated_tags;
       this.npoints = npoints;
     }
@@ -313,9 +352,9 @@ final class GraphHandler implements HttpRpc {
         results.put("etags", aggregated_tags);
         results.put("timing", query.processingTimeMillis());
         query.sendReply(JSON.serializeToBytes(results));
-        writeFile(query, basepath + ".json", JSON.serializeToBytes(results));
+        writeFile(query, basepath.getAbsolutePath() + ".json", JSON.serializeToBytes(results));
       } else if (query.hasQueryStringParam("png")) {
-        query.sendFile(basepath + ".png", max_age);
+        query.sendFile(basepath.getAbsolutePath() + ".png", max_age);
       } else {
         query.internalError(new Exception("Should never be here!"));
       }
@@ -333,7 +372,7 @@ final class GraphHandler implements HttpRpc {
   }
 
   /** Returns the base path to use for the Gnuplot files. */
-  private String getGnuplotBasePath(final TSDB tsdb, final HttpQuery query) {
+  private File getGnuplotBasePath(final TSDB tsdb, final HttpQuery query) {
     final Map<String, List<String>> q = query.getQueryString();
     q.remove("ignore");
     // Super cheap caching mechanism: hash the query string.
@@ -343,8 +382,8 @@ final class GraphHandler implements HttpRpc {
     qs.remove("png");
     qs.remove("json");
     qs.remove("ascii");
-    return tsdb.getConfig().getDirectoryName("tsd.http.cachedir") + 
-        Integer.toHexString(qs.hashCode());
+
+    return new File(cacheDirectory, Integer.toHexString(qs.hashCode()));
   }
 
   /**
@@ -701,10 +740,10 @@ final class GraphHandler implements HttpRpc {
    * @throws GnuplotException if Gnuplot returns non-zero.
    */
   static int runGnuplot(final HttpQuery query,
-                        final String basepath,
+                        final File basepath,
                         final Plot plot,
                         final TsdStats.GraphHandlerStats stats) throws IOException {
-    final int nplotted = plot.dumpToFiles(basepath);
+    final int nplotted = plot.dumpToFiles(basepath.getAbsolutePath());
     final Timer.Context timer = stats.getGnuplotlatency().time();
 
     final Process gnuplot = new ProcessBuilder(GNUPLOT,

@@ -87,17 +87,25 @@ class TsdStats {
   }
 
   static class GraphHandlerStats {
-    /** Number of times we had to do all the work up to running Gnuplot. */
+    /**
+     * Number of times we had to do all the work up to running Gnuplot.
+     */
     private final Counter graphs_generated;
-    /** Number of times a graph request was served from disk, no work needed. */
+    /**
+     * Number of times a graph request was served from disk, no work needed.
+     */
     private final Counter graphs_diskcache_hit;
-    /** Keep track of the latency of graphing requests. */
+    /**
+     * Keep track of the latency of graphing requests.
+     */
     private final Timer graphlatency;
-    /** Keep track of the latency (in ms) introduced by running Gnuplot. */
+    /**
+     * Keep track of the latency (in ms) introduced by running Gnuplot.
+     */
     private final Timer gnuplotlatency;
 
     private GraphHandlerStats(MetricRegistry registry) {
-      graphs_generated = registry.counter(name("http.graph.requests", tag("cache","miss")));
+      graphs_generated = registry.counter(name("http.graph.requests", tag("cache", "miss")));
       graphs_diskcache_hit = registry.counter(name("http.graph.requests", tag("cache", "disk")));
       graphlatency = registry.timer(name("http.latency", tag("type", "graph")));
       gnuplotlatency = registry.timer(name("http.latency", tag("type", "gnuplot")));

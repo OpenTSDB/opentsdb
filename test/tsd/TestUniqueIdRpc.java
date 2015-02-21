@@ -13,9 +13,9 @@
 package net.opentsdb.tsd;
 
 import java.nio.charset.Charset;
-import java.util.HashMap;
-import java.util.Map;
 
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MemoryStore;
@@ -23,7 +23,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import org.hbase.async.Bytes;
@@ -56,9 +56,9 @@ public final class TestUniqueIdRpc {
   
   @Before
   public void before() throws Exception {
-    Map<String, String> properties = new HashMap<String, String>();
-    properties.put("tsd.http.show_stack_trace", "true");
-    Config config = new Config(false, properties);
+    final Config config = ConfigFactory.load()
+            .withValue("tsd.http.show_stack_trace",
+                    ConfigValueFactory.fromAnyRef(true));
 
     ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore(config));
     tsdb_store = objectGraph.get(MemoryStore.class);

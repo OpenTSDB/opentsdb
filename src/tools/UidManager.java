@@ -48,7 +48,7 @@ import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import net.opentsdb.uid.UniqueIdType;
 
@@ -200,7 +200,7 @@ final class UidManager {
     } else if (args[0].equals("treesync")) {
       // check for the UID table existence
       try {
-        if (!tsdb.getConfig().enable_tree_processing()) {
+        if (!tsdb.getConfig().getBoolean("tsd.core.tree.enable_processing")) {
           LOG.warn("Tree processing is disabled");
           return 0;
         }

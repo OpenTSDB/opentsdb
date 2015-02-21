@@ -12,7 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 /**
  * Various options to use during fsck over OpenTSDB tables

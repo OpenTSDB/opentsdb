@@ -120,7 +120,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
 
     if (mode.equals("rw") || mode.equals("ro")) {
       http_commands.put("", new HomePage());
-      final StaticFileRpc staticfile = new StaticFileRpc();
+      final StaticFileRpc staticfile = new StaticFileRpc(tsdb.getConfig());
       http_commands.put("favicon.ico", staticfile);
       http_commands.put("s", staticfile);
 
@@ -143,7 +143,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("api/suggest", suggest_rpc);
 
       http_commands.put("logs", new LogsRpc());
-      http_commands.put("q", new GraphHandler(this.tsdStats));
+      http_commands.put("q", new GraphHandler(this.tsdStats, tsdb.getConfig()));
       http_commands.put("api/serializers", new Serializers());
       http_commands.put("api/uid", new UniqueIdRpc());
       http_commands.put("api/query", new QueryRpc());
@@ -218,7 +218,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   private void handleHttpQuery(final TSDB tsdb, final Channel chan, final HttpRequest req) {
     tsdStats.getHttp_rpcs_received().inc();
     final HttpQuery query = new HttpQuery(tsdb, req, chan, tsdStats);
-    if (!tsdb.getConfig().enable_chunked_requests() && req.isChunked()) {
+    if (!tsdb.getConfig().getBoolean("tsd.http.request.enable_chunked") && req.isChunked()) {
       logError(query, "Received an unsupported chunked request: "
                + query.request());
       query.badRequest("Chunked request not supported.");

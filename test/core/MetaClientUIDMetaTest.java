@@ -1,6 +1,7 @@
 package net.opentsdb.core;
 
 import com.google.common.eventbus.EventBus;
+import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
 import net.opentsdb.meta.UIDMeta;
@@ -11,7 +12,7 @@ import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.IdCreatedEvent;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -60,7 +61,9 @@ public class MetaClientUIDMetaTest {
 
   @Test
   public void createdIdEventCreatesUIDMetaWhenEnabled() {
-    config.overrideConfig("tsd.core.meta.enable_realtime_uid", "true");
+    config = config.withValue("tsd.core.meta.enable_realtime_uid",
+            ConfigValueFactory.fromAnyRef(true));
+
     store = mock(TsdbStore.class);
     new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
     idEventBus.post(new IdCreatedEvent(new byte[]{0, 0, 1}, "test", UniqueIdType.METRIC));

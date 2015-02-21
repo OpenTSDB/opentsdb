@@ -53,7 +53,7 @@ import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import net.opentsdb.utils.JSONException;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -149,7 +149,7 @@ public class HBaseStore implements TsdbStore {
     this.client = checkNotNull(client);
     checkNotNull(config);
 
-    enable_compactions = config.enable_compactions();
+    enable_compactions = config.getBoolean("tsd.storage.enable_compaction");
 
     data_table_name = config.getString("tsd.storage.hbase.data_table").getBytes(HBaseConst.CHARSET);
     uid_table_name = config.getString("tsd.storage.hbase.uid_table").getBytes(HBaseConst.CHARSET);

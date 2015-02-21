@@ -1,12 +1,11 @@
 package net.opentsdb.storage.hbase;
 
+import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.TsdbModule;
 import net.opentsdb.storage.StoreDescriptor;
-import net.opentsdb.utils.Config;
-
-import java.io.IOException;
+import com.typesafe.config.Config;
 
 /**
  * This is the dagger module that should be used by all HBase tests. It provides
@@ -23,11 +22,7 @@ import java.io.IOException;
 class HBaseTestModule {
   @Provides
   Config provideConfig() {
-    try {
-      return new Config(false);
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to load config", e);
-    }
+    return ConfigFactory.load();
   }
 
   @Provides

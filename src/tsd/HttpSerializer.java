@@ -41,7 +41,7 @@ import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 /**
  * Abstract base class for Serializers; plugins that handle converting requests

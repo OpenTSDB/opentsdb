@@ -3,13 +3,15 @@ package net.opentsdb.storage.hbase;
 import com.codahale.metrics.MetricRegistry;
 import com.google.auto.service.AutoService;
 
+import com.google.common.primitives.Shorts;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.StoreDescriptor;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import org.hbase.async.HBaseClient;
 
@@ -45,7 +47,14 @@ public class HBaseStoreDescriptor extends StoreDescriptor {
             config.getString("tsd.storage.hbase.zk_quorum"),
             config.getString("tsd.storage.hbase.zk_basedir"));
 
-    client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
+    try {
+      short flushInterval = Shorts.checkedCast(
+              config.getInt("tsd.storage.flush_interval"));
+      client.setFlushInterval(flushInterval);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidConfigException(config.getValue("tsd.storage.flush_interval"),
+              "The flush interval must be 0 < interval < " + Short.MAX_VALUE);
+    }
 
     return client;
   }
@@ -53,10 +62,10 @@ public class HBaseStoreDescriptor extends StoreDescriptor {
 
   private void checkNecessaryTablesExist(final HBaseClient client,
                                          final Config config) {
-    final boolean enable_tree_processing = config.enable_tree_processing();
-    final boolean enable_realtime_ts = config.enable_realtime_ts();
-    final boolean enable_realtime_uid = config.enable_realtime_uid();
-    final boolean enable_tsuid_incrementing = config.enable_tsuid_incrementing();
+    final boolean enable_tree_processing = config.getBoolean("tsd.core.tree.enable_processing");
+    final boolean enable_realtime_ts = config.getBoolean("tsd.core.meta.enable_realtime_ts");
+    final boolean enable_realtime_uid = config.getBoolean("tsd.core.meta.enable_realtime_uid");
+    final boolean enable_tsuid_incrementing = config.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
 
     Deferred<Object> d = checkTableExists(client,
             config.getString("tsd.storage.hbase.data_table"));

@@ -1,5 +1,6 @@
 package net.opentsdb;
 
+import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.DataPointsClientExecuteQueryTest;
@@ -11,7 +12,8 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tools.TestDumpSeries;
 import net.opentsdb.tools.TestFsck;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
+import net.opentsdb.tsd.TestRpcHandler;
 
 import javax.inject.Singleton;
 
@@ -41,7 +43,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
                 MetaClientTSMetaTest.class,
                 TestTimeSeriesLookup.class,
                 TestDumpSeries.class,
-                TestFsck.class
+                TestFsck.class,
+                TestRpcHandler.class
         })
 public class TestModuleMemoryStore {
   private final Config config;
@@ -53,7 +56,7 @@ public class TestModuleMemoryStore {
   }
 
   public TestModuleMemoryStore() {
-    this(new Config());
+    this(ConfigFactory.load());
   }
 
   @Provides

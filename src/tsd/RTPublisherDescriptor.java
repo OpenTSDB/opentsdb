@@ -1,6 +1,6 @@
 package net.opentsdb.tsd;
 
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 public abstract class RTPublisherDescriptor {
   /**

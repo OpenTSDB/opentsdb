@@ -2,6 +2,7 @@ package net.opentsdb.storage.hbase;
 
 import com.stumbleupon.async.Deferred;
 
+import com.typesafe.config.ConfigFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.DatabaseTests;
@@ -14,7 +15,7 @@ import net.opentsdb.tree.TestBranch;
 import net.opentsdb.tree.TestTree;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
@@ -70,7 +71,7 @@ public class TestHBaseStore extends TestTsdbStore {
   @Before
   public void setUp() throws IOException {
     client = PowerMockito.mock(HBaseClient.class);
-    tsdb_store = new HBaseStore(client, new Config(false));
+    tsdb_store = new HBaseStore(client, ConfigFactory.load());
     foo_name = "foo";
     scanner = PowerMockito.mock(Scanner.class);
   }
@@ -253,7 +254,7 @@ public class TestHBaseStore extends TestTsdbStore {
   @Test(expected = NullPointerException.class)
   // Test what happens when config is Null
   public void constructorWithNullClient() throws IOException{
-    new HBaseStore(null, new Config(false));
+    new HBaseStore(null, ConfigFactory.load());
   }
 
   @PrepareForTest({Config.class, HBaseClient.class, Scanner.class})
@@ -264,7 +265,7 @@ public class TestHBaseStore extends TestTsdbStore {
     when(client.getFlushInterval()).thenReturn(flush_interval);
 
 
-    HBaseStore temp_store = new HBaseStore(client, new Config(false));
+    HBaseStore temp_store = new HBaseStore(client, ConfigFactory.load());
 
     assertEquals(flush_interval, temp_store.getFlushInterval());
   }

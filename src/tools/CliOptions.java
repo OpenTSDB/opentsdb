@@ -18,8 +18,10 @@ import java.util.Map;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.Level;
 
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 import org.slf4j.LoggerFactory;
 
 import org.jboss.netty.logging.InternalLoggerFactory;
@@ -96,16 +98,12 @@ final class CliOptions {
     final Config config;
     final String config_file = argp.get("--config", "");
     if (!config_file.isEmpty())
-      config = new Config(config_file);
+      config = ConfigFactory.load(config_file);
     else
-      config = new Config(true);
+      config = ConfigFactory.load();
 
     // load CLI overloads
-    overloadConfig(argp, config);
-    // the auto metric is recorded to a class boolean flag since it's used so
-    // often. We have to set it manually after overriding.
-    config.setAutoMetric(config.getBoolean("tsd.core.auto_create_metrics"));
-    return config;
+    return overloadConfig(argp, config);
   }
   
   /**
@@ -113,41 +111,53 @@ final class CliOptions {
    * @param config Configuration instance to override
    * @since 2.0
    */
-  static void overloadConfig(final ArgP argp, final Config config) {
-
+  static Config overloadConfig(final ArgP argp, Config config) {
     // loop and switch so we can map cli options to tsdb options
     for (Map.Entry<String, String> entry : argp.getParsed().entrySet()) {
       // map the overrides
-      if (entry.getKey().toLowerCase().equals("--auto-metric")) {
-        config.overrideConfig("tsd.core.auto_create_metrics", "true");
-      } else if (entry.getKey().toLowerCase().equals("--table")) {
-        config.overrideConfig("tsd.storage.hbase.data_table", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--uidtable")) {
-        config.overrideConfig("tsd.storage.hbase.uid_table", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--zkquorum")) {
-        config.overrideConfig("tsd.storage.hbase.zk_quorum",
-            entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--zkbasedir")) {
-        config.overrideConfig("tsd.storage.hbase.zk_basedir",
-            entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--port")) {
-        config.overrideConfig("tsd.network.port", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--staticroot")) {
-        config.overrideConfig("tsd.http.staticroot", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--cachedir")) {
-        config.overrideConfig("tsd.http.cachedir", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--flush-interval")) {
-        config.overrideConfig("tsd.core.flushinterval", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--backlog")) {
-        config.overrideConfig("tsd.network.backlog", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--bind")) {
-        config.overrideConfig("tsd.network.bind", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--async-io")) {
-        config.overrideConfig("tsd.network.async_io", entry.getValue());
-      } else if (entry.getKey().toLowerCase().equals("--worker-threads")) {
-        config.overrideConfig("tsd.network.worker_threads", entry.getValue());
+      if ("--auto-metric".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.core.auto_create_metrics",
+                ConfigValueFactory.fromAnyRef(true, "opentsdb --auto-metric"));
+      } else if ("--table".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.storage.hbase.data_table",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --table"));
+      } else if ("--uidtable".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.storage.hbase.uid_table",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --uidtable"));
+      } else if ("--zkquorum".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.storage.hbase.zk_quorum",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --zkquorum"));
+      } else if ("--zkbasedir".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.storage.hbase.zk_basedir",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --zkbasedir"));
+      } else if ("--port".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.network.port",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --port"));
+      } else if ("--staticroot".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.http.staticroot",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --staticroot"));
+      } else if ("--cachedir".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.http.cachedir",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --cachedir"));
+      } else if ("--flush-interval".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.core.flushinterval",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --flush-interval"));
+      } else if ("--backlog".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.network.backlog",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --backlog"));
+      } else if ("--bind".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.network.bind",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --bind"));
+      } else if ("--async-io".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.network.async_io",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --async-io"));
+      } else if ("--worker-threads".equals(entry.getKey().toLowerCase())) {
+        config = config.withValue("tsd.network.worker_threads",
+                ConfigValueFactory.fromAnyRef(entry.getValue(), "opentsdb --worker-threads"));
       }
     }
+
+    return config;
   }
   
   /** Changes the log level to 'WARN' unless --verbose is passed.  */

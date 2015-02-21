@@ -50,7 +50,7 @@ import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
 import net.opentsdb.uid.UidFormatter;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import net.opentsdb.utils.JSON;
 
 import net.opentsdb.uid.UniqueIdType;
@@ -897,13 +897,7 @@ class HttpJsonSerializer extends HttpSerializer {
    */
   @Override
   public ChannelBuffer formatConfigV1(final Config config) {
-    TreeMap<String, String> map = new TreeMap<String, String>(config.getMap());
-    for (Map.Entry<String, String> entry : map.entrySet()) {
-      if (entry.getKey().toUpperCase().contains("PASS")) {
-        map.put(entry.getKey(), "********");
-      }
-    }
-    return serializeJSON(map);
+    return serializeJSON(config.root());
   }
   
   /**

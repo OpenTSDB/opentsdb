@@ -21,7 +21,7 @@ import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import net.opentsdb.utils.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,7 +106,7 @@ public class TSDB {
     treetable = toBytes(config.getString("tsd.storage.hbase.tree_table"));
     meta_table = toBytes(config.getString("tsd.storage.hbase.meta_table"));
 
-    if (config.hasProperty("tsd.core.timezone")) {
+    if (config.hasPath("tsd.core.timezone")) {
       DateTime.setDefaultTimezone(config.getString("tsd.core.timezone"));
     }
 
@@ -118,7 +118,7 @@ public class TSDB {
     this.metaClient = checkNotNull(metaClient);
     this.dataPointsClient = checkNotNull(dataPointsClient);
 
-    LOG.debug(config.dumpConfiguration());
+    LOG.debug(config.root().render());
   }
   
   /** @return The data point column family name */

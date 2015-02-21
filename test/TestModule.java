@@ -1,5 +1,6 @@
 package net.opentsdb;
 
+import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.MetaClientUIDMetaTest;
@@ -9,7 +10,7 @@ import net.opentsdb.core.UniqueIdClientTest;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.StoreModuleTest;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import javax.inject.Singleton;
 
@@ -47,7 +48,7 @@ public class TestModule {
   }
 
   public TestModule() {
-    this(new Config());
+    this(ConfigFactory.load());
   }
 
   @Provides

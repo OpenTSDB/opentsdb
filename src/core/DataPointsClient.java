@@ -8,7 +8,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
@@ -178,9 +178,11 @@ public class DataPointsClient {
         // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
         // counter field for a TSUID with the proper timestamp. If the user would
         // rather have TSUID incrementing enabled, that will trump the PUT
-        if (config.enable_tsuid_tracking() && !config.enable_tsuid_incrementing()) {
+        if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
+             && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
           store.setTSMetaCounter(tsuid, 1);
-        } else if (config.enable_tsuid_incrementing() || config.enable_realtime_ts()) {
+        } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
+             || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
           metaClient.incrementAndGetCounter(tsuid);
         }
 

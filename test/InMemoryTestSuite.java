@@ -74,7 +74,6 @@ import net.opentsdb.uid.TestUidResolver;
 import net.opentsdb.uid.TestUniqueId;
 import net.opentsdb.uid.UniqueIdTypeTest;
 import net.opentsdb.utils.TestByteArrayPair;
-import net.opentsdb.utils.TestConfig;
 import net.opentsdb.utils.TestDateTime;
 import net.opentsdb.utils.TestJSON;
 import net.opentsdb.utils.TestPair;
@@ -109,7 +108,6 @@ import org.junit.runners.Suite;
         TestCassandraStore.class,
         TestCompactedRow.class,
         TestCompactionQueue.class,
-        TestConfig.class,
         TestDateTime.class,
         TestDownsampler.class,
         TestDumpSeries.class,

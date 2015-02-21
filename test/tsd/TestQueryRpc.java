@@ -22,7 +22,7 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
-import net.opentsdb.utils.Config;
+import com.typesafe.config.Config;
 
 import org.junit.Before;
 import org.junit.Test;

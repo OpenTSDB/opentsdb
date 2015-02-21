@@ -132,9 +132,9 @@ public final class PipelineFactory implements ChannelPipelineFactory {
       // so use this as a cheap way to differentiate the two.
       if ('A' <= firstbyte && firstbyte <= 'Z') {
         pipeline.addLast("decoder", new HttpRequestDecoder());
-        if (tsdb.getConfig().enable_chunked_requests()) {
+        if (tsdb.getConfig().getBoolean("tsd.http.request.enable_chunked")) {
           pipeline.addLast("aggregator", new HttpChunkAggregator(
-              tsdb.getConfig().max_chunked_requests()));
+                  tsdb.getConfig().getInt("tsd.http.request.max_chunk")));
         }
         // allow client to encode the payload (ie : with gziped json)
         pipeline.addLast("deflater", new HttpContentDecompressor());
