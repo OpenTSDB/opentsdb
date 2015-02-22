@@ -2,6 +2,7 @@ package net.opentsdb.storage.cassandra;
 
 import com.datastax.driver.core.Cluster;
 import com.google.auto.service.AutoService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.stats.Metrics;
@@ -23,7 +24,8 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
    * @throws net.opentsdb.core.InvalidConfigException if one of the addresses
    *                                                  could not be parsed
    */
-  private Cluster createCluster(final Config config) {
+  @VisibleForTesting
+  Cluster createCluster(final Config config) {
     try {
       return createCluster(config.getStringList("tsd.storage.cassandra.nodes"));
     } catch (IllegalArgumentException e) {

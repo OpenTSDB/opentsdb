@@ -1,21 +1,18 @@
 package net.opentsdb.storage.cassandra;
 
 import com.codahale.metrics.MetricRegistry;
-import com.datastax.driver.core.Cluster;
 import com.google.common.base.Optional;
-import com.google.common.base.Splitter;
-import com.google.common.net.HostAndPort;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
+import dagger.ObjectGraph;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.DatabaseTests;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+import javax.inject.Inject;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
@@ -30,10 +27,6 @@ import static org.junit.Assert.fail;
 
 @Category(DatabaseTests.class)
 public class TestCassandraStore {
-
-  private CassandraStore store;
-  private static Config config;
-
   private static final String METRIC_NAME_ONE = "sys";
   private static final String METRIC_NAME_TWO = "cpu0";
   private static final String METRIC_NAME_THREE = "cpu1";
@@ -45,15 +38,16 @@ public class TestCassandraStore {
   private static byte[] TSUID_TWO;
   private static byte[] TSUID_THREE;
 
+  private CassandraStore store;
+
+  @Inject Config config;
+  @Inject CassandraStoreDescriptor storeDescriptor;
+
   private Map<String, byte[]> name_uid = new HashMap<String, byte[]>();
 
-  @BeforeClass
-  public static void oneTimeSetUp() throws IOException {
-    config = ConfigFactory.load()
-            .withValue("tsd.storage.adapter",
-                    ConfigValueFactory.fromAnyRef("Cassandra"))
-            .withValue("tsd.storage.cassandra.nodes",
-                    ConfigValueFactory.fromAnyRef("127.0.0.1"));
+  @Before
+  public void setUp() throws Exception {
+    ObjectGraph.create(new CassandraTestModule()).inject(this);
   }
 
   /**
@@ -137,26 +131,7 @@ public class TestCassandraStore {
 
   @Test
   public void constructor() throws IOException {
-    Cluster.Builder builder = Cluster.builder();
-
-    Iterable<String> nodes = Splitter.on(',').trimResults()
-            .omitEmptyStrings()
-            .split(config.getString("tsd.storage.cassandra.nodes"));
-
-    for (String node : nodes) {
-      try {
-        HostAndPort host = HostAndPort.fromString(node);
-
-        builder.addContactPoint(host.getHostText()).withPort(host
-                .getPortOrDefault(CassandraConst
-                        .DEFAULT_CASSANDRA_PORT));
-      } catch (IllegalArgumentException e) {
-        throw new IllegalArgumentException("There was an error in the" +
-                " configuration file in the field 'tsd.storage" +
-                ".cassandra.clusters'.", e);
-      }
-    }
-    assertNotNull(new CassandraStore(builder.build()));
+    assertNotNull(new CassandraStore(storeDescriptor.createCluster(config)));
   }
 
   @Test(expected = NullPointerException.class)
