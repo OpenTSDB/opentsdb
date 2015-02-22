@@ -1020,7 +1020,7 @@ public class HBaseStore implements TsdbStore {
   public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
     class QueryCB implements Callback<ImmutableList<DataPoints>, ImmutableList<CompactedRow>> {
       @Override
-      public ImmutableList<DataPoints> call(final ImmutableList<CompactedRow>row_parts) {
+      public ImmutableList<DataPoints> call(final ImmutableList<CompactedRow> row_parts) {
         return ImmutableList.<DataPoints>copyOf(row_parts);
       }
     }
