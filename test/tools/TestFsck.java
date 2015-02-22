@@ -3657,6 +3657,7 @@ public final class TestFsck {
     assertEquals(2, fsck.correctable());
     assertEquals(1, fsck.duplicates.get());
     assertEquals(1, fsck.bad_values.get());
+    assertEquals(0, fsck.totalFixed());
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
         storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertArrayEquals(val3, storage.getColumn(ROW, qual3));
@@ -3690,6 +3691,7 @@ public final class TestFsck {
     assertEquals(2, fsck.correctable());
     assertEquals(1, fsck.duplicates.get());
     assertEquals(1, fsck.bad_values.get());
+    assertEquals(2, fsck.totalFixed());
     assertArrayEquals(MockBase.concatByteArrays(val1, val2, new byte[] { 0 }), 
         storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertNull(storage.getColumn(ROW, qual3));
@@ -3724,6 +3726,7 @@ public final class TestFsck {
     assertEquals(2, fsck.correctable());
     assertEquals(1, fsck.duplicates.get());
     assertEquals(1, fsck.bad_values.get());
+    assertEquals(2, fsck.totalFixed());
     assertArrayEquals(MockBase.concatByteArrays(val1, val4, new byte[] { 0 }), 
         storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
     assertNull(storage.getColumn(ROW, qual3));

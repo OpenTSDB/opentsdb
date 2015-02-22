@@ -93,6 +93,7 @@ final class Fsck {
   final AtomicLong bad_key_fixed = new AtomicLong();
   final AtomicLong duplicates = new AtomicLong();
   final AtomicLong duplicates_fixed = new AtomicLong();
+  final AtomicLong duplicates_fixed_comp = new AtomicLong();
   final AtomicLong orphans = new AtomicLong();
   final AtomicLong orphans_fixed = new AtomicLong();
   final AtomicLong future = new AtomicLong();
@@ -645,8 +646,11 @@ final class Fsck {
           .append(Arrays.toString(dp.kv.qualifier()))
           .append("\n");
           unique_columns.put(dp.kv.qualifier(), dp.kv.value());
-          if (!compact_row && options.fix() && options.resolveDupes()) {
-            if (!dp.compacted) {
+          if (options.fix() && options.resolveDupes()) {
+            if (compact_row) {
+              // Scheduled for deletion by compaction.
+              duplicates_fixed_comp.getAndIncrement();
+            } else if (!dp.compacted) {
               LOG.debug("REMOVING: " + dp.kv);
               tsdb.getClient().delete(
                 new DeleteRequest(
@@ -714,6 +718,8 @@ final class Fsck {
               TSDB.FAMILY(), qualifier);
           tsdb.getClient().delete(delete);
         }
+        duplicates_fixed.getAndAdd(duplicates_fixed_comp.longValue());
+        duplicates_fixed_comp.set(0);
       }
     }
     
