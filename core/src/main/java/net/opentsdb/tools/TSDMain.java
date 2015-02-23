@@ -43,9 +43,9 @@ final class TSDMain {
   private static final short DEFAULT_FLUSH_INTERVAL = 1000;
 
   public static void main(String[] args) throws IOException {
-    LOG.info("Starting.");
-    LOG.info(BuildData.revisionString());
-    LOG.info(BuildData.buildString());
+    LOG.info("Starting {} {}", BuildData.name(), BuildData.version());
+    LOG.info("Built by {}@{} on {}", BuildData.user(), BuildData.host(),
+        BuildData.date());
 
     try {
       System.in.close();  // Release a FD we don't need.

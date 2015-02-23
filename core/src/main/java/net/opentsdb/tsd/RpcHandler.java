@@ -419,8 +419,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                     final String[] cmd) {
       if (chan.isConnected()) {
-        chan.write(BuildData.revisionString() + '\n'
-                   + BuildData.buildString() + '\n');
+        chan.write(BuildData.name() + " " + BuildData.version() + '\n'
+                   + BuildData.user() + "@" + BuildData.host() + '\n');
       }
       return Deferred.fromResult(null);
     }
@@ -437,14 +437,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
       
       final HashMap<String, String> version = new HashMap<String, String>();
-      version.put("version", BuildData.version);
-      version.put("short_revision", BuildData.short_revision);
-      version.put("full_revision", BuildData.full_revision);
-      version.put("timestamp", Long.toString(BuildData.timestamp));
-      version.put("repo_status", BuildData.repo_status.toString());
-      version.put("user", BuildData.user);
-      version.put("host", BuildData.host);
-      version.put("repo", BuildData.repo);
+      version.put("version", BuildData.version());
+      version.put("timestamp", BuildData.date());
+      version.put("user", BuildData.user());
+      version.put("host", BuildData.host());
       
       if (query.apiVersion() > 0) {
         query.sendReply(query.serializer().formatVersionV1(version));
@@ -453,13 +449,8 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         if (json) {
           query.sendReply(JSON.serializeToBytes(version));
         } else {
-          final String revision = BuildData.revisionString();
-          final String build = BuildData.buildString();
-          StringBuilder buf;
-          buf = new StringBuilder(2 // For the \n's
-                                  + revision.length() + build.length());
-          buf.append(revision).append('\n').append(build).append('\n');
-          query.sendReply(buf);
+          query.sendReply(BuildData.name() + " " + BuildData.version() + '\n'
+              + BuildData.user() + "@" + BuildData.host() + '\n');
         }
       }
     }

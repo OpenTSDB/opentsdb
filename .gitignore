@@ -1,19 +1,7 @@
-INSTALL
-Makefile
-Makefile.in
-aclocal.m4
-autom4te.cache
-build
-target
-config.log
-config.status
-configure
-pom.xml
 *.pyc
 .*.swp
 *.rrd
 *.class
-*/target/*
 *.orig
 *.log
 
@@ -34,7 +22,11 @@ guava-rpm-maker/\.project
 .classpath
 .settings
 
-# maven
-src-main
-src-test
-plugin_test.jar
+.gradle
+build/
+
+# Ignore Gradle GUI config
+gradle-app.setting
+
+# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
+!gradle-wrapper.jar
