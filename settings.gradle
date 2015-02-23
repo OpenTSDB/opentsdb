@@ -1,2 +1,2 @@
 
-include "core", "cassandra", "hbase"
+include "core", "cassandra", "hbase", "api"
