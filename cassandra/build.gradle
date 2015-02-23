@@ -1,0 +1,6 @@
+
+dependencies {
+    compile project(':core')
+
+    compile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '2.1.3'
+}

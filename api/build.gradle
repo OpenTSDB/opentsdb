@@ -1,0 +1,6 @@
+
+dependencies {
+    compile project(':core')
+
+    compile group: 'io.netty', name: 'netty', version: '3.9.4.Final'
+}
