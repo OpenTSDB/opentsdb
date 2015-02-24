@@ -1414,7 +1414,7 @@ public class HBaseStore implements TsdbStore {
               qualifiers.add(column.qualifier());
 
               // branches
-            } else if (Bytes.equals(Branch.BRANCH_QUALIFIER(), column.qualifier())) {
+            } else if (Bytes.equals(HBaseConst.BRANCH_QUALIFIER, column.qualifier())) {
               LOG.trace("Deleting branch in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 

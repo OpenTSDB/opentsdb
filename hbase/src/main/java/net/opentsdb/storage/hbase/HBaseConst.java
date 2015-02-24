@@ -10,6 +10,11 @@ public class HBaseConst {
    */
   public static final Charset CHARSET = Charsets.ISO_8859_1;
 
+  /**
+   * Name of the branch qualifier ID
+   */
+  static final byte[] BRANCH_QUALIFIER = "branch".getBytes(CHARSET);
+
   static class UniqueId {
     /**
      * The column family that maps names to IDs

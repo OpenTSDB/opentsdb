@@ -20,7 +20,6 @@ import java.util.TreeSet;
 import javax.xml.bind.DatatypeConverter;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.storage.hbase.HBaseConst;
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,9 +64,6 @@ import net.opentsdb.uid.UniqueId;
  */
 public final class Branch implements Comparable<Branch> {
   private static final Logger LOG = LoggerFactory.getLogger(Branch.class);
-
-  /** Name of the branch qualifier ID */
-  private static final byte[] BRANCH_QUALIFIER = "branch".getBytes(HBaseConst.CHARSET);
   
   /** The tree this branch belongs to */
   private int tree_id;
@@ -327,11 +323,6 @@ public final class Branch implements Comparable<Branch> {
       id = "0" + id;
     }
     return DatatypeConverter.parseHexBinary(id);
-  }
-
-  /** @return The branch column qualifier name */
-  public static byte[] BRANCH_QUALIFIER() {
-    return BRANCH_QUALIFIER;
   }
   
   // GETTERS AND SETTERS ----------------------------

@@ -280,11 +280,6 @@ public final class TestBranch {
   }
   
   @Test
-  public void BRANCH_QUALIFIER() throws Exception {
-    assertArrayEquals(toBytes("branch"), Branch.BRANCH_QUALIFIER());
-  }
-  
-  @Test
   public void prependParentPath() throws Exception {
     Branch branch = new Branch(1);
     branch.setDisplayName("cpu");
