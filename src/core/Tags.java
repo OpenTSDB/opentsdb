@@ -401,6 +401,8 @@ public final class Tags {
   public static void validateString(final String what, final String s) {
     if (s == null) {
       throw new IllegalArgumentException("Invalid " + what + ": null");
+    } else if ("".equals(s)) {
+      throw new IllegalArgumentException("Invalid " + what + ": empty string");
     }
     final int n = s.length();
     for (int i = 0; i < n; i++) {

@@ -659,7 +659,6 @@ public final class TSDB {
           + " when trying to add value=" + Arrays.toString(value) + '/' + flags
           + " to metric=" + metric + ", tags=" + tags);
     }
-
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
     final long base_time;

@@ -56,7 +56,7 @@ import com.stumbleupon.async.Deferred;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
-  Scanner.class, AtomicIncrementRequest.class, IncomingDataPoints.class})
+  Scanner.class, AtomicIncrementRequest.class})
 public final class TestTSDB {
   private Config config;
   private TSDB tsdb;
@@ -526,9 +526,8 @@ public final class TestTSDB {
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
-    when(IncomingDataPoints.rowKeyTemplate((TSDB)any(), anyString(), 
-        (Map<String, String>)any()))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.user", "metric"));
+    when(metrics.getId(anyString())).thenThrow(new NoSuchUniqueName("sys.cpu.user", "metric"));
+
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
     tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
@@ -584,6 +583,15 @@ public final class TestTSDB {
     tsdb.addPoint("sys.cpu.user", -2147483648, 42, tags).joinUninterruptibly();
   }
   
+  @Test (expected = IllegalArgumentException.class)
+  public void emptyTagValue() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>() {{
+      put("host", "");
+    }};
+    tsdb.addPoint("sys.cpu.user", 1234567890, 42, tags).joinUninterruptibly();
+  }
+
   @Test
   public void addPointMS1970() throws Exception {
     // Since it's just over Integer.MAX_VALUE, OpenTSDB will treat this as
@@ -843,29 +851,24 @@ public final class TestTSDB {
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
         new NoSuchUniqueId("tag_values", new byte[] { 0, 0, 2}));
   }
-
   /**
    * Configures storage for the addPoint() tests to validate that we're storing
    * data points correctly.
    */
-  private void setupAddPointStorage() throws Exception {
+  @Test
+  public void setupAddPointStorage() throws Exception {
     storage = new MockBase(tsdb, client, true, true, true, true);
-
-    PowerMockito.mockStatic(IncomingDataPoints.class);   
-    final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 
-    PowerMockito.doAnswer(
-        new Answer<byte[]>() {
-          @Override
-          public byte[] answer(final InvocationOnMock unused) 
-            throws Exception {
-            return row;
-          }
-        }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", any(), anyString(), 
-        any());
-
     when(metrics.width()).thenReturn((short)3);
+    when(metrics.getId(anyString())).thenReturn(new byte[] { 0, 0, 1 });
     when(tag_names.width()).thenReturn((short)3);
     when(tag_values.width()).thenReturn((short)3);
+    when(tag_values.getId(anyString())).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getId(anyString())).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_values.getOrCreateId(anyString())).thenReturn(new byte[] { 0, 0, 1 });
+    when(tag_names.getOrCreateId(anyString())).thenReturn(new byte[] { 0, 0, 1 });
+
+    HashMap<String, String> tags = new HashMap<String, String>() {{
+      put("host", "web01");
+    }};
   }
 }
