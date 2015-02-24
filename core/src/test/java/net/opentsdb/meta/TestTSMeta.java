@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import static net.opentsdb.core.StringCoder.toBytes;
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
@@ -29,15 +27,5 @@ public final class TestTSMeta {
   public void createConstructor() {
     final TSMeta meta = new TSMeta(new byte[]{0, 0, 1, 0, 0, 2, 0, 0, 3}, 1357300800000L);
     assertEquals(1357300800000L / 1000, meta.getCreated());
-  }
-  
-  @Test
-  public void META_QUALIFIER() throws Exception {
-    assertArrayEquals(toBytes("ts_meta"), TSMeta.META_QUALIFIER());
-  }
-  
-  @Test
-  public void COUNTER_QUALIFIER() throws Exception {
-    assertArrayEquals(toBytes("ts_ctr"), TSMeta.COUNTER_QUALIFIER());
   }
 }

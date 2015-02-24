@@ -142,7 +142,7 @@ final class MetaPurge extends Thread {
           ArrayList<byte[]> qualifiers = new ArrayList<byte[]>(row.size());
           
           for (KeyValue column : row) {
-            if (Bytes.equals(TSMeta.META_QUALIFIER(), column.qualifier())) {
+            if (Bytes.equals(net.opentsdb.storage.HBaseConst.TSMeta.META_QUALIFIER, column.qualifier())) {
               qualifiers.add(column.qualifier());
             } else if (Bytes.equals("metric_meta".getBytes(HBaseConst.CHARSET),
                 column.qualifier())) {
@@ -241,10 +241,10 @@ final class MetaPurge extends Thread {
           TSMeta ts = new TSMeta(row.get(0).key());
 
           for (KeyValue column : row) {
-            if (Bytes.equals(TSMeta.META_QUALIFIER(), column.qualifier())) {
+            if (Bytes.equals(net.opentsdb.storage.HBaseConst.TSMeta.META_QUALIFIER, column.qualifier())) {
               delete_calls.add(tsdb.getMetaClient().delete(ts));
               ++columns;
-            } else if (Bytes.equals(TSMeta.COUNTER_QUALIFIER(), 
+            } else if (Bytes.equals(net.opentsdb.storage.HBaseConst.TSMeta.COUNTER_QUALIFIER,
                 column.qualifier())) {
               delete_calls.add(tsdb.getMetaClient().deleteTimeseriesCounter(ts));
               ++columns;

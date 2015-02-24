@@ -21,7 +21,7 @@ import java.util.regex.Pattern;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.hbase.HBaseConst;
+import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;

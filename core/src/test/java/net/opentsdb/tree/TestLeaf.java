@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tree;
 
-import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.core.StringCoder.toBytes;
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static net.opentsdb.uid.UniqueIdType.TAGK;
@@ -21,6 +20,7 @@ import static org.junit.Assert.*;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
+import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.storage.MemoryStore;
 
 import org.hbase.async.KeyValue;
@@ -47,7 +47,7 @@ public final class TestLeaf {
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
     tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
 
-    tsdb_store.addColumn(new byte[]{0, 1}, Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(new byte[]{0, 1}, HBaseConst.Tree.TREE_FAMILY,
             new Leaf("0", "000001000001000001").columnQualifier(),
             toBytes("{\"displayName\":\"0\",\"tsuid\":\"000001000001000001\"}"));
   }
@@ -118,10 +118,5 @@ public final class TestLeaf {
   public void columnQualifierNoDisplayName() throws Exception {
     final Leaf leaf = new Leaf("", "000001000001000001");
     leaf.columnQualifier();
-  }
-
-  @Test
-  public void LEAF_PREFIX() throws Exception {
-    assertEquals("leaf:", fromBytes(Leaf.LEAF_PREFIX()));
   }
 }

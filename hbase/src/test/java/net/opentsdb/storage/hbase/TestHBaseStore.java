@@ -5,10 +5,8 @@ import com.stumbleupon.async.Deferred;
 import com.typesafe.config.ConfigFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.DatabaseTests;
-import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.TestTsdbStore;
-import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.storage.*;
+import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
@@ -228,7 +226,7 @@ public class TestHBaseStore extends TestTsdbStore {
 
     //mock answers that should be generated
     KeyValue kv = new KeyValue(root.compileBranchId(), new byte[0],
-            Leaf.LEAF_PREFIX(), jsonMapper.writeValueAsBytes(branch.getLeaves().first()));
+        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(branch.getLeaves().first()));
     ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
     ans.add(kv);
 

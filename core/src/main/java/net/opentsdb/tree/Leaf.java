@@ -13,7 +13,7 @@
 package net.opentsdb.tree;
 
 import com.google.common.collect.ImmutableMap;
-import net.opentsdb.storage.hbase.HBaseConst;
+import net.opentsdb.storage.HBaseConst;
 import org.hbase.async.Bytes;
 
 /**
@@ -33,9 +33,6 @@ import org.hbase.async.Bytes;
  * @since 2.0
  */
 public final class Leaf implements Comparable<Leaf> {
-  /** ASCII Leaf prefix */
-  private static final byte[] LEAF_PREFIX = "leaf:".getBytes(HBaseConst.CHARSET);
-
   /** The metric associated with this TSUID */
   private String metric = "";
   
@@ -121,20 +118,14 @@ public final class Leaf implements Comparable<Leaf> {
       throw new IllegalArgumentException("Missing display name");
     }
     
-    final byte[] qualifier = new byte[LEAF_PREFIX.length + 4];
-    System.arraycopy(LEAF_PREFIX, 0, qualifier, 0, LEAF_PREFIX.length);
+    final byte[] qualifier = new byte[HBaseConst.Leaf.LEAF_PREFIX.length + 4];
+    System.arraycopy(HBaseConst.Leaf.LEAF_PREFIX, 0, qualifier, 0, HBaseConst.Leaf.LEAF_PREFIX.length);
     System.arraycopy(Bytes.fromInt(hashCode()), 0, qualifier, 
-        LEAF_PREFIX.length, 4);
+        HBaseConst.Leaf.LEAF_PREFIX.length, 4);
     return qualifier;
   }
 
 
-  
-  /** @return The configured leaf column prefix */
-  public static byte[] LEAF_PREFIX() {
-    return LEAF_PREFIX;
-  }
-  
   // GETTERS AND SETTERS ----------------------------
 
   /** @return The metric associated with this TSUID */

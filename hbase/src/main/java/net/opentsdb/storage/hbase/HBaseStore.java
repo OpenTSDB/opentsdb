@@ -1419,9 +1419,9 @@ public class HBaseStore implements TsdbStore {
               qualifiers.add(column.qualifier());
 
               // leaves
-            } else if (column.qualifier().length > Leaf.LEAF_PREFIX().length &&
-                    Bytes.memcmp(Leaf.LEAF_PREFIX(), column.qualifier(), 0,
-                            Leaf.LEAF_PREFIX().length) == 0) {
+            } else if (column.qualifier().length > net.opentsdb.storage.HBaseConst.Leaf.LEAF_PREFIX.length &&
+                    Bytes.memcmp(net.opentsdb.storage.HBaseConst.Leaf.LEAF_PREFIX, column.qualifier(), 0,
+                            net.opentsdb.storage.HBaseConst.Leaf.LEAF_PREFIX.length) == 0) {
               LOG.trace("Deleting leaf in row: {}", Branch.idToString(column.key()));
               qualifiers.add(column.qualifier());
 
@@ -1717,7 +1717,7 @@ public class HBaseStore implements TsdbStore {
     leaf.setDisplayName(display_name);
 
     final GetRequest get = new GetRequest(tree_table_name, branch.compileBranchId());
-    get.family(Tree.TREE_FAMILY());
+    get.family(net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY);
     get.qualifier(leaf.columnQualifier());
 
     /**
@@ -1816,7 +1816,7 @@ public class HBaseStore implements TsdbStore {
     try {
       // execute the CAS call to start the callback chain
       final PutRequest put = new PutRequest(tree_table_name, branch_id,
-              Tree.TREE_FAMILY(), leaf.columnQualifier(), jsonMapper.writeValueAsBytes(leaf));
+          net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY, leaf.columnQualifier(), jsonMapper.writeValueAsBytes(leaf));
       return client.compareAndSet(put, new byte[0])
               .addCallbackDeferring(new LeafStoreCB(leaf));
     } catch (JsonProcessingException e) {
@@ -1842,7 +1842,7 @@ public class HBaseStore implements TsdbStore {
       final byte[] storage_data = jsonMapper.writeValueAsBytes(branch);
 
       final PutRequest put = new PutRequest(tree_table_name, row,
-              Tree.TREE_FAMILY(), BRANCH_QUALIFIER, storage_data);
+          net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY, BRANCH_QUALIFIER, storage_data);
       put.setBufferable(true);
       storage_results.add(client.compareAndSet(put, new byte[0]));
 
@@ -1863,7 +1863,7 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Branch> fetchBranchOnly(byte[] branch_id) {
     final GetRequest get = new GetRequest(tree_table_name, branch_id)
-    .family(Tree.TREE_FAMILY()).qualifier(BRANCH_QUALIFIER);
+    .family(net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY).qualifier(BRANCH_QUALIFIER);
 
     /**
      * Called after the get returns with or without data. If we have data, we'll
@@ -2008,8 +2008,8 @@ public class HBaseStore implements TsdbStore {
                 branch.addChild(child);
               }
               // parse out a leaf
-            } else if (Bytes.memcmp(Leaf.LEAF_PREFIX(), column.qualifier(), 0,
-                    Leaf.LEAF_PREFIX().length) == 0) {
+            } else if (Bytes.memcmp(net.opentsdb.storage.HBaseConst.Leaf.LEAF_PREFIX, column.qualifier(), 0,
+                    net.opentsdb.storage.HBaseConst.Leaf.LEAF_PREFIX.length) == 0) {
               if (Bytes.equals(branch_id, column.key())) {
                 // process a leaf and skip if the UIDs for the TSUID can't be
                 // found. Add an errback to catch NoSuchUniqueId exceptions
@@ -2041,7 +2041,7 @@ public class HBaseStore implements TsdbStore {
     // fetch the whole row
     final GetRequest get = new GetRequest(tree_table_name,
             Tree.idToBytes(tree_id))
-            .family(Tree.TREE_FAMILY())
+            .family(net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY)
             .qualifier(TreeRule.getQualifier(level, order));
 
     /**
@@ -2066,7 +2066,7 @@ public class HBaseStore implements TsdbStore {
   public Deferred<Object> deleteTreeRule(final int tree_id, final int level,
                                          final int order) {
     final DeleteRequest delete = new DeleteRequest(tree_table_name,
-            Tree.idToBytes(tree_id), Tree.TREE_FAMILY(),
+            Tree.idToBytes(tree_id), net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY,
             TreeRule.getQualifier(level, order));
 
     return client.delete(delete);
@@ -2076,7 +2076,7 @@ public class HBaseStore implements TsdbStore {
   public Deferred<Object> deleteAllTreeRule(final int tree_id) {
     // fetch the whole row
     final GetRequest get = new GetRequest(tree_table_name,
-            Tree.idToBytes(tree_id)).family(Tree.TREE_FAMILY());
+            Tree.idToBytes(tree_id)).family(net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY);
 
     /**
      * Called after fetching the requested row. If the row is empty, we just
@@ -2104,7 +2104,7 @@ public class HBaseStore implements TsdbStore {
         }
 
         final DeleteRequest delete = new DeleteRequest(tree_table_name,
-                Tree.idToBytes(tree_id), Tree.TREE_FAMILY(),
+                Tree.idToBytes(tree_id), net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY,
                 qualifiers.toArray(new byte[qualifiers.size()][]));
         return client.delete(delete);
       }
@@ -2169,7 +2169,7 @@ public class HBaseStore implements TsdbStore {
           stored_rule.validateRule();
 
           final PutRequest put = new PutRequest(tree_table_name,
-                  Tree.idToBytes(rule.getTreeId()), Tree.TREE_FAMILY(),
+                  Tree.idToBytes(rule.getTreeId()), net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY,
                   TreeRule.getQualifier(rule.getLevel(), rule.getOrder()),
                   jsonMapper.writeValueAsBytes(stored_rule));
           return client.compareAndSet(put, original_rule);
@@ -2236,7 +2236,7 @@ public class HBaseStore implements TsdbStore {
       end[i] = tree_id[i + (Const.INT_WIDTH - Tree.TREE_ID_WIDTH())];
     }
     scanner.setStopKey(end);
-    scanner.setFamily(Tree.TREE_FAMILY());
+    scanner.setFamily(net.opentsdb.storage.HBaseConst.Tree.TREE_FAMILY);
 
     // TODO - use the column filter to fetch only branches and leaves, ignore
     // collisions, no matches and other meta

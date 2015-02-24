@@ -24,6 +24,7 @@ import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueId;
@@ -109,7 +110,7 @@ public class TSUIDQuery {
     }
     
     final Scanner scanner = getScanner();
-    scanner.setQualifier(TSMeta.COUNTER_QUALIFIER());
+    scanner.setQualifier(HBaseConst.TSMeta.COUNTER_QUALIFIER);
     final Deferred<ByteMap<Long>> results = new Deferred<ByteMap<Long>>();
     final ByteMap<Long> tsuids = new ByteMap<Long>();
     
@@ -179,7 +180,7 @@ public class TSUIDQuery {
     }
     
     final Scanner scanner = getScanner();
-    scanner.setQualifier(TSMeta.META_QUALIFIER());
+    scanner.setQualifier(HBaseConst.TSMeta.META_QUALIFIER);
     final Deferred<List<TSMeta>> results = new Deferred<List<TSMeta>>();
     final List<TSMeta> tsmetas = new ArrayList<TSMeta>();
     final List<Deferred<TSMeta>> tsmeta_group = new ArrayList<Deferred<TSMeta>>();
@@ -267,7 +268,7 @@ public class TSUIDQuery {
   /**
    * Attempts to retrieve the last data point for the given TSUID. 
    * This operates by checking the meta table for the {@link
-   * TSMeta#COUNTER_QUALIFIER} and if found, parses the HBase timestamp for
+   * net.opentsdb.storage.HBaseConst.TSMeta#COUNTER_QUALIFIER} and if found, parses the HBase timestamp for
    * the counter (i.e. the time when the counter was written) and tries to
    * load the row in the data table for the hour where that timestamp would
    * have landed. If the counter does not exist or the data row doesn't exist
@@ -446,8 +447,8 @@ public class TSUIDQuery {
     if (time_limit == 0) {
       if (last_timestamp < 1) {
         final GetRequest get = new GetRequest(tsdb.metaTable(), tsuid);
-        get.family(TSMeta.FAMILY());
-        get.qualifier(TSMeta.COUNTER_QUALIFIER());
+        get.family(HBaseConst.TSMeta.FAMILY);
+        get.qualifier(HBaseConst.TSMeta.COUNTER_QUALIFIER);
         tsdb.getHBaseStore().get(get)
           .addCallback(new ExistsCB())
           .addErrback(new ErrBack());
@@ -486,7 +487,7 @@ public class TSUIDQuery {
     // given metric
     final long stop = UniqueId.uidToLong(metric, Const.METRICS_WIDTH) + 1;
     scanner.setStopKey(UniqueId.longToUID(stop, Const.METRICS_WIDTH));
-    scanner.setFamily(TSMeta.FAMILY());
+    scanner.setFamily(HBaseConst.TSMeta.FAMILY);
     
     // set the filter if we have tags
     if (!tags.isEmpty()) {

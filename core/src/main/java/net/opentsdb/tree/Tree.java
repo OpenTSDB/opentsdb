@@ -19,7 +19,6 @@ import java.util.TreeMap;
 
 import net.opentsdb.core.Const;
 
-import net.opentsdb.storage.hbase.HBaseConst;
 import org.hbase.async.Bytes;
 
 /**
@@ -47,14 +46,8 @@ import org.hbase.async.Bytes;
 public final class Tree {
   /** Width of tree IDs in bytes */
   private static final short TREE_ID_WIDTH = 2;
-  /** Name of the CF where trees and branches are stored */
-  private static final byte[] TREE_FAMILY = "t".getBytes(HBaseConst.CHARSET);
   /** Integer width in bytes */
   private static final short INT_WIDTH = 4;
-  /** Byte prefix for collision columns */
-  private static byte[] COLLISION_PREFIX = "tree_collision:".getBytes(HBaseConst.CHARSET);
-  /** Byte prefix for not matched columns */
-  private static byte[] NOT_MATCHED_PREFIX = "tree_not_matched:".getBytes(HBaseConst.CHARSET);
 
   /** The numeric ID of this tree object */
   private int tree_id;
@@ -319,22 +312,7 @@ public final class Tree {
         Tree.TREE_ID_WIDTH());
     return Bytes.getInt(tree_id);    
   }
-  
-  /** @return The configured collision column qualifier prefix */
-  public static byte[] COLLISION_PREFIX() {
-    return COLLISION_PREFIX;
-  }
-  
-  /** @return The configured not-matched column qualifier prefix */
-  public static byte[] NOT_MATCHED_PREFIX() {
-    return NOT_MATCHED_PREFIX;
-  }
-  
-  /** @return The family to use when storing tree data */
-  public static byte[] TREE_FAMILY() {
-    return TREE_FAMILY;
-  }
-  
+
   /**
    * Sets or resets the changed map flags
    */

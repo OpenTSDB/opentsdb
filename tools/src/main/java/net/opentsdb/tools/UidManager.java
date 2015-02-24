@@ -42,7 +42,6 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.TSMeta;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -472,8 +471,8 @@ final class UidManager {
             kvcount++;
             final byte[] qualifier = kv.qualifier();
             // TODO - validate meta data in the future, for now skip it
-            if (Bytes.equals(qualifier, TSMeta.META_QUALIFIER()) ||
-                Bytes.equals(qualifier, TSMeta.COUNTER_QUALIFIER()) ||
+            if (Bytes.equals(qualifier, net.opentsdb.storage.HBaseConst.TSMeta.META_QUALIFIER) ||
+                Bytes.equals(qualifier, net.opentsdb.storage.HBaseConst.TSMeta.COUNTER_QUALIFIER) ||
                 Bytes.equals(qualifier, CliUtils.METRICS_META) ||
                 Bytes.equals(qualifier, CliUtils.TAGK_META) ||
                 Bytes.equals(qualifier, CliUtils.TAGV_META)) {

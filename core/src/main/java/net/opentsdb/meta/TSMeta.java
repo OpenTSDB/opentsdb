@@ -19,7 +19,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Strings;
-import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.UniqueId;
 
 import com.google.common.collect.Sets;
@@ -46,11 +45,6 @@ import com.google.common.collect.Sets;
  * @since 2.0
  */
 public final class TSMeta {
-  //TODO remove these 3
-  private static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(HBaseConst.CHARSET);
-  private static final byte[] FAMILY = "name".getBytes(HBaseConst.CHARSET);
-  private static final byte[] META_QUALIFIER = "ts_meta".getBytes(HBaseConst.CHARSET);
-
   /** Hexadecimal representation of the TSUID this metadata is associated with */
   private String tsuid = "";
 
@@ -168,22 +162,7 @@ public final class TSMeta {
   public boolean hasChanges() {
     return !changed.isEmpty();
   }
-  
-  /** @return The configured meta data column qualifier byte array*/
-  public static byte[] META_QUALIFIER() {
-    return META_QUALIFIER;
-  }
-  
-  /** @return The configured counter column qualifier byte array*/
-  public static byte[] COUNTER_QUALIFIER() {
-    return COUNTER_QUALIFIER;
-  }
-  
-  /** @return The configured meta data family byte array*/
-  public static byte[] FAMILY() {
-    return FAMILY;
-  }
-  
+
   /**
    * Syncs the local object with the stored object for atomic writes, 
    * overwriting the stored data if the user issued a PUT request

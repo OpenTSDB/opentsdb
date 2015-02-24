@@ -23,6 +23,7 @@ import java.util.TreeMap;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.StringCoder;
+import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
@@ -1103,13 +1104,13 @@ public final class TestTreeRpc {
     root.setDisplayName("ROOT");
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    tsdb_store.addColumn(root.compileBranchId(), Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(root.compileBranchId(), HBaseConst.Tree.TREE_FAMILY,
       toBytes("branch"),
             jsonMapper.writeValueAsBytes(root));
     
     // store the first tree
     byte[] key = new byte[] { 0, 1 };
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), toBytes("tree"),
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, toBytes("tree"),
             jsonMapper.writeValueAsBytes(TestTree.buildTestTree()));
     
     TreeRule rule = new TreeRule(1);
@@ -1117,7 +1118,7 @@ public final class TestTreeRpc {
     rule.setDescription("Hostname rule");
     rule.setType(TreeRuleType.TAGK);
     rule.setDescription("Host Name");
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY,
       toBytes("tree_rule:0:0"),
       jsonMapper.writeValueAsBytes(rule));
 
@@ -1126,7 +1127,7 @@ public final class TestTreeRpc {
     rule.setLevel(1);
     rule.setNotes("Metric rule");
     rule.setType(TreeRuleType.METRIC);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY,
       toBytes("tree_rule:1:0"),
       jsonMapper.writeValueAsBytes(rule));
     
@@ -1135,7 +1136,7 @@ public final class TestTreeRpc {
     root_path = new TreeMap<Integer, String>();
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY,
       toBytes("branch"),
             jsonMapper.writeValueAsBytes(root));
     
@@ -1146,13 +1147,13 @@ public final class TestTreeRpc {
     tree2.setTreeId(2);
     tree2.setName("2nd Tree");
     tree2.setDescription("Other Tree");
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), toBytes("tree"),
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, toBytes("tree"),
             jsonMapper.writeValueAsBytes(tree2));
     
     rule = new TreeRule(2);
     rule.setField("host");
     rule.setType(TreeRuleType.TAGK);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY,
       toBytes("tree_rule:0:0"),
       jsonMapper.writeValueAsBytes(rule));
     
@@ -1160,7 +1161,7 @@ public final class TestTreeRpc {
     rule.setField("");
     rule.setLevel(1);
     rule.setType(TreeRuleType.METRIC);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY,
       toBytes("tree_rule:1:0"),
       jsonMapper.writeValueAsBytes(rule));
     
@@ -1169,7 +1170,7 @@ public final class TestTreeRpc {
     root_path = new TreeMap<Integer, String>();
     root_path.put(0, "ROOT");
     root.prependParentPath(root_path);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY,
       toBytes("branch"),
             jsonMapper.writeValueAsBytes(root));
     
@@ -1177,49 +1178,49 @@ public final class TestTreeRpc {
     // collisions
     key = new byte[] { 0, 1, 1 };
     String tsuid = "010101";
-    byte[] qualifier = new byte[Tree.COLLISION_PREFIX().length + 
+    byte[] qualifier = new byte[HBaseConst.Tree.COLLISION_PREFIX.length +
                                       (tsuid.length() / 2)];
-    System.arraycopy(Tree.COLLISION_PREFIX(), 0, qualifier, 0, 
-        Tree.COLLISION_PREFIX().length);
+    System.arraycopy(HBaseConst.Tree.COLLISION_PREFIX, 0, qualifier, 0,
+        HBaseConst.Tree.COLLISION_PREFIX.length);
     byte[] tsuid_bytes = UniqueId.stringToUid(tsuid);
-    System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length, 
+    System.arraycopy(tsuid_bytes, 0, qualifier, HBaseConst.Tree.COLLISION_PREFIX.length,
         tsuid_bytes.length);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, qualifier,
       toBytes("AAAAAA"));
     
     tsuid = "020202";
-    qualifier = new byte[Tree.COLLISION_PREFIX().length + 
+    qualifier = new byte[HBaseConst.Tree.COLLISION_PREFIX.length +
                                       (tsuid.length() / 2)];
-    System.arraycopy(Tree.COLLISION_PREFIX(), 0, qualifier, 0, 
-        Tree.COLLISION_PREFIX().length);
+    System.arraycopy(HBaseConst.Tree.COLLISION_PREFIX, 0, qualifier, 0,
+        HBaseConst.Tree.COLLISION_PREFIX.length);
     tsuid_bytes = UniqueId.stringToUid(tsuid);
-    System.arraycopy(tsuid_bytes, 0, qualifier, Tree.COLLISION_PREFIX().length, 
+    System.arraycopy(tsuid_bytes, 0, qualifier, HBaseConst.Tree.COLLISION_PREFIX.length,
         tsuid_bytes.length);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, qualifier,
       toBytes("BBBBBB"));
     
     // not matched
     key = new byte[] { 0, 1, 2 };
     tsuid = "010101";
-    qualifier = new byte[Tree.NOT_MATCHED_PREFIX().length + 
+    qualifier = new byte[HBaseConst.Tree.NOT_MATCHED_PREFIX.length +
                              (tsuid.length() / 2)];
-    System.arraycopy(Tree.NOT_MATCHED_PREFIX(), 0, qualifier, 0, 
-        Tree.NOT_MATCHED_PREFIX().length);
+    System.arraycopy(HBaseConst.Tree.NOT_MATCHED_PREFIX, 0, qualifier, 0,
+        HBaseConst.Tree.NOT_MATCHED_PREFIX.length);
     tsuid_bytes = UniqueId.stringToUid(tsuid);
-    System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
+    System.arraycopy(tsuid_bytes, 0, qualifier, HBaseConst.Tree.NOT_MATCHED_PREFIX.length,
     tsuid_bytes.length);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, qualifier,
       toBytes("Failed rule 0:0"));
     
     tsuid = "020202";
-    qualifier = new byte[Tree.NOT_MATCHED_PREFIX().length + 
+    qualifier = new byte[HBaseConst.Tree.NOT_MATCHED_PREFIX.length +
                              (tsuid.length() / 2)];
-    System.arraycopy(Tree.NOT_MATCHED_PREFIX(), 0, qualifier, 0, 
-        Tree.NOT_MATCHED_PREFIX().length);
+    System.arraycopy(HBaseConst.Tree.NOT_MATCHED_PREFIX, 0, qualifier, 0,
+        HBaseConst.Tree.NOT_MATCHED_PREFIX.length);
     tsuid_bytes = UniqueId.stringToUid(tsuid);
-    System.arraycopy(tsuid_bytes, 0, qualifier, Tree.NOT_MATCHED_PREFIX().length, 
+    System.arraycopy(tsuid_bytes, 0, qualifier, HBaseConst.Tree.NOT_MATCHED_PREFIX.length,
     tsuid_bytes.length);
-    tsdb_store.addColumn(key, Tree.TREE_FAMILY(), qualifier,
+    tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, qualifier,
       toBytes("Failed rule 1:1"));
     
     // drop some branches in for tree 1
@@ -1230,18 +1231,18 @@ public final class TestTreeRpc {
     path.put(2, "cpu");
     branch.prependParentPath(path);
     branch.setDisplayName("cpu");
-    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(branch.compileBranchId(), HBaseConst.Tree.TREE_FAMILY,
       toBytes("branch"),
             jsonMapper.writeValueAsBytes(branch));
     
     Leaf leaf = new Leaf("user", "000001000001000001");
     qualifier = leaf.columnQualifier();
-    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(branch.compileBranchId(), HBaseConst.Tree.TREE_FAMILY,
       qualifier, jsonMapper.writeValueAsBytes(leaf));
     
     leaf = new Leaf("nice", "000002000002000002");
     qualifier = leaf.columnQualifier();
-    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(branch.compileBranchId(), HBaseConst.Tree.TREE_FAMILY,
       qualifier, jsonMapper.writeValueAsBytes(leaf));
     
     // child branch
@@ -1249,13 +1250,13 @@ public final class TestTreeRpc {
     path.put(3, "mboard");
     branch.prependParentPath(path);
     branch.setDisplayName("mboard");
-    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(branch.compileBranchId(), HBaseConst.Tree.TREE_FAMILY,
       toBytes("branch"),
             jsonMapper.writeValueAsBytes(branch));
     
     leaf = new Leaf("Asus", "000003000003000003");
     qualifier = leaf.columnQualifier();
-    tsdb_store.addColumn(branch.compileBranchId(), Tree.TREE_FAMILY(),
+    tsdb_store.addColumn(branch.compileBranchId(), HBaseConst.Tree.TREE_FAMILY,
       qualifier, jsonMapper.writeValueAsBytes(leaf));
   }
   

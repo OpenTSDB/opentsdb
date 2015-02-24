@@ -19,7 +19,7 @@ import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.TSMeta;
+import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.utils.Pair;
@@ -502,7 +502,7 @@ public class TestTimeSeriesLookup {
   private void generateMeta() {
     final byte[] val = new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 };
     for (final byte[] tsuid : test_tsuids) {
-      tsdb_store.addColumn(tsuid, TSMeta.COUNTER_QUALIFIER(), val);
+      tsdb_store.addColumn(tsuid, HBaseConst.TSMeta.COUNTER_QUALIFIER, val);
     }
   }
   

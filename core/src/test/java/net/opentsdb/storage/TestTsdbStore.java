@@ -110,14 +110,14 @@ public abstract class TestTsdbStore {
     ans.add(kv);
     //leaves
     kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
-            Leaf.LEAF_PREFIX(), jsonMapper.writeValueAsBytes(root_leaf_one));
+        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(root_leaf_one));
     ans.add(kv);
     kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
-            Leaf.LEAF_PREFIX(), jsonMapper.writeValueAsBytes(root_leaf_two));
+        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(root_leaf_two));
     ans.add(kv);
     kv = new KeyValue(
             Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
-            Leaf.LEAF_PREFIX(), jsonMapper.writeValueAsBytes(child_leaf_one));
+        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(child_leaf_one));
     ans.add(kv);
 
     valid_return.add(ans);
