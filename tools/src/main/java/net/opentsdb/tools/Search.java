@@ -23,9 +23,9 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Pair;
 
 import org.slf4j.Logger;
@@ -158,13 +158,13 @@ final class Search {
     for (final byte[] tsuid : tsuids) {
       try {
         final StringBuffer buf = new StringBuffer(2048);
-        buf.append(UniqueId.uidToString(tsuid)).append(" ");
+        buf.append(IdUtils.uidToString(tsuid)).append(" ");
 
         byte[] metric_id = RowKey.metric(tsuid);
         buf.append(formatter.formatMetric(metric_id).joinUninterruptibly());
         buf.append(" ");
 
-        final List<byte[]> tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
+        final List<byte[]> tag_ids = IdUtils.getTagPairsFromTSUID(tsuid);
         final Map<String, String> resolved_tags =
             tsdb.getUniqueIdClient().getTagNames(tag_ids).joinUninterruptibly();
 
@@ -175,7 +175,7 @@ final class Search {
 
         System.out.println(buf);
       } catch (NoSuchUniqueId nsui) {
-        LOG.error("Unable to resolve UID in TSUID ({}) {}", UniqueId.uidToString(tsuid), nsui.getMessage());
+        LOG.error("Unable to resolve UID in TSUID ({}) {}", IdUtils.uidToString(tsuid), nsui.getMessage());
       }
     }
 

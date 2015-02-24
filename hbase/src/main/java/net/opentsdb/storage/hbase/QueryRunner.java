@@ -11,7 +11,7 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -175,7 +175,7 @@ public class QueryRunner {
     final ArrayList<byte[]> tag_uids = new ArrayList<byte[]>(tsuids.size());
     for (final String tsuid : tsuids) {
       final String tags = tsuid.substring(metric_width * 2);
-      final byte[] tag_bytes = UniqueId.stringToUid(tags);
+      final byte[] tag_bytes = IdUtils.stringToUid(tags);
       tags_length += tag_bytes.length;
       tag_uids.add(tag_bytes);
     }

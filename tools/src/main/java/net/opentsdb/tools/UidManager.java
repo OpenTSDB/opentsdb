@@ -29,6 +29,7 @@ import dagger.ObjectGraph;
 import net.opentsdb.core.Const;
 
 import net.opentsdb.storage.hbase.HBaseConst;
+import net.opentsdb.uid.IdUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -427,7 +428,7 @@ final class UidManager {
       void restoreReverseMap(final String kind, final String name, 
           final String uid) {
         final PutRequest put = new PutRequest(table, 
-            UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, toBytes(kind),
+            IdUtils.stringToUid(uid), CliUtils.NAME_FAMILY, toBytes(kind),
             toBytes(name));
         hbase_store.put(put);
         id2name.put(uid, name);
@@ -451,7 +452,7 @@ final class UidManager {
         }
         
         final DeleteRequest delete = new DeleteRequest(table, 
-            UniqueId.stringToUid(uid), CliUtils.NAME_FAMILY, qualifiers);
+            IdUtils.stringToUid(uid), CliUtils.NAME_FAMILY, qualifiers);
         hbase_store.delete(delete);
         // can't remove from the id2name map as this will be called while looping
         LOG.info("FIX: Removed {} reverse mapping: {} -> {}", kind, uid, name);
@@ -482,12 +483,12 @@ final class UidManager {
             if (!Bytes.equals(qualifier, CliUtils.METRICS) &&
                 !Bytes.equals(qualifier, CliUtils.TAGK) &&
                 !Bytes.equals(qualifier, CliUtils.TAGV)) {
-              LOG.warn("Unknown qualifier {} in row {}", UniqueId.uidToString(qualifier), UniqueId.uidToString(kv.key()));
+              LOG.warn("Unknown qualifier {} in row {}", IdUtils.uidToString(qualifier), IdUtils.uidToString(kv.key()));
               if (fix && fix_unknowns) {
                 final DeleteRequest delete = new DeleteRequest(table, kv.key(), 
                     kv.family(), qualifier);
                 hbase_store.delete(delete);
-                LOG.info("FIX: Removed unknown qualifier {} in row {}", UniqueId.uidToString(qualifier), UniqueId.uidToString(kv.key()));
+                LOG.info("FIX: Removed unknown qualifier {} in row {}", IdUtils.uidToString(qualifier), IdUtils.uidToString(kv.key()));
               }
               continue;
             }
@@ -516,14 +517,14 @@ final class UidManager {
               if (Bytes.equals(family, CliUtils.ID_FAMILY)) {
                 idwidth = (short) value.length;
                 final String skey = fromBytes(key);
-                final String svalue = UniqueId.uidToString(value);
+                final String svalue = IdUtils.uidToString(value);
                 final long max_found_id;
                 if (Bytes.equals(qualifier, CliUtils.METRICS)) {
-                  max_found_id = UniqueId.uidToLong(value, Const.METRICS_WIDTH);
+                  max_found_id = IdUtils.uidToLong(value, Const.METRICS_WIDTH);
                 } else if (Bytes.equals(qualifier, CliUtils.TAGK)) {
-                  max_found_id = UniqueId.uidToLong(value, Const.TAG_NAME_WIDTH);
+                  max_found_id = IdUtils.uidToLong(value, Const.TAG_NAME_WIDTH);
                 } else {
-                  max_found_id = UniqueId.uidToLong(value, Const.TAG_VALUE_WIDTH);
+                  max_found_id = IdUtils.uidToLong(value, Const.TAG_VALUE_WIDTH);
                 }
                 if (uids.max_found_id < max_found_id) {
                   uids.max_found_id = max_found_id;
@@ -535,7 +536,7 @@ final class UidManager {
                              + " and " + skey + " -> " + svalue);
                 }
               } else if (Bytes.equals(family, CliUtils.NAME_FAMILY)) {
-                final String skey = UniqueId.uidToString(key);
+                final String skey = IdUtils.uidToString(key);
                 final String svalue = fromBytes(value);
                 idwidth = (short) key.length;
                 final String name = uids.id2name.put(skey, svalue);
@@ -675,7 +676,7 @@ final class UidManager {
           // write the new forward map
           final String fsck_name = fsck_builder.toString();
           final PutRequest put = new PutRequest(table, toBytes(fsck_name),
-              CliUtils.ID_FAMILY, toBytes(kind), UniqueId.stringToUid(id));
+              CliUtils.ID_FAMILY, toBytes(kind), IdUtils.stringToUid(id));
           hbase_store.put(put);
           LOG.info("FIX: Created forward {} mapping for fsck'd UID {} -> {}", kind, fsck_name, collision.getKey());
           
@@ -778,7 +779,7 @@ final class UidManager {
                               final long lid,
                               final String kind) {
     UniqueIdType type = UniqueIdType.fromValue(kind);
-    final byte[] id = UniqueId.longToUID(lid, type.width);
+    final byte[] id = IdUtils.longToUID(lid, type.width);
 
     if (id == null) {
       return 1;

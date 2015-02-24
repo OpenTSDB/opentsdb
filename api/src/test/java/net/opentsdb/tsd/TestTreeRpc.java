@@ -35,7 +35,7 @@ import net.opentsdb.tree.TestTree;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.codahale.metrics.MetricRegistry;
@@ -1182,7 +1182,7 @@ public final class TestTreeRpc {
                                       (tsuid.length() / 2)];
     System.arraycopy(HBaseConst.Tree.COLLISION_PREFIX, 0, qualifier, 0,
         HBaseConst.Tree.COLLISION_PREFIX.length);
-    byte[] tsuid_bytes = UniqueId.stringToUid(tsuid);
+    byte[] tsuid_bytes = IdUtils.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, HBaseConst.Tree.COLLISION_PREFIX.length,
         tsuid_bytes.length);
     tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, qualifier,
@@ -1193,7 +1193,7 @@ public final class TestTreeRpc {
                                       (tsuid.length() / 2)];
     System.arraycopy(HBaseConst.Tree.COLLISION_PREFIX, 0, qualifier, 0,
         HBaseConst.Tree.COLLISION_PREFIX.length);
-    tsuid_bytes = UniqueId.stringToUid(tsuid);
+    tsuid_bytes = IdUtils.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, HBaseConst.Tree.COLLISION_PREFIX.length,
         tsuid_bytes.length);
     tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, qualifier,
@@ -1206,7 +1206,7 @@ public final class TestTreeRpc {
                              (tsuid.length() / 2)];
     System.arraycopy(HBaseConst.Tree.NOT_MATCHED_PREFIX, 0, qualifier, 0,
         HBaseConst.Tree.NOT_MATCHED_PREFIX.length);
-    tsuid_bytes = UniqueId.stringToUid(tsuid);
+    tsuid_bytes = IdUtils.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, HBaseConst.Tree.NOT_MATCHED_PREFIX.length,
     tsuid_bytes.length);
     tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, qualifier,
@@ -1217,7 +1217,7 @@ public final class TestTreeRpc {
                              (tsuid.length() / 2)];
     System.arraycopy(HBaseConst.Tree.NOT_MATCHED_PREFIX, 0, qualifier, 0,
         HBaseConst.Tree.NOT_MATCHED_PREFIX.length);
-    tsuid_bytes = UniqueId.stringToUid(tsuid);
+    tsuid_bytes = IdUtils.stringToUid(tsuid);
     System.arraycopy(tsuid_bytes, 0, qualifier, HBaseConst.Tree.NOT_MATCHED_PREFIX.length,
     tsuid_bytes.length);
     tsdb_store.addColumn(key, HBaseConst.Tree.TREE_FAMILY, qualifier,
@@ -1284,7 +1284,7 @@ public final class TestTreeRpc {
    */
   private void setupTSMeta() throws Exception {
     final TSMeta meta = new TSMeta("000001000001000001000002000002");
-    tsdb_store.addColumn(UniqueId.stringToUid("000001000001000001000002000002"),
+    tsdb_store.addColumn(IdUtils.stringToUid("000001000001000001000002000002"),
       NAME_FAMILY, toBytes("ts_meta"),
             jsonMapper.writeValueAsBytes(meta));
     

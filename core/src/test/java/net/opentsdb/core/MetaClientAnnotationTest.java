@@ -8,7 +8,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.json.StorageModule;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -161,14 +161,14 @@ public class MetaClientAnnotationTest {
     tsdb.getMetaClient().delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(start_time + 1);
 
     assertNotNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
@@ -187,14 +187,14 @@ public class MetaClientAnnotationTest {
     tsdb.getMetaClient().delete(note).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563000L);
 
     assertNotNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
@@ -215,13 +215,13 @@ public class MetaClientAnnotationTest {
 
     note.setStartTime(1388450562);
     assertNotNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563);
     assertNotNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
@@ -276,7 +276,7 @@ public class MetaClientAnnotationTest {
     note.setDescription("Synced!");
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    note = tsdb_store.getAnnotation(UniqueId.stringToUid(note.getTSUID()),
+    note = tsdb_store.getAnnotation(IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("000001000001000001", note.getTSUID());
@@ -292,7 +292,7 @@ public class MetaClientAnnotationTest {
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase
             .DEFAULT_TIMEOUT);
 
-    note = tsdb_store.getAnnotation(UniqueId.stringToUid(note.getTSUID()),
+    note = tsdb_store.getAnnotation(IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals("000001000001000001", note.getTSUID());
@@ -348,19 +348,19 @@ public class MetaClientAnnotationTest {
     note.setTSUID("000001000001000001");
 
     final int count = tsdb.getMetaClient().deleteRange(
-            UniqueId.stringToUid(note.getTSUID()), 1388450560000L,
+            IdUtils.stringToUid(note.getTSUID()), 1388450560000L,
             1388450562000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, count);
 
     note.setStartTime(1388450562);
     assertNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563);
     assertNotNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
@@ -374,19 +374,19 @@ public class MetaClientAnnotationTest {
   public void deleteRangeNone() throws Exception {
     note.setTSUID("000001000001000001");
     final int count = tsdb.getMetaClient().deleteRange(
-            UniqueId.stringToUid(note.getTSUID()), 1388450560000L,
+            IdUtils.stringToUid(note.getTSUID()), 1388450560000L,
             1388450561000L).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(0, count);
 
     note.setStartTime(1388450562);
     assertNotNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563);
     assertNotNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
@@ -406,13 +406,13 @@ public class MetaClientAnnotationTest {
 
     note.setStartTime(1388450562);
     assertNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
     note.setStartTime(1388450563);
     assertNull(tsdb_store.getAnnotation(
-            UniqueId.stringToUid(note.getTSUID()),
+            IdUtils.stringToUid(note.getTSUID()),
             note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 

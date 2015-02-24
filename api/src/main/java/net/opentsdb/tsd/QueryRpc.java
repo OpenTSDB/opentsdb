@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Throwables;
+import net.opentsdb.uid.IdUtils;
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -41,7 +42,6 @@ import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSUIDQuery;
-import net.opentsdb.uid.UniqueId;
 
 /**
  * Handles queries for timeseries datapoints. Each request is parsed into a
@@ -292,7 +292,7 @@ final class QueryRpc implements HttpRpc {
         // process the TSUIDs and ignore the metric/tags
         if (sub_query.getTSUIDs() != null && !sub_query.getTSUIDs().isEmpty()) {
           for (String tsuid : sub_query.getTSUIDs()) {
-            calls.add(TSUIDQuery.getLastPoint(tsdb, UniqueId.stringToUid(tsuid), 
+            calls.add(TSUIDQuery.getLastPoint(tsdb, IdUtils.stringToUid(tsuid),
                 data_query.getResolveNames(), data_query.getBackScan(), 0));
           }
         } else {

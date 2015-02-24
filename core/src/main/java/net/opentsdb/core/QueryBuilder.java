@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UidResolver;
-import net.opentsdb.uid.UniqueId;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
@@ -356,7 +356,7 @@ public class QueryBuilder {
   private Query createFromTSUIDS() {
     final String tsuid = tsuids.get(0);
     final String metric_uid = tsuid.substring(0, Const.METRICS_WIDTH * 2);
-    final byte[] metric_id = UniqueId.stringToUid(metric_uid);
+    final byte[] metric_id = IdUtils.stringToUid(metric_uid);
 
     return new Query(metric_id, tsuids, start_time.get(), end_time,
             aggregator, downsampler, sample_interval_ms, rate,

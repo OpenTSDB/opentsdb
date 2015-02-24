@@ -23,6 +23,7 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import dagger.ObjectGraph;
+import net.opentsdb.uid.IdUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
@@ -41,7 +42,6 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 
@@ -498,7 +498,7 @@ final class Fsck {
     private boolean fsckKey(final byte[] key) throws Exception {
       if (key.length < key_prefix_length || 
           (key.length - key_prefix_length) % key_tags_length != 0) {
-        LOG.error("Invalid row key.\n\tKey: {}", UniqueId.uidToString(key));
+        LOG.error("Invalid row key.\n\tKey: {}", IdUtils.uidToString(key));
         bad_key.getAndIncrement();
         
         if (options.fix() && options.deleteBadRows()) {
@@ -518,7 +518,7 @@ final class Fsck {
           tsdb.getUniqueIdClient().getUidName(UniqueIdType.METRIC, metric_id).joinUninterruptibly();
         } catch (NoSuchUniqueId nsui) {
           LOG.error("Unable to resolve the metric from the row key.\n\tKey: {}\n\t{}",
-                  UniqueId.uidToString(key), nsui.getMessage());
+                  IdUtils.uidToString(key), nsui.getMessage());
           orphans.getAndIncrement();
           
           if (options.fix() && options.deleteOrphans()) {
@@ -531,9 +531,9 @@ final class Fsck {
         
         try {
           tsdb.getUniqueIdClient().getTagNames(
-                  UniqueId.getTagPairsFromTSUID(tsuid)).joinUninterruptibly();
+                  IdUtils.getTagPairsFromTSUID(tsuid)).joinUninterruptibly();
         } catch (NoSuchUniqueId nsui) {
-          LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: {}\n\t{}", UniqueId.uidToString(key), nsui.getMessage());
+          LOG.error("Unable to resolve the a tagk or tagv from the row key.\n\tKey: {}\n\t{}", IdUtils.uidToString(key), nsui.getMessage());
           orphans.getAndIncrement();
           
           if (options.fix() && options.deleteOrphans()) {
@@ -597,7 +597,7 @@ final class Fsck {
            .append("(")
            .append(time_map.getKey())
            .append(")\n    row key: (")
-           .append(UniqueId.uidToString(key))
+           .append(IdUtils.uidToString(key))
            .append(")\n");
         int index = 0;
         DP last_dp = null;

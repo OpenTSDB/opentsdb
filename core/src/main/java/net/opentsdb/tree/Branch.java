@@ -20,11 +20,10 @@ import java.util.TreeSet;
 import javax.xml.bind.DatatypeConverter;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.uid.IdUtils;
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import net.opentsdb.uid.UniqueId;
 
 /**
  * Represents a branch of a meta data tree, used to organize timeseries into 
@@ -338,7 +337,7 @@ public final class Branch implements Comparable<Branch> {
     if (id == null) {
       return null;
     }
-    return UniqueId.uidToString(id);
+    return IdUtils.uidToString(id);
   }
   
   /** @return The path of the tree */

@@ -24,8 +24,8 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
 import org.hbase.async.Bytes;
@@ -150,7 +150,7 @@ final class MetaSync extends Thread {
           UIDMeta new_meta = new UIDMeta(type, uid, name);
           new_meta.setCreated(timestamp);
           tsdb.getMetaClient().indexUIDMeta(new_meta);
-          LOG.info("Replacing corrupt UID [{}] of type [{}]", UniqueId.uidToString(uid), type);
+          LOG.info("Replacing corrupt UID [{}] of type [{}]", IdUtils.uidToString(uid), type);
           
           return tsdb.getMetaClient().syncUIDMetaToStorage(new_meta, true);
         }
@@ -166,18 +166,18 @@ final class MetaSync extends Thread {
             meta.getCreated() == 0) {
 
           LOG.info("Updating UID [{}] of type [{}]",
-                  UniqueId.uidToString(uid), type);
+                  IdUtils.uidToString(uid), type);
           meta.setCreated(timestamp);
 
           // the meta was good, just needed a timestamp update so sync to
           // search and storage
           tsdb.getMetaClient().indexUIDMeta(meta);
           LOG.info("Syncing valid UID [{}] of type [{}]",
-                  UniqueId.uidToString(uid), type);
+                  IdUtils.uidToString(uid), type);
           return tsdb.getMetaClient().syncUIDMetaToStorage(meta, false);
         } else {
           LOG.debug("UID [{}] of type [{}] is up to date in storage",
-                  UniqueId.uidToString(uid), type);
+                  IdUtils.uidToString(uid), type);
           return Deferred.fromResult(true);
         }
       }
@@ -202,7 +202,7 @@ final class MetaSync extends Thread {
        */
       public TSMetaCB(final byte[] tsuid, final long timestamp) {
         this.tsuid = tsuid;
-        tsuid_string = UniqueId.uidToString(tsuid);
+        tsuid_string = IdUtils.uidToString(tsuid);
         this.timestamp = timestamp;
       }
 
@@ -337,7 +337,7 @@ final class MetaSync extends Thread {
           if (processed_tsuids.contains(Arrays.hashCode(tsuid))) {
             continue;
           }
-          tsuid_string = UniqueId.uidToString(tsuid);
+          tsuid_string = IdUtils.uidToString(tsuid);
           
           // add tsuid to the processed list
           processed_tsuids.add(Arrays.hashCode(tsuid));
@@ -353,7 +353,7 @@ final class MetaSync extends Thread {
           // now process the UID metric meta data
           final byte[] metric_uid_bytes =
             Arrays.copyOfRange(tsuid, 0, Const.METRICS_WIDTH);
-          final String metric_uid = UniqueId.uidToString(metric_uid_bytes);
+          final String metric_uid = IdUtils.uidToString(metric_uid_bytes);
           Long last_get = metric_uids.get(metric_uid);
           
           if (last_get == null || last_get == 0 || timestamp < last_get) {
@@ -369,13 +369,13 @@ final class MetaSync extends Thread {
           }
           
           // loop through the tags and process their meta
-          final List<byte[]> tags = UniqueId.getTagsFromTSUID(tsuid_string);
+          final List<byte[]> tags = IdUtils.getTagsFromTSUID(tsuid_string);
           int idx = 0;
           for (byte[] tag : tags) {
             final UniqueIdType type = (idx % 2 == 0) ? UniqueIdType.TAGK : 
               UniqueIdType.TAGV;
             idx++;
-            final String uid = UniqueId.uidToString(tag);
+            final String uid = IdUtils.uidToString(tag);
             
             // check the maps to see if we need to bother updating
             if (type == UniqueIdType.TAGK) {
@@ -517,8 +517,8 @@ final class MetaSync extends Thread {
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
 
-    LOG.debug("[{}] Start row: {}", thread_id, UniqueId.uidToString(start_row));
-    LOG.debug("[{}] End row: {}", thread_id, UniqueId.uidToString(end_row));
+    LOG.debug("[{}] Start row: {}", thread_id, IdUtils.uidToString(start_row));
+    LOG.debug("[{}] End row: {}", thread_id, IdUtils.uidToString(end_row));
     final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);

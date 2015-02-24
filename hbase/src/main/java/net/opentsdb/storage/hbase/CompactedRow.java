@@ -27,7 +27,7 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterators;
@@ -150,7 +150,7 @@ public final class CompactedRow implements DataPoints {
   @Override
   public List<String> getTSUIDs() {
     byte[] str_tsuid = RowKey.tsuid(key);
-    return Lists.newArrayList(UniqueId.uidToString(str_tsuid));
+    return Lists.newArrayList(IdUtils.uidToString(str_tsuid));
   }
 
   /**

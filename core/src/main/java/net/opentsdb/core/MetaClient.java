@@ -17,7 +17,7 @@ import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.IdCreatedEvent;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
@@ -134,7 +134,7 @@ public class MetaClient {
    */
   public Deferred<Object> createTimeseriesCounter(final TSMeta ts) {
     ts.checkTSUI();
-    return store.setTSMetaCounter(UniqueId.stringToUid(ts.getTSUID()), 0);
+    return store.setTSMetaCounter(IdUtils.stringToUid(ts.getTSUID()), 0);
   }
 
   /**
@@ -239,7 +239,7 @@ public class MetaClient {
       return store.getAnnotation(null, start_time);
     }
 
-    return store.getAnnotation(UniqueId.stringToUid(tsuid), start_time);
+    return store.getAnnotation(IdUtils.stringToUid(tsuid), start_time);
   }
 
   /**
@@ -276,10 +276,10 @@ public class MetaClient {
    */
   public Deferred<TSMeta> getTSMeta(final String tsuid, final boolean load_uids) {
     if (load_uids)
-    return store.getTSMeta(UniqueId.stringToUid(tsuid))
+    return store.getTSMeta(IdUtils.stringToUid(tsuid))
             .addCallbackDeferring(new LoadUIDs(tsuid));
 
-    return  store.getTSMeta(UniqueId.stringToUid(tsuid));
+    return  store.getTSMeta(IdUtils.stringToUid(tsuid));
 
   }
 
@@ -293,7 +293,7 @@ public class MetaClient {
    */
   public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
                                       final String uid) {
-    return getUIDMeta(type, UniqueId.stringToUid(uid));
+    return getUIDMeta(type, IdUtils.stringToUid(uid));
   }
 
   /**
@@ -432,7 +432,7 @@ public class MetaClient {
             LOG.info("Successfullly created new TSUID entry for: {}", meta);
             final Deferred<TSMeta> meta = store.getTSMeta(tsuid)
                     .addCallbackDeferring(
-                            new LoadUIDs(UniqueId.uidToString(tsuid)));
+                            new LoadUIDs(IdUtils.uidToString(tsuid)));
             return meta.addCallbackDeferring(new FetchNewCB());
           }
 
@@ -500,7 +500,7 @@ public class MetaClient {
 
     // fix in case the tsuid is missing
     if (meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
-      meta.setTSUID(UniqueId.uidToString(column_key));
+      meta.setTSUID(IdUtils.uidToString(column_key));
     }
 
     if (!load_uidmetas) {
@@ -571,7 +571,7 @@ public class MetaClient {
     if (Strings.isNullOrEmpty(annotation.getTSUID())) {
       tsuid = null;
     } else {
-      tsuid = UniqueId.stringToUid(annotation.getTSUID());
+      tsuid = IdUtils.stringToUid(annotation.getTSUID());
     }
 
     return store.getAnnotation(tsuid, annotation.getStartTime()).addCallbackDeferring(new StoreCB());
@@ -646,7 +646,7 @@ public class MetaClient {
     }
 
     // parse out the tags from the tsuid
-    final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(tsMeta.getTSUID());
+    final List<byte[]> parsed_tags = IdUtils.getTagsFromTSUID(tsMeta.getTSUID());
 
     // Deferred group used to accumulate UidCB callbacks so the next call
     // can wait until all of the UIDs have been verified
@@ -654,8 +654,8 @@ public class MetaClient {
             new ArrayList<Deferred<Object>>(parsed_tags.size() + 1);
 
     // calculate the metric UID and fetch it's name mapping
-    final byte[] metric_uid = UniqueId.stringToUid(
-            tsMeta.getTSUID().substring(0, Const.METRICS_WIDTH * 2));
+    final byte[] metric_uid = IdUtils.stringToUid(
+        tsMeta.getTSUID().substring(0, Const.METRICS_WIDTH * 2));
     uid_group.add(uniqueIdClient.getUidName(UniqueIdType.METRIC, metric_uid)
             .addCallback(new UidCB()));
 
@@ -724,10 +724,10 @@ public class MetaClient {
 
     public LoadUIDs(final String tsuid) {
 
-      final byte[] byte_tsuid = UniqueId.stringToUid(tsuid);
+      final byte[] byte_tsuid = IdUtils.stringToUid(tsuid);
 
       metric_uid = Arrays.copyOfRange(byte_tsuid, 0, Const.METRICS_WIDTH);
-      tags = UniqueId.getTagsFromTSUID(tsuid);
+      tags = IdUtils.getTagsFromTSUID(tsuid);
     }
 
     /**

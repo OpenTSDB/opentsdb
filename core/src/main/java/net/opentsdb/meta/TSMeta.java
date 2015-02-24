@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Strings;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 
 import com.google.common.collect.Sets;
 
@@ -114,7 +114,7 @@ public final class TSMeta {
   }
 
   public TSMeta(final byte[] tsuid) {
-    this.tsuid = UniqueId.uidToString(tsuid);
+    this.tsuid = IdUtils.uidToString(tsuid);
   }
   
   /**
@@ -123,7 +123,7 @@ public final class TSMeta {
    * @param tsuid The UID of the timeseries
    */
   public TSMeta(final byte[] tsuid, final long created) {
-    this.tsuid = UniqueId.uidToString(tsuid);
+    this.tsuid = IdUtils.uidToString(tsuid);
     // downgrade to seconds
     this.created = created > 9999999999L ? created / 1000 : created;
     changed.add("created");

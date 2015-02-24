@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.SortedSet;
 
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
@@ -226,8 +226,8 @@ class Span implements DataPoints {
 
   @Override
   public int compareTo(final DataPoints other) {
-    final byte[] this_tsuid = UniqueId.stringToUid(getTSUIDs().get(0));
-    final byte[] other_tsuid = UniqueId.stringToUid(other.getTSUIDs().get(0));
+    final byte[] this_tsuid = IdUtils.stringToUid(getTSUIDs().get(0));
+    final byte[] other_tsuid = IdUtils.stringToUid(other.getTSUIDs().get(0));
 
     return SignedBytes.lexicographicalComparator().compare(this_tsuid, other_tsuid);
   }

@@ -13,6 +13,7 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -295,7 +296,7 @@ public class UniqueIdClient {
       try {
         final byte[] uid = instance.getId(name).joinUninterruptibly();
         throw new IllegalArgumentException("Name already exists with UID: " +
-                UniqueId.uidToString(uid));
+                IdUtils.uidToString(uid));
       } catch (NoSuchUniqueName nsue) {
         return instance.createId(name).joinUninterruptibly();
       }

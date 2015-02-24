@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.HBaseConst;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteArrayPair;
 import net.opentsdb.utils.Pair;
@@ -155,11 +155,11 @@ public class TimeSeriesLookup {
                 query.getMetric()).joinUninterruptibly();
 
         LOG.debug("Found UID ({}) for metric ({})",
-                UniqueId.uidToString(metric_uid), query.getMetric());
+                IdUtils.uidToString(metric_uid), query.getMetric());
         scanner.setStartKey(metric_uid);
-        long uid = UniqueId.uidToLong(metric_uid, Const.METRICS_WIDTH);
+        long uid = IdUtils.uidToLong(metric_uid, Const.METRICS_WIDTH);
         uid++; // TODO - see what happens when this rolls over
-        scanner.setStopKey(UniqueId.longToUID(uid, Const.METRICS_WIDTH));
+        scanner.setStopKey(IdUtils.longToUID(uid, Const.METRICS_WIDTH));
       } catch (Exception e) {
         Throwables.propagate(e);
       }

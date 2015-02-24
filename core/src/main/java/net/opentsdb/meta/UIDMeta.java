@@ -19,7 +19,7 @@ import java.util.Set;
 import com.google.common.base.Objects;
 import com.google.common.collect.Sets;
 
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -155,7 +155,7 @@ public final class UIDMeta {
    */
   @Override
   public String toString() {
-    return "'" + type + ":" + UniqueId.uidToLong(uid) + "'";
+    return "'" + type + ":" + IdUtils.uidToLong(uid) + "'";
   }
 
   /**

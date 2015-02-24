@@ -49,10 +49,10 @@ import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UidFormatter;
-import net.opentsdb.uid.UniqueId;
 import com.typesafe.config.Config;
 import net.opentsdb.utils.JSONException;
 import org.hbase.async.AtomicIncrementRequest;
@@ -330,7 +330,7 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(Annotation annotation) {
     final byte[] tsuid_byte = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
-            UniqueId.stringToUid(annotation.getTSUID()) : null;
+            IdUtils.stringToUid(annotation.getTSUID()) : null;
     final DeleteRequest delete = new DeleteRequest(data_table_name,
             getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), TS_FAMILY,
             getAnnotationQualifier(annotation.getStartTime()));
@@ -344,7 +344,7 @@ public class HBaseStore implements TsdbStore {
           jsonMapper.writeValueAsBytes(original);
 
       final byte[] tsuid_byte = !Strings.isNullOrEmpty(annotation.getTSUID()) ?
-          UniqueId.stringToUid(annotation.getTSUID()) : null;
+          IdUtils.stringToUid(annotation.getTSUID()) : null;
 
       final PutRequest put = new PutRequest(data_table_name,
           getAnnotationRowKey(annotation.getStartTime(), tsuid_byte), TS_FAMILY,
@@ -947,7 +947,7 @@ public class HBaseStore implements TsdbStore {
         scanner.setFamily(TS_FAMILY);
         if (tsuid != null) {
           final List<String> tsuids = new ArrayList<String>(1);
-          tsuids.add(UniqueId.uidToString(tsuid));
+          tsuids.add(IdUtils.uidToString(tsuid));
           Internal.createAndSetTSUIDFilter(scanner, tsuids);
         }
       }
@@ -1509,7 +1509,7 @@ public class HBaseStore implements TsdbStore {
                 (tsuid.length() / 2)];
         System.arraycopy(COLLISION_PREFIX, 0, qualifier, 0,
                 COLLISION_PREFIX.length);
-        final byte[] tsuid_bytes = UniqueId.stringToUid(tsuid);
+        final byte[] tsuid_bytes = IdUtils.stringToUid(tsuid);
         System.arraycopy(tsuid_bytes, 0, qualifier, COLLISION_PREFIX.length,
                 tsuid_bytes.length);
         qualifiers[index] = qualifier;
@@ -1541,7 +1541,7 @@ public class HBaseStore implements TsdbStore {
                           COLLISION_PREFIX.length) == 0) {
             final byte[] parsed_tsuid = Arrays.copyOfRange(column.qualifier(),
                     COLLISION_PREFIX.length, column.qualifier().length);
-            collisions.put(UniqueId.uidToString(parsed_tsuid),
+            collisions.put(IdUtils.uidToString(parsed_tsuid),
                     new String(column.value(), CHARSET));
           }
         }
@@ -1576,7 +1576,7 @@ public class HBaseStore implements TsdbStore {
                 (tsuid.length() / 2)];
         System.arraycopy(NOT_MATCHED_PREFIX, 0, qualifier, 0,
                 NOT_MATCHED_PREFIX.length);
-        final byte[] tsuid_bytes = UniqueId.stringToUid(tsuid);
+        final byte[] tsuid_bytes = IdUtils.stringToUid(tsuid);
         System.arraycopy(tsuid_bytes, 0, qualifier, NOT_MATCHED_PREFIX.length,
                 tsuid_bytes.length);
         qualifiers[index] = qualifier;
@@ -1605,7 +1605,7 @@ public class HBaseStore implements TsdbStore {
         for (KeyValue column : row) {
           final byte[] parsed_tsuid = Arrays.copyOfRange(column.qualifier(),
                   NOT_MATCHED_PREFIX.length, column.qualifier().length);
-          not_matched.put(UniqueId.uidToString(parsed_tsuid),
+          not_matched.put(IdUtils.uidToString(parsed_tsuid),
                   new String(column.value(), CHARSET));
         }
         return Deferred.fromResult(not_matched);
@@ -1630,7 +1630,7 @@ public class HBaseStore implements TsdbStore {
               (entry.getKey().length() / 2)];
       System.arraycopy(COLLISION_PREFIX, 0, qualifiers[index], 0,
               COLLISION_PREFIX.length);
-      final byte[] tsuid = UniqueId.stringToUid(entry.getKey());
+      final byte[] tsuid = IdUtils.stringToUid(entry.getKey());
       System.arraycopy(tsuid, 0, qualifiers[index],
               COLLISION_PREFIX.length, tsuid.length);
 
@@ -1673,7 +1673,7 @@ public class HBaseStore implements TsdbStore {
               (entry.getKey().length() / 2)];
       System.arraycopy(NOT_MATCHED_PREFIX, 0, qualifiers[index], 0,
               NOT_MATCHED_PREFIX.length);
-      final byte[] tsuid = UniqueId.stringToUid(entry.getKey());
+      final byte[] tsuid = IdUtils.stringToUid(entry.getKey());
       System.arraycopy(tsuid, 0, qualifiers[index],
               NOT_MATCHED_PREFIX.length, tsuid.length);
 
@@ -2294,7 +2294,7 @@ public class HBaseStore implements TsdbStore {
       }
 
       // split the TSUID to get the tags
-      final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(leaf.getTsuid());
+      final List<byte[]> parsed_tags = IdUtils.getTagsFromTSUID(leaf.getTsuid());
 
       // setup an array of deferreds to wait on so we can return the leaf only
       // after all of the name fetches have completed
@@ -2325,8 +2325,8 @@ public class HBaseStore implements TsdbStore {
 
       UidFormatter formatter = new UidFormatter(tsdb);
       // fetch the metric name first
-      final byte[] metric_uid = UniqueId.stringToUid(
-              leaf.getTsuid().substring(0, Const.METRICS_WIDTH * 2));
+      final byte[] metric_uid = IdUtils.stringToUid(
+          leaf.getTsuid().substring(0, Const.METRICS_WIDTH * 2));
       uid_group.add(formatter.formatMetric(metric_uid).addCallback(
               new UIDMetricCB()));
 
@@ -2365,14 +2365,14 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(final TSMeta tsMeta) {
     final DeleteRequest delete = new DeleteRequest(meta_table_name,
-            UniqueId.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER);
+            IdUtils.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER);
     return client.delete(delete);
   }
 
   @Override
   public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
     final DeleteRequest delete = new DeleteRequest(meta_table_name,
-            UniqueId.stringToUid(ts.getTSUID()), TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER);
+            IdUtils.stringToUid(ts.getTSUID()), TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER);
     return client.delete(delete);
   }
 
@@ -2380,7 +2380,7 @@ public class HBaseStore implements TsdbStore {
   public Deferred<Boolean> create(final TSMeta tsMeta) {
     try {
       final PutRequest put = new PutRequest(meta_table_name,
-              UniqueId.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
+              IdUtils.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
               jsonMapper.writeValueAsBytes(tsMeta));
 
       final class PutCB implements Callback<Deferred<Boolean>, Object> {
@@ -2427,7 +2427,7 @@ public class HBaseStore implements TsdbStore {
         }
 
         if (meta == null) {
-          LOG.warn("Found a counter TSMeta column without a meta for TSUID: {}", UniqueId.uidToString(row.get(0).key()));
+          LOG.warn("Found a counter TSMeta column without a meta for TSUID: {}", IdUtils.uidToString(row.get(0).key()));
           return Deferred.fromResult(null);
         }
 
@@ -2485,7 +2485,7 @@ public class HBaseStore implements TsdbStore {
           local_meta.syncMeta(stored_meta, overwrite);
 
           final PutRequest put = new PutRequest(meta_table_name,
-                  UniqueId.stringToUid(local_meta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
+                  IdUtils.stringToUid(local_meta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER,
                   jsonMapper.writeValueAsBytes(local_meta));
 
           return client.compareAndSet(put, original_meta);
@@ -2500,7 +2500,7 @@ public class HBaseStore implements TsdbStore {
       @Override
       public Deferred<Boolean> call(ArrayList<Object> validated)
               throws Exception {
-        return getTSMeta(UniqueId.stringToUid(tsMeta.getTSUID()))
+        return getTSMeta(IdUtils.stringToUid(tsMeta.getTSUID()))
                 .addCallbackDeferring(new StoreCB());
       }
 
@@ -2513,7 +2513,7 @@ public class HBaseStore implements TsdbStore {
   public Deferred<Boolean> TSMetaExists(final String tsuid) {
 
     final GetRequest get = new GetRequest(meta_table_name,
-            UniqueId.stringToUid(tsuid)).family(TSMETA_FAMILY)
+            IdUtils.stringToUid(tsuid)).family(TSMETA_FAMILY)
             .qualifier(TSMETA_QUALIFIER);
 
     /**

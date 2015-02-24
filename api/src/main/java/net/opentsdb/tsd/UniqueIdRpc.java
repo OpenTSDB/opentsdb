@@ -25,6 +25,7 @@ import net.opentsdb.core.Const;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import net.opentsdb.uid.IdUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
@@ -38,7 +39,6 @@ import net.opentsdb.meta.TSUIDQuery;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
 /**
@@ -131,7 +131,7 @@ final class UniqueIdRpc implements HttpRpc {
         try {
           final byte[] uid = tsdb.getUniqueIdClient().assignUid(type, name);
           results.put(name, 
-              UniqueId.uidToString(uid));
+              IdUtils.uidToString(uid));
         } catch (IllegalArgumentException e) {
           errors.put(name, e.getMessage());
           error_count++;
@@ -371,7 +371,7 @@ final class UniqueIdRpc implements HttpRpc {
           
           if (!exists && create) {
             // Write 0 to counter column if not present
-            tsdb.getMetaClient().TSMetaCounterExists(UniqueId.stringToUid(tsuid))
+            tsdb.getMetaClient().TSMetaCounterExists(IdUtils.stringToUid(tsuid))
                     .addCallback(new WriteCounterIfNotPresentCB())
                 .joinUninterruptibly();
             // set TSUID
@@ -456,7 +456,7 @@ final class UniqueIdRpc implements HttpRpc {
    * be parsed
    */
   private UIDMeta parseUIDMetaQS(final HttpQuery query) {
-    final byte[] uid = UniqueId.stringToUid(query.getRequiredQueryStringParam("uid"));
+    final byte[] uid = IdUtils.stringToUid(query.getRequiredQueryStringParam("uid"));
     final String type = query.getRequiredQueryStringParam("type");
     final UIDMeta meta = new UIDMeta(UniqueIdType.fromValue(type), uid);
     final String display_name = query.getQueryStringParam("display_name");
@@ -582,6 +582,6 @@ final class UniqueIdRpc implements HttpRpc {
       Throwables.propagate(e);
     }
 
-    return UniqueId.uidToString(buf.toByteArray());
+    return IdUtils.uidToString(buf.toByteArray());
   }
 }

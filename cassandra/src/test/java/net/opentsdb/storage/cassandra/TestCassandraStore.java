@@ -5,7 +5,7 @@ import com.google.common.base.Optional;
 import dagger.ObjectGraph;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.DatabaseTests;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 import org.junit.Before;
@@ -198,9 +198,9 @@ public class TestCassandraStore {
                     (CassandraConst.CASSANDRA_TIMEOUT);
     long max_uid = 0;
     for (byte[] uid : name_uid.values()) {
-      max_uid = Math.max(UniqueId.uidToLong(uid), max_uid);
+      max_uid = Math.max(IdUtils.uidToLong(uid), max_uid);
     }
-    assertEquals(max_uid + 1, UniqueId.uidToLong(new_metric_uid));
+    assertEquals(max_uid + 1, IdUtils.uidToLong(new_metric_uid));
   }
 
   @Test

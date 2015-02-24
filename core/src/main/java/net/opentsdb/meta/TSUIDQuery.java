@@ -26,8 +26,8 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.storage.hbase.HBaseConst;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
 import org.hbase.async.Bytes.ByteMap;
@@ -354,7 +354,7 @@ public class TSUIDQuery {
           return null;
         }
        
-        dp.setTSUID(UniqueId.uidToString(tsuid));
+        dp.setTSUID(IdUtils.uidToString(tsuid));
         if (!resolve_names) {
           result.callback(dp);
           return null;
@@ -374,7 +374,7 @@ public class TSUIDQuery {
           @Override
           public Object call(final String name) throws Exception {
             dp.setMetric(name);
-            final List<byte[]> tags = UniqueId.getTagPairsFromTSUID(tsuid);
+            final List<byte[]> tags = IdUtils.getTagPairsFromTSUID(tsuid);
             return tsdb.getUniqueIdClient().getTagNames(tags).addCallback(new TagsCB());
           }
         }
@@ -485,8 +485,8 @@ public class TSUIDQuery {
     
     // increment the metric UID by one so we can scan all of the rows for the
     // given metric
-    final long stop = UniqueId.uidToLong(metric, Const.METRICS_WIDTH) + 1;
-    scanner.setStopKey(UniqueId.longToUID(stop, Const.METRICS_WIDTH));
+    final long stop = IdUtils.uidToLong(metric, Const.METRICS_WIDTH) + 1;
+    scanner.setStopKey(IdUtils.longToUID(stop, Const.METRICS_WIDTH));
     scanner.setFamily(HBaseConst.TSMeta.FAMILY);
     
     // set the filter if we have tags
@@ -515,7 +515,7 @@ public class TSUIDQuery {
       do {
         // Skip any number of tags.
         buf.append("(?:.{").append(tagsize).append("})*\\Q");
-        UniqueId.addIdToRegexp(buf, tag);
+        IdUtils.addIdToRegexp(buf, tag);
         tag = tags.hasNext() ? tags.next() : null;
       } while (tag != null);  // Stop when they both become null.
       // Skip any number of tags before the end.

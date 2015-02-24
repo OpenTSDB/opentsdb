@@ -22,8 +22,8 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeBuilder;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.HBaseException;
@@ -140,7 +140,7 @@ final class TreeSync extends Thread {
         
         for (final ArrayList<KeyValue> row : rows) {
           // convert to a string one time
-          final String tsuid = UniqueId.uidToString(row.get(0).key());
+          final String tsuid = IdUtils.uidToString(row.get(0).key());
           
           /**
            * A throttling callback used to wait for the current TSMeta to 
@@ -323,8 +323,8 @@ final class TreeSync extends Thread {
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
 
-    LOG.debug("[{}] Start row: {}", thread_id, UniqueId.uidToString(start_row));
-    LOG.debug("[{}] End row: {}", thread_id, UniqueId.uidToString(end_row));
+    LOG.debug("[{}] Start row: {}", thread_id, IdUtils.uidToString(start_row));
+    LOG.debug("[{}] End row: {}", thread_id, IdUtils.uidToString(end_row));
     final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.metaTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);

@@ -37,6 +37,7 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
@@ -406,13 +407,13 @@ public final class TestSearchRpc {
     pair_b.add(new byte[] { 0, 0, 1 });
     pair_b.add(new byte[] { 0, 0, 2 });
     
-    when(UniqueId.getTagPairsFromTSUID(test_tsuids.get(0)))
+    when(IdUtils.getTagPairsFromTSUID(test_tsuids.get(0)))
       .thenReturn(pair_a);
-    when(UniqueId.getTagPairsFromTSUID(test_tsuids.get(1)))
+    when(IdUtils.getTagPairsFromTSUID(test_tsuids.get(1)))
       .thenReturn(pair_b);
-    when(UniqueId.getTagPairsFromTSUID(test_tsuids.get(2)))
+    when(IdUtils.getTagPairsFromTSUID(test_tsuids.get(2)))
       .thenReturn(pair_a);
-    when(UniqueId.uidToString((byte[])any())).thenCallRealMethod();
+    when(IdUtils.uidToString((byte[]) any())).thenCallRealMethod();
     
     PowerMockito.mockStatic(Tags.class);
     final HashMap<String, String> tags_a = new HashMap<String, String>(1);

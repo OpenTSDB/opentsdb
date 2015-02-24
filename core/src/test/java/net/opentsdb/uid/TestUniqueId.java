@@ -13,15 +13,11 @@
 package net.opentsdb.uid;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.SortedMap;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
-import com.stumbleupon.async.Callback;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
@@ -29,23 +25,13 @@ import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 
-import org.hbase.async.AtomicIncrementRequest;
-import org.hbase.async.GetRequest;
-import org.hbase.async.HBaseClient;
-import org.hbase.async.KeyValue;
-import org.hbase.async.PutRequest;
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
-import org.mockito.ArgumentMatcher;
 
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.argThat;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -195,267 +181,4 @@ public final class TestUniqueId {
     uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     verify(idEventBus).post(any(IdCreatedEvent.class));
   }
-
-  @Test
-  public void uidToString() {
-    assertEquals("01", UniqueId.uidToString(new byte[] { 1 }));
-  }
-  
-  @Test
-  public void uidToString2() {
-    assertEquals("0A0B", UniqueId.uidToString(new byte[] { 10, 11 }));
-  }
-  
-  @Test
-  public void uidToString3() {
-    assertEquals("1A1B", UniqueId.uidToString(new byte[] { 26, 27 }));
-  }
-  
-  @Test
-  public void uidToStringZeros() {
-    assertEquals("00", UniqueId.uidToString(new byte[] { 0 }));
-  }
-  
-  @Test
-  public void uidToString255() {
-    assertEquals("FF", UniqueId.uidToString(new byte[] { (byte) 255 }));
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void uidToStringNull() {
-    UniqueId.uidToString(null);
-  }
-  
-  @Test
-  public void stringToUid() {
-    assertArrayEquals(new byte[] { 0x0a, 0x0b }, UniqueId.stringToUid("0A0B"));
-  }
-  
-  @Test
-  public void stringToUidNormalize() {
-    assertArrayEquals(new byte[] { (byte) 171 }, UniqueId.stringToUid("AB"));
-  }
-  
-  @Test
-  public void stringToUidCase() {
-    assertArrayEquals(new byte[] { (byte) 11 }, UniqueId.stringToUid("B"));
-  }
-  
-  @Test
-  public void stringToUidWidth() {
-    assertArrayEquals(new byte[] { (byte) 0, (byte) 42, (byte) 12 }, 
-        UniqueId.stringToUid("2A0C", (short)3));
-  }
-  
-  @Test
-  public void stringToUidWidth2() {
-    assertArrayEquals(new byte[] { (byte) 0, (byte) 0, (byte) 0 }, 
-        UniqueId.stringToUid("0", (short)3));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void stringToUidNull() {
-    UniqueId.stringToUid(null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void stringToUidEmpty() {
-    UniqueId.stringToUid("");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void stringToUidNotHex() {
-    UniqueId.stringToUid("HelloWorld");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void stringToUidNotHex2() {
-    UniqueId.stringToUid(" ");
-  }
-  
-  @Test
-  public void getTagPairsFromTSUIDBytes() {
-    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
-        new byte[] { 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4 });
-    assertNotNull(tags);
-    assertEquals(2, tags.size());
-    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2 }, tags.get(0));
-    assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 4 }, tags.get(1));
-  }
-  
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDBytesNonStandardWidth() {
-    //PowerMockito.mockStatic(TSDB.class);
-    //when(Const.METRICS_WIDTH).thenReturn(eq((short)3));
-    //when(Const.TAG_NAME_WIDTH).thenReturn(eq((short)4));
-    //when(Const.TAG_VALUE_WIDTH).thenReturn(eq((short)3));
-    
-    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
-        new byte[] { 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 3, 0, 0, 4 });
-    assertNotNull(tags);
-    assertEquals(2, tags.size());
-    assertArrayEquals(new byte[] { 0, 0, 0, 1, 0, 0, 2 }, tags.get(0));
-    assertArrayEquals(new byte[] { 0, 0, 0, 3, 0, 0, 4 }, tags.get(1));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDBytesMissingTags() {
-    UniqueId.getTagPairsFromTSUID(new byte[] { 0, 0, 1 });
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDBytesMissingMetric() {
-    UniqueId.getTagPairsFromTSUID(new byte[] { 0, 0, 1, 0, 0, 2 });
-  }
-
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDBytesMissingTagv() {
-    UniqueId.getTagPairsFromTSUID(new byte[] { 0, 0, 8, 0, 0, 2 });
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDBytesNull() {
-    UniqueId.getTagPairsFromTSUID((byte[])null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDBytesEmpty() {
-    UniqueId.getTagPairsFromTSUID(new byte[0]);
-  }
-  
-  @Test
-  public void getTagFromTSUID() {
-    List<byte[]> tags = UniqueId.getTagsFromTSUID(
-        "000000000001000002000003000004");
-    assertNotNull(tags);
-    assertEquals(4, tags.size());
-    assertArrayEquals(new byte[] { 0, 0, 1 }, tags.get(0));
-    assertArrayEquals(new byte[] { 0, 0, 2 }, tags.get(1));
-    assertArrayEquals(new byte[] { 0, 0, 3 }, tags.get(2));
-    assertArrayEquals(new byte[] { 0, 0, 4 }, tags.get(3));
-  }
-  
-  @Test(expected = IllegalArgumentException.class)
-  public void getTagFromTSUIDNonStandardWidth() {
-    List<byte[]> tags = UniqueId.getTagsFromTSUID(
-        "0000000000000100000200000003000004");
-    assertNotNull(tags);
-    assertEquals(4, tags.size());
-    assertArrayEquals(new byte[] { 0, 0, 0, 1 }, tags.get(0));
-    assertArrayEquals(new byte[] { 0, 0, 2 }, tags.get(1));
-    assertArrayEquals(new byte[] { 0, 0, 0, 3 }, tags.get(2));
-    assertArrayEquals(new byte[] { 0, 0, 4 }, tags.get(3));
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagFromTSUIDMissingTags() {
-    UniqueId.getTagsFromTSUID("123456");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagFromTSUIDMissingMetric() {
-    UniqueId.getTagsFromTSUID("000001000002");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagFromTSUIDOddNumberOfCharacters() {
-    UniqueId.getTagsFromTSUID("0000080000010000020");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagFromTSUIDMissingTagv() {
-    UniqueId.getTagsFromTSUID("000008000001");
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagFromTSUIDNull() {
-    UniqueId.getTagsFromTSUID(null);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void getTagFromTSUIDEmpty() {
-    UniqueId.getTagsFromTSUID("");
-  }
-
-  public void uidToLong() {
-    assertEquals(42, UniqueId.uidToLong(new byte[] { 0, 0, 0x2A }, (short)3));
-  }
-
-  @Test (expected = IllegalArgumentException.class)
-  public void uidToLongTooLong() throws Exception {
-    UniqueId.uidToLong(new byte[] { 0, 0, 0, 0x2A }, (short)3);
-  }
-  
-  @Test (expected = IllegalArgumentException.class)
-  public void uidToLongTooShort() throws Exception {
-    UniqueId.uidToLong(new byte[] { 0, 0x2A }, (short)3);
-  }
-  
-  @Test (expected = NullPointerException.class)
-  public void uidToLongNull() throws Exception {
-    UniqueId.uidToLong((byte[])null, (short)3);
-  }
-  
-  @Test
-  public void longToUID() throws Exception {
-    assertArrayEquals(new byte[] { 0, 0, 0x2A }, 
-        UniqueId.longToUID(42L, (short)3));
-  }
-  
-  @Test (expected = IllegalStateException.class)
-  public void longToUIDTooBig() throws Exception {
-    UniqueId.longToUID(257, (short)1);
-  }
-
-  // ----------------- //
-  // Helper functions. //
-  // ----------------- //
-
-  private static byte[] emptyArray() {
-    return eq(HBaseClient.EMPTY_ARRAY);
-  }
-
-  private static GetRequest anyGet() {
-    return any(GetRequest.class);
-  }
-
-  private static AtomicIncrementRequest incrementForRow(final byte[] row) {
-    return argThat(new ArgumentMatcher<AtomicIncrementRequest>() {
-      @Override
-      public boolean matches(Object incr) {
-        return Arrays.equals(((AtomicIncrementRequest) incr).key(), row);
-      }
-      @Override
-      public void describeTo(org.hamcrest.Description description) {
-        description.appendText("AtomicIncrementRequest for row "
-                               + Arrays.toString(row));
-      }
-    });
-  }
-
-  private static PutRequest anyPut() {
-    return any(PutRequest.class);
-  }
-  
-  @SuppressWarnings("unchecked")
-  private static Callback<byte[], ArrayList<KeyValue>> anyByteCB() {
-    return any(Callback.class);
-  }
-
-  private static PutRequest putForRow(final byte[] row) {
-    return argThat(new ArgumentMatcher<PutRequest>() {
-      @Override
-      public boolean matches(Object put) {
-        return Arrays.equals(((PutRequest) put).key(), row);
-      }
-      @Override
-      public void describeTo(org.hamcrest.Description description) {
-        description.appendText("PutRequest for row " + Arrays.toString(row));
-      }
-    });
-  }
-
-  private static final byte[] MAXID = { 0 };
-
 }

@@ -20,7 +20,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import net.opentsdb.storage.hbase.CompactedRow;
-import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.IdUtils;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
@@ -804,7 +804,7 @@ public final class Internal {
     final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
     for (final String tsuid : tsuids) {
       final String tags = tsuid.substring(metric_width * 2);
-      final byte[] tag_bytes = UniqueId.stringToUid(tags);
+      final byte[] tag_bytes = IdUtils.stringToUid(tags);
       tags_length += tag_bytes.length;
       uids.add(tag_bytes);
     }
@@ -828,7 +828,7 @@ public final class Internal {
     for (final byte[] tags : uids) {
        // quote the bytes
       buf.append("\\Q");
-      UniqueId.addIdToRegexp(buf, tags);
+      IdUtils.addIdToRegexp(buf, tags);
       buf.append('|');
     }
     

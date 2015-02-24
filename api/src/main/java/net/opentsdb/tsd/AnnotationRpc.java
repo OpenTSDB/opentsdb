@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.opentsdb.uid.IdUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -26,7 +27,6 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSONException;
 
@@ -281,7 +281,7 @@ final class AnnotationRpc implements HttpRpc {
       }
       if (delete_request.tsuids != null) {
         for (String tsuid : delete_request.tsuids) {
-          deletes.add(tsdb.getMetaClient().deleteRange(UniqueId.stringToUid(tsuid),
+          deletes.add(tsdb.getMetaClient().deleteRange(IdUtils.stringToUid(tsuid),
                   delete_request.getStartTime(), delete_request.getEndTime()));
         }
       }

@@ -39,8 +39,8 @@ import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
+import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
-import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Pair;
 
 import javax.xml.bind.DatatypeConverter;
@@ -63,7 +63,7 @@ import org.hbase.async.Bytes;
 
 import static com.google.common.collect.Maps.newHashMap;
 import static net.opentsdb.core.StringCoder.fromBytes;
-import static net.opentsdb.uid.UniqueId.uidToString;
+import static net.opentsdb.uid.IdUtils.uidToString;
 
 /**
  * TsdbStore implementation useful in testing calls to and from
@@ -193,7 +193,7 @@ public class MemoryStore implements TsdbStore {
   public Deferred<Object> add(final UIDMeta meta) {
     try {
       uid_table.put(
-              UniqueId.uidToLong(meta.getUID()),
+              IdUtils.uidToLong(meta.getUID()),
               meta.getType().toString().toLowerCase() + "_meta",
               jsonMapper.writeValueAsBytes(meta));
 
@@ -206,7 +206,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(final UIDMeta meta) {
     uid_table.remove(
-            UniqueId.uidToLong(meta.getUID()),
+            IdUtils.uidToLong(meta.getUID()),
             meta.getType().toString().toLowerCase() + "_meta");
 
     return Deferred.fromResult(null);
@@ -217,7 +217,7 @@ public class MemoryStore implements TsdbStore {
                                    final String name,
                                    final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    final long s_uid = UniqueId.uidToLong(uid);
+    final long s_uid = IdUtils.uidToLong(uid);
 
     byte[] json_value = uid_table.get(s_uid, qualifier);
 
@@ -253,7 +253,7 @@ public class MemoryStore implements TsdbStore {
                                     final UniqueIdType type,
                                     final String name) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    byte[] json_value = uid_table.get(UniqueId.uidToLong(uid), qualifier);
+    byte[] json_value = uid_table.get(IdUtils.uidToLong(uid), qualifier);
 
     if (json_value == null)
       return Deferred.fromResult(null);
@@ -337,7 +337,7 @@ public class MemoryStore implements TsdbStore {
                                       final byte[] uid,
                                       final UniqueIdType type) {
     uid_max.get(type).set(Math.max(uid_max.get(type).get(),
-            (UniqueId.uidToLong(uid, (short) uid.length) + 1)));
+            (IdUtils.uidToLong(uid, (short) uid.length) + 1)));
 
     String str_uid = fromBytes(uid);
 
