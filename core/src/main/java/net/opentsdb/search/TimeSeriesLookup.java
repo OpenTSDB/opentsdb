@@ -15,15 +15,11 @@ package net.opentsdb.search;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.HBaseConst;
-import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteArrayPair;
@@ -78,14 +74,8 @@ public class TimeSeriesLookup {
   /** The query with metrics and/or tags to use */
   private final SearchQuery query;
   
-  /** Whether or not to dump the output to standard out for CLI commands */
-  private boolean to_stdout;
-  
   /** The TSD to use for lookups */
   private final TSDB tsdb;
-
-  /** Formatter used to convert UIDs into a name */
-  private final UidFormatter formatter;
   
   /**
    * Default ctor
@@ -96,19 +86,14 @@ public class TimeSeriesLookup {
   public TimeSeriesLookup(final TSDB tsdb, final SearchQuery query) {
     this.tsdb = tsdb;
     this.query = query;
-
-    this.formatter = new UidFormatter(tsdb);
   }
 
   /**
    * Lookup time series associated with the given metric, tagk, tagv or tag
    * pairs. If no metric is given, a full table scan must be performed and this
-   * call may take a long time to complete. When dumping to stdout, if an ID
-   * can't be looked up, it will be logged and skipped.
+   * call may take a long time to complete.
    *
    * @return A list of TSUIDs matching the given lookup query.
-   * @throws NoSuchUniqueName if any of the given names fail to resolve to a
-   *                          UID.
    */
   public List<byte[]> lookup() {
     LOG.info(query.toString());
@@ -119,7 +104,6 @@ public class TimeSeriesLookup {
         Pattern.compile(tagv_filter.toString()) : null;
     // we don't really know what size the UIDs will resolve to so just grab
     // a decent amount.
-    final StringBuffer buf = to_stdout ? new StringBuffer(2048) : null;
     final long start = System.currentTimeMillis();
     
     ArrayList<ArrayList<KeyValue>> rows;
@@ -137,31 +121,8 @@ public class TimeSeriesLookup {
               !tagv_regex.matcher(new String(tsuid, HBaseConst.CHARSET)).find()) {
             continue;
           }
-          
-          if (to_stdout) {
-            try {
-              buf.append(UniqueId.uidToString(tsuid)).append(" ");
 
-              byte[] metric_id = RowKey.metric(tsuid);
-              buf.append(formatter.formatMetric(metric_id).joinUninterruptibly());
-              buf.append(" ");
-              
-              final List<byte[]> tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
-              final Map<String, String> resolved_tags =
-                      tsdb.getUniqueIdClient().getTagNames(tag_ids).joinUninterruptibly();
-              for (final Map.Entry<String, String> tag_pair : 
-                  resolved_tags.entrySet()) {
-                buf.append(tag_pair.getKey()).append("=")
-                   .append(tag_pair.getValue()).append(" ");
-              }
-              System.out.println(buf);
-            } catch (NoSuchUniqueId nsui) {
-              LOG.error("Unable to resolve UID in TSUID ({}) {}", UniqueId.uidToString(tsuid), nsui.getMessage());
-            }
-            buf.setLength(0);   // reset the buffer so we can re-use it
-          } else {
-            tsuids.add(tsuid);
-          }
+          tsuids.add(tsuid);
         }
       }
     } catch (Exception e) {
@@ -337,10 +298,5 @@ public class TimeSeriesLookup {
         backslash = b == '\\';
       }
     }
-  }
-
-  /** @param to_stdout Whether or not to dump to standard out as we scan */
-  public void setToStdout(final boolean to_stdout) {
-    this.to_stdout = to_stdout;
   }
 }

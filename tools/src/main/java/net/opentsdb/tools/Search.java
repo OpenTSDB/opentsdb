@@ -14,13 +14,18 @@ package net.opentsdb.tools;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import dagger.ObjectGraph;
+import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
+import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.UidFormatter;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Pair;
 
 import org.slf4j.Logger;
@@ -146,8 +151,34 @@ final class Search {
     }
     
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    lookup.setToStdout(true);
-    lookup.lookup();
+    List<byte[]> tsuids = lookup.lookup();
+
+    UidFormatter formatter = new UidFormatter(tsdb);
+
+    for (final byte[] tsuid : tsuids) {
+      try {
+        final StringBuffer buf = new StringBuffer(2048);
+        buf.append(UniqueId.uidToString(tsuid)).append(" ");
+
+        byte[] metric_id = RowKey.metric(tsuid);
+        buf.append(formatter.formatMetric(metric_id).joinUninterruptibly());
+        buf.append(" ");
+
+        final List<byte[]> tag_ids = UniqueId.getTagPairsFromTSUID(tsuid);
+        final Map<String, String> resolved_tags =
+            tsdb.getUniqueIdClient().getTagNames(tag_ids).joinUninterruptibly();
+
+        for (final Map.Entry<String, String> tag_pair : resolved_tags.entrySet()) {
+          buf.append(tag_pair.getKey()).append("=")
+              .append(tag_pair.getValue()).append(" ");
+        }
+
+        System.out.println(buf);
+      } catch (NoSuchUniqueId nsui) {
+        LOG.error("Unable to resolve UID in TSUID ({}) {}", UniqueId.uidToString(tsuid), nsui.getMessage());
+      }
+    }
+
     return 0;
   }
 }
