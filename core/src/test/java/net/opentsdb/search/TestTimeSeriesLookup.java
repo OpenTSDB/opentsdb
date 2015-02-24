@@ -17,7 +17,6 @@ import java.util.List;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.storage.MemoryStore;
@@ -91,35 +90,10 @@ public class TestTimeSeriesLookup {
   }
   
   @Test
-  public void metricOnlyData() throws Exception {
-    generateData();
-    final SearchQuery query = new SearchQuery("sys.cpu.user");
-    query.setUseMeta(false);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(2, tsuids.size());
-    assertArrayEquals(test_tsuids.get(0), tsuids.get(0));
-    assertArrayEquals(test_tsuids.get(1), tsuids.get(1));
-  }
-  
-  @Test
   public void metricOnly2Meta() throws Exception {
     generateMeta();
     final SearchQuery query = new SearchQuery("sys.cpu.nice");
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(1, tsuids.size());
-    assertArrayEquals(test_tsuids.get(2), tsuids.get(0));
-  }
-  
-  @Test
-  public void metricOnly2Data() throws Exception {
-    generateData();
-    final SearchQuery query = new SearchQuery("sys.cpu.nice");
-    query.setUseMeta(false);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);    
     final List<byte[]> tsuids = lookup.lookup();
     assertNotNull(tsuids);
     assertEquals(1, tsuids.size());
@@ -138,17 +112,6 @@ public class TestTimeSeriesLookup {
     generateMeta();
     final SearchQuery query = new SearchQuery("no.values");
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(0, tsuids.size());
-  }
-  
-  @Test
-  public void metricOnlyNoValuesData() throws Exception {
-    generateData();
-    final SearchQuery query = new SearchQuery("no.values");
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    query.setUseMeta(false);
     final List<byte[]> tsuids = lookup.lookup();
     assertNotNull(tsuids);
     assertEquals(0, tsuids.size());
@@ -187,45 +150,12 @@ public class TestTimeSeriesLookup {
   }
   
   @Test
-  public void tagkOnlyData() throws Exception {
-    generateData();
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
-    tags.add(new Pair<String, String>("host", null));
-    final SearchQuery query = new SearchQuery(tags);
-    query.setUseMeta(false);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(5, tsuids.size());
-    for (int i = 0; i < 5; i++) {
-      assertArrayEquals(test_tsuids.get(i), tsuids.get(i));
-    }
-  }
-  
-  @Test
   public void tagkOnly2Meta() throws Exception {
     generateMeta();
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>("owner", null));
     final SearchQuery query = new SearchQuery(tags);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(2, tsuids.size());
-    assertArrayEquals(test_tsuids.get(3), tsuids.get(0));
-    assertArrayEquals(test_tsuids.get(4), tsuids.get(1));
-  }
-  
-  @Test
-  public void tagkOnly2Data() throws Exception {
-    generateData();
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
-    tags.add(new Pair<String, String>("owner", null));
-    final SearchQuery query = new SearchQuery(tags);
-    query.setUseMeta(false);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     final List<byte[]> tsuids = lookup.lookup();
     assertNotNull(tsuids);
@@ -279,46 +209,12 @@ public class TestTimeSeriesLookup {
   }
   
   @Test
-  public void tagvOnlyData() throws Exception {
-    generateData();
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
-    tags.add(new Pair<String, String>(null, "web01"));
-    final SearchQuery query = new SearchQuery(tags);
-    query.setUseMeta(false);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(4, tsuids.size());
-    assertArrayEquals(test_tsuids.get(0), tsuids.get(0));
-    assertArrayEquals(test_tsuids.get(2), tsuids.get(1));
-    assertArrayEquals(test_tsuids.get(3), tsuids.get(2));
-    assertArrayEquals(test_tsuids.get(5), tsuids.get(3));
-  }
-  
-  @Test
   public void tagvOnly2Meta() throws Exception {
     generateMeta();
     final List<Pair<String, String>> tags = 
         new ArrayList<Pair<String, String>>(1);
     tags.add(new Pair<String, String>(null, "web02"));
     final SearchQuery query = new SearchQuery(tags);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(2, tsuids.size());
-    assertArrayEquals(test_tsuids.get(1), tsuids.get(0));
-    assertArrayEquals(test_tsuids.get(4), tsuids.get(1));
-  }
-  
-  @Test
-  public void tagvOnly2Data() throws Exception {
-    generateData();
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
-    tags.add(new Pair<String, String>(null, "web02"));
-    final SearchQuery query = new SearchQuery(tags);
-    query.setUseMeta(false);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
     final List<byte[]> tsuids = lookup.lookup();
     assertNotNull(tsuids);
@@ -368,22 +264,6 @@ public class TestTimeSeriesLookup {
   }
   
   @Test
-  public void metricAndTagkData() throws Exception {
-    generateData();
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
-    tags.add(new Pair<String, String>("host", null));
-    final SearchQuery query = new SearchQuery("sys.cpu.nice", 
-        tags);
-    query.setUseMeta(false);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(1, tsuids.size());
-    assertArrayEquals(test_tsuids.get(2), tsuids.get(0));
-  }
-  
-  @Test
   public void metricAndTagvMeta() throws Exception {
     generateMeta();
     final List<Pair<String, String>> tags = 
@@ -414,22 +294,6 @@ public class TestTimeSeriesLookup {
   }
   
   @Test
-  public void metricAndTagvData() throws Exception {
-    generateData();
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
-    tags.add(new Pair<String, String>(null, "web02"));
-    final SearchQuery query = new SearchQuery("sys.cpu.idle", 
-        tags);
-    query.setUseMeta(false);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(1, tsuids.size());
-    assertArrayEquals(test_tsuids.get(4), tsuids.get(0));
-  }
-  
-  @Test
   public void metricAndTagPairMeta() throws Exception {
     generateMeta();
     final List<Pair<String, String>> tags = 
@@ -438,23 +302,6 @@ public class TestTimeSeriesLookup {
     final SearchQuery query = new SearchQuery("sys.cpu.idle", 
         tags);
     final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(1, tsuids.size());
-    assertArrayEquals(test_tsuids.get(3), tsuids.get(0));
-  }
-  
-  @Test
-  public void metricAndTagPairData() throws Exception {
-    generateData();
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
-    tags.add(new Pair<String, String>("host", "web01"));
-    final SearchQuery query = new SearchQuery("sys.cpu.idle", 
-        tags);
-    query.setUseMeta(false);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    query.setUseMeta(false);
     final List<byte[]> tsuids = lookup.lookup();
     assertNotNull(tsuids);
     assertEquals(1, tsuids.size());
@@ -477,25 +324,6 @@ public class TestTimeSeriesLookup {
     assertArrayEquals(test_tsuids.get(3), tsuids.get(2));
   }
   
-  @Test
-  public void tagPairOnlyData() throws Exception {
-    generateData();
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
-    tags.add(new Pair<String, String>("host", "web01"));
-    final SearchQuery query = new SearchQuery(tags);
-    query.setUseMeta(false);
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    final List<byte[]> tsuids = lookup.lookup();
-    assertNotNull(tsuids);
-    assertEquals(3, tsuids.size());
-    assertArrayEquals(test_tsuids.get(0), tsuids.get(0));
-    assertArrayEquals(test_tsuids.get(2), tsuids.get(1));
-    assertArrayEquals(test_tsuids.get(3), tsuids.get(2));
-  }
-  
-  // TODO test the dump to stdout
-  
   /**
    * Stores some data in the mock tsdb-meta table for unit testing
    */
@@ -503,22 +331,6 @@ public class TestTimeSeriesLookup {
     final byte[] val = new byte[] { 0, 0, 0, 0, 0, 0, 0, 1 };
     for (final byte[] tsuid : test_tsuids) {
       tsdb_store.addColumn(tsuid, HBaseConst.TSMeta.COUNTER_QUALIFIER, val);
-    }
-  }
-  
-  /**
-   * Stores some data in the mock tsdb data table for unit testing
-   */
-  private void generateData() {
-    final byte[] qual = new byte[] { 0, 0 };
-    final byte[] val = new byte[] { 1 };
-    for (final byte[] tsuid : test_tsuids) {
-      byte[] row_key = new byte[tsuid.length + Const.TIMESTAMP_BYTES];
-      System.arraycopy(tsuid, 0, row_key, 0, Const.METRICS_WIDTH);
-      System.arraycopy(tsuid, Const.METRICS_WIDTH, row_key,
-          Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES,
-          tsuid.length - Const.METRICS_WIDTH);
-      tsdb_store.addColumn(row_key, qual, val);
     }
   }
 }

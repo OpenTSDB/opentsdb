@@ -99,17 +99,16 @@ public class TimeSeriesLookup {
 
     this.formatter = new UidFormatter(tsdb);
   }
-  
+
   /**
-   * Lookup time series associated with the given metric, tagk, tagv or tag 
-   * pairs. Either the meta table or the data table will be scanned. If no
-   * metric is given, a full table scan must be performed and this call may take
-   * a long time to complete. 
-   * When dumping to stdout, if an ID can't be looked up, it will be logged and
-   * skipped.
+   * Lookup time series associated with the given metric, tagk, tagv or tag
+   * pairs. If no metric is given, a full table scan must be performed and this
+   * call may take a long time to complete. When dumping to stdout, if an ID
+   * can't be looked up, it will be logged and skipped.
+   *
    * @return A list of TSUIDs matching the given lookup query.
-   * @throws NoSuchUniqueName if any of the given names fail to resolve to a 
-   * UID.
+   * @throws NoSuchUniqueName if any of the given names fail to resolve to a
+   *                          UID.
    */
   public List<byte[]> lookup() {
     LOG.info(query.toString());
@@ -124,15 +123,13 @@ public class TimeSeriesLookup {
     final long start = System.currentTimeMillis();
     
     ArrayList<ArrayList<KeyValue>> rows;
-    byte[] last_tsuid = null; // used to avoid dupes when scanning the data table
     
     try {
       // synchronous to avoid stack overflows when scanning across the main data
       // table.
       while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
         for (final ArrayList<KeyValue> row : rows) {
-          final byte[] tsuid = query.useMeta() ? row.get(0).key() :
-            RowKey.tsuid(row.get(0).key());
+          final byte[] tsuid = row.get(0).key();
           
           // TODO - there MUST be a better way than creating a ton of temp
           // string objects.
@@ -142,11 +139,6 @@ public class TimeSeriesLookup {
           }
           
           if (to_stdout) {
-            if (last_tsuid != null && Bytes.memcmp(last_tsuid, tsuid) == 0) {
-              continue;
-            }
-            last_tsuid = tsuid;
-            
             try {
               buf.append(UniqueId.uidToString(tsuid)).append(" ");
 
@@ -181,17 +173,17 @@ public class TimeSeriesLookup {
     LOG.debug("Lookup query matched {} time series in {} ms", tsuids.size(), System.currentTimeMillis() - start);
     return tsuids;
   }
-  
+
   /**
-   * Configures the scanner for iterating over the meta or data tables. If the
-   * metric has been set, then we scan a small slice of the table where the 
-   * metric lies, otherwise we have to scan the whole table. If tags are 
-   * given then we setup a row key regex
+   * Configures the scanner for iterating over the meta table. If the metric has
+   * been set, then we scan a small slice of the table where the metric lies,
+   * otherwise we have to scan the whole table. If tags are given then we setup
+   * a row key regex
+   *
    * @return A configured scanner
    */
   private Scanner getScanner(final StringBuilder tagv_filter) {
-    final Scanner scanner = tsdb.getHBaseStore().newScanner(
-            query.useMeta() ? tsdb.metaTable() : tsdb.dataTable());
+    final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.metaTable());
 
     // if a metric is given, we need to resolve it's UID and set the start key
     // to the UID and the stop key to the next row by incrementing the UID. 
@@ -243,9 +235,6 @@ public class TimeSeriesLookup {
              * (pairs.size())));
       buf.append("(?s)^.{").append(Const.METRICS_WIDTH)
         .append("}");
-      if (!query.useMeta()) {
-        buf.append("(?:.{").append(Const.TIMESTAMP_BYTES).append("})*");
-      }
       buf.append("(?:.{").append(tagsize).append("})*");
       
       // at the top of the list will be the null=tagv pairs. We want to compile
@@ -285,9 +274,6 @@ public class TimeSeriesLookup {
         buf.setLength(0);
         buf.append("(?s)^.{").append(Const.METRICS_WIDTH)
            .append("}");
-        if (!query.useMeta()) {
-          buf.append("(?:.{").append(Const.TIMESTAMP_BYTES).append("})*");
-        }
         
         ByteArrayPair last_pair = null;
         for (; index < pairs.size(); index++) {
