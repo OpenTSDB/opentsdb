@@ -19,7 +19,6 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.tsd.RTPublisher;
 import com.typesafe.config.Config;
 import net.opentsdb.utils.DateTime;
@@ -149,20 +148,6 @@ public class TSDB {
    */
   public final TsdbStore getTsdbStore() {
     return this.tsdb_store;
-  }
-
-  /**
-   * Returns the configured HBaseStore.
-   * It will throw a classCastException if the TsdbStore was of the type
-   * CassandraStore. This should only be used by tools and will be migrated
-   * and removed later.
-   *
-   * @return The HBaseStore
-   * @since 2.0
-   */
-  @Deprecated
-  public final HBaseStore getHBaseStore() {
-    return (HBaseStore) this.tsdb_store;
   }
   
   /** 
