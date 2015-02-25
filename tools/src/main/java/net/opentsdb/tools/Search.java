@@ -20,6 +20,7 @@ import dagger.ObjectGraph;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
@@ -145,12 +146,11 @@ final class Search {
       Tags.parse(tags, args[index]);
     }
     query.setTags(tags);
-    if (use_data_table) {
-      query.setUseMeta(false);
-      LOG.warn("NOTE: Scanning the full data table may take a long time");
-    }
-    
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
+
+
+    ResolvedSearchQuery resolvedSearchQuery = tsdb.getUniqueIdClient()
+        .resolve(query).joinUninterruptibly();
+    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, resolvedSearchQuery);
     List<byte[]> tsuids = lookup.lookup();
 
     UidFormatter formatter = new UidFormatter(tsdb);

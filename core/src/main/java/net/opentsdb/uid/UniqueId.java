@@ -23,6 +23,7 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
@@ -206,6 +207,14 @@ public class UniqueId {
       }
     }
     return tsdb_store.getId(name, type).addCallback(new GetIdCB());
+  }
+
+  public Deferred<byte[]> resolveId(final String name) {
+    if (!Strings.isNullOrEmpty(name) && !"*".equals(name)) {
+      return getId(name);
+    }
+
+    return Deferred.fromResult(null);
   }
 
   private byte[] getIdFromCache(final String name) {

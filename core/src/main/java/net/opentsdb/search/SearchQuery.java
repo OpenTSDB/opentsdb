@@ -62,9 +62,6 @@ public class SearchQuery {
   /** Optional tags to match on, may be null */
   private List<Pair<String, String>> tags;
   
-  /** Whether or not to use the tsdb-meta table for lookups. Defaults to true */
-  private boolean use_meta;
-  
   /** Limit the number of responses so we don't overload the TSD or client */
   private int limit;
   
@@ -83,11 +80,10 @@ public class SearchQuery {
   private List<Object> results;
 
   /**
-   * Default ctor. Only sets use_meta to true. Other fields are left null.
+   * Default ctor. Fields are left null.
    */
   public SearchQuery() {
     metric = "*";
-    use_meta = true;
     limit = 25;
   }
     
@@ -97,7 +93,6 @@ public class SearchQuery {
    */
   public SearchQuery(final String metric) {
     this.metric = metric;
-    use_meta = true;
     limit = 25;
   }
 
@@ -108,7 +103,6 @@ public class SearchQuery {
   public SearchQuery(final List<Pair<String, String>> tags) {
     this.tags = tags;
     metric = "*";
-    use_meta = true;
     limit = 25;
   }
   
@@ -121,7 +115,6 @@ public class SearchQuery {
       final List<Pair<String, String>> tags) {
     this.metric = metric;
     this.tags = tags;
-    use_meta = true;
     limit = 25;
   }
   
@@ -140,8 +133,7 @@ public class SearchQuery {
            .append(tags.get(i).getValue()).append("}");
       }
     }
-    buf.append("], use_meta=").append(use_meta)
-       .append(", limit=").append(limit).append(", start_index=")
+    buf.append("], limit=").append(limit).append(", start_index=")
        .append(start_index);
     return buf.toString();
   }
@@ -197,11 +189,6 @@ public class SearchQuery {
     return tags;
   }
 
-  /** @return Whether or not the lookup should be done on the main data table */
-  public boolean useMeta() {
-    return use_meta;
-  }
-
   /** @return A limit on the number of results returned per query */
   public int getLimit() {
     return limit;
@@ -248,11 +235,6 @@ public class SearchQuery {
   /** @param tags A list of tagk, tagv pairs, either of which may be null */
   public void setTags(List<Pair<String, String>> tags) {
     this.tags = tags;
-  }
-  
-  /** @param use_meta Whether or not to use the data or meta table for lookups */
-  public void setUseMeta(boolean use_meta) {
-    this.use_meta = use_meta;
   }
   
   /** @param limit A limit to the number of results to return */

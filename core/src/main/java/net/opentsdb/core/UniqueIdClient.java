@@ -7,9 +7,15 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
@@ -25,6 +31,8 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.utils.ByteArrayPair;
+import net.opentsdb.utils.Pair;
 import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
@@ -423,6 +431,89 @@ public class UniqueIdClient {
       // Now sort the tags.
       Collections.sort(tags, Bytes.MEMCMP);
       return tags;
+    }
+  }
+
+
+
+
+
+
+
+
+
+  public Deferred<ResolvedSearchQuery> resolve(final SearchQuery query) {
+    final Deferred<byte[]> metric = metrics.resolveId(query.getMetric());
+    final Deferred<SortedSet<ByteArrayPair>> tags = resolveTags(query.getTags());
+
+    return metric.addBothDeferring(new Callback<Deferred<ResolvedSearchQuery>, byte[]>() {
+      @Override
+      public Deferred<ResolvedSearchQuery> call(final byte[] metric_id) {
+        return tags.addCallback(new Callback<ResolvedSearchQuery, SortedSet<ByteArrayPair>>() {
+          @Override
+          public ResolvedSearchQuery call(final SortedSet<ByteArrayPair> tag_ids) {
+            return new ResolvedSearchQuery(metric_id, tag_ids);
+          }
+        });
+      }
+    });
+  }
+
+  private Deferred<SortedSet<ByteArrayPair>> resolveTags(final List<Pair<String, String>> tags) {
+    if (tags != null && !tags.isEmpty()) {
+
+      final List<Deferred<ByteArrayPair>> pairs =
+          Lists.newArrayListWithCapacity(tags.size());
+
+      for (Pair<String, String> tag : tags) {
+        final Deferred<byte[]> tagk = tag_names.resolveId(tag.getKey());
+        final Deferred<byte[]> tagv = tag_values.resolveId(tag.getValue());
+
+        pairs.add(tagk.addCallbackDeferring(new TagKeyResolvedCallback(tagv)));
+      }
+
+      return Deferred.group(pairs).addCallback(new TagSortCallback());
+    }
+
+    SortedSet<ByteArrayPair> of = ImmutableSortedSet.of();
+    return Deferred.fromResult(of);
+  }
+
+  private static class TagSortCallback
+      implements Callback<SortedSet<ByteArrayPair>, ArrayList<ByteArrayPair>> {
+    @Override
+    public SortedSet<ByteArrayPair> call(final ArrayList<ByteArrayPair> tags) {
+      // remember, tagks are sorted in the row key so we need to supply a sorted
+      // regex or matching will fail.
+      return ImmutableSortedSet.copyOf(tags);
+    }
+  }
+
+  private static class TagKeyResolvedCallback
+      implements Callback<Deferred<ByteArrayPair>, byte[]> {
+    private final Deferred<byte[]> tagv;
+
+    public TagKeyResolvedCallback(final Deferred<byte[]> tagv) {
+      this.tagv = tagv;
+    }
+
+    @Override
+    public Deferred<ByteArrayPair> call(final byte[] tagk_id) {
+      return tagv.addCallback(new TagValueResolvedCallback(tagk_id));
+    }
+  }
+
+  private static class TagValueResolvedCallback
+      implements Callback<ByteArrayPair, byte[]> {
+    private final byte[] tagk_id;
+
+    public TagValueResolvedCallback(final byte[] tagk_id) {
+      this.tagk_id = tagk_id;
+    }
+
+    @Override
+    public ByteArrayPair call(final byte[] tagv_id) {
+      return new ByteArrayPair(tagk_id, tagv_id);
     }
   }
 }

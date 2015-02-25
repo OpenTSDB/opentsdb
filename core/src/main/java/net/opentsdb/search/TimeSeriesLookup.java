@@ -13,19 +13,18 @@
 package net.opentsdb.search;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.SortedSet;
 import java.util.regex.Pattern;
 
+import com.google.common.collect.Iterators;
+import com.google.common.collect.PeekingIterator;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.uid.IdUtils;
-import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.ByteArrayPair;
-import net.opentsdb.utils.Pair;
 
-import com.google.common.base.Throwables;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -72,7 +71,7 @@ public class TimeSeriesLookup {
       LoggerFactory.getLogger(TimeSeriesLookup.class);
 
   /** The query with metrics and/or tags to use */
-  private final SearchQuery query;
+  private final ResolvedSearchQuery query;
   
   /** The TSD to use for lookups */
   private final TSDB tsdb;
@@ -83,7 +82,7 @@ public class TimeSeriesLookup {
    * @param metric A metric to match on, may be null
    * @param tags One or more tags to match on, may be null
    */
-  public TimeSeriesLookup(final TSDB tsdb, final SearchQuery query) {
+  public TimeSeriesLookup(final TSDB tsdb, final ResolvedSearchQuery query) {
     this.tsdb = tsdb;
     this.query = query;
   }
@@ -96,7 +95,6 @@ public class TimeSeriesLookup {
    * @return A list of TSUIDs matching the given lookup query.
    */
   public List<byte[]> lookup() {
-    LOG.info(query.toString());
     final StringBuilder tagv_filter = new StringBuilder();
     final Scanner scanner = getScanner(tagv_filter);
     final List<byte[]> tsuids = new ArrayList<byte[]>();
@@ -146,83 +144,62 @@ public class TimeSeriesLookup {
   private Scanner getScanner(final StringBuilder tagv_filter) {
     final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.metaTable());
 
-    // if a metric is given, we need to resolve it's UID and set the start key
-    // to the UID and the stop key to the next row by incrementing the UID. 
-    if (query.getMetric() != null && !query.getMetric().isEmpty() && 
-        !query.getMetric().equals("*")) {
-      try {
-        final byte[] metric_uid = tsdb.getUniqueIdClient().getUID(UniqueIdType.METRIC,
-                query.getMetric()).joinUninterruptibly();
+    // if a metric id is given, we need to set the start key to the UID and the
+    // stop key to the next row by incrementing the UID.
+    if (query.getMetric() != null) {
+      scanner.setStartKey(query.getMetric());
 
-        LOG.debug("Found UID ({}) for metric ({})",
-                IdUtils.uidToString(metric_uid), query.getMetric());
-        scanner.setStartKey(metric_uid);
-        long uid = IdUtils.uidToLong(metric_uid, Const.METRICS_WIDTH);
-        uid++; // TODO - see what happens when this rolls over
-        scanner.setStopKey(IdUtils.longToUID(uid, Const.METRICS_WIDTH));
-      } catch (Exception e) {
-        Throwables.propagate(e);
-      }
+      // TODO - see what happens when this rolls over
+      final long stopKey = IdUtils.uidToLong(query.getMetric(), Const.METRICS_WIDTH) + 1;
+      scanner.setStopKey(IdUtils.longToUID(stopKey, Const.METRICS_WIDTH));
     } else {
       LOG.debug("Performing full table scan, no metric provided");
     }
     
-    if (query.getTags() != null && !query.getTags().isEmpty()) {
-      final List<ByteArrayPair> pairs = 
-          new ArrayList<ByteArrayPair>(query.getTags().size());
-      for (Pair<String, String> tag : query.getTags()) {
-        try {
-          final byte[] tagk = tag.getKey() != null && !tag.getKey().equals("*") ?
-                  tsdb.getUniqueIdClient().getUID(UniqueIdType.TAGK, tag.getKey()).joinUninterruptibly() : null;
-          final byte[] tagv = tag.getValue() != null && !tag.getValue().equals("*") ?
-                  tsdb.getUniqueIdClient().getUID(UniqueIdType.TAGV, tag.getValue()).joinUninterruptibly() : null;
-          pairs.add(new ByteArrayPair(tagk, tagv));
-        } catch (Exception e) {
-          Throwables.propagate(e);
-        }
-      }
+    if (!query.getTags().isEmpty()) {
       // remember, tagks are sorted in the row key so we need to supply a sorted
       // regex or matching will fail.
-      Collections.sort(pairs);
+      final SortedSet<ByteArrayPair> tags = query.getTags();
 
       final short name_width = Const.TAG_NAME_WIDTH;
       final short value_width = Const.TAG_VALUE_WIDTH;
       final short tagsize = (short) (name_width + value_width);
-      
-      int index = 0;
+
+      boolean isFirstTag = true;
+
       final StringBuilder buf = new StringBuilder(
           22  // "^.{N}" + "(?:.{M})*" + "$" + wiggle
           + ((13 + tagsize) // "(?:.{M})*\\Q" + tagsize bytes + "\\E"
-             * (pairs.size())));
+             * (tags.size())));
       buf.append("(?s)^.{").append(Const.METRICS_WIDTH)
         .append("}");
       buf.append("(?:.{").append(tagsize).append("})*");
-      
+
+      final PeekingIterator<ByteArrayPair> tagIterator = Iterators.peekingIterator(tags.iterator());
+
       // at the top of the list will be the null=tagv pairs. We want to compile
       // a separate regex for them.
-      for (; index < pairs.size(); index++) {
-        if (pairs.get(index).getKey() != null) {
-          break;
-        }
-        
-        if (index > 0) {
+      while (tagIterator.hasNext() && tagIterator.peek().getKey() == null) {
+        if (!isFirstTag) {
           buf.append("|");
         }
         buf.append("(?:.{").append(name_width).append("})");
         buf.append("\\Q");
-        addId(buf, pairs.get(index).getValue());
+        addId(buf, tagIterator.next().getValue());
         buf.append("\\E");
+
+        isFirstTag = false;
       }
       buf.append("(?:.{").append(tagsize).append("})*")
          .append("$");
       
-      if (index > 0 && index < pairs.size()) {
+      if (!isFirstTag && tagIterator.hasNext()) {
         // we had one or more tagvs to lookup AND we have tagk or tag pairs to
         // filter on, so we dump the previous regex into the tagv_filter and
         // continue on with a row key
         tagv_filter.append(buf);
         LOG.debug("Setting tagv filter: {}", buf);
-      } else if (index >= pairs.size()) {
+      } else if (!tagIterator.hasNext()) {
         // in this case we don't have any tagks to deal with so we can just
         // pass the previously compiled regex to the rowkey filter of the 
         // scanner
@@ -231,24 +208,26 @@ public class TimeSeriesLookup {
       }
       
       // catch any left over tagk/tag pairs
-      if (index < pairs.size()){
+      if (tagIterator.hasNext()) {
         buf.setLength(0);
         buf.append("(?s)^.{").append(Const.METRICS_WIDTH)
            .append("}");
         
         ByteArrayPair last_pair = null;
-        for (; index < pairs.size(); index++) {
+        while (tagIterator.hasNext()) {
+          final ByteArrayPair tag = tagIterator.next();
+
           if (last_pair != null && last_pair.getValue() == null &&
-              Bytes.memcmp(last_pair.getKey(), pairs.get(index).getKey()) == 0) {
+              Bytes.memcmp(last_pair.getKey(), tag.getKey()) == 0) {
             // tagk=null is a wildcard so we don't need to bother adding 
             // tagk=tagv pairs with the same tagk.
-            LOG.debug("Skipping pair due to wildcard: {}", pairs.get(index));
+            LOG.debug("Skipping pair due to wildcard: {}", tag);
           } else if (last_pair != null && 
-              Bytes.memcmp(last_pair.getKey(), pairs.get(index).getKey()) == 0) {
+              Bytes.memcmp(last_pair.getKey(), tag.getKey()) == 0) {
             // in this case we're ORing e.g. "host=web01|host=web02"
             buf.append("|\\Q");
-            addId(buf, pairs.get(index).getKey());
-            addId(buf, pairs.get(index).getValue());
+            addId(buf, tag.getKey());
+            addId(buf, tag.getValue());
             buf.append("\\E");
           } else {
             if (last_pair != null) {
@@ -257,20 +236,20 @@ public class TimeSeriesLookup {
             // moving on to the next tagk set
             buf.append("(?:.{6})*"); // catch tag pairs in between
             buf.append("(?:");
-            if (pairs.get(index).getKey() != null && 
-                pairs.get(index).getValue() != null) {
+            if (tag.getKey() != null &&
+                tag.getValue() != null) {
               buf.append("\\Q");
-              addId(buf, pairs.get(index).getKey());
-              addId(buf, pairs.get(index).getValue());
+              addId(buf, tag.getKey());
+              addId(buf, tag.getValue());
               buf.append("\\E");
             } else {
               buf.append("\\Q");
-              addId(buf, pairs.get(index).getKey());
+              addId(buf, tag.getKey());
               buf.append("\\E");
               buf.append("(?:.{").append(value_width).append("})+");
             }
           }
-          last_pair = pairs.get(index);
+          last_pair = tag;
         }
         buf.append(")(?:.{").append(tagsize).append("})*").append("$");
         
@@ -278,6 +257,7 @@ public class TimeSeriesLookup {
         LOG.debug("Setting scanner row key filter: {}", buf);
       }
     }
+
     return scanner;
   }
   
