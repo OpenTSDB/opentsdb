@@ -23,6 +23,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
@@ -580,6 +581,11 @@ public class CassandraStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> syncTreeRuleToStorage(TreeRule rule, boolean overwrite) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

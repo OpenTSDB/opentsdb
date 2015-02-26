@@ -209,6 +209,16 @@ public class UniqueId {
     return tsdb_store.getId(name, type).addCallback(new GetIdCB());
   }
 
+  /**
+   * Lookup the ID behind the provided name. If the provided name is {@code
+   * null}, empty or equal to "*" it will be interpreted as a wildcard and a
+   * {@link com.stumbleupon.async.Deferred} with the result {@code null} will be
+   * returned.
+   *
+   * @param name The name to find the ID behind
+   * @return A deferred whose result is null if the name was interpreted as the
+   * wildcard, otherwise the ID behind the name
+   */
   public Deferred<byte[]> resolveId(final String name) {
     if (!Strings.isNullOrEmpty(name) && !"*".equals(name)) {
       return getId(name);

@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -42,6 +43,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
@@ -2360,6 +2362,15 @@ public class HBaseStore implements TsdbStore {
     } catch (IOException e) {
       throw new JSONException(e);
     }
+  }
+
+  @Override
+  public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
+    final Scanner scanner = client.newScanner(meta_table_name);
+    final Pattern tagKeyRegex = TimeseriesQueryRunner.configureTags(scanner, query.getTags());
+    TimeseriesQueryRunner.configureMetric(scanner, query.getMetric());
+
+    return RowProcessor.processRows(scanner, new TimeseriesQueryRunner(tagKeyRegex));
   }
 
   @Override

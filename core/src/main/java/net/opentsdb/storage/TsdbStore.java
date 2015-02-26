@@ -23,6 +23,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
@@ -52,6 +53,16 @@ public interface TsdbStore {
                                final UniqueIdType type);
 
   Deferred<Object> deleteUID(byte[] name, UniqueIdType type);
+
+  /**
+   * Lookup time series related to a metric, tagk, tagv or any combination
+   * thereof. See {@link net.opentsdb.core.UniqueIdClient#executeTimeSeriesQuery}
+   * for a more formal specification how the query language and logic.
+   *
+   * @param query The query that filters out which TSUIDs to lookup
+   * @return All TSUIDs that matches the provided query
+   */
+  Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query);
 
   /**
    * Lookup all IDs that matches the provided {@link net.opentsdb.uid.IdQuery}.

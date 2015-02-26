@@ -9,6 +9,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -16,6 +17,7 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 
+import net.opentsdb.utils.Pair;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -382,6 +384,12 @@ public class UniqueIdClientTest {
     final Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "invalidhost");
     uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+  }
+
+  @Test (expected = NoSuchUniqueName.class)
+  public void executeTimeSeriesQueryMissingName() throws Exception {
+    final SearchQuery query = new SearchQuery("nosuchname");
+    uniqueIdClient.executeTimeSeriesQuery(query).joinUninterruptibly();
   }
 
   // PRIVATE helpers to setup unit tests

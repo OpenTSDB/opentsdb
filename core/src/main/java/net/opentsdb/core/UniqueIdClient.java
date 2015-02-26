@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 
-import com.google.common.collect.ImmutableList;
+import com.codahale.metrics.Timer;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
@@ -33,6 +33,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.utils.ByteArrayPair;
 import net.opentsdb.utils.Pair;
+import net.opentsdb.stats.StopTimerCallback;
 import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
@@ -40,6 +41,7 @@ import javax.inject.Inject;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.toBytes;
+import static net.opentsdb.stats.Metrics.name;
 
 public class UniqueIdClient {
   private static final SortResolvedTagsCB SORT_CB = new SortResolvedTagsCB();
@@ -58,6 +60,8 @@ public class UniqueIdClient {
   final byte[] uidtable;
 
   private final SearchPlugin searchPlugin;
+
+  private final Timer tsuidQueryTimer;
 
   @Inject
   public UniqueIdClient(final TsdbStore tsdbStore,
@@ -83,6 +87,8 @@ public class UniqueIdClient {
       uid_cache_map.put(UniqueIdType.TAGV, tag_values);
       UniqueId.preloadUidCache(config, tsdbStore, uid_cache_map);
     }
+
+    tsuidQueryTimer = metricsRegistry.getRegistry().timer(name("tsuid.query-time"));
   }
 
   /**
@@ -434,15 +440,44 @@ public class UniqueIdClient {
     }
   }
 
+  /**
+   * Lookup time series related to a metric, tagk, tagv or any combination
+   * thereof.
+   *
+   * When dealing with tags, we can lookup on tagks, tagvs or pairs. Thus: tagk,
+   * null  <- lookup all series with a tagk tagk, tagv  <- lookup all series
+   * with a tag pair null, tagv  <- lookup all series with a tag value
+   * somewhere
+   *
+   * The user can supply multiple tags in a query so the logic is a little goofy
+   * but here it is: - Different tagks are AND'd, e.g. given "host=web01 dc=lga"
+   * we will lookup series that contain both of those tag pairs. Also when given
+   * "host= dc=" then we lookup series with both tag keys regardless of their
+   * values. - Tagks without a tagv will override tag pairs. E.g. "host=web01
+   * host=" will return all series with the "host" tagk. - Tagvs without a tagk
+   * are OR'd. Given "=lga =phx" the lookup will fetch anything with either
+   * "lga" or "phx" as the value for a pair. When combined with a tagk, e.g.
+   * "host=web01 =lga" then it will return any series with the tag pair AND any
+   * tag with the "lga" value.
+   */
+  public Deferred<List<byte[]>> executeTimeSeriesQuery(final SearchQuery query) {
+    final Timer.Context timerContext = tsuidQueryTimer.time();
 
+    Deferred<List<byte[]>> tsuids = resolve(query).addCallbackDeferring(
+        new Callback<Deferred<List<byte[]>>, ResolvedSearchQuery>() {
+          @Override
+          public Deferred<List<byte[]>> call(final ResolvedSearchQuery arg) {
+            return tsdbStore.executeTimeSeriesQuery(arg);
+          }
+        });
 
+    return StopTimerCallback.stopOn(timerContext, tsuids);
+  }
 
-
-
-
-
-
-  public Deferred<ResolvedSearchQuery> resolve(final SearchQuery query) {
+  /**
+   * Resolve the string representation of a search query to an ID representation.
+   */
+  private Deferred<ResolvedSearchQuery> resolve(final SearchQuery query) {
     final Deferred<byte[]> metric = metrics.resolveId(query.getMetric());
     final Deferred<SortedSet<ByteArrayPair>> tags = resolveTags(query.getTags());
 

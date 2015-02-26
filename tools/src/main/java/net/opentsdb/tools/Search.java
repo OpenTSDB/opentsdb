@@ -20,9 +20,7 @@ import dagger.ObjectGraph;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
-import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -147,11 +145,8 @@ final class Search {
     }
     query.setTags(tags);
 
-
-    ResolvedSearchQuery resolvedSearchQuery = tsdb.getUniqueIdClient()
-        .resolve(query).joinUninterruptibly();
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, resolvedSearchQuery);
-    List<byte[]> tsuids = lookup.lookup();
+    Iterable<byte[]> tsuids = tsdb.getUniqueIdClient()
+        .executeTimeSeriesQuery(query).joinUninterruptibly();
 
     UidFormatter formatter = new UidFormatter(tsdb);
 
