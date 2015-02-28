@@ -1027,6 +1027,12 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final byte[] metric,
+                                                       final Map<byte[], byte[]> tags) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
   public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     Function<UniqueIdType, Boolean> typeMatchFunction = new Function<UniqueIdType, Boolean>() {
       @Override

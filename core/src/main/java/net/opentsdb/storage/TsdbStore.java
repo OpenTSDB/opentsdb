@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.uid.UniqueIdType;
+import org.hbase.async.Bytes;
 
 /**
  * A interface defining the functions any database used with TSDB must implement.
@@ -94,6 +95,9 @@ public interface TsdbStore {
    * @param query The query to execute
    */
   Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
+
+  Deferred<Map<byte[], Long>> getLastWriteTimes(final byte[] metric,
+                                                final Map<byte[], byte[]> tags);
 
   //
   // Annotations

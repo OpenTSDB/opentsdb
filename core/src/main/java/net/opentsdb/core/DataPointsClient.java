@@ -1,5 +1,6 @@
 package net.opentsdb.core;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
@@ -222,6 +223,37 @@ public class DataPointsClient {
     return new IncomingDataPoints(store, uniqueIdClient);
   }
 
+  /**
+   * Fetches a list of TSUIDs given the metric and optional tag pairs. The query
+   * format is similar to TsdbQuery but doesn't support grouping operators for
+   * tags. Only TSUIDs that had "ts_counter" qualifiers will be returned.
+   * @return A map of TSUIDs to the last timestamp (in milliseconds) when the
+   * "ts_counter" was updated. Note that the timestamp will be the time stored
+   * by HBase, not the actual timestamp of the data point
+   * @throws IllegalArgumentException if the metric was not set or the tag map
+   * was null
+   * TODO Fixme
+   */
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final String metric,
+                                                       final Map<String, String> tags) {
+    checkArgument(Strings.isNullOrEmpty(metric));
+    checkNotNull(tags);
+
+    Deferred<byte[]> metricDeferred = uniqueIdClient.metrics.getId(metric);
+    final Deferred<Map<byte[], byte[]>> tagsDeferred = uniqueIdClient.getTags(tags);
+
+    return metricDeferred.addCallbackDeferring(new Callback<Deferred<Map<byte[], Long>>, byte[]>() {
+      @Override
+      public Deferred<Map<byte[], Long>> call(final byte[] metricId) {
+        return tagsDeferred.addCallbackDeferring(new Callback<Deferred<Map<byte[], Long>>, Map<byte[], byte[]>>() {
+          @Override
+          public Deferred<Map<byte[], Long>> call(final Map<byte[], byte[]> tagIds) throws Exception {
+            return store.getLastWriteTimes(metricId, tagIds);
+          }
+        });
+      }
+    });
+  }
 
   /**
    * Callback that should be attached the the output of

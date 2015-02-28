@@ -1037,6 +1037,19 @@ public class HBaseStore implements TsdbStore {
     return r.run().addCallback(new QueryCB());
   }
 
+  @Override
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final byte[] metric,
+                                                       final Map<byte[], byte[]> tags) {
+    final Scanner scanner = client.newScanner(meta_table_name);
+    scanner.setFamily(HBaseConst.TSMeta.FAMILY);
+    scanner.setQualifier(HBaseConst.TSMeta.COUNTER_QUALIFIER);
+    scanner.setStartKey(TimeSeriesId.startKey(metric));
+    scanner.setStopKey(TimeSeriesId.stopKey(metric));
+    scanner.setFilter(TimeSeriesId.scanFilter(tags));
+
+    return RowProcessor.processRows(scanner, new LastWriteTimesQueryRunner());
+  }
+
   /**
    * @see net.opentsdb.storage.TsdbStore#executeIdQuery
    */

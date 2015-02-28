@@ -196,12 +196,6 @@ public final class TestTSUIDQuery {
     query.setQuery("sys.cpu.user", tags);
   }
   
-  @Test (expected = IllegalArgumentException.class)
-  public void getLastWriteTimesQueryNotSet() throws Exception {
-    query = new TSUIDQuery(tsdb);
-    query.getLastWriteTimes().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-  
   @Test
   public void getTSMetasSingle() throws Exception {
     query = new TSUIDQuery(tsdb);

@@ -25,12 +25,10 @@ import net.opentsdb.core.Internal;
 import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.HBaseConst;
-import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 
-import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.GetRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -87,78 +85,6 @@ public class TSUIDQuery {
     } catch (Exception e) {
       Throwables.propagate(e);
     }
-  }
-  
-  /**
-   * Fetches a list of TSUIDs given the metric and optional tag pairs. The query
-   * format is similar to TsdbQuery but doesn't support grouping operators for 
-   * tags. Only TSUIDs that had "ts_counter" qualifiers will be returned.
-   * @return A map of TSUIDs to the last timestamp (in milliseconds) when the
-   * "ts_counter" was updated. Note that the timestamp will be the time stored
-   * by HBase, not the actual timestamp of the data point
-   * @throws IllegalArgumentException if the metric was not set or the tag map
-   * was null
-   */
-  public Deferred<ByteMap<Long>> getLastWriteTimes() {
-    // we need at least a metric name and the tags can't be null. Empty tags are
-    // fine, but the map can't be null.
-    if (metric == null || metric.length < 0) {
-      throw new IllegalArgumentException("Missing metric UID");
-    }
-    if (tags == null) {
-      throw new IllegalArgumentException("Tag map was null");
-    }
-    
-    final Scanner scanner = getScanner();
-    scanner.setQualifier(HBaseConst.TSMeta.COUNTER_QUALIFIER);
-    final Deferred<ByteMap<Long>> results = new Deferred<ByteMap<Long>>();
-    final ByteMap<Long> tsuids = new ByteMap<Long>();
-    
-    /**
-     * Scanner callback that will call itself while iterating through the 
-     * tsdb-meta table
-     */
-    final class ScannerCB implements Callback<Object,
-      ArrayList<ArrayList<KeyValue>>> {
-      
-      /**
-       * Starts the scanner and is called recursively to fetch the next set of
-       * rows from the scanner.
-       * @return The map of spans if loaded successfully, null if no data was
-       * found
-       */
-      public Object scan() {
-        return scanner.nextRows().addCallback(this);
-      }
-      
-      /**
-       * Loops through each row of the scanner results and parses out data
-       * points and optional meta data
-       * @return null if no rows were found, otherwise the TreeMap with spans
-       */
-      @Override
-      public Object call(final ArrayList<ArrayList<KeyValue>> rows)
-        throws Exception {
-        try {
-          if (rows == null) {
-            results.callback(tsuids);
-            return null;
-          }
-          
-          for (final ArrayList<KeyValue> row : rows) {
-            final byte[] tsuid = row.get(0).key();
-            tsuids.put(tsuid, row.get(0).timestamp());
-          }
-          return scan();
-        } catch (Exception e) {
-          results.callback(e);
-          return null;
-        }
-      }
-    }
-    
-    new ScannerCB().scan();
-    return results;
   }
   
   /**

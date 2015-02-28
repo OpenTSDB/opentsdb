@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.SortedSet;
 
 import com.codahale.metrics.Timer;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
@@ -18,6 +19,7 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.callbacks.StripedTagIdsToMap;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
@@ -203,6 +205,23 @@ public class UniqueIdClient {
 
     // And then once we have all the tags resolved, sort them.
     return Deferred.group(tag_ids).addCallback(SORT_CB);
+  }
+
+
+  private Deferred<ArrayList<byte[]>> fetchTags(final Map<String, String> tags) {
+    final ImmutableList.Builder<Deferred<byte[]>> tag_ids = ImmutableList.builder();
+
+    // For each tag, start resolving the tag name and the tag value.
+    for (final Map.Entry<String, String> entry : tags.entrySet()) {
+      tag_ids.add(tag_names.getId(entry.getKey()));
+      tag_ids.add(tag_values.getId(entry.getValue()));
+    }
+
+    return Deferred.groupInOrder(tag_ids.build());
+  }
+
+  public Deferred<Map<byte[], byte[]>> getTags(final Map<String, String> tags) {
+    return fetchTags(tags).addCallback(new StripedTagIdsToMap());
   }
 
   /**
