@@ -397,6 +397,7 @@ public final class Plot {
       return "%Y/%m/%d";
     }
   }
+
   /**
    * Verifies a directory and checks to see if it's writeable or not if
    * configured
