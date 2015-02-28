@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.graph;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import java.util.TimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
@@ -194,6 +196,8 @@ public final class Plot {
     int npoints = 0;
     final int nseries = datapoints.size();
     final String datafiles[] = nseries > 0 ? new String[nseries] : null;
+    checkDirectory(new File(basepath).getParent(),
+        Const.MUST_BE_WRITEABLE, Const.CREATE_IF_NEEDED);
     for (int i = 0; i < nseries; i++) {
       datafiles[i] = basepath + "_" + i + ".dat";
       final PrintWriter datafile = new PrintWriter(datafiles[i]);
@@ -393,5 +397,29 @@ public final class Plot {
       return "%Y/%m/%d";
     }
   }
-
+  /**
+   * Verifies a directory and checks to see if it's writeable or not if
+   * configured
+   * @param dir The path to check on
+   * @param need_write Set to true if the path needs write access
+   * @param create Set to true if the directory should be created if it does not
+   *          exist
+   * @throws IllegalArgumentException if the path is empty, if it's not there
+   *           and told not to create it or if it needs write access and can't
+   *           be written to
+   */
+  public static void checkDirectory(final String dir,
+      final boolean need_write, final boolean create) {
+    if (dir.isEmpty())
+      throw new IllegalArgumentException("Directory path is empty");
+    final File f = new File(dir);
+    if (!f.exists() && !(create && f.mkdirs())) {
+      throw new IllegalArgumentException("No such directory [" + dir + "]");
+    } else if (!f.isDirectory()) {
+      throw new IllegalArgumentException("Not a directory [" + dir + "]");
+    } else if (need_write && !f.canWrite()) {
+      throw new IllegalArgumentException("Cannot write to directory [" + dir
+          + "]");
+    }
+  }
 }
