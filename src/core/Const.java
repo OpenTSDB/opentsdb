@@ -74,4 +74,11 @@ public final class Const {
    * before losing precision.
    */
   public static final long MAX_INT_IN_DOUBLE = 0xFFE0000000000000L;
+
+  /**
+   * Mnemonics for FileSystem.checkDirectory()
+   */
+  public static final boolean DONT_CREATE = false;
+  public static final boolean CREATE_IF_NEEDED = true;
+  public static final boolean MUST_BE_WRITEABLE = true;
 }
