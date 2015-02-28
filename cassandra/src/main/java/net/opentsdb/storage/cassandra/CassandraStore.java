@@ -495,8 +495,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Map<byte[], Long>> getLastWriteTimes(final byte[] metric,
-                                                       final Map<byte[], byte[]> tags) {
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

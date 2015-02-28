@@ -96,8 +96,7 @@ public interface TsdbStore {
    */
   Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
 
-  Deferred<Map<byte[], Long>> getLastWriteTimes(final byte[] metric,
-                                                final Map<byte[], byte[]> tags);
+  Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query);
 
   //
   // Annotations

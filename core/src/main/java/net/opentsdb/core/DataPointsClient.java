@@ -1,12 +1,13 @@
 package net.opentsdb.core;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.search.ResolvedSearchQuery;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tsd.RTPublisher;
 import com.typesafe.config.Config;
@@ -234,25 +235,14 @@ public class DataPointsClient {
    * was null
    * TODO Fixme
    */
-  public Deferred<Map<byte[], Long>> getLastWriteTimes(final String metric,
-                                                       final Map<String, String> tags) {
-    checkArgument(Strings.isNullOrEmpty(metric));
-    checkNotNull(tags);
-
-    Deferred<byte[]> metricDeferred = uniqueIdClient.metrics.getId(metric);
-    final Deferred<Map<byte[], byte[]>> tagsDeferred = uniqueIdClient.getTags(tags);
-
-    return metricDeferred.addCallbackDeferring(new Callback<Deferred<Map<byte[], Long>>, byte[]>() {
-      @Override
-      public Deferred<Map<byte[], Long>> call(final byte[] metricId) {
-        return tagsDeferred.addCallbackDeferring(new Callback<Deferred<Map<byte[], Long>>, Map<byte[], byte[]>>() {
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final SearchQuery query) {
+    return uniqueIdClient.resolve(query)
+        .addCallbackDeferring(new Callback<Deferred<Map<byte[], Long>>, ResolvedSearchQuery>() {
           @Override
-          public Deferred<Map<byte[], Long>> call(final Map<byte[], byte[]> tagIds) throws Exception {
-            return store.getLastWriteTimes(metricId, tagIds);
+          public Deferred<Map<byte[], Long>> call(final ResolvedSearchQuery resolvedQuery) {
+            return store.getLastWriteTimes(resolvedQuery);
           }
         });
-      }
-    });
   }
 
   /**

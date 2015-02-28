@@ -1038,16 +1038,18 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Map<byte[], Long>> getLastWriteTimes(final byte[] metric,
-                                                       final Map<byte[], byte[]> tags) {
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query) {
     final Scanner scanner = client.newScanner(meta_table_name);
     scanner.setFamily(HBaseConst.TSMeta.FAMILY);
     scanner.setQualifier(HBaseConst.TSMeta.COUNTER_QUALIFIER);
-    scanner.setStartKey(TimeSeriesId.startKey(metric));
-    scanner.setStopKey(TimeSeriesId.stopKey(metric));
-    scanner.setFilter(TimeSeriesId.scanFilter(tags));
+    scanner.setStartKey(TimeSeriesId.startKey(query.getMetric()));
+    scanner.setStopKey(TimeSeriesId.stopKey(query.getMetric()));
 
-    return RowProcessor.processRows(scanner, new LastWriteTimesQueryRunner());
+    final String scanRegexp = TimeSeriesId.scanRegexp(query.getTags());
+    final Pattern scanPattern = Pattern.compile(scanRegexp);
+    scanner.setKeyRegexp(scanRegexp, HBaseConst.CHARSET);
+
+    return RowProcessor.processRows(scanner, new LastWriteTimesQueryRunner(scanPattern));
   }
 
   /**
@@ -2380,10 +2382,14 @@ public class HBaseStore implements TsdbStore {
   @Override
   public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
     final Scanner scanner = client.newScanner(meta_table_name);
-    final Pattern tagKeyRegex = TimeseriesQueryRunner.configureTags(scanner, query.getTags());
-    TimeseriesQueryRunner.configureMetric(scanner, query.getMetric());
+    scanner.setStartKey(TimeSeriesId.startKey(query.getMetric()));
+    scanner.setStopKey(TimeSeriesId.stopKey(query.getMetric()));
 
-    return RowProcessor.processRows(scanner, new TimeseriesQueryRunner(tagKeyRegex));
+    final String scanRegexp = TimeSeriesId.scanRegexp(query.getTags());
+    final Pattern scanPattern = Pattern.compile(scanRegexp);
+    scanner.setKeyRegexp(scanRegexp, HBaseConst.CHARSET);
+
+    return RowProcessor.processRows(scanner, new TimeseriesQueryRunner(scanPattern));
   }
 
   @Override

@@ -496,7 +496,7 @@ public class UniqueIdClient {
   /**
    * Resolve the string representation of a search query to an ID representation.
    */
-  private Deferred<ResolvedSearchQuery> resolve(final SearchQuery query) {
+  Deferred<ResolvedSearchQuery> resolve(final SearchQuery query) {
     final Deferred<byte[]> metric = metrics.resolveId(query.getMetric());
     final Deferred<SortedSet<ByteArrayPair>> tags = resolveTags(query.getTags());
 
