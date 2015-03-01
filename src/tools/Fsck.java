@@ -606,52 +606,53 @@ final class Fsck {
 
         int num_dupes = time_map.getValue().size();
 
-        final int deleteRangeStart;
-        final int deleteRangeStop;
-        final DP dpToKeep;
+        final int delete_range_start;
+        final int delete_range_stop;
+        final DP dp_to_keep;
         if (options.lastWriteWins()) {
           // Save the latest datapoint from extinction.
-          deleteRangeStart = 0;
-          deleteRangeStop = num_dupes - 1;
-          dpToKeep = time_map.getValue().get(num_dupes - 1);
+          delete_range_start = 0;
+          delete_range_stop = num_dupes - 1;
+          dp_to_keep = time_map.getValue().get(num_dupes - 1);
         } else {
           // Save the oldest datapoint from extinction.
-          deleteRangeStart = 1;
-          deleteRangeStop = num_dupes;
-          dpToKeep = time_map.getValue().get(0);
-          appendDatapointInfo(buf, dpToKeep, " <--- keep oldest").append("\n");
+          delete_range_start = 1;
+          delete_range_stop = num_dupes;
+          dp_to_keep = time_map.getValue().get(0);
+          appendDatapointInfo(buf, dp_to_keep, " <--- keep oldest").append("\n");
         }
 
-        unique_columns.put(dpToKeep.kv.qualifier(), dpToKeep.kv.value());
+        unique_columns.put(dp_to_keep.kv.qualifier(), dp_to_keep.kv.value());
         valid_datapoints.getAndIncrement();
-        has_uncorrected_value_error |= Internal.isFloat(dpToKeep.qualifier()) ?
-            fsckFloat(dpToKeep) : fsckInteger(dpToKeep);
+        has_uncorrected_value_error |= Internal.isFloat(dp_to_keep.qualifier()) ?
+            fsckFloat(dp_to_keep) : fsckInteger(dp_to_keep);
 
-        if (Internal.inMilliseconds(dpToKeep.qualifier())) {
+        if (Internal.inMilliseconds(dp_to_keep.qualifier())) {
           has_milliseconds = true;
         } else {
           has_seconds = true;
         }
 
-        for (int dpIndex = deleteRangeStart; dpIndex < deleteRangeStop; dpIndex++) {
+        for (int dp_index = delete_range_start; dp_index < delete_range_stop; 
+            dp_index++) {
           duplicates.getAndIncrement();
-          DP dp = time_map.getValue().get(dpIndex);
+          DP dp = time_map.getValue().get(dp_index);
           buf.append("    ")
-          .append("write time: (")
-          .append(dp.kv.timestamp())
-          .append(") ")
-          .append(" compacted: (")
-          .append(dp.compacted)
-          .append(")  qualifier: ")
-          .append(Arrays.toString(dp.kv.qualifier()))
-          .append("\n");
+            .append("write time: (")
+            .append(dp.kv.timestamp())
+            .append(") ")
+            .append(" compacted: (")
+            .append(dp.compacted)
+            .append(")  qualifier: ")
+            .append(Arrays.toString(dp.kv.qualifier()))
+            .append("\n");
           unique_columns.put(dp.kv.qualifier(), dp.kv.value());
           if (options.fix() && options.resolveDupes()) {
             if (compact_row) {
               // Scheduled for deletion by compaction.
               duplicates_fixed_comp.getAndIncrement();
             } else if (!dp.compacted) {
-              LOG.debug("REMOVING: " + dp.kv);
+              LOG.debug("Removing duplicate data point: " + dp.kv);
               tsdb.getClient().delete(
                 new DeleteRequest(
                   tsdb.dataTable(), dp.kv.key(), dp.kv.family(), dp.qualifier()
@@ -662,7 +663,7 @@ final class Fsck {
           }
         }
         if (options.lastWriteWins()) {
-          appendDatapointInfo(buf, dpToKeep, " <--- keep latest").append("\n");
+          appendDatapointInfo(buf, dp_to_keep, " <--- keep latest").append("\n");
         }
         LOG.info(buf.toString());
       }
@@ -951,21 +952,23 @@ final class Fsck {
       System.arraycopy(new_value, 0, compact_value, value_index, value_length);
       value_index += value_length;  
     }
+    
     /**
      * Appends a representation of a datapoint to a string buffer
-     * @param buf
-     * @param extraMessage
+     * @param buf The buffer to modify
+     * @param msg An optional message to append
      */
-    private StringBuilder appendDatapointInfo(StringBuilder buf, DP dp, String extraMessage) {
+    private StringBuilder appendDatapointInfo(final StringBuilder buf, 
+        final DP dp, final String msg) {
       buf.append("    ")
-      .append("write time: (")
-      .append(dp.kv.timestamp())
-      .append(") ")
-      .append(" compacted: (")
-      .append(dp.compacted)
-      .append(")  qualifier: ")
-      .append(Arrays.toString(dp.kv.qualifier()))
-      .append(extraMessage);
+        .append("write time: (")
+        .append(dp.kv.timestamp())
+        .append(") ")
+        .append(" compacted: (")
+        .append(dp.compacted)
+        .append(")  qualifier: ")
+        .append(Arrays.toString(dp.kv.qualifier()))
+        .append(msg);
       return buf;
     }
 
