@@ -37,5 +37,10 @@ public class HBaseConst {
      * The counter column qualifier
      */
     static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(CHARSET);
+
+    /**
+     * The meta data column qualifier
+     */
+    public static final byte[] META_QUALIFIER = "ts_meta".getBytes(CHARSET);
   }
 }

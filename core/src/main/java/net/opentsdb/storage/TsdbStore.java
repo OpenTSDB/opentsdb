@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.uid.UniqueIdType;
-import org.hbase.async.Bytes;
 
 /**
  * A interface defining the functions any database used with TSDB must implement.
@@ -159,6 +158,8 @@ public interface TsdbStore {
   Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number);
 
   Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
+
+  Deferred<List<TSMeta>> executeTimeseriesMetaQuery(ResolvedSearchQuery query);
 
   //
   // Trees

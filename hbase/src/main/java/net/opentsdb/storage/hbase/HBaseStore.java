@@ -2540,6 +2540,21 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final ResolvedSearchQuery query) {
+    final Scanner scanner = client.newScanner(meta_table_name);
+    scanner.setFamily(HBaseConst.TSMeta.FAMILY);
+    scanner.setQualifier(HBaseConst.TSMeta.META_QUALIFIER);
+    scanner.setStartKey(TimeSeriesId.startKey(query.getMetric()));
+    scanner.setStopKey(TimeSeriesId.stopKey(query.getMetric()));
+
+    final String scanRegexp = TimeSeriesId.scanRegexp(query.getTags());
+    final Pattern scanPattern = Pattern.compile(scanRegexp);
+    scanner.setKeyRegexp(scanRegexp, HBaseConst.CHARSET);
+
+    return RowProcessor.processRows(scanner, new TimeSeriesMetaRowProcessor(scanPattern, jsonMapper));
+  }
+
+  @Override
   public Deferred<Boolean> TSMetaExists(final String tsuid) {
 
     final GetRequest get = new GetRequest(meta_table_name,

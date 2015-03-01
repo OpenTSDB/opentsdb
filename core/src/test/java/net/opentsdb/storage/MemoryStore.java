@@ -967,6 +967,11 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final ResolvedSearchQuery query) {
+    throw new UnsupportedOperationException("Not implemented yet!");
+  }
+
+  @Override
   public Deferred<Boolean> TSMetaExists(String tsuid) {
     throw new UnsupportedOperationException("Not implemented yet");
   }

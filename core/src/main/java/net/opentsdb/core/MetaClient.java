@@ -11,6 +11,7 @@ import com.google.common.eventbus.Subscribe;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
@@ -672,6 +673,25 @@ public class MetaClient {
     }
 
     return store.syncToStorage(tsMeta, Deferred.group(uid_group), overwrite);
+  }
+
+  /**
+   * Returns all TSMeta objects stored for timeseries defined by this query. The
+   * query is similar to TsdbQuery without any aggregations. Returns an empty
+   * list, when no TSMetas are found. Only returns stored TSMetas.
+   *
+   * @return A list of existing TSMetas for the timeseries covered by the query.
+   * @throws IllegalArgumentException When either no metric was specified or the
+   *                                  tag map was null (Empty map is OK).
+   */
+  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final SearchQuery query) {
+    return uniqueIdClient.resolve(query).addCallbackDeferring(
+        new Callback<Deferred<List<TSMeta>>, ResolvedSearchQuery>() {
+          @Override
+          public Deferred<List<TSMeta>> call(final ResolvedSearchQuery arg) {
+            return store.executeTimeseriesMetaQuery(arg);
+          }
+        });
   }
 
   /**
