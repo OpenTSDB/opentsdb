@@ -15,6 +15,7 @@ package net.opentsdb.tools;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -600,6 +601,8 @@ final class Fsck {
         buf.append("More than one column had a value for the same timestamp: ")
            .append("(")
            .append(time_map.getKey())
+           .append(" - ")
+           .append(new Date(time_map.getKey()))
            .append(")\n    row key: (")
            .append(UniqueId.uidToString(key))
            .append(")\n");
@@ -637,14 +640,21 @@ final class Fsck {
             dp_index++) {
           duplicates.getAndIncrement();
           DP dp = time_map.getValue().get(dp_index);
+          final byte flags = (byte)Internal.getFlagsFromQualifier(dp.kv.qualifier());
           buf.append("    ")
             .append("write time: (")
             .append(dp.kv.timestamp())
+            .append(" - ")
+            .append(new Date(dp.kv.timestamp()))
             .append(") ")
             .append(" compacted: (")
             .append(dp.compacted)
             .append(")  qualifier: ")
             .append(Arrays.toString(dp.kv.qualifier()))
+            .append(" value: ")
+            .append(Internal.isFloat(dp.kv.qualifier()) ?
+              Internal.extractFloatingPointValue(dp.value(), 0, flags) :
+              Internal.extractIntegerValue(dp.value(), 0, flags))
             .append("\n");
           unique_columns.put(dp.kv.qualifier(), dp.kv.value());
           if (options.fix() && options.resolveDupes()) {
