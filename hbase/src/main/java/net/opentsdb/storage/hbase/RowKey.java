@@ -10,12 +10,13 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage.hbase;
 
 import java.util.Arrays;
 import java.util.Map;
 
-import net.opentsdb.storage.hbase.HBaseStore;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
 
 import org.hbase.async.Bytes;
 

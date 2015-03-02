@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import dagger.ObjectGraph;
-import net.opentsdb.core.RowKey;
+import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.search.SearchQuery;

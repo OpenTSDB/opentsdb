@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import net.opentsdb.core.Const;
-import net.opentsdb.core.RowKey;
+import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;

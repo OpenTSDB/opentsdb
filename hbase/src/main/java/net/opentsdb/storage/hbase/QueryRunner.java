@@ -9,7 +9,6 @@ import java.util.Map;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.RowKey;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.IdUtils;
 

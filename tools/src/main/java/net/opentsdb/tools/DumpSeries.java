@@ -28,7 +28,7 @@ import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
 import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.RowKey;
+import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UidFormatter;
 import net.opentsdb.storage.hbase.HBaseStore;
