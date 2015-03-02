@@ -53,24 +53,27 @@ final class TextImporter {
     ArgP argp = new ArgP();
     CliOptions.addCommon(argp);
     CliOptions.addAutoMetricFlag(argp);
+    argp.addOption("--skip-errors", "Whether or not to skip exceptions "
+        + "during processing");
     args = CliOptions.parse(argp, args);
     if (args == null) {
       usage(argp, 1);
     } else if (args.length < 1) {
       usage(argp, 2);
     }
-
+    
     // get a config object
     Config config = CliOptions.getConfig(argp);
 
     final TSDB tsdb = new TSDB(config);
+    final boolean skip_errors = argp.has("--skip_errors");
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     try {
       int points = 0;
       final long start_time = System.nanoTime();
       for (final String path : args) {
-        points += importFile(tsdb.getClient(), tsdb, path);
+        points += importFile(tsdb.getClient(), tsdb, path, skip_errors);
       }
       final double time_delta = (System.nanoTime() - start_time) / 1000000000.0;
       LOG.info(String.format("Total: imported %d data points in %.3fs"
@@ -97,7 +100,8 @@ final class TextImporter {
 
   private static int importFile(final HBaseClient client,
                                 final TSDB tsdb,
-                                final String path) throws IOException {
+                                final String path,
+                                final boolean skip_errors) throws IOException {
     final long start_time = System.nanoTime();
     long ping_start_time = start_time;
     final BufferedReader in = open(path);
@@ -131,68 +135,111 @@ final class TextImporter {
         final String[] words = Tags.splitString(line, ' ');
         final String metric = words[0];
         if (metric.length() <= 0) {
-          LOG.error("invalid metric: " + metric);
-          LOG.error("error while processing file "
-                    + path + " line=" + line + "... Continuing");
-          continue;
+          if (skip_errors) {
+            LOG.error("invalid metric: " + metric);
+            LOG.error("error while processing file "
+                      + path + " line=" + line + "... Continuing");
+            continue;
+          } else {
+            throw new RuntimeException("invalid metric: " + metric);
+          }
         }
-        final long timestamp = Tags.parseLong(words[1]);
-        if (timestamp <= 0) {
-          LOG.error("invalid timestamp: " + timestamp);
-          LOG.error("error while processing file "
-                    + path + " line=" + line + "... Continuing");
-          continue;
+        final long timestamp;
+        try {
+          timestamp = Tags.parseLong(words[1]);
+          if (timestamp <= 0) {
+            if (skip_errors) {
+              LOG.error("invalid timestamp: " + timestamp);
+              LOG.error("error while processing file "
+                        + path + " line=" + line + "... Continuing");
+              continue;
+            } else {
+              throw new RuntimeException("invalid timestamp: " + timestamp);
+            }
+          }
+        } catch (final RuntimeException e) {
+          if (skip_errors) {
+            LOG.error("invalid timestamp: " + e.getMessage());
+            LOG.error("error while processing file "
+                      + path + " line=" + line + "... Continuing");
+            continue;
+          } else {
+            throw e;
+          }
         }
+        
         final String value = words[2];
         if (value.length() <= 0) {
-          LOG.error("invalid value: " + value);
-          LOG.error("error while processing file "
-                    + path + " line=" + line + "... Continuing");
-          continue;
-        }
-        final HashMap<String, String> tags = new HashMap<String, String>();
-        for (int i = 3; i < words.length; i++) {
-          if (!words[i].isEmpty()) {
-            Tags.parse(tags, words[i]);
+          if (skip_errors) {
+            LOG.error("invalid value: " + value);
+            LOG.error("error while processing file "
+                      + path + " line=" + line + "... Continuing");
+            continue;
+          } else {
+            throw new RuntimeException("invalid value: " + value);
           }
         }
-        final WritableDataPoints dp = getDataPoints(tsdb, metric, tags);
-        Deferred<Object> d;
-        if (Tags.looksLikeInteger(value)) {
-          d = dp.addPoint(timestamp, Tags.parseLong(value));
-        } else {  // floating point value
-          d = dp.addPoint(timestamp, Float.parseFloat(value));
-        }
-        d.addErrback(errback);
-        points++;
-        if (points % 1000000 == 0) {
-          final long now = System.nanoTime();
-          ping_start_time = (now - ping_start_time) / 1000000;
-          LOG.info(String.format("... %d data points in %dms (%.1f points/s)",
-                                 points, ping_start_time,
-                                 (1000000 * 1000.0 / ping_start_time)));
-          ping_start_time = now;
-        }
-        if (throttle) {
-          LOG.info("Throttling...");
-          long throttle_time = System.nanoTime();
-          try {
-            d.joinUninterruptibly();
-          } catch (Exception e) {
-            throw new RuntimeException("Should never happen", e);
+        
+        try {
+          final HashMap<String, String> tags = new HashMap<String, String>();
+          for (int i = 3; i < words.length; i++) {
+            if (!words[i].isEmpty()) {
+              Tags.parse(tags, words[i]);
+            }
           }
-          throttle_time = System.nanoTime() - throttle_time;
-          if (throttle_time < 1000000000L) {
-            LOG.info("Got throttled for only " + throttle_time + "ns, sleeping a bit now");
-            try { Thread.sleep(1000); } catch (InterruptedException e) { throw new RuntimeException("interrupted", e); }
+          
+          final WritableDataPoints dp = getDataPoints(tsdb, metric, tags);
+          Deferred<Object> d;
+          if (Tags.looksLikeInteger(value)) {
+            d = dp.addPoint(timestamp, Tags.parseLong(value));
+          } else {  // floating point value
+            d = dp.addPoint(timestamp, Float.parseFloat(value));
           }
-          LOG.info("Done throttling...");
-          throttle = false;
+          d.addErrback(errback);
+          points++;
+          if (points % 1000000 == 0) {
+            final long now = System.nanoTime();
+            ping_start_time = (now - ping_start_time) / 1000000;
+            LOG.info(String.format("... %d data points in %dms (%.1f points/s)",
+                                   points, ping_start_time,
+                                   (1000000 * 1000.0 / ping_start_time)));
+            ping_start_time = now;
+          }
+          if (throttle) {
+            LOG.info("Throttling...");
+            long throttle_time = System.nanoTime();
+            try {
+              d.joinUninterruptibly();
+            } catch (final Exception e) {
+              throw new RuntimeException("Should never happen", e);
+            }
+            throttle_time = System.nanoTime() - throttle_time;
+            if (throttle_time < 1000000000L) {
+              LOG.info("Got throttled for only " + throttle_time + 
+                  "ns, sleeping a bit now");
+              try { 
+                Thread.sleep(1000); 
+              } catch (InterruptedException e) { 
+                throw new RuntimeException("interrupted", e); 
+              }
+            }
+            LOG.info("Done throttling...");
+            throttle = false;
+          }
+        } catch (final RuntimeException e) {
+          if (skip_errors) {
+            LOG.error("Exception: " + e.getMessage());
+            LOG.error("error while processing file "
+                      + path + " line=" + line + "... Continuing");
+            continue;
+          } else {
+            throw e;
+          }
         }
       }
     } catch (RuntimeException e) {
         LOG.error("Exception caught while processing file "
-                  + path + " line=" + line);
+                  + path + " line=[" + line + "]", e);
         throw e;
     } finally {
       in.close();
