@@ -17,6 +17,8 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.opentsdb.utils.FileSystem;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,7 +31,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({PrintWriter.class, File.class, Plot.class})
+@PrepareForTest({PrintWriter.class, File.class, FileSystem.class, Plot.class})
 public final class TestPlot {
 
   Plot plot;
@@ -55,11 +57,6 @@ public final class TestPlot {
     PowerMockito.when(mockFile, "exists").thenReturn(true);
     PowerMockito.when(mockFile, "isDirectory").thenReturn(true);
     PowerMockito.when(mockFile, "canWrite").thenReturn(true);
-  }
-
-  @Test (expected = IllegalArgumentException.class)
-  public void checkDirectoryEmptyString() throws Exception {
-    Plot.checkDirectory("", true, false);
   }
 
   @Test

@@ -22,7 +22,6 @@ import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
@@ -31,6 +30,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Const;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.FileSystem;
 import net.opentsdb.graph.Plot;
 /**
  * Main class of the TSD, the Time Series Daemon.
@@ -110,9 +110,9 @@ final class TSDMain {
 
     // validate the cache and staticroot directories
     try {
-      Plot.checkDirectory(config.getString("tsd.http.staticroot"), 
+      FileSystem.checkDirectory(config.getString("tsd.http.staticroot"), 
           !Const.MUST_BE_WRITEABLE, Const.DONT_CREATE);
-      Plot.checkDirectory(config.getString("tsd.http.cachedir"),
+      FileSystem.checkDirectory(config.getString("tsd.http.cachedir"),
           Const.MUST_BE_WRITEABLE, Const.CREATE_IF_NEEDED);
     } catch (IllegalArgumentException e) {
       usage(argp, e.getMessage(), 3);

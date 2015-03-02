@@ -76,7 +76,7 @@ public final class Const {
   public static final long MAX_INT_IN_DOUBLE = 0xFFE0000000000000L;
 
   /**
-   * Mnemonics for Plot.checkDirectory()
+   * Mnemonics for FileSystem.checkDirectory()
    */
   public static final boolean DONT_CREATE = false;
   public static final boolean CREATE_IF_NEEDED = true;
