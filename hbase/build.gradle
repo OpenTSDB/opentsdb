@@ -2,4 +2,6 @@
 dependencies {
     compile project(':core')
     compile project(':storage-json')
+
+    testCompile project(':core').sourceSets.test.output
 }

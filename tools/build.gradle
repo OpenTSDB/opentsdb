@@ -2,4 +2,6 @@
 dependencies {
     compile project(':core')
     compile project(':hbase')
+
+    testCompile project(':core').sourceSets.test.output
 }

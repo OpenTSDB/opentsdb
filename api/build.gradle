@@ -8,4 +8,6 @@ dependencies {
     compile project(':tools')
 
     compile group: 'io.netty', name: 'netty', version: '3.9.4.Final'
+
+    testCompile project(':core').sourceSets.test.output
 }
