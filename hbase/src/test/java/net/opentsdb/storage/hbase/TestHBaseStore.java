@@ -7,7 +7,6 @@ import com.stumbleupon.async.Deferred;
 import com.typesafe.config.ConfigFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.storage.DatabaseTests;
 import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TestTsdbStore;
@@ -28,7 +27,6 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
@@ -64,7 +62,6 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({HBaseClient.class, Scanner.class})
-@Category(DatabaseTests.class)
 public class TestHBaseStore extends TestTsdbStore {
   private static final byte[] MAX_UID = {0};
 

@@ -4,13 +4,11 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 import dagger.ObjectGraph;
 import net.opentsdb.stats.Metrics;
-import net.opentsdb.storage.DatabaseTests;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import javax.inject.Inject;
 import java.io.ByteArrayOutputStream;
@@ -25,7 +23,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-@Category(DatabaseTests.class)
 public class TestCassandraStore {
   private static final String METRIC_NAME_ONE = "sys";
   private static final String METRIC_NAME_TWO = "cpu0";

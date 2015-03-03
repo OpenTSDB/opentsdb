@@ -1,7 +1,6 @@
 package net.opentsdb.storage.hbase;
 
 import dagger.ObjectGraph;
-import net.opentsdb.storage.DatabaseTests;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
@@ -9,14 +8,12 @@ import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.UniqueIdType;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import javax.inject.Inject;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-@Category(DatabaseTests.class)
 public class IdQueryRunnerTest {
   @Inject TsdbStore store;
 
