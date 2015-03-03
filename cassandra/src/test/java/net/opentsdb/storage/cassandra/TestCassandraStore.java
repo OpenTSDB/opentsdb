@@ -55,34 +55,15 @@ public class TestCassandraStore {
   }
 
   /**
-   * Use this to clear the data in your localhost version of Cassandra
-   */
-  private void clearData() {
-    store.getSession().execute("TRUNCATE tsdb.data");
-    store.getSession().execute("TRUNCATE tsdb.tags_data");
-    store.getSession().execute("TRUNCATE tsdb.uid_id");
-    store.getSession().execute("TRUNCATE tsdb.name_id");
-    store.getSession().execute("TRUNCATE tsdb.max_uid_type");
-    store.getSession().execute("TRUNCATE tsdbunique.uid_name_id");
-
-    store.getSession().execute("UPDATE tsdb.max_uid_type SET max = max + " +
-            "0 WHERE type='metrics';");
-    store.getSession().execute("UPDATE tsdb.max_uid_type SET max = max + " +
-            "0 WHERE type='tagk';");
-    store.getSession().execute("UPDATE tsdb.max_uid_type SET max = max + " +
-            "0 WHERE type='tagv';");
-  }
-
-  /**
    * Use this to set up some test data. This method will call for {@link
-   * #setUpCassandraConnection} and {@link #clearData}. Then it will use the
+   * #setUpCassandraConnection} and {@link Helpers#truncate}. Then it will use the
    * {@link CassandraStore#addPoint} and {@link CassandraStore#allocateUID} to
    * get UID from the database. WARNING! If either of those tests fail in the
    * original test one should consider this whole thing to fail.
    */
   private void setUpData() throws Exception {
     setUpCassandraConnection();
-    clearData();
+    Helpers.truncate(store.getSession());
 
     name_uid.put(METRIC_NAME_ONE, store.allocateUID(
             METRIC_NAME_ONE, UniqueIdType.METRIC).joinUninterruptibly());
@@ -139,7 +120,7 @@ public class TestCassandraStore {
   @Test
   public void addPoint() throws Exception {
     setUpCassandraConnection();
-    clearData();
+    Helpers.truncate(store.getSession());
     //'001001001', 1356998400, 1356998400, 'a', 'data1'
     store.addPoint(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
@@ -152,7 +133,7 @@ public class TestCassandraStore {
   @Test(expected = NullPointerException.class)
   public void addPointNull() throws Exception {
     setUpCassandraConnection();
-    clearData();
+    Helpers.truncate(store.getSession());
     store.addPoint(
             null,
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
@@ -165,7 +146,7 @@ public class TestCassandraStore {
   @Test(expected = IllegalArgumentException.class)
   public void addPointEmpty() throws Exception {
     setUpCassandraConnection();
-    clearData();
+    Helpers.truncate(store.getSession());
     store.addPoint(
             new byte[]{},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
@@ -178,7 +159,7 @@ public class TestCassandraStore {
   @Test(expected = IllegalArgumentException.class)
   public void addPointTooShort() throws Exception {
     setUpCassandraConnection();
-    clearData();
+    Helpers.truncate(store.getSession());
     store.addPoint(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},

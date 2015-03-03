@@ -112,43 +112,41 @@ public class CassandraStore implements TsdbStore {
   private void prepareStatements() {
     checkNotNull(session);
     checkNotNull(cluster);
-    String CQL = "INSERT INTO \"tsdb\".\"data\" (tsuid, basetime, " +
-            "timestamp, flags, val) VALUES (?, ?, ?, ?, ?);";
+
+    String CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, flags, val) VALUES (?, ?, ?, ?, ?);";
     add_point_statement = session.prepare(CQL);
 
-    CQL = "UPDATE \"tsdb\".\"max_uid_type\" SET max = max + 1 WHERE " +
-            "type=?;";
+    CQL = "UPDATE \"tsdb\".\"" + Tables.MAX_ID + "\" SET max = max + 1 WHERE type=?;";
     increment_uid_statement = session.prepare(CQL);
 
-    CQL = "SELECT * FROM \"tsdb\".\"max_uid_type\" WHERE type=?;";
+    CQL = "SELECT * FROM \"tsdb\".\"" + Tables.MAX_ID + "\" WHERE type=?;";
     get_max_uid_statement = session.prepare(CQL);
 
-    CQL = "INSERT INTO tsdb.uid_id (uid, type, name) VALUES (?, ?, ?);";
+    CQL = "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (id, type, name) VALUES (?, ?, ?);";
     create_new_uid_name_statement = session.prepare(CQL);
 
-    CQL = "INSERT INTO tsdb.name_id (name, type, uid) VALUES (?, ?, ?);";
+    CQL = "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, id) VALUES (?, ?, ?);";
     create_new_name_uid_statement = session.prepare(CQL);
 
-    CQL = "INSERT INTO tsdbunique.uid_name_id (key, type) VALUES (?, ?) " +
-            "IF NOT EXISTS;";
+    CQL = "INSERT INTO tsdbunique." + Tables.ID_NAME_LOCK + " (key, type) VALUES (?, ?) IF NOT EXISTS;";
     lock_uid_name_combination = session.prepare(CQL);
 
-    CQL = "UPDATE tsdb.uid_id SET name = ? WHERE uid = ? AND type = ?;";
+    CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE id = ? AND type = ?;";
     update_uid_name_statement = session.prepare(CQL);
 
     CQL = "BEGIN BATCH " +
-            "DELETE FROM tsdb.name_id WHERE name = ? AND type= ? " +
-            "INSERT INTO tsdb.name_id (name, type, uid) VALUES (?, ?, ?) " +
+            "DELETE FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type= ? " +
+            "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, id) VALUES (?, ?, ?) " +
             "APPLY BATCH;";
     update_name_uid_statement = session.prepare(CQL);
 
-    CQL = "SELECT * FROM tsdb.uid_id WHERE uid = ? AND type = ?;";
+    CQL = "SELECT * FROM tsdb." + Tables.ID_TO_NAME + " WHERE id = ? AND type = ?;";
     get_name_statement = session.prepare(CQL);
 
-    CQL = "SELECT * FROM tsdb.name_id WHERE name = ? AND type = ?;";
+    CQL = "SELECT * FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type = ?;";
     get_id_statement = session.prepare(CQL);
 
-    CQL = "INSERT INTO tsdb.tags_data (uid, type, tsuid) VALUES (?, ?, ?);";
+    CQL = "INSERT INTO tsdb." + Tables.TS_INVERTED_INDEX + " (id, type, tsid) VALUES (?, ?, ?);";
     insert_tags_statement = session.prepare(CQL);
   }
 
@@ -434,7 +432,7 @@ public class CassandraStore implements TsdbStore {
 
     final Deferred<byte[]> d = new Deferred<byte[]>();
 
-    //CQL = "UPDATE tsdb.uid_id SET name = ? WHERE uid = ? AND type = ?;";
+    //CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE uid = ? AND type = ?;";
     final BoundStatement s1 = new BoundStatement(update_uid_name_statement)
             .bind(name, IdUtils.uidToLong(uid), type.toValue());
 
@@ -447,8 +445,8 @@ public class CassandraStore implements TsdbStore {
                 (update_name_uid_statement);
         // CQL =
         // BEGIN BATCH
-        // DELETE FROM tsdb.name_id WHERE name = ? AND type = ?
-        // INSERT INTO tsdb.name_id (name, type, uid) VALUES (?, ?, ?)
+        // DELETE FROM tsdb.name_to_id WHERE name = ? AND type = ?
+        // INSERT INTO tsdb.name_to_id (name, type, uid) VALUES (?, ?, ?)
         // APPLY BATCH;
         session.executeAsync(s.bind(old_name, type.toValue(),
                 name, type.toValue(), IdUtils.uidToLong(uid)));
