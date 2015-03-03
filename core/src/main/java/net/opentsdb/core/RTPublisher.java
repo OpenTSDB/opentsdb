@@ -12,11 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import java.util.Arrays;
 import java.util.Map;
 
 import net.opentsdb.meta.Annotation;
 
 import com.stumbleupon.async.Deferred;
+import org.hbase.async.Bytes;
 
 /**
  * Real Time publisher plugin interface that is used to emit data from a TSD
@@ -45,19 +47,65 @@ public abstract class RTPublisher extends Plugin {
    * value
    * @return A deferred without special meaning to wait on if necessary. The 
    * value may be null but a Deferred must be returned.
+   * @deprecated Use the publish methods directly that accept the primitive datatype
    */
+  @Deprecated
   public final Deferred<Object> sinkDataPoint(final String metric, 
       final long timestamp, final byte[] value, final Map<String, String> tags, 
       final byte[] tsuid, final short flags) {
     if ((flags & Const.FLAG_FLOAT) == 0x0) {
       return publishDataPoint(metric, timestamp, 
-          Internal.extractFloatingPointValue(value, 0, (byte) flags), tags, tsuid)
+          extractFloatingPointValue(value, 0, (byte) flags), tags, tsuid)
               .addErrback(new PluginError(this));
     } else {
       return publishDataPoint(metric, timestamp, 
-          Internal.extractIntegerValue(value, 0, (byte) flags), tags, tsuid)
+          extractIntegerValue(value, 0, (byte) flags), tags, tsuid)
               .addErrback(new PluginError(this));
     }
+  }
+
+  /**
+   * Extracts the value of a cell containing a data point.
+   * @param values The contents of a cell in HBase.
+   * @param value_idx The offset inside {@code values} at which the value
+   * starts.
+   * @param flags The flags for this value.
+   * @return The value of the cell.
+   * @throws net.opentsdb.core.IllegalDataException if the data is malformed
+   */
+  private static long extractIntegerValue(final byte[] values,
+                                         final int value_idx,
+                                         final byte flags) {
+    switch (flags & Const.LENGTH_MASK) {
+      case 7: return Bytes.getLong(values, value_idx);
+      case 3: return Bytes.getInt(values, value_idx);
+      case 1: return Bytes.getShort(values, value_idx);
+      case 0: return values[value_idx];
+    }
+    throw new IllegalDataException("Integer value @ " + value_idx
+        + " not on 8/4/2/1 bytes in "
+        + Arrays.toString(values));
+  }
+
+  /**
+   * Extracts the value of a cell containing a data point.
+   * @param values The contents of a cell in HBase.
+   * @param value_idx The offset inside {@code values} at which the value
+   * starts.
+   * @param flags The flags for this value.
+   * @return The value of the cell.
+   * @throws IllegalDataException if the data is malformed
+   */
+  private static double extractFloatingPointValue(final byte[] values,
+                                                 final int value_idx,
+                                                 final byte flags) {
+    switch (flags & Const.LENGTH_MASK) {
+      case 7: return Double.longBitsToDouble(Bytes.getLong(values, value_idx));
+      case 3: return Float.intBitsToFloat(Bytes.getInt(values, value_idx));
+    }
+    throw new IllegalDataException("Floating point value @ " + value_idx
+        + " not on 8 or 4 bytes in "
+        + Arrays.toString(values));
   }
   
   /**
