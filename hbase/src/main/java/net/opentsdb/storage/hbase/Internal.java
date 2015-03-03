@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage.hbase;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -19,7 +19,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import net.opentsdb.storage.hbase.CompactedRow;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.uid.IdUtils;
 
 import org.hbase.async.Bytes;
@@ -66,7 +67,7 @@ import org.hbase.async.Scanner;
  */
 public final class Internal {
 
-  /** @see Const#FLAG_BITS  */
+  /** @see net.opentsdb.core.Const#FLAG_BITS  */
   public static final short FLAG_BITS = Const.FLAG_BITS;
 
   /** @see Const#LENGTH_MASK  */
@@ -99,7 +100,7 @@ public final class Internal {
    * @param column The column to parse
    * @return A Cell if successful, null if the column did not contain a data
    * point (i.e. it was meta data) or failed to parse
-   * @throws IllegalDataException  if the qualifier was not 2 bytes long or
+   * @throws net.opentsdb.core.IllegalDataException  if the qualifier was not 2 bytes long or
    * it wasn't a millisecond qualifier
    * @since 2.0
    */
@@ -114,7 +115,7 @@ public final class Internal {
       }
       return cells.get(0);
     }
-    throw new IllegalDataException (
+    throw new IllegalDataException(
         "Qualifier does not appear to be a single data point: " + column);
   }
   

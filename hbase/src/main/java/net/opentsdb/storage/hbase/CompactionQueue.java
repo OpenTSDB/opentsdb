@@ -33,7 +33,6 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.Internal;
 import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;

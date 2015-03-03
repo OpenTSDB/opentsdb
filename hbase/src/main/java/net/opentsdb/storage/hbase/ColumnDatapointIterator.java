@@ -14,7 +14,6 @@ package net.opentsdb.storage.hbase;
 
 import java.util.Arrays;
 
-import net.opentsdb.core.Internal;
 import org.hbase.async.KeyValue;
 
 /**

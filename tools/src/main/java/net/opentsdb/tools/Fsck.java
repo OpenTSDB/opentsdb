@@ -35,8 +35,8 @@ import org.hbase.async.Scanner;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.Internal.Cell;
+import net.opentsdb.storage.hbase.Internal;
+import net.opentsdb.storage.hbase.Internal.Cell;
 import net.opentsdb.core.Query;
 import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.core.TSDB;

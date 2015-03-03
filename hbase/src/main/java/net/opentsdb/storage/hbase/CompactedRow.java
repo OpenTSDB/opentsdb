@@ -23,7 +23,6 @@ import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.Internal;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.IdUtils;
