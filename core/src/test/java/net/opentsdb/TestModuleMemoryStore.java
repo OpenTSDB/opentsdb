@@ -7,13 +7,9 @@ import net.opentsdb.core.DataPointsClientExecuteQueryTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientTSMetaTest;
 import net.opentsdb.core.TsdbModule;
-import net.opentsdb.search.TestTimeSeriesLookup;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tools.TestDumpSeries;
-import net.opentsdb.tools.TestFsck;
 import com.typesafe.config.Config;
-import net.opentsdb.tsd.TestRpcHandler;
 
 import javax.inject.Singleton;
 
@@ -40,11 +36,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
                 DataPointsClientExecuteQueryTest.class,
                 MetaClientAnnotationTest.class,
                 MemoryStore.class,
-                MetaClientTSMetaTest.class,
-                TestTimeSeriesLookup.class,
-                TestDumpSeries.class,
-                TestFsck.class,
-                TestRpcHandler.class
+                MetaClientTSMetaTest.class
         })
 public class TestModuleMemoryStore {
   private final Config config;
