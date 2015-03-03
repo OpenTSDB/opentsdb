@@ -234,16 +234,6 @@ public class DataPointsClient {
   }
 
   /**
-   * Returns a new {@link net.opentsdb.core.WritableDataPoints} instance suitable for this TSDB.
-   * <p>
-   * If you want to add a single data-point, consider using {@link #addPoint}
-   * instead.
-   */
-  public WritableDataPoints newDataPoints() {
-    return new IncomingDataPoints(store, uniqueIdClient);
-  }
-
-  /**
    * Fetches a list of TSUIDs given the metric and optional tag pairs. The query
    * format is similar to TsdbQuery but doesn't support grouping operators for
    * tags. Only TSUIDs that had "ts_counter" qualifiers will be returned.
