@@ -7,11 +7,19 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
 
+import com.codahale.metrics.Timer;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
+import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.callbacks.StripedTagIdsToMap;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
@@ -25,6 +33,9 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.utils.ByteArrayPair;
+import net.opentsdb.utils.Pair;
+import net.opentsdb.stats.StopTimerCallback;
 import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
@@ -32,6 +43,7 @@ import javax.inject.Inject;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.toBytes;
+import static net.opentsdb.stats.Metrics.name;
 
 public class UniqueIdClient {
   private static final SortResolvedTagsCB SORT_CB = new SortResolvedTagsCB();
@@ -50,6 +62,8 @@ public class UniqueIdClient {
   final byte[] uidtable;
 
   private final SearchPlugin searchPlugin;
+
+  private final Timer tsuidQueryTimer;
 
   @Inject
   public UniqueIdClient(final TsdbStore tsdbStore,
@@ -75,6 +89,8 @@ public class UniqueIdClient {
       uid_cache_map.put(UniqueIdType.TAGV, tag_values);
       UniqueId.preloadUidCache(config, tsdbStore, uid_cache_map);
     }
+
+    tsuidQueryTimer = metricsRegistry.getRegistry().timer(name("tsuid.query-time"));
   }
 
   /**
@@ -189,6 +205,23 @@ public class UniqueIdClient {
 
     // And then once we have all the tags resolved, sort them.
     return Deferred.group(tag_ids).addCallback(SORT_CB);
+  }
+
+
+  private Deferred<ArrayList<byte[]>> fetchTags(final Map<String, String> tags) {
+    final ImmutableList.Builder<Deferred<byte[]>> tag_ids = ImmutableList.builder();
+
+    // For each tag, start resolving the tag name and the tag value.
+    for (final Map.Entry<String, String> entry : tags.entrySet()) {
+      tag_ids.add(tag_names.getId(entry.getKey()));
+      tag_ids.add(tag_values.getId(entry.getValue()));
+    }
+
+    return Deferred.groupInOrder(tag_ids.build());
+  }
+
+  public Deferred<Map<byte[], byte[]>> getTags(final Map<String, String> tags) {
+    return fetchTags(tags).addCallback(new StripedTagIdsToMap());
   }
 
   /**
@@ -423,6 +456,118 @@ public class UniqueIdClient {
       // Now sort the tags.
       Collections.sort(tags, Bytes.MEMCMP);
       return tags;
+    }
+  }
+
+  /**
+   * Lookup time series related to a metric, tagk, tagv or any combination
+   * thereof.
+   *
+   * When dealing with tags, we can lookup on tagks, tagvs or pairs. Thus: tagk,
+   * null  <- lookup all series with a tagk tagk, tagv  <- lookup all series
+   * with a tag pair null, tagv  <- lookup all series with a tag value
+   * somewhere
+   *
+   * The user can supply multiple tags in a query so the logic is a little goofy
+   * but here it is: - Different tagks are AND'd, e.g. given "host=web01 dc=lga"
+   * we will lookup series that contain both of those tag pairs. Also when given
+   * "host= dc=" then we lookup series with both tag keys regardless of their
+   * values. - Tagks without a tagv will override tag pairs. E.g. "host=web01
+   * host=" will return all series with the "host" tagk. - Tagvs without a tagk
+   * are OR'd. Given "=lga =phx" the lookup will fetch anything with either
+   * "lga" or "phx" as the value for a pair. When combined with a tagk, e.g.
+   * "host=web01 =lga" then it will return any series with the tag pair AND any
+   * tag with the "lga" value.
+   */
+  public Deferred<List<byte[]>> executeTimeSeriesQuery(final SearchQuery query) {
+    final Timer.Context timerContext = tsuidQueryTimer.time();
+
+    Deferred<List<byte[]>> tsuids = resolve(query).addCallbackDeferring(
+        new Callback<Deferred<List<byte[]>>, ResolvedSearchQuery>() {
+          @Override
+          public Deferred<List<byte[]>> call(final ResolvedSearchQuery arg) {
+            return tsdbStore.executeTimeSeriesQuery(arg);
+          }
+        });
+
+    return StopTimerCallback.stopOn(timerContext, tsuids);
+  }
+
+  /**
+   * Resolve the string representation of a search query to an ID representation.
+   */
+  Deferred<ResolvedSearchQuery> resolve(final SearchQuery query) {
+    final Deferred<byte[]> metric = metrics.resolveId(query.getMetric());
+    final Deferred<SortedSet<ByteArrayPair>> tags = resolveTags(query.getTags());
+
+    return metric.addBothDeferring(new Callback<Deferred<ResolvedSearchQuery>, byte[]>() {
+      @Override
+      public Deferred<ResolvedSearchQuery> call(final byte[] metric_id) {
+        return tags.addCallback(new Callback<ResolvedSearchQuery, SortedSet<ByteArrayPair>>() {
+          @Override
+          public ResolvedSearchQuery call(final SortedSet<ByteArrayPair> tag_ids) {
+            return new ResolvedSearchQuery(metric_id, tag_ids);
+          }
+        });
+      }
+    });
+  }
+
+  private Deferred<SortedSet<ByteArrayPair>> resolveTags(final List<Pair<String, String>> tags) {
+    if (tags != null && !tags.isEmpty()) {
+
+      final List<Deferred<ByteArrayPair>> pairs =
+          Lists.newArrayListWithCapacity(tags.size());
+
+      for (Pair<String, String> tag : tags) {
+        final Deferred<byte[]> tagk = tag_names.resolveId(tag.getKey());
+        final Deferred<byte[]> tagv = tag_values.resolveId(tag.getValue());
+
+        pairs.add(tagk.addCallbackDeferring(new TagKeyResolvedCallback(tagv)));
+      }
+
+      return Deferred.group(pairs).addCallback(new TagSortCallback());
+    }
+
+    SortedSet<ByteArrayPair> of = ImmutableSortedSet.of();
+    return Deferred.fromResult(of);
+  }
+
+  private static class TagSortCallback
+      implements Callback<SortedSet<ByteArrayPair>, ArrayList<ByteArrayPair>> {
+    @Override
+    public SortedSet<ByteArrayPair> call(final ArrayList<ByteArrayPair> tags) {
+      // remember, tagks are sorted in the row key so we need to supply a sorted
+      // regex or matching will fail.
+      return ImmutableSortedSet.copyOf(tags);
+    }
+  }
+
+  private static class TagKeyResolvedCallback
+      implements Callback<Deferred<ByteArrayPair>, byte[]> {
+    private final Deferred<byte[]> tagv;
+
+    public TagKeyResolvedCallback(final Deferred<byte[]> tagv) {
+      this.tagv = tagv;
+    }
+
+    @Override
+    public Deferred<ByteArrayPair> call(final byte[] tagk_id) {
+      return tagv.addCallback(new TagValueResolvedCallback(tagk_id));
+    }
+  }
+
+  private static class TagValueResolvedCallback
+      implements Callback<ByteArrayPair, byte[]> {
+    private final byte[] tagk_id;
+
+    public TagValueResolvedCallback(final byte[] tagk_id) {
+      this.tagk_id = tagk_id;
+    }
+
+    @Override
+    public ByteArrayPair call(final byte[] tagv_id) {
+      return new ByteArrayPair(tagk_id, tagv_id);
     }
   }
 }

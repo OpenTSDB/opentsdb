@@ -33,6 +33,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
@@ -299,6 +300,11 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> deleteUID(byte[] name, UniqueIdType type) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -961,6 +967,11 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final ResolvedSearchQuery query) {
+    throw new UnsupportedOperationException("Not implemented yet!");
+  }
+
+  @Override
   public Deferred<Boolean> TSMetaExists(String tsuid) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
@@ -1017,6 +1028,11 @@ public class MemoryStore implements TsdbStore {
    */
   @Override
   public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

@@ -23,6 +23,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
@@ -494,6 +495,11 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
   public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     throw new UnsupportedOperationException("Not implemented yet!");
   }
@@ -584,6 +590,11 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
+    throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
   public Deferred<Object> delete(TSMeta tsMeta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
@@ -606,6 +617,11 @@ public class CassandraStore implements TsdbStore {
   @Override
   public Deferred<Boolean> syncToStorage(TSMeta tsMeta, Deferred<ArrayList<Object>> uid_group, boolean overwrite) {
     throw new UnsupportedOperationException("Not implemented yet");
+  }
+
+  @Override
+  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final ResolvedSearchQuery query) {
+    throw new UnsupportedOperationException("Not implemented yet!");
   }
 
   @Override

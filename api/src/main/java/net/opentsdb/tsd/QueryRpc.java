@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
+import net.opentsdb.core.DataPointsClient;
 import net.opentsdb.uid.IdUtils;
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -240,9 +242,9 @@ final class QueryRpc implements HttpRpc {
      * metric and/or tags. If matches were found, it fires off a number of
      * getLastPoint requests, adding the deferreds to the calls list
      */
-    final class TSUIDQueryCB implements Callback<Object, ByteMap<Long>> {
+    final class TSUIDQueryCB implements Callback<Object, Map<byte[], Long>> {
       @Override
-      public Object call(final ByteMap<Long> tsuids) throws Exception {
+      public Object call(final Map<byte[], Long> tsuids) throws Exception {
         if (tsuids == null || tsuids.isEmpty()) {
           return null;
         }
@@ -296,14 +298,15 @@ final class QueryRpc implements HttpRpc {
                 data_query.getResolveNames(), data_query.getBackScan(), 0));
           }
         } else {
-          final TSUIDQuery tsuid_query = new TSUIDQuery(tsdb);
-          @SuppressWarnings("unchecked")
-          final HashMap<String, String> tags = 
-            (HashMap<String, String>) (sub_query.getTags() != null ? 
-              sub_query.getTags() : Collections.EMPTY_MAP);
-          tsuid_query.setQuery(sub_query.getMetric(), tags);
+          final Map<String, String> tags =
+            (sub_query.getTags() != null ?
+              sub_query.getTags() : ImmutableMap.<String, String>of());
+
+          DataPointsClient dataPointsClient = tsdb.getDataPointsClient();
+
           tsuid_query_wait.add(
-              tsuid_query.getLastWriteTimes().addCallback(new TSUIDQueryCB()));
+              dataPointsClient.getLastWriteTimes(sub_query.getMetric(), tags)
+                  .addCallback(new TSUIDQueryCB()));
         }
       }
       

@@ -18,7 +18,6 @@ import java.util.TreeMap;
 
 import org.junit.Test;
 
-import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.*;
 
 

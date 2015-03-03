@@ -26,4 +26,21 @@ public class HBaseConst {
      */
     static final byte[] MAXID_ROW = {0};
   }
+
+  static class TSMeta {
+    /**
+     * The meta data family
+     */
+    static final byte[] FAMILY = "name".getBytes(CHARSET);
+
+    /**
+     * The counter column qualifier
+     */
+    static final byte[] COUNTER_QUALIFIER = "ts_ctr".getBytes(CHARSET);
+
+    /**
+     * The meta data column qualifier
+     */
+    public static final byte[] META_QUALIFIER = "ts_meta".getBytes(CHARSET);
+  }
 }

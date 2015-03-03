@@ -6,8 +6,9 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.search.ResolvedSearchQuery;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tsd.RTPublisher;
 import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 
@@ -26,6 +27,26 @@ public class DataPointsClient {
   private final UniqueIdClient uniqueIdClient;
   private final MetaClient metaClient;
   private final RTPublisher realtimePublisher;
+
+  /**
+   * Validates the given metric and tags.
+   * @throws IllegalArgumentException if any of the arguments aren't valid.
+   */
+  static void checkMetricAndTags(final String metric, final Map<String, String> tags) {
+    if (tags.size() <= 0) {
+      throw new IllegalArgumentException("Need at least one tags (metric="
+          + metric + ", tags=" + tags + ')');
+    } else if (tags.size() > Const.MAX_NUM_TAGS) {
+      throw new IllegalArgumentException("Too many tags: " + tags.size()
+          + " maximum allowed: " + Const.MAX_NUM_TAGS + ", tags: " + tags);
+    }
+
+    UniqueIdClient.validateUidName("metric name", metric);
+    for (final Map.Entry<String, String> tag : tags.entrySet()) {
+      UniqueIdClient.validateUidName("tag name", tag.getKey());
+      UniqueIdClient.validateUidName("tag value", tag.getValue());
+    }
+  }
 
   /**
    * Validates that the timestamp is within valid bounds.
@@ -164,7 +185,7 @@ public class DataPointsClient {
                                     final Map<String, String> tags,
                                     final short flags) {
     checkTimestamp(timestamp);
-    IncomingDataPoints.checkMetricAndTags(metric, tags);
+    checkMetricAndTags(metric, tags);
 
 
     class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
@@ -222,6 +243,26 @@ public class DataPointsClient {
     return new IncomingDataPoints(store, uniqueIdClient);
   }
 
+  /**
+   * Fetches a list of TSUIDs given the metric and optional tag pairs. The query
+   * format is similar to TsdbQuery but doesn't support grouping operators for
+   * tags. Only TSUIDs that had "ts_counter" qualifiers will be returned.
+   * @return A map of TSUIDs to the last timestamp (in milliseconds) when the
+   * "ts_counter" was updated. Note that the timestamp will be the time stored
+   * by HBase, not the actual timestamp of the data point
+   * @throws IllegalArgumentException if the metric was not set or the tag map
+   * was null
+   * TODO Fixme
+   */
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final SearchQuery query) {
+    return uniqueIdClient.resolve(query)
+        .addCallbackDeferring(new Callback<Deferred<Map<byte[], Long>>, ResolvedSearchQuery>() {
+          @Override
+          public Deferred<Map<byte[], Long>> call(final ResolvedSearchQuery resolvedQuery) {
+            return store.getLastWriteTimes(resolvedQuery);
+          }
+        });
+  }
 
   /**
    * Callback that should be attached the the output of

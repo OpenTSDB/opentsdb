@@ -4,7 +4,6 @@ import java.util.Map;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.tsd.RTPublisher;
 
 import com.stumbleupon.async.Deferred;
 
@@ -13,8 +12,6 @@ import com.stumbleupon.async.Deferred;
  * been configured. This realtime publisher will just discard all data given
  * to it.
  * @see net.opentsdb.core.TSDB
- * @see net.opentsdb.core.TsdbBuilder
- * @see net.opentsdb.tsd.RTPublisher
  */
 public class DefaultRealtimePublisher extends RTPublisher {
   @Override

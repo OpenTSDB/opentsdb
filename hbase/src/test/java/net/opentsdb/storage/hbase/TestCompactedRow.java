@@ -18,7 +18,6 @@ import com.google.common.collect.Lists;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.core.DataPoint;
-import net.opentsdb.core.Internal;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;

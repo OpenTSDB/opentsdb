@@ -26,7 +26,7 @@ import java.util.HashMap;
 
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.RowKey;
+import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.storage.MockBase;

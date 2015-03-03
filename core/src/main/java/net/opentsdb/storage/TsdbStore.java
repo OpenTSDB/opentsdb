@@ -23,6 +23,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
@@ -54,6 +55,16 @@ public interface TsdbStore {
   Deferred<Object> deleteUID(byte[] name, UniqueIdType type);
 
   /**
+   * Lookup time series related to a metric, tagk, tagv or any combination
+   * thereof. See {@link net.opentsdb.core.UniqueIdClient#executeTimeSeriesQuery}
+   * for a more formal specification how the query language and logic.
+   *
+   * @param query The query that filters out which TSUIDs to lookup
+   * @return All TSUIDs that matches the provided query
+   */
+  Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query);
+
+  /**
    * Lookup all IDs that matches the provided {@link net.opentsdb.uid.IdQuery}.
    * There are no demands on how the exact the results are but the lookup should
    * be efficient. In fact, the provided should be viewed as a hint about what
@@ -83,6 +94,8 @@ public interface TsdbStore {
    * @param query The query to execute
    */
   Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
+
+  Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query);
 
   //
   // Annotations
@@ -145,6 +158,8 @@ public interface TsdbStore {
   Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number);
 
   Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
+
+  Deferred<List<TSMeta>> executeTimeseriesMetaQuery(ResolvedSearchQuery query);
 
   //
   // Trees

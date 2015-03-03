@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Throwables;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.IdUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -26,7 +27,6 @@ import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -160,8 +160,8 @@ final class SearchRpc implements HttpRpc {
     }
     final long start = System.currentTimeMillis();
     try {
-      final List<byte[]> tsuids = 
-          new TimeSeriesLookup(tsdb, search_query).lookup();
+      List<byte[]> tsuids = tsdb.getUniqueIdClient()
+          .executeTimeSeriesQuery(search_query).joinUninterruptibly();
 
       search_query.setTotalResults(tsuids.size());
       // TODO maybe track in nanoseconds so we can get a floating point. But most
@@ -199,6 +199,8 @@ final class SearchRpc implements HttpRpc {
     } catch (NoSuchUniqueName nsun) {
       throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
           "Unable to resolve one or more names", nsun);
+    } catch (Exception e) {
+      Throwables.propagate(e);
     }
   }
 }

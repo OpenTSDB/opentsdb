@@ -17,11 +17,10 @@ import java.util.List;
 import java.util.Map;
 
 import dagger.ObjectGraph;
-import net.opentsdb.core.RowKey;
+import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.search.TimeSeriesLookup;
 import net.opentsdb.search.SearchQuery.SearchType;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -145,13 +144,9 @@ final class Search {
       Tags.parse(tags, args[index]);
     }
     query.setTags(tags);
-    if (use_data_table) {
-      query.setUseMeta(false);
-      LOG.warn("NOTE: Scanning the full data table may take a long time");
-    }
-    
-    final TimeSeriesLookup lookup = new TimeSeriesLookup(tsdb, query);
-    List<byte[]> tsuids = lookup.lookup();
+
+    Iterable<byte[]> tsuids = tsdb.getUniqueIdClient()
+        .executeTimeSeriesQuery(query).joinUninterruptibly();
 
     UidFormatter formatter = new UidFormatter(tsdb);
 

@@ -19,7 +19,6 @@ import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tsd.RTPublisher;
 import com.typesafe.config.Config;
 import net.opentsdb.utils.DateTime;
 import org.slf4j.Logger;

@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.storage.hbase;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -19,14 +19,13 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import net.opentsdb.storage.hbase.CompactedRow;
+import net.opentsdb.core.Const;
+import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.uid.IdUtils;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
-
-import com.stumbleupon.async.Callback;
 
 /**
  * <strong>This class is not part of the public API.</strong>
@@ -68,7 +67,7 @@ import com.stumbleupon.async.Callback;
  */
 public final class Internal {
 
-  /** @see Const#FLAG_BITS  */
+  /** @see net.opentsdb.core.Const#FLAG_BITS  */
   public static final short FLAG_BITS = Const.FLAG_BITS;
 
   /** @see Const#LENGTH_MASK  */
@@ -101,7 +100,7 @@ public final class Internal {
    * @param column The column to parse
    * @return A Cell if successful, null if the column did not contain a data
    * point (i.e. it was meta data) or failed to parse
-   * @throws IllegalDataException  if the qualifier was not 2 bytes long or
+   * @throws net.opentsdb.core.IllegalDataException  if the qualifier was not 2 bytes long or
    * it wasn't a millisecond qualifier
    * @since 2.0
    */
@@ -116,7 +115,7 @@ public final class Internal {
       }
       return cells.get(0);
     }
-    throw new IllegalDataException (
+    throw new IllegalDataException(
         "Qualifier does not appear to be a single data point: " + column);
   }
   
@@ -355,48 +354,6 @@ public final class Internal {
       return compareQualifiers(a.qualifier(), 0, b.qualifier(), 0);
     }
     
-  }
-
-  /**
-   * Callback used to fetch only the last data point from a row returned as the
-   * result of a GetRequest. Non data points will be parsed out and the
-   * resulting time and value stored in an IncomingDataPoint if found. If no 
-   * valid data was found, a null is returned.
-   * @since 2.0
-   */
-  public static class GetLastDataPointCB implements Callback<IncomingDataPoint, 
-    ArrayList<KeyValue>> {
-    final TSDB tsdb;
-    
-    public GetLastDataPointCB(final TSDB tsdb) {
-      this.tsdb = tsdb;
-    }
-    
-    /**
-     * Returns the last data point from a data row in the TSDB table.
-     * @param row The row from HBase
-     * @return null if no data was found, a data point if one was
-     */
-    @Override
-    public IncomingDataPoint call(final ArrayList<KeyValue> row)
-      throws Exception {
-      if (row == null || row.size() < 1) {
-        return null;
-      }
-      
-      // check to see if the cells array is empty as it will flush out all
-      // non-data points.
-      final ArrayList<Cell> cells = extractDataPoints(row, row.size());
-      if (cells.isEmpty()) {
-        return null;
-      }
-      final Cell cell = cells.get(cells.size() - 1);
-      final IncomingDataPoint dp = new IncomingDataPoint();
-      final long base_time = RowKey.baseTime(row.get(0).key());
-      dp.setTimestamp(getTimestampFromQualifier(cell.qualifier(), base_time));
-      dp.setValue(cell.parseValue().toString());
-      return dp;
-    }
   }
   
   /**

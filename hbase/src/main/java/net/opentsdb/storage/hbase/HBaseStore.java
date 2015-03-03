@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,13 +36,12 @@ import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Internal;
-import net.opentsdb.core.RowKey;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.Branch;
@@ -1033,6 +1033,21 @@ public class HBaseStore implements TsdbStore {
             TS_FAMILY);
 
     return r.run().addCallback(new QueryCB());
+  }
+
+  @Override
+  public Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query) {
+    final Scanner scanner = client.newScanner(meta_table_name);
+    scanner.setFamily(HBaseConst.TSMeta.FAMILY);
+    scanner.setQualifier(HBaseConst.TSMeta.COUNTER_QUALIFIER);
+    scanner.setStartKey(TimeSeriesId.startKey(query.getMetric()));
+    scanner.setStopKey(TimeSeriesId.stopKey(query.getMetric()));
+
+    final String scanRegexp = TimeSeriesId.scanRegexp(query.getTags());
+    final Pattern scanPattern = Pattern.compile(scanRegexp);
+    scanner.setKeyRegexp(scanRegexp, HBaseConst.CHARSET);
+
+    return RowProcessor.processRows(scanner, new LastWriteTimesQueryRunner(scanPattern));
   }
 
   /**
@@ -2363,6 +2378,19 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
+  public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
+    final Scanner scanner = client.newScanner(meta_table_name);
+    scanner.setStartKey(TimeSeriesId.startKey(query.getMetric()));
+    scanner.setStopKey(TimeSeriesId.stopKey(query.getMetric()));
+
+    final String scanRegexp = TimeSeriesId.scanRegexp(query.getTags());
+    final Pattern scanPattern = Pattern.compile(scanRegexp);
+    scanner.setKeyRegexp(scanRegexp, HBaseConst.CHARSET);
+
+    return RowProcessor.processRows(scanner, new TimeseriesQueryRunner(scanPattern));
+  }
+
+  @Override
   public Deferred<Object> delete(final TSMeta tsMeta) {
     final DeleteRequest delete = new DeleteRequest(meta_table_name,
             IdUtils.stringToUid(tsMeta.getTSUID()), TSMETA_FAMILY, TSMETA_QUALIFIER);
@@ -2507,6 +2535,21 @@ public class HBaseStore implements TsdbStore {
     }
     // Begins the callback chain by validating that the UID mappings exist
     return uid_group.addCallbackDeferring(new ValidateCB(tsMeta));
+  }
+
+  @Override
+  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final ResolvedSearchQuery query) {
+    final Scanner scanner = client.newScanner(meta_table_name);
+    scanner.setFamily(HBaseConst.TSMeta.FAMILY);
+    scanner.setQualifier(HBaseConst.TSMeta.META_QUALIFIER);
+    scanner.setStartKey(TimeSeriesId.startKey(query.getMetric()));
+    scanner.setStopKey(TimeSeriesId.stopKey(query.getMetric()));
+
+    final String scanRegexp = TimeSeriesId.scanRegexp(query.getTags());
+    final Pattern scanPattern = Pattern.compile(scanRegexp);
+    scanner.setKeyRegexp(scanRegexp, HBaseConst.CHARSET);
+
+    return RowProcessor.processRows(scanner, new TimeSeriesMetaRowProcessor(scanPattern, jsonMapper));
   }
 
   @Override
