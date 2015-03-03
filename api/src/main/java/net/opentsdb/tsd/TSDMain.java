@@ -10,7 +10,7 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.tools;
+package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -21,6 +21,9 @@ import java.util.concurrent.Executors;
 import com.typesafe.config.ConfigException;
 import dagger.ObjectGraph;
 import net.opentsdb.core.InvalidConfigException;
+import net.opentsdb.tools.ArgP;
+import net.opentsdb.tools.CliOptions;
+import net.opentsdb.tools.ToolsModule;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
@@ -31,7 +34,6 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
-import net.opentsdb.tsd.PipelineFactory;
 import com.typesafe.config.Config;
 
 /**

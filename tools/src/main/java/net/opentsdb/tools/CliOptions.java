@@ -28,14 +28,14 @@ import org.jboss.netty.logging.InternalLoggerFactory;
 import org.jboss.netty.logging.Slf4JLoggerFactory;
 
 /** Helper functions to parse arguments passed to {@code main}.  */
-final class CliOptions {
+public final class CliOptions {
 
   static {
     InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
   }
 
   /** Adds common TSDB options to the given {@code argp}.  */
-  static void addCommon(final ArgP argp) {
+  public static void addCommon(final ArgP argp) {
     argp.addOption("--table", "TABLE",
                    "Name of the HBase table where to store the time series"
                    + " (default: tsdb).");
@@ -61,7 +61,7 @@ final class CliOptions {
   }
 
   /** Adds the --auto-metric flag.  */
-  static void addAutoMetricFlag(final ArgP argp) {
+  public static void addAutoMetricFlag(final ArgP argp) {
     argp.addOption("--auto-metric", "Automatically add metrics to tsdb as they"
                    + " are inserted.  Warning: this may cause unexpected"
                    + " metrics to be tracked");
@@ -74,7 +74,7 @@ final class CliOptions {
    * @return The remainder of the command line or
    * {@code null} if {@code args} were invalid and couldn't be parsed.
    */
-  static String[] parse(final ArgP argp, String[] args) {
+  public static String[] parse(final ArgP argp, String[] args) {
     try {
       args = argp.parse(args);
     } catch (IllegalArgumentException e) {
