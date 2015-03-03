@@ -1,4 +1,4 @@
-package net.opentsdb.tsd;
+package net.opentsdb.core;
 
 import com.typesafe.config.Config;
 

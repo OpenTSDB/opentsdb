@@ -16,7 +16,6 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.TreeBuilder;
-import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.IdCreatedEvent;
 import net.opentsdb.uid.IdUtils;
 

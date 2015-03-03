@@ -9,8 +9,6 @@ import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchPluginDescriptor;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.tsd.RTPublisherDescriptor;
 import com.typesafe.config.Config;
 import net.opentsdb.utils.PluginLoader;
 

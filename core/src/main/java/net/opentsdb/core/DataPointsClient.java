@@ -9,7 +9,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tsd.RTPublisher;
 import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 

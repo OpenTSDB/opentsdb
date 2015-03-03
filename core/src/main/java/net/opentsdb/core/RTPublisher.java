@@ -10,17 +10,13 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.tsd;
+package net.opentsdb.core;
 
 import java.util.Map;
 
-import net.opentsdb.core.Const;
-import net.opentsdb.core.Internal;
 import net.opentsdb.meta.Annotation;
 
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.Plugin;
-import net.opentsdb.core.PluginError;
 
 /**
  * Real Time publisher plugin interface that is used to emit data from a TSD
