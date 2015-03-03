@@ -79,29 +79,9 @@ class IncomingDataPoints implements WritableDataPoints {
     this.uniqueIdClient = checkNotNull(uniqueIdClient);
   }
 
-  /**
-   * Validates the given metric and tags.
-   * @throws IllegalArgumentException if any of the arguments aren't valid.
-   */
-  static void checkMetricAndTags(final String metric, final Map<String, String> tags) {
-    if (tags.size() <= 0) {
-      throw new IllegalArgumentException("Need at least one tags (metric="
-          + metric + ", tags=" + tags + ')');
-    } else if (tags.size() > Const.MAX_NUM_TAGS) {
-      throw new IllegalArgumentException("Too many tags: " + tags.size()
-          + " maximum allowed: " + Const.MAX_NUM_TAGS + ", tags: " + tags);
-    }
-
-    UniqueIdClient.validateUidName("metric name", metric);
-    for (final Map.Entry<String, String> tag : tags.entrySet()) {
-      UniqueIdClient.validateUidName("tag name", tag.getKey());
-      UniqueIdClient.validateUidName("tag value", tag.getValue());
-    }
-  }
-
   @Override
   public void setSeries(final String metric, final Map<String, String> tags) {
-    checkMetricAndTags(metric, tags);
+    DataPointsClient.checkMetricAndTags(metric, tags);
     try {
       byte[] tsuid = uniqueIdClient.getTSUID(metric, tags).joinUninterruptibly();
       // we have a tsuid so we need to add some bytes(4) for the timestamp

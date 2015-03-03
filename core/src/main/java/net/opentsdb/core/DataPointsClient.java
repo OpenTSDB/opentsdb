@@ -30,6 +30,26 @@ public class DataPointsClient {
   private final RTPublisher realtimePublisher;
 
   /**
+   * Validates the given metric and tags.
+   * @throws IllegalArgumentException if any of the arguments aren't valid.
+   */
+  static void checkMetricAndTags(final String metric, final Map<String, String> tags) {
+    if (tags.size() <= 0) {
+      throw new IllegalArgumentException("Need at least one tags (metric="
+          + metric + ", tags=" + tags + ')');
+    } else if (tags.size() > Const.MAX_NUM_TAGS) {
+      throw new IllegalArgumentException("Too many tags: " + tags.size()
+          + " maximum allowed: " + Const.MAX_NUM_TAGS + ", tags: " + tags);
+    }
+
+    UniqueIdClient.validateUidName("metric name", metric);
+    for (final Map.Entry<String, String> tag : tags.entrySet()) {
+      UniqueIdClient.validateUidName("tag name", tag.getKey());
+      UniqueIdClient.validateUidName("tag value", tag.getValue());
+    }
+  }
+
+  /**
    * Validates that the timestamp is within valid bounds.
    * @throws IllegalArgumentException if the timestamp isn't within
    * bounds.
@@ -166,7 +186,7 @@ public class DataPointsClient {
                                     final Map<String, String> tags,
                                     final short flags) {
     checkTimestamp(timestamp);
-    IncomingDataPoints.checkMetricAndTags(metric, tags);
+    checkMetricAndTags(metric, tags);
 
 
     class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
