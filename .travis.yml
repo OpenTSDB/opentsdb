@@ -1,6 +1,6 @@
 language: java
-before_script: ./build.sh pom.xml
-script: mvn test-compile
+before_script: ./gradlew testClasses
+script: ./gradlew checkstyleMain checkstyleTest
 jdk:
   - oraclejdk7
   - openjdk6
