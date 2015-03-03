@@ -19,16 +19,16 @@ import static org.mockito.Mockito.mock;
 
 public class StoreModuleTest {
   /**
-   * A constant that describes the number of stores that the corev project comes
+   * A constant that describes the number of stores that the core project comes
    * with and thus how many store descriptors that the {@link java.util
    * .ServiceLoader} should be able to find.
    *
-   * Note that the {@link net.opentsdb.storage.MemoryStore} is not included in
-   * this number. This is intentional. The memory store should only be used in
-   * tests and leaving it out of this prevents anyone of accidentally using it
-   * in production.
+   * This is zero because the core project really should not provide any store
+   * implementations on its own. There is one exception which is the {@link
+   * net.opentsdb.storage.MemoryStore} however that is not exposed through the
+   * {@link java.util.ServiceLoader} and nor should it be.
    */
-  private static final int NUM_STORES = 2;
+  private static final int NUM_STORES = 0;
 
   @Inject Config config;
 
