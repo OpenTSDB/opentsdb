@@ -82,7 +82,7 @@ public class UniqueIdClient {
     tag_names = new UniqueId(tsdbStore, UniqueIdType.TAGK, metricsRegistry, idEventBus);
     tag_values = new UniqueId(tsdbStore, UniqueIdType.TAGV, metricsRegistry, idEventBus);
 
-    if (config.getBoolean("tsd.core.preload_uid_cache")) {
+    if (config.getBoolean("tsd.core.preload_uid_cache.enabled")) {
       final Map<UniqueIdType, UniqueId> uid_cache_map = new EnumMap<UniqueIdType, UniqueId>(UniqueIdType.class);
       uid_cache_map.put(UniqueIdType.METRIC, metrics);
       uid_cache_map.put(UniqueIdType.TAGK, tag_names);
