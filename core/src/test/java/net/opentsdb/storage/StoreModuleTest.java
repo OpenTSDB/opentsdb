@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
 import net.opentsdb.core.InvalidConfigException;
-import net.opentsdb.storage.hbase.HBaseStoreDescriptor;
+import net.opentsdb.stats.Metrics;
 import com.typesafe.config.Config;
 import org.junit.Before;
 import org.junit.Test;
@@ -15,6 +15,7 @@ import org.junit.Test;
 import javax.inject.Inject;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
 
 public class StoreModuleTest {
   /**
@@ -38,7 +39,7 @@ public class StoreModuleTest {
   public void setUp() throws Exception {
     ObjectGraph.create(new TestModule()).inject(this);
 
-    storeDescriptors = ImmutableSet.<StoreDescriptor>of(new HBaseStoreDescriptor());
+    storeDescriptors = ImmutableSet.<StoreDescriptor>of(new TestStoreDescriptor());
     supplier = new StoreModule();
   }
 
@@ -52,10 +53,10 @@ public class StoreModuleTest {
   @Test
   public void testGetMatchingStore() throws Exception {
     config = config.withValue("tsd.storage.adapter",
-            ConfigValueFactory.fromAnyRef("net.opentsdb.storage.hbase.HBaseStoreDescriptor"));
+            ConfigValueFactory.fromAnyRef("net.opentsdb.storage.StoreModuleTest.TestStoreDescriptor"));
     StoreDescriptor storeDescriptor =
             supplier.provideStoreDescriptor(config, storeDescriptors);
-    assertTrue(storeDescriptor instanceof HBaseStoreDescriptor);
+    assertTrue(storeDescriptor instanceof TestStoreDescriptor);
   }
 
   @Test (expected = InvalidConfigException.class)
@@ -69,5 +70,12 @@ public class StoreModuleTest {
   public void testNumberOfFoundStoreDescriptors() {
     Iterable<StoreDescriptor> storeDescriptors = supplier.provideStoreDescriptors();
     assertEquals(NUM_STORES, Iterables.size(storeDescriptors));
+  }
+
+  private static class TestStoreDescriptor extends StoreDescriptor {
+    @Override
+    public TsdbStore createStore(final Config config, final Metrics metrics) {
+      return mock(TsdbStore.class);
+    }
   }
 }
