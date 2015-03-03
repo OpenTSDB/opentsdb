@@ -1,5 +1,7 @@
 package net.opentsdb.storage.hbase;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.Deferred;
 
 import com.typesafe.config.ConfigFactory;
@@ -10,6 +12,7 @@ import net.opentsdb.storage.HBaseConst;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TestTsdbStore;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
@@ -69,12 +72,17 @@ public class TestHBaseStore extends TestTsdbStore {
   private String foo_name;
   private Scanner scanner;
 
+  private ObjectMapper jsonMapper;
+
   @Before
   public void setUp() throws IOException {
     client = PowerMockito.mock(HBaseClient.class);
     tsdb_store = new HBaseStore(client, ConfigFactory.load());
     foo_name = "foo";
     scanner = PowerMockito.mock(Scanner.class);
+
+    jsonMapper = new ObjectMapper();
+    jsonMapper.registerModule(new StorageModule());
   }
 
   @Override
@@ -777,5 +785,42 @@ public class TestHBaseStore extends TestTsdbStore {
     tsdb_store.storeLeaf(root_leaf_two, root_branch, tree);
     tsdb_store.storeBranch(tree, child_branch, false);
     tsdb_store.storeLeaf(child_leaf_one, child_branch, tree);
+  }
+
+  /**
+   * Use this method to get a Deferred with valid answers for the branch query.
+   *
+   * @return A valid return that the HBase database would return for the objects
+   * specified by the @see {@link TestTsdbStore#setUpBranchesAndLeafs()}
+   */
+  protected ArrayList<ArrayList<KeyValue>> getValidReturn() throws JsonProcessingException {
+
+    ArrayList<ArrayList<KeyValue>> valid_return =
+        new ArrayList<ArrayList<KeyValue>>();
+
+    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
+    //branches
+    KeyValue kv = new KeyValue(
+        Branch.stringToId("00010001BECD000181A8"), new byte[0],
+        toBytes("branch"), jsonMapper.writeValueAsBytes(root_branch));
+    ans.add(kv);
+    kv = new KeyValue(
+        Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
+        toBytes("branch"), jsonMapper.writeValueAsBytes(root_branch));
+    ans.add(kv);
+    //leaves
+    kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
+        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(root_leaf_one));
+    ans.add(kv);
+    kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
+        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(root_leaf_two));
+    ans.add(kv);
+    kv = new KeyValue(
+        Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
+        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(child_leaf_one));
+    ans.add(kv);
+
+    valid_return.add(ans);
+    return valid_return;
   }
 }

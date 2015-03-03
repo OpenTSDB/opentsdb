@@ -1,11 +1,8 @@
 package net.opentsdb.storage;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
-import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.TestBranch;
@@ -17,17 +14,13 @@ import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
-import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.TreeMap;
 
-
-import static net.opentsdb.core.StringCoder.toBytes;
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -43,7 +36,6 @@ public abstract class TestTsdbStore {
   protected static final boolean NOT_SAME_TSUID = false;
   protected TSDB tsdb;
   protected TsdbStore tsdb_store;
-  protected ObjectMapper jsonMapper;
   protected UIDMeta meta;
   protected Config config;
 
@@ -56,12 +48,6 @@ public abstract class TestTsdbStore {
   protected Leaf child_leaf_one;
 
   protected static boolean STORE_DATA = true;
-
-  @Before
-  public void setUpTsdbStore() throws Exception {
-    jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
-  }
 
   /*BRANCH DATABASE STUFF*/
   /**
@@ -85,43 +71,6 @@ public abstract class TestTsdbStore {
     child_branch.prependParentPath(path);
     child_branch.setDisplayName("mboard");
     child_leaf_one = new Leaf("Asus", "000003000003000003");
-  }
-
-  /**
-   * Use this method to get a Deferred with valid answers for the branch query.
-   *
-   * @return A valid return that the HBase database would return for the objects
-   * specified by the @see {@link TestTsdbStore#setUpBranchesAndLeafs()}
-   */
-  protected ArrayList<ArrayList<KeyValue>> getValidReturn() throws JsonProcessingException {
-
-    ArrayList<ArrayList<KeyValue>> valid_return =
-            new ArrayList<ArrayList<KeyValue>>();
-
-    ArrayList<KeyValue> ans = new ArrayList<KeyValue>();
-    //branches
-    KeyValue kv = new KeyValue(
-            Branch.stringToId("00010001BECD000181A8"), new byte[0],
-            toBytes("branch"), jsonMapper.writeValueAsBytes(root_branch));
-    ans.add(kv);
-    kv = new KeyValue(
-            Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
-            toBytes("branch"), jsonMapper.writeValueAsBytes(root_branch));
-    ans.add(kv);
-    //leaves
-    kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
-        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(root_leaf_one));
-    ans.add(kv);
-    kv = new KeyValue( Branch.stringToId("00010001BECD000181A8"), new byte[0],
-        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(root_leaf_two));
-    ans.add(kv);
-    kv = new KeyValue(
-            Branch.stringToId("00010001BECD000181A8BF992A99"), new byte[0],
-        HBaseConst.Leaf.LEAF_PREFIX, jsonMapper.writeValueAsBytes(child_leaf_one));
-    ans.add(kv);
-
-    valid_return.add(ans);
-    return valid_return;
   }
 
   @Test

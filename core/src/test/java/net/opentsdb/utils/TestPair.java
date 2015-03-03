@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import net.opentsdb.storage.json.StorageModule;
 import org.junit.Test;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -186,7 +185,6 @@ public class TestPair {
   public void serdes() throws IOException {
     final Pair<String, String> ser = new Pair<String, String>("host", "web01");
     ObjectMapper jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
 
     final String json = jsonMapper.writeValueAsString(ser);
 
@@ -203,7 +201,6 @@ public class TestPair {
   public void serdesNulls() throws IOException {
     final Pair<String, String> ser = new Pair<String, String>();
     ObjectMapper jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
     final String json = jsonMapper.writeValueAsString(ser);
     assertEquals("{\"key\":null,\"value\":null}", json);
 
@@ -221,7 +218,6 @@ public class TestPair {
     ser.add(new Pair<String, String>(null, "keyisnull"));
 
     ObjectMapper jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
 
     final String json = jsonMapper.writeValueAsString(ser);
     assertEquals("[{\"key\":\"host\",\"value\":\"web01\"}," + 

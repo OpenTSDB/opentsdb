@@ -29,11 +29,9 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 import net.opentsdb.uid.UniqueIdType;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import net.opentsdb.utils.Pair;
 import org.junit.Before;
 import org.junit.Test;
@@ -78,9 +76,6 @@ public final class TestTreeBuilder {
     tags_field.setAccessible(true);
     tags_field.set(meta, tags);
     tags_field.setAccessible(false);
-
-    final ObjectMapper jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
 
     // store root
     final TreeMap<Integer, String> root_path = new TreeMap<Integer, String>();

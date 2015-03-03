@@ -2,16 +2,14 @@ package net.opentsdb.core;
 
 import java.util.List;
 
+import com.google.common.collect.ImmutableMap;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.uid.IdUtils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -35,38 +33,23 @@ public class MetaClientAnnotationTest {
 
     note = new Annotation();
 
-    final ObjectMapper jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
-
-    final ObjectReader annotation_reader = jsonMapper.reader(Annotation.class);
-
-    // add a global
-    String json = "{\"startTime\":1328140800,\"endTime\":1328140801,\"" +
-            "description\":\"Description\",\"notes\":\"Notes\",\"custom\"" +
-            ":{\"owner\":\"ops\"}}";
-
-    Annotation note = annotation_reader.readValue(json);
+    Annotation note = new Annotation(null, 1328140800, 1328140801, "Description",
+        "Notes", ImmutableMap.of("owner", "ops"));
     tsdb_store.updateAnnotation(null, note);
 
     // add another global
-    json = "{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" +
-            "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" +
-            "\"ops\"}}";
-    note = annotation_reader.readValue(json);
+    note = new Annotation(null, 1328140801, 1328140803, "Description", "Notes",
+        ImmutableMap.of("owner", "ops"));
     tsdb_store.updateAnnotation(null, note);
 
     // add a local
-    json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1388450562," +
-            "\"endTime\":1419984000,\"description\":\"Hello!\",\"notes\":" +
-            "\"My Notes\",\"custom\":{\"owner\":\"ops\"}}";
-    note = annotation_reader.readValue(json);
+    note = new Annotation("000001000001000001", 1388450562, 1419984000, "Hello!",
+        "My Notes", ImmutableMap.of("owner", "ops"));
     tsdb_store.updateAnnotation(null, note);
 
     // add another local
-    json = "{\"tsuid\":\"000001000001000001\",\"startTime\":1388450563," +
-            "\"endTime\":1419984000,\"description\":\"Note2\",\"notes\":" +
-            "\"Nothing\"}";
-    note = annotation_reader.readValue(json);
+    note = new Annotation("000001000001000001", 1388450563, 1419984000, "Note2",
+        "Nothing", null);
     tsdb_store.updateAnnotation(null, note);
 
     // add some data points too maybe not relevant any more

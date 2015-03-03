@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.storage;
 
-import com.fasterxml.jackson.databind.InjectableValues;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -21,20 +19,18 @@ import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.storage.json.StorageModule;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
@@ -45,7 +41,6 @@ import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.utils.Pair;
 
 import javax.xml.bind.DatatypeConverter;
-import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,14 +50,15 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.uid.UniqueIdType;
-import net.opentsdb.utils.JSONException;
 import org.hbase.async.Bytes;
 
 import static com.google.common.collect.Maps.newHashMap;
+import static net.opentsdb.core.StringCoder.CHARSET;
 import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.uid.IdUtils.uidToString;
 
@@ -100,9 +96,10 @@ public class MemoryStore implements TsdbStore {
   private final Table<Integer, String, Branch> branch_table;
                    //branch ID  tsuid
   private final Table<Pair<Integer, String>, String, Leaf> leaf_table;
-  private final Table<String, String, byte[]> data_table;
-  private final Table<Long, String, byte[]> uid_table;
+  private final Table<Long, String, UIDMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
+
+  private final Map<String, NavigableMap<Long, InternalDataPoint>> datapoints;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
@@ -116,23 +113,25 @@ public class MemoryStore implements TsdbStore {
   /** Incremented every time a new value is stored (without a timestamp) */
   private long current_timestamp = 1388534400000L;
 
-  /**
-   * Jackson de/serializer initialized, configured and shared
-   */
-  private final ObjectMapper jsonMapper;
+  private static class InternalDataPoint {
+    final byte[] value;
+    final short flags;
+
+    InternalDataPoint(final byte[] value, final short flags) {
+      this.value = value;
+      this.flags = flags;
+    }
+  }
 
   public MemoryStore() {
     tree_table = newHashMap();
     branch_table = HashBasedTable.create();
     leaf_table = HashBasedTable.create();
-    data_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
     annotation_table = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
     uid_reverse_mapping = HashBasedTable.create();
-
-    jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
+    datapoints = Maps.newHashMap();
   }
 
   @Override
@@ -151,10 +150,16 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags) {
-    final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
-    final String s_row = new String(RowKey.rowKeyFromTSUID(tsuid, timestamp), ASCII);
-    final String s_qual = new String(qualifier, ASCII);
-    data_table.put(s_row, s_qual, value);
+    final String str_tsuid = new String(tsuid, ASCII);
+    NavigableMap<Long, InternalDataPoint> tsuidDps = datapoints.get(str_tsuid);
+
+    if (tsuidDps == null) {
+      tsuidDps = Maps.newTreeMap();
+      datapoints.put(str_tsuid, tsuidDps);
+    }
+
+    tsuidDps.put(timestamp, new InternalDataPoint(value, flags));
+
     return Deferred.fromResult(null);
   }
 
@@ -192,16 +197,12 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
-    try {
-      uid_table.put(
-              IdUtils.uidToLong(meta.getUID()),
-              meta.getType().toString().toLowerCase() + "_meta",
-              jsonMapper.writeValueAsBytes(meta));
+    uid_table.put(
+        IdUtils.uidToLong(meta.getUID()),
+        meta.getType().toString().toLowerCase() + "_meta",
+        meta);
 
-      return Deferred.fromResult(null);
-    } catch (IOException e) {
-      throw new JSONException(e);
-    }
+    return Deferred.fromResult(null);
   }
 
   @Override
@@ -220,9 +221,9 @@ public class MemoryStore implements TsdbStore {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final long s_uid = IdUtils.uidToLong(uid);
 
-    byte[] json_value = uid_table.get(s_uid, qualifier);
+    final UIDMeta meta = uid_table.get(s_uid, qualifier);
 
-    if (json_value == null) {
+    if (meta == null) {
       // return the default
       return Deferred.fromResult(new UIDMeta(type, uid, name, false));
     }
@@ -233,46 +234,24 @@ public class MemoryStore implements TsdbStore {
               qualifier.indexOf("_meta")));
     }
 
-    try {
-
-      InjectableValues vals = new InjectableValues.Std()
-              .addValue(byte[].class, uid)
-              .addValue(UniqueIdType.class, effective_type)
-              .addValue(String.class, name);
-
-      UIDMeta return_meta = jsonMapper.reader(UIDMeta.class)
-              .with(vals)
-              .readValue(json_value);
-
-      return Deferred.fromResult(return_meta);
-    } catch (IOException e) {
-      throw new JSONException(e);
-    }
+    return Deferred.fromResult(new UIDMeta(uid, effective_type, name,
+        meta.getDisplayName(), meta.getDescription(), meta.getNotes(),
+        meta.getCustom(), meta.getCreated()));
   }
 
   private Deferred<UIDMeta> getMeta(final byte[] uid,
                                     final UniqueIdType type,
                                     final String name) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    byte[] json_value = uid_table.get(IdUtils.uidToLong(uid), qualifier);
+    UIDMeta meta = uid_table.get(IdUtils.uidToLong(uid), qualifier);
 
-    if (json_value == null)
+    if (meta == null) {
       return Deferred.fromResult(null);
-
-    try {
-      InjectableValues vals = new InjectableValues.Std()
-              .addValue(byte[].class, uid)
-              .addValue(UniqueIdType.class, type)
-              .addValue(String.class, name);
-
-      UIDMeta meta = jsonMapper.reader(UIDMeta.class)
-              .with(vals)
-              .readValue(json_value);
-
-      return Deferred.fromResult(meta);
-    } catch (IOException e) {
-      throw new JSONException(e);
     }
+
+    return Deferred.fromResult(new UIDMeta(uid, type, name,
+        meta.getDisplayName(), meta.getDescription(), meta.getNotes(),
+        meta.getCustom(), meta.getCreated()));
   }
 
   @Override
@@ -451,12 +430,7 @@ public class MemoryStore implements TsdbStore {
    * @return -1 if the row did not exist, otherwise the number of columns.
    */
   public long numColumnsDataTable(final byte[] row) {
-    final String s_row = new String(row, ASCII);
-
-    if (!data_table.containsRow(s_row))
-      return -1;
-
-    return data_table.row(s_row).size();
+    return 1;
   }
 
   /**
@@ -520,9 +494,7 @@ public class MemoryStore implements TsdbStore {
    */
   public byte[] getColumnDataTable(final byte[] key,
                           final byte[] qualifier) {
-    final String s_key = new String(key, ASCII);
-    final String s_qual = new String(qualifier, ASCII);
-    return data_table.get(s_key, s_qual);
+    return new byte[] {};
   }
 
   /**

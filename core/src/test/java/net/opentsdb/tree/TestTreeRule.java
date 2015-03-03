@@ -15,31 +15,24 @@ package net.opentsdb.tree;
 import java.util.regex.PatternSyntaxException;
 
 import dagger.ObjectGraph;
-import net.opentsdb.TestModuleMemoryStore;
+import net.opentsdb.TestModule;
 import net.opentsdb.core.Const;
-import net.opentsdb.storage.MemoryStore;
-import net.opentsdb.storage.json.StorageModule;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
 
 import static net.opentsdb.core.StringCoder.fromBytes;
-import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.*;
 
 
 public final class TestTreeRule {
   private TreeRule rule;
-  private ObjectMapper jsonMapper;
 
   @Before
   public void before() {
     rule = new TreeRule();
-
-    jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
   }
   
   @Test
@@ -381,8 +374,8 @@ public final class TestTreeRule {
    * Mocks classes for testing the storage calls
    */
   private void setupStorage() throws Exception {
-    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
-    final MemoryStore tsdb_store = objectGraph.get(MemoryStore.class);
+    ObjectGraph objectGraph = ObjectGraph.create(new TestModule());
+    final TsdbStore tsdb_store = objectGraph.get(TsdbStore.class);
 
     final TreeRule stored_rule = new TreeRule(1);
     stored_rule.setLevel(2);
@@ -392,12 +385,7 @@ public final class TestTreeRule {
     stored_rule.setCustomField("owner");
     stored_rule.setDescription("Host owner");
     stored_rule.setNotes("Owner of the host machine");
-    
-    // pretend there's a tree definition in the storage row
-    tsdb_store.addColumn(new byte[]{0, 1}, toBytes("tree"), new byte[]{1});
-    
-    // add a rule to the row
-    tsdb_store.addColumn(new byte[]{0, 1}, toBytes("tree_rule:2:1"),
-            jsonMapper.writeValueAsBytes(stored_rule));
+
+    tsdb_store.syncTreeRuleToStorage(stored_rule, true);
   }
 }

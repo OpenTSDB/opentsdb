@@ -22,9 +22,9 @@ import java.util.ArrayList;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
-import net.opentsdb.core.Internal.Cell;
 import net.opentsdb.storage.MockBase;
 
+import net.opentsdb.storage.hbase.Internal.Cell;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.junit.Test;
