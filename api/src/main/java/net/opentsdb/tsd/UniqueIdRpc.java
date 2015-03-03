@@ -19,13 +19,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
 import net.opentsdb.core.Const;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import net.opentsdb.search.SearchQuery;
 import net.opentsdb.uid.IdUtils;
+import net.opentsdb.utils.Pair;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
@@ -35,7 +40,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.TSUIDQuery;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -295,11 +299,14 @@ final class UniqueIdRpc implements HttpRpc {
         } catch (IllegalArgumentException e) {
           throw new BadRequestException(e);
         }
-        final TSUIDQuery tsuid_query = new TSUIDQuery(tsdb);
         try {
-          tsuid_query.setQuery(metric, tags);
-          final List<TSMeta> tsmetas = tsuid_query.getTSMetas()
-          .joinUninterruptibly();
+          Set<Pair<String, String>> tagSet = Sets.newHashSet();
+          for (final Entry<String, String> entry : tags.entrySet()) {
+            tagSet.add(new Pair<String, String>(entry.getKey(), entry.getValue()));
+          }
+          final SearchQuery metaQuery = new SearchQuery(metric, ImmutableList.copyOf(tagSet));
+          final List<TSMeta> tsmetas = tsdb.getMetaClient()
+              .executeTimeseriesMetaQuery(metaQuery).joinUninterruptibly();
           query.sendReply(query.serializer().formatTSMetaListV1(tsmetas));
         } catch (NoSuchUniqueName e) {
           throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 

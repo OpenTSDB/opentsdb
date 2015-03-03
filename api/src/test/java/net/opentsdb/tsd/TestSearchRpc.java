@@ -17,7 +17,6 @@ import static org.mockito.Matchers.anyChar;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -29,14 +28,13 @@ import java.util.HashMap;
 import java.util.List;
 
 import com.google.common.base.Charsets;
-import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.search.TimeSeriesLookup;
+import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
@@ -62,12 +60,11 @@ import com.stumbleupon.async.Deferred;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, HttpQuery.class, UniqueId.class, 
-  RowKey.class, Tags.class, TimeSeriesLookup.class, SearchRpc.class})
+  RowKey.class, Tags.class, SearchRpc.class})
 public final class TestSearchRpc {
   private TSDB tsdb = null;
   private SearchRpc rpc = new SearchRpc();
   private SearchQuery search_query = null;
-  private TimeSeriesLookup mock_lookup = null;
   private static final Charset UTF = Charsets.UTF_8;
   private static List<byte[]> test_tsuids = new ArrayList<byte[]>(3);
   static {
@@ -431,12 +428,5 @@ public final class TestSearchRpc {
     when(Tags.splitString(anyString(), anyChar())).thenCallRealMethod();
     PowerMockito.doCallRealMethod().when(Tags.class, "parse", 
         anyList(), anyString());
-
-    mock_lookup = mock(TimeSeriesLookup.class);
-    PowerMockito.whenNew(TimeSeriesLookup.class)
-      .withArguments((TSDB)any(), (SearchQuery)any())
-      .thenReturn(mock_lookup);
-    
-    when(mock_lookup.lookup()).thenReturn(test_tsuids);
   }
 }
