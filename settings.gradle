@@ -1,2 +1,9 @@
 
-include "core", "cassandra", "hbase", "api", "tools", "storage-json"
+rootProject.name = "opentsdb"
+
+include "core"
+include "cassandra"
+include "hbase"
+include "api"
+include "tools"
+include "storage-json"

@@ -1,4 +1,8 @@
 
+apply plugin: 'application'
+
+mainClassName = "net.opentsdb.tsd.TSDMain"
+
 dependencies {
     compile project(':core')
     compile project(':tools')
