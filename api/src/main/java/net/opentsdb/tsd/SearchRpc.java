@@ -19,11 +19,11 @@ import java.util.Map;
 
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.uid.IdUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 
-import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.search.SearchQuery;
