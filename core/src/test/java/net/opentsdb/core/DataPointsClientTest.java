@@ -7,7 +7,6 @@ import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.tsd.RTPublisher;
 import net.opentsdb.uid.NoSuchUniqueName;
 import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
