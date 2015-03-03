@@ -365,7 +365,7 @@ final class Fsck {
           LOG.error("Invalid qualifier, must be on 2 bytes or more.\n\t{}", kv);
           if (options.fix() && options.deleteUnknownColumns()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-            tsdb.getHBaseStore().delete(delete);
+            CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
             unknown_fixed.getAndIncrement();
           }
           continue;
@@ -384,7 +384,7 @@ final class Fsck {
             LOG.error("Unknown qualifier, must be 2, 3, 5 or an even number of bytes.\n\t{}", kv);
             if (options.fix() && options.deleteUnknownColumns()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-              tsdb.getHBaseStore().delete(delete);
+              CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
               unknown_fixed.getAndIncrement();
             }
             continue;
@@ -457,7 +457,7 @@ final class Fsck {
             LOG.error(e.getMessage());
             if (options.fix() && options.deleteBadCompacts()) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), kv);
-              tsdb.getHBaseStore().delete(delete);
+              CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
               bad_compacted_columns_deleted.getAndIncrement();
             }
           }
@@ -503,7 +503,7 @@ final class Fsck {
         
         if (options.fix() && options.deleteBadRows()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-          tsdb.getHBaseStore().delete(delete);
+          CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
           bad_key_fixed.getAndIncrement();
         }
         return false;
@@ -523,7 +523,7 @@ final class Fsck {
           
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getHBaseStore().delete(delete);
+            CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
             orphans_fixed.getAndIncrement();
           }
           return false;
@@ -538,7 +538,7 @@ final class Fsck {
           
           if (options.fix() && options.deleteOrphans()) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key);
-            tsdb.getHBaseStore().delete(delete);
+            CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
             orphans_fixed.getAndIncrement();
           }
           return false;
@@ -628,7 +628,7 @@ final class Fsck {
                   !last_dp.compacted) {
                 final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                     last_dp.kv.key(), last_dp.kv.family(), last_dp.qualifier());
-                tsdb.getHBaseStore().delete(delete);
+                CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
               }
             }             
           } else if (!options.lastWriteWins() && index == 0) {
@@ -648,7 +648,7 @@ final class Fsck {
                 !dp.compacted) {
               final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                   dp.kv.key(), dp.kv.family(), dp.qualifier());
-              tsdb.getHBaseStore().delete(delete);
+              CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
             }
           }
           index++;
@@ -698,19 +698,19 @@ final class Fsck {
           if (Bytes.memcmp(unique_columns.get(new_qualifier), new_value) != 0) {
             // Important: Make sure to wait for the write to complete before
             // proceeding with the deletes.
-            tsdb.getHBaseStore().put(put).joinUninterruptibly();
+            CliUtils.HBaseStore(tsdb.getTsdbStore()).put(put).joinUninterruptibly();
           }
           unique_columns.remove(new_qualifier);
         } else {
           // Important: Make sure to wait for the write to complete before
           // proceeding with the deletes.
-          tsdb.getHBaseStore().put(put).joinUninterruptibly();
+          CliUtils.HBaseStore(tsdb.getTsdbStore()).put(put).joinUninterruptibly();
         }
         
         for (byte[] qualifier : unique_columns.keySet()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key, 
               TSDB.FAMILY(), qualifier);
-          tsdb.getHBaseStore().delete(delete);
+          CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
         }
       }
     }
@@ -751,7 +751,7 @@ final class Fsck {
             } else if (!dp.compacted){
               final PutRequest put = new PutRequest(tsdb.dataTable(), 
                   dp.kv.key(), dp.kv.family(), qual, value);
-              tsdb.getHBaseStore().put(put);
+              CliUtils.HBaseStore(tsdb.getTsdbStore()).put(put);
             } else {
               LOG.error("SHOULDN'T be here as we didn't compact or fix a "
                   + "single value");
@@ -768,7 +768,7 @@ final class Fsck {
           if (options.fix() && options.deleteBadValues() && !dp.compacted) {
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                 dp.kv);
-            tsdb.getHBaseStore().delete(delete);
+            CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
             bad_values_deleted.getAndIncrement();
           } else if (dp.compacted) {
             LOG.error("The value was in a compacted column. This should not be possible\n\t{}", dp);
@@ -791,7 +791,7 @@ final class Fsck {
             } else if (!dp.compacted) {
               final PutRequest put = new PutRequest(tsdb.dataTable(), 
                   dp.kv.key(), dp.kv.family(), qual, value);
-              tsdb.getHBaseStore().put(put);
+              CliUtils.HBaseStore(tsdb.getTsdbStore()).put(put);
             } else {
               LOG.error("SHOULDN'T be here as we didn't compact or fix a single value");
             }
@@ -807,7 +807,7 @@ final class Fsck {
         LOG.error("This floating point value was marked as 8 bytes long but was only {} bytes.\n\t{}", value.length, dp.kv);
         if (options.fix() && options.deleteBadValues() && !dp.compacted) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getHBaseStore().delete(delete);
+          CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -821,7 +821,7 @@ final class Fsck {
         LOG.error("This floating point value must be encoded either on 4 or 8 bytes, but it's on {} bytes.\n\t{}", value.length, dp.kv);
         if (options.fix() && options.deleteBadValues() && !dp.compacted) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getHBaseStore().delete(delete);
+          CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -861,7 +861,7 @@ final class Fsck {
         LOG.error("The integer value is {} bytes long but should be {} bytes.\n\t{}", value.length, length, dp.kv);
         if (options.fix() && options.deleteBadValues()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), dp.kv);
-          tsdb.getHBaseStore().delete(delete);
+          CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
           bad_values_deleted.getAndIncrement();
         } else if (dp.compacted) {
           LOG.error("The previous value was in a compacted column. This should "
@@ -902,10 +902,10 @@ final class Fsck {
             // put the new value, THEN delete the old
             final PutRequest put = new PutRequest(tsdb.dataTable(), 
                 dp.kv.key(), dp.kv.family(), new_qualifier, value);
-            tsdb.getHBaseStore().put(put).joinUninterruptibly();
+            CliUtils.HBaseStore(tsdb.getTsdbStore()).put(put).joinUninterruptibly();
             final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), 
                 dp.kv.key(), dp.kv.family(), qual);
-            tsdb.getHBaseStore().delete(delete);
+            CliUtils.HBaseStore(tsdb.getTsdbStore()).delete(delete);
           }
           vle_fixed.getAndIncrement();
         } // don't return true here as we don't consider a VLE an error.

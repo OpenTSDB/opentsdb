@@ -82,7 +82,7 @@ final class DumpSeries {
     final boolean importformat = delete || argp.has("--import");
     argp = null;
     try {
-      doDump(tsdb, tsdb.getHBaseStore(), table, delete, importformat, args);
+      doDump(tsdb, CliUtils.HBaseStore(tsdb.getTsdbStore()), table, delete, importformat, args);
     } finally {
       tsdb.shutdown().joinUninterruptibly();
     }

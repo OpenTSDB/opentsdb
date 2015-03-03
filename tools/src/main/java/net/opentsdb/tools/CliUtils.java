@@ -18,7 +18,9 @@ import java.util.Arrays;
 
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.hbase.HBaseConst;
+import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
@@ -89,7 +91,7 @@ final class CliUtils {
     get.qualifier("metrics".getBytes(HBaseConst.CHARSET));
     ArrayList<KeyValue> row;
     try {
-      row = tsdb.getHBaseStore().get(get).joinUninterruptibly();
+      row = HBaseStore(tsdb.getTsdbStore()).get(get).joinUninterruptibly();
       if (row == null || row.isEmpty()) {
         return 0;
       }
@@ -120,10 +122,19 @@ final class CliUtils {
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
 
-    final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.dataTable());
+    final Scanner scanner = HBaseStore(tsdb.getTsdbStore()).newScanner(tsdb.dataTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(TSDB.FAMILY());
     return scanner;
+  }
+
+  /**
+   * This is horrible. Don't use this on any new places. Only way to move on
+   * without having to migrate all tools cold-turkey.
+   */
+  @Deprecated
+  static HBaseStore HBaseStore(final TsdbStore store) {
+    return (HBaseStore) store;
   }
 }

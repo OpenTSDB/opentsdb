@@ -325,7 +325,7 @@ final class TreeSync extends Thread {
 
     LOG.debug("[{}] Start row: {}", thread_id, IdUtils.uidToString(start_row));
     LOG.debug("[{}] End row: {}", thread_id, IdUtils.uidToString(end_row));
-    final Scanner scanner = tsdb.getHBaseStore().newScanner(tsdb.metaTable());
+    final Scanner scanner = CliUtils.HBaseStore(tsdb.getTsdbStore()).newScanner(tsdb.metaTable());
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily("name".getBytes(HBaseConst.CHARSET));

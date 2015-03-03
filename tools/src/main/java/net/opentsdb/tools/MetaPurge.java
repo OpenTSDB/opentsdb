@@ -294,7 +294,7 @@ final class MetaPurge extends Thread {
       Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
     final byte[] end_row = 
       Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
-    final Scanner scanner = tsdb.getHBaseStore().newScanner(table);
+    final Scanner scanner = CliUtils.HBaseStore(tsdb.getTsdbStore()).newScanner(table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(NAME_FAMILY);

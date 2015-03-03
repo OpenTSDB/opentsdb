@@ -146,7 +146,7 @@ final class UidManager {
     if (args[0].equals("grep")) {
       if (2 <= nargs && nargs <= 3) {
         try {
-          return grep(tsdb.getHBaseStore(), table, ignorecase, args);
+          return grep(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, ignorecase, args);
         } catch (HBaseException e) {
           return 3;
         }
@@ -159,13 +159,13 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-      return assign(tsdb.getHBaseStore(), table, args);
+      return assign(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, args);
     } else if (args[0].equals("rename")) {
       if (nargs != 4) {
         usage("Wrong number of arguments");
         return 2;
       }
-      return rename(tsdb.getHBaseStore(), table, args);
+      return rename(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, args);
     } else if (args[0].equals("fsck")) {
       boolean fix = false;
       boolean fix_unknowns = false;
@@ -178,7 +178,7 @@ final class UidManager {
           }
         }
       }
-      return fsck(tsdb.getHBaseStore(), table, fix, fix_unknowns);
+      return fsck(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, fix, fix_unknowns);
     } else if (args[0].equals("metasync")) {
       // check for the data table existence and initialize our plugins 
       // so that update meta data can be pushed to search engines
@@ -237,9 +237,9 @@ final class UidManager {
         final String kind = nargs == 2 ? args[0] : null;
         try {
           final long id = Long.parseLong(args[nargs - 1]);
-          return lookupId(tsdb.getHBaseStore(), table, id, kind);
+          return lookupId(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, id, kind);
         } catch (NumberFormatException e) {
-          return lookupName(tsdb.getHBaseStore(), table,
+          return lookupName(CliUtils.HBaseStore(tsdb.getTsdbStore()), table,
                   args[nargs - 1], kind);
         }
       } else {
