@@ -37,6 +37,11 @@ CREATE TABLE tsdb.max_id (
 	PRIMARY KEY (type)
 );
 
+// The cassandra store assumes these are set and will fail if they are not
+UPDATE tsdb.max_id SET max = max + 0 WHERE type='metrics';
+UPDATE tsdb.max_id SET max = max + 0 WHERE type='tagk';
+UPDATE tsdb.max_id SET max = max + 0 WHERE type='tagv';
+
 // A lock for (id, type) and (name, type) so we can use lightweight transactions
 // and avoid certain race conditions when we create IDs.
 CREATE TABLE tsdbunique.id_name_lock (
