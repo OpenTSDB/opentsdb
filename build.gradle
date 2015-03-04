@@ -18,6 +18,10 @@ subprojects {
         mavenCentral()
     }
 
+    configurations {
+        provided
+    }
+
     dependencies {
         compile group: 'com.typesafe', name: 'config', version: '1.2.1'
         compile group: 'com.squareup.dagger', name: 'dagger', version: '1.2.2'
@@ -39,9 +43,11 @@ subprojects {
             exclude group: 'junit', module: 'junit'
         }
 
-        // Compile only
+        // Should be compile only
         compile group: 'com.google.auto.service', name: 'auto-service', version: '1.0-rc2'
-        compile group: 'com.squareup.dagger', name: 'dagger-compiler', version: '1.2.2'
+
+        // Compile only
+        provided group: 'com.squareup.dagger', name: 'dagger-compiler', version: '1.2.2'
 
         // Runtime only?
         runtime group: 'org.slf4j', name: 'log4j-over-slf4j', version: '1.7.7'
@@ -55,6 +61,12 @@ subprojects {
         testCompile group: 'org.objenesis', name: 'objenesis', version: '1.3'
         testCompile group: 'org.powermock', name: 'powermock-api-mockito', version: '1.5.4'
         testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: '1.5.4'
+    }
+
+    sourceSets {
+        main {
+            compileClasspath += configurations.provided
+        }
     }
 
     compileJava {
