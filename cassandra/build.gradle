@@ -1,4 +1,6 @@
 
+project.ext.distFiles = files("src/main/dist")
+
 dependencies {
     compile project(':core')
 
