@@ -5,7 +5,7 @@ DROP KEYSPACE IF EXISTS "tsdb";
 DROP KEYSPACE IF EXISTS "tsdbunique";
 
 // We use SimpleStrategy and a low replication factor here during development
-// but for any production deployment you probably want to change these to fit
+// but for a production deployment you probably want to change these to fit
 // your requirements.
 CREATE KEYSPACE tsdb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
 CREATE KEYSPACE tsdbunique WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
@@ -13,41 +13,26 @@ CREATE KEYSPACE tsdbunique WITH REPLICATION = { 'class' : 'SimpleStrategy', 'rep
 //
 // Identifier tables
 //
-// Maps (identifier, type) into a name
+// Maps (identifier, type) into a name. We use a timestamp that indicates when
+// the id was created to resolve conflicts. The timestamp should be the same
+// as in the table name_to_id.
 CREATE TABLE tsdb.id_to_name (
   id bigint,
   type varchar,
+  ctim timestamp,
   name varchar,
-  PRIMARY KEY (id, type)
+  PRIMARY KEY ((id, type), ctim)
 );
 
-// Maps (name, type) into an identifier
+// Maps (name, type) into an identifier. We use a timestamp that indicates when
+// the id was created to resolve conflicts. The timestamp should be the same
+// as in the table name_to_id.
 CREATE TABLE tsdb.name_to_id (
   name varchar,
   type varchar,
+  ctim timestamp,
   id bigint,
-  PRIMARY KEY (name, type)
-);
-
-// A table that keeps track on the max identifier used for the different
-// identifier types so that we easily can figure out what id to try next.
-CREATE TABLE tsdb.max_id (
-	type varchar,
-	max counter,
-	PRIMARY KEY (type)
-);
-
-// The cassandra store assumes these are set and will fail if they are not
-UPDATE tsdb.max_id SET max = max + 0 WHERE type='metrics';
-UPDATE tsdb.max_id SET max = max + 0 WHERE type='tagk';
-UPDATE tsdb.max_id SET max = max + 0 WHERE type='tagv';
-
-// A lock for (id, type) and (name, type) so we can use lightweight transactions
-// and avoid certain race conditions when we create IDs.
-CREATE TABLE tsdbunique.id_name_lock (
-  key varchar,
-  type varchar,
-  PRIMARY KEY (type, key)
+  PRIMARY KEY ((name, type), ctim)
 );
 //
 // End identifier tables

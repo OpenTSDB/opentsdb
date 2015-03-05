@@ -1,5 +1,9 @@
 package net.opentsdb.storage.cassandra;
 
+import com.google.common.base.Charsets;
+
+import java.nio.charset.Charset;
+
 /**
  * Constants used by Cassandra
  */
@@ -10,4 +14,10 @@ public class CassandraConst {
    */
   public static final int DEFAULT_CASSANDRA_PORT = 9042;
   public static final long CASSANDRA_TIMEOUT = 50;
+
+  /**
+   * Charset used to convert strings from and to byte arrays within the
+   * Cassandra store.
+   */
+  static final Charset CHARSET = Charsets.UTF_8;
 }

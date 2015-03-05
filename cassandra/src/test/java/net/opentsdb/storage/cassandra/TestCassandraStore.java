@@ -7,6 +7,7 @@ import net.opentsdb.stats.Metrics;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -45,48 +46,37 @@ public class TestCassandraStore {
   @Before
   public void setUp() throws Exception {
     ObjectGraph.create(new CassandraTestModule()).inject(this);
-  }
 
-  /**
-   * Use this to connect to cassandra.
-   */
-  private void setUpCassandraConnection() {
     store = new CassandraStoreDescriptor().createStore(config, new Metrics(new MetricRegistry()));
-  }
 
-  /**
-   * Use this to set up some test data. This method will call for {@link
-   * #setUpCassandraConnection} and {@link Helpers#truncate}. Then it will use the
-   * {@link CassandraStore#addPoint} and {@link CassandraStore#allocateUID} to
-   * get UID from the database. WARNING! If either of those tests fail in the
-   * original test one should consider this whole thing to fail.
-   */
-  private void setUpData() throws Exception {
-    setUpCassandraConnection();
-    Helpers.truncate(store.getSession());
+
+
+
+
+
 
     name_uid.put(METRIC_NAME_ONE, store.allocateUID(
-            METRIC_NAME_ONE, UniqueIdType.METRIC).joinUninterruptibly());
+        METRIC_NAME_ONE, UniqueIdType.METRIC).joinUninterruptibly());
 
     name_uid.put(METRIC_NAME_TWO, store.allocateUID(
-            METRIC_NAME_TWO, UniqueIdType.METRIC).joinUninterruptibly());
+        METRIC_NAME_TWO, UniqueIdType.METRIC).joinUninterruptibly());
 
     name_uid.put(METRIC_NAME_THREE, store.allocateUID(
-            METRIC_NAME_THREE, UniqueIdType.METRIC).joinUninterruptibly());
+        METRIC_NAME_THREE, UniqueIdType.METRIC).joinUninterruptibly());
 
 
     TAGK_UID_ONE = store.allocateUID(TAGK_NAME_ONE, UniqueIdType.TAGK)
-            .joinUninterruptibly();
+        .joinUninterruptibly();
 
     TAGV_UID_ONE = store.allocateUID(TAGV_NAME_ONE, UniqueIdType.TAGV)
-            .joinUninterruptibly();
+        .joinUninterruptibly();
 
     TSUID_ONE = createTSUIDFromTreeUID(name_uid.get
-            (METRIC_NAME_ONE), TAGK_UID_ONE, TAGV_UID_ONE);
+        (METRIC_NAME_ONE), TAGK_UID_ONE, TAGV_UID_ONE);
     TSUID_TWO = createTSUIDFromTreeUID(name_uid.get
-            (METRIC_NAME_TWO), TAGK_UID_ONE, TAGV_UID_ONE);
+        (METRIC_NAME_TWO), TAGK_UID_ONE, TAGV_UID_ONE);
     TSUID_THREE = createTSUIDFromTreeUID(name_uid.get
-            (METRIC_NAME_THREE), TAGK_UID_ONE, TAGV_UID_ONE);
+        (METRIC_NAME_THREE), TAGK_UID_ONE, TAGV_UID_ONE);
 
 
     store.addPoint(TSUID_ONE, new byte[]{'d', '1'}, 1356998400, (short) 'a');
@@ -94,7 +84,11 @@ public class TestCassandraStore {
     store.addPoint(TSUID_ONE, new byte[]{'d', '2'}, 1357002078, (short) 'b');
 
     store.addPoint(TSUID_TWO, new byte[]{'d', '3'}, 1356998400, (short) 'b');
+  }
 
+  @After
+  public void tearDown() throws Exception {
+    CassandraTestHelpers.truncate(store.getSession());
   }
 
   private byte[] createTSUIDFromTreeUID(final byte[] metric, final byte[]
@@ -119,8 +113,7 @@ public class TestCassandraStore {
 
   @Test
   public void addPoint() throws Exception {
-    setUpCassandraConnection();
-    Helpers.truncate(store.getSession());
+    CassandraTestHelpers.truncate(store.getSession());
     //'001001001', 1356998400, 1356998400, 'a', 'data1'
     store.addPoint(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
@@ -132,8 +125,7 @@ public class TestCassandraStore {
 
   @Test(expected = NullPointerException.class)
   public void addPointNull() throws Exception {
-    setUpCassandraConnection();
-    Helpers.truncate(store.getSession());
+    CassandraTestHelpers.truncate(store.getSession());
     store.addPoint(
             null,
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
@@ -145,8 +137,7 @@ public class TestCassandraStore {
 
   @Test(expected = IllegalArgumentException.class)
   public void addPointEmpty() throws Exception {
-    setUpCassandraConnection();
-    Helpers.truncate(store.getSession());
+    CassandraTestHelpers.truncate(store.getSession());
     store.addPoint(
             new byte[]{},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
@@ -158,8 +149,7 @@ public class TestCassandraStore {
 
   @Test(expected = IllegalArgumentException.class)
   public void addPointTooShort() throws Exception {
-    setUpCassandraConnection();
-    Helpers.truncate(store.getSession());
+    CassandraTestHelpers.truncate(store.getSession());
     store.addPoint(
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
@@ -170,7 +160,6 @@ public class TestCassandraStore {
 
   @Test
   public void allocateUID() throws Exception {
-    setUpData();
     byte[] new_metric_uid = store.allocateUID("new", UniqueIdType.METRIC)
             .joinUninterruptibly
                     (CassandraConst.CASSANDRA_TIMEOUT);
@@ -189,7 +178,6 @@ public class TestCassandraStore {
 
   @Test
   public void getName() throws Exception {
-    setUpData();
     validateValidName(METRIC_NAME_ONE, UniqueIdType.METRIC);
     validateValidName(METRIC_NAME_TWO, UniqueIdType.METRIC);
     validateValidName(METRIC_NAME_THREE, UniqueIdType.METRIC);
@@ -200,7 +188,6 @@ public class TestCassandraStore {
 
   @Test
   public void getId() throws Exception {
-    setUpData();
     validateValidId(METRIC_NAME_ONE, UniqueIdType.METRIC);
     validateValidId(METRIC_NAME_TWO, UniqueIdType.METRIC);
     validateValidId(METRIC_NAME_THREE, UniqueIdType.METRIC);

@@ -1,19 +1,25 @@
 package net.opentsdb.storage.cassandra;
 
-import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.CloseFuture;
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.Host;
 import com.datastax.driver.core.Metadata;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.ResultSetFuture;
+import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.hash.Hashing;
+import com.google.common.primitives.Longs;
+import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
@@ -25,10 +31,14 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.storage.cassandra.functions.FirstOrAbsentFunction;
+import net.opentsdb.storage.cassandra.functions.IsEmptyFunction;
+import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
 import net.opentsdb.tree.Tree;
 import net.opentsdb.tree.TreeRule;
+import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
@@ -37,10 +47,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.util.concurrent.Futures.transform;
+import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
+import static net.opentsdb.storage.cassandra.MoreFutures.wrap;
 
 /**
  * The CassandraStore that implements the client interface required by TSDB.
@@ -59,6 +73,12 @@ public class CassandraStore implements TsdbStore {
    * The current Cassandra session.
    */
   private final Session session;
+
+  /**
+   * A time provider to tell the current time.
+   */
+  private final JdkTimeProvider timeProvider;
+
   /**
    * The statement used by the {@link #addPoint} method.
    */
@@ -67,11 +87,7 @@ public class CassandraStore implements TsdbStore {
   /**
    * The statement used by the {@link #allocateUID} method.
    */
-  private PreparedStatement get_max_uid_statement;
-  private PreparedStatement increment_uid_statement;
-  private PreparedStatement create_new_uid_name_statement;
-  private PreparedStatement create_new_name_uid_statement;
-  private PreparedStatement lock_uid_name_combination;
+  private PreparedStatement createIdStatement;
   /**
    * Used for {@link #allocateUID}, the one that does rename.
    */
@@ -95,6 +111,8 @@ public class CassandraStore implements TsdbStore {
     this.cluster = cluster;
     this.session = cluster.connect("tsdb");
 
+    this.timeProvider = new JdkTimeProvider();
+
     Metadata metadata = cluster.getMetadata();
 
     //Show what we connected to in the debug log
@@ -116,20 +134,12 @@ public class CassandraStore implements TsdbStore {
     String CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, flags, val) VALUES (?, ?, ?, ?, ?);";
     add_point_statement = session.prepare(CQL);
 
-    CQL = "UPDATE \"tsdb\".\"" + Tables.MAX_ID + "\" SET max = max + 1 WHERE type=?;";
-    increment_uid_statement = session.prepare(CQL);
-
-    CQL = "SELECT * FROM \"tsdb\".\"" + Tables.MAX_ID + "\" WHERE type=?;";
-    get_max_uid_statement = session.prepare(CQL);
-
-    CQL = "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (id, type, name) VALUES (?, ?, ?);";
-    create_new_uid_name_statement = session.prepare(CQL);
-
-    CQL = "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, id) VALUES (?, ?, ?);";
-    create_new_name_uid_statement = session.prepare(CQL);
-
-    CQL = "INSERT INTO tsdbunique." + Tables.ID_NAME_LOCK + " (key, type) VALUES (?, ?) IF NOT EXISTS;";
-    lock_uid_name_combination = session.prepare(CQL);
+    CQL = "BEGIN BATCH USING TIMESTAMP ?" +
+        "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (id, type, ctim, name) VALUES (?, ?, ?, ?);" +
+        "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, ctim, id) VALUES (?, ?, ?, ?);" +
+        "APPLY BATCH;";
+    createIdStatement = session.prepare(CQL)
+        .setConsistencyLevel(ConsistencyLevel.ALL);
 
     CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE id = ? AND type = ?;";
     update_uid_name_statement = session.prepare(CQL);
@@ -140,10 +150,10 @@ public class CassandraStore implements TsdbStore {
             "APPLY BATCH;";
     update_name_uid_statement = session.prepare(CQL);
 
-    CQL = "SELECT * FROM tsdb." + Tables.ID_TO_NAME + " WHERE id = ? AND type = ?;";
+    CQL = "SELECT * FROM tsdb." + Tables.ID_TO_NAME + " WHERE id = ? AND type = ? LIMIT 2;";
     get_name_statement = session.prepare(CQL);
 
-    CQL = "SELECT * FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type = ?;";
+    CQL = "SELECT * FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type = ? LIMIT 2;";
     get_id_statement = session.prepare(CQL);
 
     CQL = "INSERT INTO tsdb." + Tables.TS_INVERTED_INDEX + " (id, type, tsid) VALUES (?, ?, ?);";
@@ -236,72 +246,89 @@ public class CassandraStore implements TsdbStore {
     final Deferred<Object> d = new Deferred<Object>();
 
     Futures.addCallback(Futures.allAsList(close), new
-            FutureCallback<List<Void>>() {
-              @Override
-              public void onSuccess(List<Void> voids) {
-                d.callback(null);
-              }
+        FutureCallback<List<Void>>() {
+          @Override
+          public void onSuccess(List<Void> voids) {
+            d.callback(null);
+          }
 
-              @Override
-              public void onFailure(Throwable throwable) {
-                d.callback(throwable);
-              }
-            });
+          @Override
+          public void onFailure(Throwable throwable) {
+            d.callback(throwable);
+          }
+        });
     return d;
   }
 
   @Override
   public Deferred<Optional<byte[]>> getId(final String name,
                                           final UniqueIdType type) {
-    ResultSetFuture f = session.executeAsync(
-            get_id_statement.bind(name, type.toValue()));
+    ListenableFuture<List<byte[]>> idsFuture = getIds(name, type);
+    return wrap(transform(idsFuture, new FirstOrAbsentFunction<byte[]>()));
+  }
 
-    final Deferred<Optional<byte[]>> d = new Deferred<Optional<byte[]>>();
+  /**
+   * Fetch the first two IDs that are associated with the provided name and
+   * type.
+   *
+   * @param name The name to fetch IDs for
+   * @param type The type of IDs to fetch
+   * @return A future with a list of the first two found IDs
+   */
+  ListenableFuture<List<byte[]>> getIds(final String name,
+                                        final UniqueIdType type) {
+    ResultSetFuture idsFuture = session.executeAsync(
+        get_id_statement.bind(name, type.toValue()));
 
-    Futures.addCallback(f, new FutureCallback<ResultSet>() {
+    return transform(idsFuture, new Function<ResultSet, List<byte[]>>() {
       @Override
-      public void onSuccess(ResultSet rows) {
-        if (!rows.isExhausted()) {
-          final long uid = rows.one().getLong("uid");
-          d.callback(Optional.of(IdUtils.longToUID(uid, type.width)));
-          return;
+      public List<byte[]> apply(final ResultSet result) {
+        ImmutableList.Builder<byte[]> builder = ImmutableList.builder();
+
+        for (final Row row : result) {
+          final long id = row.getLong("id");
+          builder.add(Longs.toByteArray(id));
         }
-        d.callback(Optional.absent());
-      }
 
-      @Override
-      public void onFailure(Throwable throwable) {
-        d.callback(throwable);
+        return builder.build();
       }
     });
-    return d;
   }
 
   @Override
   public Deferred<Optional<String>> getName(final byte[] id,
                                             final UniqueIdType type) {
-    ResultSetFuture f = session.executeAsync(get_name_statement.bind(
-            IdUtils.uidToLong(id), type.toValue()));
+    final long longId = Longs.fromByteArray(id);
+    ListenableFuture<List<String>> namesFuture = getNames(longId, type);
+    return wrap(transform(namesFuture, new FirstOrAbsentFunction<String>()));
+  }
 
-    final Deferred<Optional<String>> d = new Deferred<Optional<String>>();
+  /**
+   * Fetch the first two names that are associated with the provided id and
+   * type.
+   *
+   * @param id   The id to fetch names for
+   * @param type The type of names to fetch
+   * @return A future with a list of the first two found names
+   */
+  ListenableFuture<List<String>> getNames(final long id,
+                                          final UniqueIdType type) {
+    ResultSetFuture namesFuture = session.executeAsync(
+        get_name_statement.bind(id, type.toValue()));
 
-    Futures.addCallback(f, new FutureCallback<ResultSet>() {
+    return transform(namesFuture, new Function<ResultSet, List<String>>() {
       @Override
-      public void onSuccess(ResultSet rows) {
-        if (!rows.isExhausted()) {
-          final String name = rows.one().getString("name");
-          d.callback(Optional.of(name));
-          return;
+      public List<String> apply(final ResultSet result) {
+        ImmutableList.Builder<String> builder = ImmutableList.builder();
+
+        for (final Row row : result) {
+          final String name = row.getString("name");
+          builder.add(name);
         }
-        d.callback(Optional.absent());
-      }
 
-      @Override
-      public void onFailure(Throwable throwable) {
-        d.callback(throwable);
+        return builder.build();
       }
     });
-    return d;
   }
 
   @Override
@@ -329,81 +356,139 @@ public class CassandraStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  /**
+   * Check if (id, type) is available and return a future that contains a
+   * boolean that will be true if the id is available or false if otherwise.
+   *
+   * @param id   The name to check
+   * @param type The type to check
+   * @return A future that contains a boolean that indicates if the id was
+   * available
+   */
+  private ListenableFuture<Boolean> isIdAvailable(final long id,
+                                                  final UniqueIdType type) {
+    return transform(getNames(id, type), new IsEmptyFunction());
+  }
+
+  /**
+   * Check if (name, type) is available and return a future that contains a
+   * boolean that will be true if the name is available or false if otherwise.
+   *
+   * @param name The name to check
+   * @param type The type to check
+   * @return A future that contains a boolean that indicates if the name was
+   * available
+   */
+  private ListenableFuture<Boolean> isNameAvailable(final String name,
+                                                    final UniqueIdType type) {
+    return transform(getIds(name, type), new IsEmptyFunction());
+  }
+
+  /**
+   * Check if either of (id, type) and (name, type) are taken or if both are
+   * available. If either of the combinations already are taken the returned
+   * future will contain an {@link net.opentsdb.uid.IdException}.
+   *
+   * @param id   The id to check if it is available
+   * @param name The name to check if it is available
+   * @param type The type of id and name to check if it available
+   * @return A future that contains an exception if either of the above
+   * combinations were taken. Otherwise a future with meaningless contents will
+   * be returned.
+   */
+  private ListenableFuture<Void> checkAvailable(final long id,
+                                                final String name,
+                                                final UniqueIdType type) {
+    ImmutableList<ListenableFuture<Boolean>> availableList =
+        ImmutableList.of(isIdAvailable(id, type), isNameAvailable(name, type));
+    final ListenableFuture<List<Boolean>> availableFuture = Futures.allAsList(availableList);
+
+    return transform(availableFuture, new AsyncFunction<List<Boolean>, Void>() {
+      @Override
+      public ListenableFuture<Void> apply(final List<Boolean> available) {
+        // These are in the same order as they are provided in the call
+        // to Futures#allAsList.
+        final Boolean idAvailable = available.get(0);
+        final Boolean nameAvailable = available.get(1);
+
+        if (!idAvailable) {
+          return Futures.immediateFailedFuture(
+              new IdException(id, type, "Id was already taken"));
+        }
+
+        if (!nameAvailable) {
+          return Futures.immediateFailedFuture(
+              new IdException(name, type, "Name was already taken"));
+        }
+
+        return Futures.immediateFuture(null);
+      }
+    });
+  }
+
+  /**
+   * Save a new identifier with the provided information in Cassandra. This will
+   * not perform any checks to see if the id already exists, you are expected to
+   * have done so already.
+   *
+   * @param id   The id to associate with the provided name
+   * @param name The name to save
+   * @param type The type of id to save
+   * @return A future containing the newly saved identifier
+   */
+  private ListenableFuture<byte[]> createId(final long id,
+                                            final String name,
+                                            final UniqueIdType type) {
+    final Date createTimestamp = timeProvider.now();
+    final ResultSetFuture save = session.executeAsync(
+        createIdStatement.bind(createTimestamp.getTime(),
+            id, type.toValue(), createTimestamp, name,
+            name, type.toValue(), createTimestamp, id));
+
+    return transform(save, new AsyncFunction<ResultSet, byte[]>() {
+      @Override
+      public ListenableFuture<byte[]> apply(final ResultSet result) {
+        // The Cassandra driver will have thrown an exception if the insertion
+        // failed in which case we would not be here so just return the id we
+        // sent to Cassandra.
+        return Futures.immediateFuture(Longs.toByteArray(id));
+      }
+    });
+  }
+
+  /**
+   * Allocate an ID for the provided (name, type). This will attempt to generate
+   * an ID that is likely to be available. It will then check if this
+   * information is available and finally save the information if it is. If the
+   * information could be saved the ID will be returned in a future, otherwise
+   * the future will contain an {@link net.opentsdb.uid.IdException}.
+   *
+   * @param name The name to allocate an ID for
+   * @param type The type of name to allocate an ID for
+   * @return A future that contains the newly allocated ID if successful,
+   * otherwise the future will contain a {@link net.opentsdb.uid.IdException}.
+   */
   @Override
   public Deferred<byte[]> allocateUID(final String name,
                                       final UniqueIdType type) {
-    final Deferred<byte[]> d = new Deferred<byte[]>();
+    // This discards half the hash but it should still work ok with murmur3.
+    final long id = Hashing.murmur3_128().hashString(name, CHARSET).asLong();
 
-    final ResultSetFuture future = session.executeAsync(get_max_uid_statement.bind
-            (type.toValue()));
+    // This does not protect us against someone trying to create the same
+    // information in parallel but it is a convenience to the user so that we
+    // do not even try to create if we can find an existing ID with the
+    // information we are trying to allocate now.
+    ListenableFuture<Void> availableFuture = checkAvailable(id, name, type);
 
-    Futures.addCallback(future, new FutureCallback<ResultSet>() {
+    return wrap(transform(availableFuture, new AsyncFunction<Void, byte[]>() {
       @Override
-      public void onSuccess(ResultSet rows) {
-        // we have received the value.
-        final long next_uid = rows.one().getLong("max") + 1;
-        //next step is to lock down this resource in a non blocking way.
-        BatchStatement lock_batch = new BatchStatement();
-        lock_batch.add(lock_uid_name_combination.bind(
-                IdUtils.uidToString(IdUtils.longToUID(next_uid, type.width)),
-                type.toValue()));
-        lock_batch.add(lock_uid_name_combination.bind(
-                name, type.toValue()));
-        // We have a 'lock' table that we write to. We write two
-        // rows one for each the name and the uid with the
-        // UniqueIdType as an additional key.
-        // If this write is successful we know there are no duplicate
-        // values for the name and key for this UID type.
-        // Thus onSuccess we will then go ahead and write this
-        // resource to the original table.
-        Futures.addCallback(
-                session.executeAsync(lock_batch),
-                new FutureCallback<ResultSet>() {
-                  @Override
-                  public void onSuccess(ResultSet rows) {
-                    // We want this process to just write so no need to
-                    // keep track of this callback at from this point.
-
-                    if (rows.wasApplied()) {
-                      session.executeAsync(increment_uid_statement.bind(type.toValue()));
-                      session.executeAsync(create_new_name_uid_statement.bind(name, type.toValue(), next_uid));
-                      session.executeAsync(create_new_uid_name_statement.bind(next_uid, type.toValue(), name));
-                      //TODO (zeeck) maybe check callback?
-                      // returned the used UID
-                      // we will assume the write will be fine, Cassandra
-                      // can do a lot of writes without issues so if we
-                      // fail from this point there are some major issues!
-                      d.callback(IdUtils.longToUID(next_uid, type.width));
-                      return;
-                    }
-                    LOG.warn("Race condition creating mapping for uid " +
-                            "{}. Another TSDB instance must have " +
-                            "allocated this uid concurrently or " +
-                            "name is already taken for " +
-                            "this uid.", next_uid);
-                    d.callback(new IllegalStateException("Could " +
-                            "not allocate UID. Try again."));
-                  }
-
-                  @Override
-                  public void onFailure(Throwable throwable) {
-                    LOG.error("had a failure to communicate with " +
-                            "Cassandra.", throwable);
-                    d.callback(throwable);
-                  }
-                });
-
+      public ListenableFuture<byte[]> apply(final Void available) {
+        // #checkAvailable will have thrown an exception if the id or name was
+        // not available and if it did we would not be there. Thus we are now
+        // free to create the id.
+        return createId(id, name, type);
       }
-
-      @Override
-      public void onFailure(Throwable throwable) {
-        // for some reason we could not get the max uid value.
-        LOG.error("Could not fetch max UID value.", throwable);
-        d.callback(throwable);
-      }
-    });
-
-    return d;
+    }));
   }
 
   /**
