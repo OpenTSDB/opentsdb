@@ -13,7 +13,6 @@ public class CassandraConst {
    * not specified in the configuration file.
    */
   public static final int DEFAULT_CASSANDRA_PORT = 9042;
-  public static final long CASSANDRA_TIMEOUT = 50;
 
   /**
    * Charset used to convert strings from and to byte arrays within the

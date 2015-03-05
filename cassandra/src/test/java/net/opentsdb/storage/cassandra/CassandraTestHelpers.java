@@ -8,6 +8,11 @@ import com.datastax.driver.core.Session;
  */
 class CassandraTestHelpers {
   /**
+   * A default timeout in milliseconds to wait for Cassandra in tests.
+   */
+  public static final long TIMEOUT = 50;
+
+  /**
    * Clear the data in all tables.
    *
    * @param session A live session to talk to

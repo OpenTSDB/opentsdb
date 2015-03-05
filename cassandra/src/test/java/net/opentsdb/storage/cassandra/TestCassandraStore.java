@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static net.opentsdb.storage.cassandra.CassandraTestHelpers.TIMEOUT;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -119,8 +120,7 @@ public class TestCassandraStore {
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
             (long) 1356998400,
-            (short) 47).joinUninterruptibly(CassandraConst
-            .CASSANDRA_TIMEOUT);
+            (short) 47).joinUninterruptibly(TIMEOUT);
   }
 
   @Test(expected = NullPointerException.class)
@@ -130,8 +130,7 @@ public class TestCassandraStore {
             null,
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
             (long) 1356998400,
-            (short) 47).joinUninterruptibly(CassandraConst
-            .CASSANDRA_TIMEOUT);
+            (short) 47).joinUninterruptibly(TIMEOUT);
 
   }
 
@@ -142,8 +141,7 @@ public class TestCassandraStore {
             new byte[]{},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
             (long) 1356998400,
-            (short) 47).joinUninterruptibly(CassandraConst
-            .CASSANDRA_TIMEOUT);
+            (short) 47).joinUninterruptibly(TIMEOUT);
 
   }
 
@@ -154,15 +152,13 @@ public class TestCassandraStore {
             new byte[]{0, 0, 1, 0, 0, 1, 0, 0},
             new byte[]{'v', 'a', 'l', 'u', 'e', '1'},
             (long) 1356998400,
-            (short) 47).joinUninterruptibly(CassandraConst
-            .CASSANDRA_TIMEOUT);
+            (short) 47).joinUninterruptibly(TIMEOUT);
   }
 
   @Test
   public void allocateUID() throws Exception {
     byte[] new_metric_uid = store.allocateUID("new", UniqueIdType.METRIC)
-            .joinUninterruptibly
-                    (CassandraConst.CASSANDRA_TIMEOUT);
+            .joinUninterruptibly(TIMEOUT);
     long max_uid = 0;
     for (byte[] uid : name_uid.values()) {
       max_uid = Math.max(IdUtils.uidToLong(uid), max_uid);
@@ -199,7 +195,7 @@ public class TestCassandraStore {
   private void validateValidId(final String name, final UniqueIdType type)
           throws Exception {
     Optional<byte[]> value = store.getId(name, type)
-            .joinUninterruptibly(CassandraConst.CASSANDRA_TIMEOUT);
+            .joinUninterruptibly(TIMEOUT);
 
     assertTrue(value.isPresent());
     assertArrayEquals(name_uid.get(name), value.get());
@@ -208,7 +204,7 @@ public class TestCassandraStore {
   private void validateInvalidId(final String name, final UniqueIdType type)
           throws Exception {
     Optional<byte[]> value = store.getId(name, type)
-            .joinUninterruptibly(CassandraConst.CASSANDRA_TIMEOUT);
+            .joinUninterruptibly(TIMEOUT);
 
     assertFalse(value.isPresent());
   }
@@ -216,7 +212,7 @@ public class TestCassandraStore {
   private void validateValidName(final String name, final UniqueIdType type)
           throws Exception {
     Optional<String> value = store.getName(name_uid.get(name), type)
-            .joinUninterruptibly(CassandraConst.CASSANDRA_TIMEOUT);
+            .joinUninterruptibly(TIMEOUT);
 
     assertTrue(value.isPresent());
     assertEquals(name, value.get());
@@ -225,7 +221,7 @@ public class TestCassandraStore {
   private void validateInvalidName(final byte[] uid, final UniqueIdType type)
           throws Exception {
     Optional<String> value = store.getName(uid, type)
-            .joinUninterruptibly(CassandraConst.CASSANDRA_TIMEOUT);
+            .joinUninterruptibly(TIMEOUT);
     assertFalse(value.isPresent());
   }
 }
