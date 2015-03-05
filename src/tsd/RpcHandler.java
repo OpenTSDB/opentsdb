@@ -267,9 +267,9 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
         }
         final HttpRpcPluginQuery pluginQuery = (HttpRpcPluginQuery) abstractQuery;
         final HttpRpcPlugin rpc = rpc_manager.lookupHttpRpcPlugin(route);
-        if (rpc != null) {
+      if (rpc != null) {
           rpc.execute(tsdb, pluginQuery);
-        } else {
+      } else {
           pluginQuery.notFound();
         }
       } else if (abstractQuery.getClass().isAssignableFrom(HttpQuery.class)) {

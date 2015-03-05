@@ -41,6 +41,7 @@ import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.TSUIDQuery;
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.JSON;
 
@@ -79,7 +80,6 @@ final class QueryRpc implements HttpRpc {
     
     if (endpoint.toLowerCase().equals("last")) {
       handleLastDataPointQuery(tsdb, query);
-      return;
     } else {
       handleQuery(tsdb, query);
     }
@@ -116,13 +116,17 @@ final class QueryRpc implements HttpRpc {
           e.getMessage(), data_query.toString(), e);
     }
     
-    Query[] tsdbqueries = data_query.buildQueries(tsdb);
+    Query[] tsdbqueries;
+    try {
+      tsdbqueries = data_query.buildQueries(tsdb);
+    } catch(NoSuchUniqueName ex) {
+      throw new BadRequestException(ex);
+    }
     final int nqueries = tsdbqueries.length;
     final ArrayList<DataPoints[]> results = 
       new ArrayList<DataPoints[]>(nqueries);
     final ArrayList<Deferred<DataPoints[]>> deferreds =
       new ArrayList<Deferred<DataPoints[]>>(nqueries);
-    
     for (int i = 0; i < nqueries; i++) {
       deferreds.add(tsdbqueries[i].runAsync());
     }
@@ -153,7 +157,7 @@ final class QueryRpc implements HttpRpc {
         throw new RuntimeException("Shouldn't be here", e);
       }
     }
-    
+
     try {
       Deferred.groupInOrder(deferreds).addCallback(new QueriesCB())
         .joinUninterruptibly();
