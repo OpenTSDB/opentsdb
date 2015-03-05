@@ -207,7 +207,5 @@ public interface TsdbStore {
 
   void setFlushInterval(short aShort);
 
-  void scheduleForCompaction(byte[] row);
-
   public Deferred<Object> shutdown();
 }

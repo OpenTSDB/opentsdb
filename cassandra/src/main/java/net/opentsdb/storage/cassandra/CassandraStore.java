@@ -548,11 +548,6 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public void scheduleForCompaction(byte[] row) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
   public Deferred<Object> delete(Annotation annotation) {
     throw new UnsupportedOperationException("Not implemented yet");
   }

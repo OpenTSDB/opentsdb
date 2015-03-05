@@ -672,7 +672,6 @@ public class HBaseStore implements TsdbStore {
    * and delete the individual data points.
    * @param row The row key to re-compact later.  Will not be modified.
    */
-  @Override
   public final void scheduleForCompaction(final byte[] row) {
     if (enable_compactions) {
       compactionq.add(row);

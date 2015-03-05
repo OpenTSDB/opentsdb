@@ -341,10 +341,6 @@ public class MemoryStore implements TsdbStore {
     return Deferred.fromResult(uid);
   }
 
-  @Override
-  public void scheduleForCompaction(byte[] row) {
-  }
-
   /**
    * Helper to convert an array of bytes to a hexadecimal encoded string.
    * @param bytes The byte array to convert
