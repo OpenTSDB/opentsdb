@@ -15,30 +15,29 @@ package net.opentsdb.tsd;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
-
+import org.powermock.api.mockito.PowerMockito;
+import org.mockito.Matchers;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
-
+import java.util.ArrayList;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
 import net.opentsdb.utils.Config;
-
+import org.hbase.async.HBaseClient;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
-
+import net.opentsdb.uid.NoSuchUniqueName;
 import com.stumbleupon.async.Deferred;
-
 /**
  * Unit tests for the Query RPC class that handles parsing user queries for
  * timeseries data and returning that data
@@ -272,17 +271,55 @@ public final class TestQueryRpc {
     parseQuery.invoke(rpc, tsdb, query);
   }
   
-  //TODO(cl) fix this up and add unit tests for the rate options parsing
-//  @SuppressWarnings({ "unchecked", "rawtypes" })
-//  @Test
-//  public void parse() throws Exception {
-//    when(Deferred.groupInOrder((Collection)any()).joinUninterruptibly())
-//      .thenReturn(null);
-//    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/query",
-//        "{\"start\":1356998400,\"end\":1356998460,\"queries\":[{\"aggregator"
-//        + "\": \"sum\",\"metric\": \"sys.cpu.0\",\"rate\": \"true\",\"tags\": "
-//        + "{\"host\": \"*\",\"dc\": \"lga\"}}]}");
-//    rpc.execute(tsdb, query);
-//    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-//  }
+  @Test
+  public void postQuerySimplePass() throws Exception {
+    Deferred<ArrayList<DataPoints[]>> deferredMock =
+        (Deferred<ArrayList<DataPoints[]>>)mock(Deferred.class);
+    PowerMockito.mockStatic(Deferred.class);
+    PowerMockito.when(Deferred.groupInOrder(Matchers.anyCollection()))
+      .thenReturn(deferredMock);
+    PowerMockito.when(deferredMock.joinUninterruptibly())
+      .thenReturn(null);
+    PowerMockito.when(deferredMock.addCallback(Matchers.any(com.stumbleupon.async.Callback.class)))
+      .thenReturn(deferredMock);
+
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/query",
+        "{\"start\":1425440315306,\"queries\":" +
+          "[{\"metric\":\"somemetric\",\"aggregator\":\"sum\",\"rate\":true," +
+          "\"rateOptions\":{\"counter\":false}}]}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void postQueryNoMetricBadRequest() throws Exception {
+    Deferred<ArrayList<DataPoints[]>> deferredMock = 
+        (Deferred<ArrayList<DataPoints[]>>)mock(Deferred.class);
+    PowerMockito.mockStatic(Deferred.class);
+    PowerMockito.when(Deferred.groupInOrder(Matchers.anyCollection()))
+      .thenReturn(deferredMock);
+    PowerMockito.when(deferredMock.joinUninterruptibly())
+      .thenReturn(null);
+    PowerMockito.when(deferredMock.addCallback(
+        Matchers.any(com.stumbleupon.async.Callback.class)))
+      .thenReturn(deferredMock);
+
+    Query mockQuery = mock(Query.class);
+    PowerMockito.doThrow(new NoSuchUniqueName("metric", "nonexistent"))
+      .when(mockQuery).setTimeSeries(
+          Matchers.anyString(),
+          Matchers.anyMap(),
+          Matchers.any(net.opentsdb.core.Aggregator.class),
+          Matchers.anyBoolean(),
+          Matchers.any(net.opentsdb.core.RateOptions.class));
+    when(tsdb.newQuery()).thenReturn(mockQuery);
+
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/query",
+        "{\"start\":1425440315306,\"queries\":" +
+          "[{\"metric\":\"nonexistent\",\"aggregator\":\"sum\",\"rate\":true," +
+          "\"rateOptions\":{\"counter\":false}}]}");
+    rpc.execute(tsdb, query);
+  }
+
+  //TODO(cl) add unit tests for the rate options parsing
 }

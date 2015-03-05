@@ -225,59 +225,57 @@ final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
       return;
     }
     try {
-      try {        
-        final String route = query.getQueryBaseRoute();
-        query.setSerializer();
-        
-        final String domain = req.headers().get("Origin");
-        
-        // catch CORS requests and add the header or refuse them if the domain
-        // list has been configured
-        if (query.method() == HttpMethod.OPTIONS || 
-            (cors_domains != null && domain != null && !domain.isEmpty())) {          
-          if (cors_domains == null || domain == null || domain.isEmpty()) {
-            throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-                "Method not allowed", "The HTTP method [" + 
-                query.method().getName() + "] is not permitted");
-          }
-          
-          if (cors_domains.contains("*") || 
-              cors_domains.contains(domain.toUpperCase())) {
+      final String route = query.getQueryBaseRoute();
+      query.setSerializer();
 
-            // when a domain has matched successfully, we need to add the header
-            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
-                domain);
-            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
-                "GET, POST, PUT, DELETE");
-            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
-                cors_headers);
+      final String domain = req.headers().get("Origin");
 
-            // if the method requested was for OPTIONS then we'll return an OK
-            // here and no further processing is needed.
-            if (query.method() == HttpMethod.OPTIONS) {
-              query.sendStatusOnly(HttpResponseStatus.OK);
-              return;
-            }
-          } else {
-            // You'd think that they would want the server to return a 403 if
-            // the Origin wasn't in the CORS domain list, but they want a 200
-            // without the allow origin header. We'll return an error in the
-            // body though.
-            throw new BadRequestException(HttpResponseStatus.OK, 
-                "CORS domain not allowed", "The domain [" + domain + 
-                "] is not permitted access");
-          }
+      // catch CORS requests and add the header or refuse them if the domain
+      // list has been configured
+      if (query.method() == HttpMethod.OPTIONS ||
+          (cors_domains != null && domain != null && !domain.isEmpty())) {
+        if (cors_domains == null || domain == null || domain.isEmpty()) {
+          throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,
+              "Method not allowed", "The HTTP method [" +
+              query.method().getName() + "] is not permitted");
         }
         
-        final HttpRpc rpc = http_commands.get(route);
-        if (rpc != null) {
-          rpc.execute(tsdb, query);
+        if (cors_domains.contains("*") ||
+            cors_domains.contains(domain.toUpperCase())) {
+
+          // when a domain has matched successfully, we need to add the header
+          query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+              domain);
+          query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
+              "GET, POST, PUT, DELETE");
+          query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+              cors_headers);
+
+          // if the method requested was for OPTIONS then we'll return an OK
+          // here and no further processing is needed.
+          if (query.method() == HttpMethod.OPTIONS) {
+            query.sendStatusOnly(HttpResponseStatus.OK);
+            return;
+          }
         } else {
-          query.notFound();
+          // You'd think that they would want the server to return a 403 if
+          // the Origin wasn't in the CORS domain list, but they want a 200
+          // without the allow origin header. We'll return an error in the
+          // body though.
+          throw new BadRequestException(HttpResponseStatus.OK,
+              "CORS domain not allowed", "The domain [" + domain +
+              "] is not permitted access");
         }
-      } catch (BadRequestException ex) {
-        query.badRequest(ex);
       }
+
+      final HttpRpc rpc = http_commands.get(route);
+      if (rpc != null) {
+        rpc.execute(tsdb, query);
+      } else {
+        query.notFound();
+      }
+    } catch (BadRequestException ex) {
+      query.badRequest(ex);
     } catch (Exception ex) {
       query.internalError(ex);
       exceptions_caught.incrementAndGet();
