@@ -1,6 +1,7 @@
 package net.opentsdb.storage.cassandra;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ProtocolVersion;
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
@@ -27,7 +28,8 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
   @VisibleForTesting
   Cluster createCluster(final Config config) {
     try {
-      return createCluster(config.getStringList("tsd.storage.cassandra.nodes"));
+      return createCluster(config.getStringList("tsd.storage.cassandra.nodes"),
+          config.getInt("tsd.storage.cassandra.protocolVersion"));
     } catch (IllegalArgumentException e) {
       throw new InvalidConfigException(config.getValue("tsd.storage.cassandra.nodes"),
               "One or more of the addresses in the cassandra config could not be parsed");
@@ -43,7 +45,8 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
    * @throws java.lang.IllegalArgumentException If any of the addresses could
    *                                            not be parsed
    */
-  private Cluster createCluster(final List<String> nodes) {
+  private Cluster createCluster(final List<String> nodes,
+                                final int protocolVersion) {
     final Cluster.Builder builder = Cluster.builder();
 
     for (final String node : nodes) {
@@ -51,7 +54,8 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
               .withDefaultPort(CassandraConst.DEFAULT_CASSANDRA_PORT);
 
       builder.addContactPoint(host.getHostText())
-              .withPort(host.getPort());
+          .withPort(host.getPort())
+          .withProtocolVersion(ProtocolVersion.fromInt(protocolVersion));
     }
 
     return builder.build();
