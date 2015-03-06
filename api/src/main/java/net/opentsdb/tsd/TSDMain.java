@@ -90,7 +90,6 @@ final class TSDMain {
 
       factory = getServerSocketChannelFactory(config);
       final ServerBootstrap server = new ServerBootstrap(factory);
-      server.shutdown();
 
       server.setPipelineFactory(new PipelineFactory(tsdb));
       if (config.hasPath("tsd.network.backlog")) {
