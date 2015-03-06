@@ -48,7 +48,7 @@ public class TestUID {
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
-  
+
   // names used for testing
   private byte[] NAME_FAMILY = "name".getBytes(MockBase.ASCII());
   private byte[] ID_FAMILY = "id".getBytes(MockBase.ASCII());
@@ -69,8 +69,10 @@ public class TestUID {
 
   @Before
   public void before() throws Exception {
+
+    PowerMockito.whenNew(HBaseClient.class).withAnyArguments().thenReturn(client);
     config = new Config(false);
-    tsdb = new TSDB(config);
+    tsdb = new TSDB(client, config);
     PowerMockito.spy(System.class);
     PowerMockito.when(System.nanoTime())
       .thenReturn(1357300800000000L)
@@ -82,7 +84,6 @@ public class TestUID {
       .thenReturn(1357300801000L)
       .thenReturn(1357300802000L)
       .thenReturn(1357300803000L);
-
     setupMockBase();
   }
 
@@ -247,7 +248,7 @@ public class TestUID {
         "tsdb".getBytes(MockBase.ASCII()), false, false);
     assertEquals(2, errors);
   }
-  
+
   /* #1 - Missing Reverse Mapping
    * - Forward mapping is missing reverse: bar -> 02
    * ---------------------
@@ -939,5 +940,10 @@ public class TestUID {
         TAGK, "dc".getBytes(MockBase.ASCII()));
     storage.addColumn(new byte[] {0, 0, 2}, NAME_FAMILY, 
         TAGV, "web02".getBytes(MockBase.ASCII()));
+  }
+
+  @After
+  public void tearDown() {
+    storage.flushStorage();
   }
 }
