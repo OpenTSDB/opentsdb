@@ -58,7 +58,11 @@ public final class TestAnnotation {
   final private byte[] tsuid_row_key = 
       new byte[] { 0, 0, 1, (byte) 0x52, (byte) 0xC2, (byte) 0x09, 0, 0, 0, 
         1, 0, 0, 1 };
-  
+
+  // 1425715200 - Sat Mar 7 00:00:00 PST 2015
+  final private byte[] global_row_key_2015_midnight =
+      new byte[] { 0, 0, 0, (byte) 0x54, (byte) 0xFA, (byte) 0xB0, 0 };
+
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
@@ -74,12 +78,12 @@ public final class TestAnnotation {
         ("{\"startTime\":1328140800,\"endTime\":1328140801,\"description\":" + 
             "\"Description\",\"notes\":\"Notes\",\"custom\":{\"owner\":" + 
             "\"ops\"}}").getBytes(MockBase.ASCII()));
-    
+
     storage.addColumn(global_row_key, 
         new byte[] { 1, 0, 1 }, 
         ("{\"startTime\":1328140801,\"endTime\":1328140803,\"description\":" + 
             "\"Global 2\",\"notes\":\"Nothing\"}").getBytes(MockBase.ASCII()));
-    
+
     // add a local
     storage.addColumn(tsuid_row_key, 
         new byte[] { 1, 0x0A, 0x02 }, 
@@ -184,7 +188,27 @@ public final class TestAnnotation {
     assertEquals("Description", note0.getDescription());
     assertEquals("Global 2", note1.getDescription());
   }
-  
+
+  @Test
+  public void getGlobalAnnotationOutsideCurrentHour() throws Exception {
+    // 1425716000 - Sat Mar  7 00:13:20 PST 2015
+    storage.addColumn(global_row_key_2015_midnight,
+        new byte[] { 1, 3, (byte) 0x20 },
+        ("{\"startTime\":1425716000,\"endTime\":1425716001,\"description\":" +
+            "\"Global 3\",\"notes\":\"Issue #457\"}").getBytes(MockBase.ASCII()));
+
+    int right_now = 1425717000;  // Sat Mar  7 00:30:00 PST 2015
+    int fourty_minutes_ago = 1425714600; // Fri Mar  6 23:50:00 PST 2015
+
+    List<Annotation> recentGlobalAnnotation = Annotation.getGlobalAnnotations(
+        tsdb, fourty_minutes_ago, right_now).joinUninterruptibly();
+    assertNotNull(recentGlobalAnnotation);
+    assertEquals(1, recentGlobalAnnotation.size());
+    Annotation note0 = recentGlobalAnnotation.get(0);
+    assertEquals("Global 3", note0.getDescription());
+    assertEquals("Issue #457", note0.getNotes());
+  }
+
   @Test
   public void getGlobalAnnotationsEmpty() throws Exception {
     List<Annotation> notes = Annotation.getGlobalAnnotations(tsdb, 1328150000, 
