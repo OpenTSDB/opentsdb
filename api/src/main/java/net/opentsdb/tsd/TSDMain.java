@@ -16,8 +16,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.channels.Pipe;
 import java.util.concurrent.Executors;
 
+import com.codahale.metrics.MetricRegistry;
 import com.typesafe.config.ConfigException;
 import dagger.ObjectGraph;
 import net.opentsdb.core.InvalidConfigException;
@@ -77,9 +79,8 @@ final class TSDMain {
     args = CliOptions.parse(argp, args);
     args = null; // free().
 
-    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
-    // get a config object
-    Config config = objectGraph.get(Config.class);
+    ObjectGraph objectGraph = ObjectGraph.create(new ApiModule(argp));
+    final Config config = objectGraph.get(Config.class);
 
     ServerSocketChannelFactory factory = null;
     TSDB tsdb = null;
@@ -91,7 +92,8 @@ final class TSDMain {
       factory = getServerSocketChannelFactory(config);
       final ServerBootstrap server = new ServerBootstrap(factory);
 
-      server.setPipelineFactory(new PipelineFactory(tsdb));
+
+      server.setPipelineFactory(objectGraph.get(PipelineFactory.class));
       if (config.hasPath("tsd.network.backlog")) {
         server.setOption("backlog", config.getInt("tsd.network.backlog"));
       }

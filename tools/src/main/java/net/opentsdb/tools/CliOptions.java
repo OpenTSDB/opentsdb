@@ -93,7 +93,7 @@ public final class CliOptions {
    * @throws FileNotFoundException If the user provided config file was not found
    * @since 2.0
    */
-  static final Config getConfig(final ArgP argp) throws IOException {
+  public static final Config getConfig(final ArgP argp) throws IOException {
     // load configuration
     final Config config;
     final String config_file = argp.get("--config", "");
