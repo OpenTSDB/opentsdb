@@ -24,7 +24,7 @@ fi
 if [ ! -d test-resources ]; then
   mkdir test-resources
   (cd test-resources && ln -s ../fat-jar/test-logback.xml)
-  (cd src-resources && ln -s ../fat-jar/opentsdb.conf.json)
+  (cd test-resources && ln -s ../fat-jar/opentsdb.conf.json)
 fi
 
 
