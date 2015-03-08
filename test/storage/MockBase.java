@@ -971,7 +971,11 @@ public final class MockBase {
         if (start != null && Bytes.memcmp(row.getKey(), start) < 0) {
           continue;
         }
-        if (stop != null && Bytes.memcmp(row.getKey(), stop) > 0) {
+        // asynchbase Scanner's logic:
+        // - start_key is inclusive, stop key is exclusive,
+        // - when start key is equal to the stop key, include the key in scan result,
+        if (stop != null && Bytes.memcmp(row.getKey(), stop) >= 0
+            && Bytes.memcmp(start, stop) != 0) {
           continue;
         }
         if (pattern != null) {
