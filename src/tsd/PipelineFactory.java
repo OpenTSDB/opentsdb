@@ -14,6 +14,8 @@ package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
 
+import java.util.concurrent.ThreadFactory;
+
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandler;
@@ -47,7 +49,14 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   // PipelineFactory is needed.
   private final ConnectionManager connmgr = new ConnectionManager();
   private final DetectHttpOrRpc HTTP_OR_RPC = new DetectHttpOrRpc();
-  private final Timer timer = new HashedWheelTimer();
+  private final ThreadFactory timerThreadFactory = new ThreadFactory() {
+    public Thread newThread(final Runnable r) {      
+      final Thread t = new Thread(r, "PipelineFactoryTimer");
+      t.setDaemon(true);
+      return t;
+    }
+  };
+  private final Timer timer = new HashedWheelTimer(timerThreadFactory);
   private final ChannelHandler timeoutHandler;
 
   /** Stateless handler for RPCs. */
