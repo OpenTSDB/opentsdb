@@ -6,6 +6,7 @@ import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.stats.Metrics;
 import com.typesafe.config.Config;
 
+import javax.inject.Singleton;
 import java.util.ServiceLoader;
 
 /**
@@ -18,6 +19,7 @@ import java.util.ServiceLoader;
         injects = TsdbStore.class)
 public class StoreModule {
   @Provides
+  @Singleton
   TsdbStore provideStore(final StoreDescriptor storeDescriptor,
                          final Config config,
                          final Metrics metrics) {
@@ -25,15 +27,15 @@ public class StoreModule {
   }
 
   /**
-   * Get the {@link net.opentsdb.storage.StoreDescriptor} that the configuration specifies. This method
-   * will create a new instance on each call.
+   * Get the {@link net.opentsdb.storage.StoreDescriptor} that the configuration
+   * specifies. This method will create a new instance on each call.
    *
-   * @return This method will return a ready to use {@link TsdbStore} object.
-   * No guarantee is made that it will connect properly to the database but
-   * it will be configured according to the config class sent in when this
-   * object was created.
+   * @return This method will return a ready to use {@link TsdbStore} object. No
+   * guarantee is made that it will connect properly to the database but it will
+   * be configured according to the config provided config.
    */
   @Provides
+  @Singleton
   StoreDescriptor provideStoreDescriptor(final Config config,
                                          final Iterable<StoreDescriptor> storePlugins) {
     String adapter_type = config.getString("tsd.storage.adapter");

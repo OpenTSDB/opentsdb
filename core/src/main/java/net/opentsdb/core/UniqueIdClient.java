@@ -39,12 +39,14 @@ import net.opentsdb.stats.StopTimerCallback;
 import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.core.StringCoder.toBytes;
 import static net.opentsdb.stats.Metrics.name;
 
+@Singleton
 public class UniqueIdClient {
   private static final SortResolvedTagsCB SORT_CB = new SortResolvedTagsCB();
 

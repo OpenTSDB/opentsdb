@@ -12,6 +12,8 @@ import net.opentsdb.storage.TsdbStore;
 import com.typesafe.config.Config;
 import net.opentsdb.utils.PluginLoader;
 
+import javax.inject.Singleton;
+
 /**
  * This is the main dagger module for the TSDB core library. It is not complete
  * however, it needs to be complemented with an extending module that provides a
@@ -32,16 +34,19 @@ import net.opentsdb.utils.PluginLoader;
         })
 public class TsdbModule {
   @Provides
+  @Singleton
   EventBus provideEventBus() {
     return new EventBus();
   }
 
   @Provides
+  @Singleton
   MetricRegistry provideMetricRegistry() {
     return new MetricRegistry();
   }
 
   @Provides
+  @Singleton
   SearchPlugin provideSearchPlugin(final Config config,
                                    final TsdbStore store) {
     try {
@@ -61,6 +66,7 @@ public class TsdbModule {
   }
 
   @Provides
+  @Singleton
   RTPublisher provideRealtimePublisher(final Config config) {
     try {
       // load the realtime publisher plugin if enabled

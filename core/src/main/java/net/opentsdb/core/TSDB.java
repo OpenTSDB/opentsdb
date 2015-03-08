@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.util.ArrayList;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -36,6 +37,7 @@ import static net.opentsdb.core.StringCoder.toBytes;
  * This class is the central class of OpenTSDB.  You use it to add new data
  * points or query the database.
  */
+@Singleton
 public class TSDB {
   private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
   

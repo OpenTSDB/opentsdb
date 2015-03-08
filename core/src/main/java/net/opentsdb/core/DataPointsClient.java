@@ -13,6 +13,7 @@ import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,7 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+@Singleton
 public class DataPointsClient {
   private final TsdbStore store;
   private final Config config;
