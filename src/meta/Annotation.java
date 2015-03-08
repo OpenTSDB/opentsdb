@@ -330,7 +330,7 @@ public final class Annotation implements Comparable<Annotation> {
         final long normalized_start = (start_time - 
             (start_time % Const.MAX_TIMESPAN));
         final long normalized_end = (end_time - 
-            (end_time % Const.MAX_TIMESPAN));
+            (end_time % Const.MAX_TIMESPAN) + Const.MAX_TIMESPAN);
         
         Bytes.setInt(start, (int) normalized_start, TSDB.metrics_width());
         Bytes.setInt(end, (int) normalized_end, TSDB.metrics_width());
@@ -405,7 +405,7 @@ public final class Annotation implements Comparable<Annotation> {
     final long start = start_time / 1000;
     final long end = end_time / 1000;
     final long normalized_start = (start - (start % Const.MAX_TIMESPAN));
-    final long normalized_end = (end - (end % Const.MAX_TIMESPAN));
+    final long normalized_end = (end - (end % Const.MAX_TIMESPAN) + Const.MAX_TIMESPAN);
     Bytes.setInt(start_row, (int) normalized_start, TSDB.metrics_width());
     Bytes.setInt(end_row, (int) normalized_end, TSDB.metrics_width());
     
