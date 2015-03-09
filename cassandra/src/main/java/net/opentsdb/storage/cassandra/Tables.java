@@ -3,10 +3,10 @@ package net.opentsdb.storage.cassandra;
 /**
  * Constants that describe which tables we use
  */
-class Tables {
-  static final String KEYSPACE = "tsdb";
+public class Tables {
+  public static final String KEYSPACE = "tsdb";
 
-  static final String DATAPOINTS = "datapoints";
+  public static final String DATAPOINTS = "datapoints";
   static final String TS_INVERTED_INDEX = "ts_inverted_index";
 
   static final String ID_TO_NAME   = "id_to_name";

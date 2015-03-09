@@ -1,6 +1,8 @@
 package net.opentsdb.storage.cassandra;
 
 import com.codahale.metrics.MetricRegistry;
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Session;
 import com.google.common.base.Optional;
 import dagger.ObjectGraph;
 import net.opentsdb.uid.IdUtils;
@@ -105,12 +107,22 @@ public class TestCassandraStore {
 
   @Test
   public void constructor() throws IOException {
-    assertNotNull(new CassandraStore(storeDescriptor.createCluster(config)));
+    final Cluster cluster = storeDescriptor.createCluster(config);
+    final Session session = storeDescriptor.connectTo(cluster);
+    assertNotNull(new CassandraStore(cluster, session));
   }
 
   @Test(expected = NullPointerException.class)
-  public void constructorNull() throws IOException {
-    new CassandraStore(null);
+  public void constructorNullSession() throws IOException {
+    final Cluster cluster = storeDescriptor.createCluster(config);
+    new CassandraStore(cluster, null);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void constructorNullCluster() throws IOException {
+    final Cluster cluster = storeDescriptor.createCluster(config);
+    final Session session = storeDescriptor.connectTo(cluster);
+    new CassandraStore(null, session);
   }
 
   /*

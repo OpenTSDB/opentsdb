@@ -32,6 +32,7 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.cassandra.functions.FirstOrAbsentFunction;
 import net.opentsdb.storage.cassandra.functions.IsEmptyFunction;
+import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.time.JdkTimeProvider;
 import net.opentsdb.tree.Branch;
 import net.opentsdb.tree.Leaf;
@@ -52,9 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.datastax.driver.core.querybuilder.QueryBuilder.bindMarker;
-import static com.datastax.driver.core.querybuilder.QueryBuilder.insertInto;
-import static com.datastax.driver.core.querybuilder.QueryBuilder.timestamp;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
@@ -86,9 +84,9 @@ public class CassandraStore implements TsdbStore {
   /**
    * The statement used by the {@link #addPoint} method.
    */
-  private PreparedStatement addFloatStatement;
-  private PreparedStatement addDoubleStatement;
-  private PreparedStatement addLongStatement;
+  private final PreparedStatement addFloatStatement;
+  private final PreparedStatement addDoubleStatement;
+  private final PreparedStatement addLongStatement;
   private PreparedStatement insert_tags_statement;
   /**
    * The statement used by the {@link #allocateUID} method.
@@ -112,12 +110,17 @@ public class CassandraStore implements TsdbStore {
    *
    * @param cluster The configured Cassandra cluster.
    */
-  public CassandraStore(final Cluster cluster) {
-
+  public CassandraStore(final Cluster cluster,
+                        final Session session) {
     this.cluster = cluster;
-    this.session = cluster.connect("tsdb");
+    this.session = session;
 
     this.timeProvider = new JdkTimeProvider();
+
+    final AddPointStatements addPointStatements = new AddPointStatements(session);
+    this.addFloatStatement = addPointStatements.addFloatStatement;
+    this.addDoubleStatement = addPointStatements.addDoubleStatement;
+    this.addLongStatement = addPointStatements.addLongStatement;
 
     Metadata metadata = cluster.getMetadata();
 
@@ -135,30 +138,6 @@ public class CassandraStore implements TsdbStore {
    */
   private void prepareStatements() {
     checkNotNull(session);
-
-    addFloatStatement = session.prepare(
-        insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
-            .value("tsid", bindMarker())
-            .value("basetime", bindMarker())
-            .value("timestamp", bindMarker())
-            .value("fval", bindMarker())
-            .using(timestamp(bindMarker())));
-
-    addDoubleStatement = session.prepare(
-        insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
-            .value("tsid", bindMarker())
-            .value("basetime", bindMarker())
-            .value("timestamp", bindMarker())
-            .value("dval", bindMarker())
-            .using(timestamp(bindMarker())));
-
-    addLongStatement = session.prepare(
-        insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
-            .value("tsid", bindMarker())
-            .value("basetime", bindMarker())
-            .value("timestamp", bindMarker())
-            .value("lval", bindMarker())
-            .using(timestamp(bindMarker())));
 
     String CQL = "BEGIN BATCH USING TIMESTAMP ?" +
         "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (id, type, ctim, name) VALUES (?, ?, ?, ?);" +

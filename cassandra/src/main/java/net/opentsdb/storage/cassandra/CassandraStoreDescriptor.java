@@ -3,8 +3,10 @@ package net.opentsdb.storage.cassandra;
 import com.codahale.metrics.MetricRegistry;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ProtocolVersion;
+import com.datastax.driver.core.Session;
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.storage.StoreDescriptor;
@@ -61,12 +63,17 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
     return builder.build();
   }
 
+  Session connectTo(final Cluster cluster) {
+    return cluster.connect(Tables.KEYSPACE);
+  }
+
   @Override
   public CassandraStore createStore(final Config config,
                                     final MetricRegistry metrics) {
     final Cluster cluster = createCluster(config);
+    final Session session = connectTo(cluster);
     registerMetrics(cluster, metrics);
-    return new CassandraStore(cluster);
+    return new CassandraStore(cluster, session);
   }
 
   /**
