@@ -102,7 +102,7 @@ public class UniqueId {
    */
   public UniqueId(final TsdbStore tsdb_store,
                   final UniqueIdType type,
-                  final Metrics metrics,
+                  final MetricRegistry metrics,
                   final EventBus idEventBus) {
     this.tsdb_store = checkNotNull(tsdb_store);
     this.type = checkNotNull(type);
@@ -114,9 +114,7 @@ public class UniqueId {
 
   }
 
-  private void registerMetrics(final Metrics metrics) {
-    final MetricRegistry registry = metrics.getRegistry();
-
+  private void registerMetrics(final MetricRegistry registry) {
     Metrics.Tag typeTag = tag("kind", type.toValue());
     registry.register(name("uid.cache-hit", typeTag), cache_hits);
     registry.register(name("uid.cache-miss", typeTag), cache_misses);

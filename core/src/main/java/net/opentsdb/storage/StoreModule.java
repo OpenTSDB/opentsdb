@@ -1,5 +1,6 @@
 package net.opentsdb.storage;
 
+import com.codahale.metrics.MetricRegistry;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.InvalidConfigException;
@@ -22,7 +23,7 @@ public class StoreModule {
   @Singleton
   TsdbStore provideStore(final StoreDescriptor storeDescriptor,
                          final Config config,
-                         final Metrics metrics) {
+                         final MetricRegistry metrics) {
     return storeDescriptor.createStore(config, metrics);
   }
 

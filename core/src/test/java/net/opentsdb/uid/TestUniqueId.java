@@ -21,7 +21,6 @@ import com.google.common.eventbus.EventBus;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 
@@ -39,8 +38,7 @@ import static org.mockito.Mockito.verify;
 public final class TestUniqueId {
   private TsdbStore client;
   private UniqueId uid;
-  private Metrics metrics;
-  private MetricRegistry registry;
+  private MetricRegistry metrics;
   private EventBus idEventBus;
 
   @Before
@@ -48,8 +46,7 @@ public final class TestUniqueId {
     ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
     client = objectGraph.get(TsdbStore.class);
 
-    registry = new MetricRegistry();
-    metrics = new Metrics(registry);
+    metrics = new MetricRegistry();
     idEventBus = mock(EventBus.class);
   }
 
@@ -84,10 +81,10 @@ public final class TestUniqueId {
     // Should be a cache hit ...
     assertEquals("foo", uid.getName(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
-    final SortedMap<String, Counter> counters = registry.getCounters();
+    final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(1, counters.get("uid.cache-hit:kind=metrics").getCount());
     assertEquals(1, counters.get("uid.cache-miss:kind=metrics").getCount());
-    assertEquals(2, registry.getGauges().get("uid.cache-size:kind=metrics").getValue());
+    assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
   @Test(expected=NoSuchUniqueId.class)
@@ -115,10 +112,10 @@ public final class TestUniqueId {
     // Should be a cache hit too ...
     assertArrayEquals(id, uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
-    final SortedMap<String, Counter> counters = registry.getCounters();
+    final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(2, counters.get("uid.cache-hit:kind=metrics").getCount());
     assertEquals(1, counters.get("uid.cache-miss:kind=metrics").getCount());
-    assertEquals(2, registry.getGauges().get("uid.cache-size:kind=metrics").getValue());
+    assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
   // The table contains IDs encoded on 2 bytes but the instance wants 3.
@@ -152,9 +149,9 @@ public final class TestUniqueId {
     }
     // Should be a cache hit ...
     assertArrayEquals(id, uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-    final SortedMap<String, Counter> counters = registry.getCounters();
+    final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(1, counters.get("uid.cache-hit:kind=metrics").getCount());
-    assertEquals(2, registry.getGauges().get("uid.cache-size:kind=metrics").getValue());
+    assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
   @Test  // Test the creation of an ID with no problem.
@@ -171,7 +168,7 @@ public final class TestUniqueId {
     // Should be a cache hit too for the same reason.
     assertEquals("foo", uid.getName(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
 
-    final SortedMap<String, Counter> counters = registry.getCounters();
+    final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(2, counters.get("uid.cache-hit:kind=metrics").getCount());
     assertEquals(0, counters.get("uid.cache-miss:kind=metrics").getCount());
   }

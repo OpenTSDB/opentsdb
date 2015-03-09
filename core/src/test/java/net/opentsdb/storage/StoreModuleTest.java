@@ -1,5 +1,6 @@
 package net.opentsdb.storage;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
@@ -74,7 +75,7 @@ public class StoreModuleTest {
 
   private static class TestStoreDescriptor extends StoreDescriptor {
     @Override
-    public TsdbStore createStore(final Config config, final Metrics metrics) {
+    public TsdbStore createStore(final Config config, final MetricRegistry metrics) {
       return mock(TsdbStore.class);
     }
   }

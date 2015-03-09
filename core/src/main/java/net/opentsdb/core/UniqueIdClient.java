@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 
+import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
@@ -17,7 +18,6 @@ import com.google.common.eventbus.EventBus;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.callbacks.StripedTagIdsToMap;
 import net.opentsdb.uid.IdQuery;
@@ -70,7 +70,7 @@ public class UniqueIdClient {
   @Inject
   public UniqueIdClient(final TsdbStore tsdbStore,
                         final Config config,
-                        final Metrics metricsRegistry,
+                        final MetricRegistry metricsRegistry,
                         final EventBus idEventBus,
                         final SearchPlugin searchPlugin) {
     this.tsdbStore = checkNotNull(tsdbStore);
@@ -92,7 +92,7 @@ public class UniqueIdClient {
       UniqueId.preloadUidCache(config, tsdbStore, uid_cache_map);
     }
 
-    tsuidQueryTimer = metricsRegistry.getRegistry().timer(name("tsuid.query-time"));
+    tsuidQueryTimer = metricsRegistry.timer(name("tsuid.query-time"));
   }
 
   /**

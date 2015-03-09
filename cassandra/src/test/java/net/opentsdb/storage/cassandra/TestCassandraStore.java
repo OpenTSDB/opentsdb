@@ -3,7 +3,6 @@ package net.opentsdb.storage.cassandra;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 import dagger.ObjectGraph;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
@@ -48,7 +47,7 @@ public class TestCassandraStore {
   public void setUp() throws Exception {
     ObjectGraph.create(new CassandraTestModule()).inject(this);
 
-    store = new CassandraStoreDescriptor().createStore(config, new Metrics(new MetricRegistry()));
+    store = new CassandraStoreDescriptor().createStore(config, new MetricRegistry());
 
 
 

@@ -1,9 +1,6 @@
 package net.opentsdb.stats;
 
-import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Joiner;
-
-import javax.inject.Inject;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -12,11 +9,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * really useful in the future to store {@link com.codahale.metrics.Metric}s on.
  */
 public class Metrics {
-  /**
-   * The registry that is associated with this Metrics instance.
-   */
-  private final MetricRegistry registry;
-
   /**
    * Create a new name for the metrics library with the given metric and tags.
    */
@@ -60,18 +52,5 @@ public class Metrics {
     }
   }
 
-  /**
-   * Create a new metrics instance with the given registry.
-   */
-  @Inject
-  public Metrics(MetricRegistry registry) {
-    this.registry = checkNotNull(registry);
-  }
-
-  /**
-   * Get the registry that is associated with this metrics instance.
-   */
-  public MetricRegistry getRegistry() {
-    return registry;
-  }
+  private Metrics() {}
 }

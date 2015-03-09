@@ -1,12 +1,12 @@
 package net.opentsdb.storage.cassandra;
 
+import com.codahale.metrics.MetricRegistry;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ProtocolVersion;
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import net.opentsdb.core.InvalidConfigException;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.StoreDescriptor;
 import com.typesafe.config.Config;
 
@@ -63,7 +63,7 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
 
   @Override
   public CassandraStore createStore(final Config config,
-                                    final Metrics metrics) {
+                                    final MetricRegistry metrics) {
     final Cluster cluster = createCluster(config);
     registerMetrics(cluster, metrics);
     return new CassandraStore(cluster);
@@ -72,9 +72,9 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
   /**
    * Register the metrics that are exposed on the provided {@link
    * com.datastax.driver.core.Cluster} with the provided {@link
-   * net.opentsdb.stats.Metrics} instance.
+   * com.codahale.metrics.MetricRegistry} instance.
    */
-  private void registerMetrics(final Cluster cluster, final Metrics metrics) {
-    metrics.getRegistry().registerAll(cluster.getMetrics().getRegistry());
+  private void registerMetrics(final Cluster cluster, final MetricRegistry metrics) {
+    metrics.registerAll(cluster.getMetrics().getRegistry());
   }
 }

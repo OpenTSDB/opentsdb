@@ -21,13 +21,12 @@ import static net.opentsdb.stats.Metrics.tag;
 @AutoService(StoreDescriptor.class)
 public class HBaseStoreDescriptor extends StoreDescriptor {
   @Override
-  public TsdbStore createStore(final Config config, final Metrics metrics) {
+  public TsdbStore createStore(final Config config, final MetricRegistry registry) {
     final HBaseClient client = createHBaseClient(config);
     checkNecessaryTablesExist(client, config);
 
     final HBaseStore store = new HBaseStore(client, config);
 
-    MetricRegistry registry = metrics.getRegistry();
     registry.registerAll(new HBaseClientStats(client));
     registry.registerAll(new CompactionQueue
             .CompactionQueueMetrics(store.getCompactionQueue()));

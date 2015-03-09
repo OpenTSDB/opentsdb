@@ -12,12 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import com.codahale.metrics.MetricSet;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.stumbleupon.async.DeferredGroupException;
 import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import com.typesafe.config.Config;
 import net.opentsdb.utils.DateTime;
@@ -58,11 +56,6 @@ public class TSDB {
   /** Configuration object for all TSDB components */
   private final Config config;
 
-  /**
-   * Metrics instance used by all TSDB related objects
-   */
-  private final Metrics metrics;
-
   private final UniqueIdClient uniqueIdClient;
   private final DataPointsClient dataPointsClient;
   private final MetaClient metaClient;
@@ -84,7 +77,6 @@ public class TSDB {
    * @param config An initialized configuration object
    * @param searchPlugin The search plugin to use
    * @param realTimePublisher The realtime publisher to use
-   * @param metrics Metrics instance used by all TSDB related objects
    * @since 2.1
    */
   @Inject
@@ -92,14 +84,12 @@ public class TSDB {
               final Config config,
               final SearchPlugin searchPlugin,
               final RTPublisher realTimePublisher,
-              final Metrics metrics,
               final UniqueIdClient uniqueIdClient,
               final TreeClient treeClient,
               final MetaClient metaClient,
               final DataPointsClient dataPointsClient) {
     this.config = checkNotNull(config);
     this.tsdb_store = checkNotNull(client);
-    this.metrics = checkNotNull(metrics);
 
     table = toBytes(config.getString("tsd.storage.hbase.data_table"));
     uidtable = toBytes(config.getString("tsd.storage.hbase.uid_table"));
@@ -158,10 +148,6 @@ public class TSDB {
    */
   public final Config getConfig() {
     return this.config;
-  }
-
-  public MetricSet getMetrics() {
-    return metrics.getRegistry();
   }
 
   /**

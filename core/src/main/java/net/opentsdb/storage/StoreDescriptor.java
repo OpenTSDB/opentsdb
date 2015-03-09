@@ -1,8 +1,8 @@
 package net.opentsdb.storage;
 
-import net.opentsdb.stats.Metrics;
+import com.codahale.metrics.MetricRegistry;
 import com.typesafe.config.Config;
 
 public abstract class StoreDescriptor {
-  public abstract TsdbStore createStore(Config config, Metrics metrics);
+  public abstract TsdbStore createStore(Config config, MetricRegistry metrics);
 }
