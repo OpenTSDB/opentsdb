@@ -50,6 +50,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Futures.transform;
@@ -189,13 +190,16 @@ public class CassandraStore implements TsdbStore {
                                    final long timestamp, final short flags) {
     final long base_time = buildBaseTime(timestamp);
 
+    final String strTSID = Hashing.murmur3_128().hashBytes(tsuid).toString();
+    final UUID tsid = UUID.fromString(strTSID);
+
     final ResultSetFuture future = session.executeAsync(
-            add_point_statement.bind(
-                    IdUtils.uidToString(tsuid),
-                    base_time,
-                    timestamp,
-                    new Integer(flags),
-                    StringCoder.fromBytes(value)));
+        add_point_statement.bind(
+            tsid,
+            base_time,
+            timestamp,
+            new Integer(flags),
+            StringCoder.fromBytes(value)));
 
     final byte[] metric_uid = IdUtils.getMetricFromTSUID(
         IdUtils.uidToString(tsuid));
@@ -211,20 +215,20 @@ public class CassandraStore implements TsdbStore {
         d.callback(null);
 
         session.executeAsync(insert_tags_statement.bind(
-                IdUtils.uidToLong(metric_uid, UniqueIdType.METRIC.width),
-                UniqueIdType.METRIC.toValue(),
-                IdUtils.uidToString(tsuid)));
+            IdUtils.uidToLong(metric_uid),
+            UniqueIdType.METRIC.toValue(),
+            tsid));
 
         for (int i = 0; i < tags_uids.size(); i += 2) {
           session.executeAsync(insert_tags_statement.bind(
-                  IdUtils.uidToLong(tags_uids.get(i), UniqueIdType.TAGK.width),
-                  UniqueIdType.TAGK.toValue(),
-                  IdUtils.uidToString(tsuid)));
+              IdUtils.uidToLong(tags_uids.get(i)),
+              UniqueIdType.TAGK.toValue(),
+              tsid));
 
           session.executeAsync(insert_tags_statement.bind(
-                  IdUtils.uidToLong(tags_uids.get(i + 1), UniqueIdType.TAGV.width),
-                  UniqueIdType.TAGV.toValue(),
-                  IdUtils.uidToString(tsuid)));
+              IdUtils.uidToLong(tags_uids.get(i + 1)),
+              UniqueIdType.TAGV.toValue(),
+              tsid));
         }
       }
 

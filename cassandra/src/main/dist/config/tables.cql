@@ -40,7 +40,7 @@ CREATE TABLE tsdb.name_to_id (
 
 // The table that contains all data points.
 CREATE TABLE tsdb.datapoints (
-  tsid varchar,
+  tsid uuid,
   basetime bigint,
   timestamp bigint,
   flags int,
@@ -52,6 +52,6 @@ CREATE TABLE tsdb.datapoints (
 CREATE TABLE tsdb.ts_inverted_index (
 	id bigint,
 	type varchar,
-	tsid varchar,
+	tsid uuid,
 	PRIMARY KEY ((id, type), tsid)
 );
