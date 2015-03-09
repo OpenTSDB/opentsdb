@@ -1,5 +1,7 @@
 package net.opentsdb.core;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
@@ -21,6 +23,7 @@ import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static net.opentsdb.stats.Metrics.name;
 
 @Singleton
 public class DataPointsClient {
@@ -29,6 +32,8 @@ public class DataPointsClient {
   private final UniqueIdClient uniqueIdClient;
   private final MetaClient metaClient;
   private final RTPublisher realtimePublisher;
+
+  private final Meter datapointsMeter;
 
   /**
    * Validates the given metric and tags.
@@ -68,12 +73,15 @@ public class DataPointsClient {
                           final Config config,
                           final UniqueIdClient uniqueIdClient,
                           final MetaClient metaClient,
-                          final RTPublisher realtimePublisher) {
+                          final RTPublisher realtimePublisher,
+                          final MetricRegistry metricRegistry) {
     this.store = checkNotNull(store);
     this.config = checkNotNull(config);
     this.uniqueIdClient = checkNotNull(uniqueIdClient);
     this.metaClient = checkNotNull(metaClient);
     this.realtimePublisher = checkNotNull(realtimePublisher);
+
+    this.datapointsMeter = metricRegistry.meter(name("datapoints"));
   }
 
   /**
@@ -197,6 +205,8 @@ public class DataPointsClient {
         // TODO(tsuna): Add a callback to time the latency of HBase and store the
         // timing in a moving Histogram (once we have a class for this).
         Deferred<Object> result = store.addPoint(tsuid, value, timestamp, flags);
+
+        datapointsMeter.mark();
 
         // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
         // counter field for a TSUID with the proper timestamp. If the user would
