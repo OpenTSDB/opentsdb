@@ -395,7 +395,52 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags) {
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final float value) {
+    if (Float.isNaN(value) || Float.isInfinite(value)) {
+      throw new IllegalArgumentException("value is NaN or Infinite: " + value
+          + " for tsuid=" + Arrays.toString(tsuid)
+          + " timestamp=" + timestamp);
+    }
+    final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
+    return addPointInternal(tsuid,
+        Bytes.fromInt(Float.floatToRawIntBits(value)), timestamp, flags);
+  }
+
+  @Override
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final double value) {
+    if (Double.isNaN(value) || Double.isInfinite(value)) {
+      throw new IllegalArgumentException("value is NaN or Infinite: " + value
+          + " for tsuid=" + Arrays.toString(tsuid)
+          + " timestamp=" + timestamp);
+    }
+    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 8 bytes.
+    return addPointInternal(tsuid,
+        Bytes.fromLong(Double.doubleToRawLongBits(value)), timestamp, flags);
+  }
+
+  @Override
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final long value) {
+    final byte[] v;
+    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
+      v = new byte[] { (byte) value };
+    } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
+      v = Bytes.fromShort((short) value);
+    } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
+      v = Bytes.fromInt((int) value);
+    } else {
+      v = Bytes.fromLong(value);
+    }
+    final short flags = (short) (v.length - 1);  // Just the length.
+    return addPointInternal(tsuid, v, timestamp, flags);
+  }
+
+  private Deferred<Object> addPointInternal(final byte[] tsuid, final byte[] value, final long timestamp, final short flags) {
 
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
     // we have a tsuid so we need to add some bytes(4) for the timestamp

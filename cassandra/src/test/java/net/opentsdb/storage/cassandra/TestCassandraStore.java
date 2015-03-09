@@ -79,11 +79,13 @@ public class TestCassandraStore {
         (METRIC_NAME_THREE), TAGK_UID_ONE, TAGV_UID_ONE);
 
 
+    /*
     store.addPoint(TSUID_ONE, new byte[]{'d', '1'}, 1356998400, (short) 'a');
     store.addPoint(TSUID_ONE, new byte[]{'d', '2'}, 1356998401, (short) 'b');
     store.addPoint(TSUID_ONE, new byte[]{'d', '2'}, 1357002078, (short) 'b');
 
     store.addPoint(TSUID_TWO, new byte[]{'d', '3'}, 1356998400, (short) 'b');
+    */
   }
 
   @After
@@ -111,6 +113,7 @@ public class TestCassandraStore {
     new CassandraStore(null);
   }
 
+  /*
   @Test
   public void addPoint() throws Exception {
     CassandraTestHelpers.truncate(store.getSession());
@@ -153,6 +156,7 @@ public class TestCassandraStore {
             (long) 1356998400,
             (short) 47).joinUninterruptibly(TIMEOUT);
   }
+  */
 
   @Test
   public void allocateUID() throws Exception {

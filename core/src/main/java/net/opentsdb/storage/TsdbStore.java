@@ -83,7 +83,17 @@ public interface TsdbStore {
   //
   // Datapoints
   //
-  Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags);
+  Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final float value);
+
+  Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final double value);
+
+  Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final long value);
 
   /**
    * Should execute the provided {@link net.opentsdb.core.Query} and

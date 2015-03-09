@@ -99,7 +99,7 @@ public class MemoryStore implements TsdbStore {
   private final Table<Long, String, UIDMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
-  private final Map<String, NavigableMap<Long, InternalDataPoint>> datapoints;
+  private final Map<String, NavigableMap<Long, Number>> datapoints;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
@@ -112,16 +112,6 @@ public class MemoryStore implements TsdbStore {
 
   /** Incremented every time a new value is stored (without a timestamp) */
   private long current_timestamp = 1388534400000L;
-
-  private static class InternalDataPoint {
-    final byte[] value;
-    final short flags;
-
-    InternalDataPoint(final byte[] value, final short flags) {
-      this.value = value;
-      this.flags = flags;
-    }
-  }
 
   public MemoryStore() {
     tree_table = newHashMap();
@@ -148,17 +138,34 @@ public class MemoryStore implements TsdbStore {
   public void setFlushInterval(short aShort) {
   }
 
-  @Override
-  public Deferred<Object> addPoint(final byte[] tsuid, final byte[] value, final long timestamp, final short flags) {
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final float value) {
+    return addPoint(tsuid, value, timestamp);
+  }
+
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final double value) {
+    return addPoint(tsuid, value, timestamp);
+  }
+
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                            final long timestamp,
+                            final long value) {
+    return addPoint(tsuid, (Number)value, timestamp);
+  }
+
+  private Deferred<Object> addPoint(final byte[] tsuid, final Number value, final long timestamp) {
     final String str_tsuid = new String(tsuid, ASCII);
-    NavigableMap<Long, InternalDataPoint> tsuidDps = datapoints.get(str_tsuid);
+    NavigableMap<Long, Number> tsuidDps = datapoints.get(str_tsuid);
 
     if (tsuidDps == null) {
       tsuidDps = Maps.newTreeMap();
       datapoints.put(str_tsuid, tsuidDps);
     }
 
-    tsuidDps.put(timestamp, new InternalDataPoint(value, flags));
+    tsuidDps.put(timestamp, value);
 
     return Deferred.fromResult(null);
   }

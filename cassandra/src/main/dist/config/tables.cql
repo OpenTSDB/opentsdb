@@ -2,13 +2,11 @@
 // Pipe me into cqlsh to let me add this for you.
 
 DROP KEYSPACE IF EXISTS "tsdb";
-DROP KEYSPACE IF EXISTS "tsdbunique";
 
 // We use SimpleStrategy and a low replication factor here during development
 // but for a production deployment you probably want to change these to fit
 // your requirements.
 CREATE KEYSPACE tsdb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
-CREATE KEYSPACE tsdbunique WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
 
 //
 // Identifier tables
@@ -43,8 +41,9 @@ CREATE TABLE tsdb.datapoints (
   tsid uuid,
   basetime bigint,
   timestamp bigint,
-  flags int,
-  val varchar,
+  fval float,
+  dval double,
+  lval bigint,
   PRIMARY KEY ((tsid, basetime), timestamp)
 );
 
@@ -54,4 +53,12 @@ CREATE TABLE tsdb.ts_inverted_index (
 	type varchar,
 	tsid uuid,
 	PRIMARY KEY ((id, type), tsid)
+);
+
+// An index for resolving which IDs a timeseries is composed of.
+CREATE TABLE tsdb.ts_index (
+	tsid uuid,
+	id bigint,
+	type varchar,
+	PRIMARY KEY tsid
 );

@@ -107,15 +107,39 @@ public class DataPointsClient {
                                    final long timestamp,
                                    final float value,
                                    final Map<String, String> tags) {
-    if (Float.isNaN(value) || Float.isInfinite(value)) {
-      throw new IllegalArgumentException("value is NaN or Infinite: " + value
-                                         + " for metric=" + metric
-                                         + " timestamp=" + timestamp);
+    checkTimestamp(timestamp);
+    checkMetricAndTags(metric, tags);
+
+    class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
+      @Override
+      public Deferred<Object> call(final byte[] tsuid) throws Exception {
+
+        // TODO(tsuna): Add a callback to time the latency of HBase and store the
+        // timing in a moving Histogram (once we have a class for this).
+        Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
+
+        datapointsMeter.mark();
+
+        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
+        // counter field for a TSUID with the proper timestamp. If the user would
+        // rather have TSUID incrementing enabled, that will trump the PUT
+        if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
+            && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
+          store.setTSMetaCounter(tsuid, 1);
+        } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
+            || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
+          metaClient.incrementAndGetCounter(tsuid);
+        }
+
+        realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
+            .addErrback(new PluginError(realtimePublisher));
+
+        return result;
+      }
     }
-    final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
-    return addPointInternal(metric, timestamp,
-            Bytes.fromInt(Float.floatToRawIntBits(value)),
-            tags, flags);
+
+    return uniqueIdClient.getTSUID(metric, tags)
+        .addCallbackDeferring(new RowKeyCB());
   }
 
   /**
@@ -142,15 +166,39 @@ public class DataPointsClient {
                                    final long timestamp,
                                    final double value,
                                    final Map<String, String> tags) {
-    if (Double.isNaN(value) || Double.isInfinite(value)) {
-      throw new IllegalArgumentException("value is NaN or Infinite: " + value
-                                         + " for metric=" + metric
-                                         + " timestamp=" + timestamp);
+    checkTimestamp(timestamp);
+    checkMetricAndTags(metric, tags);
+
+    class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
+      @Override
+      public Deferred<Object> call(final byte[] tsuid) throws Exception {
+
+        // TODO(tsuna): Add a callback to time the latency of HBase and store the
+        // timing in a moving Histogram (once we have a class for this).
+        Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
+
+        datapointsMeter.mark();
+
+        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
+        // counter field for a TSUID with the proper timestamp. If the user would
+        // rather have TSUID incrementing enabled, that will trump the PUT
+        if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
+            && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
+          store.setTSMetaCounter(tsuid, 1);
+        } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
+            || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
+          metaClient.incrementAndGetCounter(tsuid);
+        }
+
+        realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
+            .addErrback(new PluginError(realtimePublisher));
+
+        return result;
+      }
     }
-    final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 8 bytes.
-    return addPointInternal(metric, timestamp,
-            Bytes.fromLong(Double.doubleToRawLongBits(value)),
-            tags, flags);
+
+    return uniqueIdClient.getTSUID(metric, tags)
+        .addCallbackDeferring(new RowKeyCB());
   }
 
   /**
@@ -175,28 +223,8 @@ public class DataPointsClient {
                                    final long timestamp,
                                    final long value,
                                    final Map<String, String> tags) {
-    final byte[] v;
-    if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
-      v = new byte[] { (byte) value };
-    } else if (Short.MIN_VALUE <= value && value <= Short.MAX_VALUE) {
-      v = Bytes.fromShort((short) value);
-    } else if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
-      v = Bytes.fromInt((int) value);
-    } else {
-      v = Bytes.fromLong(value);
-    }
-    final short flags = (short) (v.length - 1);  // Just the length.
-    return addPointInternal(metric, timestamp, v, tags, flags);
-  }
-
-  Deferred<Object> addPointInternal(final String metric,
-                                    final long timestamp,
-                                    final byte[] value,
-                                    final Map<String, String> tags,
-                                    final short flags) {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
-
 
     class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
       @Override
@@ -204,7 +232,7 @@ public class DataPointsClient {
 
         // TODO(tsuna): Add a callback to time the latency of HBase and store the
         // timing in a moving Histogram (once we have a class for this).
-        Deferred<Object> result = store.addPoint(tsuid, value, timestamp, flags);
+        Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
 
         datapointsMeter.mark();
 
@@ -212,22 +240,22 @@ public class DataPointsClient {
         // counter field for a TSUID with the proper timestamp. If the user would
         // rather have TSUID incrementing enabled, that will trump the PUT
         if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
-             && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
+            && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
           store.setTSMetaCounter(tsuid, 1);
         } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
-             || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
+            || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
           metaClient.incrementAndGetCounter(tsuid);
         }
 
-        realtimePublisher.sinkDataPoint(metric, timestamp, value, tags, tsuid, flags);
+        realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
+            .addErrback(new PluginError(realtimePublisher));
 
         return result;
       }
     }
 
     return uniqueIdClient.getTSUID(metric, tags)
-            .addCallbackDeferring(new RowKeyCB());
-
+        .addCallbackDeferring(new RowKeyCB());
   }
 
   /**

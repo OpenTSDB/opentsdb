@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import com.google.common.collect.ImmutableMap;
 import net.opentsdb.meta.Annotation;
 import org.junit.Test;
 
@@ -28,10 +29,15 @@ public abstract class TestRTPublisher {
   }
 
   @Test
-  public void sinkDataPoint() {
-    assertNotNull(rt_publisher.sinkDataPoint("sys.cpu.user",
-            System.currentTimeMillis(), new byte[]{0, 0, 0, 0, 0, 0, 0, 1},
-            null, null, (short) 0x7));
+  public void sinkLongDataPoint() {
+    assertNotNull(rt_publisher.publishDataPoint("sys.cpu.user", 123123123, 123,
+        ImmutableMap.of("host", "east"), new byte[]{0, 0, 0, 0, 0, 0, 0, 1}));
+  }
+
+  @Test
+  public void sinkDoubleDataPoint() {
+    assertNotNull(rt_publisher.publishDataPoint("sys.cpu.user", 123123123, 12.5,
+        ImmutableMap.of("host", "east"), new byte[]{0, 0, 0, 0, 0, 0, 0, 1}));
   }
 
   @Test

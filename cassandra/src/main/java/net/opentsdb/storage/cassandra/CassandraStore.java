@@ -24,7 +24,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.StringCoder;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
@@ -47,6 +46,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -83,7 +83,9 @@ public class CassandraStore implements TsdbStore {
   /**
    * The statement used by the {@link #addPoint} method.
    */
-  private PreparedStatement add_point_statement;
+  private PreparedStatement addFloatStatement;
+  private PreparedStatement addDoubleStatement;
+  private PreparedStatement addLongStatement;
   private PreparedStatement insert_tags_statement;
   /**
    * The statement used by the {@link #allocateUID} method.
@@ -132,8 +134,12 @@ public class CassandraStore implements TsdbStore {
     checkNotNull(session);
     checkNotNull(cluster);
 
-    String CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, flags, val) VALUES (?, ?, ?, ?, ?);";
-    add_point_statement = session.prepare(CQL);
+    String CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, fval) VALUES (?, ?, ?, ?);";
+    addFloatStatement = session.prepare(CQL);
+    CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, dval) VALUES (?, ?, ?, ?);";
+    addDoubleStatement = session.prepare(CQL);
+    CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, lval) VALUES (?, ?, ?, ?);";
+    addLongStatement = session.prepare(CQL);
 
     CQL = "BEGIN BATCH USING TIMESTAMP ?" +
         "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (id, type, ctim, name) VALUES (?, ?, ?, ?);" +
@@ -185,27 +191,55 @@ public class CassandraStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
-  @Override
-  public Deferred<Object> addPoint(final byte[] tsuid, final byte[] value,
-                                   final long timestamp, final short flags) {
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                                   final long timestamp,
+                                   final float value) {
     final long base_time = buildBaseTime(timestamp);
 
-    final String strTSID = Hashing.murmur3_128().hashBytes(tsuid).toString();
-    final UUID tsid = UUID.fromString(strTSID);
+    final byte[] strTSID = Hashing.murmur3_128().hashBytes(tsuid).asBytes();
+    final long low = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 0, 8));
+    final long high = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 8, 16));
+    final UUID tsid = new UUID(low, high);
 
-    final ResultSetFuture future = session.executeAsync(
-        add_point_statement.bind(
-            tsid,
-            base_time,
-            timestamp,
-            new Integer(flags),
-            StringCoder.fromBytes(value)));
+    final BoundStatement addPointStatement = addFloatStatement.bind(
+        tsid, base_time, timestamp, value);
+    return addPoint(addPointStatement, tsuid, tsid);
+  }
 
-    final byte[] metric_uid = IdUtils.getMetricFromTSUID(
-        IdUtils.uidToString(tsuid));
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                                   final long timestamp,
+                                   final double value) {
+    final long base_time = buildBaseTime(timestamp);
 
-    final List<byte[]> tags_uids = IdUtils.getTagsFromTSUID(
-        IdUtils.uidToString(tsuid));
+    final byte[] strTSID = Hashing.murmur3_128().hashBytes(tsuid).asBytes();
+    final long low = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 0, 8));
+    final long high = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 8, 16));
+    final UUID tsid = new UUID(low, high);
+
+    final BoundStatement addPointStatement = addDoubleStatement.bind(
+        tsid, base_time, timestamp, value);
+    return addPoint(addPointStatement, tsuid, tsid);
+  }
+
+  public Deferred<Object> addPoint(final byte[] tsuid,
+                                   final long timestamp,
+                                   final long value) {
+    final long base_time = buildBaseTime(timestamp);
+
+    final byte[] strTSID = Hashing.murmur3_128().hashBytes(tsuid).asBytes();
+    final long low = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 0, 8));
+    final long high = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 8, 16));
+    final UUID tsid = new UUID(low, high);
+
+    final BoundStatement addPointStatement = addLongStatement.bind(
+        tsid, base_time, timestamp, value);
+    return addPoint(addPointStatement, tsuid, tsid);
+  }
+
+  private Deferred<Object> addPoint(final BoundStatement addPointStatement,
+                                    final byte[] tsuid,
+                                    final UUID tsid) {
+    final ResultSetFuture future = session.executeAsync(addPointStatement);
 
     final Deferred<Object> d = new Deferred<Object>();
 
@@ -213,23 +247,7 @@ public class CassandraStore implements TsdbStore {
       @Override
       public void onSuccess(ResultSet rows) {
         d.callback(null);
-
-        session.executeAsync(insert_tags_statement.bind(
-            IdUtils.uidToLong(metric_uid),
-            UniqueIdType.METRIC.toValue(),
-            tsid));
-
-        for (int i = 0; i < tags_uids.size(); i += 2) {
-          session.executeAsync(insert_tags_statement.bind(
-              IdUtils.uidToLong(tags_uids.get(i)),
-              UniqueIdType.TAGK.toValue(),
-              tsid));
-
-          session.executeAsync(insert_tags_statement.bind(
-              IdUtils.uidToLong(tags_uids.get(i + 1)),
-              UniqueIdType.TAGV.toValue(),
-              tsid));
-        }
+        //writeTimeseriesIdIndex(tsuid, tsid);
       }
 
       @Override
@@ -239,6 +257,31 @@ public class CassandraStore implements TsdbStore {
     });
 
     return d;
+  }
+
+  private void writeTimeseriesIdIndex(final byte[] tsuid, final UUID tsid) {
+    final byte[] metric_uid = IdUtils.getMetricFromTSUID(
+        IdUtils.uidToString(tsuid));
+
+    final List<byte[]> tags_uids = IdUtils.getTagsFromTSUID(
+        IdUtils.uidToString(tsuid));
+
+    session.executeAsync(insert_tags_statement.bind(
+        IdUtils.uidToLong(metric_uid),
+        UniqueIdType.METRIC.toValue(),
+        tsid));
+
+    for (int i = 0; i < tags_uids.size(); i += 2) {
+      session.executeAsync(insert_tags_statement.bind(
+          IdUtils.uidToLong(tags_uids.get(i)),
+          UniqueIdType.TAGK.toValue(),
+          tsid));
+
+      session.executeAsync(insert_tags_statement.bind(
+          IdUtils.uidToLong(tags_uids.get(i + 1)),
+          UniqueIdType.TAGV.toValue(),
+          tsid));
+    }
   }
 
   @Override
