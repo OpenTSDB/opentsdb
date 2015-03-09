@@ -4,8 +4,6 @@ import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.CloseFuture;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ConsistencyLevel;
-import com.datastax.driver.core.Host;
-import com.datastax.driver.core.Metadata;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.ResultSetFuture;
@@ -43,8 +41,6 @@ import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.UniqueIdType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -62,11 +58,6 @@ import static net.opentsdb.storage.cassandra.MoreFutures.wrap;
  * The CassandraStore that implements the client interface required by TSDB.
  */
 public class CassandraStore implements TsdbStore {
-  /**
-   * The logger used for this class.
-   */
-  private static final Logger LOG = LoggerFactory.getLogger(CassandraStore.class);
-
   /**
    * The Cassandra cluster that we are connected to.
    */
@@ -122,14 +113,6 @@ public class CassandraStore implements TsdbStore {
     this.addDoubleStatement = addPointStatements.addDoubleStatement;
     this.addLongStatement = addPointStatements.addLongStatement;
 
-    Metadata metadata = cluster.getMetadata();
-
-    //Show what we connected to in the debug log
-    LOG.info("Connected to cluster: {}", metadata.getClusterName());
-    for (Host host : metadata.getAllHosts()) {
-      LOG.info("Datacenter: {}; Host: {}; Rack: {}",
-              host.getDatacenter(), host.getAddress(), host.getRack());
-    }
     prepareStatements();
   }
 
