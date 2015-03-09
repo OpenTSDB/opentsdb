@@ -45,13 +45,16 @@ import net.opentsdb.uid.UniqueIdType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static com.datastax.driver.core.querybuilder.QueryBuilder.bindMarker;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.insertInto;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.timestamp;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
@@ -132,16 +135,32 @@ public class CassandraStore implements TsdbStore {
    */
   private void prepareStatements() {
     checkNotNull(session);
-    checkNotNull(cluster);
 
-    String CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, fval) VALUES (?, ?, ?, ?);";
-    addFloatStatement = session.prepare(CQL);
-    CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, dval) VALUES (?, ?, ?, ?);";
-    addDoubleStatement = session.prepare(CQL);
-    CQL = "INSERT INTO \"tsdb\".\"" + Tables.DATAPOINTS + "\" (tsid, basetime, timestamp, lval) VALUES (?, ?, ?, ?);";
-    addLongStatement = session.prepare(CQL);
+    addFloatStatement = session.prepare(
+        insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
+            .value("tsid", bindMarker())
+            .value("basetime", bindMarker())
+            .value("timestamp", bindMarker())
+            .value("fval", bindMarker())
+            .using(timestamp(bindMarker())));
 
-    CQL = "BEGIN BATCH USING TIMESTAMP ?" +
+    addDoubleStatement = session.prepare(
+        insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
+            .value("tsid", bindMarker())
+            .value("basetime", bindMarker())
+            .value("timestamp", bindMarker())
+            .value("dval", bindMarker())
+            .using(timestamp(bindMarker())));
+
+    addLongStatement = session.prepare(
+        insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
+            .value("tsid", bindMarker())
+            .value("basetime", bindMarker())
+            .value("timestamp", bindMarker())
+            .value("lval", bindMarker())
+            .using(timestamp(bindMarker())));
+
+    String CQL = "BEGIN BATCH USING TIMESTAMP ?" +
         "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (id, type, ctim, name) VALUES (?, ?, ?, ?);" +
         "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, ctim, id) VALUES (?, ?, ?, ?);" +
         "APPLY BATCH;";
@@ -191,54 +210,46 @@ public class CassandraStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Override
   public Deferred<Object> addPoint(final byte[] tsuid,
                                    final long timestamp,
                                    final float value) {
-    final long base_time = buildBaseTime(timestamp);
-
-    final byte[] strTSID = Hashing.murmur3_128().hashBytes(tsuid).asBytes();
-    final long low = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 0, 8));
-    final long high = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 8, 16));
-    final UUID tsid = new UUID(low, high);
-
-    final BoundStatement addPointStatement = addFloatStatement.bind(
-        tsid, base_time, timestamp, value);
-    return addPoint(addPointStatement, tsuid, tsid);
+    final BoundStatement addPointStatement = addFloatStatement.bind()
+        .setFloat(3, value);
+    return addPoint(addPointStatement, tsuid, timestamp);
   }
 
+  @Override
   public Deferred<Object> addPoint(final byte[] tsuid,
                                    final long timestamp,
                                    final double value) {
-    final long base_time = buildBaseTime(timestamp);
-
-    final byte[] strTSID = Hashing.murmur3_128().hashBytes(tsuid).asBytes();
-    final long low = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 0, 8));
-    final long high = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 8, 16));
-    final UUID tsid = new UUID(low, high);
-
-    final BoundStatement addPointStatement = addDoubleStatement.bind(
-        tsid, base_time, timestamp, value);
-    return addPoint(addPointStatement, tsuid, tsid);
+    final BoundStatement addPointStatement = addDoubleStatement.bind()
+        .setDouble(3, value);
+    return addPoint(addPointStatement, tsuid, timestamp);
   }
 
+  @Override
   public Deferred<Object> addPoint(final byte[] tsuid,
                                    final long timestamp,
                                    final long value) {
-    final long base_time = buildBaseTime(timestamp);
-
-    final byte[] strTSID = Hashing.murmur3_128().hashBytes(tsuid).asBytes();
-    final long low = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 0, 8));
-    final long high = Longs.fromByteArray(Arrays.copyOfRange(strTSID, 8, 16));
-    final UUID tsid = new UUID(low, high);
-
-    final BoundStatement addPointStatement = addLongStatement.bind(
-        tsid, base_time, timestamp, value);
-    return addPoint(addPointStatement, tsuid, tsid);
+    final BoundStatement addPointStatement = addLongStatement.bind()
+        .setLong(3, value);
+    return addPoint(addPointStatement, tsuid, timestamp);
   }
 
   private Deferred<Object> addPoint(final BoundStatement addPointStatement,
                                     final byte[] tsuid,
-                                    final UUID tsid) {
+                                    final long timestamp) {
+    final ByteBuffer tsid = ByteBuffer.wrap(
+        Hashing.murmur3_128().hashBytes(tsuid).asBytes());
+
+    final long baseTime = buildBaseTime(timestamp);
+
+    addPointStatement.setBytesUnsafe(0, tsid);
+    addPointStatement.setLong(1, baseTime);
+    addPointStatement.setLong(2, timestamp);
+    addPointStatement.setLong(4, timestamp);
+
     final ResultSetFuture future = session.executeAsync(addPointStatement);
 
     final Deferred<Object> d = new Deferred<Object>();
