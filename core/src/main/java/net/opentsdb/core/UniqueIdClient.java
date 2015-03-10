@@ -19,6 +19,8 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.IdLookupStrategy;
+import net.opentsdb.uid.SimpleIdLookupStrategy;
 import net.opentsdb.uid.StaticTimeseriesId;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.callbacks.StripedTagIdsToMap;
@@ -211,21 +213,36 @@ public class UniqueIdClient {
     return Deferred.group(tag_ids).addCallback(SORT_CB);
   }
 
-
-  private Deferred<ArrayList<byte[]>> fetchTags(final Map<String, String> tags) {
+  /**
+   * Get the IDs for all tag keys and tag values in the provided {@link
+   * java.util.Map} using the provided tag key and tag value {@link
+   * net.opentsdb.uid.IdLookupStrategy}. The returned value is a deferred that
+   * contains a list of striped IDs with the tag key ID on odd indexes and tag
+   * value IDs on even indexes.
+   *
+   * @param tags         The names for which to lookup the IDs for
+   * @param tagkStrategy The strategy to use for looking up tag keys
+   * @param tagvStrategy The strategy to use for looking up tag values
+   * @return A Deferred that contains a striped list of all IDs
+   */
+  private Deferred<ArrayList<byte[]>> getTagIds(final Map<String, String> tags,
+                                                final IdLookupStrategy tagkStrategy,
+                                                final IdLookupStrategy tagvStrategy) {
     final ImmutableList.Builder<Deferred<byte[]>> tag_ids = ImmutableList.builder();
 
     // For each tag, start resolving the tag name and the tag value.
     for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      tag_ids.add(tag_names.getId(entry.getKey()));
-      tag_ids.add(tag_values.getId(entry.getValue()));
+      tag_ids.add(tagkStrategy.getId(tag_names, entry.getKey()));
+      tag_ids.add(tagvStrategy.getId(tag_values, entry.getValue()));
     }
 
     return Deferred.groupInOrder(tag_ids.build());
   }
 
-  public Deferred<Map<byte[], byte[]>> getTags(final Map<String, String> tags) {
-    return fetchTags(tags).addCallback(new StripedTagIdsToMap());
+  public Deferred<Map<byte[], byte[]>> getTagIds(final Map<String, String> tags) {
+    IdLookupStrategy lookupStrategy = new SimpleIdLookupStrategy();
+    return getTagIds(tags, lookupStrategy, lookupStrategy)
+        .addCallback(new StripedTagIdsToMap());
   }
 
   /**
