@@ -19,11 +19,12 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.CreatingIdLookupStrategy;
 import net.opentsdb.uid.IdLookupStrategy;
 import net.opentsdb.uid.SimpleIdLookupStrategy;
 import net.opentsdb.uid.StaticTimeseriesId;
 import net.opentsdb.uid.TimeseriesId;
-import net.opentsdb.uid.callbacks.StripedTagIdsToMap;
+import net.opentsdb.uid.callbacks.StripedTagIdsToList;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
@@ -130,7 +131,10 @@ public class UniqueIdClient {
    * unknown tag name or tag value.
    */
   public Deferred<ArrayList<byte[]>> getAllTags(final Map<String, String> tags) {
-      return getOrCreateAllTags(tags, false);
+    IdLookupStrategy lookupStrategy = new SimpleIdLookupStrategy();
+    return getTagIds(tags, lookupStrategy, lookupStrategy)
+        .addCallback(new StripedTagIdsToList())
+        .addCallback(SORT_CB);
   }
 
   /**
@@ -142,75 +146,30 @@ public class UniqueIdClient {
    * @since 2.0
    */
   Deferred<ArrayList<byte[]>> getOrCreateAllTags(final Map<String, String> tags) {
-    return getOrCreateAllTags(tags, true);
+    final IdLookupStrategy tagkLookupStrategy = lookupStrategy(
+        config.getBoolean("tsd.core.auto_create_tagks"));
+    final IdLookupStrategy tagvLookupStrategy = lookupStrategy(
+        config.getBoolean("tsd.core.auto_create_tagvs"));
+
+    return getTagIds(tags, tagkLookupStrategy, tagvLookupStrategy)
+        .addCallback(new StripedTagIdsToList())
+        .addCallback(SORT_CB);
   }
 
-  private Deferred<ArrayList<byte[]>> getOrCreateAllTags(final Map<String, String> tags,
-                                                         final boolean create) {
-    final ArrayList<Deferred<byte[]>> tag_ids =
-      new ArrayList<Deferred<byte[]>>(tags.size());
-
-    final boolean create_tagks = config.getBoolean("tsd.core.auto_create_tagks");
-    final boolean create_tagvs = config.getBoolean("tsd.core.auto_create_tagvs");
-
-    // For each tag, start resolving the tag name and the tag value.
-    for (final Map.Entry<String, String> entry : tags.entrySet()) {
-      final Deferred<byte[]> name_id = tag_names.getId(entry.getKey());
-      final Deferred<byte[]> value_id = tag_values.getId(entry.getValue());
-
-      class NoSuchTagNameCB implements Callback<Object, Exception> {
-        @Override
-        public Object call(final Exception e) {
-          if (e instanceof NoSuchUniqueName && create && create_tagks) {
-            return tag_names.createId(entry.getKey());
-          }
-
-          return e; // Other unexpected exception, let it bubble up.
-        }
-      }
-
-      class NoSuchTagValueCB implements Callback<Object, Exception> {
-        @Override
-        public Object call(final Exception e) {
-          if (e instanceof NoSuchUniqueName && create && create_tagvs) {
-            return tag_values.createId(entry.getValue());
-          }
-
-          return e; // Other unexpected exception, let it bubble up.
-        }
-      }
-
-      // Then once the tag name is resolved, get the resolved tag value.
-      class TagNameResolvedCB implements Callback<Deferred<byte[]>, byte[]> {
-        @Override
-        public Deferred<byte[]> call(final byte[] nameid) {
-          // And once the tag value too is resolved, paste the two together.
-          class TagValueResolvedCB implements Callback<byte[], byte[]> {
-            @Override
-            public byte[] call(final byte[] valueid) {
-              final byte[] thistag = new byte[nameid.length + valueid.length];
-              System.arraycopy(nameid, 0, thistag, 0, nameid.length);
-              System.arraycopy(valueid, 0, thistag, nameid.length, valueid.length);
-              return thistag;
-            }
-          }
-
-          return value_id
-                  .addErrback(new NoSuchTagValueCB())
-                  .addCallback(new TagValueResolvedCB());
-        }
-      }
-
-      // Put all the deferred tag resolutions in this list.
-      final Deferred<byte[]> resolve = name_id
-              .addErrback(new NoSuchTagNameCB())
-              .addCallbackDeferring(new TagNameResolvedCB());
-
-      tag_ids.add(resolve);
+  /**
+   * Get a fitting {@link net.opentsdb.uid.IdLookupStrategy} based on whether
+   * IDs should be created if they exist or not.
+   *
+   * @param shouldCreate Whether the returned lookup strategy should create
+   *                     missing IDs or not
+   * @return A fitting instantiated {@link net.opentsdb.uid.IdLookupStrategy}
+   */
+  private IdLookupStrategy lookupStrategy(final boolean shouldCreate) {
+    if (shouldCreate) {
+      return new CreatingIdLookupStrategy();
     }
 
-    // And then once we have all the tags resolved, sort them.
-    return Deferred.group(tag_ids).addCallback(SORT_CB);
+    return new SimpleIdLookupStrategy();
   }
 
   /**
@@ -237,12 +196,6 @@ public class UniqueIdClient {
     }
 
     return Deferred.groupInOrder(tag_ids.build());
-  }
-
-  public Deferred<Map<byte[], byte[]>> getTagIds(final Map<String, String> tags) {
-    IdLookupStrategy lookupStrategy = new SimpleIdLookupStrategy();
-    return getTagIds(tags, lookupStrategy, lookupStrategy)
-        .addCallback(new StripedTagIdsToMap());
   }
 
   /**
@@ -396,11 +349,11 @@ public class UniqueIdClient {
    */
   Deferred<TimeseriesId> getTSUID(final String metric,
                                   final Map<String, String> tags) {
-    final boolean auto_create_metrics =
-            config.getBoolean("tsd.core.auto_create_metrics");
+    IdLookupStrategy metricLookupStrategy = lookupStrategy(
+        config.getBoolean("tsd.core.auto_create_metrics"));
 
     // Lookup or create the metric ID.
-    final Deferred<byte[]> metric_id = metrics.getId(metric);
+    final Deferred<byte[]> metric_id = metricLookupStrategy.getId(metrics, metric);
 
     // Copy the metric ID at the beginning of the row key.
     class CopyMetricInRowKeyCB implements Callback<TimeseriesId, byte[]> {
@@ -416,17 +369,6 @@ public class UniqueIdClient {
       }
     }
 
-    class HandleNoSuchUniqueNameCB implements Callback<Object, Exception> {
-      @Override
-      public Object call(final Exception e) {
-        if (e instanceof NoSuchUniqueName && auto_create_metrics) {
-          return metrics.createId(metric);
-        }
-
-        return e; // Other unexpected exception, let it bubble up.
-      }
-    }
-
     // Copy the tag IDs in the row key.
     class CopyTagsInRowKeyCB
       implements Callback<Deferred<TimeseriesId>, ArrayList<byte[]>> {
@@ -435,7 +377,6 @@ public class UniqueIdClient {
         // Once we've resolved all the tags, schedule the copy of the metric
         // ID and return the row key we produced.
         return metric_id
-                .addErrback(new HandleNoSuchUniqueNameCB())
                 .addCallback(new CopyMetricInRowKeyCB(tags));
       }
     }
