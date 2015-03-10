@@ -38,6 +38,7 @@ import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.utils.Pair;
 
 import javax.xml.bind.DatatypeConverter;
@@ -58,7 +59,6 @@ import net.opentsdb.uid.UniqueIdType;
 import org.hbase.async.Bytes;
 
 import static com.google.common.collect.Maps.newHashMap;
-import static net.opentsdb.core.StringCoder.CHARSET;
 import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.uid.IdUtils.uidToString;
 
@@ -99,7 +99,7 @@ public class MemoryStore implements TsdbStore {
   private final Table<Long, String, UIDMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
-  private final Map<String, NavigableMap<Long, Number>> datapoints;
+  private final Map<TimeseriesId, NavigableMap<Long, Number>> datapoints;
 
   private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
           UniqueIdType.METRIC, new AtomicLong(1),
@@ -138,31 +138,37 @@ public class MemoryStore implements TsdbStore {
   public void setFlushInterval(short aShort) {
   }
 
-  public Deferred<Object> addPoint(final byte[] tsuid,
-                            final long timestamp,
-                            final float value) {
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+                                   final long timestamp,
+                                   final float value) {
     return addPoint(tsuid, value, timestamp);
   }
 
-  public Deferred<Object> addPoint(final byte[] tsuid,
-                            final long timestamp,
-                            final double value) {
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+                                   final long timestamp,
+                                   final double value) {
     return addPoint(tsuid, value, timestamp);
   }
 
-  public Deferred<Object> addPoint(final byte[] tsuid,
-                            final long timestamp,
-                            final long value) {
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+                                   final long timestamp,
+                                   final long value) {
     return addPoint(tsuid, (Number)value, timestamp);
   }
 
-  private Deferred<Object> addPoint(final byte[] tsuid, final Number value, final long timestamp) {
-    final String str_tsuid = new String(tsuid, ASCII);
-    NavigableMap<Long, Number> tsuidDps = datapoints.get(str_tsuid);
+  private Deferred<Object> addPoint(final TimeseriesId tsuid,
+                                    final Number value,
+                                    final long timestamp) {
+    /*
+     * TODO(luuse): tsuid neither implements #equals, #hashCode or Comparable.
+     * Should implement a custom TimeseriesId for MemoryStore that implements all
+     * of these.
+     */
+    NavigableMap<Long, Number> tsuidDps = datapoints.get(tsuid);
 
     if (tsuidDps == null) {
       tsuidDps = Maps.newTreeMap();
-      datapoints.put(str_tsuid, tsuidDps);
+      datapoints.put(tsuid, tsuidDps);
     }
 
     tsuidDps.put(timestamp, value);

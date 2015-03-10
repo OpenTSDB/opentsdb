@@ -12,6 +12,7 @@ import com.datastax.driver.core.Session;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.AsyncFunction;
@@ -40,6 +41,7 @@ import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
 import java.nio.ByteBuffer;
@@ -47,7 +49,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Futures.transform;
@@ -173,37 +174,44 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final byte[] tsuid,
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final float value) {
     final BoundStatement addPointStatement = addFloatStatement.bind()
         .setFloat(3, value);
-    return addPoint(addPointStatement, tsuid, timestamp);
+    return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
   @Override
-  public Deferred<Object> addPoint(final byte[] tsuid,
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final double value) {
     final BoundStatement addPointStatement = addDoubleStatement.bind()
         .setDouble(3, value);
-    return addPoint(addPointStatement, tsuid, timestamp);
+    return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
   @Override
-  public Deferred<Object> addPoint(final byte[] tsuid,
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final long value) {
     final BoundStatement addPointStatement = addLongStatement.bind()
         .setLong(3, value);
-    return addPoint(addPointStatement, tsuid, timestamp);
+    return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
   private Deferred<Object> addPoint(final BoundStatement addPointStatement,
-                                    final byte[] tsuid,
+                                    final byte[] metric,
+                                    final List<byte[]> tags,
                                     final long timestamp) {
-    final ByteBuffer tsid = ByteBuffer.wrap(
-        Hashing.murmur3_128().hashBytes(tsuid).asBytes());
+    Hasher tsidHasher = Hashing.murmur3_128().newHasher();
+    tsidHasher.putBytes(metric);
+
+    for (final byte[] tag : tags) {
+      tsidHasher.putBytes(tag);
+    }
+
+    final ByteBuffer tsid = ByteBuffer.wrap(tsidHasher.hash().asBytes());
 
     final long baseTime = buildBaseTime(timestamp);
 
@@ -220,7 +228,7 @@ public class CassandraStore implements TsdbStore {
       @Override
       public void onSuccess(ResultSet rows) {
         d.callback(null);
-        //writeTimeseriesIdIndex(tsuid, tsid);
+        //writeTimeseriesIdIndex(metric, tags, tsid);
       }
 
       @Override
@@ -232,28 +240,24 @@ public class CassandraStore implements TsdbStore {
     return d;
   }
 
-  private void writeTimeseriesIdIndex(final byte[] tsuid, final UUID tsid) {
-    final byte[] metric_uid = IdUtils.getMetricFromTSUID(
-        IdUtils.uidToString(tsuid));
+  private void writeTimeseriesIdIndex(final byte[] metric,
+                                      final Map<byte[], byte[]> tags,
+                                      final ByteBuffer tsid) {
+    session.executeAsync(insert_tags_statement.bind()
+        .setLong(0, IdUtils.uidToLong(metric))
+        .setString(1, UniqueIdType.METRIC.toValue())
+        .setBytesUnsafe(2, tsid));
 
-    final List<byte[]> tags_uids = IdUtils.getTagsFromTSUID(
-        IdUtils.uidToString(tsuid));
+    for (final Map.Entry<byte[], byte[]> entry : tags.entrySet()) {
+      session.executeAsync(insert_tags_statement.bind()
+          .setLong(0, IdUtils.uidToLong(entry.getKey()))
+          .setString(1, UniqueIdType.TAGK.toValue())
+          .setBytesUnsafe(2, tsid));
 
-    session.executeAsync(insert_tags_statement.bind(
-        IdUtils.uidToLong(metric_uid),
-        UniqueIdType.METRIC.toValue(),
-        tsid));
-
-    for (int i = 0; i < tags_uids.size(); i += 2) {
-      session.executeAsync(insert_tags_statement.bind(
-          IdUtils.uidToLong(tags_uids.get(i)),
-          UniqueIdType.TAGK.toValue(),
-          tsid));
-
-      session.executeAsync(insert_tags_statement.bind(
-          IdUtils.uidToLong(tags_uids.get(i + 1)),
-          UniqueIdType.TAGV.toValue(),
-          tsid));
+      session.executeAsync(insert_tags_statement.bind()
+          .setLong(0, IdUtils.uidToLong(entry.getValue()))
+          .setString(1, UniqueIdType.TAGV.toValue())
+          .setBytesUnsafe(2, tsid));
     }
   }
 

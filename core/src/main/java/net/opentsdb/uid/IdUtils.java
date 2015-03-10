@@ -1,6 +1,5 @@
 package net.opentsdb.uid;
 
-import com.google.common.base.Strings;
 import net.opentsdb.core.Const;
 import org.hbase.async.Bytes;
 import org.slf4j.Logger;
@@ -36,24 +35,6 @@ public class IdUtils {
       }
     }
     buf.append("\\E");
-  }
-
-  /**
-   * Extracts a metric from the tsuid.
-   *
-   * @param tsuid The tsuid to parse.
-   * @return A byte array representing the metric.
-   * @throws IllegalArgumentException if the TSUID is malformed
-   */
-  public static byte[] getMetricFromTSUID(final String tsuid) {
-    if (Strings.isNullOrEmpty(tsuid)) {
-      throw new IllegalArgumentException("Missing TSUID");
-    }
-    if (tsuid.length() <= Const.METRICS_WIDTH * 2) {
-      throw new IllegalArgumentException(
-          "TSUID is too short, may be missing tags");
-    }
-    return stringToUid(tsuid.substring(0, Const.METRICS_WIDTH * 2));
   }
 
   /**

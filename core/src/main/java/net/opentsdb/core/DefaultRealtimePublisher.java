@@ -6,6 +6,7 @@ import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.uid.TimeseriesId;
 
 /**
  * A default realtime publisher to use when no other realtime publisher has
@@ -25,12 +26,12 @@ public class DefaultRealtimePublisher extends RTPublisher {
   }
 
   @Override
-  public Deferred<Object> publishDataPoint(final String metric, final long timestamp, final long value, final Map<String, String> tags, final byte[] tsuid) {
+  public Deferred<Object> publishDataPoint(final String metric, final long timestamp, final long value, final Map<String, String> tags, final TimeseriesId tsuid) {
     return Deferred.fromResult(null);
   }
 
   @Override
-  public Deferred<Object> publishDataPoint(final String metric, final long timestamp, final double value, final Map<String, String> tags, final byte[] tsuid) {
+  public Deferred<Object> publishDataPoint(final String metric, final long timestamp, final double value, final Map<String, String> tags, final TimeseriesId tsuid) {
     return Deferred.fromResult(null);
   }
 

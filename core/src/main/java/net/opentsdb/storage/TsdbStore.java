@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
 /**
@@ -83,15 +84,15 @@ public interface TsdbStore {
   //
   // Datapoints
   //
-  Deferred<Object> addPoint(final byte[] tsuid,
+  Deferred<Object> addPoint(final TimeseriesId tsuid,
                             final long timestamp,
                             final float value);
 
-  Deferred<Object> addPoint(final byte[] tsuid,
+  Deferred<Object> addPoint(final TimeseriesId tsuid,
                             final long timestamp,
                             final double value);
 
-  Deferred<Object> addPoint(final byte[] tsuid,
+  Deferred<Object> addPoint(final TimeseriesId tsuid,
                             final long timestamp,
                             final long value);
 

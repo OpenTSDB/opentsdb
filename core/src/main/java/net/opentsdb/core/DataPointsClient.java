@@ -12,6 +12,7 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import com.typesafe.config.Config;
+import net.opentsdb.uid.TimeseriesId;
 import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
@@ -24,6 +25,7 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.stats.Metrics.name;
+import static net.opentsdb.uid.TimeseriesId.toHBaseTSUID;
 
 @Singleton
 public class DataPointsClient {
@@ -110,9 +112,9 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
+    class RowKeyCB implements Callback<Deferred<Object>, TimeseriesId> {
       @Override
-      public Deferred<Object> call(final byte[] tsuid) throws Exception {
+      public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
 
         // TODO(tsuna): Add a callback to time the latency of HBase and store the
         // timing in a moving Histogram (once we have a class for this).
@@ -125,10 +127,10 @@ public class DataPointsClient {
         // rather have TSUID incrementing enabled, that will trump the PUT
         if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
             && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
-          store.setTSMetaCounter(tsuid, 1);
+          store.setTSMetaCounter(toHBaseTSUID(tsuid), 1);
         } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
             || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
-          metaClient.incrementAndGetCounter(tsuid);
+          metaClient.incrementAndGetCounter(toHBaseTSUID(tsuid));
         }
 
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
@@ -169,9 +171,9 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
+    class RowKeyCB implements Callback<Deferred<Object>, TimeseriesId> {
       @Override
-      public Deferred<Object> call(final byte[] tsuid) throws Exception {
+      public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
 
         // TODO(tsuna): Add a callback to time the latency of HBase and store the
         // timing in a moving Histogram (once we have a class for this).
@@ -184,10 +186,10 @@ public class DataPointsClient {
         // rather have TSUID incrementing enabled, that will trump the PUT
         if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
             && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
-          store.setTSMetaCounter(tsuid, 1);
+          store.setTSMetaCounter(toHBaseTSUID(tsuid), 1);
         } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
             || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
-          metaClient.incrementAndGetCounter(tsuid);
+          metaClient.incrementAndGetCounter(toHBaseTSUID(tsuid));
         }
 
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
@@ -226,9 +228,9 @@ public class DataPointsClient {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Object>, byte[]> {
+    class RowKeyCB implements Callback<Deferred<Object>, TimeseriesId> {
       @Override
-      public Deferred<Object> call(final byte[] tsuid) throws Exception {
+      public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
 
         // TODO(tsuna): Add a callback to time the latency of HBase and store the
         // timing in a moving Histogram (once we have a class for this).
@@ -241,10 +243,10 @@ public class DataPointsClient {
         // rather have TSUID incrementing enabled, that will trump the PUT
         if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
             && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
-          store.setTSMetaCounter(tsuid, 1);
+          store.setTSMetaCounter(toHBaseTSUID(tsuid), 1);
         } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
             || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
-          metaClient.incrementAndGetCounter(tsuid);
+          metaClient.incrementAndGetCounter(toHBaseTSUID(tsuid));
         }
 
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)

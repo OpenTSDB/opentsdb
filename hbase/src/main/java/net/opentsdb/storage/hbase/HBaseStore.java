@@ -52,6 +52,7 @@ import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UidFormatter;
 import com.typesafe.config.Config;
 import net.opentsdb.utils.JSONException;
@@ -73,6 +74,7 @@ import static net.opentsdb.core.StringCoder.toBytes;
 
 import net.opentsdb.uid.UniqueIdType;
 import static net.opentsdb.storage.hbase.HBaseConst.CHARSET;
+import static net.opentsdb.uid.TimeseriesId.toHBaseTSUID;
 
 /**
  * The HBaseStore that implements the client interface required by TSDB.
@@ -395,12 +397,12 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final byte[] tsuid,
-                            final long timestamp,
-                            final float value) {
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+                                   final long timestamp,
+                                   final float value) {
     if (Float.isNaN(value) || Float.isInfinite(value)) {
       throw new IllegalArgumentException("value is NaN or Infinite: " + value
-          + " for tsuid=" + Arrays.toString(tsuid)
+          + " for tsuid=" + tsuid
           + " timestamp=" + timestamp);
     }
     final short flags = Const.FLAG_FLOAT | 0x3;  // A float stored on 4 bytes.
@@ -409,12 +411,12 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final byte[] tsuid,
-                            final long timestamp,
-                            final double value) {
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+                                   final long timestamp,
+                                   final double value) {
     if (Double.isNaN(value) || Double.isInfinite(value)) {
       throw new IllegalArgumentException("value is NaN or Infinite: " + value
-          + " for tsuid=" + Arrays.toString(tsuid)
+          + " for tsuid=" + tsuid
           + " timestamp=" + timestamp);
     }
     final short flags = Const.FLAG_FLOAT | 0x7;  // A float stored on 8 bytes.
@@ -423,9 +425,9 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final byte[] tsuid,
-                            final long timestamp,
-                            final long value) {
+  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+                                   final long timestamp,
+                                   final long value) {
     final byte[] v;
     if (Byte.MIN_VALUE <= value && value <= Byte.MAX_VALUE) {
       v = new byte[] { (byte) value };
@@ -440,11 +442,13 @@ public class HBaseStore implements TsdbStore {
     return addPointInternal(tsuid, v, timestamp, flags);
   }
 
-  private Deferred<Object> addPointInternal(final byte[] tsuid, final byte[] value, final long timestamp, final short flags) {
-
+  private Deferred<Object> addPointInternal(final TimeseriesId tsuid,
+                                            final byte[] value,
+                                            final long timestamp,
+                                            final short flags) {
     final byte[] qualifier = Internal.buildQualifier(timestamp, flags);
     // we have a tsuid so we need to add some bytes(4) for the timestamp
-    final byte[] row = RowKey.rowKeyFromTSUID(tsuid, timestamp);
+    final byte[] row = RowKey.rowKeyFromTSUID(toHBaseTSUID(tsuid), timestamp);
 
     final PutRequest point = new PutRequest(data_table_name, row, TS_FAMILY,
             qualifier,

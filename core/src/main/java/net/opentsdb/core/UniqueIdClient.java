@@ -19,6 +19,8 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.StaticTimeseriesId;
+import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.callbacks.StripedTagIdsToMap;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
@@ -375,18 +377,8 @@ public class UniqueIdClient {
    * @param metric The metric to use in the TSUID
    * @param tags The string tags to use in the TSUID
    */
-  Deferred<byte[]> getTSUID(final String metric,
-                            final Map<String, String> tags) {
-    final short metric_width = UniqueIdType.METRIC.width;
-    final short tag_name_width = UniqueIdType.TAGK.width;
-    final short tag_value_width = UniqueIdType.TAGV.width;
-    final short num_tags = (short) tags.size();
-
-    int row_size = (metric_width
-                    + tag_name_width * num_tags
-                    + tag_value_width * num_tags);
-    final byte[] row = new byte[row_size];
-
+  Deferred<TimeseriesId> getTSUID(final String metric,
+                                  final Map<String, String> tags) {
     final boolean auto_create_metrics =
             config.getBoolean("tsd.core.auto_create_metrics");
 
@@ -394,11 +386,16 @@ public class UniqueIdClient {
     final Deferred<byte[]> metric_id = metrics.getId(metric);
 
     // Copy the metric ID at the beginning of the row key.
-    class CopyMetricInRowKeyCB implements Callback<byte[], byte[]> {
+    class CopyMetricInRowKeyCB implements Callback<TimeseriesId, byte[]> {
+      private final List<byte[]> tagIds;
+
+      public CopyMetricInRowKeyCB(final List<byte[]> tagIds) {
+        this.tagIds = tagIds;
+      }
+
       @Override
-      public byte[] call(final byte[] metricid) {
-        copyInRowKey(row, (short) 0, metricid);
-        return row;
+      public TimeseriesId call(final byte[] metricid) {
+        return new StaticTimeseriesId(metricid, tagIds);
       }
     }
 
@@ -415,35 +412,20 @@ public class UniqueIdClient {
 
     // Copy the tag IDs in the row key.
     class CopyTagsInRowKeyCB
-      implements Callback<Deferred<byte[]>, ArrayList<byte[]>> {
+      implements Callback<Deferred<TimeseriesId>, ArrayList<byte[]>> {
       @Override
-      public Deferred<byte[]> call(final ArrayList<byte[]> tags) {
-        short pos = metric_width;
-        for (final byte[] tag : tags) {
-          copyInRowKey(row, pos, tag);
-          pos += tag.length;
-        }
+      public Deferred<TimeseriesId> call(final ArrayList<byte[]> tags) {
         // Once we've resolved all the tags, schedule the copy of the metric
         // ID and return the row key we produced.
         return metric_id
                 .addErrback(new HandleNoSuchUniqueNameCB())
-                .addCallback(new CopyMetricInRowKeyCB());
+                .addCallback(new CopyMetricInRowKeyCB(tags));
       }
     }
 
     // Kick off the resolution of all tags.
     return getOrCreateAllTags(tags)
       .addCallbackDeferring(new CopyTagsInRowKeyCB());
-  }
-
-  /**
-   * Copies the specified byte array at the specified offset in the row key.
-   * @param row The row key into which to copy the bytes.
-   * @param offset The offset in the row key to start writing at.
-   * @param bytes The bytes to copy.
-   */
-  private void copyInRowKey(final byte[] row, final short offset, final byte[] bytes) {
-    System.arraycopy(bytes, 0, row, offset, bytes.length);
   }
 
   /**

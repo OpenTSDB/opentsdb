@@ -14,11 +14,13 @@ package net.opentsdb.core;
 
 import com.google.common.collect.ImmutableMap;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.uid.TimeseriesId;
 import org.junit.Test;
 
 import java.util.HashMap;
 
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
 
 public abstract class TestRTPublisher {
   protected RTPublisher rt_publisher;
@@ -31,13 +33,13 @@ public abstract class TestRTPublisher {
   @Test
   public void sinkLongDataPoint() {
     assertNotNull(rt_publisher.publishDataPoint("sys.cpu.user", 123123123, 123,
-        ImmutableMap.of("host", "east"), new byte[]{0, 0, 0, 0, 0, 0, 0, 1}));
+        ImmutableMap.of("host", "east"), mock(TimeseriesId.class)));
   }
 
   @Test
   public void sinkDoubleDataPoint() {
     assertNotNull(rt_publisher.publishDataPoint("sys.cpu.user", 123123123, 12.5,
-        ImmutableMap.of("host", "east"), new byte[]{0, 0, 0, 0, 0, 0, 0, 1}));
+        ImmutableMap.of("host", "east"), mock(TimeseriesId.class)));
   }
 
   @Test
