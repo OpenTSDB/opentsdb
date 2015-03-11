@@ -2,8 +2,25 @@ package net.opentsdb.uid;
 
 import java.util.List;
 
+/**
+ * A general representation of timeseries IDs.
+ *
+ * Note: You should not use implementations of this interface as an argument,
+ * rather you should use the components that make them up (metric and tags).
+ * This interface is inteded to be used by implementations of {@link
+ * net.opentsdb.storage.TsdbStore TsdbStores} to hide their representation of
+ * timeseries IDs and expose them in a general interface. The canonical use-case
+ * is for return values on store implementations.
+ */
 public abstract class TimeseriesId {
+  /**
+   * The metric behind this timeseries ID.
+   */
   public abstract byte[] metric();
+
+  /**
+   * The tags behind this timeseries ID.
+   */
   public abstract List<byte[]> tags();
 
   /**
@@ -21,9 +38,7 @@ public abstract class TimeseriesId {
    * returns the result of this method should be refactored to return a
    * timeseries id instead and a everything that accepts the result of this
    * method as an argument should be refactored to accept the metric and tags
-   * separately instead. You should not use {@link net.opentsdb.uid.TimeseriesId}
-   * instances as an argument, rather you should use the components that make
-   * them up (metric and tags).
+   * separately instead.
    *
    * @param metric The metric to use in the TSUID
    * @param tags   The tags to use in the TSUID

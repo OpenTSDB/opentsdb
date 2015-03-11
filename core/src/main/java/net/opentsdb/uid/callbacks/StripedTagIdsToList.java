@@ -7,6 +7,12 @@ import com.stumbleupon.async.Callback;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+/**
+ * A callback that accepts a striped list of tag IDs with tag keys on odd
+ * indexes and tag values on even indexes and then combines the tag key and tag
+ * value into a single concatenated byte array for each tag before returning
+ * it.
+ */
 public class StripedTagIdsToList implements Callback<ArrayList<byte[]>, ArrayList<byte[]>> {
   @Override
   public ArrayList<byte[]> call(final ArrayList<byte[]> stripedTagIds) {
