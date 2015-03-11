@@ -13,7 +13,8 @@ CREATE KEYSPACE tsdb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replicati
 //
 // Maps (identifier, type) into a name. We use a timestamp that indicates when
 // the id was created to resolve conflicts. The timestamp should be the same
-// as in the table name_to_id.
+// as in the table name_to_id. The numeric ids are useful to avoid ID collisions
+// for tsids (tsids are a hash of the the ids in this table).
 CREATE TABLE tsdb.id_to_name (
   id bigint,
   type varchar,
@@ -49,16 +50,16 @@ CREATE TABLE tsdb.datapoints (
 
 // An index for resolving which timeseries that uses an identifier.
 CREATE TABLE tsdb.ts_inverted_index (
-	id bigint,
-	type varchar,
-	tsid uuid,
-	PRIMARY KEY ((id, type), tsid)
+  id bigint,
+  type varchar,
+  tsid uuid,
+  PRIMARY KEY ((id, type), tsid)
 );
 
 // An index for resolving which IDs a timeseries is composed of.
 CREATE TABLE tsdb.ts_index (
-	tsid uuid,
-	id bigint,
-	type varchar,
-	PRIMARY KEY tsid
+  tsid uuid,
+  metric bigint,
+  tags map<bigint, bigint>,
+  PRIMARY KEY (tsid)
 );
