@@ -122,6 +122,7 @@ tsdb_SRC := \
 	src/tsd/WordSplitter.java	\
 	src/uid/NoSuchUniqueId.java	\
 	src/uid/NoSuchUniqueName.java	\
+	src/uid/RandomUniqueId.java	\
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java \
 	src/utils/ByteArrayPair.java \
