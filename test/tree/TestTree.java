@@ -75,10 +75,10 @@ public final class TestTree {
   @Before
   public void before() throws Exception {
     final Config config = new Config(false);
+    config.overrideConfig("tsd.storage.enable_compaction", "false");
     PowerMockito.whenNew(HBaseClient.class)
       .withArguments(anyString(), anyString()).thenReturn(client);
-    tsdb = new TSDB(config);
-    
+    tsdb = new TSDB(client, config);
   }
   
   @Test
@@ -553,25 +553,20 @@ public final class TestTree {
     Tree.fetchNotMatched(storage.getTSDB(), 655536, null);
   }
 
-  /*
-    TODO(oozie): This test surfaces likely bug in Tree.deleteTree().
-    It was operating under a false assumption about how scanning works and
-    it started to fail, off-by-one style, when MockBase's logic was altered
-    to mimic that asynchbase Scanner.
+  @Test
+  public void deleteTree() throws Exception {
+    setupStorage(true, true);
 
-    An update to Tree.deleteTree() implementation makes the test pass,
-    but I am not going to bandwagon this bugfix on top of #457 which has enough
-    going on as it is.
+    assertEquals(4, storage.numRows());
+    assertNotNull(Tree.deleteTree(storage.getTSDB(), 1, true)
+        .joinUninterruptibly());
 
-    @Test
-    public void deleteTree() throws Exception {
-      setupStorage(true, true);
-      assertNotNull(Tree.deleteTree(storage.getTSDB(), 1, true)
-          .joinUninterruptibly());
-      assertEquals(0, storage.numRows());
-    }
- */
-  
+    byte[] remainingKey = new byte[] {0, 2};
+    assertEquals(1, storage.numRows());
+    assertNotNull(storage.getColumn(
+        remainingKey, "tree".getBytes(MockBase.ASCII())));
+  }
+
   @Test
   public void idToBytes() throws Exception {
     assertArrayEquals(new byte[]{ 0, 1 }, Tree.idToBytes(1));
