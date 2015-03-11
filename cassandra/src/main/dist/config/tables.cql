@@ -14,52 +14,54 @@ CREATE KEYSPACE tsdb WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replicati
 // Maps (identifier, type) into a name. We use a timestamp that indicates when
 // the id was created to resolve conflicts. The timestamp should be the same
 // as in the table name_to_id. The numeric ids are useful to avoid ID collisions
-// for tsids (tsids are a hash of the the ids in this table).
+// for timeseries_ids (timeseries_ids are a hash of the the label_ids in this
+// table). The type column is one of metric, tagk or tagv.
 CREATE TABLE tsdb.id_to_name (
-  id bigint,
+  label_id bigint,
   type varchar,
-  ctim timestamp,
+  creation_time timestamp,
   name varchar,
-  PRIMARY KEY ((id, type), ctim)
-);
+  PRIMARY KEY ((label_id, type), creation_time)
+) WITH CLUSTERING ORDER BY (creation_time DESC);
 
-// Maps (name, type) into an identifier. We use a timestamp that indicates when
+// Maps (name, type) into a label_id. We use a timestamp that indicates when
 // the id was created to resolve conflicts. The timestamp should be the same
 // as in the table name_to_id.
 CREATE TABLE tsdb.name_to_id (
   name varchar,
   type varchar,
-  ctim timestamp,
-  id bigint,
-  PRIMARY KEY ((name, type), ctim)
-);
+  creation_time timestamp,
+  label_id bigint,
+  PRIMARY KEY ((name, type), creation_time)
+) WITH CLUSTERING ORDER BY (creation_time DESC);
 //
 // End identifier tables
 //
 
-// The table that contains all data points.
-CREATE TABLE tsdb.datapoints (
-  tsid uuid,
-  basetime bigint,
-  timestamp bigint,
-  fval float,
-  dval double,
-  lval bigint,
-  PRIMARY KEY ((tsid, basetime), timestamp)
-);
-
-// An index for resolving which timeseries that uses an identifier.
+// An index for resolving which timeseries that uses a label_id.
 CREATE TABLE tsdb.ts_inverted_index (
-  id bigint,
+  label_id bigint,
   type varchar,
-  tsid uuid,
-  PRIMARY KEY ((id, type), tsid)
+  timeseries_id uuid,
+  PRIMARY KEY ((label_id, type), timeseries_id)
 );
 
-// An index for resolving which IDs a timeseries is composed of.
+// An index for resolving which label_ids a timeseries is composed of. The
+// metric and tags are label_ids.
 CREATE TABLE tsdb.ts_index (
-  tsid uuid,
+  timeseries_id uuid,
   metric bigint,
   tags map<bigint, bigint>,
-  PRIMARY KEY (tsid)
+  PRIMARY KEY (timeseries_id)
+);
+
+// The table that contains all data points.
+CREATE TABLE tsdb.datapoints (
+  timeseries_id uuid,
+  basetime bigint,
+  timestamp bigint,
+  float_value float,
+  double_value double,
+  long_value bigint,
+  PRIMARY KEY ((timeseries_id, basetime), timestamp)
 );

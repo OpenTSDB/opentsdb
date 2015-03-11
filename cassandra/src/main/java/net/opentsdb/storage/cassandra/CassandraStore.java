@@ -124,28 +124,28 @@ public class CassandraStore implements TsdbStore {
     checkNotNull(session);
 
     String CQL = "BEGIN BATCH USING TIMESTAMP ?" +
-        "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (id, type, ctim, name) VALUES (?, ?, ?, ?);" +
-        "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, ctim, id) VALUES (?, ?, ?, ?);" +
+        "INSERT INTO tsdb." + Tables.ID_TO_NAME + " (label_id, type, creation_time, name) VALUES (?, ?, ?, ?);" +
+        "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, creation_time, label_id) VALUES (?, ?, ?, ?);" +
         "APPLY BATCH;";
     createIdStatement = session.prepare(CQL)
         .setConsistencyLevel(ConsistencyLevel.ALL);
 
-    CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE id = ? AND type = ?;";
+    CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE label_id = ? AND type = ?;";
     update_uid_name_statement = session.prepare(CQL);
 
     CQL = "BEGIN BATCH " +
             "DELETE FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type= ? " +
-            "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, id) VALUES (?, ?, ?) " +
+            "INSERT INTO tsdb." + Tables.NAME_TO_ID + " (name, type, label_id) VALUES (?, ?, ?) " +
             "APPLY BATCH;";
     update_name_uid_statement = session.prepare(CQL);
 
-    CQL = "SELECT * FROM tsdb." + Tables.ID_TO_NAME + " WHERE id = ? AND type = ? LIMIT 2;";
+    CQL = "SELECT * FROM tsdb." + Tables.ID_TO_NAME + " WHERE label_id = ? AND type = ? LIMIT 2;";
     get_name_statement = session.prepare(CQL);
 
     CQL = "SELECT * FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type = ? LIMIT 2;";
     get_id_statement = session.prepare(CQL);
 
-    CQL = "INSERT INTO tsdb." + Tables.TS_INVERTED_INDEX + " (id, type, tsid) VALUES (?, ?, ?);";
+    CQL = "INSERT INTO tsdb." + Tables.TS_INVERTED_INDEX + " (label_id, type, timeseries_id) VALUES (?, ?, ?);";
     insert_tags_statement = session.prepare(CQL);
   }
 

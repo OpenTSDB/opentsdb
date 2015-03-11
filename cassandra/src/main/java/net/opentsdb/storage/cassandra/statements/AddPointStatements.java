@@ -23,26 +23,26 @@ public class AddPointStatements {
   public AddPointStatements(final Session session) {
     addFloatStatement = session.prepare(
         insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
-            .value("tsid", bindMarker())
+            .value("timeseries_id", bindMarker())
             .value("basetime", bindMarker())
             .value("timestamp", bindMarker())
-            .value("fval", bindMarker())
+            .value("float_value", bindMarker())
             .using(timestamp(bindMarker())));
 
     addDoubleStatement = session.prepare(
         insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
-            .value("tsid", bindMarker())
+            .value("timeseries_id", bindMarker())
             .value("basetime", bindMarker())
             .value("timestamp", bindMarker())
-            .value("dval", bindMarker())
+            .value("double_value", bindMarker())
             .using(timestamp(bindMarker())));
 
     addLongStatement = session.prepare(
         insertInto(Tables.KEYSPACE, Tables.DATAPOINTS)
-            .value("tsid", bindMarker())
+            .value("timeseries_id", bindMarker())
             .value("basetime", bindMarker())
             .value("timestamp", bindMarker())
-            .value("lval", bindMarker())
+            .value("long_value", bindMarker())
             .using(timestamp(bindMarker())));
   }
 }
