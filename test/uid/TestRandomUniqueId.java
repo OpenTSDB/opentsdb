@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.uid;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import net.opentsdb.core.TSDB;
 
@@ -59,6 +60,23 @@ public final class TestRandomUniqueId {
   public void getRandomUID7Byte() throws Exception {
     generateAndTestUID(7, 100);
   }
+  
+  @Test(expected = IllegalArgumentException.class)
+  public void testInvalidWidth() {
+    RandomUniqueId.getRandomUID(8);
+  }
+  
+  @Test(expected = NegativeArraySizeException.class)
+  public void testNegativeWidth() {
+    RandomUniqueId.getRandomUID(-1);
+  }
+  
+  // if you pass in a width of 0 it will always return 1
+  @Test
+  public void testZeroWidth() {
+    assertEquals(1L, RandomUniqueId.getRandomUID(0));
+  }
+  
   /**
    * Runs the test n times and makes sure it's greater than 0 and less than or
    * equal to the max value on {@link width} bytes.
