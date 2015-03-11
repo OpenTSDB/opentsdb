@@ -48,14 +48,12 @@ import javax.inject.Singleton;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.core.StringCoder.toBytes;
 import static net.opentsdb.stats.Metrics.name;
 
 @Singleton
 public class UniqueIdClient {
   private static final SortResolvedTagsCB SORT_CB = new SortResolvedTagsCB();
 
-  private final Config config;
   private final TsdbStore tsdbStore;
 
   /** Unique IDs for the metric names. */
@@ -65,8 +63,9 @@ public class UniqueIdClient {
   /** Unique IDs for the tag values. */
   final UniqueId tag_values;
 
-  /** Name of the table in which UID information is stored. */
-  final byte[] uidtable;
+  private final IdLookupStrategy tagkLookupStrategy;
+  private final IdLookupStrategy tagvLookupStrategy;
+  private final IdLookupStrategy metricLookupStrategy;
 
   private final SearchPlugin searchPlugin;
 
@@ -78,12 +77,17 @@ public class UniqueIdClient {
                         final MetricRegistry metricsRegistry,
                         final EventBus idEventBus,
                         final SearchPlugin searchPlugin) {
-    this.tsdbStore = checkNotNull(tsdbStore);
-    this.config = checkNotNull(config);
+    checkNotNull(config);
 
+    this.tsdbStore = checkNotNull(tsdbStore);
     this.searchPlugin = checkNotNull(searchPlugin);
 
-    uidtable = toBytes(config.getString("tsd.storage.hbase.uid_table"));
+    tagkLookupStrategy = lookupStrategy(
+        config.getBoolean("tsd.core.auto_create_tagks"));
+    tagvLookupStrategy = lookupStrategy(
+        config.getBoolean("tsd.core.auto_create_tagvs"));
+    metricLookupStrategy = lookupStrategy(
+        config.getBoolean("tsd.core.auto_create_metrics"));
 
     metrics = new UniqueId(tsdbStore, UniqueIdType.METRIC, metricsRegistry, idEventBus);
     tag_names = new UniqueId(tsdbStore, UniqueIdType.TAGK, metricsRegistry, idEventBus);
@@ -146,11 +150,6 @@ public class UniqueIdClient {
    * @since 2.0
    */
   Deferred<ArrayList<byte[]>> getOrCreateAllTags(final Map<String, String> tags) {
-    final IdLookupStrategy tagkLookupStrategy = lookupStrategy(
-        config.getBoolean("tsd.core.auto_create_tagks"));
-    final IdLookupStrategy tagvLookupStrategy = lookupStrategy(
-        config.getBoolean("tsd.core.auto_create_tagvs"));
-
     return getTagIds(tags, tagkLookupStrategy, tagvLookupStrategy)
         .addCallback(new StripedTagIdsToList())
         .addCallback(SORT_CB);
@@ -349,9 +348,6 @@ public class UniqueIdClient {
    */
   Deferred<TimeseriesId> getTSUID(final String metric,
                                   final Map<String, String> tags) {
-    IdLookupStrategy metricLookupStrategy = lookupStrategy(
-        config.getBoolean("tsd.core.auto_create_metrics"));
-
     // Lookup or create the metric ID.
     final Deferred<byte[]> metric_id = metricLookupStrategy.getId(metrics, metric);
 
