@@ -17,6 +17,7 @@ import java.util.Map;
 import net.opentsdb.meta.Annotation;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.uid.TimeseriesId;
 
 /**
  * Real Time publisher plugin interface that is used to emit data from a TSD
@@ -42,7 +43,7 @@ public abstract class RTPublisher extends Plugin {
    */
   public abstract Deferred<Object> publishDataPoint(final String metric, 
       final long timestamp, final long value, final Map<String, String> tags, 
-      final byte[] tsuid);
+      final TimeseriesId tsuid);
   
   /**
    * Called every time a new data point with a floating point value is published.
@@ -57,7 +58,7 @@ public abstract class RTPublisher extends Plugin {
    */
   public abstract Deferred<Object> publishDataPoint(final String metric, 
       final long timestamp, final double value, final Map<String, String> tags, 
-      final byte[] tsuid);
+      final TimeseriesId tsuid);
   
   /**
    * Called any time a new annotation is published
