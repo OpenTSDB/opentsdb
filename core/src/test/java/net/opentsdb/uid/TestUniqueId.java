@@ -30,7 +30,6 @@ import org.junit.Test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
-import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -178,37 +177,5 @@ public final class TestUniqueId {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     verify(idEventBus).post(any(IdCreatedEvent.class));
-  }
-
-  @Test
-  public void testResolveIdWildcardNull() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    assertNull(uid.resolveId(null).joinUninterruptibly());
-  }
-
-  @Test
-  public void testResolveIdWildcardEmpty() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    assertNull(uid.resolveId("").joinUninterruptibly());
-  }
-
-  @Test
-  public void testResolveIdWildcardStar() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    assertNull(uid.resolveId("*").joinUninterruptibly());
-  }
-
-  @Test
-  public void testResolveIdGetsId() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    byte[] id = client.allocateUID("nameexists", UniqueIdType.METRIC)
-        .joinUninterruptibly();
-    assertArrayEquals(id, uid.resolveId("*").joinUninterruptibly());
-  }
-
-  @Test(expected = NoSuchUniqueName.class)
-  public void testResolveIdGetsMissingId() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    uid.resolveId("nosuchname").joinUninterruptibly();
   }
 }

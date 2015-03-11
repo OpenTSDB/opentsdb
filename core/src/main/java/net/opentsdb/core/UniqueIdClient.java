@@ -19,9 +19,8 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.CreatingIdLookupStrategy;
 import net.opentsdb.uid.IdLookupStrategy;
-import net.opentsdb.uid.SimpleIdLookupStrategy;
+import net.opentsdb.uid.IdLookupStrategy.WildcardIdLookupStrategy;
 import net.opentsdb.uid.StaticTimeseriesId;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.callbacks.StripedTagIdsToList;
@@ -135,7 +134,7 @@ public class UniqueIdClient {
    * unknown tag name or tag value.
    */
   public Deferred<ArrayList<byte[]>> getAllTags(final Map<String, String> tags) {
-    IdLookupStrategy lookupStrategy = new SimpleIdLookupStrategy();
+    IdLookupStrategy lookupStrategy = IdLookupStrategy.SimpleIdLookupStrategy.instance;
     return getTagIds(tags, lookupStrategy, lookupStrategy)
         .addCallback(new StripedTagIdsToList())
         .addCallback(SORT_CB);
@@ -165,10 +164,10 @@ public class UniqueIdClient {
    */
   private IdLookupStrategy lookupStrategy(final boolean shouldCreate) {
     if (shouldCreate) {
-      return new CreatingIdLookupStrategy();
+      return IdLookupStrategy.CreatingIdLookupStrategy.instance;
     }
 
-    return new SimpleIdLookupStrategy();
+    return IdLookupStrategy.SimpleIdLookupStrategy.instance;
   }
 
   /**
@@ -435,7 +434,8 @@ public class UniqueIdClient {
    * Resolve the string representation of a search query to an ID representation.
    */
   Deferred<ResolvedSearchQuery> resolve(final SearchQuery query) {
-    final Deferred<byte[]> metric = metrics.resolveId(query.getMetric());
+    IdLookupStrategy lookupStrategy = WildcardIdLookupStrategy.instance;
+    final Deferred<byte[]> metric = lookupStrategy.getId(metrics, query.getMetric());
     final Deferred<SortedSet<ByteArrayPair>> tags = resolveTags(query.getTags());
 
     return metric.addBothDeferring(new Callback<Deferred<ResolvedSearchQuery>, byte[]>() {
@@ -453,13 +453,14 @@ public class UniqueIdClient {
 
   private Deferred<SortedSet<ByteArrayPair>> resolveTags(final List<Pair<String, String>> tags) {
     if (tags != null && !tags.isEmpty()) {
+      IdLookupStrategy lookupStrategy = WildcardIdLookupStrategy.instance;
 
       final List<Deferred<ByteArrayPair>> pairs =
           Lists.newArrayListWithCapacity(tags.size());
 
       for (Pair<String, String> tag : tags) {
-        final Deferred<byte[]> tagk = tag_names.resolveId(tag.getKey());
-        final Deferred<byte[]> tagv = tag_values.resolveId(tag.getValue());
+        final Deferred<byte[]> tagk = lookupStrategy.getId(tag_names, tag.getKey());
+        final Deferred<byte[]> tagv = lookupStrategy.getId(tag_values, tag.getValue());
 
         pairs.add(tagk.addCallbackDeferring(new TagKeyResolvedCallback(tagv)));
       }
