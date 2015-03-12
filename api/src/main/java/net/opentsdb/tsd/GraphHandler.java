@@ -12,13 +12,16 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,6 +38,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.codahale.metrics.Timer;
+import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.uid.UniqueIdType;
@@ -746,22 +750,25 @@ final class GraphHandler implements HttpRpc {
     final int nplotted = plot.dumpToFiles(basepath.getAbsolutePath());
     final Timer.Context timer = stats.getGnuplotlatency().time();
 
-    final Process gnuplot = new ProcessBuilder(GNUPLOT,
-      basepath + ".out", basepath + ".err", basepath + ".gnuplot").start();
+    final File errFile = new File(basepath.getPath() + ".err");
+    final File inFile = new File(basepath.getPath() + ".out");
+
+    final Process gnuplot = new ProcessBuilder("gnuplot", basepath + ".gnuplot").start();
     final int rv;
     try {
+      handleStreams(gnuplot, errFile, inFile);
       rv = gnuplot.waitFor();  // Couldn't find how to do this asynchronously.
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();  // Restore the interrupted status.
       throw new IOException("interrupted", e);  // I hate checked exceptions.
     } finally {
-      // We need to always destroy() the Process, otherwise we "leak" file
-      // descriptors and pipes.  Unless I'm blind, this isn't actually
-      // documented in the Javadoc of the !@#$%^ JDK, and in Java 6 there's no
-      // way to ask the stupid-ass ProcessBuilder to not create fucking pipes.
-      // I think when the GC kicks in the JVM may run some kind of a finalizer
-      // that closes the pipes, because I've never seen this issue on long
-      // running TSDs, except where ulimit -n was low (the default, 1024).
+      // We are here because of one of three reasons:
+      // 1. gnuplot is done and the #waitFor call completed in which case
+      //    destroyinging the process does nothing.
+      // 2. the #waitFor call was interrupted. gnuplot may or may not be done
+      //    but it doesn't matter, make sure it is killed either way.
+      // 3. an exception was thrown somewhere.  gnuplot may not be done but it
+      //    doesn't matter, make sure it is killed either way.
       gnuplot.destroy();
       timer.stop();
     }
@@ -779,6 +786,74 @@ final class GraphHandler implements HttpRpc {
     deleteFileIfEmpty(basepath + ".out");
     deleteFileIfEmpty(basepath + ".err");
     return nplotted;
+  }
+
+  /**
+   * Handle the streams of a (gnuplot) process. stderr and stdout of the process
+   * will both be redirected to the provided files.
+   *
+   * Note: In JDK 7 we can replace this method with builtin redirection on the
+   * {@link java.lang.ProcessBuilder}.
+   *
+   * @param process A handle the the (gnuplot) process to read from
+   * @param errFile The destination of the process stderr
+   * @param inFile  The destination of the process stdout
+   * @throws IOException if an I/O error occurs.
+   */
+  private static void handleStreams(final Process process,
+                                    final File errFile,
+                                    final File inFile) throws IOException {
+    final Closer closer = Closer.create();
+
+    try {
+      // Get a handle to the stderr and stdout of the process and register them
+      // with our closer.
+      final InputStream processErr = closer.register(
+          new BufferedInputStream(process.getErrorStream()));
+      final InputStream processIn = closer.register(
+          new BufferedInputStream(process.getInputStream()));
+
+      // Get a handle to the destinations of the stderr and stdout streams of
+      // the given process.
+      final OutputStream errSink = closer.register(
+          new BufferedOutputStream(new FileOutputStream(errFile)));
+      final OutputStream inSink = closer.register(
+          new BufferedOutputStream(new FileOutputStream(inFile)));
+
+      // We don't need or want the processes stdin for anything so just let the
+      // closer close it for us once we are done with everything.
+      closer.register(process.getOutputStream());
+
+      boolean errDone = false;
+      boolean inDone = false;
+
+      byte[] buf = new byte[2048];
+
+      // Transfer all bytes from the processes stderr and stdout to the files
+      while (!errDone && !inDone) {
+        int errRead = processErr.read(buf);
+        if (errRead == -1) {
+          errDone = true;
+        }
+        errSink.write(buf, 0, errRead);
+
+        int inRead = processIn.read(buf);
+        if (inRead == -1) {
+          inDone = true;
+        }
+        inSink.write(buf, 0, inRead);
+      }
+
+      // FilterInputStream and in turn BufferedInputStream which we use (see
+      // above) ignores exceptions thrown when flushing on close so flush
+      // manually here so we don't miss it.
+      errSink.flush();
+      inSink.flush();
+    } catch (Throwable e) {
+      throw closer.rethrow(e);
+    } finally {
+      closer.close();
+    }
   }
 
   private static void deleteFileIfEmpty(final String path) {
@@ -952,44 +1027,6 @@ final class GraphHandler implements HttpRpc {
     public Thread newThread(final Runnable r) {
       return new Thread(r, "Gnuplot #" + id.incrementAndGet());
     }
-  }
-
-  /** Name of the wrapper script we use to execute Gnuplot.  */
-  private static final String WRAPPER =
-    IS_WINDOWS ? "mygnuplot.bat" : "mygnuplot.sh";
-
-  /** Path to the wrapper script.  */
-  private static final String GNUPLOT;
-  static {
-    GNUPLOT = findGnuplotHelperScript();
-  }
-
-  /**
-   * Iterate through the class path and look for the Gnuplot helper script.
-   * @return The path to the wrapper script.
-   */
-  private static String findGnuplotHelperScript() {
-    final URL url = GraphHandler.class.getClassLoader().getResource(WRAPPER);
-    if (url == null) {
-      throw new RuntimeException("Couldn't find " + WRAPPER + " on the"
-        + " CLASSPATH: " + System.getProperty("java.class.path"));
-    }
-    final String path = url.getFile();
-    LOG.debug("Using Gnuplot wrapper at {}", path);
-    final File file = new File(path);
-    final String error;
-    if (!file.exists()) {
-      error = "non-existent";
-    } else if (!file.canExecute()) {
-      error = "non-executable";
-    } else if (!file.canRead()) {
-      error = "unreadable";
-    } else {
-      return path;
-    }
-    throw new RuntimeException("The " + WRAPPER + " found on the"
-      + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
-      + "  CLASSPATH=" + System.getProperty("java.class.path"));
   }
 
 
