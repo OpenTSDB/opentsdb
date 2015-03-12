@@ -2,12 +2,12 @@
 apply plugin: 'java-library-distribution'
 
 dependencies {
-    compile project(":core")
-    compile project(":cassandra")
-    compile project(":hbase")
-    compile project(":api")
-    compile project(":tools")
-    compile project(":storage-json")
+    compile project(":tsdb-core")
+    compile project(":tsdb-cassandra")
+    compile project(":tsdb-hbase")
+    compile project(":tsdb-api")
+    compile project(":tsdb-tools")
+    compile project(":tsdb-storage-json")
 }
 
 distributions {
@@ -15,17 +15,17 @@ distributions {
         baseName = rootProject.name
 
         contents {
-            exclude "all-${version}.jar"
+            exclude "tsdb-all-${version}.jar"
 
             // Add the start scripts for all sibling projects that are
             // applications.
             into('bin') {
-                from { project(':api').startScripts.outputs.files }
+                from { project(':tsdb-api').startScripts.outputs.files }
                 fileMode = 0755
             }
 
             into('') {
-                from { project(':cassandra').distFiles }
+                from { project(':tsdb-cassandra').distFiles }
             }
         }
     }

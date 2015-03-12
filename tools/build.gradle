@@ -1,7 +1,7 @@
 
 dependencies {
-    compile project(':core')
-    compile project(':hbase')
+    compile project(':tsdb-core')
+    compile project(':tsdb-hbase')
 
-    testCompile project(':core').sourceSets.test.output
+    testCompile project(':tsdb-core').sourceSets.test.output
 }

@@ -2,9 +2,9 @@
 project.ext.distFiles = files("src/main/dist")
 
 dependencies {
-    compile project(':core')
+    compile project(':tsdb-core')
 
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: '2.1.3'
 
-    testCompile project(':core').sourceSets.test.output
+    testCompile project(':tsdb-core').sourceSets.test.output
 }

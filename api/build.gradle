@@ -4,13 +4,13 @@ apply plugin: 'application'
 mainClassName = "net.opentsdb.tsd.TSDMain"
 
 dependencies {
-    compile project(':core')
-    compile project(':tools')
+    compile project(':tsdb-core')
+    compile project(':tsdb-tools')
 
-    runtime project(':cassandra')
-    runtime project(':hbase')
+    runtime project(':tsdb-cassandra')
+    runtime project(':tsdb-hbase')
 
     compile group: 'io.netty', name: 'netty', version: '3.9.4.Final'
 
-    testCompile project(':core').sourceSets.test.output
+    testCompile project(':tsdb-core').sourceSets.test.output
 }

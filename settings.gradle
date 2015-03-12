@@ -1,10 +1,18 @@
 
 rootProject.name = "opentsdb"
 
-include "all"
-include "core"
-include "cassandra"
-include "hbase"
-include "api"
-include "tools"
-include "storage-json"
+include ":tsdb-all"
+include ":tsdb-core"
+include ":tsdb-cassandra"
+include ":tsdb-hbase"
+include ":tsdb-api"
+include ":tsdb-tools"
+include ":tsdb-storage-json"
+
+project(':tsdb-all').projectDir = "$rootDir/all" as File
+project(':tsdb-core').projectDir = "$rootDir/core" as File
+project(':tsdb-cassandra').projectDir = "$rootDir/cassandra" as File
+project(':tsdb-hbase').projectDir = "$rootDir/hbase" as File
+project(':tsdb-api').projectDir = "$rootDir/api" as File
+project(':tsdb-tools').projectDir = "$rootDir/tools" as File
+project(':tsdb-storage-json').projectDir = "$rootDir/storage-json" as File

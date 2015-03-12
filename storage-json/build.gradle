@@ -1,6 +1,6 @@
 
 dependencies {
-    compile project(':core')
+    compile project(':tsdb-core')
 
-    testCompile project(':core').sourceSets.test.output
+    testCompile project(':tsdb-core').sourceSets.test.output
 }
