@@ -310,7 +310,7 @@ public class CassandraStore implements TsdbStore {
         ImmutableList.Builder<byte[]> builder = ImmutableList.builder();
 
         for (final Row row : result) {
-          final long id = row.getLong("id");
+          final long id = row.getLong("label_id");
           builder.add(Longs.toByteArray(id));
         }
 
