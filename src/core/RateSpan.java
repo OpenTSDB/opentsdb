@@ -31,8 +31,9 @@ public class RateSpan implements SeekableView {
   private final RateOptions options;
   // TODO: use primitives for next_data, next_rate, and prev_rate instead
   // in order to reduce memory and CPU overhead.
+  private MutableDataPoint prev_data = new MutableDataPoint();
   /** The latter of two raw data points used to calculate the next rate. */
-  private final MutableDataPoint next_data = new MutableDataPoint();
+  private MutableDataPoint next_data = new MutableDataPoint();
   /** The rate that will be returned at the {@link #next} call. */
   private final MutableDataPoint next_rate = new MutableDataPoint();
   /** Users see this rate after they called next. */
@@ -67,7 +68,6 @@ public class RateSpan implements SeekableView {
    */
   @Override
   public DataPoint next() {
-    initializeIfNotDone();
     if (hasNext()) {
       // NOTE: Just copies currentRate to prevRate, and does not allocate
       // any new DataPoint object to reduce the memory allocation overhead.
@@ -116,36 +116,59 @@ public class RateSpan implements SeekableView {
   }
 
   /**
-   * Populate the next rate.
+   * Move to the next datapoint to calculate rate.
    */
-  private void populateNextRate() {
-    final MutableDataPoint prev_data = new MutableDataPoint();
+  private void moveToNextDatapoint() {
     if (source.hasNext()) {
       prev_data.reset(next_data);
       next_data.reset(source.next());
-      
-      final long t0 = prev_data.timestamp();
-      final long t1 = next_data.timestamp();
-      if (t1 <= t0) {
-        throw new IllegalStateException(
-            "Next timestamp (" + t1 + ") is supposed to be "
-            + " strictly greater than the previous one (" + t0 + "), but it's"
-            + " not.  this=" + this);
-      }
+    }
+  }
+
+  /**
+   * @return time delta in seconds
+   */
+  private double getTimeDeltaSecs() {
+    // Validate the datapoint first.
+    final long t0 = prev_data.timestamp();
+    final long t1 = next_data.timestamp();
+    if (t1 <= t0) {
+      throw new IllegalStateException(
+          "Next timestamp (" + t1 + ") is supposed to be "
+          + " strictly greater than the previous one (" + t0 + "), but it's"
+          + " not.  this=" + this);
+    }
+    return (double)((t1 - t0) / 1000.0);
+  }
+
+  /**
+   * @return time delta in seconds
+   */
+  private double getValueDifference() {
+    double difference;
+    if (prev_data.isInteger() && next_data.isInteger()) {
+      // NOTE: Calculates in the long type to avoid precision loss
+      // while converting long values to double values if both values are long.
+      // NOTE: Ignores the integer overflow.
+      difference = next_data.longValue() - prev_data.longValue();
+    } else {
+      difference = next_data.toDouble() - prev_data.toDouble();
+    }
+    return difference;
+  }
+
+  /**
+   * Populate the next rate.
+   */
+  private void populateNextRate() {
+    if (source.hasNext()) {
+      moveToNextDatapoint();
       // TODO: for backwards compatibility we'll convert the ms to seconds
       // but in the future we should add a ratems flag that will calculate
       // the rate as is.
-      final double time_delta_secs = ((double)(t1 - t0) / 1000.0);
-      double difference;
-      if (prev_data.isInteger() && next_data.isInteger()) {
-        // NOTE: Calculates in the long type to avoid precision loss
-        // while converting long values to double values if both values are long.
-        // NOTE: Ignores the integer overflow.
-        difference = next_data.longValue() - prev_data.longValue();
-      } else {
-        difference = next_data.toDouble() - prev_data.toDouble();
-      }
-      
+      final double time_delta_secs = getTimeDeltaSecs();
+      double difference = getValueDifference();
+
       if (options.isCounter() && difference < 0) {
         if (prev_data.isInteger() && next_data.isInteger()) {
           // NOTE: Calculates in the long type to avoid precision loss
