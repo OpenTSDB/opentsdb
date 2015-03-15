@@ -157,43 +157,40 @@ public class RateSpan implements SeekableView {
     return difference;
   }
 
+  /*
+   * Marks the end of rate time series.
+   */
+  private void markEndOfSeries() {
+    // Invalidates the next rate with invalid timestamp.
+    next_rate.reset(INVALID_TIMESTAMP, 0);
+  }
   /**
    * Populate the next rate.
    */
   private void populateNextRate() {
     if (source.hasNext()) {
       moveToNextDatapoint();
+      double difference = getValueDifference();
+      if (options.isCounter() && difference < 0) {
+        while(source.hasNext()) {
+          moveToNextDatapoint();
+          difference = getValueDifference();
+          if (difference > 0) {
+            break;
+          }
+        }
+        if (!source.hasNext()) {
+          markEndOfSeries();
+          return;
+        }
+      }
       // TODO: for backwards compatibility we'll convert the ms to seconds
       // but in the future we should add a ratems flag that will calculate
       // the rate as is.
       final double time_delta_secs = getTimeDeltaSecs();
-      double difference = getValueDifference();
-
-      if (options.isCounter() && difference < 0) {
-        if (prev_data.isInteger() && next_data.isInteger()) {
-          // NOTE: Calculates in the long type to avoid precision loss
-          // while converting long values to double values if both values are long.
-          difference = options.getCounterMax() - prev_data.longValue() +
-              next_data.longValue();
-        } else {
-          difference = options.getCounterMax() - prev_data.toDouble() +
-              next_data.toDouble();
-        }
-        
-        // If the rate is greater than the reset value, return a 0
-        final double rate = difference / time_delta_secs;
-        if (options.getResetValue() > RateOptions.DEFAULT_RESET_VALUE
-            && rate > options.getResetValue()) {
-          next_rate.reset(next_data.timestamp(), 0.0D);
-        } else {
-          next_rate.reset(next_data.timestamp(), rate);
-        }
-      } else {
-        next_rate.reset(next_data.timestamp(), (difference / time_delta_secs));
-      }
+      next_rate.reset(next_data.timestamp(), (difference / time_delta_secs));
     } else {
-      // Invalidates the next rate with invalid timestamp.
-      next_rate.reset(INVALID_TIMESTAMP, 0);
+      markEndOfSeries();
     }
   }
 
