@@ -36,8 +36,9 @@ public class AddDataExample {
   public static void processArgs(String[] args) {
  // Set these as arguments so you don't have to keep path information in
     // source files
-    if (args == null) {
+    if (args.length == 0) {
       System.err.println("First (and only) argument must be the full path to the opentsdb.conf file. (e.g. /User/thisUser/opentsdb/src/opentsdb.conf");
+      System.exit(1);
     } else {
       pathToConfigFile = args[0];
     }
