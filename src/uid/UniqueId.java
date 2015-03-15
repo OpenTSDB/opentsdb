@@ -171,6 +171,11 @@ public final class UniqueId implements UniqueIdInterface {
     return name_cache.size() + id_cache.size();
   }
 
+  /** Returns the number of random UID collisions */
+  public int randomIdCollisions() {
+    return random_id_collisions;
+  }
+  
   public String kind() {
     return fromBytes(kind);
   }
@@ -358,6 +363,12 @@ public final class UniqueId implements UniqueIdInterface {
         MAX_ATTEMPTS_ASSIGN_RANDOM_ID : MAX_ATTEMPTS_ASSIGN_ID;
 
     private HBaseException hbe = null;  // Last exception caught.
+    // TODO(manolama) - right now if we retry the assignment it will create a 
+    // callback chain MAX_ATTEMPTS_* long and call the ErrBack that many times.
+    // This can be cleaned up a fair amount but it may require changing the 
+    // public behavior a bit. For now, the flag will prevent multiple attempts
+    // to execute the callback.
+    private boolean called = false; // whether we called the deferred or not
 
     private long id = -1;  // The ID we'll grab with an atomic increment.
     private byte row[];    // The same ID, as a byte array.
@@ -383,11 +394,15 @@ public final class UniqueId implements UniqueIdInterface {
     @SuppressWarnings("unchecked")
     public Object call(final Object arg) {
       if (attempt == 0) {
-        if (hbe == null) {
+        if (hbe == null && !randomize_id) {
           throw new IllegalStateException("Should never happen!");
         }
         LOG.error("Failed to assign an ID for kind='" + kind()
                   + "' name='" + name + "'", hbe);
+        if (hbe == null) {
+          throw new FailedToAssignUniqueIdException(kind(), name, 
+              MAX_ATTEMPTS_ASSIGN_RANDOM_ID);
+        }
         throw hbe;
       }
 
@@ -400,7 +415,8 @@ public final class UniqueId implements UniqueIdInterface {
         if (arg instanceof HBaseException) {
           LOG.error(msg, (Exception) arg);
           hbe = (HBaseException) arg;
-          return tryAllocate();  // Retry from the beginning.
+          attempt--;
+          state = ALLOCATE_UID;;  // Retry from the beginning.
         } else {
           LOG.error("WTF?  Unexpected exception!  " + msg, (Exception) arg);
           return arg;  // Unexpected exception, let it bubble up.
@@ -409,8 +425,11 @@ public final class UniqueId implements UniqueIdInterface {
 
       class ErrBack implements Callback<Object, Exception> {
         public Object call(final Exception e) throws Exception {
-          assignment.callback(e);
-          LOG.warn("Failed pending assignment for: " + name);
+          if (!called) {
+            LOG.warn("Failed pending assignment for: " + name, e);
+            assignment.callback(e);
+            called = true;
+          }
           return assignment;
         }
       }
@@ -510,13 +529,17 @@ public final class UniqueId implements UniqueIdInterface {
       if (!((Boolean) arg)) {  // Previous CAS failed. 
         if (randomize_id) {
           // This random Id is already used by another row
-          LOG.warn("Detected random id collision and retrying, " + id);
+          LOG.warn("Detected random id collision and retrying kind='" + 
+              kind() + "' name='" + name + "'");
           random_id_collisions++;
         } else {
           // something is really messed up then
           LOG.error("WTF!  Failed to CAS reverse mapping: " + reverseMapping()
               + " -- run an fsck against the UID table!");
         }
+        attempt--;
+        state = ALLOCATE_UID;
+        return Deferred.fromResult(false);
       }
 
       state = DONE;
@@ -545,7 +568,8 @@ public final class UniqueId implements UniqueIdInterface {
         // and a UID will have been wasted in the process.  No big deal.
         if (randomize_id) {
           // This random Id is already used by another row
-          LOG.warn("Detected random id collision between two tsdb servers " + id);
+          LOG.warn("Detected random id collision between two tsdb "
+              + "servers kind='" + kind() + "' name='" + name + "'");
           random_id_collisions++;
         }
         
@@ -568,16 +592,12 @@ public final class UniqueId implements UniqueIdInterface {
         tsdb.indexUIDMeta(meta);
       }
       
-      synchronized (pending_assignments) {
-        pending_assignments.remove(name);
-      }
-      assignment.callback(row);
       synchronized(pending_assignments) {
-        if (pending_assignments.containsKey(name)) {
-          pending_assignments.remove(name);
+        if (pending_assignments.remove(name) != null) {
           LOG.info("Completed pending assignment for: " + name);
         }
       }
+      assignment.callback(row);
       return assignment;
     }
 
@@ -642,9 +662,10 @@ public final class UniqueId implements UniqueIdInterface {
       } catch (Exception e1) {
         throw new RuntimeException("Should never be here", e);
       } finally {
-        LOG.info("Completed pending assignment for: " + name);
         synchronized (pending_assignments) {
-          pending_assignments.remove(name);
+          if (pending_assignments.remove(name) != null) {
+            LOG.info("Completed pending assignment for: " + name);
+          }
         }
       }
       return uid;
@@ -765,15 +786,6 @@ public final class UniqueId implements UniqueIdInterface {
   public Deferred<List<String>> suggestAsync(final String search, 
       final int max_results) {
     return new SuggestCB(search, max_results).search();
-  }
-
-  /**
-   * Collects random uid collisions
-   * @param collector StatsCollector object to collect stats/metrics
-   * @since 2.2
-   */  
-  public void collectStats(final StatsCollector collector) {
-    collector.record("uid.collisions", random_id_collisions, "type=" + kind);
   }
 
   /**

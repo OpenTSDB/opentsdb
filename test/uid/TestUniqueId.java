@@ -31,9 +31,9 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -44,7 +44,8 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import static org.mockito.Mockito.any;
+
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
@@ -58,6 +59,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 @RunWith(PowerMockRunner.class)
@@ -66,7 +68,8 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HBaseClient.class, TSDB.class, Config.class })
+@PrepareForTest({ HBaseClient.class, TSDB.class, Config.class, 
+  RandomUniqueId.class })
 public final class TestUniqueId {
 
   private HBaseClient client = mock(HBaseClient.class);
@@ -482,7 +485,132 @@ public final class TestUniqueId {
     order.verify(client).compareAndSet(putForRow(id), emptyArray());
     order.verify(client).compareAndSet(putForRow(row), emptyArray());
   }
+  
+  @Test
+  public void getOrCreateIdRandom() {
+    PowerMockito.mockStatic(RandomUniqueId.class);
+    uid = new UniqueId(client, table, kind, 3, true);
+    final long id = 42L;
+    final byte[] id_array = { 0, 0, 0x2A };
 
+    when(RandomUniqueId.getRandomUID()).thenReturn(id);
+    when(client.get(any(GetRequest.class)))
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    
+    when(client.compareAndSet(any(PutRequest.class), any(byte[].class)))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    // Should be a cache hit ...
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+    assertEquals(0, uid.randomIdCollisions());
+    // ... so verify there was only one HBase Get.
+    verify(client).get(any(GetRequest.class));
+  }
+  
+  @Test
+  public void getOrCreateIdRandomCollision() {
+    PowerMockito.mockStatic(RandomUniqueId.class);
+    uid = new UniqueId(client, table, kind, 3, true);
+    final long id = 42L;
+    final byte[] id_array = { 0, 0, 0x2A };
+
+    when(RandomUniqueId.getRandomUID()).thenReturn(24L).thenReturn(id);
+    
+    when(client.get(any(GetRequest.class)))
+      .thenReturn(Deferred.fromResult((ArrayList<KeyValue>)null));
+    
+    when(client.compareAndSet(anyPut(), any(byte[].class)))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    // Should be a cache hit ...
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+    assertEquals(1, uid.randomIdCollisions());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(anyGet());
+  }
+  
+  @Test
+  public void getOrCreateIdRandomCollisionTooManyAttempts() {
+    PowerMockito.mockStatic(RandomUniqueId.class);
+    uid = new UniqueId(client, table, kind, 3, true);
+    final long id = 42L;
+
+    when(RandomUniqueId.getRandomUID()).thenReturn(24L).thenReturn(id);
+    
+    when(client.get(any(GetRequest.class)))
+      .thenReturn(Deferred.fromResult((ArrayList<KeyValue>)null));
+    
+    when(client.compareAndSet(any(PutRequest.class), any(byte[].class)))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false));
+
+    try {
+      final byte[] assigned_id = uid.getOrCreateId("foo");
+      fail("FailedToAssignUniqueIdException should have been thrown but instead "
+           + " this was returned id=" + Arrays.toString(assigned_id));
+    } catch (FailedToAssignUniqueIdException e) {
+      // OK
+    }
+    assertEquals(0, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(0, uid.cacheSize());
+    assertEquals(9, uid.randomIdCollisions());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(any(GetRequest.class));
+  }
+  
+  @Test
+  public void getOrCreateIdRandomWithRaceCondition() {
+    PowerMockito.mockStatic(RandomUniqueId.class);
+    uid = new UniqueId(client, table, kind, 3, true);
+    final long id = 24L;
+    final byte[] id_array = { 0, 0, 0x2A };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+    
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(byte_name, ID, kind_array, id_array));
+    
+    when(RandomUniqueId.getRandomUID()).thenReturn(id);
+    
+    when(client.get(any(GetRequest.class)))
+      .thenReturn(Deferred.fromResult((ArrayList<KeyValue>)null))
+      .thenReturn(Deferred.fromResult(kvs));
+    
+    when(client.compareAndSet(any(PutRequest.class), any(byte[].class)))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(false));
+
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    assertEquals(0, uid.cacheHits());
+    assertEquals(2, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+    assertEquals(1, uid.randomIdCollisions());
+
+    // ... so verify there was only one HBase Get.
+    verify(client, times(2)).get(any(GetRequest.class));
+  }
+  
   @PrepareForTest({HBaseClient.class, Scanner.class})
   @Test
   public void suggestWithNoMatch() {

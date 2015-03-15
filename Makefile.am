@@ -120,6 +120,7 @@ tsdb_SRC := \
 	src/tsd/TreeRpc.java	\
 	src/tsd/UniqueIdRpc.java	\
 	src/tsd/WordSplitter.java	\
+	src/uid/FailedToAssignUniqueIdException.java	\
 	src/uid/NoSuchUniqueId.java	\
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/RandomUniqueId.java	\
