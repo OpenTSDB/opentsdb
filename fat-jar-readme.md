@@ -11,6 +11,27 @@ With a FatJar build and the above dependencies, it is possible to start an OpenT
 
 ```java -jar opentsdb-2.1.jar```
 
+#### Building the FatJar
+
+These steps assume building from my current fork repo.
+
+1. Clone: ```git clone https://github.com/nickman/opentsdb.git```
+2. Switch to project directory: ```cd opentsdb```
+3. Switch to **next** branch: ```git checkout next```
+4. Build the **fat-jar-pom.xml**: ```./build.sh fat-jar-pom.xml```
+5. Run maven, specifying the fat-jar pom (and skipping the gpg plugin and tests): ```mvn -f fat-jar-pom.xml -Dgpg.skip -DskipTests clean install```
+6. Fire her up, Scotty:  ```java -jar ./target/opentsdb-2.1.0RC1-fat.jar tsd```
+
+**NOTE**: FatJar requires *maven 3*.
+
+**ANOTHER NOTE**: THe OpenTSDB code base has some non-compliant/missing javadoc tags. If you are compiling with Java 8, [the build will fail](http://http://stackoverflow.com/questions/15886209/maven-is-not-working-in-java-8-when-javadoc-tags-are-incomplete), so:
+1. Use Java 6 or 7  OR...
+2. Edit the fat-jar-pom.xml, find the javadoc plugin and uncomment the line:
+
+```<!-- <additionalparam>-Xdoclint:none</additionalparam> -->```
+
+###### This is currently on line 356. It is commented because is it not supported for Java 6 & 7.
+
 (Note that an [unreviewed] aspect of FatJar is the provision of default values for *all* configuration parameters so the three traditionally required parameters, **port**, **staticroot** and **cachedir** are not required.)
 
 FatJar is accomplished with:
@@ -138,7 +159,19 @@ Valid commands:
 
 Using java -jar opentsdb-x.x.x.jar help <command> for all CLI tools will print the tool's existing usage message. Help for tsd has a couple of additional options. Using the call above, with tsd as the command, the standard usage will be printed. With the additional argument of the keyword **extended**, the full set of configuration options is printed. Full example [here](https://gist.github.com/nickman/673852d8d88675043f45).
 
+#### Eclipse Support
 
+An [almost] incidental benefit for users of the Eclipse IDE is that the FatJar source overlay simplifies the setup of a "working-out-of-the-box" Eclipse project using maven. Just do this:
+
+```mvn -f fat-jar-pom.xml eclipse:eclipse```
+
+Then load up the project in Eclipse and launch **net.opentsdb.tools.Main** with the parameter **tsd"**.
+
+All at no cost to you.
+
+#### Last Note
+
+There's some big changes here. I recognize it's not perfect. Please let me have any feedback. It will not be taken personally, but only to improve OpenTSDB.
 
 
 
