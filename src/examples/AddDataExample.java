@@ -32,12 +32,14 @@ import net.opentsdb.utils.Config;
  */
 public class AddDataExample {
   private static String pathToConfigFile;
-  
+
   public static void processArgs(String[] args) {
- // Set these as arguments so you don't have to keep path information in
+    // Set these as arguments so you don't have to keep path information in
     // source files
-    if (args == null) {
-      System.err.println("First (and only) argument must be the full path to the opentsdb.conf file. (e.g. /User/thisUser/opentsdb/src/opentsdb.conf");
+    if (args.length == 0) {
+      System.err
+          .println("First (and only) argument must be the full path to the opentsdb.conf file. (e.g. /User/thisUser/opentsdb/src/opentsdb.conf");
+      System.exit(1);
     } else {
       pathToConfigFile = args[0];
     }
@@ -45,10 +47,8 @@ public class AddDataExample {
 
   public static void main(String[] args) throws Exception {
 
-    
-    
     processArgs(args);
-    
+
     // Create a config object with a path to the file for parsing. Or manually
     // override settings.
     // e.g. config.overrideConfig("tsd.storage.hbase.zk_quorum", "localhost");
@@ -61,8 +61,9 @@ public class AddDataExample {
     byte[] byteMetricUID; // we don't actually need this for the first
                           // .addPoint() call below.
     // TODO: Ideally we could just call a not-yet-implemented tsdb.uIdExists()
-    // function. 
-    // Note, however, that this is optional. If autometric is enabled,  the UID will be assigned in call to addPoint().
+    // function.
+    // Note, however, that this is optional. If autometric is enabled, the UID
+    // will be assigned in call to addPoint().
     try {
       byteMetricUID = tsdb.getUID(UniqueIdType.METRIC, metricName);
     } catch (IllegalArgumentException iae) {
@@ -81,43 +82,38 @@ public class AddDataExample {
     Map<String, String> tags = new HashMap<String, String>(1);
     tags.put("dummy-key", "dummy-val1");
 
-   
-
-    
     // Start timer
     long startTime1 = System.currentTimeMillis();
-    
+
     int n = 100;
     ArrayList<Deferred<Object>> deferreds = new ArrayList<Deferred<Object>>(n);
     for (int i = 0; i < n; i++) {
-      Deferred<Object> deferred = tsdb.addPoint(metricName, timestamp, value + i, tags);
+      Deferred<Object> deferred = tsdb.addPoint(metricName, timestamp, value
+          + i, tags);
       deferreds.add(deferred);
-      
+
     }
-    
+
     // Add the callbacks to the deferred object. (They might have already
     // returned, btw)
     // This will cause the calling thread to wait until the add has completed.
-    
+
     System.out.println("Waiting for deferred result to return...");
     Deferred.groupInOrder(deferreds)
         .addErrback(new AddDataExample().new errBack())
-        .addCallback(new AddDataExample().new succBack())
-        .join();
-    
+        .addCallback(new AddDataExample().new succBack()).join();
+
     // Block the thread until the deferred returns it's result.
-//    deferred.join();
-    
+    // deferred.join();
+
     // End timer.
     long elapsedTime1 = System.currentTimeMillis() - startTime1;
     System.out.println("\nAdding " + n + " points took: " + elapsedTime1
         + " milliseconds.\n");
 
-
     // Gracefully shutdown connection to TSDB
     tsdb.shutdown();
 
-    
   }
 
   // This is an optional errorback to handle when there is a failure.
@@ -144,7 +140,7 @@ public class AddDataExample {
       return null;
     }
   };
-  
+
   public static long[] makeRandomValues(int num, Random rand) {
     long[] values = new long[num];
     for (int i = 0; i < num; i++) {
