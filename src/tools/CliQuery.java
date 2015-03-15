@@ -199,22 +199,12 @@ final class CliQuery {
     while (i < args.length) {
       final Aggregator agg = Aggregators.get(args[i++]);
       final boolean rate = args[i].equals("rate");
-      RateOptions rate_options = new RateOptions(false, Long.MAX_VALUE,
-          RateOptions.DEFAULT_RESET_VALUE);
+      RateOptions rate_options = new RateOptions(false);
       if (rate) {
         i++;
         
-        long counterMax = Long.MAX_VALUE;
-        long resetValue = RateOptions.DEFAULT_RESET_VALUE;
         if (args[i].startsWith("counter")) {
-          String[] parts = Tags.splitString(args[i], ',');
-          if (parts.length >= 2 && parts[1].length() > 0) {
-            counterMax = Long.parseLong(parts[1]);
-          }
-          if (parts.length >= 3 && parts[2].length() > 0) {
-            resetValue = Long.parseLong(parts[2]);
-          }
-          rate_options = new RateOptions(true, counterMax, resetValue);
+          rate_options = new RateOptions(true);
           i++;
         }
       }

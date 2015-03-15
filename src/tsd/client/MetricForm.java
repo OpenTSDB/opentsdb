@@ -52,8 +52,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final ValidatedTextBox interval = new ValidatedTextBox();
   private final CheckBox rate = new CheckBox("Rate");
   private final CheckBox rate_counter = new CheckBox("Rate Ctr");
-  private final TextBox counter_max = new TextBox();
-  private final TextBox counter_reset_value = new TextBox();
   private final CheckBox x1y2 = new CheckBox("Right Axis");
   private final ListBox aggregators = new ListBox();
   private final ValidatedTextBox metric = new ValidatedTextBox();
@@ -68,10 +66,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     interval.addKeyPressHandler(handler);
     rate.addClickHandler(handler);
     rate_counter.addClickHandler(handler);
-    counter_max.addBlurHandler(handler);
-    counter_max.addKeyPressHandler(handler);
-    counter_reset_value.addBlurHandler(handler);
-    counter_reset_value.addKeyPressHandler(handler);
     x1y2.addClickHandler(handler);
     aggregators.addChangeHandler(handler);
     metric.addBlurHandler(handler);
@@ -168,11 +162,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     LocalRateOptions rate_options = parseRateOptions(rate, parts[i]);
     this.rate_counter.setValue(rate_options.is_counter, false);
     final long rate_counter_max = rate_options.counter_max;
-    this.counter_max.setValue(
-        rate_counter_max == Long.MAX_VALUE ? "" : Long.toString(rate_counter_max), 
-        false);
-    this.counter_reset_value
-        .setValue(Long.toString(rate_options.reset_value), false);
     if (rate) {
       i--;
     }
@@ -239,20 +228,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       }
       {
         final HorizontalPanel hbox = new HorizontalPanel();
-        final InlineLabel l = new InlineLabel("Rate Ctr Max:");
-        hbox.add(l);
-        hbox.add(counter_max);
-        vbox.add(hbox);
-      }
-      {
-        final HorizontalPanel hbox = new HorizontalPanel();
-        final InlineLabel l = new InlineLabel("Rate Ctr Reset:");
-        hbox.add(l);
-        hbox.add(counter_reset_value);
-        vbox.add(hbox);
-      }
-      {
-        final HorizontalPanel hbox = new HorizontalPanel();
         final InlineLabel l = new InlineLabel();
         l.setText("Aggregator:");
         hbox.add(l);
@@ -300,15 +275,6 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       url.append(":rate");
       if (rate_counter.getValue()) {
         url.append('{').append("counter");
-        final String max = counter_max.getValue().trim();
-        final String reset = counter_reset_value.getValue().trim();
-        if (max.length() > 0 && reset.length() > 0) {
-          url.append(',').append(max).append(',').append(reset);
-        } else if (max.length() > 0 && reset.length() == 0) {
-          url.append(',').append(max);
-        } else if (max.length() == 0 && reset.length() > 0){
-          url.append(",,").append(reset);
-        }
         url.append('}');
       }
     }

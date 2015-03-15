@@ -15,7 +15,9 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertArrayEquals;
 
+import java.util.Arrays;
 import java.util.NoSuchElementException;
 
 import org.junit.Before;
@@ -38,13 +40,12 @@ public class TestRateSpan {
 
   private static final DataPoint[] RATE_DATA_POINTS = new DataPoint[] {
     MutableDataPoint.ofDoubleValue(1356998400000L, 40.0 / 1356998400),
-    MutableDataPoint.ofDoubleValue(1356998400000L + 2000000, 10.0 / 2000.0),
-    MutableDataPoint.ofDoubleValue(1357002000000L,
-                                   -10.0 / (1357002000L - 1356998400L - 2000)),
-    MutableDataPoint.ofDoubleValue(1357002000000L + 5000, 10.0 / 5.0),
-    MutableDataPoint.ofDoubleValue(1357005600000L,
-                                   -10.0 / (1357005600L - 1357002005L)),
-    MutableDataPoint.ofDoubleValue(1357005600000L + 2000000, 10.0 / 2000.0)
+    MutableDataPoint.ofDoubleValue(1357000400000L, 10.0 / 2000.0),
+    // Low quality datapoint.
+    MutableDataPoint.ofDoubleValue(1357002000000L,-10.0 / (1357002000L - 1356998400L - 2000)),
+    MutableDataPoint.ofDoubleValue(1357002005000L, 10.0 / 5.0),
+    MutableDataPoint.ofDoubleValue(1357005600000L,-10.0 / (1357005600L - 1357002005L)),
+    MutableDataPoint.ofDoubleValue(1357007600000L, 10.0 / 2000.0)
   };
 
   private static final DataPoint[] RATES_AFTER_SEEK = new DataPoint[] {
@@ -54,14 +55,24 @@ public class TestRateSpan {
     RATE_DATA_POINTS[3], RATE_DATA_POINTS[4], RATE_DATA_POINTS[5]
   };
 
-  private static final long COUNTER_MAX = 70;
-  private static final DataPoint[] RATES_FOR_COUNTER = new DataPoint[] {
-    MutableDataPoint.ofDoubleValue(1356998400000L, 40.0 / 1356998400),
-    MutableDataPoint.ofDoubleValue(1356998400000L + 2000000, 10.0 / 2000.0),
-    MutableDataPoint.ofDoubleValue(1357002000000L, (40.0 + 20) / 1600.0),
-    MutableDataPoint.ofDoubleValue(1357002000000L + 5000, 10.0 / 5.0),
-    MutableDataPoint.ofDoubleValue(1357005600000L, (40.0 + 20) / 3595),
-    MutableDataPoint.ofDoubleValue(1357005600000L + 2000000, 10.0 / 2000.0)
+  private static final DataPoint[] COUNTER_DATA_POINTS_ONE = new DataPoint[] {
+    MutableDataPoint.ofDoubleValue(1426385507000L, 1),
+    MutableDataPoint.ofDoubleValue(1426385508000L, 2),
+    MutableDataPoint.ofDoubleValue(1426385509000L, 3),
+    MutableDataPoint.ofDoubleValue(1426385510000L, 4),
+    MutableDataPoint.ofDoubleValue(1426385511000L, 5),
+    MutableDataPoint.ofDoubleValue(1426385512000L, 6)
+  };
+
+  private static final DataPoint[] COUNTER_DATA_POINTS_TWO_RESET = new DataPoint[] {
+    MutableDataPoint.ofDoubleValue(1426385507000L, 2),
+    MutableDataPoint.ofDoubleValue(1426385508000L, 4),
+    MutableDataPoint.ofDoubleValue(1426385509000L, 6),
+    MutableDataPoint.ofDoubleValue(1426385510000L, 8),
+    MutableDataPoint.ofDoubleValue(1426385511000L, 3),
+    MutableDataPoint.ofDoubleValue(1426385512000L, 5),
+    MutableDataPoint.ofDoubleValue(1426385513000L, 7),
+    MutableDataPoint.ofDoubleValue(1426385514000L, 9)
   };
 
   private SeekableView source;
@@ -183,75 +194,65 @@ public class TestRateSpan {
   }
 
   @Test
-  public void testNext_counter() {
-    options = new RateOptions(true, COUNTER_MAX,
-                              RateOptions.DEFAULT_RESET_VALUE);
+  public void noCounterNoResetSteadyRate() {
+    source = SeekableViewsForTest.fromArray(COUNTER_DATA_POINTS_ONE);
+    options = new RateOptions(false);
     RateSpan rate_span = new RateSpan(source, options);
-    for (DataPoint rate : RATES_FOR_COUNTER) {
-      assertTrue(rate_span.hasNext());
-      assertTrue(rate_span.hasNext());
-      DataPoint dp = rate_span.next();
-      String msg = String.format("expected rate = '%s' ", rate);
-      assertFalse(msg, dp.isInteger());
-      assertEquals(msg, rate.timestamp(), dp.timestamp());
-      assertEquals(msg, rate.doubleValue(), dp.doubleValue(), 0.0000001);
+    int count = 0;
+    rate_span.next(); // Skip first datapoint.
+    while(rate_span.hasNext()) {
+      DataPoint rateDp = rate_span.next();
+      assertEquals(1, rateDp.doubleValue(), 0);
+      count++;
     }
-    assertFalse(rate_span.hasNext());
-    assertFalse(rate_span.hasNext());
+    assertEquals(5, count);
   }
 
   @Test
-  public void testNext_counterLongMax() {
-    options = new RateOptions(true, Long.MAX_VALUE, 0);
-    source = SeekableViewsForTest.fromArray(new DataPoint[] {
-        MutableDataPoint.ofLongValue(1356998430000L, Long.MAX_VALUE - 55),
-        MutableDataPoint.ofLongValue(1356998460000L, Long.MAX_VALUE - 25),
-        MutableDataPoint.ofLongValue(1356998490000L, 5),
-    });
-    DataPoint[] rates = new DataPoint[] {
-        MutableDataPoint.ofDoubleValue(1356998430000L,
-                                       (Long.MAX_VALUE - 55) / 1356998430.0),
-        MutableDataPoint.ofDoubleValue(1356998460000L, 1),
-        MutableDataPoint.ofDoubleValue(1356998490000L, 1)
-    };
+  public void counterNoResetSteadyRate() {
+    source = SeekableViewsForTest.fromArray(COUNTER_DATA_POINTS_ONE);
+    options = new RateOptions(true);
     RateSpan rate_span = new RateSpan(source, options);
-    for (DataPoint rate : rates) {
-      assertTrue(rate_span.hasNext());
-      DataPoint dp = rate_span.next();
-      String msg = String.format("expected rate = '%s' ", rate);
-      assertFalse(msg, dp.isInteger());
-      assertEquals(msg, rate.timestamp(), dp.timestamp());
-      assertEquals(msg, rate.doubleValue(), dp.doubleValue(), 0.0000001);
+    int count = 0;
+    rate_span.next(); // Skip first datapoint.
+    while(rate_span.hasNext()) {
+      DataPoint rateDp = rate_span.next();
+      assertEquals(1, rateDp.doubleValue(), 0);
+      count++;
     }
-    assertFalse(rate_span.hasNext());
+    assertEquals(5, count);
   }
 
   @Test
-  public void testNext_counterWithResetValue() {
-    final long RESET_VALUE = 1;
-    source = SeekableViewsForTest.fromArray(new DataPoint[] {
-        MutableDataPoint.ofLongValue(1356998400000L, 40),
-        MutableDataPoint.ofLongValue(1356998401000L, 50),
-        MutableDataPoint.ofLongValue(1356998402000L, 40)
-    });
-    DataPoint[] rates = new DataPoint[] {
-        MutableDataPoint.ofDoubleValue(1356998400000L, 40 / 1356998400.0),
-        MutableDataPoint.ofDoubleValue(1356998401000L, 10),
-        // Not 60 because the change is too big compared to the reset value.
-        MutableDataPoint.ofDoubleValue(1356998402000L, 0)
-    };
-    options = new RateOptions(true, COUNTER_MAX, RESET_VALUE);
+  public void noCounterResetHasNegativeDatapoint() {
+    source = SeekableViewsForTest.fromArray(COUNTER_DATA_POINTS_TWO_RESET);
+    options = new RateOptions(false);
     RateSpan rate_span = new RateSpan(source, options);
-    for (DataPoint rate : rates) {
-      assertTrue(rate_span.hasNext());
-      assertTrue(rate_span.hasNext());
-      DataPoint dp = rate_span.next();
-      String msg = String.format("expected rate = '%s' ", rate);
-      assertFalse(msg, dp.isInteger());
-      assertEquals(msg, rate.timestamp(), dp.timestamp());
-      assertEquals(msg, rate.doubleValue(), dp.doubleValue(), 0.0000001);
+    int count = 0;
+    rate_span.next(); // Throw away first datapoint.
+    double[] values = new double[7];
+    while(rate_span.hasNext()) {
+      DataPoint rateDp = rate_span.next();
+      values[count++] = rateDp.doubleValue();
     }
-    assertFalse(rate_span.hasNext());
-    assertFalse(rate_span.hasNext());
+    assertEquals(7, count);
+    assertTrue(Arrays.equals(new double[]{2,2,2,-5,2,2,2}, values));
   }
+
+  @Test
+  public void CounterResetSkipLowQualityDatapoint() {
+    source = SeekableViewsForTest.fromArray(COUNTER_DATA_POINTS_TWO_RESET);
+    options = new RateOptions(true);
+    RateSpan rate_span = new RateSpan(source, options);
+    int count = 0;
+    rate_span.next(); // Throw away first datapoint.
+    double[] values = new double[6];
+    while(rate_span.hasNext()) {
+      DataPoint rateDp = rate_span.next();
+      values[count++] = rateDp.doubleValue();
+    }
+    assertEquals(6, count);
+    assertTrue(Arrays.equals(new double[]{2,2,2,2,2,2}, values));
+  }
+
 }

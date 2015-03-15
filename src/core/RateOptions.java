@@ -23,7 +23,6 @@ package net.opentsdb.core;
  * @since 2.0
  */
 public class RateOptions {
-  public static final long DEFAULT_RESET_VALUE = 0;
 
   /**
    * If true, then when calculating a rate of change assume that the metric
@@ -51,25 +50,15 @@ public class RateOptions {
    */
   public RateOptions() {
     this.counter = false;
-    this.counter_max = Long.MAX_VALUE;
-    this.reset_value = DEFAULT_RESET_VALUE;
   }
   
   /**
    * Ctor
    * @param counter If true, indicates that the rate calculation should assume
    * that the underlying data is from a counter
-   * @param counter_max Specifies the maximum value for the counter before it
-   * will roll over and restart at 0
-   * @param reset_value Specifies the largest rate change that is considered
-   * acceptable, if a rate change is seen larger than this value then the
-   * counter is assumed to have been reset
    */
-  public RateOptions(final boolean counter, final long counter_max,
-      final long reset_value) {
+  public RateOptions(final boolean counter) {
     this.counter = counter;
-    this.counter_max = counter_max;
-    this.reset_value = reset_value;
   }
   
   /** @return Whether or not the counter flag is set */
