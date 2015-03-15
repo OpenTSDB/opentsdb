@@ -82,6 +82,29 @@ public class TestConfigArgP {
 	/** true/false string values */
 	static final Set<String> trueFalseValues = Collections.unmodifiableSet(new HashSet<String>(Arrays.asList("true", "false")));
 	
+	static final boolean runningFatJar;
+	
+	static {
+		boolean tmp = false;
+		InputStream is = null;
+		try {
+			is = TestConfigArgP.class.getClassLoader().getResourceAsStream("opentsdb.conf.json");
+			BufferedReader bin = new BufferedReader(new InputStreamReader(is));
+			StringBuilder b = new StringBuilder();
+			String line = null;
+			while((line = bin.readLine())!=null) {
+				b.append(line);
+			}
+			JSONObject jo = new JSONObject(b.toString());
+			tmp = true;
+		} catch (Exception x) {
+			tmp = false;
+		} finally {
+			if(is!=null) try { is.close(); } catch (Exception x) {/* No Op */}
+		}	
+		runningFatJar = tmp;
+	}
+	
 	/**
 	 * Loads a fresh new JSONObject with the config 
 	 * from the classpath loaded <code>opentsdb.conf.json</code>.
@@ -137,9 +160,10 @@ public class TestConfigArgP {
 	 * Starts the test web server
 	 */
 	@BeforeClass
-	public static void startHttpServer() {
+	public static void startHttpServer() {		
 		webServer = new QuickieWebServer();
-		port = webServer.getPort();
+		port = webServer.getPort();		
+		org.junit.Assume.assumeTrue(runningFatJar);
 	}
 	
 	/**
@@ -155,6 +179,7 @@ public class TestConfigArgP {
 			webServer = null;
 		}
 	}
+	
 	
 	
 	/**
@@ -599,3 +624,6 @@ public class TestConfigArgP {
 			"tsd.storage.hbase.meta_table=tsdb-metax\n";
 	
 }
+
+
+
