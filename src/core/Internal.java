@@ -93,7 +93,7 @@ public final class Internal {
 
   /** Extracts the timestamp from a row key.  */
   public static long baseTime(final TSDB tsdb, final byte[] row) {
-    return Bytes.getUnsignedInt(row, tsdb.metrics.width());
+    return Bytes.getUnsignedInt(row, Const.SALT_WIDTH() + TSDB.metrics_width());
   }
 
   /** @see Tags#getTags */
@@ -858,5 +858,67 @@ public final class Internal {
     buf.setCharAt(buf.length() - 1, ')');
     buf.append("$");
     scanner.setKeyRegexp(buf.toString(), Charset.forName("ISO-8859-1"));
+  }
+
+  /**
+   * Returns the byte array for the given salt id
+   * WARNING: Don't use this one unless you know what you're doing. It's here
+   * for unit testing.
+   * @param bucket The ID of the bucket to get the salt for
+   * @return The salt as a byte array based on the width in bytes
+   * @since 2.2
+   */
+  public static byte[] getSaltBytes(final int bucket) {
+    final byte[] bytes = new byte[Const.SALT_WIDTH()];
+    int shift = 0;
+    for (int i = 1;i <= Const.SALT_WIDTH(); i++) {
+      bytes[Const.SALT_WIDTH() - i] = (byte) (bucket >>> shift);
+      shift += 8;
+    }
+    return bytes;
+  }
+
+  /**
+   * Calculates and writes an array of one or more salt bytes at the front of
+   * the given row key. 
+   * 
+   * The salt is calculated by taking the Java hash code of the metric and 
+   * tag UIDs and returning a modulo based on the number of salt buckets.
+   * The result will always be a positive integer from 0 to salt buckets.
+   * 
+   * NOTE: The row key passed in MUST have allocated the {@link width} number of
+   * bytes at the front of the row key or this call will overwrite data.
+   * 
+   * WARNING: If the width is set to a positive value, then the bucket must be
+   * at least 1 or greater.
+   * @param row_key The pre-allocated row key to write the salt to
+   * @since 2.2
+   */
+  public static void prefixKeyWithSalt(final byte[] row_key) {
+    if (Const.SALT_WIDTH() > 0) {
+      if (row_key.length < (Const.SALT_WIDTH() + TSDB.metrics_width()) || 
+        (Bytes.memcmp(row_key, new byte[Const.SALT_WIDTH() + TSDB.metrics_width()], 
+            Const.SALT_WIDTH(), TSDB.metrics_width()) == 0)) {
+        // ^ Don't salt the global annotation row, leave it at zero
+        return;
+      }
+      final int tags_start = Const.SALT_WIDTH() + TSDB.metrics_width() + 
+          Const.TIMESTAMP_BYTES;
+      
+      // we want the metric and tags, not the timestamp
+      final byte[] salt_base = 
+          new byte[row_key.length - Const.SALT_WIDTH() - Const.TIMESTAMP_BYTES];
+      System.arraycopy(row_key, Const.SALT_WIDTH(), salt_base, 0, TSDB.metrics_width());
+      System.arraycopy(row_key, tags_start,salt_base, TSDB.metrics_width(), 
+          row_key.length - tags_start);
+      int modulo = Arrays.hashCode(salt_base) % Const.SALT_BUCKETS();
+      if (modulo < 0) {
+        // make sure we return a positive salt.
+        modulo = modulo * -1;
+      }
+    
+      final byte[] salt = Internal.getSaltBytes(modulo);
+      System.arraycopy(salt, 0, row_key, 0, Const.SALT_WIDTH());
+    } // else salting is disabled so it's a no-op
   }
 }

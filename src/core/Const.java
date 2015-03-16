@@ -74,4 +74,29 @@ public final class Const {
    * before losing precision.
    */
   public static final long MAX_INT_IN_DOUBLE = 0xFFE0000000000000L;
+  
+  /**
+   * The number of buckets to use for salting. 
+   * WARNING: Changing this after writing data will break TSUID and direct 
+   * queries as the salt calculation will differ. Scanning queries will be OK
+   * though.
+   */
+  private static final int SALT_BUCKETS = 20;
+  public static int SALT_BUCKETS() {
+    return SALT_BUCKETS;
+  }
+  
+  /**
+   * Width of the salt in bytes.
+   * Its width should be proportional to MAX_SALT data type.
+   * When set to 0, salting is disabled.
+   * if SALT_WIDTH = 1, the MAX_SALT should be byte
+   * if SALT_WIDTH = 2, the MAX_SALT can be byte or short
+   * WARNING: Do NOT change this after you start writing data or you will not
+   * be able to query for anything.
+   */
+  private static final int SALT_WIDTH = 0;
+  public static int SALT_WIDTH() {
+    return SALT_WIDTH;
+  }
 }
