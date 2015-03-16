@@ -121,11 +121,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     final short tag_value_width = tsdb.tag_values.width();
     final short num_tags = (short) tags.size();
 
-    int row_size = (metric_width + Const.TIMESTAMP_BYTES + tag_name_width
-        * num_tags + tag_value_width * num_tags);
+    int row_size = (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES 
+        + tag_name_width * num_tags + tag_value_width * num_tags);
     final byte[] row = new byte[row_size];
 
-    short pos = 0;
+    short pos = (short) Const.SALT_WIDTH();
 
     copyInRowKey(row, pos,
         (tsdb.config.auto_metric() ? tsdb.metrics.getOrCreateId(metric)

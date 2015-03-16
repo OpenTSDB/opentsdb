@@ -152,11 +152,13 @@ tsdb_DEPS = \
 
 test_SRC := \
 	test/core/SeekableViewsForTest.java \
+	test/core/BaseTsdbTest.java \
 	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
 	test/core/TestBatchedDataPoints.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestDownsampler.java \
+	test/core/TestIncomingDataPoints.java	\
 	test/core/TestInternal.java	\
 	test/core/TestMutableDataPoint.java	\
 	test/core/TestRateSpan.java	\
