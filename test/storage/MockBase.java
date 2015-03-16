@@ -18,8 +18,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,7 +31,6 @@ import java.util.regex.PatternSyntaxException;
 import javax.xml.bind.DatatypeConverter;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -46,6 +43,7 @@ import org.hbase.async.Scanner;
 import org.junit.Ignore;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.Deferred;
 
@@ -116,21 +114,7 @@ public final class MockBase {
     default_family = "t".getBytes(ASCII);  // set a default
     
     // replace the "real" field objects with mocks
-    Field cl;
-    try {
-      cl = tsdb.getClass().getDeclaredField("client");
-      cl.setAccessible(true);
-      cl.set(tsdb, client);
-      cl.setAccessible(false);
-    } catch (SecurityException e) {
-      e.printStackTrace();
-    } catch (NoSuchFieldException e) {
-      e.printStackTrace();
-    } catch (IllegalArgumentException e) {
-      e.printStackTrace();
-    } catch (IllegalAccessException e) {
-      e.printStackTrace();
-    }
+    Whitebox.setInternalState(tsdb, "client", client);
 
     // Default get answer will return one or more columns from the requested row
     if (default_get) {
