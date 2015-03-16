@@ -650,7 +650,9 @@ public final class TSDB {
       base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     }
     
-    Bytes.setInt(row, (int) base_time, metrics.width());
+    Bytes.setInt(row, (int) base_time, metrics.width() + Const.SALT_WIDTH());
+    Internal.prefixKeyWithSalt(row);
+    
     scheduleForCompaction(row, (int) base_time);
     final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
     

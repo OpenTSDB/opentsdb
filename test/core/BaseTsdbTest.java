@@ -143,8 +143,12 @@ public class BaseTsdbTest {
     when(tag_names.getNameAsync(TAGK_BYTES))
       .thenReturn(Deferred.fromResult(TAGK_STRING));
     
+    final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_TAGK, "tagk");
+    
+    when(tag_names.getId(NSUN_TAGK))
+      .thenThrow(nsun);
     when(tag_names.getIdAsync(NSUN_TAGK))
-      .thenReturn(Deferred.<byte[]>fromError(new NoSuchUniqueName(NSUN_TAGK, "tagk")));
+      .thenReturn(Deferred.<byte[]>fromError(nsun));
   }
   
   void setupTagvMaps() {
