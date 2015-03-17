@@ -75,6 +75,17 @@ public class TestRateSpan {
     MutableDataPoint.ofDoubleValue(1426385514000L, 9)
   };
 
+  private static final DataPoint[] COUNTER_DATA_POINTS_NO_INCREASE = new DataPoint[] {
+    MutableDataPoint.ofDoubleValue(1426385507000L, 5),
+    MutableDataPoint.ofDoubleValue(1426385508000L, 5),
+    MutableDataPoint.ofDoubleValue(1426385509000L, 5),
+    MutableDataPoint.ofDoubleValue(1426385510000L, 0),
+    MutableDataPoint.ofDoubleValue(1426385511000L, 0),
+    MutableDataPoint.ofDoubleValue(1426385512000L, 0),
+    MutableDataPoint.ofDoubleValue(1426385513000L, 0),
+    MutableDataPoint.ofDoubleValue(1426385514000L, 0)
+  };
+
   private SeekableView source;
   private RateOptions options;
 
@@ -214,7 +225,7 @@ public class TestRateSpan {
     options = new RateOptions(true);
     RateSpan rate_span = new RateSpan(source, options);
     int count = 0;
-    rate_span.next(); // Skip first datapoint.
+    rate_span.next(); // Throw away the initial datapoint.
     while(rate_span.hasNext()) {
       DataPoint rateDp = rate_span.next();
       assertEquals(1, rateDp.doubleValue(), 0);
@@ -229,7 +240,7 @@ public class TestRateSpan {
     options = new RateOptions(false);
     RateSpan rate_span = new RateSpan(source, options);
     int count = 0;
-    rate_span.next(); // Throw away first datapoint.
+    rate_span.next(); // Throw away the initial datapoint.
     double[] values = new double[7];
     while(rate_span.hasNext()) {
       DataPoint rateDp = rate_span.next();
@@ -245,7 +256,7 @@ public class TestRateSpan {
     options = new RateOptions(true);
     RateSpan rate_span = new RateSpan(source, options);
     int count = 0;
-    rate_span.next(); // Throw away first datapoint.
+    rate_span.next(); // Throw away the initial datapoint.
     double[] values = new double[6];
     while(rate_span.hasNext()) {
       DataPoint rateDp = rate_span.next();
@@ -253,6 +264,22 @@ public class TestRateSpan {
     }
     assertEquals(6, count);
     assertTrue(Arrays.equals(new double[]{2,2,2,2,2,2}, values));
+  }
+
+  @Test
+  public void CounterResetSkipLowQualityDatapointNoIncrease() {
+    source = SeekableViewsForTest.fromArray(COUNTER_DATA_POINTS_NO_INCREASE);
+    options = new RateOptions(true);
+    RateSpan rate_span = new RateSpan(source, options);
+    int count = 0;
+    rate_span.next(); // Throw away the initial datapoint.
+    double[] values = new double[6];
+    while(rate_span.hasNext()) {
+      DataPoint rateDp = rate_span.next();
+      values[count++] = rateDp.doubleValue();
+    }
+    assertEquals(6, count);
+    assertTrue(Arrays.equals(new double[]{0,0,0,0,0,0}, values));
   }
 
 }

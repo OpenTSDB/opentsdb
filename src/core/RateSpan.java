@@ -175,7 +175,7 @@ public class RateSpan implements SeekableView {
         while(source.hasNext()) {
           moveToNextDatapoint();
           difference = getValueDifference();
-          if (difference > 0) {
+          if (difference >= 0) {
             break;
           }
         }
