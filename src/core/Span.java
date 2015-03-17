@@ -161,12 +161,14 @@ final class Span implements DataPoints {
       final byte[] key = row.key();
       final RowSeq last = rows.get(rows.size() - 1);
       final short metric_width = tsdb.metrics.width();
-      final short tags_offset = (short) (metric_width + Const.TIMESTAMP_BYTES);
+      final short tags_offset = 
+          (short) (Const.SALT_WIDTH() + metric_width + Const.TIMESTAMP_BYTES);
       final short tags_bytes = (short) (key.length - tags_offset);
       String error = null;
       if (key.length != last.key.length) {
         error = "row key length mismatch";
-      } else if (Bytes.memcmp(key, last.key, 0, metric_width) != 0) {
+      } else if (
+          Bytes.memcmp(key, last.key, Const.SALT_WIDTH(), metric_width) != 0) {
         error = "metric ID mismatch";
       } else if (Bytes.memcmp(key, last.key, tags_offset, tags_bytes) != 0) {
         error = "tags mismatch";
@@ -186,7 +188,8 @@ final class Span implements DataPoints {
     if (last_ts >= rowseq.timestamp(0)) {
       // scan to see if we need to merge into an existing row
       for (final RowSeq rs : rows) {
-        if (Bytes.memcmp(rs.key, row.key()) == 0) {
+        if (Bytes.memcmp(rs.key, row.key(), Const.SALT_WIDTH(), 
+            (rs.key.length - Const.SALT_WIDTH())) == 0) {
           rs.addRow(row);
           return;
         }
