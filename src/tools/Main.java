@@ -133,6 +133,12 @@ public class Main {
 	    	mainUsage(System.err);
 	    	System.exit(-1);
 	    }
+	    // This is not normally needed since values passed on the CL are auto-trimmed,
+	    // but since the Main may be called programatically in some embedded scenarios,
+	    // let's save us some time and trim the values here.
+		for(int i = 0; i < args.length; i++) {
+			args[i] = args[i].trim();
+		}	    
 	    String targetTool = args[0].toLowerCase();
 	    if(!COMMANDS.containsKey(targetTool)) {
 	    	log.error("Command not recognized: [" + targetTool + "]");

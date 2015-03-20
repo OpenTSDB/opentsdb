@@ -145,9 +145,11 @@ public class ConfigArgP {
 				LOG.debug("Processing CI [{}]", ci.getKey());
 				if(ci.meta!=null) {
 					argp.addOption(ci.clOption, ci.meta, ci.description);
+					LOG.debug("Registered Meta ArgP cl:[{}], meta:[{}]", ci.clOption, ci.meta); 
 					if("default".equals(ci.help)) dargp.addOption(ci.clOption, ci.meta, ci.description);
 				} else {
 					argp.addOption(ci.clOption, ci.description);
+					LOG.debug("Registered No Meta ArgP cl:[{}]", ci.clOption);
 					if("default".equals(ci.help)) dargp.addOption(ci.clOption, ci.description);
 				}
 				if(!configItemsByKey.add(ci)) {
