@@ -12,11 +12,13 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import dagger.ObjectGraph;
+import net.opentsdb.core.TsdbModule;
 import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
@@ -70,7 +72,8 @@ final class Search {
     
     final boolean use_data_table = argp.has("--use-data-table");
 
-    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final String defaultConfig = new File(System.getProperty("app.home"), "opentsdb").getPath();
+    ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(argp.get("--config", defaultConfig)));
     final TSDB tsdb = objectGraph.get(TSDB.class);
     
     int rc;

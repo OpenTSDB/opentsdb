@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.File;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,6 +20,7 @@ import java.util.Date;
 import java.util.Map;
 
 import dagger.ObjectGraph;
+import net.opentsdb.core.TsdbModule;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -72,7 +74,8 @@ final class DumpSeries {
       usage(argp, "Not enough arguments.", 2);
     }
 
-    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final String defaultConfig = new File(System.getProperty("app.home"), "opentsdb").getPath();
+    ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(argp.get("--config", defaultConfig)));
     final Config config = objectGraph.get(Config.class);
     final TSDB tsdb = objectGraph.get(TSDB.class);
 

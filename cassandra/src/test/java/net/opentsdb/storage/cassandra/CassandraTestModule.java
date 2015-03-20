@@ -4,8 +4,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
-import net.opentsdb.core.TsdbModule;
+import net.opentsdb.core.CoreModule;
+import net.opentsdb.core.PluginsModule;
 import net.opentsdb.storage.StoreDescriptor;
+import net.opentsdb.storage.StoreModule;
 
 import javax.inject.Singleton;
 
@@ -16,10 +18,13 @@ import javax.inject.Singleton;
  * @see net.opentsdb.core.TsdbModule
  * @see net.opentsdb.TestModule
  */
-@Module(includes = TsdbModule.class,
-        overrides = true,
+@Module(includes = {
+            CoreModule.class,
+            PluginsModule.class,
+            StoreModule.class
+        },
         injects = {
-                TestCassandraStore.class
+            TestCassandraStore.class
         })
 class CassandraTestModule {
   @Provides
@@ -30,10 +35,5 @@ class CassandraTestModule {
   @Provides @Singleton
   CassandraStoreDescriptor provideCassandraStoreDescriptor() {
     return new CassandraStoreDescriptor();
-  }
-
-  @Provides @Singleton
-  StoreDescriptor provideStoreDescriptor() {
-    return provideCassandraStoreDescriptor();
   }
 }

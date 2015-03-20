@@ -3,11 +3,14 @@ package net.opentsdb;
 import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
+import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.DataPointsClientExecuteQueryTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientTSMetaTest;
+import net.opentsdb.core.PluginsModule;
 import net.opentsdb.core.TsdbModule;
 import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;
 import com.typesafe.config.Config;
 
@@ -30,13 +33,17 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * @see net.opentsdb.TestModule
  */
-@Module(includes = TsdbModule.class,
+@Module(includes = {
+            CoreModule.class,
+            PluginsModule.class,
+            StoreModule.class
+        },
         overrides = true,
         injects = {
-                DataPointsClientExecuteQueryTest.class,
-                MetaClientAnnotationTest.class,
-                MemoryStore.class,
-                MetaClientTSMetaTest.class
+            DataPointsClientExecuteQueryTest.class,
+            MetaClientAnnotationTest.class,
+            MemoryStore.class,
+            MetaClientTSMetaTest.class
         })
 public class TestModuleMemoryStore {
   private final Config config;

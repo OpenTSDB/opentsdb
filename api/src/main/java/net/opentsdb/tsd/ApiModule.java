@@ -1,16 +1,7 @@
 package net.opentsdb.tsd;
 
-import com.typesafe.config.Config;
 import dagger.Module;
-import dagger.Provides;
 import net.opentsdb.core.TsdbModule;
-import net.opentsdb.tools.ArgP;
-import net.opentsdb.tools.CliOptions;
-
-import javax.inject.Singleton;
-import java.io.IOException;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * This is the main dagger entrypoint for all tools.
@@ -19,22 +10,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 @Module(includes = TsdbModule.class,
     injects = {
-        Config.class,
         PipelineFactory.class
     })
 public class ApiModule {
-  private final ArgP argp;
-
-  public ApiModule(final ArgP argp) {
-    this.argp = checkNotNull(argp);
-  }
-
-  @Provides @Singleton
-  Config provideConfig() {
-    try {
-      return CliOptions.getConfig(argp);
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to load config");
-    }
-  }
 }

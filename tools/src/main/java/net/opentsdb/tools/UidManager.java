@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import com.google.common.eventbus.EventBus;
 import dagger.ObjectGraph;
 import net.opentsdb.core.Const;
 
+import net.opentsdb.core.TsdbModule;
 import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.IdUtils;
 import org.slf4j.Logger;
@@ -117,7 +119,8 @@ final class UidManager {
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
     
     // get a config object
-    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final String defaultConfig = new File(System.getProperty("app.home"), "opentsdb").getPath();
+    ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(argp.get("--config", defaultConfig)));
     final Config config = objectGraph.get(Config.class);
     final TSDB tsdb = objectGraph.get(TSDB.class);
 

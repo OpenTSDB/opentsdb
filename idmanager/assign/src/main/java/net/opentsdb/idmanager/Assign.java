@@ -6,12 +6,14 @@ import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import com.typesafe.config.ConfigException;
+import dagger.Module;
 import dagger.ObjectGraph;
 import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import net.opentsdb.core.InvalidConfigException;
+import net.opentsdb.core.TsdbModule;
 import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdException;
@@ -78,7 +80,7 @@ public final class Assign {
         "Path to a configuration file (default: Searches for file see docs).")
         .withRequiredArg()
         .ofType(File.class)
-        .defaultsTo(new File(appHome(), "config/opentsdb.conf"));
+        .defaultsTo(new File(appHome(), "config/opentsdb"));
 
     try {
       final OptionSet options = parser.parse(args);
@@ -95,7 +97,7 @@ public final class Assign {
       final ImmutableSet<String> names = ImmutableSet.copyOf(
           Arrays.copyOfRange(args, 1, args.length));
 
-      final ObjectGraph objectGraph = ObjectGraph.create(new AssignModule(configFile));
+      final ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(configFile), new AssignModule());
       final TsdbStore store = objectGraph.get(TsdbStore.class);
       final Assign assign = objectGraph.get(Assign.class);
 
@@ -179,5 +181,12 @@ public final class Assign {
 
       return null;
     }
+  }
+
+  @Module(includes = TsdbModule.class,
+      injects = {
+          Assign.class
+      })
+  public static class AssignModule {
   }
 }

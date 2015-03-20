@@ -12,20 +12,19 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.nio.channels.Pipe;
 import java.util.concurrent.Executors;
 
-import com.codahale.metrics.MetricRegistry;
 import com.typesafe.config.ConfigException;
 import dagger.ObjectGraph;
 import net.opentsdb.core.InvalidConfigException;
+import net.opentsdb.core.TsdbModule;
 import net.opentsdb.tools.ArgP;
 import net.opentsdb.tools.CliOptions;
-import net.opentsdb.tools.ToolsModule;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
@@ -79,7 +78,8 @@ final class TSDMain {
     args = CliOptions.parse(argp, args);
     args = null; // free().
 
-    ObjectGraph objectGraph = ObjectGraph.create(new ApiModule(argp));
+    final String defaultConfig = new File(System.getProperty("app.home"), "opentsdb").getPath();
+    ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(argp.get("--config", defaultConfig)), new ApiModule());
     final Config config = objectGraph.get(Config.class);
 
     ServerSocketChannelFactory factory = null;

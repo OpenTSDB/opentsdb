@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,6 +24,7 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import dagger.ObjectGraph;
+import net.opentsdb.core.TsdbModule;
 import net.opentsdb.uid.IdUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1105,7 +1107,8 @@ final class Fsck {
       usage(argp, "", 0);
     }
 
-    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final String defaultConfig = new File(System.getProperty("app.home"), "opentsdb").getPath();
+    ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(argp.get("--config", defaultConfig)));
     final Config config = objectGraph.get(Config.class);
     final TSDB tsdb = objectGraph.get(TSDB.class);
 
