@@ -1,17 +1,36 @@
+// This file is part of OpenTSDB.
+// Copyright (C) 2015  The OpenTSDB Authors.
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 2.1 of the License, or (at your
+// option) any later version.  This program is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+// General Public License for more details.  You should have received a copy
+// of the GNU Lesser General Public License along with this program.  If not,
+// see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import net.opentsdb.meta.Annotation;
 import net.opentsdb.storage.MockBase;
+import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
 import org.hbase.async.HBaseClient;
+import org.hbase.async.Scanner;
 import org.jboss.netty.util.HashedWheelTimer;
 import org.junit.Before;
 import org.junit.runner.RunWith;
@@ -32,7 +51,7 @@ import com.stumbleupon.async.Deferred;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  HashedWheelTimer.class, CompactionQueue.class, Const.class })
+  HashedWheelTimer.class, Scanner.class, Const.class })
 public class BaseTsdbTest {
   
   public static final String METRIC_STRING = "sys.cpu.user";
@@ -56,8 +75,10 @@ public class BaseTsdbTest {
   public static final String NSUN_TAGV = "web03";
   public static final byte[] NSUI_TAGV = new byte[] { 0, 0, 3 };
 
+  static final String NOTE_DESCRIPTION = "Hello DiscWorld!";
+  static final String NOTE_NOTES = "Millenium hand and shrimp";
+  
   protected HashedWheelTimer timer;
-  protected CompactionQueue compaction_queue;
   protected Config config;
   protected TSDB tsdb;
   protected HBaseClient client = mock(HBaseClient.class);
@@ -70,16 +91,14 @@ public class BaseTsdbTest {
   @Before
   public void before() throws Exception {
     timer = mock(HashedWheelTimer.class);
-    compaction_queue = mock(CompactionQueue.class);
-    
+
     PowerMockito.whenNew(HashedWheelTimer.class).withNoArguments()
       .thenReturn(timer);
     PowerMockito.whenNew(HBaseClient.class).withAnyArguments()
       .thenReturn(client);
-    PowerMockito.whenNew(CompactionQueue.class).withAnyArguments()
-      .thenReturn(compaction_queue);
     
     config = new Config(false);
+    config.overrideConfig("tsd.storage.enable_compaction", "false");
     tsdb = PowerMockito.spy(new TSDB(config));
 
     config.setAutoMetric(true);
@@ -115,9 +134,11 @@ public class BaseTsdbTest {
     when(metrics.getNameAsync(METRIC_BYTES))
       .thenReturn(Deferred.fromResult(METRIC_STRING));
     when(metrics.getNameAsync(METRIC_B_BYTES))
-    .thenReturn(Deferred.fromResult(METRIC_B_STRING));
+      .thenReturn(Deferred.fromResult(METRIC_B_STRING));
+    when(metrics.getNameAsync(NSUI_METRIC))
+      .thenThrow(new NoSuchUniqueId("metrics", NSUI_METRIC));
     
-    final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_METRIC, "metric");
+    final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_METRIC, "metrics");
     
     when(metrics.getId(NSUN_METRIC)).thenThrow(nsun);
     when(metrics.getIdAsync(NSUN_METRIC))
@@ -142,6 +163,10 @@ public class BaseTsdbTest {
     
     when(tag_names.getNameAsync(TAGK_BYTES))
       .thenReturn(Deferred.fromResult(TAGK_STRING));
+    when(tag_names.getNameAsync(TAGK_B_BYTES))
+      .thenReturn(Deferred.fromResult(TAGK_B_STRING));
+    when(tag_names.getNameAsync(NSUI_TAGK))
+      .thenThrow(new NoSuchUniqueId("tagk", NSUI_TAGK));
     
     final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_TAGK, "tagk");
     
@@ -170,6 +195,8 @@ public class BaseTsdbTest {
       .thenReturn(Deferred.fromResult(TAGV_STRING));
     when(tag_values.getNameAsync(TAGV_B_BYTES))
       .thenReturn(Deferred.fromResult(TAGV_B_STRING));
+    when(tag_values.getNameAsync(NSUI_TAGV))
+      .thenThrow(new NoSuchUniqueId("tagv", NSUI_TAGV));
     
     final NoSuchUniqueName nsun = new NoSuchUniqueName(NSUN_TAGV, "tagv");
     
@@ -177,4 +204,222 @@ public class BaseTsdbTest {
     when(tag_values.getIdAsync(NSUN_TAGV))
       .thenReturn(Deferred.<byte[]>fromError(nsun));
   }
+
+  // ----------------- //
+  // Helper functions. //
+  // ----------------- //
+  
+  /** @return a row key template with the default metric and tags */
+  protected byte[] getRowKeyTemplate() {
+    return IncomingDataPoints.rowKeyTemplate(tsdb, METRIC_STRING, tags);
+  }
+  
+  protected void setDataPointStorage() throws Exception {
+    storage = new MockBase(tsdb, client, true, true, true, true);
+    storage.setFamily("t".getBytes(MockBase.ASCII()));
+  }
+  
+  protected void storeLongTimeSeriesSeconds(final boolean two_metrics, 
+      final boolean offset) throws Exception {
+    setDataPointStorage();
+    
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+    long timestamp = 1356998400;
+    for (int i = 1; i <= 300; i++) {
+      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+        .joinUninterruptibly();
+      if (two_metrics) {
+        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+          .joinUninterruptibly();
+      }
+    }
+
+    // dump a parallel set but invert the values
+    tags_local.clear();
+    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+    timestamp = offset ? 1356998415 : 1356998400;
+    for (int i = 300; i > 0; i--) {
+      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+        .joinUninterruptibly();
+      if (two_metrics) {
+        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+          .joinUninterruptibly();
+      }
+    }
+  }
+ 
+  protected void storeLongTimeSeriesMs() throws Exception {
+    setDataPointStorage();
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+    long timestamp = 1356998400000L;
+    for (int i = 1; i <= 300; i++) {
+      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
+        .joinUninterruptibly();
+      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+        .joinUninterruptibly();
+    }
+
+    // dump a parallel set but invert the values
+    tags_local.clear();
+    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+    timestamp = 1356998400000L;
+    for (int i = 300; i > 0; i--) {
+      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
+        .joinUninterruptibly();
+      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+        .joinUninterruptibly();
+    }
+  }
+  
+  protected void storeFloatTimeSeriesSeconds(final boolean two_metrics, 
+      final boolean offset) throws Exception {
+    setDataPointStorage();
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+    long timestamp = 1356998400;
+    for (float i = 1.25F; i <= 76; i += 0.25F) {
+      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+        .joinUninterruptibly();
+      if (two_metrics) {
+        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+          .joinUninterruptibly();
+      }
+    }
+
+    // dump a parallel set but invert the values
+    tags_local.clear();
+    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+    timestamp = offset ? 1356998415 : 1356998400;
+    for (float i = 75F; i > 0; i -= 0.25F) {
+      tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+        .joinUninterruptibly();
+      if (two_metrics) {
+        tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+          .joinUninterruptibly();
+      }
+    }
+  }
+  
+  protected void storeFloatTimeSeriesMs() throws Exception {
+    setDataPointStorage();
+    // dump a bunch of rows of two metrics so that we can test filtering out
+    // on the metric
+    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+    long timestamp = 1356998400000L;
+    for (float i = 1.25F; i <= 76; i += 0.25F) {
+      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
+        .joinUninterruptibly();
+      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+        .joinUninterruptibly();
+    }
+
+    // dump a parallel set but invert the values
+    tags_local.clear();
+    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+    timestamp = 1356998400000L;
+    for (float i = 75F; i > 0; i -= 0.25F) {
+      tsdb.addPoint(METRIC_STRING, timestamp += 500, i, tags_local)
+        .joinUninterruptibly();
+      tsdb.addPoint(METRIC_B_STRING, timestamp, i, tags_local)
+        .joinUninterruptibly();
+    }
+  }
+  
+  protected void storeMixedTimeSeriesSeconds() throws Exception {
+    setDataPointStorage();
+    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+    long timestamp = 1356998400;
+    for (float i = 1.25F; i <= 76; i += 0.25F) {
+      if (i % 2 == 0) {
+        tsdb.addPoint(METRIC_STRING, timestamp += 30, (long)i, tags_local)
+          .joinUninterruptibly();
+      } else {
+        tsdb.addPoint(METRIC_STRING, timestamp += 30, i, tags_local)
+          .joinUninterruptibly();
+      }
+    }
+  }
+  
+  // dumps ints, floats, seconds and ms
+  protected void storeMixedTimeSeriesMsAndS() throws Exception {
+    setDataPointStorage();
+    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+    long timestamp = 1356998400000L;
+    for (float i = 1.25F; i <= 76; i += 0.25F) {
+      long ts = timestamp += 500;
+      if (ts % 1000 == 0) {
+        ts /= 1000;
+      }
+      if (i % 2 == 0) {
+        tsdb.addPoint(METRIC_STRING, ts, (long)i, tags_local).joinUninterruptibly();
+      } else {
+        tsdb.addPoint(METRIC_STRING, ts, i, tags_local).joinUninterruptibly();
+      }
+    }
+  }
+
+  /**
+   * Validates the metric name, tags and annotations
+   * @param dps The datapoints array returned from the query
+   * @param index The index to peek into the array
+   * @param agged_tags Whether or not the tags were aggregated out
+   */
+  protected void assertMeta(final DataPoints[] dps, final int index, 
+      final boolean agged_tags) {
+    assertMeta(dps, index, agged_tags, false);
+  }
+  
+  /**
+   * Validates the metric name, tags and annotations
+   * @param dps The datapoints array returned from the query
+   * @param index The index to peek into the array
+   * @param agged_tags Whether or not the tags were aggregated out
+   * @param annotation Whether we're expecting a note or not
+   */
+  protected void assertMeta(final DataPoints[] dps, final int index, 
+      final boolean agged_tags, final boolean annotation) {
+    assertNotNull(dps);
+    assertEquals(METRIC_STRING, dps[index].metricName());
+    
+    if (agged_tags) {
+      assertTrue(dps[index].getTags().isEmpty());
+      assertEquals(TAGK_STRING, dps[index].getAggregatedTags().get(0));
+    } else {
+      if (index == 0) {
+        assertTrue(dps[index].getAggregatedTags().isEmpty());
+        assertEquals(TAGV_STRING, dps[index].getTags().get(TAGK_STRING));
+      } else {
+        assertEquals(TAGV_B_STRING, dps[index].getTags().get(TAGK_STRING));
+      }
+    }
+    
+    if (annotation) {
+      assertEquals(1, dps[index].getAnnotations().size());
+      assertEquals(NOTE_DESCRIPTION, dps[index].getAnnotations().get(0)
+          .getDescription());
+      assertEquals(NOTE_NOTES, dps[index].getAnnotations().get(0).getNotes());
+    } else {
+      assertNull(dps[index].getAnnotations());
+    }
+  }
+
+  /**
+   * Stores a single annotation in the given row
+   * @param timestamp The time to store the data point at
+   * @throws Exception
+   */
+  protected void storeAnnotation(final long timestamp) throws Exception {
+    final Annotation note = new Annotation();
+    note.setTSUID("000001000001000001");
+    note.setStartTime(timestamp);
+    note.setDescription(NOTE_DESCRIPTION);
+    note.setNotes(NOTE_NOTES);
+    note.syncToStorage(tsdb, false).joinUninterruptibly();
+  }
+
 }
