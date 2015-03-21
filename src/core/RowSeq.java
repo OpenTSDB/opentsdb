@@ -83,7 +83,8 @@ final class RowSeq implements DataPoints {
    * Merges data points for the same HBase row into the local object.
    * When executing multiple async queries simultaneously, they may call into 
    * this method with data sets that are out of order. This may ONLY be called 
-   * after setRow() has initiated the rowseq.
+   * after setRow() has initiated the rowseq. It also allows for rows with 
+   * different salt bucket IDs to be merged into the same sequence.
    * @param row The compacted HBase row to merge into this instance.
    * @throws IllegalStateException if {@link #setRow} wasn't called first.
    * @throws IllegalArgumentException if the data points in the argument
@@ -95,7 +96,8 @@ final class RowSeq implements DataPoints {
     }
 
     final byte[] key = row.key();
-    if (!Bytes.equals(this.key, key)) {
+    if (Bytes.memcmp(this.key, key, Const.SALT_WIDTH(), 
+        key.length - Const.SALT_WIDTH()) != 0) {
       throw new IllegalDataException("Attempt to add a different row="
           + row + ", this=" + this);
     }
@@ -356,7 +358,7 @@ final class RowSeq implements DataPoints {
 
   /** Extracts the base timestamp from the row key. */
   long baseTime() {
-    return Bytes.getUnsignedInt(key, tsdb.metrics.width());
+    return Bytes.getUnsignedInt(key, Const.SALT_WIDTH() + tsdb.metrics.width());
   }
 
   /** @throws IndexOutOfBoundsException if {@code i} is out of bounds. */
