@@ -162,6 +162,7 @@ test_SRC := \
 	test/core/TestInternal.java	\
 	test/core/TestMutableDataPoint.java	\
 	test/core/TestRateSpan.java	\
+	test/core/TestRowKey.java	\
 	test/core/TestRowSeq.java	\
 	test/core/TestSpan.java	\
 	test/core/TestTags.java	\
