@@ -401,9 +401,11 @@ final class IncomingDataPoints implements WritableDataPoints {
 
   public Deferred<String> metricNameAsync() {
     if (row == null) {
-      throw new IllegalStateException("setSeries never called before!");
+      throw new IllegalStateException(
+          "The row key was null, setSeries was not called.");
     }
-    final byte[] id = Arrays.copyOfRange(row, 0, tsdb.metrics.width());
+    final byte[] id = Arrays.copyOfRange(
+        row, Const.SALT_WIDTH(), tsdb.metrics.width() + Const.SALT_WIDTH());
     return tsdb.metrics.getNameAsync(id);
   }
 
