@@ -39,6 +39,7 @@ import org.hbase.async.Bytes.ByteMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -1207,15 +1208,26 @@ public final class UniqueId implements UniqueIdInterface {
    * @param row_key The row key to process
    * @param metric_width The width of the metric
    * @param timestamp_width The width of the timestamp
-   * @return The TSUID
-   * @throws ArrayIndexOutOfBoundsException if the row_key is invalid
+   * @return The TSUID as a byte array
+   * @throws IllegalArgumentException if the row key is missing tags or it is
+   * corrupt such as a salted key when salting is disabled or vice versa.
    */
   public static byte[] getTSUIDFromKey(final byte[] row_key, 
       final short metric_width, final short timestamp_width) {
     int idx = 0;
-    final byte[] tsuid = new byte[row_key.length - timestamp_width];
-    for (int i = 0; i < row_key.length; i++) {
-      if (i < metric_width || i >= (metric_width + timestamp_width)) {
+    // validation
+    final int tag_pair_width = TSDB.tagk_width() + TSDB.tagv_width();
+    final int tags_length = row_key.length - 
+        (Const.SALT_WIDTH() + metric_width + timestamp_width);
+    if (tags_length < tag_pair_width || (tags_length % tag_pair_width) != 0) {
+      throw new IllegalArgumentException(
+          "Row key is missing tags or it is corrupted " + Arrays.toString(row_key));
+    }
+    final byte[] tsuid = new byte[
+                 row_key.length - timestamp_width - Const.SALT_WIDTH()];
+    for (int i = Const.SALT_WIDTH(); i < row_key.length; i++) {
+      if (i < Const.SALT_WIDTH() + metric_width || 
+          i >= (Const.SALT_WIDTH() + metric_width + timestamp_width)) {
         tsuid[idx] = row_key[i];
         idx++;
       }

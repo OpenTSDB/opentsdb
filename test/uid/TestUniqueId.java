@@ -20,6 +20,7 @@ import java.util.Map;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
@@ -69,7 +70,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
 @PrepareForTest({ HBaseClient.class, TSDB.class, Config.class, 
-  RandomUniqueId.class })
+  RandomUniqueId.class, Const.class })
 public final class TestUniqueId {
 
   private HBaseClient client = mock(HBaseClient.class);
@@ -762,11 +763,57 @@ public final class TestUniqueId {
   }
   
   @Test
+  public void getTSUIDFromKeySalted() {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    
+    final byte[] expected = { 0, 0, 1, 0, 0, 2, 0, 0, 3 };
+    byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(expected, tsuid);
+    
+    tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(expected, tsuid);
+    
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(4);
+    tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 1, 2, 3, 4, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(expected, tsuid);
+    
+    tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 4, 3, 2, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(expected, tsuid);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
   public void getTSUIDFromKeyMissingTags() {
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+    UniqueId.getTSUIDFromKey(new byte[] 
       { 0, 0, 1, 1, 1, 1, 1 }, (short)3, (short)4);
-    assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsuid);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTSUIDFromKeyMissingTagsSalted() {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1); 
+    
+    UniqueId.getTSUIDFromKey(new byte[] 
+      { 0, 0, 0, 1, 1, 1, 1, 1 }, (short)3, (short)4);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTSUIDFromKeyMissingSalt() {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    
+    UniqueId.getTSUIDFromKey(new byte[] 
+        { 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTSUIDFromKeySaltButShouldntBe() {
+    UniqueId.getTSUIDFromKey(new byte[] 
+        { 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
   }
   
   @Test
