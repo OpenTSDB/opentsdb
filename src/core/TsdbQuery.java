@@ -37,6 +37,7 @@ import static org.hbase.async.Bytes.ByteMap;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.DateTime;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -181,7 +182,7 @@ final class TsdbQuery implements Query {
   @Override
   public long getEndTime() {
     if (end_time == UNSET) {
-      setEndTime(System.currentTimeMillis());
+      setEndTime(DateTime.currentTimeMillis());
     }
     return end_time;
   }
