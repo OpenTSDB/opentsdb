@@ -179,7 +179,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       if (seed == row.hashCode() % 3) {
         continue;
       }
-      final long base_time = Bytes.getUnsignedInt(row, metric_width);
+      final long base_time = Bytes.getUnsignedInt(row, 
+          Const.SALT_WIDTH() + metric_width);
       if (base_time > cut_off) {
         break;
       } else if (nflushes == max_concurrent_flushes) {
@@ -363,7 +364,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
 
       if (compacted != null) {  // Caller is interested in the compacted form.
         compacted[0] = compact;
-        final long base_time = Bytes.getUnsignedInt(compact.key(), metric_width);
+        final long base_time = Bytes.getUnsignedInt(compact.key(), 
+            Const.SALT_WIDTH() + metric_width);
         final long cut_off = System.currentTimeMillis() / 1000
             - Const.MAX_TIMESPAN - 1;
         if (base_time > cut_off) {  // If row is too recent...
@@ -452,7 +454,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
      * @param compacted_qual qualifiers for sorted datapoints
      * @param compacted_val values for sorted datapoints
      */
-    private void mergeDatapoints(ByteBufferList compacted_qual, ByteBufferList compacted_val) {
+    private void mergeDatapoints(ByteBufferList compacted_qual, 
+        ByteBufferList compacted_val) {
       int prevTs = -1;
       while (!heap.isEmpty()) {
         final ColumnDatapointIterator col = heap.remove();
