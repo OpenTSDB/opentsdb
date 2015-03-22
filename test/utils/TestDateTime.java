@@ -30,7 +30,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ DateTime.class })
+@PrepareForTest({ DateTime.class, System.class })
 public final class TestDateTime {
 
   @Before
@@ -364,4 +364,12 @@ public final class TestDateTime {
   public void setDefaultTimezoneNull() {
     DateTime.setDefaultTimezone(null);
   }
+
+  @Test
+  public void currentTimeMillis() {
+    PowerMockito.mockStatic(System.class);
+    when(System.currentTimeMillis()).thenReturn(1388534400000L);
+    assertEquals(1388534400000L, DateTime.currentTimeMillis());
+  }
+
 }
