@@ -70,8 +70,11 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       errmsg = "put: unknown metric: " + x.getMessage() + '\n';
       unknown_metrics.incrementAndGet();
     }
-    if (errmsg != null && chan.isConnected()) {
-      chan.write(errmsg);
+    if (errmsg != null) {
+      LOG.debug(errmsg);
+      if (chan.isConnected()) {
+        chan.write(errmsg);
+      }
     }
     return Deferred.fromResult(null);
   }
