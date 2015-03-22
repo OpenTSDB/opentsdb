@@ -315,7 +315,11 @@ final class TsdbQuery implements Query {
   }
 
   /**
-   * Executes the query
+   * Executes the query.
+   * NOTE: Do not run the same query multiple times. Construct a new query with
+   * the same parameters again if needed
+   * TODO(cl) There are some strange occurrences when unit testing where the end
+   * time, if not set, can change between calls to run()
    * @return An array of data points with one time series per array value
    */
   @Override
@@ -348,7 +352,17 @@ final class TsdbQuery implements Query {
   private Deferred<TreeMap<byte[], Span>> findSpans() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
-      new TreeMap<byte[], Span>(new SpanCmp(metric_width));
+      new TreeMap<byte[], Span>(new SpanCmp(
+          (short)(Const.SALT_WIDTH() + metric_width)));
+    
+    if (Const.SALT_WIDTH() > 0) {
+      final List<Scanner> scanners = new ArrayList<Scanner>(Const.SALT_BUCKETS());
+      for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
+        scanners.add(getScanner(i));
+      }
+      return new SaltScanner(tsdb, metric, scanners, spans).scan();
+    }
+    
     final Scanner scanner = getScanner();
     final Deferred<TreeMap<byte[], Span>> results =
       new Deferred<TreeMap<byte[], Span>>();
@@ -541,16 +555,37 @@ final class TsdbQuery implements Query {
    * @return A scanner to use for fetching data points
    */
   protected Scanner getScanner() throws HBaseException {
+    return getScanner(0);
+  }
+  
+  /**
+   * Returns a scanner set for the given metric (from {@link #metric} or from
+   * the first TSUID in the {@link #tsuids}s list. If one or more tags are 
+   * provided, it calls into {@link #createAndSetFilter} to setup a row key 
+   * filter. If one or more TSUIDs have been provided, it calls into
+   * {@link #createAndSetTSUIDFilter} to setup a row key filter.
+   * @param salt_bucket The salt bucket to scan over when salting is enabled.
+   * @return A scanner to use for fetching data points
+   */
+  protected Scanner getScanner(final int salt_bucket) throws HBaseException {
     final short metric_width = tsdb.metrics.width();
-    final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
-    final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
+    final int metric_salt_width = metric_width + Const.SALT_WIDTH();
+    final byte[] start_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
+    final byte[] end_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
+    
+    if (Const.SALT_WIDTH() > 0) {
+      final byte[] salt = Internal.getSaltBytes(salt_bucket);
+      System.arraycopy(salt, 0, start_row, 0, Const.SALT_WIDTH());
+      System.arraycopy(salt, 0, end_row, 0, Const.SALT_WIDTH());
+    }
+    
     // We search at least one row before and one row after the start & end
     // time we've been given as it's quite likely that the exact timestamp
     // we're looking for is in the middle of a row.  Plus, a number of things
     // rely on having a few extra data points before & after the exact start
     // & end dates in order to do proper rate calculation or downsampling near
     // the "edges" of the graph.
-    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(), metric_width);
+    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(), metric_salt_width);
     Bytes.setInt(end_row, (end_time == UNSET
                            ? -1  // Will scan until the end (0xFFF...).
                            : (int) getScanEndTimeSeconds()),
@@ -559,15 +594,15 @@ final class TsdbQuery implements Query {
     // set the metric UID based on the TSUIDs if given, or the metric UID
     if (tsuids != null && !tsuids.isEmpty()) {
       final String tsuid = tsuids.get(0);
-      final String metric_uid = tsuid.substring(0, TSDB.metrics_width() * 2);
+      final String metric_uid = tsuid.substring(0, metric_width * 2);
       metric = UniqueId.stringToUid(metric_uid);
-      System.arraycopy(metric, 0, start_row, 0, metric_width);
-      System.arraycopy(metric, 0, end_row, 0, metric_width); 
+      System.arraycopy(metric, 0, start_row, Const.SALT_WIDTH(), metric_width);
+      System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width); 
     } else {
-      System.arraycopy(metric, 0, start_row, 0, metric_width);
-      System.arraycopy(metric, 0, end_row, 0, metric_width);
+      System.arraycopy(metric, 0, start_row, Const.SALT_WIDTH(), metric_width);
+      System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width);
     }
-
+    
     final Scanner scanner = tsdb.client.newScanner(tsdb.table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
@@ -646,7 +681,7 @@ final class TsdbQuery implements Query {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append(Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
        .append("}");
     final Iterator<byte[]> tags = this.tags.iterator();
     final Iterator<byte[]> group_bys = (this.group_bys == null
@@ -722,7 +757,7 @@ final class TsdbQuery implements Query {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append(Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
        .append("}(");
     
     for (final byte[] tags : uids) {
