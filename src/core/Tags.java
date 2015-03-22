@@ -293,7 +293,8 @@ public final class Tags {
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
     // TODO(tsuna): Can do a binary search.
-    for (short pos = (short) (tsdb.metrics.width() + Const.TIMESTAMP_BYTES);
+    for (short pos = (short) (Const.SALT_WIDTH() + 
+        tsdb.metrics.width() + Const.TIMESTAMP_BYTES);
          pos < row.length;
          pos += name_width + value_width) {
       if (rowContains(row, pos, tag_id)) {
@@ -354,7 +355,8 @@ public final class Tags {
     final short name_width = tsdb.tag_names.width();
     final short value_width = tsdb.tag_values.width();
     final short tag_bytes = (short) (name_width + value_width);
-    final short metric_ts_bytes = (short) (tsdb.metrics.width()
+    final short metric_ts_bytes = (short) (Const.SALT_WIDTH() 
+                                           + tsdb.metrics.width()
                                            + Const.TIMESTAMP_BYTES);
     
     final ArrayList<Deferred<String>> deferreds = 
