@@ -53,6 +53,7 @@ tsdb_SRC := \
 	src/core/RateSpan.java  \
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
+	src/core/SaltScanner.java	\
 	src/core/SeekableView.java	\
 	src/core/Span.java	\
 	src/core/SpanGroup.java	\
@@ -164,6 +165,7 @@ test_SRC := \
 	test/core/TestRateSpan.java	\
 	test/core/TestRowKey.java	\
 	test/core/TestRowSeq.java	\
+	test/core/TestSaltScanner.java	\
 	test/core/TestSpan.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
