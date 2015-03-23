@@ -651,7 +651,7 @@ public final class TSDB {
     }
     
     Bytes.setInt(row, (int) base_time, metrics.width() + Const.SALT_WIDTH());
-    Internal.prefixKeyWithSalt(row);
+    RowKey.prefixKeyWithSalt(row);
     
     scheduleForCompaction(row, (int) base_time);
     final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
