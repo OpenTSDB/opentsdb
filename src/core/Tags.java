@@ -564,6 +564,8 @@ public final class Tags {
     throws NoSuchUniqueId {
     try {
       return resolveIdsAsync(tsdb, tags).joinUninterruptibly();
+    } catch (NoSuchUniqueId e) {
+      throw e;
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
     }
