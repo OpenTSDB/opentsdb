@@ -66,7 +66,7 @@ final class TextImporter {
     Config config = CliOptions.getConfig(argp);
 
     final TSDB tsdb = new TSDB(config);
-    final boolean skip_errors = argp.has("--skip_errors");
+    final boolean skip_errors = argp.has("--skip-errors");
     tsdb.checkNecessaryTablesExist().joinUninterruptibly();
     argp = null;
     try {
