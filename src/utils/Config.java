@@ -235,10 +235,7 @@ public class Config {
    */
   public void overrideConfig(final String property, final String value) {
     properties.put(property, value);
-<<<<<<< HEAD
-=======
     loadStaticVariables();
->>>>>>> upstream/put
   }
 
   /**
@@ -357,13 +354,10 @@ public class Config {
           "Unix path names cannot contain a back slash");
     }
     
-<<<<<<< HEAD
-=======
     if (directory == null || directory.isEmpty()){
     	return null;
     }
     
->>>>>>> upstream/put
     if (directory.charAt(directory.length() - 1) == '/') {
       return directory;
     }
@@ -492,7 +486,6 @@ public class Config {
         properties.put(entry.getKey(), entry.getValue());
     }
 
-<<<<<<< HEAD
     // set locals
     auto_metric = getBoolean("tsd.core.auto_create_metrics");
     enable_compactions = getBoolean("tsd.storage.enable_compaction");
@@ -507,9 +500,8 @@ public class Config {
       max_chunked_requests = getInt("tsd.http.request.max_chunk");
     }
     enable_tree_processing = getBoolean("tsd.core.tree.enable_processing");
-=======
+
     loadStaticVariables();
->>>>>>> upstream/put
   }
 
   /**
