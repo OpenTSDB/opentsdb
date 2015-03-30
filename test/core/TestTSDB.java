@@ -16,13 +16,10 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.mock;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.Map;
 
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
@@ -41,8 +38,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -56,39 +51,13 @@ import com.stumbleupon.async.Deferred;
   "com.sum.*", "org.xml.*"})
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   CompactionQueue.class, GetRequest.class, PutRequest.class, KeyValue.class, 
-  Scanner.class, AtomicIncrementRequest.class, IncomingDataPoints.class})
-public final class TestTSDB {
-  private Config config;
-  private TSDB tsdb;
-  private HBaseClient client = mock(HBaseClient.class);
-  private UniqueId metrics = mock(UniqueId.class);
-  private UniqueId tag_names = mock(UniqueId.class);
-  private UniqueId tag_values = mock(UniqueId.class);
-  private CompactionQueue compactionq = mock(CompactionQueue.class);
+  Scanner.class, AtomicIncrementRequest.class, Const.class})
+public final class TestTSDB extends BaseTsdbTest {
   private MockBase storage;
   
   @Before
-  public void before() throws Exception {
-    PowerMockito.whenNew(HBaseClient.class)
-      .withArguments(anyString(), anyString()).thenReturn(client);
-    config = new Config(false);
-    tsdb = new TSDB(config);
-
-    Field met = tsdb.getClass().getDeclaredField("metrics");
-    met.setAccessible(true);
-    met.set(tsdb, metrics);
-    
-    Field tagk = tsdb.getClass().getDeclaredField("tag_names");
-    tagk.setAccessible(true);
-    tagk.set(tsdb, tag_names);
-    
-    Field tagv = tsdb.getClass().getDeclaredField("tag_values");
-    tagv.setAccessible(true);
-    tagv.set(tsdb, tag_values);
-    
-    Field cq = tsdb.getClass().getDeclaredField("compactionq");
-    cq.setAccessible(true);
-    cq.set(tsdb, compactionq);
+  public void beforeLocal() throws Exception {
+    config.setFixDuplicates(true); // TODO(jat): test both ways
   }
   
   @Test
@@ -216,121 +185,114 @@ public final class TestTSDB {
   
   @Test
   public void getUIDMetric() {
-    setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.0"));
+        tsdb.getUID(UniqueIdType.METRIC, METRIC_STRING));
   }
   
   @Test
   public void getUIDTagk() {
-    setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.TAGK, "host"));
+        tsdb.getUID(UniqueIdType.TAGK, TAGK_STRING));
   }
   
   @Test
   public void getUIDTagv() {
-    setupAssignUid();
     assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsdb.getUID(UniqueIdType.TAGV, "localhost"));
+        tsdb.getUID(UniqueIdType.TAGV, TAGV_STRING));
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDMetricNSU() {
-    setupAssignUid();
-    tsdb.getUID(UniqueIdType.METRIC, "sys.cpu.1");
+    tsdb.getUID(UniqueIdType.METRIC, NSUN_METRIC);
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDTagkNSU() {
-    setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGK, "datacenter");
+    tsdb.getUID(UniqueIdType.TAGK, NSUN_TAGK);
   }
   
   @Test (expected = NoSuchUniqueName.class)
   public void getUIDTagvNSU() {
-    setupAssignUid();
-    tsdb.getUID(UniqueIdType.TAGV, "myserver");
+    tsdb.getUID(UniqueIdType.TAGV, NSUN_TAGV);
   }
   
   @Test (expected = NullPointerException.class)
   public void getUIDNullType() {
-    setupAssignUid();
-    tsdb.getUID(null, "sys.cpu.1");
+    tsdb.getUID(null, METRIC_STRING);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getUIDNullName() {
-    setupAssignUid();
     tsdb.getUID(UniqueIdType.TAGV, null);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void getUIDEmptyName() {
-    setupAssignUid();
     tsdb.getUID(UniqueIdType.TAGV, "");
   }
   
   @Test
   public void assignUidMetric() {
-    setupAssignUid();
+    when(metrics.getId("sys.cpu.1")).thenThrow(
+        new NoSuchUniqueName("metric", "sys.cpu.1"));
+    when(metrics.getOrCreateId("sys.cpu.1"))
+      .thenReturn(new byte[] { 0, 0, 2 });
     assertArrayEquals(new byte[] { 0, 0, 2 }, 
         tsdb.assignUid("metric", "sys.cpu.1"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidMetricExists() {
-    setupAssignUid();
-    tsdb.assignUid("metric", "sys.cpu.0");
+    tsdb.assignUid("metric", METRIC_STRING);
   }
   
   @Test
   public void assignUidTagk() {
-    setupAssignUid();
+    when(tag_names.getId("datacenter")).thenThrow(
+        new NoSuchUniqueName("tagk", "datacenter"));
+    when(tag_names.getOrCreateId("datacenter"))
+      .thenReturn(new byte[] { 0, 0, 2 });
     assertArrayEquals(new byte[] { 0, 0, 2 }, 
         tsdb.assignUid("tagk", "datacenter"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidTagkExists() {
-    setupAssignUid();
-    tsdb.assignUid("tagk", "host");
+    tsdb.assignUid("tagk", TAGK_STRING);
   }
   
   @Test
   public void assignUidTagv() {
-    setupAssignUid();
+    when(tag_values.getId("localhost")).thenThrow(
+        new NoSuchUniqueName("tagv", "localhost"));
+    when(tag_values.getOrCreateId("localhost"))
+      .thenReturn(new byte[] { 0, 0, 2 });
     assertArrayEquals(new byte[] { 0, 0, 2 }, 
-        tsdb.assignUid("tagv", "myserver"));
+        tsdb.assignUid("tagv", "localhost"));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidTagvExists() {
-    setupAssignUid();
-    tsdb.assignUid("tagv", "localhost");
+    tsdb.assignUid("tagv", TAGV_STRING);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidBadType() {
-    setupAssignUid();
-    tsdb.assignUid("nothere", "localhost");
+    tsdb.assignUid("nothere", METRIC_STRING);
   }
   
   @Test (expected = NullPointerException.class)
   public void assignUidNullType() {
-    setupAssignUid();
-    tsdb.assignUid(null, "localhost");
+    tsdb.assignUid(null, METRIC_STRING);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidNullName() {
-    setupAssignUid();
     tsdb.assignUid("metric", null);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void assignUidInvalidCharacter() {
-    setupAssignUid();
     tsdb.assignUid("metric", "Not!A:Valid@Name");
   }
   
@@ -343,9 +305,8 @@ public final class TestTSDB {
   @Test
   public void addPointLong1Byte() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
@@ -356,9 +317,8 @@ public final class TestTSDB {
   @Test
   public void addPointLong1ByteNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -42, tags).joinUninterruptibly();
+    
+    tsdb.addPoint(METRIC_STRING, 1356998400, -42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
@@ -369,9 +329,8 @@ public final class TestTSDB {
   @Test
   public void addPointLong2Bytes() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 257, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 257, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
@@ -382,9 +341,8 @@ public final class TestTSDB {
   @Test
   public void addPointLong2BytesNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -257, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, -257, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 1 });
@@ -395,9 +353,8 @@ public final class TestTSDB {
   @Test
   public void addPointLong4Bytes() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 65537, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 65537, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
@@ -408,9 +365,8 @@ public final class TestTSDB {
   @Test
   public void addPointLong4BytesNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -65537, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, -65537, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 3 });
@@ -421,9 +377,8 @@ public final class TestTSDB {
   @Test
   public void addPointLong8Bytes() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 4294967296L, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 4294967296L, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
@@ -434,9 +389,8 @@ public final class TestTSDB {
   @Test
   public void addPointLong8BytesNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -4294967296L, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, -4294967296L, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 7 });
@@ -447,9 +401,8 @@ public final class TestTSDB {
   @Test
   public void addPointLongMs() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400500L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, 
@@ -461,11 +414,10 @@ public final class TestTSDB {
   @Test
   public void addPointLongMany() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
+
     long timestamp = 1356998400;
     for (int i = 1; i <= 50; i++) {
-      tsdb.addPoint("sys.cpu.user", timestamp++, i, tags).joinUninterruptibly();
+      tsdb.addPoint(METRIC_STRING, timestamp++, i, tags).joinUninterruptibly();
     }
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
@@ -478,11 +430,10 @@ public final class TestTSDB {
   @Test
   public void addPointLongManyMs() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
+
     long timestamp = 1356998400500L;
     for (int i = 1; i <= 50; i++) {
-      tsdb.addPoint("sys.cpu.user", timestamp++, i, tags).joinUninterruptibly();
+      tsdb.addPoint(METRIC_STRING, timestamp++, i, tags).joinUninterruptibly();
     }
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
@@ -496,9 +447,8 @@ public final class TestTSDB {
   @Test
   public void addPointLongEndOfRow() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1357001999, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1357001999, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xE0, 
@@ -510,10 +460,9 @@ public final class TestTSDB {
   @Test
   public void addPointLongOverwrite() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400, 24, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998400, 24, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
@@ -521,25 +470,18 @@ public final class TestTSDB {
     assertEquals(24, value[0]);
   }
   
-  @SuppressWarnings("unchecked")
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
-    when(IncomingDataPoints.rowKeyTemplate((TSDB)any(), anyString(), 
-        (Map<String, String>)any()))
-      .thenThrow(new NoSuchUniqueName("sys.cpu.user", "metric"));
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(NSUN_METRIC, 1356998400, 42, tags).joinUninterruptibly();
   }
 
   @Test
   public void addPointSecondZero() throws Exception {
     // Thu, 01 Jan 1970 00:00:00 GMT
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 0, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 0, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
     assertNotNull(value);
@@ -550,9 +492,8 @@ public final class TestTSDB {
   public void addPointSecondOne() throws Exception {
     // hey, it's valid *shrug* Thu, 01 Jan 1970 00:00:01 GMT
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 16 });
     assertNotNull(value);
@@ -563,9 +504,8 @@ public final class TestTSDB {
   public void addPointSecond2106() throws Exception {
     // Sun, 07 Feb 2106 06:28:15 GMT
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 4294967295L, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 4294967295L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0x69, (byte) 0xF0 });
@@ -578,11 +518,18 @@ public final class TestTSDB {
     // Fri, 13 Dec 1901 20:45:52 GMT
     // may support in the future, but 1.0 didn't
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", -2147483648, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, -2147483648, 42, tags).joinUninterruptibly();
   }
   
+  @Test (expected = IllegalArgumentException.class)
+  public void emptyTagValue() throws Exception {
+    setupAddPointStorage();
+    
+    tags.put(TAGK_STRING, "");
+    tsdb.addPoint(METRIC_STRING, 1234567890, 42, tags).joinUninterruptibly();
+  }
+
   @Test
   public void addPointMS1970() throws Exception {
     // Since it's just over Integer.MAX_VALUE, OpenTSDB will treat this as
@@ -590,9 +537,8 @@ public final class TestTSDB {
     // Base time is 4294800 which is Thu, 19 Feb 1970 17:00:00 GMT
     // offset = F0A36000 or 167296 ms
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 4294967296L, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 4294967296L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88, 
         (byte) 0x90, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 
@@ -605,9 +551,8 @@ public final class TestTSDB {
   public void addPointMS2106() throws Exception {
     // Sun, 07 Feb 2106 06:28:15.000 GMT
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 4294967295000L, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 4294967295000L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9, 
         0x60, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF6, 
@@ -620,9 +565,8 @@ public final class TestTSDB {
   public void addPointMS2286() throws Exception {
     // It's an artificial limit and more thought needs to be put into it
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 9999999999999L, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 9999999999999L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9, 
         0x10, 0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xFA, 
@@ -635,9 +579,8 @@ public final class TestTSDB {
   public void addPointMSTooLarge() throws Exception {
     // It's an artificial limit and more thought needs to be put into it
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 10000000000000L, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 10000000000000L, 42, tags).joinUninterruptibly();
   }
   
   @Test (expected = IllegalArgumentException.class)
@@ -647,15 +590,14 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", -2147483648000L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, -2147483648000L, 42, tags).joinUninterruptibly();
   }
 
   @Test
   public void addPointFloat() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
@@ -669,7 +611,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, -42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998400, -42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
@@ -681,9 +623,8 @@ public final class TestTSDB {
   @Test
   public void addPointFloatMs() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400500L, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, 
@@ -698,7 +639,7 @@ public final class TestTSDB {
     setupAddPointStorage();
     HashMap<String, String> tags = new HashMap<String, String>(1);
     tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1357001999, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1357001999, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xE0, 
@@ -711,9 +652,8 @@ public final class TestTSDB {
   @Test
   public void addPointFloatPrecision() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5123459999F, tags)
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42.5123459999F, tags)
       .joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
@@ -726,10 +666,9 @@ public final class TestTSDB {
   @Test
   public void addPointFloatOverwrite() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400, 25.4F, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42.5F, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998400, 25.4F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     final byte[] value = storage.getColumn(row, new byte[] { 0, 11 });
@@ -744,10 +683,9 @@ public final class TestTSDB {
     // a float (or vice-versa) with the same timestamp. What happens in the
     // aggregators when this occurs? 
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
@@ -766,10 +704,9 @@ public final class TestTSDB {
     // a float (or vice-versa) with the same timestamp. What happens in the
     // aggregators when this occurs? 
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly();
+ 
+    tsdb.addPoint(METRIC_STRING, 1356998400500L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998400500L, 42.5F, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     byte[] value = storage.getColumn(row, new byte[] { (byte) 0xF0, 0, 0x7D, 0 });
@@ -787,10 +724,9 @@ public final class TestTSDB {
     // this can happen if a second and an ms data point are stored for the same
     // timestamp.
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
-    tags.put("host", "web01");
-    tsdb.addPoint("sys.cpu.user", 1356998400L, 42, tags).joinUninterruptibly();
-    tsdb.addPoint("sys.cpu.user", 1356998400000L, 42, tags).joinUninterruptibly();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400L, 42, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, 1356998400000L, 42, tags).joinUninterruptibly();
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
         0, 0, 1, 0, 0, 1};
     byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
@@ -803,24 +739,53 @@ public final class TestTSDB {
     assertEquals(42, value[0]);
   }
   
-  /**
-   * Helper to mock the UID caches with valid responses
-   */
-  private void setupAssignUid() {
-    when(metrics.getId("sys.cpu.0")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getId("sys.cpu.1")).thenThrow(
-        new NoSuchUniqueName("metric", "sys.cpu.1"));
-    when(metrics.getOrCreateId("sys.cpu.1")).thenReturn(new byte[] { 0, 0, 2 });
+  @Test
+  public void addPointWithSalt() throws Exception {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
     
-    when(tag_names.getId("host")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_names.getId("datacenter")).thenThrow(
-        new NoSuchUniqueName("tagk", "datacenter"));
-    when(tag_names.getOrCreateId("datacenter")).thenReturn(new byte[] { 0, 0, 2 });
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 8, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
+  }
+
+  @Test
+  public void addPointWithSaltDifferentTags() throws Exception {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
     
-    when(tag_values.getId("localhost")).thenReturn(new byte[] { 0, 0, 1 });
-    when(tag_values.getId("myserver")).thenThrow(
-        new NoSuchUniqueName("tagv", "myserver"));
-    when(tag_values.getOrCreateId("myserver")).thenReturn(new byte[] { 0, 0, 2 });
+    setupAddPointStorage();
+    tags.put(TAGK_STRING, TAGV_B_STRING);
+
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 9, 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
+  }
+  
+  @Test
+  public void addPointWithSaltDifferentTime() throws Exception {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(20);
+    
+    setupAddPointStorage();
+
+    tsdb.addPoint(METRIC_STRING, 1359680400, 42, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 8, 0, 0, 1, 0x51, (byte) 0x0B, 0x13, 
+        (byte) 0x90, 0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 0 });
+    assertNotNull(value);
+    assertEquals(42, value[0]);
   }
   
   /**
@@ -842,29 +807,12 @@ public final class TestTSDB {
     when(tag_values.getNameAsync(new byte[] { 0, 0, 2 })).thenThrow(
         new NoSuchUniqueId("tag_values", new byte[] { 0, 0, 2}));
   }
-
   /**
    * Configures storage for the addPoint() tests to validate that we're storing
    * data points correctly.
    */
-  @SuppressWarnings("unchecked")
-  private void setupAddPointStorage() throws Exception {
+  @Test
+  public void setupAddPointStorage() throws Exception {
     storage = new MockBase(tsdb, client, true, true, true, true);
-    
-    PowerMockito.mockStatic(IncomingDataPoints.class);   
-    final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1}; 
-    PowerMockito.doAnswer(
-        new Answer<byte[]>() {
-          public byte[] answer(final InvocationOnMock unused) 
-            throws Exception {
-            return row;
-          }
-        }
-    ).when(IncomingDataPoints.class, "rowKeyTemplate", (TSDB)any(), anyString(), 
-        (Map<String, String>)any());
-        
-    when(metrics.width()).thenReturn((short)3);
-    when(tag_names.width()).thenReturn((short)3);
-    when(tag_values.width()).thenReturn((short)3);
   }
 }

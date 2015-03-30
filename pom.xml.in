@@ -93,8 +93,8 @@
               <executable>build-aux/gen_build_data.sh</executable>
               <!-- optional -->
               <arguments>
-                <argument>target/generated-sources/net/opentsdb/BuildData.java</argument>
-                <argument>net.opentsdb</argument>
+                <argument>target/generated-sources/net/opentsdb/tools/BuildData.java</argument>
+                <argument>net.opentsdb.tools</argument>
                 <argument>BuildData</argument>
               </arguments>
             </configuration>
@@ -126,6 +126,9 @@
                 <argument>net/opentsdb/tsd/DummyHttpSerializer.class</argument>
                 <argument>-C</argument>
                 <argument>target/test-classes</argument>
+                <argument>net/opentsdb/tsd/DummyHttpRpcPlugin.class</argument>
+                <argument>-C</argument>
+                <argument>target/test-classes</argument>
                 <argument>net/opentsdb/tsd/DummyRpcPlugin.class</argument>
                 <argument>-C</argument>
                 <argument>target/test-classes</argument>
@@ -139,6 +142,9 @@
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.HttpSerializer</argument>
+                <argument>-C</argument>
+                <argument>test</argument>
+                <argument>META-INF/services/net.opentsdb.tsd.HttpRpcPlugin</argument>
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.RpcPlugin</argument>
@@ -368,6 +374,12 @@
       <groupId>org.hbase</groupId>
       <artifactId>asynchbase</artifactId>
       <version>@ASYNCHBASE_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-math3</artifactId>
+      <version>@APACHE_MATH_VERSION@</version>
     </dependency>
 
     <!-- runtime dependencies -->

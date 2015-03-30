@@ -30,7 +30,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ Internal.class })
+@PrepareForTest({ Internal.class, Const.class })
 public final class TestInternal {
   private static final byte[] KEY = 
     { 0, 0, 1, 0x50, (byte)0xE2, 0x27, 0, 0, 0, 1, 0, 0, 2 };
@@ -809,7 +809,7 @@ public final class TestInternal {
     assertArrayEquals(new byte[] { (byte) 0xF0, 0x00, 0x02, 0x07 }, 
         Internal.extractQualifier(qual, 2));
   }
-
+ 
   /** Shorthand to create a {@link KeyValue}.  */
   private static KeyValue makekv(final byte[] qualifier, final byte[] value) {
     return new KeyValue(KEY, FAMILY, qualifier, value);

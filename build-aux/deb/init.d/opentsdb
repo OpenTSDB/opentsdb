@@ -18,13 +18,16 @@ PATH=/bin:/usr/bin:/sbin:/usr/sbin
 NAME=opentsdb
 TSD_USER=opentsdb
 TSD_GROUP=opentsdb
+DAEMON=/usr/share/opentsdb/bin/tsdb
+DAEMON_OPTS=tsd
+PID_FILE=/var/run/$NAME.pid
 
 # Maximum number of open files
 MAX_OPEN_FILES=65535
 
 . /lib/lsb/init-functions
 
-# The first existing directory is used for JAVA_HOME 
+# The first existing directory is used for JAVA_HOME
 # (if JAVA_HOME is not defined in $DEFAULT)
 JDK_DIRS="/usr/lib/jvm/java-7-oracle /usr/lib/jvm/java-7-openjdk \
    /usr/lib/jvm/java-7-openjdk-amd64/ /usr/lib/jvm/java-7-openjdk-i386/ \
@@ -45,15 +48,10 @@ fi
 
 export JAVA_HOME
 
-# Define other required variables
-PID_FILE=/var/run/$NAME.pid
-
-DAEMON=/usr/share/opentsdb/bin/tsdb
-DAEMON_OPTS=tsd
 
 case "$1" in
 start)
- 
+
   if [ -z "$JAVA_HOME" ]; then
     log_failure_msg "no JDK found - please set JAVA_HOME"
     exit 1
@@ -65,7 +63,7 @@ start)
     >/dev/null; then
 
     touch "$PID_FILE" && chown "$TSD_USER":"$TSD_GROUP" "$PID_FILE"
-    
+
     if [ -n "$MAX_OPEN_FILES" ]; then
       ulimit -n $MAX_OPEN_FILES
     fi
@@ -82,7 +80,7 @@ start)
 stop)
   log_action_begin_msg "Stopping TSD"
   set +e
-  if [ -f "$PID_FILE" ]; then 
+  if [ -f "$PID_FILE" ]; then
     start-stop-daemon --stop --pidfile "$PID_FILE" \
       --user "$TSD_USER" --retry=TERM/20/KILL/5 >/dev/null
     if [ $? -eq 1 ]; then

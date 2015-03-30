@@ -26,6 +26,13 @@ import org.hbase.async.HBaseException;
 public interface WritableDataPoints extends DataPoints {
 
   /**
+   * Perform a put to the database to store writable points into the data table.
+   * <p>
+   * @return A deferred object to wait on for the results to be fetched.
+   */
+  Deferred<Object> persist();
+
+  /**
    * Sets the metric name and tags of the series.
    * <p>
    * This method can be called multiple times on the same instance to start

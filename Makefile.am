@@ -18,11 +18,12 @@ ACLOCAL_AMFLAGS = -I build-aux
 all-am: jar staticroot
 
 package = net.opentsdb
+builddata_subpackage = tools
 spec_title = OpenTSDB
 spec_vendor = The OpenTSDB Authors
 jar := tsdb-$(PACKAGE_VERSION).jar
 plugin_test_jar := plugin_test.jar
-builddata_SRC := src/BuildData.java
+builddata_SRC := src/tools/BuildData.java
 BUILT_SOURCES = $(builddata_SRC)
 nodist_bin_SCRIPTS = tsdb
 dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
@@ -30,21 +31,29 @@ dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
   build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
 tsdb_SRC := \
+	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/BatchedDataPoints.java \
+	src/core/ByteBufferList.java	\
+	src/core/ColumnDatapointIterator.java	\
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
+	src/core/Downsampler.java \
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
+	src/core/MutableDataPoint.java \
 	src/core/Query.java	\
 	src/core/RateOptions.java  \
+	src/core/RateSpan.java  \
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
+	src/core/SaltScanner.java	\
 	src/core/SeekableView.java	\
 	src/core/Span.java	\
 	src/core/SpanGroup.java	\
@@ -57,18 +66,23 @@ tsdb_SRC := \
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
 	src/meta/TSMeta.java	\
+	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
+	src/search/TimeSeriesLookup.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
 	src/tools/ArgP.java	\
 	src/tools/CliOptions.java	\
 	src/tools/CliQuery.java	\
+	src/tools/CliUtils.java	\
 	src/tools/DumpSeries.java	\
 	src/tools/Fsck.java	\
+	src/tools/FsckOptions.java	\
 	src/tools/MetaPurge.java	\
 	src/tools/MetaSync.java	\
+	src/tools/Search.java	\
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
@@ -78,6 +92,7 @@ tsdb_SRC := \
 	src/tree/Tree.java	\
 	src/tree/TreeBuilder.java	\
 	src/tree/TreeRule.java	\
+	src/tsd/AbstractHttpQuery.java	\
 	src/tsd/AnnotationRpc.java	\
 	src/tsd/BadRequestException.java	\
 	src/tsd/ConnectionManager.java	\
@@ -87,6 +102,8 @@ tsdb_SRC := \
 	src/tsd/HttpSerializer.java	\
 	src/tsd/HttpQuery.java	\
 	src/tsd/HttpRpc.java	\
+	src/tsd/HttpRpcPlugin.java	\
+	src/tsd/HttpRpcPluginQuery.java	\
 	src/tsd/LineBasedFrameDecoder.java	\
 	src/tsd/LogsRpc.java	\
 	src/tsd/PipelineFactory.java	\
@@ -94,6 +111,7 @@ tsdb_SRC := \
 	src/tsd/QueryRpc.java	\
 	src/tsd/RpcHandler.java	\
 	src/tsd/RpcPlugin.java	\
+	src/tsd/RpcManager.java	\
 	src/tsd/RTPublisher.java	\
 	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
@@ -103,14 +121,18 @@ tsdb_SRC := \
 	src/tsd/TreeRpc.java	\
 	src/tsd/UniqueIdRpc.java	\
 	src/tsd/WordSplitter.java	\
+	src/uid/FailedToAssignUniqueIdException.java	\
 	src/uid/NoSuchUniqueId.java	\
 	src/uid/NoSuchUniqueName.java	\
+	src/uid/RandomUniqueId.java	\
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java \
+	src/utils/ByteArrayPair.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
 	src/utils/JSON.java \
 	src/utils/JSONException.java	\
+	src/utils/Pair.java	\
 	src/utils/PluginLoader.java
 
 tsdb_DEPS = \
@@ -126,31 +148,50 @@ tsdb_DEPS = \
 	$(PROTOBUF)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
-	$(ZOOKEEPER)
+	$(ZOOKEEPER) \
+	$(APACHE_MATH)
 
 test_SRC := \
+	test/core/SeekableViewsForTest.java \
+	test/core/BaseTsdbTest.java \
+	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
+	test/core/TestBatchedDataPoints.java \
 	test/core/TestCompactionQueue.java	\
+	test/core/TestDownsampler.java \
+	test/core/TestIncomingDataPoints.java	\
 	test/core/TestInternal.java	\
+	test/core/TestMutableDataPoint.java	\
+	test/core/TestRateSpan.java	\
+	test/core/TestRowKey.java	\
 	test/core/TestRowSeq.java	\
+	test/core/TestSaltScanner.java	\
 	test/core/TestSpan.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
 	test/core/TestTsdbQueryDownsample.java	\
+	test/core/TestTsdbQueryDownsampleSalted.java	\
 	test/core/TestTsdbQuery.java	\
+	test/core/TestTsdbQueryAggregators.java	\
+	test/core/TestTsdbQueryAggregatorsSalted.java	\
+	test/core/TestTsdbQueryQueries.java	\
+	test/core/TestTsdbQuerySalted.java	\
 	test/core/TestTSQuery.java	\
 	test/core/TestTSSubQuery.java	\
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
+	test/meta/TestTSUIDQuery.java	\
 	test/meta/TestUIDMeta.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
+	test/search/TestTimeSeriesLookup.java	\
 	test/stats/TestHistogram.java	\
 	test/storage/MockBase.java	\
 	test/tools/TestDumpSeries.java	\
 	test/tools/TestFsck.java	\
 	test/tools/TestTextImporter.java	\
+	test/tools/TestUID.java	\
 	test/tree/TestBranch.java	\
 	test/tree/TestLeaf.java	\
 	test/tree/TestTree.java	\
@@ -161,20 +202,25 @@ test_SRC := \
 	test/tsd/TestGraphHandler.java	\
 	test/tsd/TestHttpJsonSerializer.java	\
 	test/tsd/TestHttpQuery.java	\
+	test/tsd/TestHttpRpcPluginQuery.java	\
 	test/tsd/TestPutRpc.java	\
 	test/tsd/TestQueryRpc.java	\
 	test/tsd/TestRpcHandler.java	\
 	test/tsd/TestRpcPlugin.java	\
+	test/tsd/TestRpcManager.java	\
 	test/tsd/TestRTPublisher.java	\
 	test/tsd/TestSearchRpc.java	\
 	test/tsd/TestSuggestRpc.java	\
 	test/tsd/TestTreeRpc.java	\
 	test/tsd/TestUniqueIdRpc.java	\
 	test/uid/TestNoSuchUniqueId.java	\
+	test/uid/TestRandomUniqueId.java	\
 	test/uid/TestUniqueId.java \
+	test/utils/TestByteArrayPair.java \
 	test/utils/TestConfig.java \
 	test/utils/TestDateTime.java \
 	test/utils/TestJSON.java \
+	test/utils/TestPair.java \
 	test/utils/TestPluginLoader.java
 	
 test_plugin_SRC := \
@@ -182,6 +228,7 @@ test_plugin_SRC := \
   test/plugin/DummyPluginB.java \
   test/search/DummySearchPlugin.java \
   test/tsd/DummyHttpSerializer.java \
+  test/tsd/DummyHttpRpcPlugin.java \
   test/tsd/DummyRpcPlugin.java \
   test/tsd/DummyRTPublisher.java
 
@@ -190,6 +237,7 @@ test_plugin_SVCS := \
   META-INF/services/net.opentsdb.plugin.DummyPlugin \
   META-INF/services/net.opentsdb.search.SearchPlugin \
   META-INF/services/net.opentsdb.tsd.HttpSerializer \
+  META-INF/services/net.opentsdb.tsd.HttpRpcPlugin \
   META-INF/services/net.opentsdb.tsd.RpcPlugin \
   META-INF/services/net.opentsdb.tsd.RTPublisher
   
@@ -274,7 +322,7 @@ install-exec-hook:
 	rm -f tsdb.tmp
 
 $(builddata_SRC): .git/HEAD $(tsdb_SRC) $(top_srcdir)/build-aux/gen_build_data.sh
-	$(srcdir)/build-aux/gen_build_data.sh $(builddata_SRC) $(package) $(PACKAGE_VERSION)
+	$(srcdir)/build-aux/gen_build_data.sh $(builddata_SRC) $(package).$(builddata_subpackage) $(PACKAGE_VERSION)
 
 jar: $(jar) .javac-unittests-stamp .gwtc-stamp
 
@@ -594,6 +642,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@SLF4J_API_VERSION@/$(SLF4J_API_VERSION)/' \
 	    -e 's/@SUASYNC_VERSION@/$(SUASYNC_VERSION)/' \
 	    -e 's/@ZOOKEEPER_VERSION@/$(ZOOKEEPER_VERSION)/' \
+	    -e 's/@APACHE_MATH_VERSION@/$(APACHE_MATH_VERSION)/' \
 	    -e 's/@spec_title@/$(spec_title)/' \
 	    -e 's/@spec_vendor@/$(spec_vendor)/' \
 	    -e 's/@spec_version@/$(PACKAGE_VERSION)/' \

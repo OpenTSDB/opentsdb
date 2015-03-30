@@ -37,6 +37,7 @@ import static org.hbase.async.Bytes.ByteMap;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.DateTime;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -132,6 +133,7 @@ final class TsdbQuery implements Query {
    * @throws IllegalArgumentException if the timestamp is invalid or greater
    * than the end time (if set)
    */
+  @Override
   public void setStartTime(final long timestamp) {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
@@ -147,6 +149,7 @@ final class TsdbQuery implements Query {
    * @return the start time for the query
    * @throws IllegalStateException if the start time hasn't been set yet
    */
+  @Override
   public long getStartTime() {
     if (start_time == UNSET) {
       throw new IllegalStateException("setStartTime was never called!");
@@ -161,6 +164,7 @@ final class TsdbQuery implements Query {
    * @throws IllegalArgumentException if the timestamp is invalid or less
    * than the start time (if set)
    */
+  @Override
   public void setEndTime(final long timestamp) {
     if (timestamp < 0 || ((timestamp & Const.SECOND_MASK) != 0 && 
         timestamp > 9999999999999L)) {
@@ -175,13 +179,15 @@ final class TsdbQuery implements Query {
   /** @return the configured end time. If the end time hasn't been set, the
    * current system time will be stored and returned.
    */
+  @Override
   public long getEndTime() {
     if (end_time == UNSET) {
-      setEndTime(System.currentTimeMillis());
+      setEndTime(DateTime.currentTimeMillis());
     }
     return end_time;
   }
 
+  @Override
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
       final Aggregator function,
@@ -189,6 +195,7 @@ final class TsdbQuery implements Query {
     setTimeSeries(metric, tags, function, rate, new RateOptions());
   }
   
+  @Override
   public void setTimeSeries(final String metric,
         final Map<String, String> tags,
         final Aggregator function,
@@ -203,11 +210,13 @@ final class TsdbQuery implements Query {
     this.rate_options = rate_options;
   }
 
+  @Override
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate) {
     setTimeSeries(tsuids, function, rate, new RateOptions());
   }
   
+  @Override
   public void setTimeSeries(final List<String> tsuids,
       final Aggregator function, final boolean rate, 
       final RateOptions rate_options) {
@@ -246,6 +255,7 @@ final class TsdbQuery implements Query {
    * @throws NullPointerException if the aggregation function is null
    * @throws IllegalArgumentException if the interval is not greater than 0
    */
+  @Override
   public void downsample(final long interval, final Aggregator downsampler) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
@@ -306,9 +316,14 @@ final class TsdbQuery implements Query {
   }
 
   /**
-   * Executes the query
+   * Executes the query.
+   * NOTE: Do not run the same query multiple times. Construct a new query with
+   * the same parameters again if needed
+   * TODO(cl) There are some strange occurrences when unit testing where the end
+   * time, if not set, can change between calls to run()
    * @return An array of data points with one time series per array value
    */
+  @Override
   public DataPoints[] run() throws HBaseException {
     try {
       return runAsync().joinUninterruptibly();
@@ -319,6 +334,7 @@ final class TsdbQuery implements Query {
     }
   }
   
+  @Override
   public Deferred<DataPoints[]> runAsync() throws HBaseException {
     return findSpans().addCallback(new GroupByAndAggregateCB());
   }
@@ -332,12 +348,22 @@ final class TsdbQuery implements Query {
    * stored in the map has its timestamp zero'ed out.
    * @throws HBaseException if there was a problem communicating with HBase to
    * perform the search.
-   * @throws IllegalArgumentException if bad data was retreived from HBase.
+   * @throws IllegalArgumentException if bad data was retrieved from HBase.
    */
   private Deferred<TreeMap<byte[], Span>> findSpans() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
-      new TreeMap<byte[], Span>(new SpanCmp(metric_width));
+      new TreeMap<byte[], Span>(new SpanCmp(
+          (short)(Const.SALT_WIDTH() + metric_width)));
+    
+    if (Const.SALT_WIDTH() > 0) {
+      final List<Scanner> scanners = new ArrayList<Scanner>(Const.SALT_BUCKETS());
+      for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
+        scanners.add(getScanner(i));
+      }
+      return new SaltScanner(tsdb, metric, scanners, spans).scan();
+    }
+    
     final Scanner scanner = getScanner();
     final Deferred<TreeMap<byte[], Span>> results =
       new Deferred<TreeMap<byte[], Span>>();
@@ -353,8 +379,10 @@ final class TsdbQuery implements Query {
       ArrayList<ArrayList<KeyValue>>> {
       
       int nrows = 0;
+      boolean seenAnnotation = false;
       int hbase_time = 0; // milliseconds.
       long starttime = System.nanoTime();
+      long timeout = tsdb.getConfig().getLong("tsd.query.timeout");
       
       /**
       * Starts the scanner and is called recursively to fetch the next set of
@@ -382,13 +410,17 @@ final class TsdbQuery implements Query {
              scanlatency.add(hbase_time);
              LOG.info(TsdbQuery.this + " matched " + nrows + " rows in " +
                  spans.size() + " spans in " + hbase_time + "ms");
-             if (nrows < 1) {
+             if (nrows < 1 && !seenAnnotation) {
                results.callback(null);
              } else {
                results.callback(spans);
              }
              scanner.close();
              return null;
+           }
+           
+           if (timeout > 0 && hbase_time > timeout) {
+             throw new InterruptedException("Query timeout exceeded!");
            }
            
            for (final ArrayList<KeyValue> row : rows) {
@@ -407,12 +439,13 @@ final class TsdbQuery implements Query {
              }
              final KeyValue compacted = 
                tsdb.compact(row, datapoints.getAnnotations());
+             seenAnnotation |= !datapoints.getAnnotations().isEmpty();
              if (compacted != null) { // Can be null if we ignored all KVs.
                datapoints.addRow(compacted);
                nrows++;
              }
            }
-           
+
            return scan();
          } catch (Exception e) {
            scanner.close();
@@ -440,6 +473,7 @@ final class TsdbQuery implements Query {
     * @return A possibly empty array of {@link SpanGroup}s built according to
     * any 'GROUP BY' formulated in this query.
     */
+    @Override
     public DataPoints[] call(final TreeMap<byte[], Span> spans) throws Exception {
       if (spans == null || spans.size() <= 0) {
         return NO_RESULT;
@@ -522,33 +556,54 @@ final class TsdbQuery implements Query {
    * @return A scanner to use for fetching data points
    */
   protected Scanner getScanner() throws HBaseException {
+    return getScanner(0);
+  }
+  
+  /**
+   * Returns a scanner set for the given metric (from {@link #metric} or from
+   * the first TSUID in the {@link #tsuids}s list. If one or more tags are 
+   * provided, it calls into {@link #createAndSetFilter} to setup a row key 
+   * filter. If one or more TSUIDs have been provided, it calls into
+   * {@link #createAndSetTSUIDFilter} to setup a row key filter.
+   * @param salt_bucket The salt bucket to scan over when salting is enabled.
+   * @return A scanner to use for fetching data points
+   */
+  protected Scanner getScanner(final int salt_bucket) throws HBaseException {
     final short metric_width = tsdb.metrics.width();
-    final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
-    final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
+    final int metric_salt_width = metric_width + Const.SALT_WIDTH();
+    final byte[] start_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
+    final byte[] end_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
+    
+    if (Const.SALT_WIDTH() > 0) {
+      final byte[] salt = RowKey.getSaltBytes(salt_bucket);
+      System.arraycopy(salt, 0, start_row, 0, Const.SALT_WIDTH());
+      System.arraycopy(salt, 0, end_row, 0, Const.SALT_WIDTH());
+    }
+    
     // We search at least one row before and one row after the start & end
     // time we've been given as it's quite likely that the exact timestamp
     // we're looking for is in the middle of a row.  Plus, a number of things
     // rely on having a few extra data points before & after the exact start
     // & end dates in order to do proper rate calculation or downsampling near
     // the "edges" of the graph.
-    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(), metric_width);
+    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(), metric_salt_width);
     Bytes.setInt(end_row, (end_time == UNSET
                            ? -1  // Will scan until the end (0xFFF...).
                            : (int) getScanEndTimeSeconds()),
-                 metric_width);
+                           metric_salt_width);
     
     // set the metric UID based on the TSUIDs if given, or the metric UID
     if (tsuids != null && !tsuids.isEmpty()) {
       final String tsuid = tsuids.get(0);
-      final String metric_uid = tsuid.substring(0, TSDB.metrics_width() * 2);
+      final String metric_uid = tsuid.substring(0, metric_width * 2);
       metric = UniqueId.stringToUid(metric_uid);
-      System.arraycopy(metric, 0, start_row, 0, metric_width);
-      System.arraycopy(metric, 0, end_row, 0, metric_width); 
+      System.arraycopy(metric, 0, start_row, Const.SALT_WIDTH(), metric_width);
+      System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width); 
     } else {
-      System.arraycopy(metric, 0, start_row, 0, metric_width);
-      System.arraycopy(metric, 0, end_row, 0, metric_width);
+      System.arraycopy(metric, 0, start_row, Const.SALT_WIDTH(), metric_width);
+      System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width);
     }
-
+    
     final Scanner scanner = tsdb.client.newScanner(tsdb.table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
@@ -627,7 +682,7 @@ final class TsdbQuery implements Query {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append(Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
        .append("}");
     final Iterator<byte[]> tags = this.tags.iterator();
     final Iterator<byte[]> group_bys = (this.group_bys == null
@@ -703,7 +758,7 @@ final class TsdbQuery implements Query {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append(Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
        .append("}(");
     
     for (final byte[] tags : uids) {
@@ -762,6 +817,7 @@ final class TsdbQuery implements Query {
     buf.append("\\E");
   }
 
+  @Override
   public String toString() {
     final StringBuilder buf = new StringBuilder();
     buf.append("TsdbQuery(start_time=")
@@ -821,6 +877,7 @@ final class TsdbQuery implements Query {
       this.metric_width = metric_width;
     }
 
+    @Override
     public int compare(final byte[] a, final byte[] b) {
       final int length = Math.min(a.length, b.length);
       if (a == b) {  // Do this after accessing a.length and b.length

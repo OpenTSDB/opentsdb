@@ -16,7 +16,9 @@ import java.io.IOException;
 
 import net.opentsdb.core.TSDB;
 
-/** Base interface for all HTTP query handlers. */
+/**
+ * Base interface for all built-in HTTP query handlers.
+ */
 interface HttpRpc {
 
   /**

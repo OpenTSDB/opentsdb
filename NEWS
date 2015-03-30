@@ -1,5 +1,20 @@
 OpenTSDB - User visible changes.
 
+* Version 2.1.0 RC1 (2014-11-09)
+
+Noteworthy Changes:
+  - Add a server side timeout for sockets that haven't written data in some time
+  - Major FSCK utility update to handle new objects, delete bad data and deal with duplicate data points.
+  - Optionally preload portions of the name to UID maps at startup
+  - Add read and write modes to the TSD to disable writing data points via telnet or HTTP
+  - Optionally disable the diediedie commands to prevent users from shutting down a tsd
+  - Optionally block the auto creation of tag keys and values
+  - Downsampling is now aligned on modulus bondaries so that we avoid interpolation as much as possible. Data returned is now more along the lines of what users expect, e.g. 24 data points for day when downsampled on hourly intervals instead of random points based on the span's timestamps.
+  - Add the /api/search/lookup endpoint and CLI endpoint for looking up time series based on the meta or data tables
+  - Rework of the TSD compaction code to process compactions faster
+  - Optionally handle duplicate data points gracefully during compaction or query time without throwing exceptions
+  - Add Allow-Headers CORs support
+
 * Version 2.0.1 (2014-11-09)
 
 Bug Fixes:

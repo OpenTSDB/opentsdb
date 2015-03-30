@@ -24,8 +24,8 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.ClientStats;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
@@ -36,7 +36,6 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.tsd.RpcPlugin;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -107,26 +106,28 @@ public final class TSDB {
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
   
-  /** List of activated RPC plugins */
-  private List<RpcPlugin> rpc_plugins = null;
   
   /**
    * Constructor
+   * @param client An initialized HBase client object
    * @param config An initialized configuration object
-   * @since 2.0
+   * @since 2.1
    */
-  public TSDB(final Config config) {
+  public TSDB(final HBaseClient client, final Config config) {
     this.config = config;
-    this.client = new HBaseClient(
-        config.getString("tsd.storage.hbase.zk_quorum"),
-        config.getString("tsd.storage.hbase.zk_basedir"));
+    this.client = client;
+
     this.client.setFlushInterval(config.getShort("tsd.storage.flush_interval"));
     table = config.getString("tsd.storage.hbase.data_table").getBytes(CHARSET);
     uidtable = config.getString("tsd.storage.hbase.uid_table").getBytes(CHARSET);
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    if (config.getBoolean("tsd.core.uid.random_metrics")) {
+      metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH, true);
+    } else {
+      metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    }
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
@@ -141,7 +142,31 @@ public final class TSDB {
       tag_names.setTSDB(this);
       tag_values.setTSDB(this);
     }
+    
+    if (config.getBoolean("tsd.core.preload_uid_cache")) {
+      final ByteMap<UniqueId> uid_cache_map = new ByteMap<UniqueId>();
+      uid_cache_map.put(METRICS_QUAL.getBytes(CHARSET), metrics);
+      uid_cache_map.put(TAG_NAME_QUAL.getBytes(CHARSET), tag_names);
+      uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
+      UniqueId.preloadUidCache(this, uid_cache_map);
+    }
     LOG.debug(config.dumpConfiguration());
+  }
+  
+  /**
+   * Constructor
+   * @param config An initialized configuration object
+   * @since 2.0
+   */
+  public TSDB(final Config config) {
+    this(new HBaseClient(config.getString("tsd.storage.hbase.zk_quorum"),
+                         config.getString("tsd.storage.hbase.zk_basedir")),
+         config);
+  }
+  
+  /** @return The data point column family name */
+  public static byte[] FAMILY() {
+    return FAMILY;
   }
   
   /**
@@ -206,32 +231,6 @@ public final class TSDB {
           + rt_publisher.version());
     } else {
       rt_publisher = null;
-    }
-    
-    if (init_rpcs && config.hasProperty("tsd.rpc.plugins")) {
-      final String[] plugins = config.getString("tsd.rpc.plugins").split(",");
-      for (final String plugin : plugins) {
-        final RpcPlugin rpc = PluginLoader.loadSpecificPlugin(plugin.trim(), 
-            RpcPlugin.class);
-        if (rpc == null) {
-          throw new IllegalArgumentException(
-              "Unable to locate RPC plugin: " + plugin.trim());
-        }
-        try {
-          rpc.initialize(this);
-        } catch (Exception e) {
-          throw new RuntimeException(
-              "Failed to initialize RPC plugin", e);
-        }
-        
-        if (rpc_plugins == null) {
-          rpc_plugins = new ArrayList<RpcPlugin>(1);
-        }
-        rpc_plugins.add(rpc);
-        LOG.info("Successfully initialized RPC plugin [" + 
-            rpc.getClass().getCanonicalName() + "] version: " 
-            + rpc.version());
-      }
     }
   }
   
@@ -431,30 +430,20 @@ public final class TSDB {
     // Collect Stats from Plugins
     if (rt_publisher != null) {
       try {
-	collector.addExtraTag("plugin", "publish");
+        collector.addExtraTag("plugin", "publish");
         rt_publisher.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
+        collector.clearExtraTag("plugin");
       }                        
     }
     if (search != null) {
       try {
-	collector.addExtraTag("plugin", "search");
-	search.collectStats(collector);
+        collector.addExtraTag("plugin", "search");
+        search.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
+        collector.clearExtraTag("plugin");
       }                        
     }
-    if (rpc_plugins != null) {
-      try {
-	collector.addExtraTag("plugin", "rpc");
-	for(RpcPlugin rpc: rpc_plugins) {
-		rpc.collectStats(collector);
-	}                                
-      } finally {
-	collector.clearExtraTag("plugin");
-      }                        
-    }        
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
@@ -477,6 +466,8 @@ public final class TSDB {
     collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.kind());
     collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.kind());
     collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
+    collector.record("uid.random-collisions", uid.randomIdCollisions(), 
+        "kind=" + uid.kind());
   }
 
   /** @return the width, in bytes, of metric UIDs */
@@ -509,6 +500,17 @@ public final class TSDB {
    */
   public WritableDataPoints newDataPoints() {
     return new IncomingDataPoints(this);
+  }
+
+  /**
+   * Returns a new {@link BatchedDataPoints} instance suitable for this TSDB.
+   * 
+   * @param metric Every data point that gets appended must be associated to this metric.
+   * @param tags The associated tags for all data points being added.
+   * @return data structure which can have data points appended.
+   */
+  public WritableDataPoints newBatch(String metric, Map<String, String> tags) {
+    return new BatchedDataPoints(this, metric, tags);
   }
 
   /**
@@ -635,7 +637,6 @@ public final class TSDB {
           + " when trying to add value=" + Arrays.toString(value) + '/' + flags
           + " to metric=" + metric + ", tags=" + tags);
     }
-
     IncomingDataPoints.checkMetricAndTags(metric, tags);
     final byte[] row = IncomingDataPoints.rowKeyTemplate(this, metric, tags);
     final long base_time;
@@ -649,7 +650,9 @@ public final class TSDB {
       base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     }
     
-    Bytes.setInt(row, (int) base_time, metrics.width());
+    Bytes.setInt(row, (int) base_time, metrics.width() + Const.SALT_WIDTH());
+    RowKey.prefixKeyWithSalt(row);
+    
     scheduleForCompaction(row, (int) base_time);
     final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
     
@@ -775,14 +778,6 @@ public final class TSDB {
       LOG.info("Shutting down RT plugin: " + 
           rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
-    }
-    
-    if (rpc_plugins != null && !rpc_plugins.isEmpty()) {
-      for (final RpcPlugin rpc : rpc_plugins) {
-        LOG.info("Shutting down RPC plugin: " + 
-            rpc.getClass().getCanonicalName());
-        deferreds.add(rpc.shutdown());
-      }
     }
     
     // wait for plugins to shutdown before we close the client

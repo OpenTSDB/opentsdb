@@ -20,6 +20,7 @@ import java.util.Map;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.utils.Config;
 
@@ -31,9 +32,9 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -44,7 +45,8 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.InOrder;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import static org.mockito.Mockito.any;
+
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
@@ -58,6 +60,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
 import static org.powermock.api.mockito.PowerMockito.mock;
 
 @RunWith(PowerMockRunner.class)
@@ -66,7 +69,8 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
                   "ch.qos.*", "org.slf4j.*",
                   "com.sum.*", "org.xml.*"})
-@PrepareForTest({ HBaseClient.class, TSDB.class, Config.class })
+@PrepareForTest({ HBaseClient.class, TSDB.class, Config.class, 
+  RandomUniqueId.class, Const.class })
 public final class TestUniqueId {
 
   private HBaseClient client = mock(HBaseClient.class);
@@ -482,7 +486,132 @@ public final class TestUniqueId {
     order.verify(client).compareAndSet(putForRow(id), emptyArray());
     order.verify(client).compareAndSet(putForRow(row), emptyArray());
   }
+  
+  @Test
+  public void getOrCreateIdRandom() {
+    PowerMockito.mockStatic(RandomUniqueId.class);
+    uid = new UniqueId(client, table, kind, 3, true);
+    final long id = 42L;
+    final byte[] id_array = { 0, 0, 0x2A };
 
+    when(RandomUniqueId.getRandomUID()).thenReturn(id);
+    when(client.get(any(GetRequest.class)))
+      .thenReturn(Deferred.<ArrayList<KeyValue>>fromResult(null));
+    
+    when(client.compareAndSet(any(PutRequest.class), any(byte[].class)))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    // Should be a cache hit ...
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+    assertEquals(0, uid.randomIdCollisions());
+    // ... so verify there was only one HBase Get.
+    verify(client).get(any(GetRequest.class));
+  }
+  
+  @Test
+  public void getOrCreateIdRandomCollision() {
+    PowerMockito.mockStatic(RandomUniqueId.class);
+    uid = new UniqueId(client, table, kind, 3, true);
+    final long id = 42L;
+    final byte[] id_array = { 0, 0, 0x2A };
+
+    when(RandomUniqueId.getRandomUID()).thenReturn(24L).thenReturn(id);
+    
+    when(client.get(any(GetRequest.class)))
+      .thenReturn(Deferred.fromResult((ArrayList<KeyValue>)null));
+    
+    when(client.compareAndSet(anyPut(), any(byte[].class)))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(true));
+
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    // Should be a cache hit ...
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    assertEquals(1, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+    assertEquals(1, uid.randomIdCollisions());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(anyGet());
+  }
+  
+  @Test
+  public void getOrCreateIdRandomCollisionTooManyAttempts() {
+    PowerMockito.mockStatic(RandomUniqueId.class);
+    uid = new UniqueId(client, table, kind, 3, true);
+    final long id = 42L;
+
+    when(RandomUniqueId.getRandomUID()).thenReturn(24L).thenReturn(id);
+    
+    when(client.get(any(GetRequest.class)))
+      .thenReturn(Deferred.fromResult((ArrayList<KeyValue>)null));
+    
+    when(client.compareAndSet(any(PutRequest.class), any(byte[].class)))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false))
+      .thenReturn(Deferred.fromResult(false));
+
+    try {
+      final byte[] assigned_id = uid.getOrCreateId("foo");
+      fail("FailedToAssignUniqueIdException should have been thrown but instead "
+           + " this was returned id=" + Arrays.toString(assigned_id));
+    } catch (FailedToAssignUniqueIdException e) {
+      // OK
+    }
+    assertEquals(0, uid.cacheHits());
+    assertEquals(1, uid.cacheMisses());
+    assertEquals(0, uid.cacheSize());
+    assertEquals(9, uid.randomIdCollisions());
+
+    // ... so verify there was only one HBase Get.
+    verify(client).get(any(GetRequest.class));
+  }
+  
+  @Test
+  public void getOrCreateIdRandomWithRaceCondition() {
+    PowerMockito.mockStatic(RandomUniqueId.class);
+    uid = new UniqueId(client, table, kind, 3, true);
+    final long id = 24L;
+    final byte[] id_array = { 0, 0, 0x2A };
+    final byte[] byte_name = { 'f', 'o', 'o' };
+    
+    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
+    kvs.add(new KeyValue(byte_name, ID, kind_array, id_array));
+    
+    when(RandomUniqueId.getRandomUID()).thenReturn(id);
+    
+    when(client.get(any(GetRequest.class)))
+      .thenReturn(Deferred.fromResult((ArrayList<KeyValue>)null))
+      .thenReturn(Deferred.fromResult(kvs));
+    
+    when(client.compareAndSet(any(PutRequest.class), any(byte[].class)))
+      .thenReturn(Deferred.fromResult(true))
+      .thenReturn(Deferred.fromResult(false));
+
+    assertArrayEquals(id_array, uid.getOrCreateId("foo"));
+    assertEquals(0, uid.cacheHits());
+    assertEquals(2, uid.cacheMisses());
+    assertEquals(2, uid.cacheSize());
+    assertEquals(1, uid.randomIdCollisions());
+
+    // ... so verify there was only one HBase Get.
+    verify(client, times(2)).get(any(GetRequest.class));
+  }
+  
   @PrepareForTest({HBaseClient.class, Scanner.class})
   @Test
   public void suggestWithNoMatch() {
@@ -634,18 +763,170 @@ public final class TestUniqueId {
   }
   
   @Test
+  public void getTSUIDFromKeySalted() {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    
+    final byte[] expected = { 0, 0, 1, 0, 0, 2, 0, 0, 3 };
+    byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(expected, tsuid);
+    
+    tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(expected, tsuid);
+    
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(4);
+    tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 1, 2, 3, 4, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(expected, tsuid);
+    
+    tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+      { 4, 3, 2, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+    assertArrayEquals(expected, tsuid);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
   public void getTSUIDFromKeyMissingTags() {
-    final byte[] tsuid = UniqueId.getTSUIDFromKey(new byte[] 
+    UniqueId.getTSUIDFromKey(new byte[] 
       { 0, 0, 1, 1, 1, 1, 1 }, (short)3, (short)4);
-    assertArrayEquals(new byte[] { 0, 0, 1 }, 
-        tsuid);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTSUIDFromKeyMissingTagsSalted() {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1); 
+    
+    UniqueId.getTSUIDFromKey(new byte[] 
+      { 0, 0, 0, 1, 1, 1, 1, 1 }, (short)3, (short)4);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTSUIDFromKeyMissingSalt() {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    
+    UniqueId.getTSUIDFromKey(new byte[] 
+        { 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTSUIDFromKeySaltButShouldntBe() {
+    UniqueId.getTSUIDFromKey(new byte[] 
+        { 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 2, 0, 0, 3 }, (short)3, (short)4);
   }
   
   @Test
-  public void getTagPairsFromTSUID() {
+  public void getTagPairsFromTSUIDString() {
     List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
-        "000000000001000002000003000004", 
-        (short)3, (short)3, (short)3);
+        "000000000001000002000003000004");
+    assertNotNull(tags);
+    assertEquals(2, tags.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2 }, tags.get(0));
+    assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 4 }, tags.get(1));
+  }
+  
+  
+  @Test
+  public void getTagPairsFromTSUIDStringNonStandardWidth() {
+    PowerMockito.mockStatic(TSDB.class);
+    when(TSDB.metrics_width()).thenReturn((short)3);
+    when(TSDB.tagk_width()).thenReturn((short)4);
+    when(TSDB.tagv_width()).thenReturn((short)3);
+    
+    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
+        "0000000000000100000200000003000004");
+    assertNotNull(tags);
+    assertEquals(2, tags.size());
+    assertArrayEquals(new byte[] { 0, 0, 0, 1, 0, 0, 2 }, tags.get(0));
+    assertArrayEquals(new byte[] { 0, 0, 0, 3, 0, 0, 4 }, tags.get(1));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDStringMissingTags() {
+    UniqueId.getTagPairsFromTSUID("123456");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDStringMissingMetric() {
+    UniqueId.getTagPairsFromTSUID("000001000002");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDStringOddNumberOfCharacters() {
+    UniqueId.getTagPairsFromTSUID("0000080000010000020");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDStringMissingTagv() {
+    UniqueId.getTagPairsFromTSUID("000008000001");
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDStringNull() {
+    UniqueId.getTagPairsFromTSUID((String)null);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDStringEmpty() {
+    UniqueId.getTagPairsFromTSUID("");
+  }
+  
+  @Test
+  public void getTagPairsFromTSUIDBytes() {
+    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
+        new byte[] { 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4 });
+    assertNotNull(tags);
+    assertEquals(2, tags.size());
+    assertArrayEquals(new byte[] { 0, 0, 1, 0, 0, 2 }, tags.get(0));
+    assertArrayEquals(new byte[] { 0, 0, 3, 0, 0, 4 }, tags.get(1));
+  }
+  
+  
+  @Test
+  public void getTagPairsFromTSUIDBytesNonStandardWidth() {
+    PowerMockito.mockStatic(TSDB.class);
+    when(TSDB.metrics_width()).thenReturn((short)3);
+    when(TSDB.tagk_width()).thenReturn((short)4);
+    when(TSDB.tagv_width()).thenReturn((short)3);
+    
+    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
+        new byte[] { 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 3, 0, 0, 4 });
+    assertNotNull(tags);
+    assertEquals(2, tags.size());
+    assertArrayEquals(new byte[] { 0, 0, 0, 1, 0, 0, 2 }, tags.get(0));
+    assertArrayEquals(new byte[] { 0, 0, 0, 3, 0, 0, 4 }, tags.get(1));
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDBytesMissingTags() {
+    UniqueId.getTagPairsFromTSUID(new byte[] { 0, 0, 1 });
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDBytesMissingMetric() {
+    UniqueId.getTagPairsFromTSUID(new byte[] { 0, 0, 1, 0, 0, 2 });
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDBytesMissingTagv() {
+    UniqueId.getTagPairsFromTSUID(new byte[] { 0, 0, 8, 0, 0, 2 });
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDBytesNull() {
+    UniqueId.getTagPairsFromTSUID((byte[])null);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void getTagPairsFromTSUIDBytesEmpty() {
+    UniqueId.getTagPairsFromTSUID(new byte[0]);
+  }
+  
+  @Test
+  public void getTagFromTSUID() {
+    List<byte[]> tags = UniqueId.getTagsFromTSUID(
+        "000000000001000002000003000004");
     assertNotNull(tags);
     assertEquals(4, tags.size());
     assertArrayEquals(new byte[] { 0, 0, 1 }, tags.get(0));
@@ -655,10 +936,14 @@ public final class TestUniqueId {
   }
   
   @Test
-  public void getTagPairsFromTSUIDNonStandardWidth() {
-    List<byte[]> tags = UniqueId.getTagPairsFromTSUID(
-        "0000000000000100000200000003000004",  
-        (short)3, (short)4, (short)3);
+  public void getTagFromTSUIDNonStandardWidth() {
+    PowerMockito.mockStatic(TSDB.class);
+    when(TSDB.metrics_width()).thenReturn((short)3);
+    when(TSDB.tagk_width()).thenReturn((short)4);
+    when(TSDB.tagv_width()).thenReturn((short)3);
+    
+    List<byte[]> tags = UniqueId.getTagsFromTSUID(
+        "0000000000000100000200000003000004");
     assertNotNull(tags);
     assertEquals(4, tags.size());
     assertArrayEquals(new byte[] { 0, 0, 0, 1 }, tags.get(0));
@@ -668,35 +953,33 @@ public final class TestUniqueId {
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDMissingTags() {
-    UniqueId.getTagPairsFromTSUID("123456", (short)3, (short)3, (short)3);
+  public void getTagFromTSUIDMissingTags() {
+    UniqueId.getTagsFromTSUID("123456");
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDMissingMetric() {
-    UniqueId.getTagPairsFromTSUID("000001000002", (short)3, (short)3, (short)3);
+  public void getTagFromTSUIDMissingMetric() {
+    UniqueId.getTagsFromTSUID("000001000002");
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDOddNumberOfCharacters() {
-    UniqueId.getTagPairsFromTSUID("0000080000010000020", 
-        (short)3, (short)3, (short)3);
+  public void getTagFromTSUIDOddNumberOfCharacters() {
+    UniqueId.getTagsFromTSUID("0000080000010000020");
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDMissingTagv() {
-    UniqueId.getTagPairsFromTSUID("000008000001", 
-        (short)3, (short)3, (short)3);
+  public void getTagFromTSUIDMissingTagv() {
+    UniqueId.getTagsFromTSUID("000008000001");
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDNull() {
-    UniqueId.getTagPairsFromTSUID(null, (short)3, (short)3, (short)3);
+  public void getTagFromTSUIDNull() {
+    UniqueId.getTagsFromTSUID(null);
   }
   
   @Test (expected = IllegalArgumentException.class)
-  public void getTagPairsFromTSUIDEmpty() {
-    UniqueId.getTagPairsFromTSUID("", (short)3, (short)3, (short)3);
+  public void getTagFromTSUIDEmpty() {
+    UniqueId.getTagsFromTSUID("");
   }
   
   @Test
@@ -746,6 +1029,42 @@ public final class TestUniqueId {
     assertEquals(0L, uids.get("tagv").longValue());
   }
   
+  @Test
+  public void uidToLong() throws Exception {
+    assertEquals(42, UniqueId.uidToLong(new byte[] { 0, 0, 0x2A }, (short)3));
+  }
+
+  @Test
+  public void uidToLongFromString() throws Exception {
+    assertEquals(42L, UniqueId.uidToLong("00002A", (short) 3));
+  }
+
+  @Test (expected = IllegalArgumentException.class)
+  public void uidToLongTooLong() throws Exception {
+    UniqueId.uidToLong(new byte[] { 0, 0, 0, 0x2A }, (short)3);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void uidToLongTooShort() throws Exception {
+    UniqueId.uidToLong(new byte[] { 0, 0x2A }, (short)3);
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void uidToLongNull() throws Exception {
+    UniqueId.uidToLong((byte[])null, (short)3);
+  }
+  
+  @Test
+  public void longToUID() throws Exception {
+    assertArrayEquals(new byte[] { 0, 0, 0x2A }, 
+        UniqueId.longToUID(42L, (short)3));
+  }
+  
+  @Test (expected = IllegalStateException.class)
+  public void longToUIDTooBig() throws Exception {
+    UniqueId.longToUID(257, (short)1);
+  }
+
   // ----------------- //
   // Helper functions. //
   // ----------------- //

@@ -64,6 +64,12 @@ public class Config {
   /** tsd.core.auto_create_metrics */
   private boolean auto_metric = false;
 
+  /** tsd.core.auto_create_tagk */
+  private boolean auto_tagk = true;
+  
+  /** tsd.core.auto_create_tagv */
+  private boolean auto_tagv = true;
+  
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
   
@@ -82,6 +88,9 @@ public class Config {
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
   
+  /** tsd.storage.fix_duplicates */
+  private boolean fix_duplicates = false;
+
   /** tsd.http.request.max_chunk */
   private int max_chunked_requests = 4096; 
   
@@ -147,9 +156,21 @@ public class Config {
     return auto_metric;
   }
   
+  /** @return the auto_tagk value */
+  public boolean auto_tagk() {
+    return auto_tagk;
+  }
+  
+  /** @return the auto_tagv value */
+  public boolean auto_tagv() {
+    return auto_tagv;
+  }
+  
   /** @param auto_metric whether or not to auto create metrics */
   public void setAutoMetric(boolean auto_metric) {
     this.auto_metric = auto_metric;
+    properties.put("tsd.core.auto_create_metrics", 
+        Boolean.toString(auto_metric));
   }
   
   /** @return the enable_compaction value */
@@ -187,22 +208,37 @@ public class Config {
     return max_chunked_requests;
   }
   
+  /** @return true if duplicate values should be fixed */
+  public boolean fix_duplicates() {
+    return fix_duplicates;
+  }
+
+  /** @param fix_duplicates true if duplicate values should be fixed */
+  public void setFixDuplicates(final boolean fix_duplicates) {
+    this.fix_duplicates = fix_duplicates;
+  }
+
   /** @return whether or not to process new or updated TSMetas through trees */
   public boolean enable_tree_processing() {
     return enable_tree_processing;
   }
   
   /**
-   * Allows for modifying properties after loading
+   * Allows for modifying properties after creation or loading.
    * 
    * WARNING: This should only be used on initialization and is meant for 
-   * command line overrides
+   * command line overrides. Also note that it will reset all static config 
+   * variables when called.
    * 
    * @param property The name of the property to override
    * @param value The value to store
    */
   public void overrideConfig(final String property, final String value) {
     properties.put(property, value);
+<<<<<<< HEAD
+=======
+    loadStaticVariables();
+>>>>>>> upstream/put
   }
 
   /**
@@ -321,6 +357,13 @@ public class Config {
           "Unix path names cannot contain a back slash");
     }
     
+<<<<<<< HEAD
+=======
+    if (directory == null || directory.isEmpty()){
+    	return null;
+    }
+    
+>>>>>>> upstream/put
     if (directory.charAt(directory.length() - 1) == '/') {
       return directory;
     }
@@ -372,6 +415,20 @@ public class Config {
   public final Map<String, String> getMap() {
     return ImmutableMap.copyOf(properties);
   }
+
+  /**
+   * set enable_compactions to true
+   */
+  public final void enableCompactions() {
+    this.enable_compactions = true;
+  }
+
+  /**
+   * set enable_compactions to false
+   */
+  public final void disableCompactions() {
+    this.enable_compactions = false;
+  }
   
   /**
    * Loads default entries that were not provided by a file or command line
@@ -382,6 +439,8 @@ public class Config {
     // map.put("tsd.network.port", ""); // does not have a default, required
     // map.put("tsd.http.cachedir", ""); // does not have a default, required
     // map.put("tsd.http.staticroot", ""); // does not have a default, required
+    default_map.put("tsd.mode", "rw");
+    default_map.put("tsd.no_diediedie", "false");
     default_map.put("tsd.network.bind", "0.0.0.0");
     default_map.put("tsd.network.worker_threads", "");
     default_map.put("tsd.network.async_io", "true");
@@ -389,17 +448,24 @@ public class Config {
     default_map.put("tsd.network.keep_alive", "true");
     default_map.put("tsd.network.reuse_address", "true");
     default_map.put("tsd.core.auto_create_metrics", "false");
+    default_map.put("tsd.core.auto_create_tagks", "true");
+    default_map.put("tsd.core.auto_create_tagvs", "true");
     default_map.put("tsd.core.meta.enable_realtime_ts", "false");
     default_map.put("tsd.core.meta.enable_realtime_uid", "false");
     default_map.put("tsd.core.meta.enable_tsuid_incrementing", "false");
     default_map.put("tsd.core.meta.enable_tsuid_tracking", "false");
     default_map.put("tsd.core.plugin_path", "");
+    default_map.put("tsd.core.socket.timeout", "0");
     default_map.put("tsd.core.tree.enable_processing", "false");
+    default_map.put("tsd.core.preload_uid_cache", "false");
+    default_map.put("tsd.core.preload_uid_cache.max_entries", "300000");
+    default_map.put("tsd.core.uid.random_metrics", "false");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");
     default_map.put("tsd.search.plugin", "");
     default_map.put("tsd.stats.canonical", "false");
+    default_map.put("tsd.storage.fix_duplicates", "false");
     default_map.put("tsd.storage.flush_interval", "1000");
     default_map.put("tsd.storage.hbase.data_table", "tsdb");
     default_map.put("tsd.storage.hbase.uid_table", "tsdb-uid");
@@ -408,16 +474,25 @@ public class Config {
     default_map.put("tsd.storage.hbase.zk_quorum", "localhost");
     default_map.put("tsd.storage.hbase.zk_basedir", "/hbase");
     default_map.put("tsd.storage.enable_compaction", "true");
+    default_map.put("tsd.storage.compaction.flush_interval", "10");
+    default_map.put("tsd.storage.compaction.min_flush_threshold", "100");
+    default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
+    default_map.put("tsd.storage.compaction.flush_speed", "2");
     default_map.put("tsd.http.show_stack_trace", "true");
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
     default_map.put("tsd.http.request.cors_domains", "");
+    default_map.put("tsd.http.request.cors_headers", "Authorization, "
+      + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
+      + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
+    default_map.put("tsd.query.timeout", "0");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
         properties.put(entry.getKey(), entry.getValue());
     }
 
+<<<<<<< HEAD
     // set locals
     auto_metric = getBoolean("tsd.core.auto_create_metrics");
     enable_compactions = getBoolean("tsd.storage.enable_compaction");
@@ -432,6 +507,9 @@ public class Config {
       max_chunked_requests = getInt("tsd.http.request.max_chunk");
     }
     enable_tree_processing = getBoolean("tsd.core.tree.enable_processing");
+=======
+    loadStaticVariables();
+>>>>>>> upstream/put
   }
 
   /**
@@ -515,7 +593,30 @@ public class Config {
   }
 
   /**
-   * Calld from {@link #loadConfig} to copy the properties into the hash map
+   * Loads the static class variables for values that are called often. This
+   * should be called any time the configuration changes.
+   */
+  protected void loadStaticVariables() {
+    auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
+    auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
+    auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
+    enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
+    enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
+    enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
+    enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
+    enable_tsuid_incrementing = 
+      this.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
+    enable_tsuid_tracking = 
+      this.getBoolean("tsd.core.meta.enable_tsuid_tracking");
+    if (this.hasProperty("tsd.http.request.max_chunk")) {
+      max_chunked_requests = this.getInt("tsd.http.request.max_chunk");
+    }
+    enable_tree_processing = this.getBoolean("tsd.core.tree.enable_processing");
+    fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
+  }
+  
+  /**
+   * Called from {@link #loadConfig} to copy the properties into the hash map
    * Tsuna points out that the Properties class is much slower than a hash
    * map so if we'll be looking up config values more than once, a hash map
    * is the way to go 
