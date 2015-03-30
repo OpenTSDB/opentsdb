@@ -88,7 +88,7 @@ public class SaltScanner {
   /** A holder for storing the first exception thrown by a scanner if something
    * goes pear shaped. Make sure to synchronize on this object when checking
    * for null or assigning from a scanner's callback. */
-  private Exception exception;
+  private volatile Exception exception;
   
   /**
    * Default ctor that performs some validation. Call {@link scan} after 
@@ -372,13 +372,15 @@ public class SaltScanner {
    */
   private void handleException(final Exception e) {
     // make sure only one scanner can set the exception
-    synchronized (this) {
-      if (exception == null) {
-        exception = e;
-      } else {
-        // TODO - it would be nice to close and cancel the other scanners but
-        // for now we have to wait for them to finish and/or throw exceptions.
-        LOG.error("Another scanner threw an exception", e);
+    if (exception == null) {
+      synchronized (this) {
+        if (exception == null) {
+          exception = e;
+        } else {
+          // TODO - it would be nice to close and cancel the other scanners but
+          // for now we have to wait for them to finish and/or throw exceptions.
+          LOG.error("Another scanner threw an exception", e);
+        }
       }
     }
     
