@@ -486,21 +486,6 @@ public class Config {
         properties.put(entry.getKey(), entry.getValue());
     }
 
-    // set locals
-    auto_metric = getBoolean("tsd.core.auto_create_metrics");
-    enable_compactions = getBoolean("tsd.storage.enable_compaction");
-    enable_chunked_requests = getBoolean("tsd.http.request.enable_chunked");
-    enable_realtime_ts = getBoolean("tsd.core.meta.enable_realtime_ts");
-    enable_realtime_uid = getBoolean("tsd.core.meta.enable_realtime_uid");
-    enable_tsuid_incrementing = 
-      getBoolean("tsd.core.meta.enable_tsuid_incrementing");
-    enable_tsuid_tracking = 
-      getBoolean("tsd.core.meta.enable_tsuid_tracking");
-    if (hasProperty("tsd.http.request.max_chunk")) {
-      max_chunked_requests = getInt("tsd.http.request.max_chunk");
-    }
-    enable_tree_processing = getBoolean("tsd.core.tree.enable_processing");
-
     loadStaticVariables();
   }
 
