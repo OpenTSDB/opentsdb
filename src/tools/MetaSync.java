@@ -215,6 +215,41 @@ final class MetaSync extends Thread {
       @Override
       public Deferred<Boolean> call(final TSMeta meta) throws Exception {
         
+        /** Called to process the new meta through the search plugin and tree code */
+        final class IndexCB implements Callback<Deferred<Boolean>, TSMeta> {
+          @Override
+          public Deferred<Boolean> call(final TSMeta new_meta) throws Exception {
+            tsdb.indexTSMeta(new_meta);
+            // pass through the trees
+            return tsdb.processTSMetaThroughTrees(new_meta);
+          }
+        }
+        
+        /** Called to load the newly created meta object for passage onto the
+         * search plugin and tree builder if configured
+         */
+        final class GetCB implements Callback<Deferred<Boolean>, Boolean> {
+          @Override
+          public final Deferred<Boolean> call(final Boolean exists)
+              throws Exception {
+            if (exists) {
+              return TSMeta.getTSMeta(tsdb, tsuid_string)
+                  .addCallbackDeferring(new IndexCB());
+            } else {
+              return Deferred.fromResult(false);
+            }
+          }
+        }
+        
+        /** Errback on the store new call to catch issues */
+        class ErrBack implements Callback<Object, Exception> {
+          public Object call(final Exception e) throws Exception {
+            LOG.warn("Failed creating meta for: " + tsuid + 
+                " with exception: ", e);
+            return null;
+          }
+        }
+        
         // if we couldn't find a TSMeta in storage, then we need to generate a
         // new one
         if (meta == null) {
@@ -253,9 +288,11 @@ final class MetaSync extends Thread {
               } else {
                 TSMeta new_meta = new TSMeta(tsuid, timestamp);
                 tsdb.indexTSMeta(new_meta);
-                LOG.info("Counter exists but meta was null, creating meta data for timeseries [" + 
-                    tsuid_string + "]");
-                return new_meta.storeNew(tsdb);    
+                LOG.info("Counter exists but meta was null, creating meta data "
+                    + "for timeseries [" + tsuid_string + "]");
+                return new_meta.storeNew(tsdb)
+                    .addCallbackDeferring(new GetCB())
+                    .addErrback(new ErrBack());    
               }
             }
           }
@@ -275,7 +312,9 @@ final class MetaSync extends Thread {
               tsuid_string + "]");
           TSMeta new_meta = new TSMeta(tsuid, timestamp);
           tsdb.indexTSMeta(new_meta);
-          return new_meta.storeNew(tsdb);
+          return new_meta.storeNew(tsdb)
+              .addCallbackDeferring(new GetCB())
+              .addErrback(new ErrBack());
         } else {
           // we only want to update the time if it was outside of an 
           // hour otherwise it's probably an accurate timestamp
