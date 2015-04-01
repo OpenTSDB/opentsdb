@@ -653,8 +653,8 @@ pom.xml: pom.xml.in Makefile
 TIMESTAMP := $(shell date +"%Y%m%d%H%M%S")
 RPM_REVISION := 1
 RPM_TARGET := noarch
-RPM := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION).$(RPM_TARGET).rpm
-RPM_SNAPSHOT := opentsdb-$(PACKAGE_VERSION)-$(RPM_REVISION)-$(TIMESTAMP)-"`whoami`".$(RPM_TARGET).rpm
+RPM := opentsdb-$(subst -,_,$(PACKAGE_VERSION))-$(RPM_REVISION).$(RPM_TARGET).rpm
+RPM_SNAPSHOT := opentsdb-$(subst -,_,$(PACKAGE_VERSION))-$(RPM_REVISION)-$(TIMESTAMP)-"`whoami`".$(RPM_TARGET).rpm
 SOURCE_TARBALL := opentsdb-$(PACKAGE_VERSION).tar.gz
 rpm: $(RPM)
 
