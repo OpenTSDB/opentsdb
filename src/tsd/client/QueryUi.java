@@ -956,9 +956,11 @@ public class QueryUi implements EntryPoint, HistoryListener {
             }
             final MetricForm metric = (MetricForm) widget;
             final JSONArray tags = etags.get(i).isArray();
-            final int ntags = tags.size();
-            for (int j = 0; j < ntags; j++) {
-              metric.autoSuggestTag(tags.get(j).isString().stringValue());
+            // Skip if no tags were associated with the query.
+            if (null != tags) {
+              for (int j = 0; j < tags.size(); j++) {
+                metric.autoSuggestTag(tags.get(j).isString().stringValue());
+              }
             }
           }
         }
