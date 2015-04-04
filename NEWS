@@ -1,5 +1,27 @@
 OpenTSDB - User visible changes.
 
+* Version 2.1.0 RC1 (2015-04-04)
+
+Noteworthy Changes:
+  - Handle idle connections in Netty by closing them after some period of inactivity
+  - Support compressed HTTP responses
+  - 
+
+Bug Fixes:
+  - Various RPM script and package fixes
+  - Properly handle deletions of the cache directory while running
+  - Queries for non-extant metrics now return a 400 error
+  - Fix an issue with the meta sync utility where entries were not created if the counter existed
+  - Report stats properly when the UID is greater than 3 bytes wide
+  - Fix UI hangups when incorrect tags are supplied
+  - Log illegal put exceptions at the debug level
+  - Fix global annotation retrieval where some entries were missing
+  - Fix unit tests that were not properly mocking out clients or threads and causing JVM OOMs
+  - Fix accounting bugs in FSCK
+  - Sort aggregators in the UI
+  - Properly throw an exception if the user supplies an empty tag on storage or retreival
+  - Handle missing directories in the Config class
+
 * Version 2.1.0 RC1 (2014-11-09)
 
 Noteworthy Changes:
