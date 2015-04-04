@@ -121,6 +121,7 @@ tsdb_SRC := \
 	src/utils/ByteArrayPair.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
+	src/utils/FileSystem.java \
 	src/utils/JSON.java \
 	src/utils/JSONException.java	\
 	src/utils/Pair.java	\
