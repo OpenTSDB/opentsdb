@@ -15,29 +15,35 @@ package net.opentsdb.tsd;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.mockito.Matchers;
+
 import java.lang.reflect.Method;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.ArrayList;
+import java.nio.charset.Charset;
+
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.core.TSSubQuery;
+import net.opentsdb.storage.MockDataPoints;
 import net.opentsdb.utils.Config;
-import org.hbase.async.HBaseClient;
+import net.opentsdb.utils.DateTime;
+
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
 import net.opentsdb.uid.NoSuchUniqueName;
+
 import com.stumbleupon.async.Deferred;
+import com.stumbleupon.async.DeferredGroupException;
+
 /**
  * Unit tests for the Query RPC class that handles parsing user queries for
  * timeseries data and returning that data
@@ -45,12 +51,13 @@ import com.stumbleupon.async.Deferred;
  * core.TestTSQuery and TestTSSubQuery classes
  */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, HttpQuery.class, Query.class, 
-  Deferred.class, TSQuery.class})
+@PrepareForTest({ TSDB.class, Config.class, HttpQuery.class, Query.class, 
+  Deferred.class, TSQuery.class, DateTime.class, DeferredGroupException.class })
 public final class TestQueryRpc {
   private TSDB tsdb = null;
-  final private QueryRpc rpc = new QueryRpc();
-  final private Query empty_query = mock(Query.class);
+  private QueryRpc rpc;
+  private Query empty_query = mock(Query.class);
+  private Query query_result;
   
   private static final Method parseQuery;
   static {
@@ -66,8 +73,16 @@ public final class TestQueryRpc {
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
-    when(tsdb.newQuery()).thenReturn(empty_query);
+    empty_query = mock(Query.class);
+    query_result = mock(Query.class);
+    rpc = new QueryRpc();
+    
+    when(tsdb.newQuery()).thenReturn(query_result);
     when(empty_query.run()).thenReturn(new DataPoints[0]);
+    when(query_result.configureFromQuery((TSQuery)any(), anyInt()))
+      .thenReturn(Deferred.fromResult(null));
+    when(query_result.runAsync())
+      .thenReturn(Deferred.fromResult(new DataPoints[0]));
   }
   
   @Test
@@ -273,16 +288,11 @@ public final class TestQueryRpc {
   
   @Test
   public void postQuerySimplePass() throws Exception {
-    Deferred<ArrayList<DataPoints[]>> deferredMock =
-        (Deferred<ArrayList<DataPoints[]>>)mock(Deferred.class);
-    PowerMockito.mockStatic(Deferred.class);
-    PowerMockito.when(Deferred.groupInOrder(Matchers.anyCollection()))
-      .thenReturn(deferredMock);
-    PowerMockito.when(deferredMock.joinUninterruptibly())
-      .thenReturn(null);
-    PowerMockito.when(deferredMock.addCallback(Matchers.any(com.stumbleupon.async.Callback.class)))
-      .thenReturn(deferredMock);
-
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/query",
         "{\"start\":1425440315306,\"queries\":" +
           "[{\"metric\":\"somemetric\",\"aggregator\":\"sum\",\"rate\":true," +
@@ -291,35 +301,66 @@ public final class TestQueryRpc {
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
   }
 
-  @Test (expected = BadRequestException.class)
+  @Test
   public void postQueryNoMetricBadRequest() throws Exception {
-    Deferred<ArrayList<DataPoints[]>> deferredMock = 
-        (Deferred<ArrayList<DataPoints[]>>)mock(Deferred.class);
-    PowerMockito.mockStatic(Deferred.class);
-    PowerMockito.when(Deferred.groupInOrder(Matchers.anyCollection()))
-      .thenReturn(deferredMock);
-    PowerMockito.when(deferredMock.joinUninterruptibly())
-      .thenReturn(null);
-    PowerMockito.when(deferredMock.addCallback(
-        Matchers.any(com.stumbleupon.async.Callback.class)))
-      .thenReturn(deferredMock);
+    final DeferredGroupException dge = mock(DeferredGroupException.class);
+    when(dge.getCause()).thenReturn(new NoSuchUniqueName("foo", "metrics"));
 
-    Query mockQuery = mock(Query.class);
-    PowerMockito.doThrow(new NoSuchUniqueName("metric", "nonexistent"))
-      .when(mockQuery).setTimeSeries(
-          Matchers.anyString(),
-          Matchers.anyMap(),
-          Matchers.any(net.opentsdb.core.Aggregator.class),
-          Matchers.anyBoolean(),
-          Matchers.any(net.opentsdb.core.RateOptions.class));
-    when(tsdb.newQuery()).thenReturn(mockQuery);
+    when(query_result.configureFromQuery((TSQuery)any(), anyInt()))
+      .thenReturn(Deferred.fromError(dge));
 
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/query",
         "{\"start\":1425440315306,\"queries\":" +
           "[{\"metric\":\"nonexistent\",\"aggregator\":\"sum\",\"rate\":true," +
           "\"rateOptions\":{\"counter\":false}}]}");
     rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("No such name for 'foo': 'metrics'"));
   }
 
+  @Test
+  public void executeEmpty() throws Exception {
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    rpc.execute(tsdb, query);
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertEquals("[]", json);
+  }
+  
+  @Test
+  public void execute() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+    
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    rpc.execute(tsdb, query);
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("\"metric\":\"system.cpu.user\""));
+  }
+  
+  @Test
+  public void executeNSU() throws Exception {
+    final DeferredGroupException dge = mock(DeferredGroupException.class);
+    when(dge.getCause()).thenReturn(new NoSuchUniqueName("foo", "metrics"));
+
+    when(query_result.configureFromQuery((TSQuery)any(), anyInt()))
+      .thenReturn(Deferred.fromError(dge));
+    
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+        "/api/query?start=1h-ago&m=sum:sys.cpu.user");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
+    final String json = 
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("No such name for 'foo': 'metrics'"));
+  }
+  
   //TODO(cl) add unit tests for the rate options parsing
 }
