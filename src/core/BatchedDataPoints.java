@@ -21,6 +21,7 @@ import java.util.Map;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 
 import net.opentsdb.meta.Annotation;
 
@@ -316,6 +317,11 @@ final class BatchedDataPoints implements WritableDataPoints {
     catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
     }
+  }
+  
+  @Override
+  public ByteMap<byte[]> getTagUids() {
+    return Tags.getTagUids(row_key);
   }
 
   @Override

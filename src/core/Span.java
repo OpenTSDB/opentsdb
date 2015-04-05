@@ -24,6 +24,7 @@ import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
+import org.hbase.async.Bytes.ByteMap;
 
 import com.stumbleupon.async.Deferred;
 
@@ -103,6 +104,12 @@ final class Span implements DataPoints {
   public Deferred<Map<String, String>> getTagsAsync() {
     checkNotEmpty();
     return rows.get(0).getTagsAsync();
+  }
+  
+  @Override
+  public ByteMap<byte[]> getTagUids() {
+    checkNotEmpty();
+    return rows.get(0).getTagUids();
   }
   
   /** @return an empty list since aggregated tags cannot exist on a single span */

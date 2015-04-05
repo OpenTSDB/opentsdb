@@ -171,6 +171,7 @@ test_SRC := \
 	test/core/TestRowSeq.java	\
 	test/core/TestSaltScanner.java	\
 	test/core/TestSpan.java	\
+	test/core/TestSpanGroup.java	\
 	test/core/TestTags.java	\
 	test/core/TestTSDB.java	\
 	test/core/TestTsdbQueryDownsample.java	\

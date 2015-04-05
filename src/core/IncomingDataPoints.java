@@ -24,6 +24,7 @@ import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.PutRequest;
+import org.hbase.async.Bytes.ByteMap;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.stats.Histogram;
@@ -417,6 +418,11 @@ final class IncomingDataPoints implements WritableDataPoints {
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
     }
+  }
+  
+  @Override
+  public ByteMap<byte[]> getTagUids() {
+    return Tags.getTagUids(row);
   }
 
   public Deferred<Map<String, String>> getTagsAsync() {

@@ -24,6 +24,7 @@ import net.opentsdb.meta.Annotation;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
+import org.hbase.async.Bytes.ByteMap;
 
 import com.stumbleupon.async.Deferred;
 
@@ -292,6 +293,11 @@ final class RowSeq implements DataPoints {
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
     }
+  }
+  
+  @Override
+  public ByteMap<byte[]> getTagUids() {
+    return Tags.getTagUids(key);
   }
   
   public Deferred<Map<String, String>> getTagsAsync() {
