@@ -824,6 +824,28 @@ class HttpJsonSerializer extends HttpSerializer {
   }
   
   /**
+   * Format a list of thread statistics
+   * @param stats The thread statistics list to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   * @since 2.2
+   */
+  public ChannelBuffer formatThreadStatsV1(final List<Map<String, Object>> stats) {
+    return serializeJSON(stats);
+  }
+  
+  /**
+   * Format a list of JVM statistics
+   * @param stats The JVM stats map to format
+   * @return A ChannelBuffer object to pass on to the caller
+   * @throws JSONException if serialization failed
+   * @since 2.2
+   */
+  public ChannelBuffer formatJVMStatsV1(final Map<String, Map<String, Object>> stats) {
+    return serializeJSON(stats);
+  }
+  
+  /**
    * Format the response from a search query
    * @param note The query (hopefully filled with results) to serialize
    * @return A ChannelBuffer object to pass on to the caller
