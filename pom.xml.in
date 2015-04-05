@@ -134,6 +134,9 @@
                 <argument>target/test-classes</argument>
                 <argument>net/opentsdb/tsd/DummyRTPublisher.class</argument>
                 <argument>-C</argument>
+                <argument>target/test-classes</argument>
+                <argument>net/opentsdb/tsd/DummySEHPlugin.class</argument>
+                <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.plugin.DummyPlugin</argument>
                 <argument>-C</argument>
@@ -151,6 +154,9 @@
                 <argument>-C</argument>
                 <argument>test</argument>
                 <argument>META-INF/services/net.opentsdb.tsd.RTPublisher</argument>
+                <argument>-C</argument>
+                <argument>test</argument>
+                <argument>META-INF/services/net.opentsdb.tsd.StorageExceptionHandler</argument>
               </arguments>
             </configuration>
             <phase>test-compile</phase>
