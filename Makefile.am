@@ -193,6 +193,7 @@ test_SRC := \
 	test/stats/TestHistogram.java	\
 	test/stats/TestQueryStats.java	\
 	test/storage/MockBase.java	\
+	test/storage/MockDataPoints.java	\
 	test/tools/TestDumpSeries.java	\
 	test/tools/TestFsck.java	\
 	test/tools/TestTextImporter.java	\
