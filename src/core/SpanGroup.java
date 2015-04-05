@@ -92,6 +92,9 @@ final class SpanGroup implements DataPoints {
   /** Minimum time interval (in seconds) wanted between each data point. */
   private final long sample_interval;
 
+  /** Index of the query in the TSQuery class */
+  private final int query_index;
+  
   /**
    * Ctor.
    * @param tsdb The TSDB we belong to.
@@ -143,6 +146,36 @@ final class SpanGroup implements DataPoints {
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
+    this(tsdb, start_time, end_time, spans, rate, rate_options, aggregator, 
+        interval, downsampler, -1);
+  }
+
+  /**
+   * Ctor.
+   * @param tsdb The TSDB we belong to.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param spans A sequence of initial {@link Spans} to add to this group.
+   * Ignored if {@code null}. Additional spans can be added with {@link #add}.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation options.
+   * @param aggregator The aggregation function to use.
+   * @param interval Number of milliseconds wanted between each data point.
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   * @param query_index The index of this query in the TSQuery array
+   * @since 2.2
+   */
+  SpanGroup(final TSDB tsdb,
+            final long start_time, final long end_time,
+            final Iterable<Span> spans,
+            final boolean rate, final RateOptions rate_options,
+            final Aggregator aggregator,
+            final long interval, final Aggregator downsampler,
+            final int query_index) {
     annotations = new ArrayList<Annotation>();
     this.start_time = (start_time & Const.SECOND_MASK) == 0 ? start_time * 1000 : start_time;
     this.end_time = (end_time & Const.SECOND_MASK) == 0 ? end_time * 1000 : end_time;
@@ -156,8 +189,9 @@ final class SpanGroup implements DataPoints {
     this.aggregator = aggregator;
     this.downsampler = downsampler;
     this.sample_interval = interval;
+    this.query_index = query_index;
   }
-
+  
   /**
    * Adds a span to this group, provided that it's in the right time range.
    * <b>Must not</b> be called once {@link #getTags} or
@@ -439,4 +473,7 @@ final class SpanGroup implements DataPoints {
       + ')';
   }
 
+  public int getQueryIndex() {
+    return query_index;
+  }
 }

@@ -185,4 +185,12 @@ public interface DataPoints extends Iterable<DataPoint> {
    */
   double doubleValue(int i);
 
+  /**
+   * Return the query index that maps this datapoints to the original TSSubQuery.
+   * @return index of the query in the TSQuery class
+   * @throws UnsupportedOperationException if the implementing class can't map
+   * to a sub query.
+   * @since 2.2
+   */
+  int getQueryIndex();
 }

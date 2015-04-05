@@ -436,4 +436,8 @@ final class Span implements DataPoints {
                           final Aggregator downsampler) {
     return new Downsampler(spanIterator(), interval_ms, downsampler);
   }
+
+  public int getQueryIndex() {
+    throw new UnsupportedOperationException("Not mapped to a query");
+  }
 }

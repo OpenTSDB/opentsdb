@@ -487,4 +487,8 @@ final class BatchedDataPoints implements WritableDataPoints {
     buf.append("])");
     return buf.toString();
   }
+
+  public int getQueryIndex() {
+    throw new UnsupportedOperationException("Not mapped to a query");
+  }
 }

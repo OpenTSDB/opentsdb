@@ -659,4 +659,8 @@ final class RowSeq implements DataPoints {
     }
 
   }
+
+  public int getQueryIndex() {
+    throw new UnsupportedOperationException("Not mapped to a query");
+  }
 }

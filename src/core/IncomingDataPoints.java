@@ -531,4 +531,8 @@ final class IncomingDataPoints implements WritableDataPoints {
   public Deferred<Object> persist() {
     return Deferred.fromResult((Object) null);
   }
+
+  public int getQueryIndex() {
+    throw new UnsupportedOperationException("Not mapped to a query");
+  }
 }
