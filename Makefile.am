@@ -49,6 +49,7 @@ tsdb_SRC := \
 	src/core/Internal.java	\
 	src/core/MutableDataPoint.java \
 	src/core/Query.java	\
+	src/core/QueryException.java	\
 	src/core/RateOptions.java  \
 	src/core/RateSpan.java  \
 	src/core/RowKey.java	\
@@ -73,6 +74,7 @@ tsdb_SRC := \
 	src/search/TimeSeriesLookup.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
+	src/stats/QueryStats.java	\
 	src/tools/ArgP.java	\
 	src/tools/CliOptions.java	\
 	src/tools/CliQuery.java	\
@@ -189,6 +191,7 @@ test_SRC := \
 	test/search/TestSearchQuery.java	\
 	test/search/TestTimeSeriesLookup.java	\
 	test/stats/TestHistogram.java	\
+	test/stats/TestQueryStats.java	\
 	test/storage/MockBase.java	\
 	test/tools/TestDumpSeries.java	\
 	test/tools/TestFsck.java	\
