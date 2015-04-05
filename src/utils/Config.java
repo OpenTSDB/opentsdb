@@ -453,6 +453,7 @@ public class Config {
     default_map.put("tsd.core.tree.enable_processing", "false");
     default_map.put("tsd.core.preload_uid_cache", "false");
     default_map.put("tsd.core.preload_uid_cache.max_entries", "300000");
+    default_map.put("tsd.core.storage_exception_handler.enable", "false");
     default_map.put("tsd.core.uid.random_metrics", "false");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");

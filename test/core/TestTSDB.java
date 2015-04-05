@@ -16,7 +16,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.when;
-import static org.mockito.Matchers.anyString;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -116,6 +115,46 @@ public final class TestTSDB extends BaseTsdbTest {
     props.put("tsd.search.enable", "true");
     props.put("tsd.search.plugin", "net.opentsdb.search.DoesNotExist");
     properties.setAccessible(false);
+    tsdb.initializePlugins(true);
+  }
+  
+  @Test
+  public void initializePluginsSEH() throws Exception {
+    config.overrideConfig("tsd.core.plugin_path", "./");
+    config.overrideConfig("tsd.core.storage_exception_handler.enable", "true");
+    config.overrideConfig("tsd.core.storage_exception_handler.plugin", 
+        "net.opentsdb.tsd.DummySEHPlugin");
+    config.overrideConfig(
+        "tsd.core.storage_exception_handler.DummySEHPlugin.hosts", "localhost");
+    tsdb.initializePlugins(true);
+    assertNotNull(tsdb.getStorageExceptionHandler());
+  }
+  
+  @Test (expected = RuntimeException.class)
+  public void initializePluginsSEHBadConfig() throws Exception {
+    config.overrideConfig("tsd.core.plugin_path", "./");
+    config.overrideConfig("tsd.core.storage_exception_handler.enable", "true");
+    config.overrideConfig("tsd.core.storage_exception_handler.plugin", 
+        "net.opentsdb.tsd.DummySEHPlugin");
+    tsdb.initializePlugins(true);
+    assertNotNull(tsdb.getStorageExceptionHandler());
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void initializePluginsSEHEnabledButNoName() throws Exception {
+    config.overrideConfig("tsd.core.plugin_path", "./");
+    config.overrideConfig("tsd.core.storage_exception_handler.enable", "true");
+    tsdb.initializePlugins(true);
+  }
+  
+  @Test (expected = IllegalArgumentException.class)
+  public void initializePluginsSEHNotFound() throws Exception {
+    config.overrideConfig("tsd.core.plugin_path", "./");
+    config.overrideConfig("tsd.core.storage_exception_handler.enable", "true");
+    config.overrideConfig("tsd.core.storage_exception_handler.plugin", 
+        "net.opentsdb.tsd.DoesNotExistSEHPlugin");
+    config.overrideConfig(
+        "tsd.core.storage_exception_handler.DummySEHPlugin.hosts", "localhost");
     tsdb.initializePlugins(true);
   }
   

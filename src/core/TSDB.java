@@ -36,6 +36,7 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
+import net.opentsdb.tsd.StorageExceptionHandler;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -106,6 +107,8 @@ public final class TSDB {
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
   
+  /** Plugin for dealing with data points that can't be stored */
+  private StorageExceptionHandler storage_exception_handler = null;
   
   /**
    * Constructor
@@ -232,6 +235,27 @@ public final class TSDB {
     } else {
       rt_publisher = null;
     }
+    
+    // load the storage exception plugin if enabled
+    if (config.getBoolean("tsd.core.storage_exception_handler.enable")) {
+      storage_exception_handler = PluginLoader.loadSpecificPlugin(
+          config.getString("tsd.core.storage_exception_handler.plugin"), 
+          StorageExceptionHandler.class);
+      if (storage_exception_handler == null) {
+        throw new IllegalArgumentException(
+            "Unable to locate storage exception handler plugin: " + 
+            config.getString("tsd.core.storage_exception_handler.plugin"));
+      }
+      try {
+        storage_exception_handler.initialize(this);
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "Failed to initialize storage exception handler plugin", e);
+      }
+      LOG.info("Successfully initialized storage exception handler plugin [" + 
+          storage_exception_handler.getClass().getCanonicalName() + "] version: " 
+          + storage_exception_handler.version());
+    }
   }
   
   /** 
@@ -250,6 +274,15 @@ public final class TSDB {
    */
   public final Config getConfig() {
     return this.config;
+  }
+  
+  /**
+   * Returns the storage exception handler. May be null if not enabled
+   * @return The storage exception handler
+   * @since 2.2
+   */
+  public final StorageExceptionHandler getStorageExceptionHandler() {
+    return storage_exception_handler;
   }
 
   /**
@@ -443,6 +476,14 @@ public final class TSDB {
       } finally {
         collector.clearExtraTag("plugin");
       }                        
+    }
+    if (storage_exception_handler != null) {
+      try {
+        collector.addExtraTag("plugin", "storageExceptionHandler");
+        storage_exception_handler.collectStats(collector);
+      } finally {
+        collector.clearExtraTag("plugin");
+      }
     }
   }
 
@@ -778,6 +819,11 @@ public final class TSDB {
       LOG.info("Shutting down RT plugin: " + 
           rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
+    }
+    if (storage_exception_handler != null) {
+      LOG.info("Shutting down storage exception handler plugin: " + 
+          storage_exception_handler.getClass().getCanonicalName());
+      deferreds.add(storage_exception_handler.shutdown());
     }
     
     // wait for plugins to shutdown before we close the client

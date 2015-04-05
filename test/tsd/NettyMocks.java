@@ -15,6 +15,7 @@ package net.opentsdb.tsd;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 
@@ -63,6 +64,11 @@ public final class NettyMocks {
     final Channel chan = mock(Channel.class);
     when(chan.toString()).thenReturn("[fake channel]");
     when(chan.isConnected()).thenReturn(true);
+    when(chan.isWritable()).thenReturn(true);
+    
+    final SocketAddress socket = mock(SocketAddress.class);
+    when(socket.toString()).thenReturn("192.168.1.1:4243");
+    when(chan.getRemoteAddress()).thenReturn(socket);
     return chan;
   }
   

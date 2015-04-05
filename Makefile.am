@@ -116,6 +116,7 @@ tsdb_SRC := \
 	src/tsd/SearchRpc.java	\
 	src/tsd/StaticFileRpc.java	\
 	src/tsd/StatsRpc.java	\
+	src/tsd/StorageExceptionHandler.java	\
 	src/tsd/SuggestRpc.java	\
 	src/tsd/TelnetRpc.java	\
 	src/tsd/TreeRpc.java	\
@@ -130,6 +131,7 @@ tsdb_SRC := \
 	src/utils/ByteArrayPair.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
+	src/utils/FileSystem.java \
 	src/utils/JSON.java \
 	src/utils/JSONException.java	\
 	src/utils/Pair.java	\
@@ -230,7 +232,8 @@ test_plugin_SRC := \
   test/tsd/DummyHttpSerializer.java \
   test/tsd/DummyHttpRpcPlugin.java \
   test/tsd/DummyRpcPlugin.java \
-  test/tsd/DummyRTPublisher.java
+  test/tsd/DummyRTPublisher.java \
+  test/tsd/DummySEHPlugin.java
 
 # Do NOT include the test dir path, just the META portion
 test_plugin_SVCS := \
@@ -239,7 +242,8 @@ test_plugin_SVCS := \
   META-INF/services/net.opentsdb.tsd.HttpSerializer \
   META-INF/services/net.opentsdb.tsd.HttpRpcPlugin \
   META-INF/services/net.opentsdb.tsd.RpcPlugin \
-  META-INF/services/net.opentsdb.tsd.RTPublisher
+  META-INF/services/net.opentsdb.tsd.RTPublisher \
+  META-INF/services/net.opentsdb.tsd.StorageExceptionHandler
   
 test_plugin_MF := \
   test/META-INF/MANIFEST.MF
