@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import com.google.common.base.Objects;
+
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -74,6 +76,38 @@ public final class TSSubQuery {
    */
   public TSSubQuery() {
     
+  }
+
+  @Override
+  public int hashCode() {
+    // NOTE: Do not add any non-user submitted variables to the hash. We don't
+    // want the hash to change after validation.
+    return Objects.hashCode(aggregator, metric, tsuids, tags, downsample, rate, 
+        rate_options);
+  }
+  
+  @Override
+  public boolean equals(final Object obj) {
+    if (obj == null) {
+      return false;
+    }
+    if (!(obj instanceof TSSubQuery)) {
+      return false;
+    }
+    if (obj == this) {
+      return true;
+    }
+    
+    // NOTE: Do not add any non-user submitted variables to the comparator. We 
+    // don't want the value to change after validation.
+    final TSSubQuery query = (TSSubQuery)obj;
+    return Objects.equal(aggregator, query.aggregator)
+        && Objects.equal(metric, query.metric)
+        && Objects.equal(tsuids, query.tsuids)
+        && Objects.equal(tags, query.tags)
+        && Objects.equal(downsample, query.downsample)
+        && Objects.equal(rate, query.rate)
+        && Objects.equal(rate_options, query.rate_options);
   }
   
   public String toString() {

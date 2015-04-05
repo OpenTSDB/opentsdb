@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.google.common.base.Objects;
+
 import net.opentsdb.utils.DateTime;
 
 /**
@@ -80,6 +82,42 @@ public final class TSQuery {
    */
   public TSQuery() {
     
+  }
+  
+  @Override
+  public int hashCode() {
+    // NOTE: Do not add any non-user submitted variables to the hash. We don't
+    // want the hash to change after validation.
+    return Objects.hashCode(start, end, timezone, options, padding, 
+        no_annotations, with_global_annotations, show_tsuids, queries, 
+        ms_resolution);
+  }
+  
+  @Override
+  public boolean equals(final Object obj) {
+    if (obj == null) {
+      return false;
+    }
+    if (!(obj instanceof TSQuery)) {
+      return false;
+    }
+    if (obj == this) {
+      return true;
+    }
+    
+    // NOTE: Do not add any non-user submitted variables to the comparator. We 
+    // don't want the value to change after validation.
+    final TSQuery query = (TSQuery)obj;
+    return Objects.equal(start, query.start)
+        && Objects.equal(end, query.end)
+        && Objects.equal(timezone, query.timezone)
+        && Objects.equal(options, query.options)
+        && Objects.equal(padding, query.padding)
+        && Objects.equal(no_annotations, query.no_annotations)
+        && Objects.equal(with_global_annotations, query.with_global_annotations)
+        && Objects.equal(show_tsuids, query.show_tsuids)
+        && Objects.equal(queries, query.queries)
+        && Objects.equal(ms_resolution, query.ms_resolution);
   }
   
   /**

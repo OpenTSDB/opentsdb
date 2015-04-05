@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import com.google.common.base.Objects;
+
 /**
  * Provides additional options that will be used when calculating rates. These
  * options are useful when working with metrics that are raw counter values, 
@@ -70,6 +72,28 @@ public class RateOptions {
     this.counter = counter;
     this.counter_max = counter_max;
     this.reset_value = reset_value;
+  }
+  
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(counter, counter_max, reset_value);
+  }
+  
+  @Override
+  public boolean equals(final Object obj) {
+    if (obj == null) {
+      return false;
+    }
+    if (!(obj instanceof RateOptions)) {
+      return false;
+    }
+    if (obj == this) {
+      return true;
+    }
+    final RateOptions options = (RateOptions)obj;
+    return Objects.equal(counter, options.counter) 
+        && Objects.equal(counter_max, options.counter_max) 
+        && Objects.equal(reset_value, options.reset_value);
   }
   
   /** @return Whether or not the counter flag is set */
