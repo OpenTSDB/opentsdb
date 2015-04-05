@@ -26,6 +26,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -394,6 +395,31 @@ public final class Tags {
     return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
   }
 
+  /**
+   * Returns the tag key and value pairs as a byte map given a row key
+   * @param row The row key to parse the UIDs from
+   * @return A byte map with tagk and tagv pairs as raw UIDs
+   * @since 2.2
+   */
+  public static ByteMap<byte[]> getTagUids(final byte[] row) {
+    final ByteMap<byte[]> uids = new ByteMap<byte[]>();
+    final short name_width = TSDB.tagk_width();
+    final short value_width = TSDB.tagv_width();
+    final short tag_bytes = (short) (name_width + value_width);
+    final short metric_ts_bytes = (short) (TSDB.metrics_width()
+                                           + Const.TIMESTAMP_BYTES
+                                           + Const.SALT_WIDTH());
+
+    for (short pos = metric_ts_bytes; pos < row.length; pos += tag_bytes) {
+      final byte[] tmp_name = new byte[name_width];
+      final byte[] tmp_value = new byte[value_width];
+      System.arraycopy(row, pos, tmp_name, 0, name_width);
+      System.arraycopy(row, pos + name_width, tmp_value, 0, value_width);
+      uids.put(tmp_name, tmp_value);
+    }
+    return uids;
+  }
+  
   /**
    * Ensures that a given string is a valid metric name or tag name/value.
    * @param what A human readable description of what's being validated.
