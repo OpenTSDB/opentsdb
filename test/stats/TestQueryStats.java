@@ -181,7 +181,7 @@ public final class TestQueryStats {
     final TSQuery query = new TSQuery();
     query.setStart("1h-ago");
     final QueryStats stats = new QueryStats(remote, query);
-    stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT);
+    stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT, null);
     final Map<String, List<Map<String, Object>>> map = QueryStats.buildStats();
     assertNotNull(map);
     assertEquals(0, map.get("running").size());
@@ -215,7 +215,7 @@ public final class TestQueryStats {
     final TSQuery query = new TSQuery();
     query.setStart("1h-ago");
     final QueryStats stats = new QueryStats(remote, query);
-    stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT);
+    stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT, null);
     final Map<String, List<Map<String, Object>>> map = QueryStats.buildStats();
     assertNotNull(map);
     assertEquals(0, map.get("running").size());
@@ -229,7 +229,7 @@ public final class TestQueryStats {
     final TSQuery query = new TSQuery();
     query.setStart("1h-ago");
     QueryStats stats = new QueryStats(remote, query);
-    stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT);
+    stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT, null);
     Map<String, List<Map<String, Object>>> map = QueryStats.buildStats();
     assertNotNull(map);
     assertEquals(0, map.get("running").size());
@@ -238,7 +238,7 @@ public final class TestQueryStats {
     assertEquals(1L, completed.get("executed"));
     
     stats = new QueryStats(remote, query);
-    stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT);
+    stats.markComplete(HttpResponseStatus.REQUEST_TIMEOUT, null);
     map = QueryStats.buildStats();
     assertNotNull(map);
     assertEquals(0, map.get("running").size());

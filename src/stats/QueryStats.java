@@ -97,6 +97,9 @@ public class QueryStats {
   /** How many times this exact query was executed. Only updated on completion */
   private long executed;
   
+  /** A possible exception if thrown when this query completes */
+  private Throwable exception;
+  
   /**
    * Default CTor
    * @param remote_address Remote address of the client
@@ -156,7 +159,9 @@ public class QueryStats {
        .append(", query=")
        .append(query)
        .append(", start=")
-       .append(query_start);
+       .append(query_start)
+       .append(", exception=")
+       .append(exception == null ? "null" : exception.getMessage());
     return buf.toString();
   }
   
@@ -166,15 +171,18 @@ public class QueryStats {
    * existed.
    */
   public void markComplete() {
-    markComplete(HttpResponseStatus.OK);
+    markComplete(HttpResponseStatus.OK, null);
   }
   
   /**
    * Marks a query as completed with the given HTTP code and moves it from the
    * running map to the cache, updating the cache if it already existed.
-   * @param response
+   * @param response The HttpStatus code to store
+   * @param exception An optional exception
    */
-  public void markComplete(final HttpResponseStatus response) {
+  public void markComplete(final HttpResponseStatus response, 
+      final Throwable exception) {
+    this.exception = exception;
     LOG.debug("Marking query as complete for " + remote_address + " with hash " + 
         hashCode() + " on thread " + Thread.currentThread().getId() + " And q: " + 
         query.toString());
@@ -200,7 +208,7 @@ public class QueryStats {
         old_query.executed++;
       }
     }
-    LOG.info("query=" + JSON.serializeToString(buildStats()));
+    LOG.info("completed_query=" + JSON.serializeToString(this));
   }
   
   /**
@@ -253,6 +261,7 @@ public class QueryStats {
         obj.put("timeStorage", stats.time_storage);
         obj.put("timeAggregation", stats.time_aggregation);
         obj.put("timeSerialization", stats.time_serialization);
+        obj.put("exception", stats.exception);
         running.add(obj);
       }
     }
@@ -340,5 +349,15 @@ public class QueryStats {
   /** @return the amount of time working on the query in ms */
   public long getTimeTotal() {
     return time_total;
+  }
+
+  /** @return the Http status code */
+  public HttpResponseStatus getStatus() {
+    return response;
+  }
+  
+  /** @return an exception if it was associated with this query */
+  public Throwable getException() {
+    return exception;
   }
 }
