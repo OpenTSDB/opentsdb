@@ -106,6 +106,11 @@ public abstract class AbstractHttpQuery {
   public Channel channel() {
     return chan;
   }
+
+  /** @return The remote address and port in the format <ip>:<port> */
+  public String getRemoteAddress() {
+    return chan.getRemoteAddress().toString();
+  }
   
   /** Return the time in nanoseconds that this query object was 
    * created.
