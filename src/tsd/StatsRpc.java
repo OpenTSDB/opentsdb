@@ -26,6 +26,7 @@ import java.util.Set;
 
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.stats.QueryStats;
 import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.utils.JSON;
 
@@ -87,6 +88,9 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
         return;
       } else if ("jvm".equals(endpoint)) {
         printJVMStats(tsdb, query);
+        return;
+      } else if ("query".equals(endpoint)) {
+        printQueryStats(query);
         return;
       }
     } catch (IllegalArgumentException e) {
@@ -279,6 +283,26 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
     }
     String name = stat.replace(" ", "");
     return name.substring(0, 1).toLowerCase() + name.substring(1);
+  }
+  
+  /**
+   * Print the detailed query stats to the caller using the proper serializer
+   * @param query The query to answer to
+   * @throws BadRequestException if the API version hasn't been implemented
+   * yet
+   */
+  private void printQueryStats(final HttpQuery query) {
+    switch (query.apiVersion()) {
+    case 0:
+    case 1:
+      query.sendReply(query.serializer().formatQueryStatsV1(
+          QueryStats.buildStats()));
+      break;
+    default: 
+      throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
+          "Requested API version not implemented", "Version " + 
+          query.apiVersion() + " is not implemented");
+    }
   }
   
   /**
