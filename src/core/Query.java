@@ -141,6 +141,24 @@ public interface Query {
       final RateOptions rate_options);
   
   /**
+   * Prepares a query against HBase by setting up group bys and resolving
+   * strings to UIDs asynchronously. This replaces calls to all of the setters
+   * like the {@link setTimeSeries}, {@link setStartTime}, etc. 
+   * Make sure to wait on the deferred return before calling {@link runAsync}. 
+   * @param query The main query to fetch the start and end time from
+   * @param index The index of which sub query we're executing
+   * @return A deferred to wait on for UID resolution. The result doesn't have
+   * any meaning and can be discarded.
+   * @throws IllegalArgumentException if the query was missing sub queries or
+   * the index was out of bounds.
+   * @throws NoSuchUniqueName if the name of a metric, or a tag name/value
+   * does not exist. (Bubbles up through the deferred)
+   * @since 2.2
+   */
+  public Deferred<Object> configureFromQuery(final TSQuery query, 
+      final int index);
+  
+  /**
    * Downsamples the results by specifying a fixed interval between points.
    * <p>
    * Technically, downsampling means reducing the sampling interval.  Here
