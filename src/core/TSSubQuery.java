@@ -13,7 +13,6 @@
 package net.opentsdb.core;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -51,7 +50,7 @@ public final class TSSubQuery {
   
   /** User supplied list of tags for specificity or grouping. May be null or 
    * empty */
-  private HashMap<String, String> tags;
+  private Map<String, String> tags;
   
   /** User given downsampler */
   private String downsample;
@@ -268,7 +267,7 @@ public final class TSSubQuery {
   }
 
   /** @param tags an optional list of tags for specificity or grouping */
-  public void setTags(HashMap<String, String> tags) {
+  public void setTags(Map<String, String> tags) {
     this.tags = tags;
   }
 
