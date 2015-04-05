@@ -41,6 +41,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
   private static final AtomicLong invalid_values = new AtomicLong();
   private static final AtomicLong illegal_arguments = new AtomicLong();
   private static final AtomicLong unknown_metrics = new AtomicLong();
+  private static final AtomicLong writes_blocked = new AtomicLong();
 
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
@@ -53,7 +54,11 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           // another callback object on every data point.
           handleStorageException(tsdb, getDataPointFromString(cmd), arg);
           if (chan.isConnected()) {
-            chan.write("put: HBase error: " + arg.getMessage() + '\n');
+            if (chan.isWritable()) {
+              chan.write("put: HBase error: " + arg.getMessage() + '\n');
+            } else {
+              writes_blocked.incrementAndGet();
+            }
           }
           hbase_errors.incrementAndGet();
           return null;
@@ -76,7 +81,11 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     if (errmsg != null) {
       LOG.debug(errmsg);
       if (chan.isConnected()) {
-        chan.write(errmsg);
+        if (chan.isWritable()) {
+          chan.write(errmsg);
+        } else {
+          writes_blocked.incrementAndGet();
+        }
       }
     }
     return Deferred.fromResult(null);
@@ -231,6 +240,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     collector.record("rpc.errors", invalid_values, "type=invalid_values");
     collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
     collector.record("rpc.errors", unknown_metrics, "type=unknown_metrics");
+    collector.record("rpc.errors", writes_blocked, "type=socket_writes_blocked");
   }
 
   /**

@@ -66,6 +66,7 @@ public final class TestPutRpc {
   private AtomicLong invalid_values = new AtomicLong();
   private AtomicLong illegal_arguments = new AtomicLong();
   private AtomicLong unknown_metrics = new AtomicLong();
+  private AtomicLong writes_blocked = new AtomicLong();
   private StorageExceptionHandler handler;
   
   @Before
@@ -102,6 +103,8 @@ public final class TestPutRpc {
     illegal_arguments.set(0);
     unknown_metrics = Whitebox.getInternalState(PutDataPointRpc.class, "unknown_metrics");
     unknown_metrics.set(0);
+    writes_blocked = Whitebox.getInternalState(PutDataPointRpc.class, "writes_blocked");
+    writes_blocked.set(0);
     
     handler = mock(StorageExceptionHandler.class);
     when(tsdb.getStorageExceptionHandler()).thenReturn(handler);
@@ -155,6 +158,22 @@ public final class TestPutRpc {
   }
   
   @Test
+  public void executeMissingMetricNotWriteable() throws Exception {
+    final PutDataPointRpc put = new PutDataPointRpc();
+    final Channel chan = NettyMocks.fakeChannel();
+    when(chan.isWritable()).thenReturn(false);
+    assertNull(put.execute(tsdb, chan, new String[] { "put", "", 
+        "1365465600", "42", "host=web01" }).joinUninterruptibly());
+    assertEquals(1, requests.get());
+    assertEquals(0, invalid_values.get());
+    assertEquals(1, illegal_arguments.get());
+    assertEquals(1, writes_blocked.get());
+    verify(chan, never()).write(any());
+    verify(chan, times(1)).isConnected();
+    verify(tsdb, never()).getStorageExceptionHandler();
+  }
+  
+  @Test
   public void executeUnknownMetric() throws Exception {
     final PutDataPointRpc put = new PutDataPointRpc();
     final Channel chan = NettyMocks.fakeChannel();
@@ -201,6 +220,28 @@ public final class TestPutRpc {
     verify(tsdb, times(1)).getStorageExceptionHandler();
   }
 
+  @SuppressWarnings("unchecked")
+  @Test
+  public void executeHBaseErrorNotWriteable() throws Exception {
+    when(tsdb.addPoint(anyString(), anyLong(), anyLong(), 
+        (HashMap<String, String>)any()))
+        .thenReturn(Deferred.fromError(new RuntimeException("Wotcher!")));
+    
+    final PutDataPointRpc put = new PutDataPointRpc();
+    final Channel chan = NettyMocks.fakeChannel();
+    when(chan.isWritable()).thenReturn(false);
+    assertNull(put.execute(tsdb, chan, new String[] { "put", "sys.cpu.nice", 
+        "1365465600", "42", "host=web01" }).joinUninterruptibly());
+
+    assertEquals(1, requests.get());
+    assertEquals(0, invalid_values.get());
+    assertEquals(1, hbase_errors.get());
+    assertEquals(1, writes_blocked.get());
+    verify(chan, never()).write(any());
+    verify(chan, times(1)).isConnected();
+    verify(tsdb, times(1)).getStorageExceptionHandler();
+  }
+  
   @SuppressWarnings("unchecked")
   @Test
   public void executeHBaseErrorHandler() throws Exception {
