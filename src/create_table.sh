@@ -10,6 +10,12 @@ test -d "$HBASE_HOME" || {
   exit 1
 }
 
+
+## Script's home folder
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo "Using script path: " $SCRIPT_DIR
+
+
 TSDB_TABLE=${TSDB_TABLE-'tsdb'}
 UID_TABLE=${UID_TABLE-'tsdb-uid'}
 TREE_TABLE=${TREE_TABLE-'tsdb-tree'}
@@ -38,7 +44,8 @@ create '$UID_TABLE',
   {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
 
 create '$TSDB_TABLE',
-  {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+  {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}, 
+  {SPLITS_FILE => '$SCRIPT_DIR/hbase-splitsfile.txt'}
   
 create '$TREE_TABLE',
   {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
