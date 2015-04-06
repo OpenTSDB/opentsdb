@@ -1,6 +1,7 @@
 
 import os
-OPENTSDB_SRC="/home/ospreyteam/OD_DEV/ods/3rdparty/opentsdb/src/"
+#OPENTSDB_SRC = "/home/ospreyteam/OD_DEV/ods/3rdparty/opentsdb/src/"
+OPENTSDB_SRC = "./"
 f = file(os.path.join(OPENTSDB_SRC, "hbase-splitsfile.txt"), "w")		
 
 indices = range(1, 11)
