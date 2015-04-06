@@ -15,6 +15,12 @@ test -d "$HBASE_HOME" || {
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 echo "Using script path: " $SCRIPT_DIR
 
+## Custom pre-split code
+pushd ${SCRIPT_DIR}
+echo "Preparing custom pre-splitted regions"
+python2.7 ./create_hbase_regions.py
+stat ./hbase-splitsfile.txt
+popd
 
 TSDB_TABLE=${TSDB_TABLE-'tsdb'}
 UID_TABLE=${UID_TABLE-'tsdb-uid'}
@@ -53,3 +59,4 @@ create '$TREE_TABLE',
 create '$META_TABLE',
   {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
 EOF
+
