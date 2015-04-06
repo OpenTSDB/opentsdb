@@ -623,7 +623,8 @@ public final class RpcManager {
       version.put("user", BuildData.user);
       version.put("host", BuildData.host);
       version.put("repo", BuildData.repo);
-      
+      version.put("branch", BuildData.branch);
+
       if (query.apiVersion() > 0) {
         query.sendReply(query.serializer().formatVersionV1(version));
       } else {
