@@ -37,7 +37,7 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
 public final class TestPutRpc {
   private TSDB tsdb = null;
-  
+
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
@@ -64,27 +64,27 @@ public final class TestPutRpc {
     when(tsdb.addPoint("doesnotexist", 1365465600, 42, tags1))
       .thenThrow(new NoSuchUniqueName("metric", "doesnotexist"));
   }
-  
+
   @Test
   public void constructor() {
     assertNotNull(new PutDataPointRpc());
   }
-  
+
   // HTTP RPC Tests --------------------------------------
-  
+
   @Test
   public void putSingle() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putDouble() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "[{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         + ":42,\"tags\":{\"host\":\"web01\"}},{\"metric\":\"sys.cpu.system\","
         + "\"timestamp\":1365465600,\"value\":24,\"tags\":"
@@ -93,54 +93,54 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putSingleSummary() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"failed\":0"));
     assertTrue(response.contains("\"success\":1"));
   }
-  
+
   @Test
   public void putSingleDetails() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"failed\":0"));
     assertTrue(response.contains("\"success\":1"));
     assertTrue(response.contains("\"errors\":[]"));
   }
-  
+
   @Test
   public void putSingleSummaryAndDetails() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary&details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary&details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"failed\":0"));
     assertTrue(response.contains("\"success\":1"));
     assertTrue(response.contains("\"errors\":[]"));
   }
-  
+
   @Test
   public void putDoubleSummary() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary",
         "[{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         + ":42,\"tags\":{\"host\":\"web01\"}},{\"metric\":\"sys.cpu.system\","
         + "\"timestamp\":1365465600,\"value\":24,\"tags\":"
@@ -148,139 +148,159 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.OK, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"failed\":0"));
     assertTrue(response.contains("\"success\":2"));
   }
-  
+
   @Test
   public void putNegativeInt() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putFloat() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42.2,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putNegativeFloat() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-42.2,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
+  @Test
+  public void putDoublePrecisionFloatingPoint() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
+        "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
+        +":123456.123456789,\"tags\":{\"host\":\"web01\"}}");
+    PutDataPointRpc put = new PutDataPointRpc();
+    put.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+  }
+
+  @Test
+  public void putNegativeDoublePrecisionFloatingPoint() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
+        "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
+        +":-123456.123456789,\"tags\":{\"host\":\"web01\"}}");
+    PutDataPointRpc put = new PutDataPointRpc();
+    put.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+  }
+
   @Test
   public void putSEBig() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":4.22e3,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putSECaseBig() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":4.22E3,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putNegativeSEBig() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-4.22e3,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putNegativeSECaseBig() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-4.22E3,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putSETiny() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":4.2e-3,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putSECaseTiny() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":4.2E-3,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putNegativeSETiny() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-4.2e-3,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putNegativeSECaseTiny() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-4.2E-3,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test (expected = BadRequestException.class)
   public void badMethod() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, "/api/put");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
   }
-  
+
   @Test (expected = BadRequestException.class)
   public void badJSON() throws Exception {
     // missing a quotation mark
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp:1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
   }
-  
+
   @Test (expected = BadRequestException.class)
   public void notJSON() throws Exception {
     // missing a quotation mark
@@ -288,7 +308,7 @@ public final class TestPutRpc {
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
   }
-  
+
   @Test (expected = BadRequestException.class)
   public void noContent() throws Exception {
     // missing a quotation mark
@@ -299,13 +319,13 @@ public final class TestPutRpc {
 
   @Test
   public void noSuchUniqueName() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"doesnotexist\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Unknown metric\""));
     assertTrue(response.contains("\"failed\":1"));
@@ -314,28 +334,28 @@ public final class TestPutRpc {
 
   @Test
   public void missingMetric() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Metric name was empty\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
- 
+
   @Test
   public void nullMetric() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":null,\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Metric name was empty\""));
     assertTrue(response.contains("\"failed\":1"));
@@ -344,28 +364,28 @@ public final class TestPutRpc {
 
   @Test
   public void missingTimestamp() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Invalid timestamp\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test
   public void nullTimestamp() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":null,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Invalid timestamp\""));
     assertTrue(response.contains("\"failed\":1"));
@@ -374,13 +394,13 @@ public final class TestPutRpc {
 
   @Test
   public void invalidTimestamp() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":-1,\"value\""
         +":42,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Invalid timestamp\""));
     assertTrue(response.contains("\"failed\":1"));
@@ -389,13 +409,13 @@ public final class TestPutRpc {
 
   @Test
   public void missingValue() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"tags\":"
         + "{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Empty value\""));
     assertTrue(response.contains("\"failed\":1"));
@@ -404,43 +424,43 @@ public final class TestPutRpc {
 
   @Test
   public void nullValue() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":null,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Empty value\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test
   public void emptyValue() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":\"\",\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Empty value\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test
   public void badValue() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":\"notanumber\",\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
     assertTrue(response.contains("\"failed\":1"));
@@ -449,130 +469,130 @@ public final class TestPutRpc {
 
   @Test
   public void ValueNaN() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":NaN,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test (expected = BadRequestException.class)
   public void ValueNaNCase() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":Nan,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
   }
-  
+
   @Test
   public void ValueINF() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":+INF,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test
   public void ValueNINF() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-INF,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test (expected = BadRequestException.class)
   public void ValueINFUnsigned() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":INF,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
   }
-  
+
   @Test (expected = BadRequestException.class)
   public void ValueINFCase() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":+inf,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
   }
-  
+
   @Test
   public void ValueInfiniy() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":+Infinity,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test
   public void ValueNInfiniy() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":-Infinity,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test
   public void ValueInfinityUnsigned() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":Infinity,\"tags\":{\"host\":\"web01\"}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Unable to parse value to a number\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test
   public void missingTags() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\":42"
         + "}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Missing tags\""));
     assertTrue(response.contains("\"failed\":1"));
@@ -581,28 +601,28 @@ public final class TestPutRpc {
 
   @Test
   public void nullTags() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":null}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Missing tags\""));
     assertTrue(response.contains("\"failed\":1"));
     assertTrue(response.contains("\"success\":0"));
   }
-  
+
   @Test
   public void emptyTags() throws Exception {
-    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details", 
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?details",
         "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
         +":42,\"tags\":{}}");
     PutDataPointRpc put = new PutDataPointRpc();
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
-    final String response = 
+    final String response =
       query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(response.contains("\"error\":\"Missing tags\""));
     assertTrue(response.contains("\"failed\":1"));
