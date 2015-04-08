@@ -146,4 +146,34 @@ public final class TestTags {
     Tags.parseLong("-9223372036854775809"); // MIN_VALUE - 1
   }
 
+  @Test
+  public void looksLikeIntegerSimple() {
+      assertEquals(true, Tags.looksLikeInteger("123"));
+  }
+
+  @Test
+  public void looksLikeIntegerFloat() {
+      assertEquals(false, Tags.looksLikeInteger("12.3"));
+  }
+
+  @Test
+  public void looksLikeIntegerExponent() {
+      assertEquals(false, Tags.looksLikeInteger("1e10"));
+  }
+
+  @Test
+  public void fitsInFloatSimple() {
+      assertEquals(true, Tags.fitsInFloat("12.3"));
+  }
+
+  @Test
+  public void fitsInFloatDoublePrecision() {
+      assertEquals(false, Tags.fitsInFloat("1.234556789123456"));
+  }
+
+  @Test(expected=NumberFormatException.class)
+  public void fitsInFloatMalformed() {
+      assertEquals(false, Tags.fitsInFloat("1.2abc34"));
+  }
+
 }

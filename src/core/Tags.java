@@ -295,7 +295,7 @@ public final class Tags {
       System.arraycopy(row, pos + name_width, tmp_value, 0, value_width);
       deferreds.add(tsdb.tag_values.getNameAsync(tmp_value));
     }
-    
+
     class NameCB implements Callback<Map<String, String>, ArrayList<String>> {
       public Map<String, String> call(final ArrayList<String> names) 
         throws Exception {
@@ -313,7 +313,7 @@ public final class Tags {
         return result;
       }
     }
-    
+
     return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
   }
 
@@ -372,7 +372,7 @@ public final class Tags {
                                               final Map<String, String> tags) {
     return resolveAllInternal(tsdb, tags, true);
   }
-  
+
   private
   static ArrayList<byte[]> resolveAllInternal(final TSDB tsdb,
                                               final Map<String, String> tags,
@@ -521,6 +521,21 @@ public final class Tags {
       }
     }
     return true;
+  }
+
+  /**
+   * Returns true if the given string can fit into a float.
+   * @param value The String holding the float value.
+   * @return true if the value can fit into a float, false otherwise.
+   * @throws NumberFormatException if the value is not numeric.
+   * @since 2.0.2
+   */
+  public static boolean fitsInFloat(final String value) {
+    final float f = Float.parseFloat(value);
+    final String converted = Float.toString(f);
+
+    // this will be false if there was a loss of precision.
+    return value.equals(converted);
   }
 
 }

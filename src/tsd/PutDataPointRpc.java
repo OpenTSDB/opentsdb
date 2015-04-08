@@ -140,11 +140,14 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           continue;
         }
         if (Tags.looksLikeInteger(dp.getValue())) {
-          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
+          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
               Tags.parseLong(dp.getValue()), dp.getTags());
-        } else {
-          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
+        } else if (Tags.fitsInFloat(dp.getValue())) {
+          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
               Float.parseFloat(dp.getValue()), dp.getTags());
+        } else {
+          tsdb.addPoint(dp.getMetric(), dp.getTimestamp(),
+              Double.parseDouble(dp.getValue()), dp.getTags());
         }
         success++;
       } catch (NumberFormatException x) {
@@ -249,8 +252,10 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     }
     if (Tags.looksLikeInteger(value)) {
       return tsdb.addPoint(metric, timestamp, Tags.parseLong(value), tags);
-    } else {  // floating point value
+    } else if (Tags.fitsInFloat(value)) {  // floating point value
       return tsdb.addPoint(metric, timestamp, Float.parseFloat(value), tags);
+    } else {  // double point value
+      return tsdb.addPoint(metric, timestamp, Double.parseDouble(value), tags);
     }
   }
 
