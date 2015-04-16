@@ -57,24 +57,24 @@ import net.opentsdb.utils.JSON;
  * @since 2.0
  */
 class HttpCsvSerializer extends HttpJsonSerializer {
-
-  /** Type reference for incoming data points */
-  private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
-    new TypeReference<ArrayList<IncomingDataPoint>>() {};
-  
-  /** Type reference for uid assignments */
-  private static TypeReference<HashMap<String, List<String>>> UID_ASSIGN =
-    new TypeReference<HashMap<String, List<String>>>() {};
-  /** Type reference for common string/string maps */
-  private static TypeReference<HashMap<String, String>> TR_HASH_MAP = 
-    new TypeReference<HashMap<String, String>>() {};
-  private static TypeReference<ArrayList<TreeRule>> TR_TREE_RULES = 
-    new TypeReference<ArrayList<TreeRule>>() {};
-  private static TypeReference<HashMap<String, Object>> TR_HASH_MAP_OBJ = 
-    new TypeReference<HashMap<String, Object>>() {};
-  private static TypeReference<List<Annotation>> TR_ANNOTATIONS = 
-      new TypeReference<List<Annotation>>() {};
-    
+//
+//  /** Type reference for incoming data points */
+//  private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
+//    new TypeReference<ArrayList<IncomingDataPoint>>() {};
+//  
+//  /** Type reference for uid assignments */
+//  private static TypeReference<HashMap<String, List<String>>> UID_ASSIGN =
+//    new TypeReference<HashMap<String, List<String>>>() {};
+//  /** Type reference for common string/string maps */
+//  private static TypeReference<HashMap<String, String>> TR_HASH_MAP = 
+//    new TypeReference<HashMap<String, String>>() {};
+//  private static TypeReference<ArrayList<TreeRule>> TR_TREE_RULES = 
+//    new TypeReference<ArrayList<TreeRule>>() {};
+//  private static TypeReference<HashMap<String, Object>> TR_HASH_MAP_OBJ = 
+//    new TypeReference<HashMap<String, Object>>() {};
+//  private static TypeReference<List<Annotation>> TR_ANNOTATIONS = 
+//      new TypeReference<List<Annotation>>() {};
+//    
   /**
    * Default constructor necessary for plugin implementation
    */
