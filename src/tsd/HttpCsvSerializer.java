@@ -119,340 +119,340 @@ class HttpCsvSerializer extends HttpJsonSerializer {
     return "csv";
   }
   
-  /**
-   * Parses one or more data points for storage
-   * @return an array of data points to process for storage
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  @Override
-  public List<IncomingDataPoint> parsePutV1() {
-    if (!query.hasContent()) {
-      throw new BadRequestException("Missing request content");
-    }
-
-    // convert to a string so we can handle character encoding properly
-    final String content = query.getContent().trim();
-    final int firstbyte = content.charAt(0);
-    try {
-      if (firstbyte == '{') {
-        final IncomingDataPoint dp = 
-          JSON.parseToObject(content, IncomingDataPoint.class);
-        final ArrayList<IncomingDataPoint> dps = 
-          new ArrayList<IncomingDataPoint>(1);
-        dps.add(dp);
-        return dps;
-      } else {
-        return JSON.parseToObject(content, TR_INCOMING);
-      }
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a suggestion query
-   * @return a hash map of key/value pairs
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  @Override
-  public HashMap<String, String> parseSuggestV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(query.getContent(), 
-          new TypeReference<HashMap<String, String>>(){});
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a list of metrics, tagk and/or tagvs to assign UIDs to
-   * @return as hash map of lists for the different types
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public HashMap<String, List<String>> parseUidAssignV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(json, UID_ASSIGN);
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a timeseries data query
-   * @return A TSQuery with data ready to validate
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public TSQuery parseQueryV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(json, TSQuery.class);
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a last data point query
-   * @return A LastPointQuery to work with
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public LastPointQuery parseLastPointQueryV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(json, LastPointQuery.class);
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a single UIDMeta object
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public UIDMeta parseUidMetaV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(json, UIDMeta.class);
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a single TSMeta object
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public TSMeta parseTSMetaV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      return JSON.parseToObject(json, TSMeta.class);
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a single Tree object
-   * <b>Note:</b> Incoming data is a hash map of strings instead of directly 
-   * deserializing to a tree. We do it this way because we don't want users 
-   * messing with the timestamp fields. 
-   * @return A parsed Tree
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public Tree parseTreeV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    try {
-      final HashMap<String, String> properties = 
-        JSON.parseToObject(json, TR_HASH_MAP);
-      
-      final Tree tree = new Tree();
-      for (Map.Entry<String, String> entry : properties.entrySet()) {
-        // skip nulls, empty is fine, but nulls are not welcome here
-        if (entry.getValue() == null) {
-          continue;
-        }
-        
-        if (entry.getKey().toLowerCase().equals("treeid")) {
-          tree.setTreeId(Integer.parseInt(entry.getValue()));
-        } else if (entry.getKey().toLowerCase().equals("name")) {
-          tree.setName(entry.getValue());
-        } else if (entry.getKey().toLowerCase().equals("description")) {
-          tree.setDescription(entry.getValue());
-        } else if (entry.getKey().toLowerCase().equals("notes")) {
-          tree.setNotes(entry.getValue());
-        } else if (entry.getKey().toLowerCase().equals("enabled")) {
-          if (entry.getValue().toLowerCase().equals("true")) {
-            tree.setEnabled(true);
-          } else {
-            tree.setEnabled(false);
-          }
-        } else if (entry.getKey().toLowerCase().equals("strictmatch")) {
-          if (entry.getValue().toLowerCase().equals("true")) {
-            tree.setStrictMatch(true);
-          } else {
-            tree.setStrictMatch(false);
-          }
-        } else if (entry.getKey().toLowerCase().equals("storefailures")) {
-          if (entry.getValue().toLowerCase().equals("true")) {
-            tree.setStoreFailures(true);
-          } else {
-            tree.setStoreFailures(false);
-          }
-        }
-      }
-      return tree;
-    } catch (NumberFormatException nfe) {
-      throw new BadRequestException("Unable to parse 'tree' value");
-    } catch (IllegalArgumentException iae) {
-      throw new BadRequestException("Unable to parse the given JSON", iae);
-    }
-  }
-  
-  /**
-   * Parses a single TreeRule object
-   * @return A parsed tree rule
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public TreeRule parseTreeRuleV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, TreeRule.class);
-  }
-  
-  /**
-   * Parses one or more tree rules
-   * @return A list of one or more rules
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public List<TreeRule> parseTreeRulesV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, TR_TREE_RULES);
-  }
-  
-  /**
-   * Parses a tree ID and optional list of TSUIDs to search for collisions or
-   * not matched TSUIDs.
-   * @return A map with "treeId" as an integer and optionally "tsuids" as a 
-   * List<String> 
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public Map<String, Object> parseTreeTSUIDsListV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, TR_HASH_MAP_OBJ);
-  }
-  
-  /**
-   * Parses an annotation object
-   * @return An annotation object
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public Annotation parseAnnotationV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, Annotation.class);
-  }
-  
-  /**
-   * Parses a list of annotation objects
-   * @return A list of annotation object
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public List<Annotation> parseAnnotationsV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, TR_ANNOTATIONS);
-  }
-  
-  /**
-   * Parses a bulk annotation deletion query object
-   * @return Settings used to bulk delete annotations
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public AnnotationBulkDelete parseAnnotationBulkDeleteV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, AnnotationBulkDelete.class);
-  }
-  
-  /**
-   * Parses a SearchQuery request
-   * @return The parsed search query
-   * @throws JSONException if parsing failed
-   * @throws BadRequestException if the content was missing or parsing failed
-   */
-  public SearchQuery parseSearchQueryV1() {
-    final String json = query.getContent();
-    if (json == null || json.isEmpty()) {
-      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-          "Missing message content",
-          "Supply valid JSON formatted data in the body of your request");
-    }
-    
-    return JSON.parseToObject(json, SearchQuery.class);
-  }
+//  /**
+//   * Parses one or more data points for storage
+//   * @return an array of data points to process for storage
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  @Override
+//  public List<IncomingDataPoint> parsePutV1() {
+//    if (!query.hasContent()) {
+//      throw new BadRequestException("Missing request content");
+//    }
+//
+//    // convert to a string so we can handle character encoding properly
+//    final String content = query.getContent().trim();
+//    final int firstbyte = content.charAt(0);
+//    try {
+//      if (firstbyte == '{') {
+//        final IncomingDataPoint dp = 
+//          JSON.parseToObject(content, IncomingDataPoint.class);
+//        final ArrayList<IncomingDataPoint> dps = 
+//          new ArrayList<IncomingDataPoint>(1);
+//        dps.add(dp);
+//        return dps;
+//      } else {
+//        return JSON.parseToObject(content, TR_INCOMING);
+//      }
+//    } catch (IllegalArgumentException iae) {
+//      throw new BadRequestException("Unable to parse the given JSON", iae);
+//    }
+//  }
+//  
+//  /**
+//   * Parses a suggestion query
+//   * @return a hash map of key/value pairs
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  @Override
+//  public HashMap<String, String> parseSuggestV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    try {
+//      return JSON.parseToObject(query.getContent(), 
+//          new TypeReference<HashMap<String, String>>(){});
+//    } catch (IllegalArgumentException iae) {
+//      throw new BadRequestException("Unable to parse the given JSON", iae);
+//    }
+//  }
+//  
+//  /**
+//   * Parses a list of metrics, tagk and/or tagvs to assign UIDs to
+//   * @return as hash map of lists for the different types
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public HashMap<String, List<String>> parseUidAssignV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    try {
+//      return JSON.parseToObject(json, UID_ASSIGN);
+//    } catch (IllegalArgumentException iae) {
+//      throw new BadRequestException("Unable to parse the given JSON", iae);
+//    }
+//  }
+//  
+//  /**
+//   * Parses a timeseries data query
+//   * @return A TSQuery with data ready to validate
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public TSQuery parseQueryV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    try {
+//      return JSON.parseToObject(json, TSQuery.class);
+//    } catch (IllegalArgumentException iae) {
+//      throw new BadRequestException("Unable to parse the given JSON", iae);
+//    }
+//  }
+//  
+//  /**
+//   * Parses a last data point query
+//   * @return A LastPointQuery to work with
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public LastPointQuery parseLastPointQueryV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    try {
+//      return JSON.parseToObject(json, LastPointQuery.class);
+//    } catch (IllegalArgumentException iae) {
+//      throw new BadRequestException("Unable to parse the given JSON", iae);
+//    }
+//  }
+//  
+//  /**
+//   * Parses a single UIDMeta object
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public UIDMeta parseUidMetaV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    try {
+//      return JSON.parseToObject(json, UIDMeta.class);
+//    } catch (IllegalArgumentException iae) {
+//      throw new BadRequestException("Unable to parse the given JSON", iae);
+//    }
+//  }
+//  
+//  /**
+//   * Parses a single TSMeta object
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public TSMeta parseTSMetaV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    try {
+//      return JSON.parseToObject(json, TSMeta.class);
+//    } catch (IllegalArgumentException iae) {
+//      throw new BadRequestException("Unable to parse the given JSON", iae);
+//    }
+//  }
+//  
+//  /**
+//   * Parses a single Tree object
+//   * <b>Note:</b> Incoming data is a hash map of strings instead of directly 
+//   * deserializing to a tree. We do it this way because we don't want users 
+//   * messing with the timestamp fields. 
+//   * @return A parsed Tree
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public Tree parseTreeV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    try {
+//      final HashMap<String, String> properties = 
+//        JSON.parseToObject(json, TR_HASH_MAP);
+//      
+//      final Tree tree = new Tree();
+//      for (Map.Entry<String, String> entry : properties.entrySet()) {
+//        // skip nulls, empty is fine, but nulls are not welcome here
+//        if (entry.getValue() == null) {
+//          continue;
+//        }
+//        
+//        if (entry.getKey().toLowerCase().equals("treeid")) {
+//          tree.setTreeId(Integer.parseInt(entry.getValue()));
+//        } else if (entry.getKey().toLowerCase().equals("name")) {
+//          tree.setName(entry.getValue());
+//        } else if (entry.getKey().toLowerCase().equals("description")) {
+//          tree.setDescription(entry.getValue());
+//        } else if (entry.getKey().toLowerCase().equals("notes")) {
+//          tree.setNotes(entry.getValue());
+//        } else if (entry.getKey().toLowerCase().equals("enabled")) {
+//          if (entry.getValue().toLowerCase().equals("true")) {
+//            tree.setEnabled(true);
+//          } else {
+//            tree.setEnabled(false);
+//          }
+//        } else if (entry.getKey().toLowerCase().equals("strictmatch")) {
+//          if (entry.getValue().toLowerCase().equals("true")) {
+//            tree.setStrictMatch(true);
+//          } else {
+//            tree.setStrictMatch(false);
+//          }
+//        } else if (entry.getKey().toLowerCase().equals("storefailures")) {
+//          if (entry.getValue().toLowerCase().equals("true")) {
+//            tree.setStoreFailures(true);
+//          } else {
+//            tree.setStoreFailures(false);
+//          }
+//        }
+//      }
+//      return tree;
+//    } catch (NumberFormatException nfe) {
+//      throw new BadRequestException("Unable to parse 'tree' value");
+//    } catch (IllegalArgumentException iae) {
+//      throw new BadRequestException("Unable to parse the given JSON", iae);
+//    }
+//  }
+//  
+//  /**
+//   * Parses a single TreeRule object
+//   * @return A parsed tree rule
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public TreeRule parseTreeRuleV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    
+//    return JSON.parseToObject(json, TreeRule.class);
+//  }
+//  
+//  /**
+//   * Parses one or more tree rules
+//   * @return A list of one or more rules
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public List<TreeRule> parseTreeRulesV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    
+//    return JSON.parseToObject(json, TR_TREE_RULES);
+//  }
+//  
+//  /**
+//   * Parses a tree ID and optional list of TSUIDs to search for collisions or
+//   * not matched TSUIDs.
+//   * @return A map with "treeId" as an integer and optionally "tsuids" as a 
+//   * List<String> 
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public Map<String, Object> parseTreeTSUIDsListV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    
+//    return JSON.parseToObject(json, TR_HASH_MAP_OBJ);
+//  }
+//  
+//  /**
+//   * Parses an annotation object
+//   * @return An annotation object
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public Annotation parseAnnotationV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    
+//    return JSON.parseToObject(json, Annotation.class);
+//  }
+//  
+//  /**
+//   * Parses a list of annotation objects
+//   * @return A list of annotation object
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public List<Annotation> parseAnnotationsV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    
+//    return JSON.parseToObject(json, TR_ANNOTATIONS);
+//  }
+//  
+//  /**
+//   * Parses a bulk annotation deletion query object
+//   * @return Settings used to bulk delete annotations
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public AnnotationBulkDelete parseAnnotationBulkDeleteV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    
+//    return JSON.parseToObject(json, AnnotationBulkDelete.class);
+//  }
+//  
+//  /**
+//   * Parses a SearchQuery request
+//   * @return The parsed search query
+//   * @throws JSONException if parsing failed
+//   * @throws BadRequestException if the content was missing or parsing failed
+//   */
+//  public SearchQuery parseSearchQueryV1() {
+//    final String json = query.getContent();
+//    if (json == null || json.isEmpty()) {
+//      throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+//          "Missing message content",
+//          "Supply valid JSON formatted data in the body of your request");
+//    }
+//    
+//    return JSON.parseToObject(json, SearchQuery.class);
+//  }
   
   /**
    * Formats the results of an HTTP data point storage request
@@ -468,7 +468,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatPutV1(final Map<String, Object> results) {
-    return this.serializeJSON(results);
+    return this.serializeCsv(results);
   }
   
   /**
@@ -479,7 +479,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    */
   @Override
   public ChannelBuffer formatSuggestV1(final List<String> suggestions) {
-    return this.serializeJSON(suggestions);
+    return this.serializeCsv(suggestions);
   }
   
   /**
@@ -488,7 +488,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatSerializersV1() {
-    return serializeJSON(HttpQuery.getSerializerStatus());
+    return serializeCsv(HttpQuery.getSerializerStatus());
   }
   
   /**
@@ -498,7 +498,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatAggregatorsV1(final Set<String> aggregators) {
-    return this.serializeJSON(aggregators);
+    return this.serializeCsv(aggregators);
   }
   
   /**
@@ -508,7 +508,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatVersionV1(final Map<String, String> version) {
-    return this.serializeJSON(version);
+    return this.serializeCsv(version);
   }
   
   /**
@@ -518,7 +518,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatDropCachesV1(final Map<String, String> response) {
-    return this.serializeJSON(response);
+    return this.serializeCsv(response);
   }
   
   /**
@@ -530,7 +530,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    */
   public ChannelBuffer formatUidAssignV1(final 
       Map<String, TreeMap<String, String>> response) {
-    return this.serializeJSON(response);
+    return this.serializeCsv(response);
   }
   
   /**
@@ -774,7 +774,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    */
   public ChannelBuffer formatLastPointQueryV1(
       final List<IncomingDataPoint> data_points) {
-    return this.serializeJSON(data_points);
+    return this.serializeCsv(data_points);
   }
   
   /**
@@ -784,7 +784,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatUidMetaV1(final UIDMeta meta) {
-    return this.serializeJSON(meta);
+    return this.serializeCsv(meta);
   }
   
   /**
@@ -794,7 +794,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatTSMetaV1(final TSMeta meta) {
-    return this.serializeJSON(meta);
+    return this.serializeCsv(meta);
   }
   
   /**
@@ -804,7 +804,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatTSMetaListV1(final List<TSMeta> metas) {
-    return this.serializeJSON(metas);
+    return this.serializeCsv(metas);
   }
   
   /**
@@ -814,7 +814,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatBranchV1(final Branch branch) {
-    return this.serializeJSON(branch);
+    return this.serializeCsv(branch);
   }
   
   /**
@@ -824,7 +824,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatTreeV1(final Tree tree) {
-    return this.serializeJSON(tree);
+    return this.serializeCsv(tree);
   }
   
   /**
@@ -835,7 +835,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatTreesV1(final List<Tree> trees) {
-    return this.serializeJSON(trees);
+    return this.serializeCsv(trees);
   }
   
   /**
@@ -845,7 +845,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatTreeRuleV1(final TreeRule rule) {
-    return serializeJSON(rule);
+    return serializeCsv(rule);
   }
   
   /**
@@ -860,7 +860,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    */
   public ChannelBuffer formatTreeCollisionNotMatchedV1(
       final Map<String, String> results, final boolean is_collisions) {
-    return serializeJSON(results);
+    return serializeCsv(results);
   }
   
   /**
@@ -874,7 +874,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    */
   public ChannelBuffer formatTreeTestV1(final 
       HashMap<String, HashMap<String, Object>> results) {
-    return serializeJSON(results);
+    return serializeCsv(results);
   }
   
   /**
@@ -884,7 +884,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatAnnotationV1(final Annotation note) {
-    return serializeJSON(note);
+    return serializeCsv(note);
   }
   
   /**
@@ -894,7 +894,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatAnnotationsV1(final List<Annotation> notes) {
-    return serializeJSON(notes);
+    return serializeCsv(notes);
   }
   
   /**
@@ -905,7 +905,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    */
   public ChannelBuffer formatAnnotationBulkDeleteV1(
       final AnnotationBulkDelete request) {
-    return serializeJSON(request);
+    return serializeCsv(request);
   }
   
   /**
@@ -915,7 +915,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatStatsV1(final List<IncomingDataPoint> stats) {
-    return serializeJSON(stats);
+    return serializeCsv(stats);
   }
   
   /**
@@ -926,7 +926,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @since 2.2
    */
   public ChannelBuffer formatThreadStatsV1(final List<Map<String, Object>> stats) {
-    return serializeJSON(stats);
+    return serializeCsv(stats);
   }
   
   /**
@@ -937,7 +937,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @since 2.2
    */
   public ChannelBuffer formatJVMStatsV1(final Map<String, Map<String, Object>> stats) {
-    return serializeJSON(stats);
+    return serializeCsv(stats);
   }
   
   /**
@@ -949,7 +949,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    */
   public ChannelBuffer formatQueryStatsV1(
       final Map<String, List<Map<String, Object>>> query_stats) {
-    return serializeJSON(query_stats);
+    return serializeCsv(query_stats);
   }
   
   /**
@@ -959,7 +959,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @throws JSONException if serialization failed
    */
   public ChannelBuffer formatSearchResultsV1(final SearchQuery results) {
-    return serializeJSON(results);
+    return serializeCsv(results);
   }
   
   /**
@@ -975,7 +975,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
         map.put(entry.getKey(), "********");
       }
     }
-    return serializeJSON(map);
+    return serializeCsv(map);
   }
   
   /**
@@ -985,12 +985,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @return A ChannelBuffer to pass on to the query
    * @throws JSONException if serialization failed
    */
-  private ChannelBuffer serializeJSON(final Object obj) {
-    if (query.hasQueryStringParam("jsonp")) {
-      return ChannelBuffers.wrappedBuffer(
-          JSON.serializeToJSONPBytes(query.getQueryStringParam("jsonp"), 
-          obj));
-    }
+  private ChannelBuffer serializeCsv(final Object obj) {
     return ChannelBuffers.wrappedBuffer(JSON.serializeToBytes(obj));
   }
 }
