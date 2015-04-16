@@ -319,24 +319,32 @@ final class HttpQuery extends AbstractHttpQuery {
       this.serializer = ctor.newInstance(this);
       return;
     }
+    
+    
+    String accept_data_type = request().headers().get("Accept");
+    if ("text/csv".equalsIgnoreCase(accept_data_type)){
+    	//set up csv
+    	this.serializer = new HttpCsvSerializer(this);
+    }
+    else{
+      // attempt to parse the Content-Type string. We only want the first part,
+      // not the character set. And if the CT is missing, we'll use the default
+      // serializer
+      String content_type = request().headers().get("Content-Type");
+      if (content_type == null || content_type.isEmpty()) {
+        return;
+      }
+      if (content_type.indexOf(";") > -1) {
+        content_type = content_type.substring(0, content_type.indexOf(";"));
+      }
+      Constructor<? extends HttpSerializer> ctor =
+        serializer_map_content_type.get(content_type);
+      if (ctor == null) {
+        return;
+      }
 
-    // attempt to parse the Content-Type string. We only want the first part,
-    // not the character set. And if the CT is missing, we'll use the default
-    // serializer
-    String content_type = request().headers().get("Content-Type");
-    if (content_type == null || content_type.isEmpty()) {
-      return;
+      this.serializer = ctor.newInstance(this);
     }
-    if (content_type.indexOf(";") > -1) {
-      content_type = content_type.substring(0, content_type.indexOf(";"));
-    }
-    Constructor<? extends HttpSerializer> ctor =
-      serializer_map_content_type.get(content_type);
-    if (ctor == null) {
-      return;
-    }
-
-    this.serializer = ctor.newInstance(this);
   }
 
   /**
