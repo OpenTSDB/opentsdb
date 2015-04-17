@@ -143,6 +143,15 @@ public final class TestConfig {
   }
 
   @Test
+  public void getIntWithSpaces() throws Exception {
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.int", 
+        " " + Integer.toString(Integer.MAX_VALUE) + " ");
+    assertEquals(Integer.MAX_VALUE, 
+        config.getInt("tsd.int"));
+  }
+
+  @Test
   public void getIntNegative() throws Exception {
     final Config config = new Config(false);
     config.overrideConfig("tsd.int", 
@@ -177,6 +186,15 @@ public final class TestConfig {
     final Config config = new Config(false);
     config.overrideConfig("tsd.short", 
         Short.toString(Short.MAX_VALUE));
+    assertEquals(Short.MAX_VALUE, 
+        config.getShort("tsd.short"));
+  }
+
+  @Test
+  public void getShortWithSpaces() throws Exception {
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.short", 
+        " " + Short.toString(Short.MAX_VALUE) + " ");
     assertEquals(Short.MAX_VALUE, 
         config.getShort("tsd.short"));
   }
@@ -219,6 +237,13 @@ public final class TestConfig {
   }
 
   @Test
+  public void getLongWithSpaces() throws Exception {
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.long", " " + Long.toString(Long.MAX_VALUE) + " ");
+    assertEquals(Long.MAX_VALUE, config.getLong("tsd.long"));
+  }
+
+  @Test
   public void getLongNegative() throws Exception {
     final Config config = new Config(false);
     config.overrideConfig("tsd.long", Long.toString(Long.MIN_VALUE));
@@ -250,6 +275,14 @@ public final class TestConfig {
   public void getFloat() throws Exception {
     final Config config = new Config(false);
     config.overrideConfig("tsd.float", Float.toString(Float.MAX_VALUE));
+    assertEquals(Float.MAX_VALUE, 
+        config.getFloat("tsd.float"), 0.000001);
+  }
+
+  @Test
+  public void getFloatWithSpaces() throws Exception {
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.float", " " + Float.toString(Float.MAX_VALUE) + " ");
     assertEquals(Float.MAX_VALUE, 
         config.getFloat("tsd.float"), 0.000001);
   }
@@ -318,6 +351,14 @@ public final class TestConfig {
   public void getDouble() throws Exception {
     final Config config = new Config(false);
     config.overrideConfig("tsd.double", Double.toString(Double.MAX_VALUE));
+    assertEquals(Double.MAX_VALUE, 
+        config.getDouble("tsd.double"), 0.000001);
+  }
+
+  @Test
+  public void getDoubleWithSpaces() throws Exception {
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.double", " " + Double.toString(Double.MAX_VALUE) + " ");
     assertEquals(Double.MAX_VALUE, 
         config.getDouble("tsd.double"), 0.000001);
   }
@@ -398,6 +439,13 @@ public final class TestConfig {
   }
 
   @Test
+  public void getBool1WithSpaces() throws Exception {
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.bool", " 1  ");
+    assertTrue(config.getBoolean("tsd.bool"));
+  }
+
+  @Test
   public void getBoolTrueCaseInsensitive() throws Exception {
     final Config config = new Config(false);
     config.overrideConfig("tsd.bool", "TrUe");
@@ -405,9 +453,23 @@ public final class TestConfig {
   }
 
   @Test
+  public void getBoolTrueWithSpaces() throws Exception {
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.bool", "TrUe ");
+    assertTrue(config.getBoolean("tsd.bool"));
+  }
+
+  @Test
   public void getBoolYes() throws Exception {
     final Config config = new Config(false);
     config.overrideConfig("tsd.bool", "yes");
+    assertTrue(config.getBoolean("tsd.bool"));
+  }
+
+  @Test
+  public void getBoolYesWithSpaces() throws Exception {
+    final Config config = new Config(false);
+    config.overrideConfig("tsd.bool", " yes  ");
     assertTrue(config.getBoolean("tsd.bool"));
   }
 
