@@ -256,7 +256,20 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final int getInt(final String property) {
-    return Integer.parseInt(properties.get(property));
+    return Integer.parseInt(sanitize(properties.get(property)));
+  }
+
+  /**
+   * Returns the given string trimed or null if is null 
+   * @param string The string be trimmed of 
+   * @return The string trimed or null
+  */  
+  private final String sanitize(final String string) {
+    if (string == null) {
+      return null;
+    }
+
+    return string.trim();
   }
 
   /**
@@ -267,7 +280,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final short getShort(final String property) {
-    return Short.parseShort(properties.get(property));
+    return Short.parseShort(sanitize(properties.get(property)));
   }
 
   /**
@@ -278,7 +291,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final long getLong(final String property) {
-    return Long.parseLong(properties.get(property));
+    return Long.parseLong(sanitize(properties.get(property)));
   }
 
   /**
@@ -289,7 +302,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final float getFloat(final String property) {
-    return Float.parseFloat(properties.get(property));
+    return Float.parseFloat(sanitize(properties.get(property)));
   }
 
   /**
@@ -300,7 +313,7 @@ public class Config {
    * @throws NullPointerException if the property did not exist
    */
   public final double getDouble(final String property) {
-    return Double.parseDouble(properties.get(property));
+    return Double.parseDouble(sanitize(properties.get(property)));
   }
 
   /**
@@ -316,7 +329,7 @@ public class Config {
    * @throws NullPointerException if the property was not found
    */
   public final boolean getBoolean(final String property) {
-    final String val = properties.get(property).toUpperCase();
+    final String val = properties.get(property).trim().toUpperCase();
     if (val.equals("1"))
       return true;
     if (val.equals("TRUE"))
