@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2012  The OpenTSDB Authors.
+# Copyright (C) 2015  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -14,8 +14,8 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 SUASYNC_VERSION := 1.4.0
-SUASYNC := third_party/suasync/suasync-$(SUASYNC_VERSION).jar
-SUASYNC_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+SUASYNC := third_party/suasync/async-$(SUASYNC_VERSION).jar
+SUASYNC_BASE_URL := http://central.maven.org/maven2/com/stumbleupon/async/$(SUASYNC_VERSION)
 
 $(SUASYNC): $(SUASYNC).md5
 	set dummy "$(SUASYNC_BASE_URL)" "$(SUASYNC)"; shift; $(FETCH_DEPENDENCY)
