@@ -332,7 +332,7 @@ public final class TestTSMeta {
   public void incrementAndGetCounter() throws Exception {
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
     TSMeta.incrementAndGetCounter(tsdb, tsuid).joinUninterruptibly();
-    verify(client).bufferAtomicIncrement((AtomicIncrementRequest)any());
+    verify(client).atomicIncrement((AtomicIncrementRequest)any());
   }
   
   @Test (expected = NoSuchUniqueId.class)
