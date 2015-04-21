@@ -405,24 +405,21 @@ public final class TSMeta {
     if (column.value() == null || column.value().length < 1) {
       throw new IllegalArgumentException("Empty column value");
     }
-    
-    final TSMeta meta = JSON.parseToObject(column.value(), TSMeta.class);
+
+    final TSMeta parsedMeta = JSON.parseToObject(column.value(), TSMeta.class);
     
     // fix in case the tsuid is missing
-    if (meta.tsuid == null || meta.tsuid.isEmpty()) {
-      meta.tsuid = UniqueId.uidToString(column.key());
+    if (parsedMeta.tsuid == null || parsedMeta.tsuid.isEmpty()) {
+      parsedMeta.tsuid = UniqueId.uidToString(column.key());
     }
+
+    Deferred<TSMeta> meta = getFromStorage(tsdb, UniqueId.stringToUid(parsedMeta.tsuid));
     
     if (!load_uidmetas) {
-      return Deferred.fromResult(meta);
+      return meta;
     }
     
-    final LoadUIDs deferred = new LoadUIDs(tsdb, meta.tsuid);
-    try {
-      return deferred.call(meta);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return meta.addCallbackDeferring(new LoadUIDs(tsdb, parsedMeta.tsuid));
   }
   
   /**
