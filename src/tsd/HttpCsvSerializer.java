@@ -51,7 +51,7 @@ import net.opentsdb.utils.DateTime;
 import net.opentsdb.utils.JSON;
 
 /**
- * Implementation of the base serializer class with JSON as the format
+ * Implementation of the base serializer class with CSV as the format
  * <p>
  * <b>Note:</b> This class is not final and the implementations are not either
  * so that we can extend this default class with slightly different methods
@@ -74,7 +74,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
     super(query);
   }
   
-  /** Initializer, nothing to do for the JSON serializer */
+  /** Initializer, nothing to do for the CSV serializer */
   @Override
   public void initialize(final TSDB tsdb) {
     // nothing to see here
@@ -140,7 +140,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
     timeout_flag.add(false);
     
     
-    // start the JSON generator and write the opening array
+    // start the CSV generator and write the opening array
     final StringBuilder csv = new StringBuilder();
     
     //setup the header
@@ -312,7 +312,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
       }
     }
   
-    /** Final callback to close out the JSON array and return our results */
+    /** Final callback to close out the csv String Builder and return our results */
     class FinalCB implements Callback<ChannelBuffer, Object> {
       public ChannelBuffer call(final Object obj)
           throws Exception {
