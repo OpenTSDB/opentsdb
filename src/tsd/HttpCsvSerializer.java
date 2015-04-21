@@ -58,33 +58,7 @@ import net.opentsdb.utils.JSON;
  * when needed and retain everything else.
  * @since 2.0
  */
-class HttpCsvSerializer extends HttpJsonSerializer {
-  /**
-   * Default constructor necessary for plugin implementation
-   */
-  public HttpCsvSerializer() {
-    super();
-  }
-  
-  /**
-   * Constructor that sets the query object
-   * @param query Request/resposne object
-   */
-  public HttpCsvSerializer(final HttpQuery query) {
-    super(query);
-  }
-  
-  /** Initializer, nothing to do for the CSV serializer */
-  @Override
-  public void initialize(final TSDB tsdb) {
-    // nothing to see here
-  }
-  
-  /** Nothing to do on shutdown */
-  public Deferred<Object> shutdown() {
-    return new Deferred<Object>();
-  }
-  
+class HttpCsvSerializer extends HttpJsonSerializer {  
   /** @return the version */
   @Override
   public String version() {
@@ -98,26 +72,6 @@ class HttpCsvSerializer extends HttpJsonSerializer {
   }
   
   
-  
-  /**
-   * Format the results from a timeseries data query
-   * @param data_query The TSQuery object used to fetch the results
-   * @param results The data fetched from storage
-   * @param globals An optional list of global annotation objects
-   * @return A ChannelBuffer object to pass on to the caller
-   */
-  public ChannelBuffer formatQueryV1(final TSQuery data_query, 
-      final List<DataPoints[]> results, final List<Annotation> globals) {
-    try {
-      return formatQueryAsyncV1(data_query, results, globals)
-          .joinUninterruptibly();
-    } catch (QueryException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new RuntimeException("Shouldn't be here", e);
-    }
-  }
-  
   /**
    * Format the results from a timeseries data query
    * @param data_query The TSQuery object used to fetch the results
@@ -125,7 +79,7 @@ class HttpCsvSerializer extends HttpJsonSerializer {
    * @param globals An optional list of global annotation objects
    * @return A Deferred<ChannelBuffer> object to pass on to the caller
    * @throws IOException if serialization failed
-   * @since 2.2
+   * @since 1.0.0
    */
   public Deferred<ChannelBuffer> formatQueryAsyncV1(final TSQuery data_query, 
       final List<DataPoints[]> results, final List<Annotation> globals) 
