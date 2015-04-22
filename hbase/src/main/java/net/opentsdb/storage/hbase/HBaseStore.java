@@ -332,23 +332,6 @@ public class HBaseStore implements TsdbStore {
     return this.client.delete(request);
   }
 
-  @Override
-  public Deferred<Object> flush() {
-    final class HClientFlush implements Callback<Object, ArrayList<Object>> {
-      @Override
-      public Object call(final ArrayList<Object> args) {
-        return client.flush();
-      }
-      public String toString() {
-        return "flush TsdbStore";
-      }
-    }
-
-    return enable_compactions && compactionq != null
-            ? compactionq.flush().addCallback(new HClientFlush())
-            : client.flush();
-  }
-
   @Deprecated
   public Deferred<ArrayList<KeyValue>> get(GetRequest request) {
     return this.client.get(request);
@@ -451,16 +434,6 @@ public class HBaseStore implements TsdbStore {
     } else {
       return client.shutdown();
     }
-  }
-
-  @Override
-  public void setFlushInterval(short aShort) {
-    this.client.setFlushInterval(aShort);
-  }
-
-  @Override
-  public long getFlushInterval() {
-    return this.client.getFlushInterval();
   }
 
   @Deprecated

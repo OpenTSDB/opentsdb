@@ -77,19 +77,6 @@ public class TestHBaseStore extends TestTsdbStore {
     new HBaseStore(null, ConfigFactory.load());
   }
 
-  @PrepareForTest({Config.class, HBaseClient.class, Scanner.class})
-  @Test
-  public void constructorWithValidConfig() throws IOException{
-
-    short flush_interval = 50;
-    when(client.getFlushInterval()).thenReturn(flush_interval);
-
-
-    HBaseStore temp_store = new HBaseStore(client, ConfigFactory.load());
-
-    assertEquals(flush_interval, temp_store.getFlushInterval());
-  }
-
   @Test
   // Test the creation of an ID when all possible IDs are already in use
   public void allocateUIDWithNegativeUID() throws Exception {

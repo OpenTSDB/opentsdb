@@ -170,11 +170,5 @@ public interface TsdbStore {
   //
   // Misc
   //
-  public Deferred<Object> flush();
-
-  long getFlushInterval();
-
-  void setFlushInterval(short aShort);
-
   public Deferred<Object> shutdown();
 }

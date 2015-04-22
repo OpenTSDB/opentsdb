@@ -154,21 +154,6 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> flush() {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public long getFlushInterval() {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public void setFlushInterval(short aShort) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
   public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final float value) {

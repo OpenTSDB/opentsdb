@@ -105,20 +105,6 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> flush() {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public long getFlushInterval() {
-    return 0;
-  }
-
-  @Override
-  public void setFlushInterval(short aShort) {
-  }
-
-  @Override
   public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final float value) {

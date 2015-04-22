@@ -219,7 +219,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     if (nflushes == MAX_CONCURRENT_FLUSHES && maxflushes > 0) {
       // We're not done yet.  Once this group of flushes completes, we need
       // to kick off more.
-      tsdb_store.flush(); // Speed up this batch by telling the TsdbStore to flush.
+      //tsdb_store.flush(); // Speed up this batch by telling the TsdbStore to flush.
       final int maxflushez = maxflushes;  // Make it final for closure.
       final class FlushMoreCB implements Callback<Deferred<ArrayList<Object>>,
                                                   ArrayList<Object>> {

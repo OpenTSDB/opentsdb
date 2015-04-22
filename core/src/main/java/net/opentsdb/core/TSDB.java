@@ -121,11 +121,11 @@ public class TSDB {
   public UniqueIdClient getUniqueIdClient() {
     return uniqueIdClient;
   }
-  
-  /** 
+
+  /**
    * Returns the configured TsdbStore
    * @return The TsdbStore
-   * @since 2.0 
+   * @since 2.0
    */
   public final TsdbStore getTsdbStore() {
     return this.tsdb_store;
@@ -138,19 +138,6 @@ public class TSDB {
    */
   public final Config getConfig() {
     return this.config;
-  }
-
-  /**
-   * Forces a flush of any un-committed in memory data including left over 
-   * compactions.
-   * <p>
-   * For instance, any data point not persisted will be sent to the TsdbStore.
-   * @return A {@link Deferred} that will be called once all the un-committed
-   * data has been successfully and durably stored.  The value of the deferred
-   * object return is meaningless and unspecified, and can be {@code null}.
-   */
-  public Deferred<Object> flush() {
-    return tsdb_store.flush();
   }
 
   /**
