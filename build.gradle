@@ -8,8 +8,8 @@ subprojects {
     apply plugin: 'checkstyle'
     apply plugin: "signing"
 
-    sourceCompatibility = JavaVersion.VERSION_1_6
-    targetCompatibility = JavaVersion.VERSION_1_6
+    sourceCompatibility = JavaVersion.VERSION_1_7
+    targetCompatibility = JavaVersion.VERSION_1_7
 
     group = 'net.opentsdb'
     version = "2.1.0+${getGitAbbreviatedHash()}"
