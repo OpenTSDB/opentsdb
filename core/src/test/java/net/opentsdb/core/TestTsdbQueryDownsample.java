@@ -71,7 +71,7 @@ public class TestTsdbQueryDownsample {
   public void runLongSingleTSDownsample() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
 
     builder.withStartAndEndTime(1356998400, 1357041600)
@@ -118,7 +118,7 @@ public class TestTsdbQueryDownsample {
   public void runLongSingleTSDownsampleMs() throws Exception {
     storeLongTimeSeriesMs();
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
 
     builder.withStartAndEndTime(1356998400, 1357041600)
@@ -166,7 +166,7 @@ public class TestTsdbQueryDownsample {
   public void runLongSingleTSDownsampleAndRate() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
 
     builder.withStartAndEndTime(1356998400, 1357041600)
@@ -217,7 +217,7 @@ public class TestTsdbQueryDownsample {
   public void runLongSingleTSDownsampleAndRateMs() throws Exception {
     storeLongTimeSeriesMs();
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
 
     builder.withStartAndEndTime(1356998400, 1357041600)
@@ -265,7 +265,7 @@ public class TestTsdbQueryDownsample {
   public void runFloatSingleTSDownsample() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
 
     builder.withStartAndEndTime(1356998400, 1357041600)
@@ -314,7 +314,7 @@ public class TestTsdbQueryDownsample {
   public void runFloatSingleTSDownsampleMs() throws Exception {
     storeFloatTimeSeriesMs();
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
 
     builder.withStartAndEndTime(1356998400, 1357041600)
@@ -363,7 +363,7 @@ public class TestTsdbQueryDownsample {
   public void runFloatSingleTSDownsampleAndRate() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
 
     builder.withStartAndEndTime(1356998400, 1357041600)
@@ -415,7 +415,7 @@ public class TestTsdbQueryDownsample {
   public void runFloatSingleTSDownsampleAndRateMs() throws Exception {
     storeFloatTimeSeriesMs();
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
 
     builder.withStartAndEndTime(1356998400, 1357041600)
@@ -472,7 +472,7 @@ public class TestTsdbQueryDownsample {
       final boolean two_metrics, final boolean offset) throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = baseTimestamp;
     for (int i = 1; i <= 300; i++) {
@@ -497,7 +497,7 @@ public class TestTsdbQueryDownsample {
   private void storeLongTimeSeriesMs() throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
     for (int i = 1; i <= 300; i++) {
@@ -519,7 +519,7 @@ public class TestTsdbQueryDownsample {
       final boolean offset) throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
@@ -544,7 +544,7 @@ public class TestTsdbQueryDownsample {
   private void storeFloatTimeSeriesMs() throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {

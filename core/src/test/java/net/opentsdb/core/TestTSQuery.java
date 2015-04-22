@@ -106,7 +106,7 @@ public final class TestTSQuery {
     final TSQuery query = new TSQuery();
     query.setStart("1356998400");
     query.setEnd("1356998460");
-    final ArrayList<TSSubQuery> subs = new ArrayList<TSSubQuery>(1);
+    final ArrayList<TSSubQuery> subs = new ArrayList<>(1);
     subs.add(TestTSSubQuery.getMetricForValidate());
     query.setQueries(subs);
     return query;

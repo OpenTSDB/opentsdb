@@ -25,7 +25,7 @@ import static org.junit.Assert.*;
 public final class TestTags {
   @Test
   public void parseWithMetricWTag() {
-    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    final HashMap<String, String> tags = new HashMap<>(1);
     final String metric = Tags.parseWithMetric("sys.cpu.user{host=web01}", tags);
     assertEquals("sys.cpu.user", metric);
     assertEquals(1, tags.size());
@@ -34,7 +34,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricWTags() {
-    final HashMap<String, String> tags = new HashMap<String, String>(2);
+    final HashMap<String, String> tags = new HashMap<>(2);
     final String metric = Tags.parseWithMetric("sys.cpu.user{host=web01,dc=lga}", 
         tags);
     assertEquals("sys.cpu.user", metric);
@@ -45,7 +45,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricMetricOnly() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     final String metric = Tags.parseWithMetric("sys.cpu.user", tags);
     assertEquals("sys.cpu.user", metric);
     assertEquals(0, tags.size());
@@ -53,7 +53,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricMetricEmptyCurlies() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     final String metric = Tags.parseWithMetric("sys.cpu.user{}", tags);
     assertEquals("sys.cpu.user", metric);
     assertEquals(0, tags.size());
@@ -61,61 +61,61 @@ public final class TestTags {
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricNullMetric() {
-    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    final HashMap<String, String> tags = new HashMap<>(1);
     Tags.parseWithMetric("{host=}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricNullTagv() {
-    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    final HashMap<String, String> tags = new HashMap<>(1);
     Tags.parseWithMetric("sys.cpu.user{host=}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricNullTagk() {
-    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    final HashMap<String, String> tags = new HashMap<>(1);
     Tags.parseWithMetric("sys.cpu.user{=web01}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricNullTagv2() {
-    final HashMap<String, String> tags = new HashMap<String, String>(2);
+    final HashMap<String, String> tags = new HashMap<>(2);
     Tags.parseWithMetric("sys.cpu.user{host=web01,dc=}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricNullTagk2() {
-    final HashMap<String, String> tags = new HashMap<String, String>(2);
+    final HashMap<String, String> tags = new HashMap<>(2);
     Tags.parseWithMetric("sys.cpu.user{host=web01,=lga}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricNullTagv3() {
-    final HashMap<String, String> tags = new HashMap<String, String>(3);
+    final HashMap<String, String> tags = new HashMap<>(3);
     Tags.parseWithMetric("sys.cpu.user{host=web01,dc=,=root}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricNullTagk3() {
-    final HashMap<String, String> tags = new HashMap<String, String>(3);
+    final HashMap<String, String> tags = new HashMap<>(3);
     Tags.parseWithMetric("sys.cpu.user{host=web01,=lga,owner=}", tags);
   }
   
   @Test (expected = NullPointerException.class)
   public void parseWithMetricNull() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     Tags.parseWithMetric(null, tags);
   }
   
   @Test
   public void parseWithMetricEmpty() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     assertTrue(Tags.parseWithMetric("", tags).isEmpty());
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricMissingClosingCurly() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     Tags.parseWithMetric("sys.cpu.user{host=web01", tags);
   }
 
@@ -123,39 +123,38 @@ public final class TestTags {
   // a UID lookup so it will toss an exception then.
   @Test
   public void parseWithMetricMissingOpeningCurly() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     assertEquals("sys.cpu.user host=web01}",
         Tags.parseWithMetric("sys.cpu.user host=web01}", tags));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricMissingEquals() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     Tags.parseWithMetric("sys.cpu.user{hostweb01}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricMissingComma() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     Tags.parseWithMetric("sys.cpu.user{host=web01 dc=lga}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricTrailingComma() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     Tags.parseWithMetric("sys.cpu.user{host=web01,}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricForwardComma() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     Tags.parseWithMetric("sys.cpu.user{,host=web01}", tags);
   }
 
   @Test
   public void parseWithMetricListMetricOnly() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+    final List<Pair<String, String>> tags = new ArrayList<>(0);
     final String metric = Tags.parseWithMetric("sys.cpu.user", tags);
     assertEquals("sys.cpu.user", metric);
     assertEquals(0, tags.size());
@@ -163,8 +162,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListMetricEmptyCurlies() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+    final List<Pair<String, String>> tags = new ArrayList<>(0);
     final String metric = Tags.parseWithMetric("sys.cpu.user{}", tags);
     assertEquals("sys.cpu.user", metric);
     assertEquals(0, tags.size());
@@ -172,8 +170,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListNullMetric() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
+    final List<Pair<String, String>> tags = new ArrayList<>(1);
     final String metric = Tags.parseWithMetric("{host=}", tags);
     assertNull(metric);
     assertEquals(1, tags.size());
@@ -183,8 +180,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListNullTagv() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
+    final List<Pair<String, String>> tags = new ArrayList<>(1);
     final String metric = Tags.parseWithMetric("sys.cpu.user{host=}", tags);
     assertEquals("sys.cpu.user", metric);
     assertEquals(1, tags.size());
@@ -194,7 +190,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListNullTagk() {
-    final List<Pair<String, String>> tags = new ArrayList<Pair<String, String>>(1);
+    final List<Pair<String, String>> tags = new ArrayList<>(1);
     final String metric = Tags.parseWithMetric("sys.cpu.user{=web01}", tags);
     assertEquals("sys.cpu.user", metric);
     assertEquals(1, tags.size());
@@ -204,8 +200,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListWTag() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(1);
+    final List<Pair<String, String>> tags = new ArrayList<>(1);
     final String metric = Tags.parseWithMetric("sys.cpu.user{host=web01}", tags);
     assertEquals("sys.cpu.user", metric);
     assertEquals(1, tags.size());
@@ -215,8 +210,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListNullTagv2() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(2);
+    final List<Pair<String, String>> tags = new ArrayList<>(2);
     final String metric = Tags.parseWithMetric("sys.cpu.user{host=web01,dc=}", 
         tags);
     assertEquals("sys.cpu.user", metric);
@@ -229,8 +223,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListNullTagk2() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(2);
+    final List<Pair<String, String>> tags = new ArrayList<>(2);
     final String metric = Tags.parseWithMetric("sys.cpu.user{host=web01,=lga}", 
         tags);
     assertEquals("sys.cpu.user", metric);
@@ -243,8 +236,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListNullTagv3() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(3);
+    final List<Pair<String, String>> tags = new ArrayList<>(3);
     final String metric = Tags.parseWithMetric("sys.cpu.user{host=web01,dc=,=root}", 
         tags);
     assertEquals("sys.cpu.user", metric);
@@ -259,8 +251,7 @@ public final class TestTags {
   
   @Test
   public void parseWithMetricListNullTagk3() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(3);
+    final List<Pair<String, String>> tags = new ArrayList<>(3);
     final String metric = Tags.parseWithMetric("sys.cpu.user{host=web01,=lga,owner=}", 
         tags);
     assertEquals("sys.cpu.user", metric);
@@ -275,22 +266,20 @@ public final class TestTags {
   
   @Test (expected = NullPointerException.class)
   public void parseWithMetricListNull() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+    final List<Pair<String, String>> tags = new ArrayList<>(0);
     Tags.parseWithMetric(null, tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricListEmpty() {
     final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+        new ArrayList<>(0);
     Tags.parseWithMetric("", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricListMissingClosingCurly() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+    final List<Pair<String, String>> tags = new ArrayList<>(0);
     Tags.parseWithMetric("sys.cpu.user{host=web01", tags);
   }
 
@@ -298,49 +287,46 @@ public final class TestTags {
   // a UID lookup so it will toss an exception then.
   @Test
   public void parseWithMetricListMissingOpeningCurly() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+    final List<Pair<String, String>> tags = new ArrayList<>(0);
     assertEquals("sys.cpu.user host=web01}",
         Tags.parseWithMetric("sys.cpu.user host=web01}", tags));
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricListMissingEquals() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+    final List<Pair<String, String>> tags = new ArrayList<>(0);
     Tags.parseWithMetric("sys.cpu.user{hostweb01}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricListMissingComma() {
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+    final List<Pair<String, String>> tags = new ArrayList<>(0);
     Tags.parseWithMetric("sys.cpu.user{host=web01 dc=lga}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricListTrailingComma() {
     final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+        new ArrayList<>(0);
     Tags.parseWithMetric("sys.cpu.user{host=web01,}", tags);
   }
 
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricListForwardComma() {
     final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(0);
+        new ArrayList<>(0);
     Tags.parseWithMetric("sys.cpu.user{,host=web01}", tags);
   }
   
   @Test (expected = IllegalArgumentException.class)
   public void parseWithMetricOnlyEquals() {
-    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    final HashMap<String, String> tags = new HashMap<>(0);
     Tags.parseWithMetric("{=}", tags);
   }
   
   @Test
   public void parseSuccessful() {
-    final HashMap<String, String> tags = new HashMap<String, String>(2);
+    final HashMap<String, String> tags = new HashMap<>(2);
     Tags.parse(tags, "foo=bar");
     assertEquals(1, tags.size());
     assertEquals("bar", tags.get("foo"));
@@ -372,7 +358,7 @@ public final class TestTags {
 
   @Test(expected=IllegalArgumentException.class)
   public void parseDifferentValues() {
-    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    final HashMap<String, String> tags = new HashMap<>(1);
     Tags.parse(tags, "foo=bar");
     assertEquals(1, tags.size());
     assertEquals("bar", tags.get("foo"));
@@ -381,7 +367,7 @@ public final class TestTags {
 
   @Test
   public void parseSameValues() {
-    final HashMap<String, String> tags = new HashMap<String, String>(1);
+    final HashMap<String, String> tags = new HashMap<>(1);
     Tags.parse(tags, "foo=bar");
     assertEquals(1, tags.size());
     assertEquals("bar", tags.get("foo"));

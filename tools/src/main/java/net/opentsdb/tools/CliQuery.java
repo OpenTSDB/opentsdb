@@ -109,9 +109,9 @@ final class CliQuery {
   private static Plot doQuery(final TSDB tsdb,
                               final String[] args,
                               final boolean want_plot) {
-    final ArrayList<String> plotparams = new ArrayList<String>();
-    final ArrayList<Query> queries = new ArrayList<Query>();
-    final ArrayList<String> plotoptions = new ArrayList<String>();
+    final ArrayList<String> plotparams = new ArrayList<>();
+    final ArrayList<Query> queries = new ArrayList<>();
+    final ArrayList<String> plotoptions = new ArrayList<>();
 
     final UidFormatter formatter = new UidFormatter(tsdb);
 
@@ -240,7 +240,7 @@ final class CliQuery {
       final long interval = downsample ? Long.parseLong(args[i++]) : 0;
       final Aggregator sampler = downsample ? Aggregators.get(args[i++]) : null;
       final String metric = args[i++];
-      final HashMap<String, String> tags = new HashMap<String, String>();
+      final HashMap<String, String> tags = new HashMap<>();
       while (i < args.length && args[i].indexOf(' ', 1) < 0
              && args[i].indexOf('=', 1) > 0) {
         Tags.parse(tags, args[i++]);
@@ -274,8 +274,7 @@ final class CliQuery {
   }
 
   private static HashMap<String, String> parsePlotParams(final ArrayList<String> params) {
-    final HashMap<String, String> result =
-      new HashMap<String, String>(params.size());
+    final HashMap<String, String> result = new HashMap<>(params.size());
     for (final String param : params) {
       Tags.parse(result, param.substring(1));
     }

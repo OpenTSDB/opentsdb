@@ -44,7 +44,7 @@ public final class TestTSSubQuery {
   public void validateTS() {
     TSSubQuery sub = getMetricForValidate();
     sub.setMetric(null);
-    ArrayList<String> tsuids = new ArrayList<String>(1);
+    ArrayList<String> tsuids = new ArrayList<>(1);
     tsuids.add("ABCD");
     sub.setTsuids(tsuids);
     sub.validateAndSetQuery();
@@ -127,7 +127,7 @@ public final class TestTSSubQuery {
     sub.setDownsample("5m-avg");
     sub.setMetric("sys.cpu.0");
     sub.setRate(false);
-    final HashMap<String, String> tags = new HashMap<String, String>();
+    final HashMap<String, String> tags = new HashMap<>();
     tags.put("host", "*");
     tags.put("dc", "lga");
     sub.setTags(tags);

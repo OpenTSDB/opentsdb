@@ -251,7 +251,7 @@ public class UniqueIdClientTest {
   public void getTagNames() throws Exception {
     setupResolveIds();
 
-    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    final List<byte[]> ids = new ArrayList<>(1);
     ids.add(new byte[] { 0, 0, 1, 0, 0, 1 });
     final HashMap<String, String> tags = uniqueIdClient.getTagNames(ids)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -262,7 +262,7 @@ public class UniqueIdClientTest {
   public void getTagNamesNSUI() throws Exception {
     setupResolveIds();
 
-    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    final List<byte[]> ids = new ArrayList<>(1);
     ids.add(new byte[] { 0, 0, 1, 0, 0, 2 });
     uniqueIdClient.getTagNames(ids).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
@@ -271,7 +271,7 @@ public class UniqueIdClientTest {
   public void getTagNamesEmptyList() throws Exception {
     setupResolveIds();
 
-    final List<byte[]> ids = new ArrayList<byte[]>(0);
+    final List<byte[]> ids = new ArrayList<>(0);
     final HashMap<String, String> tags = uniqueIdClient.getTagNames(ids)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(tags);
@@ -282,7 +282,7 @@ public class UniqueIdClientTest {
   public void getTagNamesWrongLength() throws Exception {
     setupResolveIds();
 
-    final List<byte[]> ids = new ArrayList<byte[]>(1);
+    final List<byte[]> ids = new ArrayList<>(1);
     ids.add(new byte[] { 0, 0, 1, 0, 0, 0, 2 });
     uniqueIdClient.getTagNames(ids).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
@@ -291,7 +291,7 @@ public class UniqueIdClientTest {
   public void getOrCreateAllCreate() throws Exception {
     setupResolveAll();
 
-    final Map<String, String> tags = new HashMap<String, String>(1);
+    final Map<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -303,7 +303,7 @@ public class UniqueIdClientTest {
   public void getOrCreateTagkAllowed() throws Exception {
     setupResolveAll();
 
-    final Map<String, String> tags = new HashMap<String, String>(1);
+    final Map<String, String> tags = new HashMap<>(1);
     tags.put("doesnotexist", "web01");
     final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
@@ -320,7 +320,7 @@ public class UniqueIdClientTest {
 
     setupResolveAll();
 
-    final Map<String, String> tags = new HashMap<String, String>(1);
+    final Map<String, String> tags = new HashMap<>(1);
     tags.put("pop", "web01");
     final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
@@ -337,7 +337,7 @@ public class UniqueIdClientTest {
 
     setupResolveAll();
 
-    final Map<String, String> tags = new HashMap<String, String>(1);
+    final Map<String, String> tags = new HashMap<>(1);
     tags.put("nonesuch", "web01");
     uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
@@ -346,7 +346,7 @@ public class UniqueIdClientTest {
   public void getOrCreateTagvAllowed() throws Exception {
     setupResolveAll();
 
-    final Map<String, String> tags = new HashMap<String, String>(1);
+    final Map<String, String> tags = new HashMap<>(1);
     tags.put("host", "nohost");
     final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
@@ -363,7 +363,7 @@ public class UniqueIdClientTest {
 
     setupResolveAll();
 
-    final Map<String, String> tags = new HashMap<String, String>(1);
+    final Map<String, String> tags = new HashMap<>(1);
     tags.put("host", "web02");
     final List<byte[]> uids = uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1, uids.size());
@@ -380,7 +380,7 @@ public class UniqueIdClientTest {
 
     setupResolveAll();
 
-    final Map<String, String> tags = new HashMap<String, String>(1);
+    final Map<String, String> tags = new HashMap<>(1);
     tags.put("host", "invalidhost");
     uniqueIdClient.getOrCreateAllTags(tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }

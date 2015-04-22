@@ -40,7 +40,7 @@ public class DateTime {
   public static final HashMap<String, TimeZone> timezones;
   static {
     final String[] tzs = TimeZone.getAvailableIDs();
-    timezones = new HashMap<String, TimeZone>(tzs.length);
+    timezones = new HashMap<>(tzs.length);
     for (final String tz : tzs) {
       timezones.put(tz, TimeZone.getTimeZone(tz));
     }

@@ -109,9 +109,8 @@ final class MetaSync extends Thread {
   public void run() {
     
     // list of deferred calls used to act as a buffer
-    final ArrayList<Deferred<Boolean>> storage_calls = 
-      new ArrayList<Deferred<Boolean>>();
-    final Deferred<Object> result = new Deferred<Object>();
+    final ArrayList<Deferred<Boolean>> storage_calls = new ArrayList<>();
+    final Deferred<Object> result = new Deferred<>();
     
     /**
      * Called when we have encountered a previously un-processed UIDMeta object.

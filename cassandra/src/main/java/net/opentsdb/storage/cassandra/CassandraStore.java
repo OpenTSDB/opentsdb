@@ -217,7 +217,7 @@ public class CassandraStore implements TsdbStore {
 
     final ResultSetFuture future = session.executeAsync(addPointStatement);
 
-    final Deferred<Object> d = new Deferred<Object>();
+    final Deferred<Object> d = new Deferred<>();
 
     Futures.addCallback(future, new FutureCallback<ResultSet>() {
       @Override
@@ -258,11 +258,11 @@ public class CassandraStore implements TsdbStore {
 
   @Override
   public Deferred<Object> shutdown() {
-    List<CloseFuture> close = new ArrayList<CloseFuture>();
+    List<CloseFuture> close = new ArrayList<>();
     close.add(session.closeAsync());
     close.add(cluster.closeAsync());
 
-    final Deferred<Object> d = new Deferred<Object>();
+    final Deferred<Object> d = new Deferred<>();
 
     Futures.addCallback(Futures.allAsList(close), new
         FutureCallback<List<Void>>() {
@@ -534,7 +534,7 @@ public class CassandraStore implements TsdbStore {
     ResultSetFuture f = session.executeAsync(get_name_statement.bind(
             IdUtils.uidToLong(uid), type.toValue()));
 
-    final Deferred<byte[]> d = new Deferred<byte[]>();
+    final Deferred<byte[]> d = new Deferred<>();
 
     //CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE uid = ? AND type = ?;";
     final BoundStatement s1 = new BoundStatement(update_uid_name_statement)

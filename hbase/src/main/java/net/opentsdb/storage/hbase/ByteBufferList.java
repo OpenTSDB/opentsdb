@@ -43,7 +43,7 @@ final class ByteBufferList {
    * @param n estimated number of segments (an overestimate is better than an underestimate)
    */
   public ByteBufferList(final int n) {
-    segments = new ArrayList<BufferSegment>(n);
+    segments = new ArrayList<>(n);
   }
 
   /**

@@ -55,14 +55,13 @@ public final class Plot {
   private final int end_time;
 
   /** All the DataPoints we want to plot. */
-  private ArrayList<DataPoints> datapoints =
-    new ArrayList<DataPoints>();
+  private ArrayList<DataPoints> datapoints = new ArrayList<>();
 
   /** List of global annotations */
   private List<Annotation> globals = null;
   
   /** Per-DataPoints Gnuplot options. */
-  private ArrayList<String> options = new ArrayList<String>();
+  private ArrayList<String> options = new ArrayList<>();
 
   /** Global Gnuplot parameters. */
   private Map<String, String> params;

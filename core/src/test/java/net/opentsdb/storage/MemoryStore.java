@@ -77,7 +77,7 @@ public class MemoryStore implements TsdbStore {
 
   //      KEY           Column Family Qualifier     Timestamp     Value
   private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
-    storage = new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>();
+    storage = new Bytes.ByteMap<>();
 
   private final Table<Long, String, UIDMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
@@ -393,19 +393,19 @@ public class MemoryStore implements TsdbStore {
 
     Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = storage.get(key);
     if (row == null) {
-      row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
+      row = new Bytes.ByteMap<>();
       storage.put(key, row);
     }
 
     Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
     if (cf == null) {
-      cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
+      cf = new Bytes.ByteMap<>();
       row.put(family, cf);
     }
     TreeMap<Long, byte[]> column = cf.get(qualifier);
     if (column == null) {
       // remember, most recent at the top!
-      column = new TreeMap<Long, byte[]>(Collections.reverseOrder());
+      column = new TreeMap<>(Collections.reverseOrder());
       cf.put(qualifier, column);
     }
     column.put(timestamp, value);
@@ -624,7 +624,7 @@ public class MemoryStore implements TsdbStore {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
-    List<Annotation> annotations = new ArrayList<Annotation>();
+    List<Annotation> annotations = new ArrayList<>();
     Collection<Annotation> globals = annotation_table.row("").values();
 
     for (Annotation global: globals) {
@@ -651,7 +651,7 @@ public class MemoryStore implements TsdbStore {
     final long end = end_time % 1000 == 0 ? end_time / 1000 : end_time;
     String key = "";
 
-    ArrayList<Annotation> del_list = new ArrayList<Annotation>();
+    ArrayList<Annotation> del_list = new ArrayList<>();
     if (tsuid != null) {
       //convert byte array to string, sloppy but seems to be the best way
       key = uidToString(tsuid);
@@ -782,7 +782,7 @@ public class MemoryStore implements TsdbStore {
       }
     };
 
-    final List<IdentifierDecorator> result = new ArrayList<IdentifierDecorator>();
+    final List<IdentifierDecorator> result = new ArrayList<>();
 
     for (final Table.Cell<String, UniqueIdType, byte[]> cell : uid_forward_mapping.cellSet()) {
       if (typeMatchFunction.apply(cell.getColumnKey()) &&

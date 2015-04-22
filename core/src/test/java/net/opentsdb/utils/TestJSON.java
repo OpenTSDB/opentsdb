@@ -288,7 +288,7 @@ public final class TestJSON {
   // serializeToString
   @Test
   public void serializeToString() throws Exception {
-    HashMap<String, String> map = new HashMap<String, String>();
+    HashMap<String, String> map = new HashMap<>();
     map.put("utf", "aériennes");
     map.put("ascii", "aariennes");
     String json = JSON.serializeToString(map);
@@ -305,7 +305,7 @@ public final class TestJSON {
   // serializeToBytes
   @Test
   public void serializeToBytes() throws Exception {
-    HashMap<String, String> map = new HashMap<String, String>();
+    HashMap<String, String> map = new HashMap<>();
     map.put("utf", "aériennes");
     map.put("ascii", "aariennes");
     byte[] raw = JSON.serializeToBytes(map);
@@ -322,7 +322,7 @@ public final class TestJSON {
   // serializeToJSONString
   @Test
   public void serializeToJSONString() throws Exception {
-    HashMap<String, String> map = new HashMap<String, String>();
+    HashMap<String, String> map = new HashMap<>();
     map.put("utf", "aériennes");
     map.put("ascii", "aariennes");
     String json = JSON.serializeToJSONPString("dummycb", map);
@@ -349,7 +349,7 @@ public final class TestJSON {
   // serializeToJSONPBytes
   @Test
   public void serializeToJSONPBytes() throws Exception {
-    HashMap<String, String> map = new HashMap<String, String>();
+    HashMap<String, String> map = new HashMap<>();
     map.put("utf", "aériennes");
     map.put("ascii", "aariennes");
     byte[] raw = JSON.serializeToJSONPBytes("dummycb", map);
@@ -377,7 +377,7 @@ public final class TestJSON {
   private HashMap<String, String> parseToMap(final InputStream is) 
     throws Exception {
     JsonParser jp = JSON.parseToStream(is);
-    HashMap<String, String> map = new HashMap<String, String>();
+    HashMap<String, String> map = new HashMap<>();
     String field = "";
     String value;
     while (jp.nextToken() != null) {
@@ -395,7 +395,7 @@ public final class TestJSON {
   /** Helper to parse an input stream into a map */
   private HashMap<String, String> parseToMap(final JsonParser jp) 
     throws Exception {
-    HashMap<String, String> map = new HashMap<String, String>();
+    HashMap<String, String> map = new HashMap<>();
     String field = "";
     String value;
     while (jp.nextToken() != null) {

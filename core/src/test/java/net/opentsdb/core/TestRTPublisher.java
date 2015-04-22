@@ -45,7 +45,7 @@ public abstract class TestRTPublisher {
   @Test
   public void publishAnnotation() {
     Annotation ann = new Annotation();
-    HashMap<String, String> customMap = new HashMap<String, String>(1);
+    HashMap<String, String> customMap = new HashMap<>(1);
     customMap.put("test-custom-key", "test-custom-value");
     ann.setCustom(customMap);
     ann.setDescription("A test annotation");

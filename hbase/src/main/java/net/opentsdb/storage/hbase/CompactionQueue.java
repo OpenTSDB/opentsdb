@@ -181,11 +181,10 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     // We can't possibly flush more entries than size().
     maxflushes = Math.min(maxflushes, size());
     if (maxflushes == 0) {  // Because size() might be 0.
-      return Deferred.fromResult(new ArrayList<Object>(0));
+      return Deferred.fromResult(new ArrayList<>(0));
     }
     final ArrayList<Deferred<Object>> ds =
-      new ArrayList<Deferred<Object>>(Math.min(maxflushes,
-                                               MAX_CONCURRENT_FLUSHES));
+      new ArrayList<>(Math.min(maxflushes, MAX_CONCURRENT_FLUSHES));
     int nflushes = 0;
     int seed = (int) (System.nanoTime() % 3);
     for (final byte[] row : this.keySet()) {
@@ -308,7 +307,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       this.row = row;
       this.compacted = compacted;
       this.annotations = annotations;
-      to_delete = new ArrayList<KeyValue>(nkvs);
+      to_delete = new ArrayList<>(nkvs);
     }
 
     /**
@@ -350,7 +349,7 @@ class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
       }
 
       // go through all the columns, process annotations, and
-      heap = new PriorityQueue<ColumnDatapointIterator>(nkvs);
+      heap = new PriorityQueue<>(nkvs);
       int tot_values = buildHeapProcessAnnotations();
 
       // if there are no datapoints or only one that needs no fixup, we are done

@@ -236,7 +236,7 @@ final class Fsck {
     final Query query;
     /** Set of TSUIDs this worker has seen. Used to avoid UID resolution for
      * previously processed row keys */
-    final Set<String> tsuids = new HashSet<String>();
+    final Set<String> tsuids = new HashSet<>();
     
     /** Shared flags and values for compiling a compacted column */
     byte[] compact_qualifier = null;
@@ -289,8 +289,7 @@ final class Fsck {
       final Scanner scanner = null;
 
       // store every data point for the row in here 
-      final TreeMap<Long, ArrayList<DP>> datapoints = 
-        new TreeMap<Long, ArrayList<DP>>();
+      final TreeMap<Long, ArrayList<DP>> datapoints = new TreeMap<>();
       byte[] last_key = null;
       ArrayList<ArrayList<KeyValue>> rows;
       
@@ -438,7 +437,7 @@ final class Fsck {
 
               ArrayList<DP> dps = datapoints.get(ts);
               if (dps == null) {
-                dps = new ArrayList<DP>(1);
+                dps = new ArrayList<>(1);
                 datapoints.put(ts, dps);
               }
               dps.add(new DP(kv, cell));
@@ -472,7 +471,7 @@ final class Fsck {
             Internal.getTimestampFromQualifier(qual, base_time);
         ArrayList<DP> dps = datapoints.get(timestamp);
         if (dps == null) {
-          dps = new ArrayList<DP>(1);
+          dps = new ArrayList<>(1);
           datapoints.put(timestamp, dps);
         }
         dps.add(new DP(kv));
@@ -562,7 +561,7 @@ final class Fsck {
 
       // store a unique set of qualifier/value columns to help us later when
       // we need to delete or update the row
-      final ByteMap<byte[]> unique_columns = new ByteMap<byte[]>();
+      final ByteMap<byte[]> unique_columns = new ByteMap<>();
       byte[] key = null;
       boolean has_seconds = false;
       boolean has_milliseconds = false;
@@ -1114,7 +1113,7 @@ final class Fsck {
 
     final FsckOptions options = new FsckOptions(argp, config);
 
-    final ArrayList<Query> queries = new ArrayList<Query>();
+    final ArrayList<Query> queries = new ArrayList<>();
     if (args != null && args.length > 0) {
       CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
     }

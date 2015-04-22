@@ -49,8 +49,7 @@ public final class ArgP {
    * Maps an option name (e.g, {@code "--foo"}) to a 2-element array
    * {@code ["META", "Help string"]}
    */
-  private final HashMap<String, String[]> options
-    = new HashMap<String, String[]>();
+  private final HashMap<String, String[]> options = new HashMap<>();
 
   /**
    * Maps an option name to the value parsed for this option.
@@ -121,7 +120,7 @@ public final class ArgP {
    * @throws IllegalArgumentException if the given command line wasn't valid.
    */
   public String[] parse(final String[] args) {
-    parsed = new HashMap<String, String>(options.size());
+    parsed = new HashMap<>(options.size());
     ArrayList<String> unparsed = null;
     for (int i = 0; i < args.length; i++) {
       final String arg = args[i];
@@ -150,7 +149,7 @@ public final class ArgP {
       }
       // Not a flag.
       if (unparsed == null) {
-        unparsed = new ArrayList<String>(args.length - i);
+        unparsed = new ArrayList<>(args.length - i);
       }
       if (!arg.isEmpty() && arg.charAt(0) == '-') {
         if (arg.length() == 2 && arg.charAt(1) == '-') {  // `--'
@@ -222,7 +221,7 @@ public final class ArgP {
    * @param buf The buffer to write to.
    */
   public void addUsageTo(final StringBuilder buf) {
-    final ArrayList<String> names = new ArrayList<String>(options.keySet());
+    final ArrayList<String> names = new ArrayList<>(options.keySet());
     Collections.sort(names);
     int max_length = 0;
     for (final String name : names) {

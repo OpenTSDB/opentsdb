@@ -39,7 +39,7 @@ public class TestCassandraStore {
   @Inject Config config;
   @Inject CassandraStoreDescriptor storeDescriptor;
 
-  private Map<String, byte[]> name_uid = new HashMap<String, byte[]>();
+  private Map<String, byte[]> name_uid = new HashMap<>();
 
   @Before
   public void setUp() throws Exception {

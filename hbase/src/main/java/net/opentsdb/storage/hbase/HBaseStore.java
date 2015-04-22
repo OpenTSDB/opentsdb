@@ -862,7 +862,7 @@ public class HBaseStore implements TsdbStore {
     final class ScannerCB implements Callback<Deferred<List<Annotation>>,
       ArrayList<ArrayList<KeyValue>>> {
       final Scanner scanner;
-      final List<Annotation> annotations = new ArrayList<Annotation>();
+      final List<Annotation> annotations = new ArrayList<>();
 
       /**
        * Initializes the scanner
@@ -924,7 +924,7 @@ public class HBaseStore implements TsdbStore {
   public Deferred<Integer> deleteAnnotationRange(final byte[] tsuid,
                                                  final long start_time,
                                                  final long end_time) {
-    final List<Deferred<Object>> delete_requests = new ArrayList<Deferred<Object>>();
+    final List<Deferred<Object>> delete_requests = new ArrayList<>();
     int width = tsuid != null ? tsuid.length + Const.TIMESTAMP_BYTES :
       Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
     final byte[] start_row = new byte[width];
@@ -962,7 +962,7 @@ public class HBaseStore implements TsdbStore {
         scanner.setStopKey(end_row);
         scanner.setFamily(TS_FAMILY);
         if (tsuid != null) {
-          final List<String> tsuids = new ArrayList<String>(1);
+          final List<String> tsuids = new ArrayList<>(1);
           tsuids.add(IdUtils.uidToString(tsuid));
           Internal.createAndSetTSUIDFilter(scanner, tsuids);
         }

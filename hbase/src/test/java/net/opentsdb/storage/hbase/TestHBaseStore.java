@@ -217,7 +217,7 @@ public class TestHBaseStore extends TestTsdbStore {
   // For simplicity return an empty ArrayList, then the call back should return
   // null
   final byte[] value = {'1','2','3'};
-  ArrayList<KeyValue> al = new ArrayList<KeyValue>();
+  ArrayList<KeyValue> al = new ArrayList<>();
   al.add(new KeyValue(new byte[] {'h', 'o', 's', 't'}, new byte[] {},
           new byte[] {}, value));
   when(client.get(any(GetRequest.class)))

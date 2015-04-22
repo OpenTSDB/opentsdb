@@ -14,7 +14,7 @@ class LastWriteTimesQueryRunner extends RowProcessor<Map<byte[], Long>> {
 
   LastWriteTimesQueryRunner(final Pattern scanPattern) {
     this.scanPattern = scanPattern;
-    this.tsuids = new Bytes.ByteMap<Long>();
+    this.tsuids = new Bytes.ByteMap<>();
   }
 
   @Override

@@ -101,9 +101,8 @@ final class MetaPurge extends Thread {
     
     // a list to store all pending deletes so we don't exit before they've 
     // completed
-    final ArrayList<Deferred<Object>> delete_calls = 
-      new ArrayList<Deferred<Object>>();
-    final Deferred<Long> result = new Deferred<Long>();
+    final ArrayList<Deferred<Object>> delete_calls = new ArrayList<>();
+    final Deferred<Long> result = new Deferred<>();
     
     /**
      * Scanner callback that will recursively call itself and loop through the
@@ -139,7 +138,7 @@ final class MetaPurge extends Thread {
         for (final ArrayList<KeyValue> row : rows) {
           // one delete request per row. We'll almost always delete the whole
           // row, so preallocate some ram.
-          ArrayList<byte[]> qualifiers = new ArrayList<byte[]>(row.size());
+          ArrayList<byte[]> qualifiers = new ArrayList<>(row.size());
           
           for (KeyValue column : row) {
             if (Bytes.equals(net.opentsdb.storage.HBaseConst.TSMeta.META_QUALIFIER, column.qualifier())) {
@@ -202,9 +201,8 @@ final class MetaPurge extends Thread {
     
     // a list to store all pending deletes so we don't exit before they've 
     // completed
-    final ArrayList<Deferred<Object>> delete_calls = 
-      new ArrayList<Deferred<Object>>();
-    final Deferred<Long> result = new Deferred<Long>();
+    final ArrayList<Deferred<Object>> delete_calls = new ArrayList<>();
+    final Deferred<Long> result = new Deferred<>();
     
     /**
      * Scanner callback that will recursively call itself and loop through the

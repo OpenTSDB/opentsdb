@@ -107,7 +107,7 @@ public final class Internal {
   public static Cell parseSingleValue(final KeyValue column) {
     if (column.qualifier().length == 2 || (column.qualifier().length == 4 && 
         inMilliseconds(column.qualifier()))) {
-      final ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
+      final ArrayList<KeyValue> row = new ArrayList<>(1);
       row.add(column);
       final ArrayList<Cell> cells = extractDataPoints(row, 1);
       if (cells.isEmpty()) {
@@ -136,7 +136,7 @@ public final class Internal {
    * @since 2.0
    */
   public static ArrayList<Cell> extractDataPoints(final KeyValue column) {
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
+    final ArrayList<KeyValue> row = new ArrayList<>(1);
     row.add(column);
     return extractDataPoints(row, column.qualifier().length / 2);
   }
@@ -158,7 +158,7 @@ public final class Internal {
    */
   public static ArrayList<Cell> extractDataPoints(final ArrayList<KeyValue> row,
       final int estimated_nvalues) {
-    final ArrayList<Cell> cells = new ArrayList<Cell>(estimated_nvalues);
+    final ArrayList<Cell> cells = new ArrayList<>(estimated_nvalues);
     for (final KeyValue kv : row) {
       final byte[] qual = kv.qualifier();
       final int len = qual.length;
@@ -758,7 +758,7 @@ public final class Internal {
     // so we can allocate the string builder
     final short metric_width = Const.METRICS_WIDTH;
     int tags_length = 0;
-    final ArrayList<byte[]> uids = new ArrayList<byte[]>(tsuids.size());
+    final ArrayList<byte[]> uids = new ArrayList<>(tsuids.size());
     for (final String tsuid : tsuids) {
       final String tags = tsuid.substring(metric_width * 2);
       final byte[] tag_bytes = IdUtils.stringToUid(tags);

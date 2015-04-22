@@ -141,8 +141,7 @@ final class Search {
       query.setMetric(args[index++]);
     }
     
-    final List<Pair<String, String>> tags = 
-        new ArrayList<Pair<String, String>>(args.length - index);
+    final List<Pair<String, String>> tags = new ArrayList<>(args.length - index);
     for (; index < args.length; index++) {
       Tags.parse(tags, args[index]);
     }

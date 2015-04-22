@@ -114,7 +114,7 @@ class IdQueryRunner {
    */
   private static final class ScannerCB
           implements Callback<Deferred<List<IdentifierDecorator>>, ArrayList<ArrayList<KeyValue>>> {
-    private final List<IdentifierDecorator> suggestions = new LinkedList<IdentifierDecorator>();
+    private final List<IdentifierDecorator> suggestions = new LinkedList<>();
     private final Scanner scanner;
     private final int max_results;
 

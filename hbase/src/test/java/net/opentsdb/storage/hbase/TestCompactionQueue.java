@@ -91,8 +91,8 @@ public final class TestCompactionQueue {
 
   @Test
   public void emptyRow() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(0);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(0);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final KeyValue kv = compactionq.compact(kvs, annotations);
     assertNull(kv);
     
@@ -105,8 +105,8 @@ public final class TestCompactionQueue {
 
   @Test
   public void oneCellRow() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(1);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual = { 0x00, 0x07 };
     final byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(qual, val));
@@ -123,8 +123,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void oneCellRowWAnnotation() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
+    ArrayList<KeyValue> kvs = new ArrayList<>(1);
+    ArrayList<Annotation> annotations = new ArrayList<>(1);
     kvs.add(makekv(note_qual, note));
     final byte[] qual = { 0x00, 0x07 };
     final byte[] val = Bytes.fromLong(42L);
@@ -143,8 +143,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void oneCellRowWAnnotationMS() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
+    ArrayList<KeyValue> kvs = new ArrayList<>(1);
+    ArrayList<Annotation> annotations = new ArrayList<>(1);
     kvs.add(makekv(new byte[] { 1, 0, 0, 0, 0 }, note));
     final byte[] qual = { 0x00, 0x07 };
     final byte[] val = Bytes.fromLong(42L);
@@ -163,8 +163,8 @@ public final class TestCompactionQueue {
 
   @Test
   public void oneCellRowBadLength() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(1);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual = { 0x00, 0x03 };
     final byte[] cqual = { 0x00, 0x07 };
     byte[] val = Bytes.fromLong(42L);
@@ -181,8 +181,8 @@ public final class TestCompactionQueue {
 
   @Test
   public void oneCellRowMS() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(1);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual = { (byte) 0xF0, 0x00, 0x00, 0x07 };
     byte[] val = Bytes.fromLong(42L);
     kvs.add(makekv(qual, val));
@@ -199,8 +199,8 @@ public final class TestCompactionQueue {
 
   @Test
   public void twoCellRow() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -220,8 +220,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void twoCellRowWAnnotation() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(1);
     kvs.add(makekv(note_qual, note));
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -243,8 +243,8 @@ public final class TestCompactionQueue {
 
   @Test
   public void fullRowSeconds() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3600);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(3600);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
 
     byte[] qualifiers = new byte[] {};
     byte[] values = new byte[] {};
@@ -269,8 +269,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void bigRowMs() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3599999);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(3599999);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
 
     byte[] qualifiers = new byte[] {};
     byte[] values = new byte[] {};
@@ -294,8 +294,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void twoCellRowMS() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -315,8 +315,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void sortMsAndS() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -341,8 +341,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void secondsOutOfOrder() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(3);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x02, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -369,8 +369,8 @@ public final class TestCompactionQueue {
   public void msOutOfOrder() throws Exception {
     // all rows with an ms qualifier will go through the compaction 
     // process and they'll be sorted
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(3);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { (byte) 0xF0, 0x00, 0x02, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -395,8 +395,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void secondAndMs() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -417,8 +417,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void secondAndMsWAnnotation() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(1);
     kvs.add(makekv(note_qual, note));
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -449,8 +449,8 @@ public final class TestCompactionQueue {
     when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
     when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
 
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -463,8 +463,8 @@ public final class TestCompactionQueue {
 
   @Test
   public void msSameAsSecondFix() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -484,8 +484,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void fixQualifierFlags() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // Note: here the flags pretend the value is on 4 bytes, but it's actually
     // on 8 bytes, so we expect the code to fix the flags as it's compacting.
     final byte[] qual1 = { 0x00, 0x03 };   // Pretends 4 bytes...
@@ -510,8 +510,8 @@ public final class TestCompactionQueue {
   public void fixFloatingPoint() throws Exception {
     // Check that the compaction process is fixing incorrectly encoded
     // floating point values.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // Note: here the flags pretend the value is on 4 bytes, but it's actually
     // on 8 bytes, so we expect the code to fix the flags as it's compacting.
     final byte[] qual1 = { 0x00, 0x07 };
@@ -542,8 +542,8 @@ public final class TestCompactionQueue {
     when(tsdb_store.put(any(PutRequest.class))).thenAnswer(newDeferred());
     when(tsdb_store.delete(any(DeleteRequest.class))).thenAnswer(newDeferred());
 
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -557,8 +557,8 @@ public final class TestCompactionQueue {
   
   @Test
   public void overlappingDataPointsFix() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -582,8 +582,8 @@ public final class TestCompactionQueue {
     // In this case, the row contains both the compacted form as well as the
     // non-compacted form.  This could happen if the TSD dies in between the
     // `put' of a compaction, before getting a change to do the deletes.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(3);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(3);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -606,8 +606,8 @@ public final class TestCompactionQueue {
 
   @Test
   public void annotationOnly() throws Exception {
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(1);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
+    ArrayList<KeyValue> kvs = new ArrayList<>(1);
+    ArrayList<Annotation> annotations = new ArrayList<>(1);
     kvs.add(makekv(note_qual, note));
 
     final KeyValue kv = compactionq.compact(kvs, annotations);
@@ -624,8 +624,8 @@ public final class TestCompactionQueue {
   public void annotationsOnly() throws Exception {
     // Two annotations in a row only (the value of the second isn't parsed at
     // this time)
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(2);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(2);
     kvs.add(makekv(note_qual, note));
     kvs.add(makekv(new byte[] { 1, 0, 1 }, note));
 
@@ -643,8 +643,8 @@ public final class TestCompactionQueue {
   public void secondCompact() throws Exception {
     // In this test the row has already been compacted, and another data
     // point was written in the mean time.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // This is 2 values already compacted together.
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -674,8 +674,8 @@ public final class TestCompactionQueue {
   public void secondCompactWAnnotation() throws Exception {
     // In this test the row has already been compacted, and another data
     // point was written in the mean time.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(1);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(1);
     kvs.add(makekv(note_qual, note));
     // This is 2 values already compacted together.
     final byte[] qual1 = { 0x00, 0x07 };
@@ -707,8 +707,8 @@ public final class TestCompactionQueue {
   public void secondCompactMS() throws Exception {
     // In this test the row has already been compacted, and another data
     // point was written in the mean time.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // This is 2 values already compacted together.
     final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -738,8 +738,8 @@ public final class TestCompactionQueue {
   public void secondCompactMixedSecond() throws Exception {
     // In this test the row has already been compacted, and another data
     // point was written in the mean time.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // This is 2 values already compacted together.
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -770,8 +770,8 @@ public final class TestCompactionQueue {
   public void secondCompactMixedMS() throws Exception {
     // In this test the row has already been compacted, and another data
     // point was written in the mean time.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // This is 2 values already compacted together.
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -803,8 +803,8 @@ public final class TestCompactionQueue {
     // In this test the row has already been compacted with a ms flag as the
     // first qualifier. Then a second qualifier is added to the row, ordering
     // it BEFORE the compacted row
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // This is 2 values already compacted together.
     final byte[] qual1 = { (byte) 0xF0, 0x0A, 0x41, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -843,8 +843,8 @@ public final class TestCompactionQueue {
 
     // In this test the row has already been compacted, and a new value for an
     // old data point was written in the mean time
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // This is 2 values already compacted together.
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -865,8 +865,8 @@ public final class TestCompactionQueue {
   public void secondCompactOverwriteFix() throws Exception {
     // In this test the row has already been compacted, and a new value for an
     // old data point was written in the mean time
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(2);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(2);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // This is 2 values already compacted together.
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -900,8 +900,8 @@ public final class TestCompactionQueue {
     // written, another compaction ran, but once again didn't delete the
     // individual data points.  So the rows contains 2 compacted cells and
     // several individual cells.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(5);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(5);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -937,8 +937,8 @@ public final class TestCompactionQueue {
     // Here we have two partially compacted cell, but they contain different
     // data points.  Although a possible scenario, this is extremely unlikely,
     // but we need to test that logic works in this case too.
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(5);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(5);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     kvs.add(makekv(qual1, val1));
@@ -974,8 +974,8 @@ public final class TestCompactionQueue {
     // Here we have a row with #kvs > scanner.maxNumKeyValues and the result
     // that was compacted during a query. The result is a bunch of compacted
     // columns. We want to make sure that we can merge them nicely
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(5);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(5);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -1015,8 +1015,8 @@ public final class TestCompactionQueue {
     // Here we have a row with #kvs > scanner.maxNumKeyValues and the result
     // that was compacted during a query. The result is a bunch of compacted
     // columns. We want to make sure that we can merge them nicely
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(5);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(5);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
@@ -1056,8 +1056,8 @@ public final class TestCompactionQueue {
     // Here we have a row with #kvs > scanner.maxNumKeyValues and the result
     // that was compacted during a query. The result is a bunch of compacted
     // columns. We want to make sure that we can merge them nicely
-    ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(5);
-    ArrayList<Annotation> annotations = new ArrayList<Annotation>(0);
+    ArrayList<KeyValue> kvs = new ArrayList<>(5);
+    ArrayList<Annotation> annotations = new ArrayList<>(0);
     // start one off w ms
     final byte[] qual1 = { (byte) 0xF0, 0x00, 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);

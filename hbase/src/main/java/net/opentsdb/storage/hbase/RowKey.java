@@ -43,7 +43,7 @@ public final class RowKey {
     final short tag_bytes = (short) (name_width + value_width);
     final short metric_ts_bytes = Const.METRICS_WIDTH + Const.TIMESTAMP_BYTES;
 
-    final Map<byte[], byte[]> tags = new Bytes.ByteMap<byte[]>();
+    final Map<byte[], byte[]> tags = new Bytes.ByteMap<>();
 
     for (short pos = metric_ts_bytes; pos < row.length; pos += tag_bytes) {
       final byte[] tmp_name = new byte[name_width];

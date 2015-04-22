@@ -160,7 +160,7 @@ public class TestByteArrayPair {
   
   @Test
   public void sortTest() {
-    List<ByteArrayPair> pairs = new ArrayList<ByteArrayPair>(2);
+    List<ByteArrayPair> pairs = new ArrayList<>(2);
     pairs.add(new ByteArrayPair(val, key));
     pairs.add(new ByteArrayPair(key, val));
     Collections.sort(pairs);
@@ -172,7 +172,7 @@ public class TestByteArrayPair {
   
   @Test
   public void sortTestSets() {
-    List<ByteArrayPair> pairs = new ArrayList<ByteArrayPair>(2);
+    List<ByteArrayPair> pairs = new ArrayList<>(2);
     pairs.add(new ByteArrayPair(set2, val));
     pairs.add(new ByteArrayPair(set1, val));
     Collections.sort(pairs);
@@ -184,7 +184,7 @@ public class TestByteArrayPair {
   
   @Test
   public void sortTestWithNullKey() {
-    List<ByteArrayPair> pairs = new ArrayList<ByteArrayPair>(2);
+    List<ByteArrayPair> pairs = new ArrayList<>(2);
     pairs.add(new ByteArrayPair(val, key));
     pairs.add(new ByteArrayPair(null, val));
     Collections.sort(pairs);
@@ -196,7 +196,7 @@ public class TestByteArrayPair {
   
   @Test
   public void sortTestonValue() {
-    List<ByteArrayPair> pairs = new ArrayList<ByteArrayPair>(3);
+    List<ByteArrayPair> pairs = new ArrayList<>(3);
     pairs.add(new ByteArrayPair(val, key));
     pairs.add(new ByteArrayPair(key, val2));
     pairs.add(new ByteArrayPair(key, val));

@@ -338,8 +338,8 @@ final class UidManager {
       long maxid;
       long max_found_id;
       short width;
-      final HashMap<String, String> id2name = new HashMap<String, String>();
-      final HashMap<String, String> name2id = new HashMap<String, String>();
+      final HashMap<String, String> id2name = new HashMap<>();
+      final HashMap<String, String> name2id = new HashMap<>();
 
       void error(final KeyValue kv, final String msg) {
         error(msg + ".  kv=" + kv);
@@ -388,7 +388,7 @@ final class UidManager {
     }
 
     final long start_time = System.nanoTime();
-    final HashMap<String, Uids> name2uids = new HashMap<String, Uids>();
+    final HashMap<String, Uids> name2uids = new HashMap<>();
     final Scanner scanner = hbase_store.newScanner(table);
     scanner.setMaxNumRows(1024);
     int kvcount = 0;
@@ -538,12 +538,11 @@ final class UidManager {
               // using the name2id map, build an id -> set of names map. Do it 
               // once, as needed, since it's expensive.
               if (uid_collisions == null) {
-                uid_collisions = 
-                  new HashMap<String, TreeSet<String>>(uids.name2id.size());
+                uid_collisions = new HashMap<>(uids.name2id.size());
                 for (final Map.Entry<String, String> row : uids.name2id.entrySet()) {
                   TreeSet<String> names = uid_collisions.get(row.getValue());
                   if (names == null) {
-                    names = new TreeSet<String>();
+                    names = new TreeSet<>();
                     uid_collisions.put(row.getValue(), names);
                   }
                   names.add(row.getKey());
@@ -853,12 +852,9 @@ final class UidManager {
     final double quotient = (double)max_id / (double)workers;
     final Set<Integer> processed_tsuids = 
       Collections.synchronizedSet(new HashSet<Integer>());
-    final ConcurrentHashMap<String, Long> metric_uids = 
-      new ConcurrentHashMap<String, Long>();
-    final ConcurrentHashMap<String, Long> tagk_uids = 
-      new ConcurrentHashMap<String, Long>();
-    final ConcurrentHashMap<String, Long> tagv_uids = 
-      new ConcurrentHashMap<String, Long>();
+    final ConcurrentHashMap<String, Long> metric_uids = new ConcurrentHashMap<>();
+    final ConcurrentHashMap<String, Long> tagk_uids = new ConcurrentHashMap<>();
+    final ConcurrentHashMap<String, Long> tagv_uids = new ConcurrentHashMap<>();
     
     long index = 1;
 

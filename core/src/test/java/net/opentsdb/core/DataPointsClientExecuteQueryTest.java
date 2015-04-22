@@ -123,7 +123,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runLongSingleTS() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
 
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -153,7 +153,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runLongSingleTSMs() throws Exception {
     storeLongTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -178,7 +178,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runLongSingleTSNoData() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -193,7 +193,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runLongTwoAggSum() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>();
+    HashMap<String, String> tags = new HashMap<>();
     queryBuilder.withStartAndEndTime(START_TIME_1L,END_TIME_1L);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -215,7 +215,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runLongTwoAggSumMs() throws Exception {
     storeLongTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>();
+    HashMap<String, String> tags = new HashMap<>();
     queryBuilder.withStartAndEndTime(START_TIME_1L,END_TIME_1L);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -237,7 +237,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runLongTwoGroup() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WILDCARD);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -276,7 +276,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runLongSingleTSRate() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -299,7 +299,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runLongSingleTSRateMs() throws Exception {
     storeLongTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -322,7 +322,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runLongSingleTSCompacted() throws Exception {
     storeLongCompactions();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -373,7 +373,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runFloatSingleTS() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -398,7 +398,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runFloatSingleTSMs() throws Exception {
     storeFloatTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -423,7 +423,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runFloatTwoAggSum() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>();
+    HashMap<String, String> tags = new HashMap<>();
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -445,7 +445,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runFloatTwoAggSumMs() throws Exception {
     storeFloatTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>();
+    HashMap<String, String> tags = new HashMap<>();
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -467,7 +467,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runFloatTwoGroup() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WILDCARD);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -506,7 +506,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runFloatSingleTSRate() throws Exception {
     storeFloatTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -529,7 +529,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runFloatSingleTSRateMs() throws Exception {
     storeFloatTimeSeriesMs();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -552,7 +552,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runFloatSingleTSCompacted() throws Exception {
     storeFloatCompactions();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -577,7 +577,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runMixedSingleTS() throws Exception {
     storeMixedTimeSeriesSeconds();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -612,7 +612,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runMixedSingleTSMsAndS() throws Exception {
     storeMixedTimeSeriesMsAndS();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -656,7 +656,7 @@ public final class DataPointsClientExecuteQueryTest {
 
     storeMixedTimeSeriesSeconds();
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -703,7 +703,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runMixedSingleTSCompacted() throws Exception {
     storeMixedCompactions();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -738,7 +738,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runEndTime() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1, END_TIME_2);
     queryBuilder.withMetric(METRIC_1);
@@ -768,7 +768,7 @@ public final class DataPointsClientExecuteQueryTest {
 
     storeLongTimeSeriesSeconds(true, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartTime(START_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -807,7 +807,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test (expected = IllegalStateException.class)
 
   public void runStartNotSet() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
@@ -821,7 +821,7 @@ public final class DataPointsClientExecuteQueryTest {
     // two different qualifiers that will resolve to the same offset. This no
     // longer tosses an exception, and keeps the last value
     storeLongTimeSeriesSeconds(true, false);
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     tsdb.getDataPointsClient().addPoint(METRIC_1, 1356998430, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -845,7 +845,7 @@ public final class DataPointsClientExecuteQueryTest {
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase
             .DEFAULT_TIMEOUT);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -884,7 +884,7 @@ public final class DataPointsClientExecuteQueryTest {
     note.setDescription(DESCRIPTION);
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -934,7 +934,7 @@ public final class DataPointsClientExecuteQueryTest {
     note.setDescription(DESCRIPTION);
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -970,7 +970,7 @@ public final class DataPointsClientExecuteQueryTest {
     note.setDescription(DESCRIPTION);
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -990,12 +990,12 @@ public final class DataPointsClientExecuteQueryTest {
   public void runSingleDataPoint() throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = 1356998410;
     tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
-    final List<String> tsuids = new ArrayList<String>(1);
+    final List<String> tsuids = new ArrayList<>(1);
     tsuids.add(TSUID_1);
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
@@ -1012,7 +1012,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runSingleDataPointWithAnnotation() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = 1356998410;
     tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -1024,7 +1024,7 @@ public final class DataPointsClientExecuteQueryTest {
     tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
-    final List<String> tsuids = new ArrayList<String>(1);
+    final List<String> tsuids = new ArrayList<>(1);
     tsuids.add(TSUID_1);
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
@@ -1044,7 +1044,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runTSUIDQuery() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
-    final List<String> tsuids = new ArrayList<String>(1);
+    final List<String> tsuids = new ArrayList<>(1);
     tsuids.add(TSUID_1);
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
@@ -1068,7 +1068,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runTSUIDsAggSum() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
-    final List<String> tsuids = new ArrayList<String>(1);
+    final List<String> tsuids = new ArrayList<>(1);
     tsuids.add(TSUID_1);
     tsuids.add(TSUID_2);
     queryBuilder.withTSUIDS(tsuids);
@@ -1090,7 +1090,7 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runTSUIDQueryNoData() throws Exception {
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
-    final List<String> tsuids = new ArrayList<String>(1);
+    final List<String> tsuids = new ArrayList<>(1);
     tsuids.add(TSUID_1);
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
@@ -1105,7 +1105,7 @@ public final class DataPointsClientExecuteQueryTest {
     // this doesn't throw an exception since the UIDs are only looked for when
     // the queryBuilder completes.
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
-    final List<String> tsuids = new ArrayList<String>(1);
+    final List<String> tsuids = new ArrayList<>(1);
     tsuids.add(TSUID_3);
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
@@ -1120,7 +1120,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runTSUIDQueryNSU() throws Exception {
     storeLongTimeSeriesSeconds(true, false);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
-    final List<String> tsuids = new ArrayList<String>(1);
+    final List<String> tsuids = new ArrayList<>(1);
     tsuids.add(TSUID_1);
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
@@ -1132,7 +1132,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runRateCounterDefault() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 55, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -1155,7 +1155,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runRateCounterDefaultNoOp() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 30, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -1178,7 +1178,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runRateCounterMaxSet() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -1201,7 +1201,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runRateCounterAnomally() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -1253,7 +1253,7 @@ public final class DataPointsClientExecuteQueryTest {
             MockBase.concatByteArrays(qual5, qual6),
             MockBase.concatByteArrays(val5, val6, new byte[]{0}));
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -1307,7 +1307,7 @@ public final class DataPointsClientExecuteQueryTest {
             MockBase.concatByteArrays(qual5, qual6),
             MockBase.concatByteArrays(val5, val6, new byte[]{0}));
 
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
@@ -1332,7 +1332,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runInterpolationSeconds() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (int i = 1; i <= 300; i++) {
@@ -1379,7 +1379,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runInterpolationMs() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (int i = 1; i <= 300; i++) {
@@ -1426,7 +1426,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   @Test
   public void runInterpolationMsDownsampled() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     // ts = START_TIME_1500, v = 1
     // ts = 1356998401000, v = 2
@@ -1518,7 +1518,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runZimSum() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1544,7 +1544,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runZimSumFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1570,7 +1570,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runZimSumOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1607,7 +1607,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runZimSumFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1643,7 +1643,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMin() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1682,7 +1682,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMinFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1721,7 +1721,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMinOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1762,7 +1762,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMinFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1800,7 +1800,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMax() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1839,7 +1839,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMaxFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1878,7 +1878,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMaxOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1925,7 +1925,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMaxFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1969,7 +1969,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runAvg() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -1995,7 +1995,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runAvgFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2021,7 +2021,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runAvgOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2057,7 +2057,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runAvgFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2089,7 +2089,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runDev() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2128,7 +2128,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runDevFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2167,7 +2167,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runDevOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2213,7 +2213,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runDevFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2256,7 +2256,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMimMin() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2295,7 +2295,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMimMinOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2332,7 +2332,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMimMinFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2371,7 +2371,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMimMinFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2407,7 +2407,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMimMax() throws Exception {
     storeLongTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2446,7 +2446,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMimMaxFloat() throws Exception {
     storeFloatTimeSeriesSeconds(false, false);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2485,7 +2485,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMimMaxOffset() throws Exception {
     storeLongTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2522,7 +2522,7 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMimMaxFloatOffset() throws Exception {
     storeFloatTimeSeriesSeconds(false, true);
 
-    HashMap<String, String> tags = new HashMap<String, String>(0);
+    HashMap<String, String> tags = new HashMap<>(0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
@@ -2562,7 +2562,7 @@ public final class DataPointsClientExecuteQueryTest {
                                           final boolean offset) throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (int i = 1; i <= 300; i++) {
@@ -2587,7 +2587,7 @@ public final class DataPointsClientExecuteQueryTest {
   private void storeLongTimeSeriesMs() throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (int i = 1; i <= 300; i++) {
@@ -2609,7 +2609,7 @@ public final class DataPointsClientExecuteQueryTest {
                                            final boolean offset) throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
@@ -2634,7 +2634,7 @@ public final class DataPointsClientExecuteQueryTest {
   private void storeFloatTimeSeriesMs() throws Exception {
     // dump a bunch of rows of two metrics so that we can test filtering out
     // on the metric
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
@@ -2653,7 +2653,7 @@ public final class DataPointsClientExecuteQueryTest {
   }
 
   private void storeMixedTimeSeriesSeconds() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
@@ -2667,7 +2667,7 @@ public final class DataPointsClientExecuteQueryTest {
 
   // dumps ints, floats, seconds and ms
   private void storeMixedTimeSeriesMsAndS() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {

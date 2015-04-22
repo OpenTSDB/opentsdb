@@ -171,7 +171,7 @@ public class QueryRunner {
     final short metric_width = Const.METRICS_WIDTH;
     int tags_length = 0;
 
-    final ArrayList<byte[]> tag_uids = new ArrayList<byte[]>(tsuids.size());
+    final ArrayList<byte[]> tag_uids = new ArrayList<>(tsuids.size());
     for (final String tsuid : tsuids) {
       final String tags = tsuid.substring(metric_width * 2);
       final byte[] tag_bytes = IdUtils.stringToUid(tags);

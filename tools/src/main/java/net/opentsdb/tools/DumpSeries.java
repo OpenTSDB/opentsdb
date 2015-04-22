@@ -97,7 +97,7 @@ final class DumpSeries {
                              final boolean delete,
                              final boolean importformat,
                              final String[] args) throws Exception {
-    final ArrayList<Query> queries = new ArrayList<Query>();
+    final ArrayList<Query> queries = new ArrayList<>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
 
     final StringBuilder buf = new StringBuilder();

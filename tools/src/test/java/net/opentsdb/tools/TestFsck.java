@@ -149,7 +149,7 @@ public final class TestFsck {
   
   @Test
   public void noErrorsMilliseconds() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
@@ -172,7 +172,7 @@ public final class TestFsck {
 
   @Test
   public void noErrorsAnnotation() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     final byte[] qual1 = { 0x00, 0x07 };
     final byte[] val1 = Bytes.fromLong(4L);
@@ -194,7 +194,7 @@ public final class TestFsck {
   
   @Test
   public void noErrorsMixedMsAndSeconds() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
@@ -217,7 +217,7 @@ public final class TestFsck {
   
   @Test
   public void noErrorsMixedMsAndSecondsAnnotations() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
@@ -3666,7 +3666,7 @@ public final class TestFsck {
     tsdb_store.addColumn(ROW, qual1, val1);
     tsdb_store.addColumn(ROW, qual2, val2);
     final String[] args = "1356998400 sum sys.cpu.user".split(" ");
-    final ArrayList<Query> queries = new ArrayList<Query>();
+    final ArrayList<Query> queries = new ArrayList<>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runQueries(queries);

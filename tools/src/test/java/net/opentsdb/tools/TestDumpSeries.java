@@ -302,7 +302,7 @@ public class TestDumpSeries {
    * For that reason we'll use the standard OpenTSDB methods for writing data.
    */
   private void writeData() throws Exception {
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
     

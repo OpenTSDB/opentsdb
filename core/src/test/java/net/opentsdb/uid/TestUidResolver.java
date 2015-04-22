@@ -83,7 +83,7 @@ public class TestUidResolver {
   @Test
   public void testResolveMultipleMetric() throws Exception {
     final List<byte[]> resolve = resolver.resolve(METRICS_1, METRIC).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    final List<byte[]> bytes = new ArrayList<byte[]>();
+    final List<byte[]> bytes = new ArrayList<>();
     bytes.add(new byte[]{0,0,1});
     bytes.add(new byte[]{0,0,2});
     bytes.add(new byte[]{0,0,3});
@@ -93,7 +93,7 @@ public class TestUidResolver {
   @Test
   public void testResolveMultipleMetricUnsorted() throws Exception {
     final List<byte[]> resolve = resolver.resolve(METRICS_2, METRIC).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    final List<byte[]> bytes = new ArrayList<byte[]>();
+    final List<byte[]> bytes = new ArrayList<>();
     bytes.add(new byte[]{0,0,1});
     bytes.add(new byte[]{0,0,2});
     bytes.add(new byte[]{0,0,3});

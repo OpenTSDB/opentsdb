@@ -52,7 +52,7 @@ abstract class RowProcessor<R> {
     checkNotNull(rowProcessor);
 
     return scanner.nextRows()
-        .addCallbackDeferring(new ScannerCB<R>(scanner, rowProcessor))
+        .addCallbackDeferring(new ScannerCB<>(scanner, rowProcessor))
         .addErrback(new ScannerErrback(scanner));
   }
 

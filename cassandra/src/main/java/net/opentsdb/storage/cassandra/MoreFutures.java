@@ -7,7 +7,7 @@ import com.stumbleupon.async.Deferred;
 
 class MoreFutures {
   static <V> Deferred<V> wrap(ListenableFuture<V> future) {
-    final Deferred<V> deferred = new Deferred<V>();
+    final Deferred<V> deferred = new Deferred<>();
 
     Futures.addCallback(future, new FutureCallback<V>() {
       @Override

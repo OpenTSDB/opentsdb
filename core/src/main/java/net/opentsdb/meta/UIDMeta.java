@@ -275,7 +275,7 @@ public final class UIDMeta {
     // value
     if (this.custom != null || custom != null) {
       changed.add("custom");
-      this.custom = new HashMap<String, String>(custom);
+      this.custom = new HashMap<>(custom);
     }
   }
 

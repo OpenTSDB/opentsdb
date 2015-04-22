@@ -45,7 +45,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLong1Byte() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -58,7 +58,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLong1ByteNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, -42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -71,7 +71,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLong2Bytes() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 257, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -84,7 +84,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLong2BytesNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, -257, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -97,7 +97,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLong4Bytes() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 65537, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -110,7 +110,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLong4BytesNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, -65537, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -123,7 +123,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLong8Bytes() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 4294967296L, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -136,7 +136,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLong8BytesNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, -4294967296L, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -149,7 +149,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLongMs() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -163,7 +163,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLongMany() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400;
     for (int i = 1; i <= 50; i++) {
@@ -180,7 +180,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLongManyMs() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     long timestamp = 1356998400500L;
     for (int i = 1; i <= 50; i++) {
@@ -198,7 +198,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLongEndOfRow() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1357001999, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -212,7 +212,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointLongOverwrite() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 24, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -226,7 +226,7 @@ public class DataPointsClientTest {
   @Test (expected = NoSuchUniqueName.class)
   public void addPointNoAutoMetric() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user.0", 1356998400, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
@@ -235,7 +235,7 @@ public class DataPointsClientTest {
   public void addPointSecondZero() throws Exception {
     // Thu, 01 Jan 1970 00:00:00 GMT
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 0, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
@@ -248,7 +248,7 @@ public class DataPointsClientTest {
   public void addPointSecondOne() throws Exception {
     // hey, it's valid *shrug* Thu, 01 Jan 1970 00:00:01 GMT
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
@@ -261,7 +261,7 @@ public class DataPointsClientTest {
   public void addPointSecond2106() throws Exception {
     // Sun, 07 Feb 2106 06:28:15 GMT
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 4294967295L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9,
@@ -276,7 +276,7 @@ public class DataPointsClientTest {
     // Fri, 13 Dec 1901 20:45:52 GMT
     // may support in the future, but 1.0 didn't
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", -2147483648, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
@@ -288,7 +288,7 @@ public class DataPointsClientTest {
     // Base time is 4294800 which is Thu, 19 Feb 1970 17:00:00 GMT
     // offset = F0A36000 or 167296 ms
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 4294967296L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0, (byte) 0x41, (byte) 0x88,
@@ -303,7 +303,7 @@ public class DataPointsClientTest {
   public void addPointMS2106() throws Exception {
     // Sun, 07 Feb 2106 06:28:15.000 GMT
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 4294967295000L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0xFF, (byte) 0xFF, (byte) 0xF9,
@@ -318,7 +318,7 @@ public class DataPointsClientTest {
   public void addPointMS2286() throws Exception {
     // It's an artificial limit and more thought needs to be put into it
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, (byte) 0x54, (byte) 0x0B, (byte) 0xD9,
@@ -333,7 +333,7 @@ public class DataPointsClientTest {
   public void addPointMSTooLarge() throws Exception {
     // It's an artificial limit and more thought needs to be put into it
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", Const.MAX_MS_TIMESTAMP+1, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
@@ -343,7 +343,7 @@ public class DataPointsClientTest {
     // Fri, 13 Dec 1901 20:45:52 GMT
     // may support in the future, but 1.0 didn't
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", -2147483648000L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
@@ -351,7 +351,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointFloat() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -365,7 +365,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointFloatNegative() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, -42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -379,7 +379,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointFloatMs() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -394,7 +394,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointFloatEndOfRow() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1357001999, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0,
@@ -409,7 +409,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointFloatPrecision() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 42.5123459999F, tags)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -424,7 +424,7 @@ public class DataPointsClientTest {
   @Test
   public void addPointFloatOverwrite() throws Exception {
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 25.4F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -442,7 +442,7 @@ public class DataPointsClientTest {
     // a float (or vice-versa) with the same timestamp. What happens in the
     // aggregators when this occurs?
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     dataPointsClient.addPoint("sys.cpu.user", 1356998400, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -464,7 +464,7 @@ public class DataPointsClientTest {
     // a float (or vice-versa) with the same timestamp. What happens in the
     // aggregators when this occurs?
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400500L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     dataPointsClient.addPoint("sys.cpu.user", 1356998400500L, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -485,7 +485,7 @@ public class DataPointsClientTest {
     // this can happen if a second and an ms data point are stored for the same
     // timestamp.
     setupAddPointStorage();
-    HashMap<String, String> tags = new HashMap<String, String>(1);
+    HashMap<String, String> tags = new HashMap<>(1);
     tags.put("host", "web01");
     dataPointsClient.addPoint("sys.cpu.user", 1356998400L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     dataPointsClient.addPoint("sys.cpu.user", 1356998400000L, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);

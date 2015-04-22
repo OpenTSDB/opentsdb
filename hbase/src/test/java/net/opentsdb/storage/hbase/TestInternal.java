@@ -44,7 +44,7 @@ public final class TestInternal {
     final byte[] qual3 = { 0x00, 0x43 };
     final byte[] val3 = Bytes.fromLong(6L);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(3);
+    final ArrayList<KeyValue> row = new ArrayList<>(3);
     row.add(makekv(qual1, val1));
     row.add(makekv(qual2, val2));
     row.add(makekv(qual3, val3));
@@ -68,7 +68,7 @@ public final class TestInternal {
     final byte[] qual3 = { 0x00, 0x4B };
     final byte[] val3 = new byte[] { 0, 0, 0, 1 };
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(3);
+    final ArrayList<KeyValue> row = new ArrayList<>(3);
     row.add(makekv(qual1, val1));
     row.add(makekv(qual2, val2));
     row.add(makekv(qual3, val3));
@@ -92,7 +92,7 @@ public final class TestInternal {
     final byte[] qual3 = { 0x00, 0x4B };
     final byte[] val3 = new byte[] { 0, 0, 0, 1 };
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(3);
+    final ArrayList<KeyValue> row = new ArrayList<>(3);
     row.add(makekv(qual1, val1));
     row.add(makekv(qual2, val2));
     row.add(makekv(qual3, val3));
@@ -109,7 +109,7 @@ public final class TestInternal {
     final byte[] qual3 = { 0x00, 0x47 };
     final byte[] val3 = Bytes.fromLong(6L);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(3);
+    final ArrayList<KeyValue> row = new ArrayList<>(3);
     row.add(makekv(qual1, val1));
     row.add(makekv(qual2, val2));
     row.add(makekv(qual3, val3));
@@ -129,7 +129,7 @@ public final class TestInternal {
     final byte[] qual3 = { 0x00, 0x47 };
     final byte[] val3 = Bytes.fromLong(6L);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(3);
+    final ArrayList<KeyValue> row = new ArrayList<>(3);
     row.add(makekv(qual1, val1));
     row.add(makekv(qual2, val2));
     row.add(makekv(qual3, val3));
@@ -151,7 +151,7 @@ public final class TestInternal {
     final byte[] qual3 = { 0x00, 0x47 };
     final byte[] val3 = Bytes.fromLong(6L);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(3);
+    final ArrayList<KeyValue> row = new ArrayList<>(3);
     row.add(makekv(qual3, val3));
     row.add(makekv(qual2, val2));
     row.add(makekv(qual1, val1));
@@ -175,7 +175,7 @@ public final class TestInternal {
     final byte[] qual123 = MockBase.concatByteArrays(qual1, qual2, qual3);
     final byte[] val123 = MockBase.concatByteArrays(val1, val2, val3, ZERO);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
+    final ArrayList<KeyValue> row = new ArrayList<>(1);
     row.add(makekv(qual123, val123));
     
     final ArrayList<Cell> cells = Internal.extractDataPoints(row, 1);
@@ -199,7 +199,7 @@ public final class TestInternal {
     final byte[] qual123 = MockBase.concatByteArrays(qual1, qual2, qual3);
     final byte[] val123 = MockBase.concatByteArrays(val1, val2, val3, ZERO);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
+    final ArrayList<KeyValue> row = new ArrayList<>(1);
     row.add(makekv(qual123, val123));
     
     final ArrayList<Cell> cells = Internal.extractDataPoints(row, 1);
@@ -223,7 +223,7 @@ public final class TestInternal {
     final byte[] qual123 = MockBase.concatByteArrays(qual1, qual2, qual3);
     final byte[] val123 = MockBase.concatByteArrays(val1, val2, val3, ZERO);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
+    final ArrayList<KeyValue> row = new ArrayList<>(1);
     row.add(makekv(qual123, val123));
     
     final ArrayList<Cell> cells = Internal.extractDataPoints(row, 1);
@@ -250,7 +250,7 @@ public final class TestInternal {
     final byte[] qual123 = MockBase.concatByteArrays(qual1, qual2, qual3);
     final byte[] val123 = MockBase.concatByteArrays(val1, val2, val3, ZERO);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
+    final ArrayList<KeyValue> row = new ArrayList<>(1);
     row.add(makekv(qual123, val123));
     
     final ArrayList<Cell> cells = Internal.extractDataPoints(row, 1);
@@ -275,7 +275,7 @@ public final class TestInternal {
     final byte[] qual123 = MockBase.concatByteArrays(qual1, qual2, qual3);
     final byte[] val123 = MockBase.concatByteArrays(val1, val2, val3, ZERO);
     
-    final ArrayList<KeyValue> row = new ArrayList<KeyValue>(1);
+    final ArrayList<KeyValue> row = new ArrayList<>(1);
     row.add(makekv(qual123, val123));
     
     Internal.extractDataPoints(row, 1);
