@@ -386,7 +386,6 @@ final class UniqueIdRpc implements HttpRpc {
                     .addCallbackDeferring(new SyncCB());
             final TSMeta updated_meta = process_meta.joinUninterruptibly();
             tsdb.getMetaClient().indexTSMeta(updated_meta);
-            tsdb.getMetaClient().processTSMetaThroughTrees(updated_meta);
             query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
           } else if (exists) {
             final Deferred<TSMeta> process_meta = tsdb.getMetaClient().syncToStorage(meta,

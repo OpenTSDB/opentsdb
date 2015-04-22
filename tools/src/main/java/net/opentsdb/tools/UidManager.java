@@ -84,11 +84,7 @@ final class UidManager {
         + "  [kind] <ID>: Lookup the name of this ID.\n"
         + "  metasync: Generates missing TSUID and UID meta entries, updates\n"
         + "            created timestamps\n"
-        + "  metapurge: Removes meta data entries from the UID table\n"
-        + "  treesync: Process all timeseries meta objects through tree rules\n"
-        + "  treepurge <id> [definition]: Purge a tree and/or the branches\n"
-        + "            from storage. Provide an integer Tree ID and optionally\n"
-        + "            add \"true\" to delete the tree definition\n\n"
+        + "  metapurge: Removes meta data entries from the UID table\n\n"
         + "Example values for [kind]:"
         + " metrics, tagk (tag name), tagv (tag value).");
     if (argp != null) {
@@ -186,41 +182,6 @@ final class UidManager {
       // so that update meta data can be pushed to search engines
       try {
         return metaPurge(tsdb);
-      } catch (Exception e) {
-        LOG.error("Unexpected exception", e);
-        return 3;
-      }      
-    } else if (args[0].equals("treesync")) {
-      // check for the UID table existence
-      try {
-        if (!tsdb.getConfig().getBoolean("tsd.core.tree.enable_processing")) {
-          LOG.warn("Tree processing is disabled");
-          return 0;
-        }
-        return treeSync(tsdb);
-      } catch (Exception e) {
-        LOG.error("Unexpected exception", e);
-        return 3;
-      }      
-    } else if (args[0].equals("treepurge")) {
-      if (nargs < 2) {
-        usage("Wrong number of arguments");
-        return 2;
-      }
-      try {
-        final int tree_id = Integer.parseInt(args[1]);
-        final boolean delete_definitions;
-        if (nargs < 3) {
-          delete_definitions = false;
-        } else {
-          final String delete_all = args[2];
-          if (delete_all.toLowerCase().equals("true")) {
-            delete_definitions = true;
-          } else {
-            delete_definitions = false;
-          }
-        }
-        return purgeTree(tsdb, tree_id, delete_definitions);
       } catch (Exception e) {
         LOG.error("Unexpected exception", e);
         return 3;
@@ -976,66 +937,4 @@ final class UidManager {
     LOG.info("Completed meta data synchronization in [{}] seconds", duration);
     return 0;
   }
-  
-  /**
-   * Runs through all TSMeta objects in the UID table and passes them through
-   * each of the Trees configured in the system.
-   * First, the method loads all trees in the system, compiles them into 
-   * TreeBuilders, then scans the UID table, passing each TSMeta through each
-   * of the TreeBuilder objects.
-   * @param tsdb The TSDB to use for access
-   * @return 0 if completed successfully, something else if an error occurred
-   */
-  private static int treeSync(final TSDB tsdb) throws Exception {
-    final long start_time = System.currentTimeMillis() / 1000;
-    final long max_id = CliUtils.getMaxMetricID(tsdb);
-    
- // now figure out how many IDs to divy up between the workers
-    final int workers = Runtime.getRuntime().availableProcessors() * 2;
-    final double quotient = (double)max_id / (double)workers;
-    
-    long index = 1;
-
-    LOG.info("Max metric ID is [{}]", max_id);
-    LOG.info("Spooling up [{}] worker threads", workers);
-    final Thread[] threads = new Thread[workers];
-    for (int i = 0; i < workers; i++) {
-      threads[i] = new TreeSync(tsdb, index, quotient, i);
-      threads[i].setName("TreeSync # " + i);
-      threads[i].start();
-      index += quotient;
-      if (index < max_id) {
-        index++;
-      }
-    }
-    
-    // wait till we're all done
-    for (int i = 0; i < workers; i++) {
-      threads[i].join();
-      LOG.info("[{}] Finished", i);
-    }
-    
-    // make sure buffered data is flushed to storage before exiting
-    tsdb.flush().joinUninterruptibly();
-    
-    final long duration = (System.currentTimeMillis() / 1000) - start_time;
-    LOG.info("Completed meta data synchronization in [{}] seconds", duration);
-    return 0;
-  }
-  
-  /**
-   * Attempts to delete the branches, leaves, collisions and not-matched entries
-   * for a given tree. Optionally removes the tree definition itself
-   * @param tsdb The TSDB to use for access
-   * @param tree_id ID of the tree to delete
-   * @param delete_definition Whether or not to delete the tree definition as
-   * well 
-   * @return 0 if completed successfully, something else if an error occurred
-   */
-  private static int purgeTree(final TSDB tsdb, final int tree_id, 
-      final boolean delete_definition) throws Exception {
-    final TreeSync sync = new TreeSync(tsdb, 0, 1, 0);
-    return sync.purgeTree(tree_id, delete_definition);
-  }
-
 }

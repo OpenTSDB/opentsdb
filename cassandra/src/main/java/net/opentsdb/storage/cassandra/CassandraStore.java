@@ -23,7 +23,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
@@ -33,10 +32,6 @@ import net.opentsdb.storage.cassandra.functions.FirstOrAbsentFunction;
 import net.opentsdb.storage.cassandra.functions.IsEmptyFunction;
 import net.opentsdb.storage.cassandra.statements.AddPointStatements;
 import net.opentsdb.time.JdkTimeProvider;
-import net.opentsdb.tree.Branch;
-import net.opentsdb.tree.Leaf;
-import net.opentsdb.tree.Tree;
-import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
@@ -604,91 +599,6 @@ public class CassandraStore implements TsdbStore {
   @Override
   public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
     throw new UnsupportedOperationException("Not implemented yet!");
-  }
-
-  @Override
-  public Deferred<Tree> fetchTree(int tree_id) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> storeTree(Tree tree, boolean overwrite) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Integer> createNewTree(Tree tree) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<List<Tree>> fetchAllTrees() {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> deleteTree(int tree_id, boolean delete_definition) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Map<String, String>> fetchCollisions(int tree_id, List<String> tsuids) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Map<String, String>> fetchNotMatched(int tree_id, List<String> tsuids) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> flushTreeCollisions(Tree tree) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> flushTreeNotMatched(Tree tree) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> storeLeaf(Leaf leaf, Branch branch, Tree tree) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<ArrayList<Boolean>> storeBranch(Tree tree, Branch branch, boolean store_leaves) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Branch> fetchBranchOnly(byte[] branch_id) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Branch> fetchBranch(byte[] branch_id, boolean load_leaf_uids, TSDB tsdb) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<TreeRule> fetchTreeRule(int tree_id, int level, int order) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Object> deleteTreeRule(int tree_id, int level, int order) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Object> deleteAllTreeRule(int tree_id) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> syncTreeRuleToStorage(TreeRule rule, boolean overwrite) {
-    throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override

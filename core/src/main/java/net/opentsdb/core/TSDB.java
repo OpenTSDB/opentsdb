@@ -48,8 +48,6 @@ public class TSDB {
   final byte[] table;
   /** Name of the table in which UID information is stored. */
   final byte[] uidtable;
-  /** Name of the table where tree data is stored. */
-  final byte[] treetable;
   /** Name of the table where meta data is stored. */
   final byte[] meta_table;
 
@@ -59,7 +57,6 @@ public class TSDB {
   private final UniqueIdClient uniqueIdClient;
   private final DataPointsClient dataPointsClient;
   private final MetaClient metaClient;
-  private final TreeClient treeClient;
 
   /**
    * The search plugin that this TSDB instance is configured to use.
@@ -85,7 +82,6 @@ public class TSDB {
               final SearchPlugin searchPlugin,
               final RTPublisher realTimePublisher,
               final UniqueIdClient uniqueIdClient,
-              final TreeClient treeClient,
               final MetaClient metaClient,
               final DataPointsClient dataPointsClient) {
     this.config = checkNotNull(config);
@@ -93,7 +89,6 @@ public class TSDB {
 
     table = toBytes(config.getString("tsd.storage.hbase.data_table"));
     uidtable = toBytes(config.getString("tsd.storage.hbase.uid_table"));
-    treetable = toBytes(config.getString("tsd.storage.hbase.tree_table"));
     meta_table = toBytes(config.getString("tsd.storage.hbase.meta_table"));
 
     if (config.hasPath("tsd.core.timezone")) {
@@ -104,7 +99,6 @@ public class TSDB {
     this.rt_publisher = checkNotNull(realTimePublisher);
 
     this.uniqueIdClient = checkNotNull(uniqueIdClient);
-    this.treeClient = checkNotNull(treeClient);
     this.metaClient = checkNotNull(metaClient);
     this.dataPointsClient = checkNotNull(dataPointsClient);
 
@@ -126,10 +120,6 @@ public class TSDB {
 
   public UniqueIdClient getUniqueIdClient() {
     return uniqueIdClient;
-  }
-
-  public TreeClient getTreeClient() {
-    return treeClient;
   }
   
   /** 
@@ -227,11 +217,6 @@ public class TSDB {
   /** @return the name of the data table as a byte array for TsdbStore requests */
   public byte[] dataTable() {
     return this.table;
-  }
-  
-  /** @return the name of the tree table as a byte array for TsdbStore requests */
-  public byte[] treeTable() {
-    return this.treetable;
   }
   
   /** @return the name of the meta table as a byte array for TsdbStore requests */

@@ -18,16 +18,11 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 
 import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.tree.Branch;
-import net.opentsdb.tree.Leaf;
-import net.opentsdb.tree.Tree;
-import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 
@@ -171,43 +166,6 @@ public interface TsdbStore {
   Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
 
   Deferred<List<TSMeta>> executeTimeseriesMetaQuery(ResolvedSearchQuery query);
-
-  //
-  // Trees
-  //
-  public Deferred<Integer> createNewTree(final Tree tree);
-
-  Deferred<Object> deleteAllTreeRule(final int tree_id);
-
-  Deferred<Boolean> deleteTree(final int tree_id, final boolean delete_definition);
-
-  Deferred<Object> deleteTreeRule(final int tree_id, final int level, final int order);
-
-  public Deferred<List<Tree>> fetchAllTrees();
-
-  Deferred<Branch> fetchBranch(final byte[] branch_id, final boolean load_leaf_uids, final TSDB tsdb);
-
-  Deferred<Branch> fetchBranchOnly(final byte[] branch_id);
-
-  Deferred<Map<String,String>> fetchCollisions(final int tree_id, final List<String> tsuids);
-
-  Deferred<Map<String,String>> fetchNotMatched(final int tree_id,final  List<String> tsuids);
-
-  Deferred<Tree> fetchTree(final int tree_id);
-
-  Deferred<TreeRule> fetchTreeRule(final int tree_id, final int level, final int order);
-
-  Deferred<Boolean> flushTreeCollisions(final Tree tree);
-
-  Deferred<Boolean> flushTreeNotMatched(final Tree tree);
-
-  Deferred<ArrayList<Boolean>> storeBranch(final Tree tree, final Branch branch, final boolean store_leaves);
-
-  Deferred<Boolean> storeLeaf(final Leaf leaf,final Branch branch,final Tree tree);
-
-  Deferred<Boolean> storeTree(final Tree tree, final boolean overwrite);
-
-  Deferred<Boolean> syncTreeRuleToStorage(final TreeRule rule, final boolean overwrite);
 
   //
   // Misc

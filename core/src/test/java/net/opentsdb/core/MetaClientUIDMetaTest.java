@@ -34,7 +34,6 @@ public class MetaClientUIDMetaTest {
   @Inject TsdbStore store;
 
   @Inject UniqueIdClient uniqueIdClient;
-  @Inject TreeClient treeClient;
   @Inject MetaClient metaClient;
 
   @Inject RTPublisher realtimePublisher;
@@ -64,7 +63,7 @@ public class MetaClientUIDMetaTest {
             ConfigValueFactory.fromAnyRef(true));
 
     store = mock(TsdbStore.class);
-    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
+    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, realtimePublisher);
     idEventBus.post(new IdCreatedEvent(new byte[]{0, 0, 1}, "test", UniqueIdType.METRIC));
     verify(store).add(any(UIDMeta.class));
     verify(searchPlugin).indexUIDMeta(any(UIDMeta.class));
@@ -73,7 +72,7 @@ public class MetaClientUIDMetaTest {
   @Test
   public void createdIdEventCreatesUIDMetaWhenDisabled() {
     store = mock(TsdbStore.class);
-    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, treeClient, realtimePublisher);
+    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, realtimePublisher);
     idEventBus.post(new IdCreatedEvent(new byte[] {0, 0, 1}, "test", UniqueIdType.METRIC));
     verify(store, never()).add(any(UIDMeta.class));
     verify(searchPlugin, never()).indexUIDMeta(any(UIDMeta.class));

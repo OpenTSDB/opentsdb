@@ -13,7 +13,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import javax.inject.Inject;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,9 +33,6 @@ public class TestCassandraStore {
   private static byte[] TAGK_UID_ONE;
   private static final String TAGV_NAME_ONE = "127.0.0.1";
   private static byte[] TAGV_UID_ONE;
-  private static byte[] TSUID_ONE;
-  private static byte[] TSUID_TWO;
-  private static byte[] TSUID_THREE;
 
   private CassandraStore store;
 
@@ -73,13 +69,6 @@ public class TestCassandraStore {
     TAGV_UID_ONE = store.allocateUID(TAGV_NAME_ONE, UniqueIdType.TAGV)
         .joinUninterruptibly();
 
-    TSUID_ONE = createTSUIDFromTreeUID(name_uid.get
-        (METRIC_NAME_ONE), TAGK_UID_ONE, TAGV_UID_ONE);
-    TSUID_TWO = createTSUIDFromTreeUID(name_uid.get
-        (METRIC_NAME_TWO), TAGK_UID_ONE, TAGV_UID_ONE);
-    TSUID_THREE = createTSUIDFromTreeUID(name_uid.get
-        (METRIC_NAME_THREE), TAGK_UID_ONE, TAGV_UID_ONE);
-
 
     /*
     store.addPoint(TSUID_ONE, new byte[]{'d', '1'}, 1356998400, (short) 'a');
@@ -93,16 +82,6 @@ public class TestCassandraStore {
   @After
   public void tearDown() throws Exception {
     CassandraTestHelpers.truncate(store.getSession());
-  }
-
-  private byte[] createTSUIDFromTreeUID(final byte[] metric, final byte[]
-          tagk, final byte[] tagv) throws IOException {
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-    outputStream.write(metric);
-    outputStream.write(tagk);
-    outputStream.write(tagv);
-    return outputStream.toByteArray();
   }
 
   @Test

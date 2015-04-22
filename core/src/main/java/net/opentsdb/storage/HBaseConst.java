@@ -32,26 +32,4 @@ public class HBaseConst {
      */
     public static final byte[] META_QUALIFIER = "ts_meta".getBytes(CHARSET);
   }
-
-  public static class Tree {
-    /**
-     * Name of the CF where trees and branches are stored
-     */
-    public static final byte[] TREE_FAMILY = "t".getBytes(CHARSET);
-
-    /**
-     * Byte prefix for collision columns
-     */
-    public static byte[] COLLISION_PREFIX = "tree_collision:".getBytes(CHARSET);
-
-    /**
-     * Byte prefix for not matched columns
-     */
-    public static byte[] NOT_MATCHED_PREFIX = "tree_not_matched:".getBytes(CHARSET);
-  }
-
-  public static class Leaf {
-    /** ASCII Leaf prefix */
-    public static final byte[] LEAF_PREFIX = "leaf:".getBytes(CHARSET);
-  }
 }

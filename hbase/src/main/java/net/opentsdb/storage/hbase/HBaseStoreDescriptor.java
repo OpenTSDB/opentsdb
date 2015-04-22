@@ -61,7 +61,6 @@ public class HBaseStoreDescriptor extends StoreDescriptor {
 
   private void checkNecessaryTablesExist(final HBaseClient client,
                                          final Config config) {
-    final boolean enable_tree_processing = config.getBoolean("tsd.core.tree.enable_processing");
     final boolean enable_realtime_ts = config.getBoolean("tsd.core.meta.enable_realtime_ts");
     final boolean enable_realtime_uid = config.getBoolean("tsd.core.meta.enable_realtime_uid");
     final boolean enable_tsuid_incrementing = config.getBoolean("tsd.core.meta.enable_tsuid_incrementing");
@@ -72,10 +71,6 @@ public class HBaseStoreDescriptor extends StoreDescriptor {
     d = checkTableExists(client,
             config.getString("tsd.storage.hbase.uid_table"), d);
 
-    if (enable_tree_processing) {
-      d = checkTableExists(client,
-              config.getString("tsd.storage.hbase.tree_table"), d);
-    }
     if (enable_realtime_ts ||
         enable_realtime_uid ||
         enable_tsuid_incrementing) {

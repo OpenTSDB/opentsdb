@@ -10,7 +10,6 @@ test -d "$HBASE_HOME" || {
   exit 1
 }
 
-TREE_TABLE=${TREE_TABLE-'tsdb-tree'}
 META_TABLE=${META_TABLE-'tsdb-meta'}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
@@ -31,9 +30,6 @@ esac
 hbh=$HBASE_HOME
 unset HBASE_HOME
 exec "$hbh/bin/hbase" shell <<EOF
-create '$TREE_TABLE',
-  {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
-  
 create '$META_TABLE',
   {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
 EOF

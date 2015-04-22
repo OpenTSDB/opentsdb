@@ -23,23 +23,16 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.tree.Branch;
-import net.opentsdb.tree.Leaf;
-import net.opentsdb.tree.Tree;
-import net.opentsdb.tree.TreeRule;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.TimeseriesId;
-import net.opentsdb.utils.Pair;
 
 import javax.xml.bind.DatatypeConverter;
 import java.nio.charset.Charset;
@@ -47,8 +40,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -58,7 +49,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.opentsdb.uid.UniqueIdType;
 import org.hbase.async.Bytes;
 
-import static com.google.common.collect.Maps.newHashMap;
 import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.uid.IdUtils.uidToString;
 
@@ -89,13 +79,6 @@ public class MemoryStore implements TsdbStore {
   private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
     storage = new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>();
 
-  private int TREE_MAX_ID = 1;
-
-  private final Map<Integer, Tree> tree_table;
-                    //ID       display_name
-  private final Table<Integer, String, Branch> branch_table;
-                   //branch ID  tsuid
-  private final Table<Pair<Integer, String>, String, Leaf> leaf_table;
   private final Table<Long, String, UIDMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
@@ -114,9 +97,6 @@ public class MemoryStore implements TsdbStore {
   private long current_timestamp = 1388534400000L;
 
   public MemoryStore() {
-    tree_table = newHashMap();
-    branch_table = HashBasedTable.create();
-    leaf_table = HashBasedTable.create();
     uid_table = HashBasedTable.create();
     annotation_table = HashBasedTable.create();
     uid_forward_mapping = HashBasedTable.create();
@@ -513,10 +493,6 @@ public class MemoryStore implements TsdbStore {
     storage.clear();
   }
 
-  public void purgeBranches() {
-    branch_table.clear();
-  }
-
   /**
    * Removes the entire row from the hash table
    * @param key The row to remove
@@ -690,236 +666,6 @@ public class MemoryStore implements TsdbStore {
     }
     return Deferred.fromResult(del_list.size());
 
-  }
-
-  @Override
-  public Deferred<Tree> fetchTree(int tree_id) {
-    return Deferred.fromResult(tree_table.get(tree_id));
-  }
-
-  @Override
-  public Deferred<Boolean> storeTree(Tree tree, boolean overwrite) {
-    // The overwrite matters only for the HBaseStore implementation.
-    // Therefore in this case this value should not matter or be tested.
-    // It can happen in-flight for a live instance
-    // (Should be tested in the HBaseStore test class)
-
-    Tree stored_tree = tree_table.get(tree.getTreeId());
-
-    if (stored_tree == null) {
-      stored_tree = tree;
-    } else {
-      stored_tree.copyChanges(tree, overwrite);
-    }
-    Tree res = tree_table.put(stored_tree.getTreeId(), stored_tree);
-    // In the real implementation it does a compare and set.
-    // So since this is a serial implementation right now no other process
-    // should have accessed and it should always return true.
-    return Deferred.fromResult(true);
-  }
-
-  @Override
-  public Deferred<Integer> createNewTree(Tree tree) {
-    tree.setTreeId(TREE_MAX_ID++);
-    if (tree.getTreeId() > Const.MAX_TREE_ID_INCLUSIVE) {
-      throw new IllegalStateException("Exhausted all Tree IDs");
-    }
-    tree_table.put(tree.getTreeId(), tree);
-    return Deferred.fromResult(tree.getTreeId());
-  }
-
-  @Override
-  public Deferred<List<Tree>> fetchAllTrees() {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> deleteTree(int tree_id, boolean delete_definition) {
-    Tree res = tree_table.remove(tree_id);
-    if (res == null)
-      return Deferred.fromResult(false);
-    return Deferred.fromResult(true);
-  }
-
-  @Override
-  public Deferred<Map<String, String>> fetchCollisions(int tree_id, List<String> tsuids) {
-    /*
-    * This method in lack of something better will return an empty map.
-    * Later this must be solved.
-    */
-    final Map<String, String> returnValue = new HashMap<String, String>();
-    return Deferred.fromResult(returnValue);
-  }
-
-  @Override
-  public Deferred<Map<String, String>> fetchNotMatched(int tree_id, List<String> tsuids) {
-    final Map<String, String> returnValue = new HashMap<String, String>();
-    return Deferred.fromResult(returnValue);
-  }
-
-  @Override
-  public Deferred<Boolean> flushTreeCollisions(Tree tree) {
-    /*
-     * Return a meaningless deferred but should always be true.
-     */
-    storeTree(tree, true);
-    return Deferred.fromResult(true);
-  }
-
-  @Override
-  public Deferred<Boolean> flushTreeNotMatched(Tree tree) {
-    storeTree(tree, true);
-    return Deferred.fromResult(true); //A meaningless deferred
-  }
-
-  public Collection<Leaf> getLeaf(Pair<Integer, String> key) {
-    return leaf_table.row(key).values();
-  }
-
-  @Override
-  public Deferred<Boolean> storeLeaf(final Leaf leaf, final Branch branch,
-                                     final Tree tree) {
-
-
-      //tsuid   object
-    final Iterator<Map.Entry<String, Leaf>> iterator = leaf_table.row(
-            new Pair<Integer, String>(branch.getTreeId(),
-                    branch.getDisplayName())).entrySet().iterator();
-
-    Leaf existing_leaf = null;
-    boolean found = false;
-
-    while(iterator.hasNext()) {
-      Map.Entry<String, Leaf> entry = iterator.next();
-      //found the leaf matching our display name
-      if (entry.getValue().getDisplayName().equals(leaf.getDisplayName())) {
-        existing_leaf = entry.getValue();
-        found = true;
-        break;
-      }
-    }
-    if(!found) {
-      leaf_table.put(
-              new Pair<Integer, String>(
-              branch.getTreeId(),branch.getDisplayName()),
-              leaf.getTsuid(), leaf);
-      return Deferred.fromResult(true);
-    }
-    if (existing_leaf == null) {
-      // this should never happen in this implementation
-      // stored data may be corrupt
-      // the likelyhood of getting corrupt data is very low.
-      return Deferred.fromResult(false);
-    }
-    if (existing_leaf.getTsuid().equals(leaf.getTsuid())) {
-      return Deferred.fromResult(true);
-    }
-    tree.addCollision(leaf.getTsuid(), existing_leaf.getTsuid());
-    return Deferred.fromResult(false);
-  }
-
-  @Override
-  public Deferred<ArrayList<Boolean>> storeBranch(final Tree tree,
-                                                  final Branch branch,
-                                                  final boolean store_leaves) {
-
-    final ArrayList<Deferred<Boolean>> storage_results =
-            new ArrayList<Deferred<Boolean>>(branch.getLeaves() != null
-                    ? branch.getLeaves().size() + 1 : 1);
-    if (branch_table.contains(branch.getTreeId(), branch.getDisplayName())) {
-      storage_results.add(Deferred.fromResult(false));
-    } else {
-      branch_table.put(branch.getTreeId(), branch.getDisplayName(), branch);
-      storage_results.add(Deferred.fromResult(true));
-    }
-    if (store_leaves && branch.getLeaves()!= null) {
-      for (final Leaf leaf : branch.getLeaves()) {
-        storage_results.add(storeLeaf(leaf, branch, tree));
-      }
-    }
-    return Deferred.group(storage_results);
-  }
-
-  @Override
-  public Deferred<Branch> fetchBranchOnly(byte[] branch_id) {
-    final int ID = Tree.bytesToId(branch_id);
-
-    Map<String, Branch> branches =  branch_table.row(ID);
-    Branch branch = new Branch();
-    boolean found = false;
-    for (Map.Entry<String, Branch> branch_entry : branches.entrySet()) {
-      Branch temp = branch_entry.getValue();
-
-      if (Arrays.equals(temp.compileBranchId(), branch_id)) {
-        found = true;
-        branch.setPath(temp.getPath());
-        branch.setDisplayName(temp.getDisplayName());
-        branch.setTreeId(ID);
-        break;
-      }
-    }
-    if (found)
-      return Deferred.fromResult(branch);
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Branch> fetchBranch(final byte[] branch_id,
-                                      final boolean load_leaf_uids,
-                                      final TSDB tsdb) {
-
-    final int ID = Tree.bytesToId(branch_id);
-
-    Map<String, Branch> branches =  branch_table.row(ID);
-    Branch branch = new Branch();
-    boolean found = false;
-
-    for (Map.Entry<String, Branch> branch_entry : branches.entrySet()) {
-      Branch temp = branch_entry.getValue();
-
-      if (Arrays.equals(temp.compileBranchId(), branch_id)) {
-        found = true;
-        branch.setPath(temp.getPath());
-        branch.setDisplayName(temp.getDisplayName());
-        branch.setTreeId(ID);
-      } else {
-        branch.addChild(branch_entry.getValue());
-      }
-    }
-    if (found) {
-      Pair<Integer, String> key =
-              new Pair<Integer, String>(ID, branch.getDisplayName());
-      for (Leaf leaf : leaf_table.row(key).values()) {
-        if (!load_leaf_uids) //if the tsuid should not be loaded we remove them
-          leaf.setTsuid("");
-        branch.addLeaf(leaf);
-      }
-      return Deferred.fromResult(branch);
-    }
-
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<TreeRule> fetchTreeRule(int tree_id, int level, int order) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> deleteTreeRule(int tree_id, int level, int order) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> deleteAllTreeRule(int tree_id) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Boolean> syncTreeRuleToStorage(TreeRule rule, boolean overwrite) {
-    // Return true if the CAS call succeeded, false if the stored data was
-    // modified in flight.
-    return Deferred.fromResult(true);
   }
 
   @Override

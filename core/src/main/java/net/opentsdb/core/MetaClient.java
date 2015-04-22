@@ -15,7 +15,6 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.uid.IdCreatedEvent;
 import net.opentsdb.uid.IdUtils;
 
@@ -44,7 +43,6 @@ public class MetaClient {
   private final TsdbStore store;
   private final UniqueIdClient uniqueIdClient;
   private final SearchPlugin searchPlugin;
-  private final TreeClient treeClient;
   private final RTPublisher realtimePublisher;
 
   @Inject
@@ -52,11 +50,10 @@ public class MetaClient {
                     final EventBus idEventBus,
                     final SearchPlugin searchPlugin,
                     final Config config,
-                    final UniqueIdClient uniqueIdClient, final TreeClient treeClient, final RTPublisher realtimePublisher) {
+                    final UniqueIdClient uniqueIdClient, final RTPublisher realtimePublisher) {
     this.config = checkNotNull(config);
     this.store = checkNotNull(store);
     this.uniqueIdClient = checkNotNull(uniqueIdClient);
-    this.treeClient = checkNotNull(treeClient);
     this.searchPlugin = checkNotNull(searchPlugin);
     this.realtimePublisher = checkNotNull(realtimePublisher);
 
@@ -384,20 +381,6 @@ public class MetaClient {
                 System.currentTimeMillis() / 1000);
 
         /**
-         * Called after the meta has been passed through tree processing. The
-         * result of the processing doesn't matter and the user may not even
-         * have it enabled, so we'll just return the counter.
-         */
-        final class TreeCB implements Callback<Deferred<Long>, Boolean> {
-
-          @Override
-          public Deferred<Long> call(Boolean success) throws Exception {
-            return Deferred.fromResult(incremented_value);
-          }
-
-        }
-
-        /**
          * Called after retrieving the newly stored TSMeta and loading
          * associated UIDMeta objects. This class will also pass the meta to the
          * search plugin and run it through any configured trees
@@ -410,9 +393,7 @@ public class MetaClient {
             // pass to the search plugin
             indexTSMeta(stored_meta);
 
-            // pass through the trees
-            return processTSMetaThroughTrees(stored_meta)
-                    .addCallbackDeferring(new TreeCB());
+            return Deferred.fromResult(incremented_value);
           }
 
         }
@@ -515,18 +496,6 @@ public class MetaClient {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  /**
-   * Processes the TSMeta through all of the trees if configured to do so
-   * @param meta The meta data to process
-   * @since 2.0
-   */
-  public Deferred<Boolean> processTSMetaThroughTrees(final TSMeta meta) {
-    if (config.getBoolean("tsd.core.tree.enable_processing")) {
-      return TreeBuilder.processAllTrees(treeClient, store, meta);
-    }
-    return Deferred.fromResult(false);
   }
 
   /**

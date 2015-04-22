@@ -17,9 +17,4 @@ public class HBaseConstTest {
   public void COUNTER_QUALIFIER() throws Exception {
     assertArrayEquals(toBytes("ts_ctr"), HBaseConst.TSMeta.COUNTER_QUALIFIER);
   }
-
-  @Test
-  public void LEAF_PREFIX() throws Exception {
-    assertEquals("leaf:", fromBytes(HBaseConst.Leaf.LEAF_PREFIX));
-  }
 }

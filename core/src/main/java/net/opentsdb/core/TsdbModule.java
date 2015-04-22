@@ -26,7 +26,6 @@ import java.io.File;
             Config.class,
             TSDB.class,
             UniqueIdClient.class,
-            TreeClient.class,
             MetaClient.class,
             DataPointsClient.class
         })

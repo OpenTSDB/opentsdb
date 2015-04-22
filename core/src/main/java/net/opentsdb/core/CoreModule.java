@@ -14,7 +14,6 @@ import javax.inject.Singleton;
             Config.class,
             TSDB.class,
             UniqueIdClient.class,
-            TreeClient.class,
             MetaClient.class,
             DataPointsClient.class
         })
