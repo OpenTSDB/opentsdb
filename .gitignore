@@ -8,28 +8,8 @@
 /config/logback.xml
 /config/opentsdb.conf
 
-#for Intellij
-\.idea
-*.iml
-
-#for guava rpm maker
-guava-rpm-maker/\.project
-
-# for mac finder
-.DS_Store
-
-# for eclipse
-.pydevproject
-.metadata
-.project
-.classpath
-.settings
-
+# Gradle
 .gradle
 build/
-
-# Ignore Gradle GUI config
-gradle-app.setting
-
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
