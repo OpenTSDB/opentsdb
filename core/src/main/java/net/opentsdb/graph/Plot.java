@@ -205,8 +205,7 @@ public final class Plot {
     final String[] datafiles = nseries > 0 ? new String[nseries] : null;
     for (int i = 0; i < nseries; i++) {
       datafiles[i] = basepath + "_" + i + ".dat";
-      final PrintWriter datafile = new PrintWriter(datafiles[i]);
-      try {
+      try (PrintWriter datafile = new PrintWriter(datafiles[i])) {
         for (final DataPoint d : datapoints.get(i)) {
           final long ts = d.timestamp() / 1000;
           if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
@@ -226,8 +225,6 @@ public final class Plot {
           }
           datafile.print('\n');
         }
-      } finally {
-        datafile.close();
       }
     }
 
@@ -253,8 +250,7 @@ public final class Plot {
   private void writeGnuplotScript(final String basepath,
                                   final String[] datafiles) throws IOException {
     final String script_path = basepath + ".gnuplot";
-    final PrintWriter gp = new PrintWriter(script_path);
-    try {
+    try (PrintWriter gp = new PrintWriter(script_path)) {
       // XXX don't hardcode all those settings.  At least not like that.
       gp.append("set term png small size ")
         // Why the fuck didn't they also add methods for numbers?
@@ -326,7 +322,7 @@ public final class Plot {
           break;
         }
       }
-      
+
       // compile annotations to determine if we have any to graph
       final List<Annotation> notes = new ArrayList<Annotation>();
       for (final DataPoints dp : datapoints) {
@@ -382,7 +378,6 @@ public final class Plot {
     } catch (Exception e) {
       Throwables.propagate(e);
     } finally {
-      gp.close();
       LOG.info("Wrote Gnuplot script to {}", script_path);
     }
   }

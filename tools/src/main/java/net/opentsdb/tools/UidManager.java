@@ -138,68 +138,69 @@ final class UidManager {
                                 final boolean ignorecase,
                                 final String[] args) {
     final int nargs = args.length;
-    if (args[0].equals("grep")) {
-      if (2 <= nargs && nargs <= 3) {
-        try {
-          return grep(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, ignorecase, args);
-        } catch (HBaseException e) {
-          return 3;
+    switch (args[0]) {
+      case "grep":
+        if (2 <= nargs && nargs <= 3) {
+          try {
+            return grep(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, ignorecase, args);
+          } catch (HBaseException e) {
+            return 3;
+          }
+        } else {
+          usage("Wrong number of arguments");
+          return 2;
         }
-      } else {
-        usage("Wrong number of arguments");
-        return 2;
-      }
-    } else if (args[0].equals("rename")) {
-      if (nargs != 4) {
-        usage("Wrong number of arguments");
-        return 2;
-      }
-      return rename(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, args);
-    } else if (args[0].equals("fsck")) {
-      boolean fix = false;
-      boolean fix_unknowns = false;
-      if (args.length > 1) {
-        for (String arg : args) {
-          if (arg.equals("fix")) {
-            fix = true;
-          } else if (arg.equals("delete_unknown")) {
-            fix_unknowns = true;
+      case "rename":
+        if (nargs != 4) {
+          usage("Wrong number of arguments");
+          return 2;
+        }
+        return rename(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, args);
+      case "fsck":
+        boolean fix = false;
+        boolean fix_unknowns = false;
+        if (args.length > 1) {
+          for (String arg : args) {
+            if (arg.equals("fix")) {
+              fix = true;
+            } else if (arg.equals("delete_unknown")) {
+              fix_unknowns = true;
+            }
           }
         }
-      }
-      return fsck(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, fix, fix_unknowns);
-    } else if (args[0].equals("metasync")) {
-      // check for the data table existence and initialize our plugins 
-      // so that update meta data can be pushed to search engines
-      try {
-        return metaSync(tsdb);
-      } catch (Exception e) {
-        LOG.error("Unexpected exception", e);
-        return 3;
-      }      
-    } else if (args[0].equals("metapurge")) {
-      // check for the data table existence and initialize our plugins 
-      // so that update meta data can be pushed to search engines
-      try {
-        return metaPurge(tsdb);
-      } catch (Exception e) {
-        LOG.error("Unexpected exception", e);
-        return 3;
-      }      
-    } else {
-      if (1 <= nargs && nargs <= 2) {
-        final String kind = nargs == 2 ? args[0] : null;
+        return fsck(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, fix, fix_unknowns);
+      case "metasync":
+        // check for the data table existence and initialize our plugins
+        // so that update meta data can be pushed to search engines
         try {
-          final long id = Long.parseLong(args[nargs - 1]);
-          return lookupId(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, id, kind);
-        } catch (NumberFormatException e) {
-          return lookupName(CliUtils.HBaseStore(tsdb.getTsdbStore()), table,
-                  args[nargs - 1], kind);
+          return metaSync(tsdb);
+        } catch (Exception e) {
+          LOG.error("Unexpected exception", e);
+          return 3;
         }
-      } else {
-        usage("Wrong number of arguments");
-        return 2;
-      }
+      case "metapurge":
+        // check for the data table existence and initialize our plugins
+        // so that update meta data can be pushed to search engines
+        try {
+          return metaPurge(tsdb);
+        } catch (Exception e) {
+          LOG.error("Unexpected exception", e);
+          return 3;
+        }
+      default:
+        if (1 <= nargs && nargs <= 2) {
+          final String kind = nargs == 2 ? args[0] : null;
+          try {
+            final long id = Long.parseLong(args[nargs - 1]);
+            return lookupId(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, id, kind);
+          } catch (NumberFormatException e) {
+            return lookupName(CliUtils.HBaseStore(tsdb.getTsdbStore()), table,
+                args[nargs - 1], kind);
+          }
+        } else {
+          usage("Wrong number of arguments");
+          return 2;
+        }
     }
   }
 

@@ -102,9 +102,7 @@ public final class JSON {
     
     try {
       return jsonMapper.readValue(json, pojo);
-    } catch (JsonParseException e) {
-      throw new IllegalArgumentException(e);
-    } catch (JsonMappingException e) {
+    } catch (JsonParseException | JsonMappingException e) {
       throw new IllegalArgumentException(e);
     } catch (IOException e) {
       throw new JSONException(e);
@@ -130,9 +128,7 @@ public final class JSON {
       throw new IllegalArgumentException("Missing class type");
     try {
       return jsonMapper.readValue(json, pojo);
-    } catch (JsonParseException e) {
-      throw new IllegalArgumentException(e);
-    } catch (JsonMappingException e) {
+    } catch (JsonParseException | JsonMappingException e) {
       throw new IllegalArgumentException(e);
     } catch (IOException e) {
       throw new JSONException(e);
@@ -157,9 +153,7 @@ public final class JSON {
       throw new IllegalArgumentException("Missing type reference");
     try {
       return (T)jsonMapper.readValue(json, type);
-    } catch (JsonParseException e) {
-      throw new IllegalArgumentException(e);
-    } catch (JsonMappingException e) {
+    } catch (JsonParseException | JsonMappingException e) {
       throw new IllegalArgumentException(e);
     } catch (IOException e) {
       throw new JSONException(e);
@@ -184,9 +178,7 @@ public final class JSON {
       throw new IllegalArgumentException("Missing type reference");
     try {
       return (T)jsonMapper.readValue(json, type);
-    } catch (JsonParseException e) {
-      throw new IllegalArgumentException(e);
-    } catch (JsonMappingException e) {
+    } catch (JsonParseException | JsonMappingException e) {
       throw new IllegalArgumentException(e);
     } catch (IOException e) {
       throw new JSONException(e);

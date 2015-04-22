@@ -110,17 +110,11 @@ public final class Assign {
 
       Deferred.group(assignments).joinUninterruptibly();
       store.shutdown().joinUninterruptibly();
-    } catch (IllegalArgumentException e) {
+    } catch (IllegalArgumentException | OptionException e) {
       printError(e.getMessage());
       System.exit(42);
-    } catch (InvalidConfigException e) {
+    } catch (InvalidConfigException | ConfigException e) {
       System.err.println(e.getMessage());
-      System.exit(42);
-    } catch (ConfigException e) {
-      System.err.println(e.getMessage());
-      System.exit(42);
-    } catch (OptionException e) {
-      printError(e.getMessage());
       System.exit(42);
     } catch (Exception e) {
       LOG.error("Fatal error while assigning id", e);
