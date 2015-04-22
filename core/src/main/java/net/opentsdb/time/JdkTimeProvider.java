@@ -7,10 +7,12 @@ import java.util.Date;
  * time.
  */
 public class JdkTimeProvider implements TimeProvider {
+  @Override
   public Date now() {
     return new Date();
   }
 
+  @Override
   public long currentTimeMillis() {
     return System.currentTimeMillis();
   }

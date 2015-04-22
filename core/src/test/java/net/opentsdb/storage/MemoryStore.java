@@ -118,18 +118,21 @@ public class MemoryStore implements TsdbStore {
   public void setFlushInterval(short aShort) {
   }
 
+  @Override
   public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final float value) {
     return addPoint(tsuid, value, timestamp);
   }
 
+  @Override
   public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final double value) {
     return addPoint(tsuid, value, timestamp);
   }
 
+  @Override
   public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final long value) {
