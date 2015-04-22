@@ -13,13 +13,14 @@
 package net.opentsdb.tsd;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Throwables;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.storage.hbase.RowKey;
+import net.opentsdb.core.Const;
 import net.opentsdb.uid.IdUtils;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -179,7 +180,7 @@ final class SearchRpc implements HttpRpc {
         try {
           series.put("tsuid", IdUtils.uidToString(tsuid));
 
-          byte[] metric_id = RowKey.metric(tsuid);
+          byte[] metric_id = metric(tsuid);
           Deferred<String> metric = new UidFormatter(tsdb).formatMetric(metric_id);
           series.put("metric", metric.joinUninterruptibly());
           tag_ids = IdUtils.getTagPairsFromTSUID(tsuid);
@@ -202,5 +203,11 @@ final class SearchRpc implements HttpRpc {
     } catch (Exception e) {
       Throwables.propagate(e);
     }
+  }
+
+  /** Extracts the metric id from a row key */
+  @Deprecated
+  public static byte[] metric(final byte[] row) {
+    return Arrays.copyOfRange(row, 0, Const.METRICS_WIDTH);
   }
 }

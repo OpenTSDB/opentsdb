@@ -34,7 +34,6 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
-import net.opentsdb.storage.hbase.RowKey;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueIdType;
@@ -59,8 +58,8 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import com.stumbleupon.async.Deferred;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, HttpQuery.class, UniqueId.class, 
-  RowKey.class, Tags.class, SearchRpc.class})
+@PrepareForTest({TSDB.class, Config.class, HttpQuery.class, UniqueId.class,
+    Tags.class, SearchRpc.class})
 public final class TestSearchRpc {
   private TSDB tsdb = null;
   private SearchRpc rpc = new SearchRpc();
