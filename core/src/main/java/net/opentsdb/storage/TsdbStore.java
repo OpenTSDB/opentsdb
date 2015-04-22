@@ -147,21 +147,13 @@ public interface TsdbStore {
   //
   // TSMeta
   //
-  Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid);
-
   Deferred<Boolean> TSMetaExists(final String tsuid);
 
   Deferred<Boolean> create(final TSMeta tsMeta);
 
   Deferred<Object> delete(final TSMeta tsMeta);
 
-  Deferred<Object> deleteTimeseriesCounter(final TSMeta ts);
-
   Deferred<TSMeta> getTSMeta(final byte[] tsuid);
-
-  Deferred<Long> incrementAndGetCounter(final byte[] tsuid);
-
-  Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number);
 
   Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
 

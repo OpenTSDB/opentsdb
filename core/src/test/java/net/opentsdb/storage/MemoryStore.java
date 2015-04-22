@@ -663,11 +663,6 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
-    return null;
-  }
-
-  @Override
   public Deferred<Boolean> create(TSMeta tsMeta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
@@ -689,22 +684,6 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> TSMetaExists(String tsuid) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> TSMetaCounterExists(byte[] tsuid) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Long> incrementAndGetCounter(byte[] tsuid) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long
-          number) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

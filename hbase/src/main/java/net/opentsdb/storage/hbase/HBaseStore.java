@@ -1085,13 +1085,6 @@ public class HBaseStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
-    final DeleteRequest delete = new DeleteRequest(meta_table_name,
-            IdUtils.stringToUid(ts.getTSUID()), TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER);
-    return client.delete(delete);
-  }
-
-  @Override
   public Deferred<Boolean> create(final TSMeta tsMeta) {
     try {
       final PutRequest put = new PutRequest(meta_table_name,
@@ -1258,36 +1251,4 @@ public class HBaseStore implements TsdbStore {
     }
     return client.get(get).addCallback(new ExistsCB());
   }
-
-  @Override
-  public Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid) {
-    /**
-     * Callback from the GetRequest that simply determines if the row is empty
-     * or not
-     */
-    final class ExistsCB implements Callback<Boolean, ArrayList<KeyValue>> {
-      @Override
-      public Boolean call(ArrayList<KeyValue> row) throws Exception {
-        return !(row == null || row.isEmpty() || row.get(0).value() == null);
-      }
-    }
-    final GetRequest get = new GetRequest(meta_table_name, tsuid)
-            .family(TSMETA_FAMILY).qualifier(TSMETA_COUNTER_QUALIFIER);
-    return client.get(get).addCallback(new ExistsCB());
-  }
-
-  @Override
-  public Deferred<Long> incrementAndGetCounter(final byte[] tsuid) {
-    final AtomicIncrementRequest inc = new AtomicIncrementRequest(
-            meta_table_name, tsuid, TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER);
-    return client.bufferAtomicIncrement(inc);
-  }
-
-  @Override
-  public Deferred<Object> setTSMetaCounter(final byte[] tsuid, final long number) {
-      final PutRequest tracking = new PutRequest(meta_table_name, tsuid,
-              TSMETA_FAMILY, TSMETA_COUNTER_QUALIFIER, Bytes.fromLong(number));
-      return client.put(tracking);
- }
-
 }

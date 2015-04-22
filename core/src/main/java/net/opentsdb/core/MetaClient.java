@@ -65,19 +65,6 @@ public class MetaClient {
   }
 
   /**
-   * Determines if the counter column exists for the TSUID.
-   * This is used by the UID Manager tool to determine if we need to write a
-   * new TSUID entry or not. It will not attempt to verify if the stored data is
-   * valid, just checks to see if something is stored in the proper column.
-   * @param tsuid The UID of the meta to verify
-   * @return True if data was found, false if not
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
-   */
-  public Deferred<Boolean> TSMetaCounterExists(final byte[] tsuid) {
-    return store.TSMetaCounterExists(tsuid);
-  }
-
-  /**
    * Determines if an entry exists in storage or not.
    * This is used by the UID Manager tool to determine if we need to write a
    * new TSUID entry or not. It will not attempt to verify if the stored data is
@@ -127,16 +114,6 @@ public class MetaClient {
   }
 
   /**
-   * Create the counter for a timeseries meta object.
-   * @param ts The Timeseries meta object to create the counter for
-   * @return A deferred that indicates the completion of the request
-   */
-  public Deferred<Object> createTimeseriesCounter(final TSMeta ts) {
-    ts.checkTSUI();
-    return store.setTSMetaCounter(IdUtils.stringToUid(ts.getTSUID()), 0);
-  }
-
-  /**
    * Attempts to delete the meta object from storage
    * @param tsMeta The TSMeta to be removed.
    * @return A deferred without meaning. The response may be null and should
@@ -176,11 +153,6 @@ public class MetaClient {
    */
   public void deleteTSMeta(final String tsuid) {
     searchPlugin.deleteTSMeta(tsuid).addErrback(new PluginError(searchPlugin));
-  }
-
-  public Deferred<Object> deleteTimeseriesCounter(final TSMeta ts) {
-    ts.checkTSUI();
-    return store.deleteTimeseriesCounter(ts);
   }
 
   /**
@@ -335,103 +307,6 @@ public class MetaClient {
 
     // verify that the UID is still in the map before fetching from storage
     return uniqueIdClient.getUidName(type, uid).addCallbackDeferring(new NameCB());
-  }
-
-  /**
-   * Increments the tsuid datapoint counter or creates a new counter. Also
-   * creates a new meta data entry if the counter did not exist.
-   * <b>Note:</b> This method also:
-   * <ul><li>Passes the new TSMeta object to the Search plugin after loading
-   * UIDMeta objects</li>
-   * <li>Passes the new TSMeta through all configured trees if enabled</li></ul>
-   * @param tsuid The TSUID to increment or create
-   * @return 0 if the put failed, a positive LONG if the put was successful
-   * @throws org.hbase.async.HBaseException if there was a storage issue
-   * @throws net.opentsdb.utils.JSONException if the data was corrupted
-   */
-  public Deferred<Long> incrementAndGetCounter(final byte[] tsuid) {
-
-    /**
-     * Callback that will create a new TSMeta if the increment result is 1 or
-     * will simply return the new value.
-     */
-    final class TSMetaCB implements Callback<Deferred<Long>, Long> {
-
-      /**
-       * Called after incrementing the counter and will create a new TSMeta if
-       * the returned value was 1 as well as pass the new meta through trees
-       * and the search indexer if configured.
-       * @return 0 if the put failed, a positive LONG if the put was successful
-       */
-      @Override
-      public Deferred<Long> call(final Long incremented_value)
-              throws Exception {
-
-        if (incremented_value > 1) {
-          // TODO - maybe update the search index every X number of increments?
-          // Otherwise the search engine would only get last_updated/count
-          // whenever the user runs the full sync CLI
-          return Deferred.fromResult(incremented_value);
-        }
-
-        // create a new meta object with the current system timestamp. Ideally
-        // we would want the data point's timestamp, but that's much more data
-        // to keep track of and may not be accurate.
-        final TSMeta meta = new TSMeta(tsuid,
-                System.currentTimeMillis() / 1000);
-
-        /**
-         * Called after retrieving the newly stored TSMeta and loading
-         * associated UIDMeta objects. This class will also pass the meta to the
-         * search plugin and run it through any configured trees
-         */
-        final class FetchNewCB implements Callback<Deferred<Long>, TSMeta> {
-
-          @Override
-          public Deferred<Long> call(TSMeta stored_meta) throws Exception {
-
-            // pass to the search plugin
-            indexTSMeta(stored_meta);
-
-            return Deferred.fromResult(incremented_value);
-          }
-
-        }
-
-        /**
-         * Called after the CAS to store the new TSMeta object. If the CAS
-         * failed then we return immediately with a 0 for the counter value.
-         * Otherwise we keep processing to load the meta and pass it on.
-         */
-        final class StoreNewCB implements Callback<Deferred<Long>, Boolean> {
-
-          @Override
-          public Deferred<Long> call(Boolean success) throws Exception {
-            if (!success) {
-              LOG.warn("Unable to save metadata: {}", meta);
-              return Deferred.fromResult(0L);
-            }
-
-            LOG.info("Successfullly created new TSUID entry for: {}", meta);
-            final Deferred<TSMeta> meta = store.getTSMeta(tsuid)
-                    .addCallbackDeferring(
-                            new LoadUIDs(IdUtils.uidToString(tsuid)));
-            return meta.addCallbackDeferring(new FetchNewCB());
-          }
-
-        }
-
-        // store the new TSMeta object and setup the callback chain
-        return create(meta).addCallbackDeferring(new StoreNewCB());
-      }
-
-    }
-
-    Deferred<Long> res = store.incrementAndGetCounter(tsuid);
-    if (!config.getBoolean("tsd.core.meta.enable_realtime_ts"))
-      return res;
-    return res.addCallbackDeferring(
-            new TSMetaCB());
   }
 
   /**

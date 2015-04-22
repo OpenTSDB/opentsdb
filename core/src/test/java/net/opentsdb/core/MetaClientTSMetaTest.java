@@ -2,15 +2,12 @@ package net.opentsdb.core;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.DeferredGroupException;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
-import com.typesafe.config.Config;
 import org.hbase.async.Bytes;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -30,8 +27,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -47,13 +42,7 @@ import static org.mockito.Mockito.when;
 
   @Before
   public void before() throws Exception {
-    final Config config = ConfigFactory.load()
-            .withValue("tsd.core.meta.enable_tsuid_incrementing",
-                    ConfigValueFactory.fromAnyRef(true))
-            .withValue("tsd.core.meta.enable_realtime_ts",
-                    ConfigValueFactory.fromAnyRef(true));
-
-    ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
 
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
@@ -145,19 +134,6 @@ import static org.mockito.Mockito.when;
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     assertFalse(metaClient.TSMetaExists("000001000001000001")
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-  }
-
-  @Test
-  public void counterExistsInStorage() throws Exception {
-    assertTrue(metaClient.TSMetaCounterExists(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-  }
-
-  @Test
-  public void counterExistsInStorageNot() throws Exception {
-    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
-    assertFalse(metaClient.TSMetaCounterExists(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
   }
 
   @Test
@@ -266,31 +242,6 @@ import static org.mockito.Mockito.when;
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     final TSMeta meta = new TSMeta(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1357300800000L);
     metaClient.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-
-  @Test
-  public void incrementAndGetCounter() throws Exception {
-    final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
-    metaClient.incrementAndGetCounter(tsuid).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    verify(tsdb_store).incrementAndGetCounter(any(byte[].class));
-  }
-
-  @Test (expected = NoSuchUniqueId.class)
-  public void incrementAndGetCounterNSU() throws Exception {
-    final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 2 };
-    class ErrBack implements Callback<Object, Exception> {
-      @Override
-      public Object call(Exception e) throws Exception {
-        Throwable ex = e;
-        while (ex.getClass().equals(DeferredGroupException.class)) {
-          ex = ex.getCause();
-        }
-        throw (Exception)ex;
-      }
-    }
-
-    metaClient.incrementAndGetCounter(tsuid).addErrback(new ErrBack())
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test

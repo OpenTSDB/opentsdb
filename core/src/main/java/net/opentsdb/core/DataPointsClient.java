@@ -26,7 +26,6 @@ import java.util.Set;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.stats.Metrics.name;
-import static net.opentsdb.uid.TimeseriesId.toHBaseTSUID;
 
 @Singleton
 public class DataPointsClient {
@@ -118,17 +117,6 @@ public class DataPointsClient {
       public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
         Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
 
-        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-        // counter field for a TSUID with the proper timestamp. If the user would
-        // rather have TSUID incrementing enabled, that will trump the PUT
-        if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
-            && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
-          store.setTSMetaCounter(toHBaseTSUID(tsuid), 1);
-        } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
-            || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
-          metaClient.incrementAndGetCounter(toHBaseTSUID(tsuid));
-        }
-
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
             .addErrback(new PluginError(realtimePublisher));
 
@@ -175,17 +163,6 @@ public class DataPointsClient {
       public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
         Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
 
-        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-        // counter field for a TSUID with the proper timestamp. If the user would
-        // rather have TSUID incrementing enabled, that will trump the PUT
-        if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
-            && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
-          store.setTSMetaCounter(toHBaseTSUID(tsuid), 1);
-        } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
-            || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
-          metaClient.incrementAndGetCounter(toHBaseTSUID(tsuid));
-        }
-
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
             .addErrback(new PluginError(realtimePublisher));
 
@@ -229,17 +206,6 @@ public class DataPointsClient {
       @Override
       public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
         Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
-
-        // for busy TSDs we may only enable TSUID tracking, storing a 1 in the
-        // counter field for a TSUID with the proper timestamp. If the user would
-        // rather have TSUID incrementing enabled, that will trump the PUT
-        if (config.getBoolean("tsd.core.meta.enable_tsuid_tracking")
-            && !config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")) {
-          store.setTSMetaCounter(toHBaseTSUID(tsuid), 1);
-        } else if (config.getBoolean("tsd.core.meta.enable_tsuid_incrementing")
-            || config.getBoolean("tsd.core.meta.enable_realtime_ts")) {
-          metaClient.incrementAndGetCounter(toHBaseTSUID(tsuid));
-        }
 
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
             .addErrback(new PluginError(realtimePublisher));

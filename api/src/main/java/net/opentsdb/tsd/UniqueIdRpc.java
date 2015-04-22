@@ -357,17 +357,6 @@ final class UniqueIdRpc implements HttpRpc {
 
         final boolean create = query.getQueryStringParam("create") != null &&
                                query.getQueryStringParam("create").equals("true");
-        
-        class WriteCounterIfNotPresentCB implements Callback<Boolean, Boolean> {
-          @Override
-          public Boolean call(Boolean exists) throws Exception {
-            if (!exists && create) {
-              tsdb.getMetaClient().createTimeseriesCounter(new TSMeta(tsuid));
-            }
-
-            return exists;
-          }
-        }
 
         try {
           // Check whether we have a TSMeta stored already
@@ -377,10 +366,6 @@ final class UniqueIdRpc implements HttpRpc {
           meta.setTSUID(tsuid);
           
           if (!exists && create) {
-            // Write 0 to counter column if not present
-            tsdb.getMetaClient().TSMetaCounterExists(IdUtils.stringToUid(tsuid))
-                    .addCallback(new WriteCounterIfNotPresentCB())
-                .joinUninterruptibly();
             // set TSUID
             final Deferred<TSMeta> process_meta = tsdb.getMetaClient().create(meta)
                     .addCallbackDeferring(new SyncCB());

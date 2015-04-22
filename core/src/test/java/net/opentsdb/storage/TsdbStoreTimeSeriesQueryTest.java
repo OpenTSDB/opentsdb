@@ -66,10 +66,6 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
 
     tsdb_store.allocateUID("web01", TAGV_WEB01_ID, UniqueIdType.TAGV);
     tsdb_store.allocateUID("web02", TAGV_WEB02_ID, UniqueIdType.TAGV);
-
-    for (final byte[] tsuid : test_tsuids) {
-      tsdb_store.setTSMetaCounter(tsuid, 1).joinUninterruptibly();
-    }
   }
 
   @Test
