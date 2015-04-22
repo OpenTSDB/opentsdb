@@ -119,7 +119,6 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     }
 
     if (mode.equals("rw") || mode.equals("ro")) {
-      http_commands.put("", new HomePage());
       final StaticFileRpc staticfile = new StaticFileRpc(tsdb.getConfig());
       http_commands.put("favicon.ico", staticfile);
       http_commands.put("s", staticfile);
@@ -360,22 +359,6 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       buf.append('\n');
       chan.write(buf.toString());
       return Deferred.fromResult(null);
-    }
-  }
-
-  /** The home page ("GET /"). */
-  private static final class HomePage implements HttpRpc {
-    @Override
-    public void execute(final TSDB tsdb, final HttpQuery query)
-      throws IOException {
-      query.sendReply(HttpQuery.makePage(
-        "<script type=text/javascript language=javascript"
-        + " src=/s/queryui.nocache.js></script>",
-        "TSD", "Time Series Database", ("<div id=queryuimain></div>"
-                      + "<noscript>You must have JavaScript enabled.</noscript>"
-                      + "<iframe src=javascript:'' id=__gwt_historyFrame tabIndex=-1"
-                      + " style=position:absolute;width:0;height:0;border:0>"
-                      + "</iframe>")));
     }
   }
 
