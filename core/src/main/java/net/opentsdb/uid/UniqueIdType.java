@@ -46,7 +46,7 @@ public enum UniqueIdType {
     } else if ("tagv".equals(type.toLowerCase())) {
       return TAGV;
     } else {
-      throw new IllegalArgumentException("Invalid type requested: " + type);
+      throw new IllegalArgumentException("Invalid type: " + type);
     }
   }
 

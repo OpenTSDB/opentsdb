@@ -1,5 +1,8 @@
 
-apply plugin: 'java-library-distribution'
+apply plugin: 'application'
+
+mainClassName = "net.opentsdb.TSDB"
+applicationName = "tsdb"
 
 dependencies {
     compile project(":tsdb-core")
@@ -8,6 +11,21 @@ dependencies {
     compile project(":tsdb-api")
     compile project(":tsdb-tools")
     compile project(":tsdb-storage-json")
+
+    compile project(":idmanager:tsdb-assign")
+}
+
+run {
+    systemProperties = [
+        "app.home": rootDir
+    ]
+}
+
+startScripts.with {
+    doLast {
+        unixScript.text = unixScript.text.replaceAll('cd "\\$SAVED" \\>\\&-\n', '$0\nDEFAULT_JVM_OPTS="-Dapp.home=\\$APP_HOME"\n')
+        windowsScript.text = windowsScript.text.replaceAll('\r\n@rem Find java.exe', '\r\nset DEFAULT_JVM_OPTS=-Dapp.home=%APP_HOME%\r\n$0')
+    }
 }
 
 distributions {
@@ -15,7 +33,7 @@ distributions {
         baseName = rootProject.name
 
         contents {
-            exclude "tsdb-all-${version}.jar"
+            exclude ".gitkeep"
 
             // Add the start scripts for all sibling projects that are
             // applications.
@@ -25,6 +43,7 @@ distributions {
             }
 
             into('') {
+                from { project(':tsdb-core').distFiles }
                 from { project(':tsdb-cassandra').distFiles }
             }
         }

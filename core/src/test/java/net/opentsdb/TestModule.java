@@ -1,20 +1,18 @@
 package net.opentsdb;
 
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
+import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.MetaClientUIDMetaTest;
+import net.opentsdb.core.PluginsModule;
 import net.opentsdb.core.TreeClientTest;
-import net.opentsdb.core.TsdbModule;
 import net.opentsdb.core.UniqueIdClientTest;
-import net.opentsdb.storage.MemoryStore;
+import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.StoreModuleTest;
-import net.opentsdb.storage.TsdbStore;
-import com.typesafe.config.Config;
 
 import javax.inject.Singleton;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A dagger module that inherits from {@link net.opentsdb.core.TsdbModule} and
@@ -32,32 +30,31 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * @see net.opentsdb.TestModuleMemoryStore
  */
-@Module(includes = TsdbModule.class,
-        overrides = true,
+@Module(includes = {
+            CoreModule.class,
+            PluginsModule.class,
+            StoreModule.class
+        },
         injects = {
-                MetaClientUIDMetaTest.class,
-                TreeClientTest.class,
-                UniqueIdClientTest.class,
-                StoreModuleTest.class
+            MetaClientUIDMetaTest.class,
+            TreeClientTest.class,
+            UniqueIdClientTest.class,
+            StoreModuleTest.class
         })
 public class TestModule {
   private final Config config;
 
-  public TestModule(final Config config) {
-    this.config = checkNotNull(config);
+  public TestModule(final Config overrides) {
+    this.config = overrides.withFallback(ConfigFactory.load());
   }
 
   public TestModule() {
-    this(ConfigFactory.load());
+    this.config = ConfigFactory.load();
   }
 
   @Provides
+  @Singleton
   Config provideConfig() {
     return config;
-  }
-
-  @Provides @Singleton
-  TsdbStore provideStore() {
-    return new MemoryStore();
   }
 }

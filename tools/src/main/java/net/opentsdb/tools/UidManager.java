@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,11 +24,11 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import dagger.ObjectGraph;
 import net.opentsdb.core.Const;
 
+import net.opentsdb.core.TsdbModule;
 import net.opentsdb.storage.hbase.HBaseConst;
 import net.opentsdb.uid.IdUtils;
 import org.slf4j.Logger;
@@ -43,7 +44,6 @@ import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.hbase.HBaseStore;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
@@ -74,8 +74,6 @@ final class UidManager {
     System.err.println("Usage: uid <subcommand> args\n"
         + "Sub commands:\n"
         + "  grep [kind] <RE>: Finds matching IDs.\n"
-        + "  assign <kind> <name> [names]:"
-        + " Assign an ID for the given name(s).\n"
         + "  rename <kind> <name> <newname>: Renames this UID.\n"
         + "  fsck: [fix] [delete_unknown] Checks the consistency of UIDs.\n"
         + "        fix            - Fix errors. By default errors are logged.\n"
@@ -117,7 +115,8 @@ final class UidManager {
     final boolean ignorecase = argp.has("--ignore-case") || argp.has("-i");
     
     // get a config object
-    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final String defaultConfig = new File(System.getProperty("app.home"), "opentsdb").getPath();
+    ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(argp.get("--config", defaultConfig)));
     final Config config = objectGraph.get(Config.class);
     final TSDB tsdb = objectGraph.get(TSDB.class);
 
@@ -154,12 +153,6 @@ final class UidManager {
         usage("Wrong number of arguments");
         return 2;
       }
-    } else if (args[0].equals("assign")) {
-      if (nargs < 3) {
-        usage("Wrong number of arguments");
-        return 2;
-      }
-      return assign(CliUtils.HBaseStore(tsdb.getTsdbStore()), table, args);
     } else if (args[0].equals("rename")) {
       if (nargs != 4) {
         usage("Wrong number of arguments");
@@ -331,33 +324,6 @@ final class UidManager {
     // listeners on the EventBus and in turn nothing that creates or indexes
     // meta objects when we are configured to do so.
     return new UniqueId(hbase_store, type, new MetricRegistry(), new EventBus());
-  }
-
-  /**
-   * Implements the {@code assign} subcommand.
-   * @param hbase_store The HBaseStore to use.
-   * @param table The name of the table to use.
-   * @param args Command line arguments ({@code assign name [names]}).
-   * @return The exit status of the command (0 means success).
-   */
-  private static int assign(final HBaseStore hbase_store,
-                            final byte[] table,
-                            final String[] args) {
-    final UniqueId uid = buildUniqueIdInstance(hbase_store, table, args[1]);
-    for (int i = 2; i < args.length; i++) {
-      try {
-        uid.createId(args[i]).joinUninterruptibly();
-
-        // Lookup again the ID we've just created and print it.
-        extactLookupName(hbase_store, table, args[1], args[i]);
-      } catch (HBaseException e) {
-        LOG.error("error while processing {}", args[i], e);
-        return 3;
-      } catch (Exception e) {
-        Throwables.propagate(e);
-      }
-    }
-    return 0;
   }
 
   /**

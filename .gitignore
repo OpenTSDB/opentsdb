@@ -5,6 +5,9 @@
 *.orig
 *.log
 
+/config/logback.xml
+/config/opentsdb.conf
+
 #for Intellij
 \.idea
 *.iml

@@ -311,6 +311,16 @@ public class UniqueIdClient {
   }
 
   /**
+   * TODO. This does not exactly mirror what assignUid does. We should merge the
+   * two.
+   */
+  public Deferred<byte[]> createId(final UniqueIdType type, final String name) {
+    validateUidName(type.toString(), name);
+    UniqueId instance = uniqueIdInstanceForType(type);
+    return instance.createId(name);
+  }
+
+  /**
    * Attempts to find the name for a unique identifier given a type
    * @param type The type of UID
    * @param uid The UID to search for

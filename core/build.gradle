@@ -1,0 +1,2 @@
+
+project.ext.distFiles = files("src/main/dist")

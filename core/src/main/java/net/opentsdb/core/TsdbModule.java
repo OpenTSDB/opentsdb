@@ -1,18 +1,14 @@
 package net.opentsdb.core;
 
-import com.codahale.metrics.MetricRegistry;
-import com.google.common.eventbus.EventBus;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigParseOptions;
 import dagger.Module;
 import dagger.Provides;
-import net.opentsdb.search.DefaultSearchPlugin;
-import net.opentsdb.search.SearchPlugin;
-import net.opentsdb.search.SearchPluginDescriptor;
 import net.opentsdb.storage.StoreModule;
-import net.opentsdb.storage.TsdbStore;
-import com.typesafe.config.Config;
-import net.opentsdb.utils.PluginLoader;
 
 import javax.inject.Singleton;
+import java.io.File;
 
 /**
  * This is the main dagger module for the TSDB core library. It is not complete
@@ -22,65 +18,47 @@ import javax.inject.Singleton;
  */
 @Module(library = true,
         includes = {
-                StoreModule.class
+            CoreModule.class,
+            PluginsModule.class,
+            StoreModule.class
         },
-        complete = false,
         injects = {
-                TSDB.class,
-                UniqueIdClient.class,
-                TreeClient.class,
-                MetaClient.class,
-                DataPointsClient.class
+            Config.class,
+            TSDB.class,
+            UniqueIdClient.class,
+            TreeClient.class,
+            MetaClient.class,
+            DataPointsClient.class
         })
 public class TsdbModule {
-  @Provides
-  @Singleton
-  EventBus provideEventBus() {
-    return new EventBus();
+  private final Config config;
+
+  @Deprecated
+  public TsdbModule(final String configFile) {
+    this(new File(configFile));
   }
 
-  @Provides
-  @Singleton
-  MetricRegistry provideMetricRegistry() {
-    return new MetricRegistry();
+  public TsdbModule(final File configFile) {
+    this(ConfigFactory.parseFileAnySyntax(configFile,
+        ConfigParseOptions.defaults().setAllowMissing(false)));
   }
 
-  @Provides
-  @Singleton
-  SearchPlugin provideSearchPlugin(final Config config,
-                                   final TsdbStore store) {
-    try {
-      // load the search plugin if enabled
-      if (config.getBoolean("tsd.search.enable")) {
-        SearchPluginDescriptor descriptor = PluginLoader.loadSpecificPlugin(
-                config.getString("tsd.search.plugin"),
-                SearchPluginDescriptor.class);
-
-        return descriptor.create(config);
-      }
-
-      return new DefaultSearchPlugin(store);
-    } catch (Exception e) {
-      throw new IllegalStateException("Unable to instantiate the configured search plugin", e);
-    }
+  public TsdbModule(final File configFile, final Config overrides) {
+    this(ConfigFactory.parseFileAnySyntax(configFile,
+        ConfigParseOptions.defaults().setAllowMissing(false)), overrides);
   }
 
-  @Provides
-  @Singleton
-  RTPublisher provideRealtimePublisher(final Config config) {
-    try {
-      // load the realtime publisher plugin if enabled
-      if (config.getBoolean("tsd.rtpublisher.enable")) {
-        RTPublisherDescriptor descriptor = PluginLoader.loadSpecificPlugin(
-                config.getString("tsd.rtpublisher.plugin"),
-                RTPublisherDescriptor.class);
+  private TsdbModule(final Config config) {
+    this.config = config.withFallback(
+        ConfigFactory.parseResourcesAnySyntax("reference"));
+  }
 
-        return descriptor.create(config);
-      }
+  private TsdbModule(final Config config, final Config overrides) {
+    this(overrides.withFallback(config));
+  }
 
-      return new DefaultRealtimePublisher();
-    } catch (Exception e) {
-      throw new IllegalStateException("Unable to instantiate the configured realtime publisher", e);
-    }
+  @Provides @Singleton
+  Config provideConfig() {
+    return config;
   }
 }

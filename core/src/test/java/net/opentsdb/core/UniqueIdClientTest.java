@@ -17,7 +17,6 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 
-import net.opentsdb.utils.Pair;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -29,17 +28,17 @@ import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.junit.Assert.*;
 
 public class UniqueIdClientTest {
-  private Config config;
+  @Inject Config config;
   @Inject TsdbStore tsdb_store;
   @Inject UniqueIdClient uniqueIdClient;
 
   @Before
   public void before() throws Exception {
-    config = ConfigFactory.load()
-            .withValue("tsd.storage.fix_duplicates",
-                    ConfigValueFactory.fromAnyRef(false)); // TODO(jat): test both ways
+    final Config overrides = ConfigFactory.empty("TestOverrides")
+        .withValue("tsd.storage.fix_duplicates",
+            ConfigValueFactory.fromAnyRef(false)); // TODO(jat): test both ways
 
-    ObjectGraph.create(new TestModule(config)).inject(this);
+    ObjectGraph.create(new TestModule(overrides)).inject(this);
   }
 
   /**
@@ -313,11 +312,11 @@ public class UniqueIdClientTest {
 
   @Test
   public void getOrCreateTagkNotAllowedGood() throws Exception {
-    config = ConfigFactory.load()
-            .withValue("tsd.core.auto_create_tagks",
-                    ConfigValueFactory.fromAnyRef(false));
+    final Config overrides = ConfigFactory.empty("TestOverrides")
+        .withValue("tsd.core.auto_create_tagks",
+            ConfigValueFactory.fromAnyRef(false));
 
-    ObjectGraph.create(new TestModule(config)).inject(this);
+    ObjectGraph.create(new TestModule(overrides)).inject(this);
 
     setupResolveAll();
 
@@ -330,11 +329,11 @@ public class UniqueIdClientTest {
 
   @Test (expected = NoSuchUniqueName.class)
   public void getOrCreateTagkNotAllowedBlocked() throws Exception {
-    config = ConfigFactory.load()
-            .withValue("tsd.core.auto_create_tagks",
-                    ConfigValueFactory.fromAnyRef(false));
+    final Config overrides = ConfigFactory.empty("TestOverrides")
+        .withValue("tsd.core.auto_create_tagks",
+            ConfigValueFactory.fromAnyRef(false));
 
-    ObjectGraph.create(new TestModule(config)).inject(this);
+    ObjectGraph.create(new TestModule(overrides)).inject(this);
 
     setupResolveAll();
 
@@ -356,11 +355,11 @@ public class UniqueIdClientTest {
 
   @Test
   public void getOrCreateTagvNotAllowedGood() throws Exception {
-    config = ConfigFactory.load()
-            .withValue("tsd.core.auto_create_tagvs",
-                    ConfigValueFactory.fromAnyRef(false));
+    final Config overrides = ConfigFactory.empty("TestOverrides")
+        .withValue("tsd.core.auto_create_tagvs",
+            ConfigValueFactory.fromAnyRef(false));
 
-    ObjectGraph.create(new TestModule(config)).inject(this);
+    ObjectGraph.create(new TestModule(overrides)).inject(this);
 
     setupResolveAll();
 
@@ -373,11 +372,11 @@ public class UniqueIdClientTest {
 
   @Test (expected = NoSuchUniqueName.class)
   public void getOrCreateTagvNotAllowedBlocked() throws Exception {
-    config = ConfigFactory.load()
-            .withValue("tsd.core.auto_create_tagvs",
-                    ConfigValueFactory.fromAnyRef(false));
+    final Config overrides = ConfigFactory.empty("TestOverrides")
+        .withValue("tsd.core.auto_create_tagvs",
+            ConfigValueFactory.fromAnyRef(false));
 
-    ObjectGraph.create(new TestModule(config)).inject(this);
+    ObjectGraph.create(new TestModule(overrides)).inject(this);
 
     setupResolveAll();
 

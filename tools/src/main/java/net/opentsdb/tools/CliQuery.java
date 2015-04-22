@@ -12,12 +12,14 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import com.google.common.base.Throwables;
 import dagger.ObjectGraph;
+import net.opentsdb.core.TsdbModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +76,8 @@ final class CliQuery {
       usage(argp, "Not enough arguments.", 2);
     }
 
-    ObjectGraph objectGraph = ObjectGraph.create(new ToolsModule(argp));
+    final String defaultConfig = new File(System.getProperty("app.home"), "opentsdb").getPath();
+    ObjectGraph objectGraph = ObjectGraph.create(new TsdbModule(argp.get("--config", defaultConfig)));
     final TSDB tsdb = objectGraph.get(TSDB.class);
 
     final String basepath = argp.get("--graph");

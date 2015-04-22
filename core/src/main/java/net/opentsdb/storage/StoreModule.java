@@ -4,7 +4,6 @@ import com.codahale.metrics.MetricRegistry;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.InvalidConfigException;
-import net.opentsdb.stats.Metrics;
 import com.typesafe.config.Config;
 
 import javax.inject.Singleton;
