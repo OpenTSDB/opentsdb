@@ -151,6 +151,14 @@ public class Config {
     setDefaults();
   }
 
+  /**
+   * Creates a new empty Config
+   */
+  public Config() {
+    
+  }
+
+
   /** @return the auto_metric value */
   public boolean auto_metric() {
     return auto_metric;
@@ -549,8 +557,9 @@ public class Config {
   /**
    * Loads the static class variables for values that are called often. This
    * should be called any time the configuration changes.
+   * Made public for the fat-jar starter.
    */
-  protected void loadStaticVariables() {
+  public void loadStaticVariables() {
     auto_metric = this.getBoolean("tsd.core.auto_create_metrics");
     auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
     auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");

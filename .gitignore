@@ -38,3 +38,10 @@ guava-rpm-maker/\.project
 src-main
 src-test
 plugin_test.jar
+
+# fat-jar
+fat-jar-pom.xml
+src-resources
+test-resources
+dependency-reduced-pom.xml
+
