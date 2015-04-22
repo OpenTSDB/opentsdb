@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
-import static net.opentsdb.core.StringCoder.toBytes;
-
 /** Constants used in various places.  */
 public final class Const {
 

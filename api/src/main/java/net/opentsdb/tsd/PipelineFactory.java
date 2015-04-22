@@ -14,7 +14,6 @@ package net.opentsdb.tsd;
 
 import static org.jboss.netty.channel.Channels.pipeline;
 
-import com.codahale.metrics.JmxReporter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
 import com.codahale.metrics.jvm.FileDescriptorRatioGauge;

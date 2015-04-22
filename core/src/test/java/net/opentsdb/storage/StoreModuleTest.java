@@ -8,7 +8,6 @@ import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
 import net.opentsdb.core.InvalidConfigException;
-import net.opentsdb.stats.Metrics;
 import com.typesafe.config.Config;
 import org.junit.Before;
 import org.junit.Test;

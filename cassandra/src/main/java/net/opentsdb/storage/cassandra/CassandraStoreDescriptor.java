@@ -6,7 +6,6 @@ import com.datastax.driver.core.ProtocolVersion;
 import com.datastax.driver.core.Session;
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import net.opentsdb.core.InvalidConfigException;
 import net.opentsdb.storage.StoreDescriptor;

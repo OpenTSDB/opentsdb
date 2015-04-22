@@ -8,7 +8,6 @@ import net.opentsdb.core.DataPointsClientExecuteQueryTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientTSMetaTest;
 import net.opentsdb.core.PluginsModule;
-import net.opentsdb.core.TsdbModule;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;

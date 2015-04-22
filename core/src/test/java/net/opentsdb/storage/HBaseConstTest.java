@@ -2,10 +2,8 @@ package net.opentsdb.storage;
 
 import org.junit.Test;
 
-import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
 
 public class HBaseConstTest {
   @Test
