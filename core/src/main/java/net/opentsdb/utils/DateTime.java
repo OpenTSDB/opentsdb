@@ -17,7 +17,7 @@ import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.TimeZone;
 
-import net.opentsdb.core.Tags;
+import net.opentsdb.core.MoreLongs;
 
 /**
  * Utility class that provides helpers for dealing with dates and timestamps.
@@ -127,9 +127,9 @@ public class DateTime {
                 + ". Millisecond timestamps must be in the format "
                 + "<seconds>.<ms> where the milliseconds are limited to 3 digits");
           }
-          time = Tags.parseLong(datetime.replace(".", ""));   
+          time = MoreLongs.parseLong(datetime.replace(".", ""));
         } else {
-          time = Tags.parseLong(datetime);
+          time = MoreLongs.parseLong(datetime);
         }
         if (time < 0) {
           throw new IllegalArgumentException("Invalid time: " + datetime  

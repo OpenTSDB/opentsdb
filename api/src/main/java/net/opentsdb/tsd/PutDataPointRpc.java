@@ -20,6 +20,7 @@ import java.util.List;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import net.opentsdb.core.MoreLongs;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -143,7 +144,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
         }
         if (Tags.looksLikeInteger(dp.getValue())) {
           tsdb.getDataPointsClient().addPoint(dp.getMetric(), dp.getTimestamp(),
-                  Tags.parseLong(dp.getValue()), dp.getTags());
+                  MoreLongs.parseLong(dp.getValue()), dp.getTags());
         } else {
           tsdb.getDataPointsClient().addPoint(dp.getMetric(), dp.getTimestamp(),
                   Float.parseFloat(dp.getValue()), dp.getTags());
@@ -220,9 +221,9 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     }
     final long timestamp;
     if (words[2].contains(".")) {
-      timestamp = Tags.parseLong(words[2].replace(".", "")); 
+      timestamp = MoreLongs.parseLong(words[2].replace(".", ""));
     } else {
-      timestamp = Tags.parseLong(words[2]);
+      timestamp = MoreLongs.parseLong(words[2]);
     }
     if (timestamp <= 0) {
       throw new IllegalArgumentException("invalid timestamp: " + timestamp);
@@ -238,7 +239,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
       }
     }
     if (Tags.looksLikeInteger(value)) {
-      return tsdb.getDataPointsClient().addPoint(metric, timestamp, Tags.parseLong(value), tags);
+      return tsdb.getDataPointsClient().addPoint(metric, timestamp, MoreLongs.parseLong(value), tags);
     } else {  // floating point value
       return tsdb.getDataPointsClient().addPoint(metric, timestamp, Float.parseFloat(value), tags);
     }
