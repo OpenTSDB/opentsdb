@@ -87,7 +87,10 @@ public class Config {
   
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
-  
+
+  /** tsd.http.query.allow_delete */
+  private boolean allow_delete = false;
+
   /** tsd.storage.fix_duplicates */
   private boolean fix_duplicates = false;
 
@@ -196,6 +199,11 @@ public class Config {
   /** @return whether or not to record a 1 for every TSUID */
   public boolean enable_tsuid_tracking() {
     return enable_tsuid_tracking;
+  }
+
+  /** @return whether or not deleting data is allowed */
+  public boolean allow_delete() {
+    return allow_delete;
   }
   
   /** @return whether or not chunked requests are supported */
@@ -474,6 +482,7 @@ public class Config {
     default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
     default_map.put("tsd.storage.compaction.flush_speed", "2");
     default_map.put("tsd.http.show_stack_trace", "true");
+    default_map.put("tsd.http.query.allow_delete", "false");
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
     default_map.put("tsd.http.request.cors_domains", "");
@@ -579,6 +588,7 @@ public class Config {
     auto_tagk = this.getBoolean("tsd.core.auto_create_tagks");
     auto_tagv = this.getBoolean("tsd.core.auto_create_tagvs");
     enable_compactions = this.getBoolean("tsd.storage.enable_compaction");
+    allow_delete = this.getBoolean("tsd.http.query.allow_delete");
     enable_chunked_requests = this.getBoolean("tsd.http.request.enable_chunked");
     enable_realtime_ts = this.getBoolean("tsd.core.meta.enable_realtime_ts");
     enable_realtime_uid = this.getBoolean("tsd.core.meta.enable_realtime_uid");
