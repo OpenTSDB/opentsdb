@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.opentsdb.meta.Annotation;
 
 import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.slf4j.Logger;
@@ -85,11 +86,14 @@ public class SaltScanner {
    * are done.*/
   private long start_time; // milliseconds.
 
+  /** Whether or not to delete the queried data */
+  private boolean delete;
+
   /** A holder for storing the first exception thrown by a scanner if something
    * goes pear shaped. Make sure to synchronize on this object when checking
    * for null or assigning from a scanner's callback. */
   private volatile Exception exception;
-  
+
   /**
    * Default ctor that performs some validation. Call {@link scan} after 
    * construction to actually start fetching data.
@@ -103,6 +107,24 @@ public class SaltScanner {
   public SaltScanner(final TSDB tsdb, final byte[] metric, 
                                       final List<Scanner> scanners, 
                                       final TreeMap<byte[], Span> spans) {
+    this(tsdb, metric, scanners, spans, false);
+  }
+  
+  /**
+   * Default ctor that performs some validation. Call {@link scan} after 
+   * construction to actually start fetching data.
+   * @param tsdb The TSDB to which we belong
+   * @param metric The metric we're expecting to fetch
+   * @param scanners A list of HBase scanners, one for each bucket
+   * @param spans The span map to store results in
+   * @param delete Whether or not to delete the queried data
+   * @throws IllegalArgumentException if any required data was missing or
+   * we had invalid parameters.
+   */
+  public SaltScanner(final TSDB tsdb, final byte[] metric, 
+                                      final List<Scanner> scanners, 
+                                      final TreeMap<byte[], Span> spans,
+                                      boolean delete) {
     if (Const.SALT_WIDTH() < 1) {
       throw new IllegalArgumentException(
           "Salting is disabled. Use the regular scanner");
@@ -137,6 +159,7 @@ public class SaltScanner {
     this.spans = spans;
     this.metric = metric;
     this.tsdb = tsdb;
+    this.delete = delete;
   }
 
   /**
@@ -301,25 +324,30 @@ public class SaltScanner {
             return null;
           }
 
-          List<Annotation> notes = annotations.get(key);
-          if (notes == null) {
-            notes = new ArrayList<Annotation>();
-            annotations.put(key, notes);
-          }
+          if (delete) {
+            final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
+            tsdb.getClient().delete(del);
+          } else {
+            List<Annotation> notes = annotations.get(key);
+            if (notes == null) {
+              notes = new ArrayList<Annotation>();
+              annotations.put(key, notes);
+            }
 
-          final KeyValue compacted;
-          try{
-            compacted = tsdb.compact(row, notes);
-          } catch (final IllegalDataException idex) {
-            LOG.error("Caught IllegalDataException exception while parsing the "
-               + "row " + key + ", skipping it on scanner " + this, idex);
-            scanner.close();
-            handleException(idex);
-            return null;
-          }
-          
-          if (compacted != null) { // Can be null if we ignored all KVs.
-            kvs.add(compacted);
+            final KeyValue compacted;
+            try{
+              compacted = tsdb.compact(row, notes);
+            } catch (final IllegalDataException idex) {
+              LOG.error("Caught IllegalDataException exception while parsing the "
+                 + "row " + key + ", skipping it on scanner " + this, idex);
+              scanner.close();
+              handleException(idex);
+              return null;
+            }
+            
+            if (compacted != null) { // Can be null if we ignored all KVs.
+              kvs.add(compacted);
+            }
           }
         }
            

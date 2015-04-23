@@ -84,6 +84,11 @@ final class QueryRpc implements HttpRpc {
           "Method not allowed", "The HTTP method [" + query.method().getName() +
           "] is not permitted for this endpoint");
     }
+    if (query.method() == HttpMethod.DELETE && !tsdb.getConfig().allow_delete()) {
+       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+       "Bad request",
+       "Deleting data is not enabled (tsd.http.query.allow_delete=false)");
+    }
     
     final String[] uri = query.explodeAPIPath();
     final String endpoint = uri.length > 1 ? uri[1] : ""; 
@@ -236,6 +241,11 @@ final class QueryRpc implements HttpRpc {
         globals.addAll(annotations);
         return data_query.buildQueriesAsync(tsdb).addCallback(new BuildCB());
       }
+    }
+
+    if (query.method() == HttpMethod.DELETE &&
+          tsdb.getConfig().allow_delete()) {
+       data_query.setDelete(true);
     }
  
     // if we the caller wants to search for global annotations, fire that off 
@@ -404,45 +414,6 @@ final class QueryRpc implements HttpRpc {
         throw new RuntimeException("Shouldn't be here", e);
       }
     }
-  }
-
-  /**
-   * Deletes rows containing datapoints fetched by a list of queries.
-   * @param tsdb The TSDB to use for deleting data
-   * @param tsdbqueries The list of queries describing data to delete
-   * @return The total number of rows deleted.
-   */
-  private long deleteRows(final TSDB tsdb, final Query[] tsdbqueries) {
-      final int nqueries = tsdbqueries.length;
-      final ArrayList<Deferred<Object>> deferredsDelete =
-        new ArrayList<Deferred<Object>>(nqueries);
-      final byte[] table = tsdb.dataTable();
-      final HBaseClient client = tsdb.getClient();
-      long rows_to_delete = 0;
-
-      LOG.debug("deleting from table=" + Arrays.toString(table));
-      try {
-        for (final Query q : tsdbqueries) {
-          final Scanner scanner = Internal.getScanner(q);
-          ArrayList<ArrayList<KeyValue>> rows;
-
-          while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
-            for (final ArrayList<KeyValue> row : rows) {
-              final byte[] key = row.get(0).key();
-              final DeleteRequest del = new DeleteRequest(table, key);
-              LOG.debug("\tdeleting key=" + Arrays.toString(key));
-              deferredsDelete.add(client.delete(del));
-              rows_to_delete++;
-            }
-          }
-        }
-
-        Deferred.groupInOrder(deferredsDelete).joinUninterruptibly();
-        LOG.debug(rows_to_delete + " rows deleted");
-      } catch (Exception e) {
-        throw new RuntimeException("Shouldn't be here", e);
-      }
-      return rows_to_delete;
   }
   
   /**
