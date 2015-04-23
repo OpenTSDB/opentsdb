@@ -299,7 +299,7 @@ public class QueryBuilder {
 
     final Iterator<Entry<String, String>> i = tags.entrySet().iterator();
     final Splitter tagv_splitter = Splitter.on('|');
-    final UidResolver uidResolver = new UidResolver(tsdb);
+    final UidResolver uidResolver = new UidResolver(tsdb.getUniqueIdClient(), tsdb.getConfig());
 
     while (i.hasNext()) {
       final Entry<String, String> tag = i.next();

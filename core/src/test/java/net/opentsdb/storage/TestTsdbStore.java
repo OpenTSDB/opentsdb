@@ -1,6 +1,5 @@
 package net.opentsdb.storage;
 
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.UniqueIdType;
 
@@ -21,7 +20,6 @@ import static org.mockito.Matchers.eq;
 public abstract class TestTsdbStore {
   protected static final boolean SAME_TSUID = true;
   protected static final boolean NOT_SAME_TSUID = false;
-  protected TSDB tsdb;
   protected TsdbStore tsdb_store;
   protected UIDMeta meta;
   protected Config config;

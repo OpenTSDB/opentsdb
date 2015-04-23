@@ -4,30 +4,29 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 
-import net.opentsdb.core.TSDB;
 import com.typesafe.config.Config;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.UniqueIdClient;
 import org.hbase.async.Bytes;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class UidResolver {
-  private final TSDB tsdb;
+  private final UniqueIdClient idClient;
 
   private final boolean create_metrics;
   private final boolean create_tagks;
   private final boolean create_tagvs;
 
-  public UidResolver(final TSDB tsdb) {
-    this.tsdb = checkNotNull(tsdb);
+  public UidResolver(final UniqueIdClient idClient, final Config config) {
+    this.idClient = idClient;
 
-    Config conf = tsdb.getConfig();
-    create_metrics = conf.getBoolean("tsd.core.auto_create_metrics");
-    create_tagks = conf.getBoolean("tsd.core.auto_create_tagks");
-    create_tagvs = conf.getBoolean("tsd.core.auto_create_tagvs");
+    create_metrics = config.getBoolean("tsd.core.auto_create_metrics");
+    create_tagks = config.getBoolean("tsd.core.auto_create_tagks");
+    create_tagvs = config.getBoolean("tsd.core.auto_create_tagvs");
   }
 
   public Deferred<ArrayList<byte[]>> resolve(final Iterable<String> uid_names,
@@ -42,7 +41,7 @@ public class UidResolver {
     // For each tag, start resolving the tag name and the tag value.
     while (uid_names.hasNext()) {
       final String uid_name = uid_names.next();
-      uids.add(tsdb.getUniqueIdClient().getUID(type, uid_name));
+      uids.add(idClient.getUID(type, uid_name));
     }
 
     // And then once we have all the tags resolved, sort them.

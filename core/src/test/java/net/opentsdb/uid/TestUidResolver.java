@@ -2,14 +2,16 @@ package net.opentsdb.uid;
 
 import com.google.common.collect.ImmutableSet;
 
+import com.typesafe.config.Config;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -24,26 +26,34 @@ import static org.junit.Assert.assertEquals;
 public class TestUidResolver {
   public static final ImmutableSet<String> METRICS_1 = ImmutableSet.of("sys.cpu.0", "sys.cpu.1", "sys.cpu.2");
   public static final ImmutableSet<String> METRICS_2 = ImmutableSet.of("sys.cpu.2", "sys.cpu.0", "sys.cpu.1");
+
   private UidResolver resolver;
+
+  @Inject Config config;
+  @Inject UniqueIdClient idClient;
+  @Inject TsdbStore store;
 
   @Before
   public void setUp() throws IOException {
-    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
-    final TsdbStore client = objectGraph.get(TsdbStore.class);
-    final TSDB tsdb = objectGraph.get(TSDB.class);
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
 
-    resolver = new UidResolver(tsdb);
+    resolver = new UidResolver(idClient, config);
 
-    client.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
-    client.allocateUID("sys.cpu.1", new byte[]{0, 0, 2}, METRIC);
-    client.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
-    client.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
-    client.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
+    store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    store.allocateUID("sys.cpu.1", new byte[]{0, 0, 2}, METRIC);
+    store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
+    store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
+    store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
   }
 
   @Test(expected = NullPointerException.class)
-  public void testCtorNullTsdb() {
-    new UidResolver(null);
+  public void testCtorNullClient() {
+    new UidResolver(null, config);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testCtorNullConfig() {
+    new UidResolver(idClient, null);
   }
 
   @Test(expected = NullPointerException.class)
@@ -99,5 +109,4 @@ public class TestUidResolver {
     bytes.add(new byte[]{0,0,3});
     assertArrayEquals(bytes.toArray(), resolve.toArray());
   }
-
 }
