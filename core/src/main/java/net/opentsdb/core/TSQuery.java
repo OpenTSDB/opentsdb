@@ -12,15 +12,15 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.core;
 
+import com.google.common.collect.Lists;
+import com.stumbleupon.async.Deferred;
+import com.typesafe.config.Config;
+import net.opentsdb.utils.DateTime;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import net.opentsdb.utils.DateTime;
-
-import com.google.common.collect.Lists;
-import com.stumbleupon.async.Deferred;
 
 /**
  * Parameters and state to query the underlying storage system for 
@@ -128,14 +128,15 @@ public final class TSQuery {
    * If the user has not set a down sampler explicitly, and they don't want 
    * millisecond resolution, then we set the down sampler to 1 second to handle
    * situations where storage may have multiple data points per second.
-   * @param tsdb The tsdb to use for creating a the new query
+   * @param idClient
+   * @param config
    * @return An array of queries
    */
-  public List<Deferred<Query>> buildQueries(final TSDB tsdb) {
+  public List<Deferred<Query>> buildQueries(final UniqueIdClient idClient, final Config config) {
     final List<Deferred<Query>> queries = Lists.newArrayListWithCapacity(this.queries.size());
 
     for (TSSubQuery sub : this.queries) {
-      final QueryBuilder builder = new QueryBuilder(tsdb.getUniqueIdClient(), tsdb.getConfig())
+      final QueryBuilder builder = new QueryBuilder(idClient, config)
               .withStartAndEndTime(start_time, end_time)
               .withAggregator(sub.aggregator());
 

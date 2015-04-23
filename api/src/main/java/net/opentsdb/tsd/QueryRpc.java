@@ -100,7 +100,7 @@ final class QueryRpc implements HttpRpc {
           e.getMessage(), data_query.toString(), e);
     }
 
-    List<Deferred<Query>> tsdbqueries = data_query.buildQueries(tsdb);
+    List<Deferred<Query>> tsdbqueries = data_query.buildQueries(tsdb.getUniqueIdClient(), tsdb.getConfig());
     final int nqueries = tsdbqueries.size();
     final ArrayList<DataPoints[]> results =
             new ArrayList<DataPoints[]>(nqueries);
