@@ -21,6 +21,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.hbase.async.Bytes.ByteMap;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.hbase.async.Scanner;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -32,6 +36,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IncomingDataPoint;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
@@ -43,6 +48,7 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.TSUIDQuery;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.JSON;
 
 /**
@@ -68,8 +74,9 @@ final class QueryRpc implements HttpRpc {
   public void execute(final TSDB tsdb, final HttpQuery query) 
     throws IOException {
     
-    // only accept GET/POST
-    if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+    // only accept GET/POST/DELETE
+    if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST &&
+        query.method() != HttpMethod.DELETE) {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
           "Method not allowed", "The HTTP method [" + query.method().getName() +
           "] is not permitted for this endpoint");
@@ -106,7 +113,7 @@ final class QueryRpc implements HttpRpc {
     } else {
       data_query = this.parseQuery(tsdb, query);
     }
-    
+
     // validate and then compile the queries
     try {
       LOG.debug(data_query.toString());
@@ -115,14 +122,45 @@ final class QueryRpc implements HttpRpc {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST, 
           e.getMessage(), data_query.toString(), e);
     }
-    
+
     Query[] tsdbqueries;
     try {
       tsdbqueries = data_query.buildQueries(tsdb);
     } catch(NoSuchUniqueName ex) {
       throw new BadRequestException(ex);
     }
+
     final int nqueries = tsdbqueries.length;
+    if (query.method() == HttpMethod.DELETE) {
+      final ArrayList<Deferred<Object>> deferredsDelete =
+        new ArrayList<Deferred<Object>>(nqueries);
+      final byte[] table = tsdb.getConfig().getString("tsd.storage.hbase.data_table").getBytes();
+      final HBaseClient client = tsdb.getClient();
+
+      LOG.info("deleting from table=" + Arrays.toString(table));
+      try {
+        for (final Query q : tsdbqueries) {
+          q.setEndTime(Integer.MAX_VALUE);
+          final Scanner scanner = Internal.getScanner(q);
+          ArrayList<ArrayList<KeyValue>> rows;
+
+          while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+            for (final ArrayList<KeyValue> row : rows) {
+              final byte[] key = row.get(0).key();
+              final DeleteRequest del = new DeleteRequest(table, key);
+              LOG.info("\tdeleting key=" + Arrays.toString(key));
+              deferredsDelete.add(client.delete(del));
+            }
+          }
+        }
+
+        Deferred.groupInOrder(deferredsDelete).joinUninterruptibly();
+      } catch (Exception e) {
+        throw new RuntimeException("Shouldn't be here", e);
+      }
+    }
+
+
     final ArrayList<DataPoints[]> results = 
       new ArrayList<DataPoints[]>(nqueries);
     final ArrayList<Deferred<DataPoints[]>> deferreds =
