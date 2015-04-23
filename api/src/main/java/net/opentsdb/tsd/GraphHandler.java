@@ -969,7 +969,7 @@ final class GraphHandler implements HttpRpc {
         i--;  // Move to the next part.
       }
 
-      final QueryBuilder builder = new QueryBuilder(tsdb)
+      final QueryBuilder builder = new QueryBuilder(tsdb.getUniqueIdClient(), tsdb.getConfig())
               .withMetric(metric)
               .withTags(parsedtags)
               .withStartAndEndTime(start_time, end_time)

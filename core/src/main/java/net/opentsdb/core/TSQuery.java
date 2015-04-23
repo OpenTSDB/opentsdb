@@ -135,7 +135,7 @@ public final class TSQuery {
     final List<Deferred<Query>> queries = Lists.newArrayListWithCapacity(this.queries.size());
 
     for (TSSubQuery sub : this.queries) {
-      final QueryBuilder builder = new QueryBuilder(tsdb)
+      final QueryBuilder builder = new QueryBuilder(tsdb.getUniqueIdClient(), tsdb.getConfig())
               .withStartAndEndTime(start_time, end_time)
               .withAggregator(sub.aggregator());
 

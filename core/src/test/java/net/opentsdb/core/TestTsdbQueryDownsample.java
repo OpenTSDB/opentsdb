@@ -56,7 +56,7 @@ public class TestTsdbQueryDownsample {
     final TsdbStore tsdb_store = objectGraph.get(TsdbStore.class);
     tsdb = objectGraph.get(TSDB.class);
 
-    builder = new QueryBuilder(tsdb);
+    builder = new QueryBuilder(tsdb.getUniqueIdClient(), tsdb.getConfig());
 
     tsdb_store.allocateUID("sys.cpu.user", SYS_CPU_USER_ID, UniqueIdType.METRIC);
     tsdb_store.allocateUID("sys.cpu.nice", SYS_CPU_NICE_ID, UniqueIdType.METRIC);

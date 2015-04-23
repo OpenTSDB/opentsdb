@@ -3,6 +3,7 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.Map;
 
+import com.typesafe.config.Config;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
 import net.opentsdb.storage.MockBase;
@@ -16,6 +17,8 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Bytes;
 import org.junit.Before;
 import org.junit.Test;
+
+import javax.inject.Inject;
 
 import static org.junit.Assert.*;
 
@@ -41,20 +44,22 @@ public class TestQueryBuilder {
 
   private Map<String, String> good_tags;
 
+  @Inject UniqueIdClient idClient;
+  @Inject Config config;
+  @Inject TsdbStore store;
+
   @Before
   public void before() throws Exception {
-    final ObjectGraph objectGraph = ObjectGraph.create(new TestModule());
-    final TsdbStore tsdb_store = objectGraph.get(TsdbStore.class);
-    final TSDB tsdb = objectGraph.get(TSDB.class);
+    ObjectGraph.create(new TestModule()).inject(this);
 
-    tsdb_store.allocateUID(SYS_CPU_USER_NAME, SYS_CPU_USER_ID, UniqueIdType.METRIC);
-    tsdb_store.allocateUID(HOST_NAME, HOST_ID, UniqueIdType.TAGK);
-    tsdb_store.allocateUID(WEB01_NAME, WEB01_ID, UniqueIdType.TAGV);
+    store.allocateUID(SYS_CPU_USER_NAME, SYS_CPU_USER_ID, UniqueIdType.METRIC);
+    store.allocateUID(HOST_NAME, HOST_ID, UniqueIdType.TAGK);
+    store.allocateUID(WEB01_NAME, WEB01_ID, UniqueIdType.TAGV);
 
     good_tags = Maps.newHashMap();
     good_tags.put(HOST_NAME, WEB01_NAME);
 
-    builder = new QueryBuilder(tsdb);
+    builder = new QueryBuilder(idClient, config);
   }
 
   /*

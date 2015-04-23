@@ -7,6 +7,7 @@ import dagger.Provides;
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.MetaClientUIDMetaTest;
 import net.opentsdb.core.PluginsModule;
+import net.opentsdb.core.TestQueryBuilder;
 import net.opentsdb.core.UniqueIdClientTest;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.StoreModuleTest;
@@ -37,7 +38,8 @@ import javax.inject.Singleton;
         injects = {
             MetaClientUIDMetaTest.class,
             UniqueIdClientTest.class,
-            StoreModuleTest.class
+            StoreModuleTest.class,
+            TestQueryBuilder.class
         })
 public class TestModule {
   private final Config config;

@@ -109,7 +109,7 @@ public final class DataPointsClientExecuteQueryTest {
 
     ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 
-    queryBuilder = new QueryBuilder(tsdb);
+    queryBuilder = new QueryBuilder(tsdb.getUniqueIdClient(), tsdb.getConfig());
 
     tsdb_store.allocateUID(METRIC_1, SYS_CPU_USER_ID, UniqueIdType.METRIC);
     tsdb_store.allocateUID(METRIC_2, SYS_CPU_NICE_ID, UniqueIdType.METRIC);

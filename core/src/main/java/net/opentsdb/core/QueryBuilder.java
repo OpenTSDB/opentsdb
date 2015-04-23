@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
+import com.typesafe.config.Config;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UidResolver;
 
@@ -25,10 +26,8 @@ import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.hbase.async.Bytes.ByteMap;
 
 public class QueryBuilder {
-  /**
-   * The TSDB we belong to.
-   */
-  private final TSDB tsdb;
+  private final UniqueIdClient idClient;
+  private final Config config;
 
   /**
    * Start time (UNIX timestamp in seconds) on 32 bits ("unsigned" int).
@@ -102,8 +101,9 @@ public class QueryBuilder {
    */
   private List<String> tsuids;
 
-  public QueryBuilder(final TSDB tsdb) {
-    this.tsdb = checkNotNull(tsdb);
+  public QueryBuilder(final UniqueIdClient idClient, final Config config) {
+    this.idClient = checkNotNull(idClient);
+    this.config = checkNotNull(config);
   }
 
   /**
@@ -148,7 +148,7 @@ public class QueryBuilder {
    * this or {@link #withTSUIDS(java.util.List)}, not both.
    */
   public QueryBuilder withMetric(final String metric) {
-    this.metric = tsdb.getUniqueIdClient().metrics.getId(checkNotNull(metric));
+    this.metric = idClient.metrics.getId(checkNotNull(metric));
     return this;
   }
 
@@ -157,7 +157,7 @@ public class QueryBuilder {
    */
   public QueryBuilder withTags(final Map<String, String> tags) {
     findGroupBys(checkNotNull(tags));
-    this.tags = tsdb.getUniqueIdClient().getAllTags(tags);
+    this.tags = idClient.getAllTags(tags);
     return this;
   }
 
@@ -299,7 +299,7 @@ public class QueryBuilder {
 
     final Iterator<Entry<String, String>> i = tags.entrySet().iterator();
     final Splitter tagv_splitter = Splitter.on('|');
-    final UidResolver uidResolver = new UidResolver(tsdb.getUniqueIdClient(), tsdb.getConfig());
+    final UidResolver uidResolver = new UidResolver(idClient, config);
 
     while (i.hasNext()) {
       final Entry<String, String> tag = i.next();
@@ -308,7 +308,7 @@ public class QueryBuilder {
 
       // 'GROUP BY' with any value OR Multiple possible values.
       if ("*".equals(tagvalue) || tagvalue.indexOf('|', 1) >= 0) {
-        Deferred<byte[]> tagk_id = tsdb.getUniqueIdClient().tag_names.getId(tagk);
+        Deferred<byte[]> tagk_id = idClient.tag_names.getId(tagk);
         group_bys_deferreds.add(tagk_id);
         tagk_id.addCallback(new GroupBysCB(tagk));
 
