@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2013  The OpenTSDB Authors.
+# Copyright (C) 2015  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -15,7 +15,7 @@
 
 MOCKITO_VERSION := 1.9.5
 MOCKITO := third_party/mockito/mockito-core-$(MOCKITO_VERSION).jar
-MOCKITO_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+MOCKITO_BASE_URL := http://central.maven.org/maven2/org/mockito/mockito-core/$(MOCKITO_VERSION)
 
 $(MOCKITO): $(MOCKITO).md5
 	set dummy "$(MOCKITO_BASE_URL)" "$(MOCKITO)"; shift; $(FETCH_DEPENDENCY)

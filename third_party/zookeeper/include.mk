@@ -1,4 +1,4 @@
-# Copyright (C) 2011-2013  The OpenTSDB Authors.
+# Copyright (C) 2015  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -15,7 +15,7 @@
 
 ZOOKEEPER_VERSION := 3.3.6
 ZOOKEEPER := third_party/zookeeper/zookeeper-$(ZOOKEEPER_VERSION).jar
-ZOOKEEPER_BASE_URL := $(OPENTSDB_THIRD_PARTY_BASE_URL)
+ZOOKEEPER_BASE_URL := http://central.maven.org/maven2/org/apache/zookeeper/zookeeper/$(ZOOKEEPER_VERSION)
 
 $(ZOOKEEPER): $(ZOOKEEPER).md5
 	set dummy "$(ZOOKEEPER_BASE_URL)" "$(ZOOKEEPER)"; shift; $(FETCH_DEPENDENCY)

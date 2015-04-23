@@ -528,7 +528,7 @@ public final class TSMeta {
       @Override
       public Deferred<Long> call(final Long incremented_value) 
         throws Exception {
-        
+LOG.info("Value: " + incremented_value);
         if (incremented_value > 1) {
           // TODO - maybe update the search index every X number of increments?
           // Otherwise the search engine would only get last_updated/count 
@@ -611,9 +611,9 @@ public final class TSMeta {
     // if the user has disabled real time TSMeta tracking (due to OOM issues)
     // then we only want to increment the data point count.
     if (!tsdb.getConfig().enable_realtime_ts()) {
-      return tsdb.getClient().bufferAtomicIncrement(inc);
+      return tsdb.getClient().atomicIncrement(inc);
     }
-    return tsdb.getClient().bufferAtomicIncrement(inc).addCallbackDeferring(
+    return tsdb.getClient().atomicIncrement(inc).addCallbackDeferring(
         new TSMetaCB());
   }
   
