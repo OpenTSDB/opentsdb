@@ -8,6 +8,7 @@ import net.opentsdb.core.DataPointsClientExecuteQueryTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientTSMetaTest;
 import net.opentsdb.core.PluginsModule;
+import net.opentsdb.core.TestTsdbQueryDownsample;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;
@@ -46,7 +47,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
             MemoryStore.class,
             MetaClientTSMetaTest.class,
             TestUidFormatter.class,
-            TestUidResolver.class
+            TestUidResolver.class,
+            TestTsdbQueryDownsample.class
         })
 public class TestModuleMemoryStore {
   private final Config config;

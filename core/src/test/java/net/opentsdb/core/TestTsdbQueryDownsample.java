@@ -14,6 +14,7 @@ package net.opentsdb.core;
 
 import java.util.HashMap;
 
+import com.typesafe.config.Config;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MockBase;
@@ -29,6 +30,8 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
+
+import javax.inject.Inject;
 
 import static org.junit.Assert.*;
 
@@ -47,24 +50,26 @@ public class TestTsdbQueryDownsample {
   private static final byte[] WEB01_ID = new byte[]{0, 0, 1};
   private static final byte[] WEB02_ID = new byte[]{0, 0, 2};
 
-  private TSDB tsdb;
   private QueryBuilder builder;
+
+  @Inject Config config;
+  @Inject TsdbStore store;
+  @Inject UniqueIdClient idClient;
+  @Inject DataPointsClient dataPointsClient;
 
   @Before
   public void before() throws Exception {
-    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
-    final TsdbStore tsdb_store = objectGraph.get(TsdbStore.class);
-    tsdb = objectGraph.get(TSDB.class);
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
 
-    builder = new QueryBuilder(tsdb.getUniqueIdClient(), tsdb.getConfig());
+    builder = new QueryBuilder(idClient, config);
 
-    tsdb_store.allocateUID("sys.cpu.user", SYS_CPU_USER_ID, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.nice", SYS_CPU_NICE_ID, UniqueIdType.METRIC);
+    store.allocateUID("sys.cpu.user", SYS_CPU_USER_ID, UniqueIdType.METRIC);
+    store.allocateUID("sys.cpu.nice", SYS_CPU_NICE_ID, UniqueIdType.METRIC);
 
-    tsdb_store.allocateUID("host", HOST_ID, UniqueIdType.TAGK);
+    store.allocateUID("host", HOST_ID, UniqueIdType.TAGK);
 
-    tsdb_store.allocateUID("web01", WEB01_ID, UniqueIdType.TAGV);
-    tsdb_store.allocateUID("web02", WEB02_ID, UniqueIdType.TAGV);
+    store.allocateUID("web01", WEB01_ID, UniqueIdType.TAGV);
+    store.allocateUID("web02", WEB02_ID, UniqueIdType.TAGV);
   }
 
   @Test
@@ -81,7 +86,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = dataPointsClient.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -128,7 +133,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = dataPointsClient.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -177,7 +182,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = dataPointsClient.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -228,7 +233,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = dataPointsClient.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -276,7 +281,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = dataPointsClient.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -325,7 +330,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = dataPointsClient.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -374,7 +379,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = dataPointsClient.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -426,7 +431,7 @@ public class TestTsdbQueryDownsample {
 
     final Query query = builder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = dataPointsClient.executeQuery(query).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -476,9 +481,9 @@ public class TestTsdbQueryDownsample {
     tags.put("host", "web01");
     long timestamp = baseTimestamp;
     for (int i = 1; i <= 300; i++) {
-      tsdb.getDataPointsClient().addPoint("sys.cpu.user", timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.user", timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.getDataPointsClient().addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        dataPointsClient.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
 
@@ -487,9 +492,9 @@ public class TestTsdbQueryDownsample {
     tags.put("host", "web02");
     timestamp = baseTimestamp + (offset ? 15 : 0);
     for (int i = 300; i > 0; i--) {
-      tsdb.getDataPointsClient().addPoint("sys.cpu.user", timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.user", timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.getDataPointsClient().addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        dataPointsClient.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -501,8 +506,8 @@ public class TestTsdbQueryDownsample {
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
     for (int i = 1; i <= 300; i++) {
-      tsdb.getDataPointsClient().addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.getDataPointsClient().addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     // dump a parallel set but invert the values
@@ -510,8 +515,8 @@ public class TestTsdbQueryDownsample {
     tags.put("host", "web02");
     timestamp = 1356998400000L;
     for (int i = 300; i > 0; i--) {
-      tsdb.getDataPointsClient().addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.getDataPointsClient().addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
 
@@ -523,9 +528,9 @@ public class TestTsdbQueryDownsample {
     tags.put("host", "web01");
     long timestamp = 1356998400;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
-      tsdb.getDataPointsClient().addPoint("sys.cpu.user", timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.user", timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.getDataPointsClient().addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        dataPointsClient.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
 
@@ -534,9 +539,9 @@ public class TestTsdbQueryDownsample {
     tags.put("host", "web02");
     timestamp = offset ? 1356998415 : 1356998400;
     for (float i = 75F; i > 0; i -= 0.25F) {
-      tsdb.getDataPointsClient().addPoint("sys.cpu.user", timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.user", timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.getDataPointsClient().addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        dataPointsClient.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -548,8 +553,8 @@ public class TestTsdbQueryDownsample {
     tags.put("host", "web01");
     long timestamp = 1356998400000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
-      tsdb.getDataPointsClient().addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.getDataPointsClient().addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     // dump a parallel set but invert the values
@@ -557,8 +562,8 @@ public class TestTsdbQueryDownsample {
     tags.put("host", "web02");
     timestamp = 1356998400000L;
     for (float i = 75F; i > 0; i -= 0.25F) {
-      tsdb.getDataPointsClient().addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.getDataPointsClient().addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.user", timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      dataPointsClient.addPoint("sys.cpu.nice", timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
 }

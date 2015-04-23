@@ -17,9 +17,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 /**
  * A default search plugin to use when no other search plugin has been
  * configured. This search plugin will just discard all data given to it.
- * @see net.opentsdb.core.TSDB
- * @see net.opentsdb.core.TsdbBuilder
- * @see net.opentsdb.search.SearchPlugin
  */
 public class DefaultSearchPlugin extends SearchPlugin {
   private final TsdbStore store;
