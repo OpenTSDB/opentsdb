@@ -43,7 +43,7 @@ import javax.inject.Inject;
 import static org.junit.Assert.*;
 
 /**
- * Massive test class that is used to test all facets of querying for data. 
+ * Massive test class that is used to test all facets of querying for data.
  * Since data is fetched using the TsdbQuery class, it makes sense to put all
  * of the unit tests here that deal with actual data. This includes:
  * - queries
@@ -92,8 +92,10 @@ public final class DataPointsClientExecuteQueryTest {
   private Config config;
   private QueryBuilder queryBuilder = null;
 
-  @Inject TSDB tsdb;
-  @Inject MemoryStore tsdb_store;
+  @Inject MemoryStore store;
+  @Inject UniqueIdClient idClient;
+  @Inject MetaClient metaClient;
+  @Inject DataPointsClient datapointsClient;
 
   private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
   private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};
@@ -105,19 +107,19 @@ public final class DataPointsClientExecuteQueryTest {
   public void before() throws Exception {
     config = ConfigFactory.load()
             .withValue("tsd.storage.fix_duplicates",
-                    ConfigValueFactory.fromAnyRef(true)); // TODO(jat): test both ways
+                ConfigValueFactory.fromAnyRef(true)); // TODO(jat): test both ways
 
     ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 
-    queryBuilder = new QueryBuilder(tsdb.getUniqueIdClient(), tsdb.getConfig());
+    queryBuilder = new QueryBuilder(idClient, config);
 
-    tsdb_store.allocateUID(METRIC_1, SYS_CPU_USER_ID, UniqueIdType.METRIC);
-    tsdb_store.allocateUID(METRIC_2, SYS_CPU_NICE_ID, UniqueIdType.METRIC);
+    store.allocateUID(METRIC_1, SYS_CPU_USER_ID, UniqueIdType.METRIC);
+    store.allocateUID(METRIC_2, SYS_CPU_NICE_ID, UniqueIdType.METRIC);
 
-    tsdb_store.allocateUID(HOST, HOST_ID, UniqueIdType.TAGK);
+    store.allocateUID(HOST, HOST_ID, UniqueIdType.TAGK);
 
-    tsdb_store.allocateUID(WEB_01, WEB01_ID, UniqueIdType.TAGV);
-    tsdb_store.allocateUID(WEB_02, WEB02_ID, UniqueIdType.TAGV);
+    store.allocateUID(WEB_01, WEB01_ID, UniqueIdType.TAGV);
+    store.allocateUID(WEB_02, WEB02_ID, UniqueIdType.TAGV);
   }
 
   @Test
@@ -134,7 +136,7 @@ public final class DataPointsClientExecuteQueryTest {
 
 
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -161,7 +163,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -185,7 +187,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(0, dps.length);
   }
@@ -199,7 +201,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -221,7 +223,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -244,7 +246,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(2, dps.length);
 
@@ -283,7 +285,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -306,7 +308,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -329,7 +331,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
 
     int value = 1;
@@ -380,7 +382,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -405,7 +407,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -429,7 +431,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -451,7 +453,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -474,7 +476,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(2, dps.length);
 
@@ -513,7 +515,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -536,7 +538,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -559,7 +561,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -584,7 +586,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.AVG);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -619,7 +621,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.AVG);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -648,9 +650,9 @@ public final class DataPointsClientExecuteQueryTest {
   public void runMixedSingleTSPostCompaction() throws Exception {
     config = ConfigFactory.load()
             .withValue("tsd.storage.fix_duplicates",
-                    ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
+                ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
             .withValue("tsd.storage.enable_compaction",
-                    ConfigValueFactory.fromAnyRef(true));
+                ConfigValueFactory.fromAnyRef(true));
 
     ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 
@@ -667,15 +669,15 @@ public final class DataPointsClientExecuteQueryTest {
 
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    assertEquals(1, tsdb_store.numColumns(
-            MockBase.stringToBytes(E22700000001000001)));
-    assertEquals(1, tsdb_store.numColumns(
-            MockBase.stringToBytes(E23510000001000001)));
-    assertEquals(1, tsdb_store.numColumns(
-            MockBase.stringToBytes(E24320000001000001)));
+    assertEquals(1, store.numColumns(
+        MockBase.stringToBytes(E22700000001000001)));
+    assertEquals(1, store.numColumns(
+        MockBase.stringToBytes(E23510000001000001)));
+    assertEquals(1, store.numColumns(
+        MockBase.stringToBytes(E24320000001000001)));
 
     // run it again to verify the compacted data uncompacts properly
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -710,7 +712,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.AVG);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -745,7 +747,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
 
     int value = 1;
@@ -760,9 +762,9 @@ public final class DataPointsClientExecuteQueryTest {
   public void runCompactPostQuery() throws Exception {
     config = ConfigFactory.load()
             .withValue("tsd.storage.fix_duplicates",
-                    ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
+                ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
             .withValue("tsd.storage.enable_compaction",
-                    ConfigValueFactory.fromAnyRef(true));
+                ConfigValueFactory.fromAnyRef(true));
 
     ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 
@@ -779,21 +781,21 @@ public final class DataPointsClientExecuteQueryTest {
 
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    assertEquals(1, tsdb_store.numColumns(
-            MockBase.stringToBytes(E22700000001000001)));
-    assertEquals(119, tsdb_store.numColumns(
-            MockBase.stringToBytes(E22700000001000002)));
-    assertEquals(1, tsdb_store.numColumns(
-            MockBase.stringToBytes(E23510000001000001)));
-    assertEquals(120, tsdb_store.numColumns(
-            MockBase.stringToBytes(E23510000001000002)));
-    assertEquals(1, tsdb_store.numColumns(
-            MockBase.stringToBytes(E24320000001000001)));
-    assertEquals(61, tsdb_store.numColumns(
-            MockBase.stringToBytes(E24320000001000002)));
+    assertEquals(1, store.numColumns(
+        MockBase.stringToBytes(E22700000001000001)));
+    assertEquals(119, store.numColumns(
+        MockBase.stringToBytes(E22700000001000002)));
+    assertEquals(1, store.numColumns(
+        MockBase.stringToBytes(E23510000001000001)));
+    assertEquals(120, store.numColumns(
+        MockBase.stringToBytes(E23510000001000002)));
+    assertEquals(1, store.numColumns(
+        MockBase.stringToBytes(E24320000001000001)));
+    assertEquals(61, store.numColumns(
+        MockBase.stringToBytes(E24320000001000002)));
 
     // run it again to verify the compacted data uncompacts properly
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
 
     int value = 1;
@@ -812,7 +814,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test
@@ -823,13 +825,13 @@ public final class DataPointsClientExecuteQueryTest {
     storeLongTimeSeriesSeconds(true, false);
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, 1356998430, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, 1356998430, 42.5F, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     queryBuilder.withMetric(METRIC_1);
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     // TODO: further validate the result
   }
@@ -842,7 +844,7 @@ public final class DataPointsClientExecuteQueryTest {
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_3);
     note.setDescription(DESCRIPTION);
-    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase
+    metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase
             .DEFAULT_TIMEOUT);
 
     HashMap<String, String> tags = new HashMap<>(1);
@@ -853,7 +855,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(1, dps[0].getAnnotations().size());
     assertEquals(DESCRIPTION, dps[0].getAnnotations().get(0).getDescription());
@@ -870,9 +872,9 @@ public final class DataPointsClientExecuteQueryTest {
   public void runWithAnnotationPostCompact() throws Exception {
     config = ConfigFactory.load()
             .withValue("tsd.storage.fix_duplicates",
-                    ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
+                ConfigValueFactory.fromAnyRef(true)) // TODO(jat): test both ways
             .withValue("tsd.storage.enable_compaction",
-                    ConfigValueFactory.fromAnyRef(true));
+                ConfigValueFactory.fromAnyRef(true));
 
     ObjectGraph.create(new TestModuleMemoryStore(config)).inject(this);
 
@@ -882,7 +884,7 @@ public final class DataPointsClientExecuteQueryTest {
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_3);
     note.setDescription(DESCRIPTION);
-    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
@@ -895,20 +897,20 @@ public final class DataPointsClientExecuteQueryTest {
 
     // this should only compact the rows for the time series that we fetched and
     // leave the others alone
-    assertEquals(2, tsdb_store.numColumns(
-            MockBase.stringToBytes(E22700000001000001)));
-    assertEquals(119, tsdb_store.numColumns(
-            MockBase.stringToBytes(E22700000001000002)));
-    assertEquals(1, tsdb_store.numColumns(
-            MockBase.stringToBytes(E23510000001000001)));
-    assertEquals(120, tsdb_store.numColumns(
-            MockBase.stringToBytes(E23510000001000002)));
-    assertEquals(1, tsdb_store.numColumns(
-            MockBase.stringToBytes(E24320000001000001)));
-    assertEquals(61, tsdb_store.numColumns(
-            MockBase.stringToBytes(E24320000001000002)));
+    assertEquals(2, store.numColumns(
+        MockBase.stringToBytes(E22700000001000001)));
+    assertEquals(119, store.numColumns(
+        MockBase.stringToBytes(E22700000001000002)));
+    assertEquals(1, store.numColumns(
+        MockBase.stringToBytes(E23510000001000001)));
+    assertEquals(120, store.numColumns(
+        MockBase.stringToBytes(E23510000001000002)));
+    assertEquals(1, store.numColumns(
+        MockBase.stringToBytes(E24320000001000001)));
+    assertEquals(61, store.numColumns(
+        MockBase.stringToBytes(E24320000001000002)));
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(1, dps[0].getAnnotations().size());
     assertEquals(DESCRIPTION, dps[0].getAnnotations().get(0).getDescription());
@@ -927,12 +929,12 @@ public final class DataPointsClientExecuteQueryTest {
 
     // verifies that we can pickup an annotation stored all by it's lonesome
     // in a row without any data
-    tsdb_store.flushRow(MockBase.stringToBytes(E23510000001000001));
+    store.flushRow(MockBase.stringToBytes(E23510000001000001));
     final Annotation note = new Annotation();
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_4);
     note.setDescription(DESCRIPTION);
-    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
@@ -942,7 +944,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(1, dps[0].getAnnotations().size());
     assertEquals(DESCRIPTION, dps[0].getAnnotations().get(0).getDescription());
@@ -963,12 +965,12 @@ public final class DataPointsClientExecuteQueryTest {
   public void runWithSingleAnnotation() throws Exception {
     // verifies that we can pickup an annotation stored all by it's lonesome
     // in a row without any data
-    tsdb_store.flushRow(MockBase.stringToBytes(E23510000001000001));
+    store.flushRow(MockBase.stringToBytes(E23510000001000001));
     final Annotation note = new Annotation();
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_4);
     note.setDescription(DESCRIPTION);
-    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
@@ -978,7 +980,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(1, dps[0].getAnnotations().size());
     assertEquals(DESCRIPTION, dps[0].getAnnotations().get(0).getDescription());
@@ -993,14 +995,14 @@ public final class DataPointsClientExecuteQueryTest {
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = 1356998410;
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     final List<String> tsuids = new ArrayList<>(1);
     tsuids.add(TSUID_1);
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate( false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(1, dps.length);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -1015,13 +1017,13 @@ public final class DataPointsClientExecuteQueryTest {
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = 1356998410;
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb_store.flushRow(MockBase.stringToBytes(E23510000001000001));
+    datapointsClient.addPoint(METRIC_1, timestamp, 42, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    store.flushRow(MockBase.stringToBytes(E23510000001000001));
     final Annotation note = new Annotation();
     note.setTSUID(TSUID_1);
     note.setStartTime(START_TIME_4);
     note.setDescription(DESCRIPTION);
-    tsdb.getMetaClient().syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.syncToStorage(note, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
     final List<String> tsuids = new ArrayList<>(1);
@@ -1029,7 +1031,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate( false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(1, dps.length);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
@@ -1049,7 +1051,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate( false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -1074,7 +1076,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate( false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1095,7 +1097,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate( false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(0, dps.length);
   }
@@ -1110,7 +1112,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate( false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertEquals(0, dps.length);
   }
@@ -1125,7 +1127,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTSUIDS(tsuids);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate( false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     dps[0].metric();
   }
@@ -1135,9 +1137,9 @@ public final class DataPointsClientExecuteQueryTest {
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 55, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 25, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 5, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 55, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, Long.MAX_VALUE - 25, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 5, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     RateOptions ro = new RateOptions(true, Long.MAX_VALUE, 0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -1145,7 +1147,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true, ro);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     for (DataPoint dp : dps[0]) {
       assertEquals(1.0, dp.doubleValue(), 0.001);
@@ -1158,9 +1160,9 @@ public final class DataPointsClientExecuteQueryTest {
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 30, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 60, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 90, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 30, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 60, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 90, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     RateOptions ro = new RateOptions(true, Long.MAX_VALUE, 0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -1168,7 +1170,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true, ro);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     for (DataPoint dp : dps[0]) {
       assertEquals(1.0, dp.doubleValue(), 0.001);
@@ -1181,9 +1183,9 @@ public final class DataPointsClientExecuteQueryTest {
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 75, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 5, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 75, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 5, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     RateOptions ro = new RateOptions(true, 100, 0);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -1191,7 +1193,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true, ro);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     for (DataPoint dp : dps[0]) {
       assertEquals(1.0, dp.doubleValue(), 0.001);
@@ -1204,9 +1206,9 @@ public final class DataPointsClientExecuteQueryTest {
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 75, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, 25, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 45, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 75, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    datapointsClient.addPoint(METRIC_1, timestamp += 30, 25, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     RateOptions ro = new RateOptions(true, 10000, 35);
     queryBuilder.withStartAndEndTime(START_TIME_1,END_TIME_1);
@@ -1214,7 +1216,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(true, ro);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
     assertEquals(1.0, dps[0].doubleValue(0), 0.001);
     assertEquals(0, dps[0].doubleValue(1), 0.001);
@@ -1243,15 +1245,15 @@ public final class DataPointsClientExecuteQueryTest {
     final byte[] KEY = { 0, 0, 1, 0x50, (byte) 0xE2,
             0x27, 0x00, 0, 0, 1, 0, 0, 1 };
 
-    tsdb_store.addColumn(KEY,
-            MockBase.concatByteArrays(qual1, qual2),
-            MockBase.concatByteArrays(val1, val2, new byte[]{0}));
-    tsdb_store.addColumn(KEY,
-            MockBase.concatByteArrays(qual3, qual4),
-            MockBase.concatByteArrays(val3, val4, new byte[]{0}));
-    tsdb_store.addColumn(KEY,
-            MockBase.concatByteArrays(qual5, qual6),
-            MockBase.concatByteArrays(val5, val6, new byte[]{0}));
+    store.addColumn(KEY,
+        MockBase.concatByteArrays(qual1, qual2),
+        MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    store.addColumn(KEY,
+        MockBase.concatByteArrays(qual3, qual4),
+        MockBase.concatByteArrays(val3, val4, new byte[]{0}));
+    store.addColumn(KEY,
+        MockBase.concatByteArrays(qual5, qual6),
+        MockBase.concatByteArrays(val5, val6, new byte[]{0}));
 
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
@@ -1261,7 +1263,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -1298,14 +1300,14 @@ public final class DataPointsClientExecuteQueryTest {
     final byte[] KEY = { 0, 0, 1, 0x50, (byte) 0xE2,
             0x27, 0x00, 0, 0, 1, 0, 0, 1 };
 
-    tsdb_store.addColumn(KEY,
-            MockBase.concatByteArrays(qual1, qual2),
-            MockBase.concatByteArrays(val1, val2, new byte[]{0}));
-    tsdb_store.addColumn(KEY, qual3, val3);
-    tsdb_store.addColumn(KEY, qual4, val4);
-    tsdb_store.addColumn(KEY,
-            MockBase.concatByteArrays(qual5, qual6),
-            MockBase.concatByteArrays(val5, val6, new byte[]{0}));
+    store.addColumn(KEY,
+        MockBase.concatByteArrays(qual1, qual2),
+        MockBase.concatByteArrays(val1, val2, new byte[]{0}));
+    store.addColumn(KEY, qual3, val3);
+    store.addColumn(KEY, qual4, val4);
+    store.addColumn(KEY,
+        MockBase.concatByteArrays(qual5, qual6),
+        MockBase.concatByteArrays(val5, val6, new byte[]{0}));
 
     HashMap<String, String> tags = new HashMap<>(1);
     tags.put(HOST, WEB_01);
@@ -1315,7 +1317,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
 
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertTrue(dps[0].aggregatedTags().isEmpty());
@@ -1336,14 +1338,14 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (int i = 1; i <= 300; i++) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
     tags.put(HOST, WEB_02);
     timestamp = TIMESTAMP_5;
     for (int i = 300; i > 0; i--) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
@@ -1352,7 +1354,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1383,14 +1385,14 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (int i = 1; i <= 300; i++) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
     tags.put(HOST, WEB_02);
     timestamp = START_TIME_1250L;
     for (int i = 300; i > 0; i--) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
@@ -1399,7 +1401,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1444,7 +1446,7 @@ public final class DataPointsClientExecuteQueryTest {
     long timestamp = START_TIME_1000L;
     for (int i = 1; i <= 120; i++) {
       timestamp += i <= 100 ? 500 : 5000;
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     // ts = START_TIME_1750, v = 300
@@ -1460,7 +1462,7 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_02);
     timestamp = START_TIME_1250L;
     for (int i = 300; i > 0; i--) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     tags.clear();
@@ -1470,7 +1472,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withAggregator(Aggregators.SUM);
     queryBuilder.shouldCalculateRate(false);
     queryBuilder.downsample(1000, Aggregators.SUM);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1524,7 +1526,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.ZIMSUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1550,7 +1552,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.ZIMSUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1576,7 +1578,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.ZIMSUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1613,7 +1615,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.ZIMSUM);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1649,7 +1651,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIN);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1688,7 +1690,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIN);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1727,7 +1729,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIN);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1768,7 +1770,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIN);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1806,7 +1808,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MAX);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1845,7 +1847,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MAX);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1884,7 +1886,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MAX);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1931,7 +1933,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MAX);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -1975,7 +1977,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.AVG);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2001,7 +2003,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.AVG);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2027,7 +2029,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.AVG);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2063,7 +2065,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.AVG);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2095,7 +2097,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.DEV);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2134,7 +2136,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.DEV);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2173,7 +2175,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.DEV);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2219,7 +2221,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.DEV);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2262,7 +2264,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIMMIN);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2301,7 +2303,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIMMIN);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2338,7 +2340,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIMMIN);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2377,7 +2379,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIMMIN);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2413,7 +2415,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIMMAX);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2452,7 +2454,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIMMAX);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2491,7 +2493,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIMMAX);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2528,7 +2530,7 @@ public final class DataPointsClientExecuteQueryTest {
     queryBuilder.withTags(tags);
     queryBuilder.withAggregator(Aggregators.MIMMAX);
     queryBuilder.shouldCalculateRate(false);
-    final DataPoints[] dps = tsdb.getDataPointsClient().executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    final DataPoints[] dps = datapointsClient.executeQuery(queryBuilder.createQuery().joinUninterruptibly(MockBase.DEFAULT_TIMEOUT)).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(dps);
     assertArrayEquals(SYS_CPU_USER_ID, dps[0].metric());
     assertArrayEquals(HOST_ID, dps[0].aggregatedTags().get(0));
@@ -2566,9 +2568,9 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (int i = 1; i <= 300; i++) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        datapointsClient.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
 
@@ -2577,9 +2579,9 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_02);
     timestamp = offset ? TIMESTAMP_5 : START_TIME_1;
     for (int i = 300; i > 0; i--) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        datapointsClient.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -2591,8 +2593,8 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (int i = 1; i <= 300; i++) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     // dump a parallel set but invert the values
@@ -2600,8 +2602,8 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_02);
     timestamp = START_TIME_1000L;
     for (int i = 300; i > 0; i--) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
 
@@ -2613,9 +2615,9 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        datapointsClient.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
 
@@ -2624,9 +2626,9 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_02);
     timestamp = offset ? TIMESTAMP_5 : START_TIME_1;
     for (float i = 75F; i > 0; i -= 0.25F) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       if (two_metrics) {
-        tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        datapointsClient.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -2638,8 +2640,8 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_01);
     long timestamp = START_TIME_1000L;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
 
     // dump a parallel set but invert the values
@@ -2647,8 +2649,8 @@ public final class DataPointsClientExecuteQueryTest {
     tags.put(HOST, WEB_02);
     timestamp = START_TIME_1000L;
     for (float i = 75F; i > 0; i -= 0.25F) {
-      tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-      tsdb.getDataPointsClient().addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_1, timestamp += 500, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+      datapointsClient.addPoint(METRIC_2, timestamp, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     }
   }
 
@@ -2658,9 +2660,9 @@ public final class DataPointsClientExecuteQueryTest {
     long timestamp = START_TIME_1;
     for (float i = 1.25F; i <= 76; i += 0.25F) {
       if (i % 2 == 0) {
-        tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, (long) i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        datapointsClient.addPoint(METRIC_1, timestamp += 30, (long) i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       } else {
-        tsdb.getDataPointsClient().addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        datapointsClient.addPoint(METRIC_1, timestamp += 30, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -2676,9 +2678,9 @@ public final class DataPointsClientExecuteQueryTest {
         ts /= 1000;
       }
       if (i % 2 == 0) {
-        tsdb.getDataPointsClient().addPoint(METRIC_1, ts, (long) i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        datapointsClient.addPoint(METRIC_1, ts, (long) i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       } else {
-        tsdb.getDataPointsClient().addPoint(METRIC_1, ts, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+        datapointsClient.addPoint(METRIC_1, ts, i, tags).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
       }
     }
   }
@@ -2701,8 +2703,8 @@ public final class DataPointsClientExecuteQueryTest {
       System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
       value++;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E22700000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E22700000001000001),
+        qualifier, column_qualifier);
 
     base_timestamp = 1357002000;
     qualifier = new byte[120 * 2];
@@ -2720,8 +2722,8 @@ public final class DataPointsClientExecuteQueryTest {
       System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
       value++;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E23510000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E23510000001000001),
+        qualifier, column_qualifier);
 
     base_timestamp = 1357005600;
     qualifier = new byte[61 * 2];
@@ -2739,8 +2741,8 @@ public final class DataPointsClientExecuteQueryTest {
       System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
       value++;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E24320000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E24320000001000001),
+        qualifier, column_qualifier);
   }
 
   private void storeFloatCompactions() {
@@ -2762,8 +2764,8 @@ public final class DataPointsClientExecuteQueryTest {
               column_qualifier, index, 4);
       value += 0.25F;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E22700000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E22700000001000001),
+        qualifier, column_qualifier);
 
     base_timestamp = 1357002000;
     qualifier = new byte[120 * 2];
@@ -2782,8 +2784,8 @@ public final class DataPointsClientExecuteQueryTest {
               column_qualifier, index, 4);
       value += 0.25F;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E23510000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E23510000001000001),
+        qualifier, column_qualifier);
 
     base_timestamp = 1357005600;
     qualifier = new byte[61 * 2];
@@ -2802,8 +2804,8 @@ public final class DataPointsClientExecuteQueryTest {
               column_qualifier, index, 4);
       value += 0.25F;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E24320000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E24320000001000001),
+        qualifier, column_qualifier);
   }
 
   private void storeMixedCompactions() {
@@ -2840,8 +2842,8 @@ public final class DataPointsClientExecuteQueryTest {
       }
       value += 0.25F;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E22700000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E22700000001000001),
+        qualifier, column_qualifier);
 
     base_timestamp = 1357002000;
     qualifier = new byte[120 * 2];
@@ -2874,8 +2876,8 @@ public final class DataPointsClientExecuteQueryTest {
       }
       value += 0.25F;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E23510000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E23510000001000001),
+        qualifier, column_qualifier);
 
     base_timestamp = 1357005600;
     qualifier = new byte[61 * 2];
@@ -2909,7 +2911,7 @@ public final class DataPointsClientExecuteQueryTest {
       }
       value += 0.25F;
     }
-    tsdb_store.addColumn(MockBase.stringToBytes(E24320000001000001),
-            qualifier, column_qualifier);
+    store.addColumn(MockBase.stringToBytes(E24320000001000001),
+        qualifier, column_qualifier);
   }
 }
