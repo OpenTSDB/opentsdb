@@ -8,7 +8,6 @@ dependencies {
     compile project(':tsdb-tools')
 
     runtime project(':tsdb-cassandra')
-    runtime project(':tsdb-hbase')
 
     compile group: 'io.netty', name: 'netty', version: '3.9.4.Final'
 

@@ -7,7 +7,6 @@ applicationName = "tsdb"
 dependencies {
     compile project(":tsdb-core")
     compile project(":tsdb-cassandra")
-    compile project(":tsdb-hbase")
     compile project(":tsdb-api")
     compile project(":tsdb-tools")
     compile project(":tsdb-storage-json")

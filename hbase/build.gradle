@@ -1,7 +1,0 @@
-
-dependencies {
-    compile project(':tsdb-core')
-    compile project(':tsdb-storage-json')
-
-    testCompile project(':tsdb-core').sourceSets.test.output
-}
