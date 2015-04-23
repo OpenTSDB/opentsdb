@@ -28,6 +28,8 @@ import net.opentsdb.core.Const;
 
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import net.opentsdb.core.MetaClient;
+import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.utils.Pair;
@@ -60,13 +62,13 @@ final class UniqueIdRpc implements HttpRpc {
     final String endpoint = uri.length > 1 ? uri[1] : ""; 
 
     if (endpoint.toLowerCase().equals("assign")) {
-      this.handleAssign(tsdb, query);
+      this.handleAssign(query, tsdb.getUniqueIdClient());
       return;
     } else if (endpoint.toLowerCase().equals("uidmeta")) {
-      this.handleUIDMeta(tsdb, query);
+      this.handleUIDMeta(query, tsdb.getMetaClient());
       return;
     } else if (endpoint.toLowerCase().equals("tsmeta")) {
-      this.handleTSMeta(tsdb, query);
+      this.handleTSMeta(query, tsdb.getMetaClient(), tsdb.getUniqueIdClient());
       return;
     } else {
       throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
@@ -85,10 +87,10 @@ final class UniqueIdRpc implements HttpRpc {
    * processed independently and if there's an error (such as an invalid name or
    * it is already assigned) the error will be stored in a separate error map
    * and other UIDs will be processed.
-   * @param tsdb The TSDB from the RPC router
    * @param query The query for this request
+   * @param idClient
    */
-  private void handleAssign(final TSDB tsdb, final HttpQuery query) {
+  private void handleAssign(final HttpQuery query, final UniqueIdClient idClient) {
     // only accept GET And POST
     if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
@@ -133,7 +135,7 @@ final class UniqueIdRpc implements HttpRpc {
       
       for (String name : entry.getValue()) {
         try {
-          final byte[] uid = tsdb.getUniqueIdClient().assignUid(type, name);
+          final byte[] uid = idClient.assignUid(type, name);
           results.put(name, 
               IdUtils.uidToString(uid));
         } catch (IllegalArgumentException e) {
@@ -158,10 +160,10 @@ final class UniqueIdRpc implements HttpRpc {
 
   /**
    * Handles CRUD calls to individual UIDMeta data entries
-   * @param tsdb The TSDB from the RPC router
    * @param query The query for this request
+   * @param metaClient
    */
-  private void handleUIDMeta(final TSDB tsdb, final HttpQuery query) {
+  private void handleUIDMeta(final HttpQuery query, final MetaClient metaClient) {
 
     final HttpMethod method = query.getAPIMethod();
     // GET
@@ -171,7 +173,7 @@ final class UniqueIdRpc implements HttpRpc {
       final UniqueIdType type = UniqueIdType.fromValue(
               query.getRequiredQueryStringParam("type"));
       try {
-        final UIDMeta meta = tsdb.getMetaClient().getUIDMeta(type, uid)
+        final UIDMeta meta = metaClient.getUIDMeta(type, uid)
         .joinUninterruptibly();
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (NoSuchUniqueId e) {
@@ -205,16 +207,16 @@ final class UniqueIdRpc implements HttpRpc {
                 "This may be caused by another process modifying storage data");
           }
           
-          return tsdb.getMetaClient().getUIDMeta(meta.getType(), meta.getUID());
+          return metaClient.getUIDMeta(meta.getType(), meta.getUID());
         }
         
       }
       
       try {
-        final Deferred<UIDMeta> process_meta = tsdb.getMetaClient().syncUIDMetaToStorage(meta,
-                method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+        final Deferred<UIDMeta> process_meta = metaClient.syncUIDMetaToStorage(meta,
+            method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
         final UIDMeta updated_meta = process_meta.joinUninterruptibly();
-        tsdb.getMetaClient().indexUIDMeta(updated_meta);
+        metaClient.indexUIDMeta(updated_meta);
         query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -236,8 +238,8 @@ final class UniqueIdRpc implements HttpRpc {
         meta = this.parseUIDMetaQS(query);
       }
       try {
-        tsdb.getMetaClient().delete(meta).joinUninterruptibly();
-        tsdb.getMetaClient().deleteUIDMeta(meta);
+        metaClient.delete(meta).joinUninterruptibly();
+        metaClient.deleteUIDMeta(meta);
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete UIDMeta information", e);
       } catch (NoSuchUniqueId e) {
@@ -257,10 +259,11 @@ final class UniqueIdRpc implements HttpRpc {
   
   /**
    * Handles CRUD calls to individual TSMeta data entries
-   * @param tsdb The TSDB from the RPC router
    * @param query The query for this request
+   * @param metaClient
+   * @param idClient
    */
-  private void handleTSMeta(final TSDB tsdb, final HttpQuery query) {
+  private void handleTSMeta(final HttpQuery query, final MetaClient metaClient, final UniqueIdClient idClient) {
 
     final HttpMethod method = query.getAPIMethod();
     // GET
@@ -270,7 +273,7 @@ final class UniqueIdRpc implements HttpRpc {
       if (query.hasQueryStringParam("tsuid")) {
         tsuid = query.getQueryStringParam("tsuid");
         try {
-          final TSMeta meta = tsdb.getMetaClient().getTSMeta(tsuid, true).joinUninterruptibly();
+          final TSMeta meta = metaClient.getTSMeta(tsuid, true).joinUninterruptibly();
           if (meta != null) {
             query.sendReply(query.serializer().formatTSMetaV1(meta));
           } else {
@@ -305,7 +308,7 @@ final class UniqueIdRpc implements HttpRpc {
             tagSet.add(new Pair<String, String>(entry.getKey(), entry.getValue()));
           }
           final SearchQuery metaQuery = new SearchQuery(metric, ImmutableList.copyOf(tagSet));
-          final List<TSMeta> tsmetas = tsdb.getMetaClient()
+          final List<TSMeta> tsmetas = metaClient
               .executeTimeseriesMetaQuery(metaQuery).joinUninterruptibly();
           query.sendReply(query.serializer().formatTSMetaListV1(tsmetas));
         } catch (NoSuchUniqueName e) {
@@ -344,7 +347,7 @@ final class UniqueIdRpc implements HttpRpc {
                 "This may be caused by another process modifying storage data");
           }
 
-          return tsdb.getMetaClient().getTSMeta(meta.getTSUID(), true);
+          return metaClient.getTSMeta(meta.getTSUID(), true);
         }
 
       }
@@ -353,30 +356,30 @@ final class UniqueIdRpc implements HttpRpc {
         // we got a JSON object without TSUID. Try to find a timeseries spec of
         // the form "m": "metric{tagk=tagv,...}"
         final String metric = query.getRequiredQueryStringParam("m");
-        final String tsuid = getTSUIDForMetric(metric, tsdb);
+        final String tsuid = getTSUIDForMetric(metric, idClient);
 
         final boolean create = query.getQueryStringParam("create") != null &&
                                query.getQueryStringParam("create").equals("true");
 
         try {
           // Check whether we have a TSMeta stored already
-          final boolean exists = tsdb.getMetaClient().TSMetaExists(tsuid)
+          final boolean exists = metaClient.TSMetaExists(tsuid)
                   .joinUninterruptibly();
           // set TSUID
           meta.setTSUID(tsuid);
           
           if (!exists && create) {
             // set TSUID
-            final Deferred<TSMeta> process_meta = tsdb.getMetaClient().create(meta)
+            final Deferred<TSMeta> process_meta = metaClient.create(meta)
                     .addCallbackDeferring(new SyncCB());
             final TSMeta updated_meta = process_meta.joinUninterruptibly();
-            tsdb.getMetaClient().indexTSMeta(updated_meta);
+            metaClient.indexTSMeta(updated_meta);
             query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
           } else if (exists) {
-            final Deferred<TSMeta> process_meta = tsdb.getMetaClient().syncToStorage(meta,
-                    method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+            final Deferred<TSMeta> process_meta = metaClient.syncToStorage(meta,
+                method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
             final TSMeta updated_meta = process_meta.joinUninterruptibly();
-            tsdb.getMetaClient().indexTSMeta(updated_meta);
+            metaClient.indexTSMeta(updated_meta);
             query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
           } else {
             throw new BadRequestException(
@@ -398,10 +401,10 @@ final class UniqueIdRpc implements HttpRpc {
         }
       } else {
         try {
-          final Deferred<TSMeta> process_meta = tsdb.getMetaClient().syncToStorage(meta,
-                  method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+          final Deferred<TSMeta> process_meta = metaClient.syncToStorage(meta,
+              method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
           final TSMeta updated_meta = process_meta.joinUninterruptibly();
-          tsdb.getMetaClient().indexTSMeta(updated_meta);
+          metaClient.indexTSMeta(updated_meta);
           query.sendReply(query.serializer().formatTSMetaV1(updated_meta));
         } catch (IllegalStateException e) {
           query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -426,8 +429,8 @@ final class UniqueIdRpc implements HttpRpc {
         meta = this.parseTSMetaQS(query);
       }
       try {
-        tsdb.getMetaClient().delete(meta);
-        tsdb.getMetaClient().deleteTSMeta(meta.getTSUID());
+        metaClient.delete(meta);
+        metaClient.deleteTSMeta(meta.getTSUID());
       } catch (IllegalArgumentException e) {
         throw new BadRequestException("Unable to delete TSMeta information", e);
       }
@@ -538,10 +541,11 @@ final class UniqueIdRpc implements HttpRpc {
    * Parses a query string "m=metric{tagk1=tagv1,...}" type query and returns
    * a tsuid.
    * @param data_query The query we're building
+   * @param idClient
    * @throws BadRequestException if we are unable to parse the query or it is
    * missing components
    */
-  private String getTSUIDForMetric(final String query_string, TSDB tsdb) {
+  private String getTSUIDForMetric(final String query_string, final UniqueIdClient idClient) {
     if (query_string == null || query_string.isEmpty()) {
       throw new BadRequestException("The query string was empty");
     }
@@ -562,10 +566,10 @@ final class UniqueIdRpc implements HttpRpc {
             Const.METRICS_WIDTH + sortedTags.size() *
                     (Const.TAG_NAME_WIDTH + Const.TAG_VALUE_WIDTH));
     try {
-      buf.write(tsdb.getUniqueIdClient().getUID(UniqueIdType.METRIC, metric).joinUninterruptibly());
+      buf.write(idClient.getUID(UniqueIdType.METRIC, metric).joinUninterruptibly());
       for (Entry<String, String> e : sortedTags.entrySet()) {
-        buf.write(tsdb.getUniqueIdClient().getUID(UniqueIdType.TAGK, e.getKey()).joinUninterruptibly(), 0, 3);
-        buf.write(tsdb.getUniqueIdClient().getUID(UniqueIdType.TAGV, e.getValue()).joinUninterruptibly(), 0, 3);
+        buf.write(idClient.getUID(UniqueIdType.TAGK, e.getKey()).joinUninterruptibly(), 0, 3);
+        buf.write(idClient.getUID(UniqueIdType.TAGV, e.getValue()).joinUninterruptibly(), 0, 3);
       }
     } catch (IOException e) {
       throw new BadRequestException(e);
