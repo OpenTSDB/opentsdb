@@ -94,7 +94,7 @@ class HttpJsonSerializer extends HttpSerializer {
   /** Initializer, nothing to do for the JSON serializer */
   @Override
   public void initialize(final TSDB tsdb) {
-    formatter = new UidFormatter(tsdb);
+    formatter = new UidFormatter(tsdb.getUniqueIdClient());
   }
   
   /** Nothing to do on shutdown */

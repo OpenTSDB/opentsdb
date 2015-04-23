@@ -12,6 +12,7 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;
 import com.typesafe.config.Config;
+import net.opentsdb.uid.TestUidFormatter;
 
 import javax.inject.Singleton;
 
@@ -42,7 +43,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
             DataPointsClientExecuteQueryTest.class,
             MetaClientAnnotationTest.class,
             MemoryStore.class,
-            MetaClientTSMetaTest.class
+            MetaClientTSMetaTest.class,
+            TestUidFormatter.class
         })
 public class TestModuleMemoryStore {
   private final Config config;

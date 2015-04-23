@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
-import net.opentsdb.core.TSDB;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.core.UniqueIdClient;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -25,14 +25,13 @@ public class UidFormatter {
   /**
    * The internally held tsdb instance.
    */
-  private final TSDB tsdb;
+  private final UniqueIdClient idClient;
 
   /**
-   * Construct a UidFormatter with a TSDB instance.
-   * @param tsdb
+   * Construct a UidFormatter with the provided id client.
    */
-  public UidFormatter(final TSDB tsdb) {
-    this.tsdb = checkNotNull(tsdb);
+  public UidFormatter(final UniqueIdClient idClient) {
+    this.idClient = checkNotNull(idClient);
   }
 
   /**
@@ -40,7 +39,7 @@ public class UidFormatter {
    * @param uid The uid to lookup
    */
   public Deferred<String> formatMetric(final byte[] uid) {
-    return tsdb.getUniqueIdClient().getUidName(METRIC, checkNotNull(uid));
+    return idClient.getUidName(METRIC, checkNotNull(uid));
   }
 
   /**
@@ -55,8 +54,8 @@ public class UidFormatter {
             Lists.newArrayListWithCapacity(tags.size() * 2);
 
     for (Map.Entry<byte[], byte[]> tag : tags.entrySet()) {
-      deferreds.add(tsdb.getUniqueIdClient().getUidName(TAGK, tag.getKey()));
-      deferreds.add(tsdb.getUniqueIdClient().getUidName(TAGV, tag.getValue()));
+      deferreds.add(idClient.getUidName(TAGK, tag.getKey()));
+      deferreds.add(idClient.getUidName(TAGV, tag.getValue()));
     }
 
 
@@ -71,8 +70,8 @@ public class UidFormatter {
             Lists.newArrayListWithCapacity(tags.size());
 
     for (int i = 0 ; i < tags.size() ; i+=2) {
-      deferreds.add(tsdb.getUniqueIdClient().getUidName(TAGK, tags.get(i)));
-      deferreds.add(tsdb.getUniqueIdClient().getUidName(TAGV, tags.get(i + 1)));
+      deferreds.add(idClient.getUidName(TAGK, tags.get(i)));
+      deferreds.add(idClient.getUidName(TAGV, tags.get(i + 1)));
     }
 
     return Deferred.groupInOrder(deferreds).addCallback(new NameCB());
@@ -86,7 +85,7 @@ public class UidFormatter {
             Lists.newArrayListWithCapacity(uids.size());
 
     for (byte[] uid : uids) {
-      deferreds.add(tsdb.getUniqueIdClient().getUidName(type, uid));
+      deferreds.add(idClient.getUidName(type, uid));
     }
 
     return Deferred.groupInOrder(deferreds);

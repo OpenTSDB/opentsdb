@@ -199,7 +199,7 @@ final class GraphHandler implements HttpRpc {
     if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath.getAbsolutePath())) {
       return;
     }
-    UidFormatter formatter = new UidFormatter(tsdb);
+    UidFormatter formatter = new UidFormatter(tsdb.getUniqueIdClient());
     Query[] tsdbqueries;
     List<String> options;
     tsdbqueries = parseQuery(tsdb, query, start_time, end_time);
@@ -214,7 +214,7 @@ final class GraphHandler implements HttpRpc {
         + tsdbqueries.length + " `m' parameters.");
     }
 
-    final Plot plot = new Plot(tsdb, start_time, end_time,
+    final Plot plot = new Plot(tsdb.getUniqueIdClient(), start_time, end_time,
           DateTime.timezones.get(query.getQueryStringParam("tz")));
     setPlotDimensions(query, plot);
     setPlotParams(query, plot);

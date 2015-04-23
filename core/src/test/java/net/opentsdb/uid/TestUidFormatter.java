@@ -5,7 +5,7 @@ import java.util.Map;
 
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
-import net.opentsdb.core.TSDB;
+import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 
@@ -13,6 +13,8 @@ import com.google.common.collect.Maps;
 import com.stumbleupon.async.DeferredGroupException;
 import org.junit.Before;
 import org.junit.Test;
+
+import javax.inject.Inject;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static net.opentsdb.uid.UniqueIdType.TAGK;
@@ -22,17 +24,18 @@ import static org.junit.Assert.assertEquals;
 public class TestUidFormatter {
   private UidFormatter formatter;
 
+  @Inject UniqueIdClient idClient;
+  @Inject TsdbStore store;
+
   @Before
   public void setUp() throws IOException {
-    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
-    final TsdbStore client = objectGraph.get(TsdbStore.class);
-    final TSDB tsdb = objectGraph.get(TSDB.class);
+    ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
 
-    formatter = new UidFormatter(tsdb);
+    formatter = new UidFormatter(idClient);
 
-    client.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
-    client.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
-    client.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
+    store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    store.allocateUID("host", new byte[]{0, 0, 1}, TAGK);
+    store.allocateUID("web01", new byte[]{0, 0, 1}, TAGV);
   }
 
   @Test(expected = NullPointerException.class)

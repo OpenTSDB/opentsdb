@@ -181,7 +181,7 @@ final class SearchRpc implements HttpRpc {
           series.put("tsuid", IdUtils.uidToString(tsuid));
 
           byte[] metric_id = metric(tsuid);
-          Deferred<String> metric = new UidFormatter(tsdb).formatMetric(metric_id);
+          Deferred<String> metric = new UidFormatter(tsdb.getUniqueIdClient()).formatMetric(metric_id);
           series.put("metric", metric.joinUninterruptibly());
           tag_ids = IdUtils.getTagPairsFromTSUID(tsuid);
           series.put("tags", tsdb.getUniqueIdClient().getTagNames(tag_ids)

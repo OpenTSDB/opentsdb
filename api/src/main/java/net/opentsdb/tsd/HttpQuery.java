@@ -33,6 +33,8 @@ import ch.qos.logback.classic.spi.ThrowableProxyUtil;
 import com.codahale.metrics.Timer;
 import com.stumbleupon.async.Deferred;
 
+import com.typesafe.config.Config;
+import net.opentsdb.core.UniqueIdClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,8 +121,8 @@ final class HttpQuery {
   private final DefaultHttpResponse response =
     new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
 
-  /** The {@code TSDB} instance we belong to */
-  private final TSDB tsdb;
+  private final UniqueIdClient idClient;
+  private final Config config;
 
   /** Whether or not to show stack traces in the output */
   private final boolean show_stack_trace;
@@ -134,7 +136,8 @@ final class HttpQuery {
                    final HttpRequest request,
                    final Channel chan,
                    final TsdStats stats) {
-    this.tsdb = tsdb;
+    this.idClient = tsdb.getUniqueIdClient();
+    this.config = tsdb.getConfig();
     this.request = request;
     this.chan = chan;
     this.show_stack_trace =
@@ -856,7 +859,7 @@ final class HttpQuery {
                         final int max_age) {
     try {
       final long now = System.currentTimeMillis() / 1000;
-      Plot plot = new Plot(tsdb, now - 1, now);
+      Plot plot = new Plot(idClient, now - 1, now);
       HashMap<String, String> params = new HashMap<String, String>(1);
       StringBuilder buf = new StringBuilder(1 + msg.length() + 18);
 
@@ -868,7 +871,7 @@ final class HttpQuery {
       plot.setParams(params);
       params = null;
 
-      final File basepath = new File(tsdb.getConfig().getString("tsd.http.cachedir"),
+      final File basepath = new File(config.getString("tsd.http.cachedir"),
               Integer.toHexString(msg.hashCode()));
 
       GraphHandler.runGnuplot(this, basepath, plot, stats.getGraphHandlerStats());

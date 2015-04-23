@@ -21,12 +21,12 @@ import java.util.Map;
 import java.util.TimeZone;
 
 import com.google.common.base.Throwables;
+import net.opentsdb.core.UniqueIdClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.uid.UidFormatter;
 
@@ -91,8 +91,8 @@ public final class Plot {
    * @throws IllegalArgumentException if either timestamp is 0 or negative.
    * @throws IllegalArgumentException if {@code start_time >= end_time}.
    */
-  public Plot(final TSDB tsdb, final long start_time, final long end_time) {
-    this(tsdb, start_time, end_time, DEFAULT_TZ);
+  public Plot(final UniqueIdClient idClient, final long start_time, final long end_time) {
+    this(idClient, start_time, end_time, DEFAULT_TZ);
   }
 
   /**
@@ -105,7 +105,7 @@ public final class Plot {
    * @throws IllegalArgumentException if {@code start_time >= end_time}.
    * @since 1.1
    */
-   public Plot(final TSDB tsdb, final long start_time, final long end_time,
+   public Plot(final UniqueIdClient idClient, final long start_time, final long end_time,
                TimeZone tz) {
     if ((start_time & 0xFFFFFFFF00000000L) != 0) {
       throw new IllegalArgumentException("Invalid start time: " + start_time);
@@ -115,7 +115,7 @@ public final class Plot {
       throw new IllegalArgumentException("start time (" + start_time
         + ") is greater than or equal to end time: " + end_time);
     }
-     this.formatter = new UidFormatter(checkNotNull(tsdb));
+     this.formatter = new UidFormatter(checkNotNull(idClient));
     this.start_time = (int) start_time;
     this.end_time = (int) end_time;
     if (tz == null) {
