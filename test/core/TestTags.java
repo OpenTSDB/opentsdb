@@ -533,7 +533,6 @@ public final class TestTags {
       assertEquals(false, Tags.fitsInFloat("1.2abc34"));
   }
 
-
   @Test
   public void resolveIdsAsync() throws Exception {
     setupStorage();
