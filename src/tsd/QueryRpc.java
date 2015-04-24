@@ -86,8 +86,8 @@ final class QueryRpc implements HttpRpc {
     }
     if (query.method() == HttpMethod.DELETE && !tsdb.getConfig().allow_delete()) {
        throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
-       "Bad request",
-       "Deleting data is not enabled (tsd.http.query.allow_delete=false)");
+           "Bad request",
+           "Deleting data is not enabled (tsd.http.query.allow_delete=false)");
     }
     
     final String[] uri = query.explodeAPIPath();

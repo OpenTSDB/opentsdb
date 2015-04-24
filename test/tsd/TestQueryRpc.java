@@ -22,6 +22,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
@@ -360,6 +361,21 @@ public final class TestQueryRpc {
     final String json = 
         query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(json.contains("No such name for 'foo': 'metrics'"));
+  }
+
+  @Test (expected = BadRequestException.class)
+  public void deleteDatapointsBadRequest() throws Exception {
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+
+    tags.put("host", "web01");
+
+    HttpQuery query = NettyMocks.deleteQuery(tsdb,
+      "/api/query?start=1356998400&m=sum:sys.cpu.user", "");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.BAD_REQUEST, query.response().getStatus());
+    final String json =
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertTrue(json.contains("Deleting data is not enabled"));
   }
   
   //TODO(cl) add unit tests for the rate options parsing

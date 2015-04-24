@@ -1328,4 +1328,23 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     }
     assertEquals(151, dps[0].size());
   }
+
+  @Test
+  public void deleteDatapoints() throws Exception {
+    setDataPointStorage();
+
+    final HashMap<String, String> tags = new HashMap<String, String>(1);
+
+    tags.put("host", "web01");
+    tsdb.addPoint(METRIC_STRING, 1356998400, 42, tags).joinUninterruptibly();
+    query.setStartTime(1356998400);
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, false);
+
+    final DataPoints[] dps1 = query.run();
+    assertEquals(1, dps1.length);
+
+    query.setDelete(true);
+    final DataPoints[] dps2 = query.run();
+    assertEquals(0, dps2.length);
+  }
 }

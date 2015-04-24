@@ -68,6 +68,18 @@ public interface Query {
   long getEndTime();
 
   /**
+   * Sets whether or not the data queried will be deleted.
+   * @param delete True if data should be deleted, false otherwise.
+   */
+  void setDelete(boolean delete);
+
+  /**
+   * Returns whether or not the data queried will be deleted.
+   * @return A boolean
+   */
+  boolean getDelete();
+
+  /**
   * Sets the time series to the query.
   * @param metric The metric to retrieve from the TSDB.
   * @param tags The set of tags of interest.

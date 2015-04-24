@@ -195,6 +195,24 @@ final class TsdbQuery implements Query {
     return end_time;
   }
 
+  /**
+   * Sets whether or not the data queried will be deleted.
+   * @param delete True if data should be deleted, false otherwise.
+   */
+  @Override
+  public void setDelete(boolean delete) {
+    this.delete = delete;
+  }
+
+  /**
+   * Returns whether or not the data queried will be deleted.
+   * @return A boolean
+   */
+  @Override
+  public boolean getDelete() {
+    return delete;
+  }
+
   @Override
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
@@ -278,7 +296,7 @@ final class TsdbQuery implements Query {
     final TSSubQuery sub_query = query.getQueries().get(index);
     setStartTime(query.startTime());
     setEndTime(query.endTime());
-    delete = query.getDelete();
+    setDelete(query.getDelete());
     query_index = index;
     
     // set common options
