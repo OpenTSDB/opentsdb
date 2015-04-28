@@ -19,8 +19,6 @@ import java.util.NoSuchElementException;
 
 import com.google.common.base.Objects;
 
-import net.opentsdb.utils.DateTime;
-
 /**
  * Represents the parameters for an individual sub query on a metric or specific
  * timeseries. When setting up a query, use the setter methods to store user 
@@ -35,7 +33,7 @@ import net.opentsdb.utils.DateTime;
  * the {@link TSQuery} object will call this for you when the entire set of 
  * queries has been compiled.
  * <b>Note:</b> If using POJO deserialization, make sure to avoid setting the 
- * {@code agg}, {@code downsampler} and {@code downsample_interval} fields.
+ * {@code agg} and {@code downsample_specifier} fields.
  * @since 2.0
  */
 public final class TSSubQuery {
@@ -64,17 +62,15 @@ public final class TSSubQuery {
   /** Parsed aggregation function */
   private Aggregator agg;
   
-  /** Parsed downsampler function */
-  private Aggregator downsampler;
-  
-  /** Parsed downsample interval */
-  private long downsample_interval;
+  /** Parsed downsampling specification. */
+  private DownsamplingSpecification downsample_specifier;
   
   /**
    * Default constructor necessary for POJO de/serialization
    */
   public TSSubQuery() {
-    
+    // Assume no downsampling until told otherwise.
+    downsample_specifier = DownsamplingSpecification.NO_DOWNSAMPLER;
   }
 
   @Override
@@ -142,7 +138,7 @@ public final class TSSubQuery {
       .append(", downsample=")
       .append(downsample)
       .append(", ds_interval=")
-      .append(downsample_interval)
+      .append(downsample_specifier.getInterval())
       .append(", rate=")
       .append(rate)
       .append(", rate_options=")
@@ -180,20 +176,11 @@ public final class TSSubQuery {
     
     // parse the downsampler if we have one
     if (downsample != null && !downsample.isEmpty()) {
-      final int dash = downsample.indexOf('-', 1); // 1st char can't be
-                                                        // `-'.
-      if (dash < 0) {
-        throw new IllegalArgumentException("Invalid downsampling specifier '" 
-            + downsample + "' in [" + downsample + "]");
-      }
-      try {
-        downsampler = Aggregators.get(downsample.substring(dash + 1));
-      } catch (NoSuchElementException e) {
-        throw new IllegalArgumentException("No such downsampling function: "
-            + downsample.substring(dash + 1));
-      }
-      downsample_interval = DateTime.parseDuration(
-          downsample.substring(0, dash));
+      // downsampler given, so parse it
+      downsample_specifier = new DownsamplingSpecification(downsample);
+    } else {
+      // no downsampler
+      downsample_specifier = DownsamplingSpecification.NO_DOWNSAMPLER;
     }
   }
 
@@ -204,12 +191,20 @@ public final class TSSubQuery {
   
   /** @return the parsed downsampler aggregation function */
   public Aggregator downsampler() {
-    return this.downsampler;
+    return downsample_specifier.getFunction();
   }
   
   /** @return the parsed downsample interval in seconds */
   public long downsampleInterval() {
-    return this.downsample_interval;
+    return downsample_specifier.getInterval();
+  }
+  
+  /**
+   * @return the downsampling fill policy
+   * @since 2.2
+   */
+  public FillPolicy fillPolicy() {
+    return downsample_specifier.getFillPolicy();
   }
   
   /** @return the user supplied aggregator */
@@ -236,7 +231,7 @@ public final class TSSubQuery {
   }
 
   /** @return the raw downsampling function request from the user, 
-   * e.g. "1h-avg" */
+   * e.g. "1h-avg" or "15m-sum-nan" */
   public String getDownsample() {
     return downsample;
   }
