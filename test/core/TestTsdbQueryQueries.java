@@ -539,12 +539,13 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
     int value = 1;
     long timestamp = 1356998430000L;
     for (DataPoint dp : dps[0]) {
+      System.out.println(timestamp);
       assertEquals(value, dp.longValue());
       assertEquals(timestamp, dp.timestamp());
       value++;
       timestamp += 30000;
     }
-    assertEquals(236, dps[0].size());
+    assertEquals(119, dps[0].size());
   }
   
   @Test

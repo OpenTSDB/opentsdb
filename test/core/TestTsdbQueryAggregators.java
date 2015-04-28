@@ -13,6 +13,11 @@
 package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.util.HashMap;
 
 import org.hbase.async.Scanner;
 import org.junit.Before;
@@ -133,6 +138,64 @@ public class TestTsdbQueryAggregators extends BaseTsdbTest {
       counter++;
     }
     assertEquals(600, dps[0].size());
+  }
+  
+  @Test
+  public void runZimSumWithMissingData() throws Exception {
+    storeLongTimeSeriesWithMissingData();
+
+    HashMap<String, String> tags = new HashMap<String, String>(0);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.ZIMSUM, false);
+    final DataPoints[] dps = query.run();
+    assertNotNull(dps);
+    assertEquals(METRIC_STRING, dps[0].metricName());
+    assertEquals(TAGK_STRING, dps[0].getAggregatedTags().get(0));
+    assertNull(dps[0].getAnnotations());
+    assertTrue(dps[0].getTags().isEmpty());
+
+    /* INPUT:
+     *        t0  t1  t2  t3  t4  t5 ...
+     * web01   X   2   3   X   5   6 ...
+     * web02   X 299   X 297   X 295 ...
+     *
+     * OUTPUT:
+     * zimsum  X 301   3 297   5 301 ...
+     */
+
+    int i = 0;
+    long ts = 1356998400000L;
+    for (final DataPoint dp : dps[0]) {
+      // Every sixth position, both elements are missing, so the aggregation
+      // will have a gap.
+      int offset = i % 6;
+      if (0 == offset) {
+        // We have skipped a timestamp, so we should update the state.
+        ts += 10000;
+        ++i;
+        ++offset;
+      }
+
+      if (1 == offset || 5 == offset) {
+        // The second and last elements in each cycle should be the expected
+        // value, which is 301.
+        assertEquals(301, dp.longValue());
+      } else if (2 == offset || 4 == offset) {
+        // The third and fifth elements in each cycle should be taken from the
+        // ascending series.
+        assertEquals(i + 1, dp.longValue());
+      } else {
+        // Otherwise, the element should be taken from the descending series.
+        assertEquals(300 - i, dp.longValue());
+      }
+
+      assertEquals(ts, dp.timestamp());
+      ts += 10000;
+      ++i;
+    }
+
+    assertEquals(250, dps[0].size());
   }
   
   @Test

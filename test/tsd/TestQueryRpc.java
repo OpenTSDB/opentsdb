@@ -15,6 +15,7 @@ package net.opentsdb.tsd;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.when;
@@ -142,6 +143,15 @@ public final class TestQueryRpc {
     assertEquals("1h-avg", sub.getDownsample());
   }
   
+  @Test
+  public void parseQueryMTypeWDSAndFill() throws Exception {
+    HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/query?start=1h-ago&m=sum:1h-avg-lerp:sys.cpu.0");
+    TSQuery tsq = (TSQuery) parseQuery.invoke(rpc, tsdb, query);
+    TSSubQuery sub = tsq.getQueries().get(0);
+    assertEquals("1h-avg-lerp", sub.getDownsample());
+  }
+
   @Test
   public void parseQueryMTypeWRateAndDS() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, 
@@ -360,6 +370,24 @@ public final class TestQueryRpc {
     final String json = 
         query.response().getContent().toString(Charset.forName("UTF-8"));
     assertTrue(json.contains("No such name for 'foo': 'metrics'"));
+  }
+  
+  @Test
+  public void executeWithBadDSFill() throws Exception {
+    final DataPoints[] datapoints = new DataPoints[1];
+    datapoints[0] = new MockDataPoints().getMock();
+    when(query_result.runAsync()).thenReturn(
+        Deferred.fromResult(datapoints));
+
+    try {    
+      final HttpQuery query = NettyMocks.getQuery(tsdb, 
+          "/api/query?start=1h-ago&m=sum:10m-avg-badbadbad:sys.cpu.user");
+      rpc.execute(tsdb, query);
+      fail("expected BadRequestException");
+    } catch (final BadRequestException exn) {
+      assertTrue(exn.getMessage().startsWith(
+          "No such fill policy: 'badbadbad': must be one of:"));
+    }
   }
   
   //TODO(cl) add unit tests for the rate options parsing

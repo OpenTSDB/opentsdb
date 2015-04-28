@@ -275,6 +275,43 @@ public class BaseTsdbTest {
     }
   }
   
+  /**
+   * Create two metrics with same name, skipping every third point in host=web01
+   * and every other point in host=web02. To wit:
+   *
+   *       METRIC    TAG  t0   t1   t2   t3   t4   t5   ...
+   * sys.cpu.user  web01   X    2    3    X    5    6   ...
+   * sys.cpu.user  web02   X  299    X  297    X  295   ...
+   */
+  protected void storeLongTimeSeriesWithMissingData() throws Exception {
+    setDataPointStorage();
+
+    // host=web01
+    HashMap<String, String> tags_local = new HashMap<String, String>(tags);
+    long timestamp = 1356998400L;
+    for (int i = 0; i < 300; ++i) {
+      // Skip every third point.
+      if (0 != (i % 3)) {
+        tsdb.addPoint(METRIC_STRING, timestamp, i + 1, tags_local)
+          .joinUninterruptibly();
+      }
+      timestamp += 10L;
+    }
+
+    // host=web02
+    tags_local.clear();
+    tags_local.put(TAGK_STRING, TAGV_B_STRING);
+    timestamp = 1356998400L;
+    for (int i = 300; i > 0; --i) {
+      // Skip every other point.
+      if (0 != (i % 2)) {
+        tsdb.addPoint(METRIC_STRING, timestamp, i, tags_local)
+          .joinUninterruptibly();
+      }
+      timestamp += 10L;
+    }
+  }
+  
   protected void storeFloatTimeSeriesSeconds(final boolean two_metrics, 
       final boolean offset) throws Exception {
     setDataPointStorage();

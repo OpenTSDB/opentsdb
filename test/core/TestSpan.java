@@ -357,7 +357,8 @@ public final class TestSpan {
     assertEquals(6, span.size());
     long interval_ms = 1000000;
     Aggregator downsampler = Aggregators.get("avg");
-    final SeekableView it = span.downsampler(interval_ms, downsampler);
+    final SeekableView it = span.downsampler(1356998000L, 1357007000L, 
+        interval_ms, downsampler, FillPolicy.NONE);
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (it.hasNext()) {

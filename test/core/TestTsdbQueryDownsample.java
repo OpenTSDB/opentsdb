@@ -14,6 +14,11 @@ package net.opentsdb.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.util.HashMap;
 
 import net.opentsdb.utils.DateTime;
 
@@ -23,6 +28,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
+
+import com.google.common.math.DoubleMath;
 
 /**
  * Tests downsampling with query.
@@ -38,29 +45,81 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
   }
 
   @Test
-  public void downsample() throws Exception {
-    int downsampleInterval = (int)DateTime.parseDuration("60s");
-    query.downsample(downsampleInterval, Aggregators.SUM);
-    query.setStartTime(1356998400);
-    query.setEndTime(1357041600);
-    assertEquals(60000, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
-    long scanStartTime = 1356998400 - Const.MAX_TIMESPAN * 2 - 60;
-    assertEquals(scanStartTime, TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
-    long scanEndTime = 1357041600 + Const.MAX_TIMESPAN + 1 + 60;
-    assertEquals(scanEndTime, TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+  public void downsampleFullyAligned() {
+    testDownsampleScanBounds(
+      60000L,
+      1356998400L, 1357041600L,
+
+      // The scan start time should be exactly the same as the query start time
+      // because it is aligned on both boundaries, timespan and interval.
+      1356998400L,
+
+      // However, because the query end time is already aligned on an interval,
+      // it should be snapped forward yet another interval and then snapped
+      // forward to the next timespan, which is an entire extra hour.
+      1357045200L);
+  }
+
+  @Test
+  public void downsampleUnaligned() {
+    final long fifteen_minutes = 60L * 15L;
+    final long twelve_hours = 3600L * 12L;
+    final long now = 1427415547L; // Thu Mar 26 17:19:07 2015 GMT-7:00 DST
+
+    testDownsampleScanBounds(
+      1000L * fifteen_minutes,
+      now - twelve_hours, now,
+
+      // Start time should have been snapped back to 1427415300 (5:15a) for the
+      // interval, then back to 1427371200 (5:00a) for the timespan.
+      1427371200L,
+
+      // End time should have been snapped forward to 1427416200 (5:30p) for
+      // the interval, then forward to 1427418000 (6:00p) for the timespan.
+      1427418000L);
+  }
+
+  @Test
+  public void downsampleWeirdly() {
+    final long day = 3600L * 24L;
+    final long twelve_hours = 3600L * 12L;
+
+    // Thu Mar 26 17:19:07 2015 GMT-7:00 DST
+    // Fri, 27 Mar 2015 00:19:07 GMT
+    final long now = 1427415547L;
+
+    testDownsampleScanBounds(
+      1000L * day,
+      now - twelve_hours, now,
+
+      // Start time should be midnight UTC, 26 March.
+      1427328000L,
+
+      // End time should be midnight UTC, 28 March.
+      1427500800L);
   }
 
   @Test
   public void downsampleMilliseconds() throws Exception {
-    int downsampleInterval = (int)DateTime.parseDuration("60s");
-    query.downsample(downsampleInterval, Aggregators.SUM);
-    query.setStartTime(1356998400000L);
-    query.setEndTime(1357041600000L);
-    assertEquals(60000, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
-    long scanStartTime = 1356998400 - Const.MAX_TIMESPAN * 2 - 60;
-    assertEquals(scanStartTime, TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
-    long scanEndTime = 1357041600 + Const.MAX_TIMESPAN + 1 + 60;
-    assertEquals(scanEndTime, TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+    final long start_time = 1356998400000L;
+    final long end_time = 1357041600000L;
+    final long downsample_interval = DateTime.parseDuration("60s");
+
+    query.downsample(downsample_interval, Aggregators.SUM);
+    query.setStartTime(start_time);
+    query.setEndTime(end_time);
+    assertEquals(60000L, TsdbQuery.ForTesting.getDownsampleIntervalMs(query));
+
+    // The scan start time should be exactly the same as the query start time
+    // because it is aligned on both boundaries, timespan and interval.
+    assertEquals(start_time / 1000L,
+      TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
+
+    // However, because the query end time is already aligned on an interval,
+    // it should be snapped forward yet another interval and then snapped
+    // forward to the next timespan, which is an entire extra hour.
+    assertEquals((end_time + 3600000L) / 1000L,
+      TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
   }
 
   @Test (expected = NullPointerException.class)
@@ -438,4 +497,300 @@ public class TestTsdbQueryDownsample extends BaseTsdbTest {
     assertEquals(150, dps[0].size());
   }
 
+  /**
+   * A helper interface to be used by the filling-test code. 
+   */ 
+  interface Validator {
+    /** @return true if the argument is valid. */
+    boolean isValidValue(double value);
+
+    /** @return the fill policy to be used while downsampling. */
+    FillPolicy getFillPolicy();
+
+    /** @return true if the argument is the sentinel for empty intervals. */
+    boolean isMissingValue(double value);
+  }
+
+  // Fill missing intervals with NaNs.
+  abstract class NaNValidator implements Validator {
+    @Override
+    public FillPolicy getFillPolicy() {
+      return FillPolicy.NOT_A_NUMBER;
+    }
+
+    @Override
+    public boolean isMissingValue(final double value) {
+      return Double.isNaN(value);
+    }
+  }
+
+  // Fill missing intervals with zeroes.
+  abstract class ZeroValidator implements Validator {
+    @Override
+    public FillPolicy getFillPolicy() {
+      return FillPolicy.ZERO;
+    }
+
+    @Override
+    public boolean isMissingValue(final double value) {
+      return DoubleMath.fuzzyEquals(0.0, value, 0.0001);
+    }
+  }
+
+  @Test
+  public void runSumAvgLongSingleTSDownsampleWNulls() throws Exception {
+    storeLongTimeSeriesWithMissingData();
+
+    runTSDownsampleWithMissingData(Aggregators.SUM, Aggregators.AVG,
+      // 301.5, 301.5, 301.5, ...
+      new NaNValidator() {
+        @Override
+        public boolean isValidValue(final double value) {
+          return DoubleMath.fuzzyEquals(301.5, value, 0.0001);
+        }
+      });
+  }
+
+  @Test
+  public void runAvgSumLongSingleTSDownsampleWNulls() throws Exception {
+    storeLongTimeSeriesWithMissingData();
+
+    runTSDownsampleWithMissingData(Aggregators.AVG, Aggregators.SUM,
+      // 152, 301.5, 155, 301.5, 158, 301.5, ...
+      new NaNValidator() {
+        private boolean even = false;
+        private double even_expected = 149.0;
+
+        @Override
+        public boolean isValidValue(final double value) {
+          even = !even;
+          if (even) {
+            even_expected += 3.0;
+            return DoubleMath.fuzzyEquals(even_expected, value, 0.0001);
+          } else {
+            return DoubleMath.fuzzyEquals(301.5, value, 0.0001);
+          }
+        }
+      });
+  }
+
+  @Test
+  public void runAvgAvgLongSingleTSDownsampleWNulls() throws Exception {
+    storeLongTimeSeriesWithMissingData();
+
+    runTSDownsampleWithMissingData(Aggregators.AVG, Aggregators.AVG,
+      // 150.75, 150.75, 150.75, ...
+      new ZeroValidator() {
+        @Override
+        public boolean isValidValue(final double value) {
+          return DoubleMath.fuzzyEquals(150.75, value, 0.0001);
+        }
+      });
+  }
+
+  @Test
+  public void runSumSumLongSingleTSDownsampleWNulls() throws Exception {
+    storeLongTimeSeriesWithMissingData();
+
+    runTSDownsampleWithMissingData(Aggregators.SUM, Aggregators.SUM,
+      // 304, 603, 310, 603, 316, 603, ...
+      new NaNValidator() {
+        private double even_expected = 298.0;
+        private final double odd_expected = 603.0;
+        private boolean even = false;
+
+        @Override
+        public boolean isValidValue(final double value) {
+          even = !even;
+          if (even) {
+            even_expected += 6.0;
+            return DoubleMath.fuzzyEquals(even_expected, value, 0.0001);
+          } else {
+            return DoubleMath.fuzzyEquals(odd_expected, value, 0.0001);
+          }
+        }
+      });
+  }
+
+  @Test
+  public void runMinMinLongSingleTSDownsampleWNulls() throws Exception {
+    storeLongTimeSeriesWithMissingData();
+
+    runTSDownsampleWithMissingData(Aggregators.MIN, Aggregators.MIN,
+      // 2, 5, 8, ..., 143, 146, 149, 149, 145, 143, 139, 133, 131, ...
+      new ZeroValidator() {
+        private double even_expected = -4.0;
+        private double even_change = 6.0;
+        private double odd_expected = -1.0;
+        private double odd_change = 6.0;
+        private boolean even = false;
+
+        @Override
+        public boolean isValidValue(final double value) {
+          even = !even;
+          if (even) {
+            even_expected += even_change;
+
+            // Check for the point at which even terms change.
+            if (DoubleMath.fuzzyEquals(even_expected, 152.0, 0.0001)) {
+              // After this point, even terms begin decreasing by six.
+              even_expected = 149.0;
+              even_change = -6.0;
+            }
+
+            return DoubleMath.fuzzyEquals(even_expected, value, 0.0001);
+          } else {
+            odd_expected += odd_change;
+
+            // Check for the point at which odd terms change.
+            if (DoubleMath.fuzzyEquals(odd_expected, 155.0, 0.0001)) {
+              // After this point, odd terms begin decreasing by six.
+              odd_expected = 145.0;
+              odd_change = -6.0;
+            }
+
+            return DoubleMath.fuzzyEquals(odd_expected, value, 0.0001);
+          }
+        }
+      });
+  }
+
+  @Test
+  public void runMinSumLongSingleTSDownsampleWNulls() throws Exception {
+    storeLongTimeSeriesWithMissingData();
+
+    runTSDownsampleWithMissingData(Aggregators.MIN, Aggregators.SUM,
+      // 5, 11, 17, 23, ..., 197, 203, 197, 215, 191, 227, 185, 239, ...,
+      // 287, 155, 299, 149, 292, 143, 280, ...
+      new NaNValidator() {
+        private double even_expected = -7.0;
+        private double even_change = 12.0;
+        private double odd_expected = -1.0;
+        private double odd_change = 12.0;
+        private boolean even = false;
+
+        @Override
+        public boolean isValidValue(final double value) {
+          even = !even;
+          if (even) {
+            even_expected += even_change;
+
+            // Check for the point at which even terms change.
+            if (DoubleMath.fuzzyEquals(even_expected, 209.0, 0.0001)) {
+              // After this point, even terms begin decreasing by six.
+              even_expected = 197.0;
+              even_change = -6.0;
+            }
+
+            return DoubleMath.fuzzyEquals(even_expected, value, 0.0001);
+          } else {
+            odd_expected += odd_change;
+
+            // Check for the point at which odd terms change.
+            if (DoubleMath.fuzzyEquals(odd_expected, 311.0, 0.0001)) {
+              // After this point, odd terms begin decreasing by twelve.
+              odd_expected = 292.0;
+              odd_change = -12.0;
+            }
+
+            return DoubleMath.fuzzyEquals(odd_expected, value, 0.0001);
+          }
+        }
+      });
+  }
+
+  @Test
+  public void runSumMinLongSingleTSDownsampleWNulls() throws Exception {
+    storeLongTimeSeriesWithMissingData();
+
+    runTSDownsampleWithMissingData(Aggregators.SUM, Aggregators.MIN,
+      // 301, 300, 301, 300, ...
+      new NaNValidator() {
+        private boolean even = false;
+
+        @Override
+        public boolean isValidValue(final double value) {
+          even = !even;
+          return DoubleMath.fuzzyEquals(
+            even ? 301.0 : 300.0, value, 0.0001);
+        }
+      });
+  }
+
+  /**
+   * Precondition: the time series have been stored.
+   */
+  public void runTSDownsampleWithMissingData(final Aggregator queryAggregator,
+      final Aggregator downsampleAggregator, final Validator validator)
+      throws Exception {
+    final long start_time = 1356998400L;
+    final long end_time = 1357041600L;
+    final int ds_interval = 30;
+    final long ds_interval_ms = 1000L * ds_interval;
+    final String metric = METRIC_STRING;
+
+    final HashMap<String, String> tags = new HashMap<String, String>(0);
+    query.setStartTime(start_time);
+    query.setEndTime(end_time);
+    query.downsample(ds_interval_ms, downsampleAggregator,
+      validator.getFillPolicy());
+    query.setTimeSeries(metric, tags, queryAggregator, false);
+    final DataPoints[] dps = query.run();
+
+    assertNotNull(dps);
+    assertEquals(metric, dps[0].metricName());
+    assertFalse(dps[0].getAggregatedTags().isEmpty());
+    assertNull(dps[0].getAnnotations());
+
+    // For the reasoning behind this calculation, see the following methods:
+    //   TsdbQuery#getScanStartTimeSeconds()
+    //   TsdbQuery#getScanEndTimeSeconds()
+
+    int i = 0;
+    long expected_timestamp_ms = 1000L * start_time;
+    for (final DataPoint dp : dps[0]) {
+      // Downsampler outputs just doubles.
+      assertFalse(dp.isInteger());
+
+      // There should be only one hundred valid values.
+      if (i++ < 100) {
+        // Check the value.
+        assertTrue(validator.isValidValue(dp.doubleValue()));
+      } else {
+        // Otherwise, the value should be the special missing value.
+        assertTrue(validator.isMissingValue(dp.doubleValue()));
+      }
+
+      // The timestamp should match our expectation based on the interval.
+      assertEquals(expected_timestamp_ms, dp.timestamp());
+
+      // Move to the next expected interval.
+      expected_timestamp_ms += ds_interval_ms;
+    }
+
+    // Ensure we got the number of points we expected.
+    assertEquals((end_time - start_time + 3600L) / ds_interval, dps[0].size());
+  }
+
+  /**
+   * Helper to test the start and stop times in a query for downsampling
+   * @param downsample_interval The downsample interval
+   * @param start_time The start of the query
+   * @param end_time The end of the query
+   * @param expected_start_time What we expect the TSDBQuery class to give us
+   * @param expected_end_time What we expect the TSDBQuery class to give us
+   */
+  private void testDownsampleScanBounds(final long downsample_interval,
+      final long start_time, final long end_time,
+      final long expected_start_time, final long expected_end_time) {
+    query.downsample(downsample_interval, Aggregators.SUM);
+    query.setStartTime(start_time);
+    query.setEndTime(end_time);
+
+    assertEquals(expected_start_time,
+      TsdbQuery.ForTesting.getScanStartTimeSeconds(query));
+
+    assertEquals(expected_end_time,
+      TsdbQuery.ForTesting.getScanEndTimeSeconds(query));
+  }
 }
