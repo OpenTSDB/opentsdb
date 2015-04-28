@@ -151,7 +151,7 @@ public final class Aggregators {
        ep999r7, ep99r7, ep95r7, ep90r7, ep75r7, ep50r7
     };
     for (PercentileAgg agg : percentiles) {
-        aggregators.put(agg.getName(), agg);
+        aggregators.put(agg.toString(), agg);
     }
   }
 
@@ -180,15 +180,13 @@ public final class Aggregators {
     throw new NoSuchElementException("No such aggregator: " + name);
   }
 
-  private static final class Sum implements Aggregator {
-    private final Interpolation method;
-    private final String name;
-    
+
+  private static final class Sum extends Aggregator {
     public Sum(final Interpolation method, final String name) {
-      this.method = method;
-      this.name = name;
+      super(method, name);
     }
-    
+
+    @Override
     public long runLong(final Longs values) {
       long result = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -197,33 +195,30 @@ public final class Aggregators {
       return result;
     }
 
+    @Override
     public double runDouble(final Doubles values) {
-      double result = values.nextDoubleValue();
+      double result = 0.;
+      long n = 0L;
+
       while (values.hasNextValue()) {
-        result += values.nextDoubleValue();
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          result += val;
+          ++n;
+        }
       }
-      return result;
-    }
 
-    public String toString() {
-      return name;
-    }
-
-    public Interpolation interpolationMethod() {
-      return method;
+      return (0L == n) ? Double.NaN : result;
     }
     
   }
 
-  private static final class Min implements Aggregator {
-    private final Interpolation method;
-    private final String name;
-    
+  private static final class Min extends Aggregator {
     public Min(final Interpolation method, final String name) {
-      this.method = method;
-      this.name = name;
+      super(method, name);
     }
-    
+
+    @Override
     public long runLong(final Longs values) {
       long min = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -235,36 +230,29 @@ public final class Aggregators {
       return min;
     }
 
+    @Override
     public double runDouble(final Doubles values) {
-      double min = values.nextDoubleValue();
+      final double initial = values.nextDoubleValue();
+      double min = Double.isNaN(initial) ? Double.POSITIVE_INFINITY : initial;
+
       while (values.hasNextValue()) {
         final double val = values.nextDoubleValue();
-        if (val < min) {
+        if (!Double.isNaN(val) && val < min) {
           min = val;
         }
       }
-      return min;
-    }
 
-    public String toString() {
-      return name;
-    }
-
-    public Interpolation interpolationMethod() {
-      return method;
+      return (Double.POSITIVE_INFINITY == min) ? Double.NaN : min;
     }
     
   }
 
-  private static final class Max implements Aggregator {
-    private final Interpolation method;
-    private final String name;
-    
+  private static final class Max extends Aggregator {
     public Max(final Interpolation method, final String name) {
-      this.method = method;
-      this.name = name;
+      super(method, name);
     }
-    
+
+    @Override
     public long runLong(final Longs values) {
       long max = values.nextLongValue();
       while (values.hasNextValue()) {
@@ -276,36 +264,29 @@ public final class Aggregators {
       return max;
     }
 
+    @Override
     public double runDouble(final Doubles values) {
-      double max = values.nextDoubleValue();
+      final double initial = values.nextDoubleValue();
+      double max = Double.isNaN(initial) ? Double.NEGATIVE_INFINITY : initial;
+
       while (values.hasNextValue()) {
         final double val = values.nextDoubleValue();
-        if (val > max) {
+        if (!Double.isNaN(val) && val > max) {
           max = val;
         }
       }
-      return max;
-    }
 
-    public String toString() {
-      return name;
-    }
-
-    public Interpolation interpolationMethod() {
-      return method;
+      return (Double.NEGATIVE_INFINITY == max) ? Double.NaN : max;
     }
     
   }
 
-  private static final class Avg implements Aggregator {
-    private final Interpolation method;
-    private final String name;
-    
+  private static final class Avg extends Aggregator {
     public Avg(final Interpolation method, final String name) {
-      this.method = method;
-      this.name = name;
+      super(method, name);
     }
-    
+
+    @Override
     public long runLong(final Longs values) {
       long result = values.nextLongValue();
       int n = 1;
@@ -316,22 +297,18 @@ public final class Aggregators {
       return result / n;
     }
 
+    @Override
     public double runDouble(final Doubles values) {
-      double result = values.nextDoubleValue();
-      int n = 1;
+      double result = 0.;
+      int n = 0;
       while (values.hasNextValue()) {
-        result += values.nextDoubleValue();
-        n++;
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          result += val;
+          n++;
+        }
       }
-      return result / n;
-    }
-
-    public String toString() {
-      return name;
-    }
-  
-    public Interpolation interpolationMethod() {
-      return method;
+      return (0 == n) ? Double.NaN : result / n;
     }
    
   }
@@ -345,15 +322,12 @@ public final class Aggregators {
    * paper by B.  P. Welford and is presented in Donald Knuth's Art of
    * Computer Programming, Vol 2, page 232, 3rd edition
    */
-  private static final class StdDev implements Aggregator {
-    private final Interpolation method;
-    private final String name;
-    
+  private static final class StdDev extends Aggregator {
     public StdDev(final Interpolation method, final String name) {
-      this.method = method;
-      this.name = name;
+      super(method, name);
     }
-    
+
+    @Override
     public long runLong(final Longs values) {
       double old_mean = values.nextLongValue();
 
@@ -362,57 +336,70 @@ public final class Aggregators {
       }
 
       long n = 2;
-      double new_mean = 0;
-      double variance = 0;
+      double new_mean = 0.;
+      double M2 = 0.;
       do {
         final double x = values.nextLongValue();
         new_mean = old_mean + (x - old_mean) / n;
-        variance += (x - old_mean) * (x - new_mean);
+        M2 += (x - old_mean) * (x - new_mean);
         old_mean = new_mean;
         n++;
       } while (values.hasNextValue());
 
-      return (long) Math.sqrt(variance / (n - 1));
+      return (long) Math.sqrt(M2 / (n - 1));
     }
 
+    @Override
     public double runDouble(final Doubles values) {
+      // Try to get at least one non-NaN value.
       double old_mean = values.nextDoubleValue();
-
-      if (!values.hasNextValue()) {
-        return 0;
+      while (Double.isNaN(old_mean) && values.hasNextValue()) {
+        old_mean = values.nextDoubleValue();
       }
 
+      if (Double.isNaN(old_mean)) {
+        // Couldn't find any non-NaN values.
+        // The stddev of NaNs is NaN.
+        return Double.NaN;
+      }
+      if (!values.hasNextValue()) {
+        // Only found one non-NaN value.
+        // The stddev of one value is zero.
+        return 0.;
+      }
+
+      // If we got here, then we have one non-NaN value, and there are more
+      // values to aggregate; however, some or all of these values may be NaNs.
+
       long n = 2;
-      double new_mean = 0;
-      double variance = 0;
+      double new_mean = 0.;
+
+      // This is not strictly the second central moment (i.e., variance), but
+      // rather a multiple of it.
+      double M2 = 0.;
       do {
         final double x = values.nextDoubleValue();
-        new_mean = old_mean + (x - old_mean) / n;
-        variance += (x - old_mean) * (x - new_mean);
-        old_mean = new_mean;
-        n++;
+        if (!Double.isNaN(x)) {
+          new_mean = old_mean + (x - old_mean) / n;
+          M2 += (x - old_mean) * (x - new_mean);
+          old_mean = new_mean;
+          n++;
+        }
       } while (values.hasNextValue());
 
-      return Math.sqrt(variance / (n - 1));
+      // If n is still 2, then we never found another non-NaN value; therefore,
+      // we should return zero.
+      //
+      // Otherwise, we calculate the actual variance, and then we find its
+      // positive square root, which is the standard deviation.
+      return (2 == n) ? 0. : Math.sqrt(M2 / (n - 1));
     }
 
-    public String toString() {
-      return name;
-    }
-    
-    public Interpolation interpolationMethod() {
-      return method;
-    }
-    
   }
 
-  private static final class Count implements Aggregator {
-    private final Interpolation method;
-    private final String name;
-    
+  private static final class Count extends Aggregator {
     public Count(final Interpolation method, final String name) {
-      this.method = method;
-      this.name = name;
+      super(method, name);
     }
     
     @Override
@@ -429,19 +416,14 @@ public final class Aggregators {
     public double runDouble(Doubles values) {
       double result = 0;
       while (values.hasNextValue()) {
-        values.nextDoubleValue();
-        result++;
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          result++;
+        }
       }
       return result;
     }
 
-    public String toString() {
-      return name;
-    }
-  
-    public Interpolation interpolationMethod() {
-      return method;
-    }
   }
 
   /**
@@ -452,24 +434,24 @@ public final class Aggregators {
    * minLimit=0
    * maxLimit=1
    */
-  private static final class PercentileAgg implements Aggregator {
+  private static final class PercentileAgg extends Aggregator {
     private final Double percentile;
-    private final String name;
     private final EstimationType estimation;
 
-    PercentileAgg(final Double percentile, final String name) {
+    public PercentileAgg(final Double percentile, final String name) {
         this(percentile, name, null);
     }
-    public String getName() {
-        return name;
-    }
-    PercentileAgg(final Double percentile, final String name, final EstimationType est) {
-      Preconditions.checkArgument(percentile > 0 && percentile <= 100, "Invalid percentile value");
+
+    public PercentileAgg(final Double percentile, final String name, 
+        final EstimationType est) {
+      super(Aggregators.Interpolation.LERP, name);
+      Preconditions.checkArgument(percentile > 0 && percentile <= 100, 
+          "Invalid percentile value");
       this.percentile = percentile;
-      this.name = name;
       this.estimation = est;
     }
 
+    @Override
     public long runLong(final Longs values) {
       final Percentile percentile =
         this.estimation == null
@@ -483,23 +465,24 @@ public final class Aggregators {
       return (long) percentile.evaluate();
     }
 
+    @Override
     public double runDouble(final Doubles values) {
-        final Percentile percentile = new Percentile(this.percentile);
-        final ResizableDoubleArray local_values = new ResizableDoubleArray();
-        while(values.hasNextValue()) {
-          local_values.addElement(values.nextDoubleValue());
+      final Percentile percentile = new Percentile(this.percentile);
+      final ResizableDoubleArray local_values = new ResizableDoubleArray();
+      int n = 0;
+      while(values.hasNextValue()) {
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          local_values.addElement(val);
+          n++;
         }
+      }
+      if (n > 0) {
         percentile.setData(local_values.getElements());
         return percentile.evaluate();
-    }
-
-    public String toString() {
-      return name;
-    }
-
-    @Override
-    public Interpolation interpolationMethod() {
-        return Aggregators.Interpolation.LERP;
+      } else {
+        return Double.NaN;
+      }
     }
 
   }
