@@ -40,8 +40,8 @@ public interface Query {
   /**
    * Returns the start time of the graph.
    * @return A strictly positive integer.
-   * @throws IllegalStateException if {@link #setStartTime} was never called on
-   * this instance before.
+   * @throws IllegalStateException if {@link #setStartTime(long)} was never 
+   * called on this instance before.
    */
   long getStartTime();
 
@@ -172,6 +172,18 @@ public interface Query {
    * within an interval.
    */
   void downsample(long interval, Aggregator downsampler);
+
+  /**
+   * Sets an optional downsampling function on this query
+   * @param interval The interval, in milliseconds to rollup data points
+   * @param downsampler An aggregation function to use when rolling up data points
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @throws NullPointerException if the aggregation function is null
+   * @throws IllegalArgumentException if the interval is not greater than 0
+   * @since 2.2
+   */
+  void downsample(long interval, Aggregator downsampler, FillPolicy fill_policy);
 
   /**
    * Runs this query.
