@@ -2491,6 +2491,65 @@ public final class TestFsck {
   }
   
   @Test
+  public void twoCompactedColumnsOneWExtraDP() throws Exception {
+    when(options.resolveDupes()).thenReturn(true);
+    final byte[] qual1 = { 0x0, 0x00 };
+    final byte[] val1 = { 4 };
+    final byte[] qual2 = { 0x0, 0x20 };
+    final byte[] val2 = { 5 };
+    final byte[] qual3 = { 0x0, 0x30 };
+    final byte[] val3 = { 7 };
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2), 
+        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2, qual3), 
+        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(2, fsck.kvs_processed.get());
+    assertEquals(2, fsck.duplicates.get());
+    assertEquals(2, fsck.totalErrors());
+    assertEquals(2, fsck.correctable());
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, 
+        new byte[] { 0 }), storage.getColumn(ROW, 
+            MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, 
+        new byte[] { 0 }), storage.getColumn(ROW, 
+            MockBase.concatByteArrays(qual1, qual2, qual3)));
+  }
+  
+  @Test
+  public void twoCompactedColumnsOneWExtraDPFix() throws Exception {
+    when(options.fix()).thenReturn(true);
+    when(options.resolveDupes()).thenReturn(true);
+    final byte[] qual1 = { 0x0, 0x00 };
+    final byte[] val1 = { 4 };
+    final byte[] qual2 = { 0x0, 0x20 };
+    final byte[] val2 = { 5 };
+    final byte[] qual3 = { 0x0, 0x30 };
+    final byte[] val3 = { 7 };
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2), 
+        MockBase.concatByteArrays(val1, val2, new byte[] { 0 }));
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2, qual3), 
+        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(2, fsck.kvs_processed.get());
+    assertEquals(2, fsck.duplicates.get());
+    assertEquals(2, fsck.totalErrors());
+    assertEquals(2, fsck.correctable());
+    assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2)));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, 
+        new byte[] { 0 }), storage.getColumn(ROW, 
+            MockBase.concatByteArrays(qual1, qual2, qual3)));
+  }
+  
+  @Test
   public void twoCompactedColumnsWSameTSLWW() throws Exception {
     when(options.lastWriteWins()).thenReturn(true);
     when(options.resolveDupes()).thenReturn(true);

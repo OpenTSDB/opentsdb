@@ -699,13 +699,20 @@ final class Fsck {
             TSDB.FAMILY(), new_qualifier, new_value);
         
         // it's *possible* that the hash of our new compacted qualifier is in
-        // the delete list so double check. 
+        // the delete list so double check before we delete everything
         if (unique_columns.containsKey(new_qualifier)) {
-          LOG.info("Our qualifier was in the delete list!!!");
           if (Bytes.memcmp(unique_columns.get(new_qualifier), new_value) != 0) {
+            LOG.info("Overwriting column " + Bytes.pretty(new_qualifier) + 
+                " with new value " + 
+                Bytes.pretty(put.value()) + ". Old value " +
+                Bytes.pretty(unique_columns.get(new_qualifier)));
             // Important: Make sure to wait for the write to complete before
             // proceeding with the deletes.
             tsdb.getClient().put(put).joinUninterruptibly();
+          } else {
+            LOG.debug("Column " + Bytes.pretty(new_qualifier) + 
+                " had the same value after repair: " + 
+                Bytes.pretty(put.value()) + ". Skipping deletion.");
           }
           unique_columns.remove(new_qualifier);
         } else {
