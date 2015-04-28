@@ -14,20 +14,19 @@ package net.opentsdb.core;
 
 import java.util.NoSuchElementException;
 
-
 /**
  * Iterator that downsamples data points using an {@link Aggregator}.
  */
 public class Downsampler implements SeekableView, DataPoint {
 
   /** Function to use for downsampling. */
-  private final Aggregator downsampler;
+  protected final Aggregator downsampler;
   /** Iterator to iterate the values of the current interval. */
-  private final ValuesInInterval values_in_interval;
+  protected final ValuesInInterval values_in_interval;
   /** Last normalized timestamp */ 
-  private long timestamp;
+  protected long timestamp;
   /** Last value as a double */
-  private double value;
+  protected double value;
   
   /**
    * Ctor.
@@ -47,10 +46,15 @@ public class Downsampler implements SeekableView, DataPoint {
   // Iterator interface //
   // ------------------ //
 
+  @Override
   public boolean hasNext() {
     return values_in_interval.hasNextValue();
   }
 
+  /**
+   * @throws NoSuchElementException if no data points remain.
+   */
+  @Override
   public DataPoint next() {
     if (hasNext()) {
       value = downsampler.runDouble(values_in_interval);
@@ -61,6 +65,7 @@ public class Downsampler implements SeekableView, DataPoint {
     throw new NoSuchElementException("no more data points in " + this);
   }
 
+  @Override
   public void remove() {
     throw new UnsupportedOperationException();
   }
@@ -69,8 +74,38 @@ public class Downsampler implements SeekableView, DataPoint {
   // SeekableView interface //
   // ---------------------- //
 
+  @Override
   public void seek(final long timestamp) {
     values_in_interval.seekInterval(timestamp);
+  }
+
+  // ------------------- //
+  // DataPoint interface //
+  // ------------------- //
+
+  @Override
+  public long timestamp() {
+    return timestamp;
+  }
+
+  @Override
+  public boolean isInteger() {
+    return false;
+  }
+
+  @Override
+  public long longValue() {
+    throw new ClassCastException("Downsampled values are doubles");
+  }
+
+  @Override
+  public double doubleValue() {
+    return value;
+  }
+
+  @Override
+  public double toDouble() {
+    return value;
   }
 
   @Override
@@ -85,33 +120,13 @@ public class Downsampler implements SeekableView, DataPoint {
    return buf.toString();
   }
 
-  public long timestamp() {
-    return timestamp;
-  }
-
-  public boolean isInteger() {
-    return false;
-  }
-
-  public long longValue() {
-    throw new ClassCastException("Downsampled values are doubles");
-  }
-
-  public double doubleValue() {
-    return value;
-  }
-
-  public double toDouble() {
-    return value;
-  }
-  
   /** Iterates source values for an interval. */
-  private static class ValuesInInterval implements Aggregator.Doubles {
+  protected static class ValuesInInterval implements Aggregator.Doubles {
 
     /** The iterator of original source values. */
     private final SeekableView source;
     /** The sampling interval in milliseconds. */
-    private final long interval_ms;
+    protected final long interval_ms;
     /** The end of the current interval. */
     private long timestamp_end_interval = Long.MIN_VALUE;
     /** True if the last value was successfully extracted from the source. */
@@ -134,7 +149,7 @@ public class Downsampler implements SeekableView, DataPoint {
     }
 
     /** Initializes to iterate intervals. */
-    private void initializeIfNotDone() {
+    protected void initializeIfNotDone() {
       // NOTE: Delay initialization is required to not access any data point
       // from the source until a user requests it explicitly to avoid the severe
       // performance penalty by accessing the unnecessary first data of a span.
@@ -174,7 +189,7 @@ public class Downsampler implements SeekableView, DataPoint {
     }
 
     /** Advances the interval iterator to the given timestamp. */
-    void seekInterval(long timestamp) {
+    void seekInterval(final long timestamp) {
       // To make sure that the interval of the given timestamp is fully filled,
       // rounds up the seeking timestamp to the smallest timestamp that is
       // a multiple of the interval and is greater than or equal to the given
@@ -184,7 +199,7 @@ public class Downsampler implements SeekableView, DataPoint {
     }
 
     /** Returns the representative timestamp of the current interval. */
-    private long getIntervalTimestamp() {
+    protected long getIntervalTimestamp() {
       // NOTE: It is well-known practice taking the start time of
       // a downsample interval as a representative timestamp of it. It also
       // provides the correct context for seek.
@@ -192,7 +207,7 @@ public class Downsampler implements SeekableView, DataPoint {
     }
 
     /** Returns timestamp aligned by interval. */
-    private long alignTimestamp(long timestamp) {
+    protected long alignTimestamp(final long timestamp) {
       return timestamp - (timestamp % interval_ms);
     }
 
