@@ -43,6 +43,9 @@ tsdb_SRC := \
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
 	src/core/Downsampler.java \
+	src/core/DownsamplingSpecification.java \
+	src/core/FillingDownsampler.java \
+	src/core/FillPolicy.java \
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
@@ -163,6 +166,8 @@ test_SRC := \
 	test/core/TestBatchedDataPoints.java \
 	test/core/TestCompactionQueue.java	\
 	test/core/TestDownsampler.java \
+	test/core/TestDownsamplingSpecification.java \
+	test/core/TestFillingDownsampler.java \
 	test/core/TestIncomingDataPoints.java	\
 	test/core/TestInternal.java	\
 	test/core/TestMutableDataPoint.java	\
