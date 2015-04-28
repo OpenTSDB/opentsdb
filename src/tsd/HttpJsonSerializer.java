@@ -34,6 +34,7 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.FillPolicy;
 import net.opentsdb.core.IncomingDataPoint;
 import net.opentsdb.core.QueryException;
 import net.opentsdb.core.TSDB;
@@ -652,7 +653,9 @@ class HttpJsonSerializer extends HttpSerializer {
          * variables.
          */
         public Object call(final ArrayList<Object> deferreds) throws Exception {
-
+          final TSSubQuery orig_query = data_query.getQueries()
+              .get(dps.getQueryIndex());
+          
           json.writeStartObject();
           json.writeStringField("metric", metric.toString());
           
@@ -675,8 +678,6 @@ class HttpJsonSerializer extends HttpSerializer {
           json.writeEndArray();
           
           if (data_query.getShowQuery()) {
-            final TSSubQuery orig_query = data_query.getQueries()
-                .get(dps.getQueryIndex());
             json.writeObjectField("query", orig_query);
           }
           
@@ -732,7 +733,14 @@ class HttpJsonSerializer extends HttpSerializer {
               if (dp.isInteger()) {
                 json.writeNumber(dp.longValue());
               } else { 
-                json.writeNumber(dp.doubleValue());
+                // Report missing intervals as null or NaN.
+                final double value = dp.doubleValue();
+                if (Double.isNaN(value) && 
+                    orig_query.fillPolicy() == FillPolicy.NULL) {
+                  json.writeNull();
+                } else {
+                  json.writeNumber(dp.doubleValue());
+                }
               }
               json.writeEndArray();
             }
@@ -749,7 +757,14 @@ class HttpJsonSerializer extends HttpSerializer {
               if (dp.isInteger()) {
                 json.writeNumberField(Long.toString(timestamp), dp.longValue());
               } else {
-                json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
+                // Report missing intervals as null or NaN.
+                final double value = dp.doubleValue();
+                if (Double.isNaN(value) && 
+                    orig_query.fillPolicy() == FillPolicy.NULL) {
+                  json.writeNumberField(Long.toString(timestamp), null);
+                } else {
+                  json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
+                }
               }
             }
             json.writeEndObject();
