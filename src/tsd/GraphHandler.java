@@ -30,10 +30,12 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +44,7 @@ import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
+import net.opentsdb.core.DownsamplingSpecification;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.RateOptions;
 import net.opentsdb.core.TSDB;
@@ -796,20 +799,27 @@ final class GraphHandler implements HttpRpc {
             .append('=').append(tag.getValue());
         }
         for (final DataPoint d : dp) {
-          asciifile.print(metric);
-          asciifile.print(' ');
-          asciifile.print((d.timestamp() / 1000));
-          asciifile.print(' ');
           if (d.isInteger()) {
+            printMetricHeader(asciifile, metric, d.timestamp());
             asciifile.print(d.longValue());
           } else {
+            // Doubles require extra processing.
             final double value = d.doubleValue();
-            if (value != value || Double.isInfinite(value)) {
-              throw new IllegalStateException("NaN or Infinity:" + value
+
+            // Value might be NaN or infinity.
+            if (Double.isInfinite(value)) {
+              // Infinity is invalid.
+              throw new IllegalStateException("Infinity:" + value
                 + " d=" + d + ", query=" + query);
+            } else if (Double.isNaN(value)) {
+              // NaNs should be skipped.
+              continue;
             }
+
+            printMetricHeader(asciifile, metric, d.timestamp());
             asciifile.print(value);
           }
+
           asciifile.print(tagbuf);
           asciifile.print('\n');
         }
@@ -824,6 +834,20 @@ final class GraphHandler implements HttpRpc {
     }
   }
 
+  /**
+   * Helper method to write metric name and timestamp.
+   * @param writer The writer to which to write.
+   * @param metric The metric name.
+   * @param timestamp The timestamp.
+   */
+  private static void printMetricHeader(final PrintWriter writer, final String metric,
+      final long timestamp) {
+    writer.print(metric);
+    writer.print(' ');
+    writer.print(timestamp / 1000L);
+    writer.print(' ');
+  }
+  
   /**
    * Parses the {@code /q} query in a list of {@link Query} objects.
    * @param tsdb The TSDB to use.
@@ -867,22 +891,16 @@ final class GraphHandler implements HttpRpc {
       }
       // downsampling function & interval.
       if (i > 0) {
-        final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
-        if (dash < 0) {
-          throw new BadRequestException("Invalid downsampling specifier '"
-                                        + parts[1] + "' in m=" + m);
-        }
-        Aggregator downsampler;
-        try {
-          downsampler = Aggregators.get(parts[1].substring(dash + 1));
-        } catch (NoSuchElementException e) {
-          throw new BadRequestException("No such downsampling function: "
-                                        + parts[1].substring(dash + 1));
-        }
-        final long interval = DateTime.parseDuration(parts[1].substring(0, dash));
-        tsdbquery.downsample(interval, downsampler);
+        // downsampler given, so parse it
+        final DownsamplingSpecification ds_spec =
+          new DownsamplingSpecification(parts[1]);
+
+        tsdbquery.downsample(ds_spec.getInterval(), ds_spec.getFunction(),
+          ds_spec.getFillPolicy());
       } else {
-        tsdbquery.downsample(1000, agg);
+        // no downsampler
+        tsdbquery.downsample(1000, agg,
+          DownsamplingSpecification.DEFAULT_FILL_POLICY);
       }
       tsdbqueries[nqueries++] = tsdbquery;
     }

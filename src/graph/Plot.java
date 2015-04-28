@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -205,23 +204,33 @@ public final class Plot {
       final PrintWriter datafile = new PrintWriter(datafiles[i]);
       try {
         for (final DataPoint d : datapoints.get(i)) {
-          final long ts = d.timestamp() / 1000;
-          if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
-            npoints++;
-          }
-          datafile.print(ts + utc_offset);
-          datafile.print(' ');
+          final long ts = d.timestamp() / 1000;          
           if (d.isInteger()) {
+            datafile.print(ts + utc_offset);
+            datafile.print(' ');
             datafile.print(d.longValue());
           } else {
             final double value = d.doubleValue();
-            if (value != value || Double.isInfinite(value)) {
-              throw new IllegalStateException("NaN or Infinity found in"
+
+            if (Double.isInfinite(value)) {
+              // Infinity is invalid.
+              throw new IllegalStateException("Infinity found in"
                   + " datapoints #" + i + ": " + value + " d=" + d);
+            } else if (Double.isNaN(value)) {
+              // NaNs should be skipped.
+              continue;
             }
+
+            datafile.print(ts + utc_offset);
+            datafile.print(' ');
             datafile.print(value);
           }
+          
           datafile.print('\n');
+          
+          if (ts >= (start_time & UNSIGNED) && ts <= (end_time & UNSIGNED)) {
+            npoints++;
+          }
         }
       } finally {
         datafile.close();
