@@ -119,6 +119,9 @@ final class TsdbQuery implements Query {
 
   /** Minimum time interval (in milliseconds) wanted between each data point. */
   private long sample_interval_ms;
+  
+  /** Downsampling fill policy. */
+  private FillPolicy fill_policy;
 
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
@@ -129,6 +132,9 @@ final class TsdbQuery implements Query {
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
+    
+    // By default, we should interpolate.
+    fill_policy = DownsamplingSpecification.DEFAULT_FILL_POLICY;
   }
 
   /**
@@ -285,6 +291,7 @@ final class TsdbQuery implements Query {
     }
     downsampler = sub_query.downsampler();
     sample_interval_ms = sub_query.downsampleInterval();
+    fill_policy = sub_query.fillPolicy();
     
     // if we have tsuids set, that takes precedence
     if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
@@ -389,15 +396,10 @@ final class TsdbQuery implements Query {
     }
   }
   
-  /**
-   * Sets an optional downsampling function on this query
-   * @param interval The interval, in milliseconds to rollup data points
-   * @param downsampler An aggregation function to use when rolling up data points
-   * @throws NullPointerException if the aggregation function is null
-   * @throws IllegalArgumentException if the interval is not greater than 0
-   */
+  
   @Override
-  public void downsample(final long interval, final Aggregator downsampler) {
+  public void downsample(final long interval, final Aggregator downsampler,
+      final FillPolicy fill_policy) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
     } else if (interval <= 0) {
@@ -405,6 +407,19 @@ final class TsdbQuery implements Query {
     }
     this.downsampler = downsampler;
     this.sample_interval_ms = interval;
+    this.fill_policy = fill_policy;
+  }
+
+  /**
+   * Sets an optional downsampling function with interpolation on this query.
+   * @param interval The interval, in milliseconds to rollup data points
+   * @param downsampler An aggregation function to use when rolling up data points
+   * @throws NullPointerException if the aggregation function is null
+   * @throws IllegalArgumentException if the interval is not greater than 0
+   */
+  @Override
+  public void downsample(final long interval, final Aggregator downsampler) {
+    downsample(interval, downsampler, FillPolicy.NONE);
   }
 
   /**
@@ -719,7 +734,7 @@ final class TsdbQuery implements Query {
                                               rate, rate_options,
                                               aggregator,
                                               sample_interval_ms, downsampler,
-                                              query_index);
+                                              query_index, fill_policy);
         return new SpanGroup[] { group };
       }
   
@@ -763,7 +778,8 @@ final class TsdbQuery implements Query {
           thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
                                    getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
-                                   sample_interval_ms, downsampler, query_index);
+                                   sample_interval_ms, downsampler, query_index, 
+                                   fill_policy);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -850,42 +866,80 @@ final class TsdbQuery implements Query {
 
   /** Returns the UNIX timestamp from which we must start scanning.  */
   private long getScanStartTimeSeconds() {
-    // The reason we look before by `MAX_TIMESPAN * 2' seconds is because of
-    // the following.  Let's assume MAX_TIMESPAN = 600 (10 minutes) and the
-    // start_time = ... 12:31:00.  If we initialize the scanner to look
-    // only 10 minutes before, we'll start scanning at time=12:21, which will
-    // give us the row that starts at 12:30 (remember: rows are always aligned
-    // on MAX_TIMESPAN boundaries -- so in this example, on 10m boundaries).
-    // But we need to start scanning at least 1 row before, so we actually
-    // look back by twice MAX_TIMESPAN.  Only when start_time is aligned on a
-    // MAX_TIMESPAN boundary then we'll mistakenly scan back by an extra row,
-    // but this doesn't really matter.
-    // Additionally, in case our sample_interval_ms is large, we need to look
-    // even further before/after, so use that too.
+    // Begin with the raw query start time.
     long start = getStartTime();
-    // down cast to seconds if we have a query in ms
-    if ((start & Const.SECOND_MASK) != 0) {
-      start /= 1000;
+
+    // Convert to seconds if we have a query in ms.
+    if ((start & Const.SECOND_MASK) != 0L) {
+      start /= 1000L;
     }
-    final long ts = start - Const.MAX_TIMESPAN * 2 - sample_interval_ms / 1000;
-    return ts > 0 ? ts : 0;
+
+    // First, we align the start timestamp to its representative value for the
+    // interval in which it appears, if downsampling.
+    long interval_aligned_ts = start;
+    if (0L != sample_interval_ms) {
+      // Downsampling enabled.
+      final long interval_offset = (1000L * start) % sample_interval_ms;
+      interval_aligned_ts -= interval_offset / 1000L;
+    }
+
+    // Then snap that timestamp back to its representative value for the
+    // timespan in which it appears.
+    final long timespan_offset = interval_aligned_ts % Const.MAX_TIMESPAN;
+    final long timespan_aligned_ts = interval_aligned_ts - timespan_offset;
+
+    // Don't return negative numbers.
+    return timespan_aligned_ts > 0L ? timespan_aligned_ts : 0L;
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.  */
   private long getScanEndTimeSeconds() {
-    // For the end_time, we have a different problem.  For instance if our
-    // end_time = ... 12:30:00, we'll stop scanning when we get to 12:40, but
-    // once again we wanna try to look ahead one more row, so to avoid this
-    // problem we always add 1 second to the end_time.  Only when the end_time
-    // is of the form HH:59:59 then we will scan ahead an extra row, but once
-    // again that doesn't really matter.
-    // Additionally, in case our sample_interval_ms is large, we need to look
-    // even further before/after, so use that too.
+    // Begin with the raw query end time.
     long end = getEndTime();
-    if ((end & Const.SECOND_MASK) != 0) {
-      end /= 1000;
+
+    // Convert to seconds if we have a query in ms.
+    if ((end & Const.SECOND_MASK) != 0L) {
+      end /= 1000L;
     }
-    return end + Const.MAX_TIMESPAN + 1 + sample_interval_ms / 1000;
+
+    // The calculation depends on whether we're downsampling.
+    if (0L != sample_interval_ms) {
+      // Downsampling enabled.
+      //
+      // First, we align the end timestamp to its representative value for the
+      // interval FOLLOWING the one in which it appears.
+      //
+      // OpenTSDB's query bounds are inclusive, but HBase scan bounds are half-
+      // open. The user may have provided an end bound that is already
+      // interval-aligned (i.e., its interval offset is zero). If so, the user
+      // wishes for that interval to appear in the output. In that case, we
+      // skip forward an entire extra interval.
+      //
+      // This can be accomplished by simply not testing for zero offset.
+      final long interval_offset = (1000L * end) % sample_interval_ms;
+      final long interval_aligned_ts = end +
+        (sample_interval_ms - interval_offset) / 1000L;
+
+      // Then, if we're now aligned on a timespan boundary, then we need no
+      // further adjustment: we are guaranteed to have always moved the end time
+      // forward, so the scan will find the data we need.
+      //
+      // Otherwise, we need to align to the NEXT timespan to ensure that we scan
+      // the needed data.
+      final long timespan_offset = interval_aligned_ts % Const.MAX_TIMESPAN;
+      return (0L == timespan_offset) ?
+        interval_aligned_ts :
+        interval_aligned_ts + (Const.MAX_TIMESPAN - timespan_offset);
+    } else {
+      // Not downsampling.
+      //
+      // Regardless of the end timestamp's position within the current timespan,
+      // we must always align to the beginning of the next timespan. This is
+      // true even if it's already aligned on a timespan boundary. Again, the
+      // reason for this is OpenTSDB's closed interval vs. HBase's half-open.
+      final long timespan_offset = end % Const.MAX_TIMESPAN;
+      return end + (Const.MAX_TIMESPAN - timespan_offset);
+    }
   }
 
   /**
