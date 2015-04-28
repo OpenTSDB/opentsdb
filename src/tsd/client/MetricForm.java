@@ -14,6 +14,8 @@ package tsd.client;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.BlurHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -50,6 +52,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   private final CheckBox downsample = new CheckBox("Downsample");
   private final ListBox downsampler = new ListBox();
   private final ValidatedTextBox interval = new ValidatedTextBox();
+  private final ListBox fill_policy = new ListBox();
   private final CheckBox rate = new CheckBox("Rate");
   private final CheckBox rate_counter = new CheckBox("Rate Ctr");
   private final TextBox counter_max = new TextBox();
@@ -66,6 +69,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     downsampler.addChangeHandler(handler);
     interval.addBlurHandler(handler);
     interval.addKeyPressHandler(handler);
+    fill_policy.addChangeHandler(handler);
     rate.addClickHandler(handler);
     rate_counter.addClickHandler(handler);
     counter_max.addBlurHandler(handler);
@@ -179,18 +183,38 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
     // downsampling function & interval.
     if (i > 0) {
-      final int dash = parts[1].indexOf('-', 1);  // 1st char can't be `-'.
-      if (dash < 0) {
+      // First dash should have been given.
+      final int first_dash = parts[1].indexOf('-', 1); // 1st char can't be `-'.
+      if (first_dash < 0) {
         disableDownsample();
         return;  // Invalid downsampling specifier.
       }
+
+      // Second dash (and subsequent fill policy) are optional.
+      final int second_dash = parts[1].indexOf('-', first_dash + 1);
+
       downsample.setValue(true, false);
 
       downsampler.setEnabled(true);
-      setSelectedItem(downsampler, parts[1].substring(dash + 1));
+      fill_policy.setEnabled(true);
+      if (-1 == second_dash) {
+        // No fill policy given.
+        setSelectedItem(downsampler, parts[1].substring(first_dash + 1));
+
+        // So use a default.
+        // TODO: don't assume this exists.
+        setSelectedItem(fill_policy, "lerp");
+      } else {
+        // User specified fill policy.
+        setSelectedItem(downsampler, parts[1].substring(first_dash + 1,
+          second_dash));
+
+        // So use what was given.
+        setSelectedItem(fill_policy, parts[1].substring(second_dash + 1));
+      }
 
       interval.setEnabled(true);
-      interval.setText(parts[1].substring(0, dash));
+      interval.setText(parts[1].substring(0, first_dash));
     } else {
       disableDownsample();
     }
@@ -202,6 +226,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     downsample.setValue(false, false);
     interval.setEnabled(false);
     downsampler.setEnabled(false);
+    fill_policy.setEnabled(false);
   }
 
   public CheckBox x1y2() {
@@ -264,6 +289,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
         final HorizontalPanel hbox = new HorizontalPanel();
         hbox.add(downsampler);
         hbox.add(interval);
+        hbox.add(fill_policy);
         vbox.add(hbox);
       }
       add(vbox);
@@ -281,8 +307,17 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       aggregators.addItem((String)agg);
       downsampler.addItem((String)agg);
     }
+ // TODO: don't assume we will get these.
     setSelectedItem(aggregators, "sum");
     setSelectedItem(downsampler, "avg");
+  }
+  
+  public void setFillPolicies(final List<String> policies) {
+    for (final String policy : policies) {
+      fill_policy.addItem(policy);
+    }
+    // TODO: don't assume we will get this.
+    setSelectedItem(fill_policy, "lerp");
   }
 
   public boolean buildQueryString(final StringBuilder url) {
@@ -294,7 +329,8 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     url.append(selectedValue(aggregators));
     if (downsample.getValue()) {
       url.append(':').append(interval.getValue())
-        .append('-').append(selectedValue(downsampler));
+         .append('-').append(selectedValue(downsampler))
+         .append('-').append(selectedValue(fill_policy));
     }
     if (rate.getValue()) {
       url.append(":rate");
@@ -496,6 +532,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
   private void setupDownsampleWidgets() {
     downsampler.setEnabled(false);
+    fill_policy.setEnabled(false);
     interval.setEnabled(false);
     interval.setMaxLength(5);
     interval.setVisibleLength(5);
@@ -505,6 +542,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
       public void onClick(final ClickEvent event) {
         final boolean checked = ((CheckBox) event.getSource()).getValue();
         downsampler.setEnabled(checked);
+        fill_policy.setEnabled(checked);
         interval.setEnabled(checked);
         if (checked) {
           downsampler.setFocus(true);

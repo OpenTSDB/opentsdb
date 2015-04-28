@@ -19,10 +19,12 @@ package tsd.client;
  */
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -196,6 +198,13 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
   /** List of known aggregation functions.  Fetched once from the server. */
   private final ArrayList<String> aggregators = new ArrayList<String>();
+  
+  /**
+   * List of known downsampling fill policies.
+   * TODO: fetch from server.
+   */
+  private final List<String> fill_policies = Arrays.asList("none", "nan",
+    "zero", "null");
   
   private final DecoratedTabPanel metrics = new DecoratedTabPanel();
 
@@ -517,6 +526,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     metric.x1y2().addClickHandler(updatey2range);
     metric.setMetricChangeHandler(metric_change_handler);
     metric.setAggregators(aggregators);
+    metric.setFillPolicies(fill_policies);
     metrics.insert(metric, label, item);
     return metric;
   }
