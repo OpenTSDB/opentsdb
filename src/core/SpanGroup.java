@@ -102,6 +102,9 @@ final class SpanGroup implements DataPoints {
   /** Index of the query in the TSQuery class */
   private final int query_index;
   
+  /** Downsampling fill policy. */
+  private final FillPolicy fill_policy;
+  
   /** The TSDB to which we belong, used for resolution */
   private final TSDB tsdb;
   
@@ -157,7 +160,7 @@ final class SpanGroup implements DataPoints {
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
     this(tsdb, start_time, end_time, spans, rate, rate_options, aggregator, 
-        interval, downsampler, -1);
+        interval, downsampler, -1, FillPolicy.NONE);
   }
 
   /**
@@ -176,7 +179,9 @@ final class SpanGroup implements DataPoints {
    * @param interval Number of milliseconds wanted between each data point.
    * @param downsampler Aggregation function to use to group data points
    * within an interval.
-   * @param query_index The index of this query in the TSQuery array
+   * @param query_index index of the original query
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
    * @since 2.2
    */
   SpanGroup(final TSDB tsdb,
@@ -184,23 +189,26 @@ final class SpanGroup implements DataPoints {
             final Iterable<Span> spans,
             final boolean rate, final RateOptions rate_options,
             final Aggregator aggregator,
-            final long interval, final Aggregator downsampler,
-            final int query_index) {
-    this.tsdb = tsdb;
-    annotations = new ArrayList<Annotation>();
-    this.start_time = (start_time & Const.SECOND_MASK) == 0 ? start_time * 1000 : start_time;
-    this.end_time = (end_time & Const.SECOND_MASK) == 0 ? end_time * 1000 : end_time;
-    if (spans != null) {
-      for (final Span span : spans) {
-        add(span);
-      }
-    }
-    this.rate = rate;
-    this.rate_options = rate_options;
-    this.aggregator = aggregator;
-    this.downsampler = downsampler;
-    this.sample_interval = interval;
-    this.query_index = query_index;
+            final long interval, final Aggregator downsampler, final int query_index,
+            final FillPolicy fill_policy) {
+     annotations = new ArrayList<Annotation>();
+     this.start_time = (start_time & Const.SECOND_MASK) == 0 ? 
+         start_time * 1000 : start_time;
+     this.end_time = (end_time & Const.SECOND_MASK) == 0 ? 
+         end_time * 1000 : end_time;
+     if (spans != null) {
+       for (final Span span : spans) {
+         add(span);
+       }
+     }
+     this.rate = rate;
+     this.rate_options = rate_options;
+     this.aggregator = aggregator;
+     this.downsampler = downsampler;
+     this.sample_interval = interval;
+     this.query_index = query_index;
+     this.fill_policy = fill_policy;
+     this.tsdb = tsdb;
   }
   
   /**
@@ -423,7 +431,7 @@ final class SpanGroup implements DataPoints {
     return AggregationIterator.create(spans, start_time, end_time, aggregator,
                                   aggregator.interpolationMethod(),
                                   downsampler, sample_interval,
-                                  rate, rate_options);
+                                  rate, rate_options, fill_policy);
   }
 
   /**

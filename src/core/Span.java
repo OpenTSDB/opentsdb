@@ -397,11 +397,17 @@ final class Span implements DataPoints {
       current_row = rows.get(0).internalIterator();
     }
 
+    // ------------------ //
+    // Iterator interface //
+    // ------------------ //
+    
+    @Override
     public boolean hasNext() {
       return (current_row.hasNext()             // more points in this row
               || row_index < rows.size() - 1);  // or more rows
     }
 
+    @Override
     public DataPoint next() {
       if (current_row.hasNext()) {
         return current_row.next();
@@ -413,10 +419,16 @@ final class Span implements DataPoints {
       throw new NoSuchElementException("no more elements");
     }
 
+    @Override
     public void remove() {
       throw new UnsupportedOperationException();
     }
 
+    // ---------------------- //
+    // SeekableView interface //
+    // ---------------------- //
+    
+    @Override
     public void seek(final long timestamp) {
       int row_index = seekRow(timestamp);
       if (row_index != this.row_index) {
@@ -426,6 +438,7 @@ final class Span implements DataPoints {
       current_row.seek(timestamp);
     }
 
+    @Override
     public String toString() {
       return "Span.Iterator(row_index=" + row_index
         + ", current_row=" + current_row + ", span=" + Span.this + ')';
@@ -434,14 +447,32 @@ final class Span implements DataPoints {
   }
 
   /**
-   * Package private iterator method to access data while downsampling.
+   * Package private iterator method to access data while downsampling with the
+   * option to force interpolation.
+   * @param start_time The time in milliseconds at which the data begins.
+   * @param end_time The time in milliseconds at which the data ends.
    * @param interval_ms The interval in milli seconds wanted between each data
    * point.
    * @param downsampler The downsampling function to use.
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @return A new downsampler.
    */
-  Downsampler downsampler(final long interval_ms,
-                          final Aggregator downsampler) {
-    return new Downsampler(spanIterator(), interval_ms, downsampler);
+  Downsampler downsampler(final long start_time,
+                          final long end_time,
+                          final long interval_ms,
+                          final Aggregator downsampler,
+                          final FillPolicy fill_policy) {
+    if (FillPolicy.NONE == fill_policy) {
+      // The default downsampler simply skips missing intervals, causing the
+      // span group to linearly interpolate.
+      return new Downsampler(spanIterator(), interval_ms, downsampler);
+    } else {
+      // Otherwise, we need to instantiate a downsampler that can fill missing
+      // intervals with special values.
+      return new FillingDownsampler(spanIterator(), start_time, end_time,
+        interval_ms, downsampler, fill_policy);
+    }
   }
 
   public int getQueryIndex() {
