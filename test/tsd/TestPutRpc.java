@@ -183,6 +183,26 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
+
+  @Test
+  public void putDoublePrecisionFloatingPoint() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
+        "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
+        +":123456.123456789,\"tags\":{\"host\":\"web01\"}}");
+    PutDataPointRpc put = new PutDataPointRpc();
+    put.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+  }
+
+  @Test
+  public void putNegativeDoublePrecisionFloatingPoint() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put",
+        "{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
+        +":-123456.123456789,\"tags\":{\"host\":\"web01\"}}");
+    PutDataPointRpc put = new PutDataPointRpc();
+    put.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
+  }
   
   @Test
   public void putSEBig() throws Exception {

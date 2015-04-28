@@ -746,7 +746,95 @@ public final class TestTSDB {
     // should have 7 digits of precision
     assertEquals(25.4F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
   }
-  
+
+  @Test
+  public void addPointDouble() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5D, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 15 });
+    assertNotNull(value);
+    // should have 15 digits of precision
+    assertEquals(42.5D, Double.longBitsToDouble(Bytes.getLong(value)), 0.000000000000001);
+  }
+
+  @Test
+  public void addPointDoubleNegative() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, -42.5D, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 15 });
+    assertNotNull(value);
+    // should have 15 digits of precision
+    assertEquals(-42.5D, Double.longBitsToDouble(Bytes.getLong(value)), 0.000000000000001);
+  }
+
+  @Test
+  public void addPointDoubleMs() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400500L, 42.5D, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, 
+        new byte[] { (byte) 0xF0, 0, 0x7D, 15 });
+    assertNotNull(value);
+    // should have 15 digits of precision
+    assertEquals(42.5D, Double.longBitsToDouble(Bytes.getLong(value)), 0.000000000000001);
+  }
+
+  @Test
+  public void addPointDoubleEndOfRow() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1357001999, 42.5D, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { (byte) 0xE0, 
+        (byte) 0xFF });
+    assertNotNull(value);
+    // should have 15 digits of precision
+    assertEquals(42.5D, Double.longBitsToDouble(Bytes.getLong(value)), 0.000000000000001);
+  }
+
+  @Test
+  public void addPointDoublePrecision() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 0.5123451234512349999D, tags)
+      .joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 15 });
+    assertNotNull(value);
+    // should have 15 digits of precision
+    assertEquals(0.512345123451234D, Double.longBitsToDouble(Bytes.getLong(value)), 0.000000000000001);
+  }
+
+  @Test
+  public void addPointDoubleOverwrite() throws Exception {
+    setupAddPointStorage();
+    HashMap<String, String> tags = new HashMap<String, String>(1);
+    tags.put("host", "web01");
+    tsdb.addPoint("sys.cpu.user", 1356998400, 42.5D, tags).joinUninterruptibly();
+    tsdb.addPoint("sys.cpu.user", 1356998400, 25.4D, tags).joinUninterruptibly();
+    final byte[] row = new byte[] { 0, 0, 1, 0x50, (byte) 0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 1};
+    final byte[] value = storage.getColumn(row, new byte[] { 0, 15 });
+    assertNotNull(value);
+    // should have 15 digits of precision
+    assertEquals(25.4D, Double.longBitsToDouble(Bytes.getLong(value)), 0.000000000000001);
+  }
+
   @Test
   public void addPointBothSameTimeIntAndFloat() throws Exception {
     // this is an odd situation that can occur if the user puts an int and then
