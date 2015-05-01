@@ -37,10 +37,11 @@ import com.stumbleupon.async.Deferred;
 @PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
 public final class TestPutRpc {
   private TSDB tsdb = null;
-  
+
   @Before
   public void before() throws Exception {
     tsdb = NettyMocks.getMockedHTTPTSDB();
+
     final HashMap<String, String> tags1 = new HashMap<String, String>();
     tags1.put("host", "web01");
     when(tsdb.addPoint("sys.cpu.nice", 1365465600, 42, tags1))
@@ -63,15 +64,53 @@ public final class TestPutRpc {
       .thenReturn(Deferred.fromResult(new Object()));
     when(tsdb.addPoint("doesnotexist", 1365465600, 42, tags1))
       .thenThrow(new NoSuchUniqueName("metric", "doesnotexist"));
+    when(tsdb.addPoint("sys.cpu.system", 1365465600, 99, tags1))
+      .thenReturn(Deferred.fromResult(new Object()));
   }
-  
+
   @Test
   public void constructor() {
     assertNotNull(new PutDataPointRpc());
   }
   
   // HTTP RPC Tests --------------------------------------
-  
+
+  @Test
+  public void putWaitFlushTimeout() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?waitflush=0&summary",
+        "[{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
+            + ":42,\"tags\":{\"host\":\"web01\"}},{\"metric\":\"sys.cpu.system\","
+            + "\"timestamp\":1365465600,\"value\":99,\"tags\":"
+            + "{\"host\":\"web01\"}}]");
+
+    PutDataPointRpc put = new PutDataPointRpc();
+    put.execute(tsdb, query);
+    final String response =
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertEquals(HttpResponseStatus.REQUEST_TIMEOUT, query.response().getStatus());
+    assertTrue(response.contains("\"failed\":0"));
+    assertTrue(response.contains("\"success\":0"));
+    assertTrue(response.contains("\"total\":2"));
+  }
+
+  @Test
+  public void putWaitFlushNoTimeout() throws Exception {
+    HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?waitflush=100&summary",
+        "[{\"metric\":\"sys.cpu.nice\",\"timestamp\":1365465600,\"value\""
+            + ":42,\"tags\":{\"host\":\"web01\"}},{\"metric\":\"sys.cpu.system\","
+            + "\"timestamp\":1365465600,\"value\":99,\"tags\":"
+            + "{\"host\":\"web01\"}}]");
+
+    PutDataPointRpc put = new PutDataPointRpc();
+    put.execute(tsdb, query);
+    final String response =
+        query.response().getContent().toString(Charset.forName("UTF-8"));
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    assertTrue(response.contains("\"failed\":0"));
+    assertTrue(response.contains("\"success\":2"));
+    assertTrue(response.contains("\"total\":2"));
+  }
+
   @Test
   public void putSingle() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put", 
@@ -93,7 +132,7 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test
   public void putSingleSummary() throws Exception {
     HttpQuery query = NettyMocks.postQuery(tsdb, "/api/put?summary", 
@@ -263,7 +302,7 @@ public final class TestPutRpc {
     put.execute(tsdb, query);
     assertEquals(HttpResponseStatus.NO_CONTENT, query.response().getStatus());
   }
-  
+
   @Test (expected = BadRequestException.class)
   public void badMethod() throws Exception {
     HttpQuery query = NettyMocks.getQuery(tsdb, "/api/put");
