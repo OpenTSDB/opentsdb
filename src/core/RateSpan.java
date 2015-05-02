@@ -147,6 +147,11 @@ public class RateSpan implements SeekableView {
       }
       
       if (options.isCounter() && difference < 0) {
+        if (options.getDropResets()) {
+          populateNextRate();
+          return;
+        }
+        
         if (prev_data.isInteger() && next_data.isInteger()) {
           // NOTE: Calculates in the long type to avoid precision loss
           // while converting long values to double values if both values are long.

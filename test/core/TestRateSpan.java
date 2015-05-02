@@ -254,4 +254,61 @@ public class TestRateSpan {
     assertFalse(rate_span.hasNext());
     assertFalse(rate_span.hasNext());
   }
+  
+  @Test
+  public void testNext_counterDroResets() {
+    final long RESET_VALUE = 1;
+    source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(1356998400000L, 40),
+        MutableDataPoint.ofLongValue(1356998401000L, 50),
+        MutableDataPoint.ofLongValue(1356998402000L, 40),
+        MutableDataPoint.ofLongValue(1356998403000L, 50)
+    });
+    DataPoint[] rates = new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(1356998400000L, 40 / 1356998400.0),
+        MutableDataPoint.ofDoubleValue(1356998401000L, 10),
+        // drop the point before
+        MutableDataPoint.ofDoubleValue(1356998403000L, 10)
+    };
+    options = new RateOptions(true, COUNTER_MAX, RESET_VALUE, true);
+    RateSpan rate_span = new RateSpan(source, options);
+    for (DataPoint rate : rates) {
+      assertTrue(rate_span.hasNext());
+      assertTrue(rate_span.hasNext());
+      DataPoint dp = rate_span.next();
+      String msg = String.format("expected rate = '%s' ", rate);
+      assertFalse(msg, dp.isInteger());
+      assertEquals(msg, rate.timestamp(), dp.timestamp());
+      assertEquals(msg, rate.doubleValue(), dp.doubleValue(), 0.0000001);
+    }
+    assertFalse(rate_span.hasNext());
+    assertFalse(rate_span.hasNext());
+  }
+  
+  @Test
+  public void testNext_counterDroResetsNothingAfter() {
+    final long RESET_VALUE = 1;
+    source = SeekableViewsForTest.fromArray(new DataPoint[] {
+        MutableDataPoint.ofLongValue(1356998400000L, 40),
+        MutableDataPoint.ofLongValue(1356998401000L, 50),
+        MutableDataPoint.ofLongValue(1356998402000L, 40)
+    });
+    DataPoint[] rates = new DataPoint[] {
+        MutableDataPoint.ofDoubleValue(1356998400000L, 40 / 1356998400.0),
+        MutableDataPoint.ofDoubleValue(1356998401000L, 10),
+    };
+    options = new RateOptions(true, COUNTER_MAX, RESET_VALUE, true);
+    RateSpan rate_span = new RateSpan(source, options);
+    for (DataPoint rate : rates) {
+      assertTrue(rate_span.hasNext());
+      assertTrue(rate_span.hasNext());
+      DataPoint dp = rate_span.next();
+      String msg = String.format("expected rate = '%s' ", rate);
+      assertFalse(msg, dp.isInteger());
+      assertEquals(msg, rate.timestamp(), dp.timestamp());
+      assertEquals(msg, rate.doubleValue(), dp.doubleValue(), 0.0000001);
+    }
+    assertFalse(rate_span.hasNext());
+    assertFalse(rate_span.hasNext());
+  }
 }

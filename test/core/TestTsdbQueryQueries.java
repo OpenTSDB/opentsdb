@@ -1060,6 +1060,29 @@ public class TestTsdbQueryQueries extends BaseTsdbTest {
   }
 
   @Test
+  public void runRateCounterAnomallyDrop() throws Exception {
+    setDataPointStorage();
+    long timestamp = 1356998400;
+    tsdb.addPoint(METRIC_STRING, timestamp += 30, 45, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, timestamp += 30, 75, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, timestamp += 30, 25, tags).joinUninterruptibly();
+    tsdb.addPoint(METRIC_STRING, timestamp += 30, 55, tags).joinUninterruptibly();
+    
+    final RateOptions ro = new RateOptions(true, 10000, 35, true);
+    query.setStartTime(1356998400);
+    query.setEndTime(1357041600);
+    query.setTimeSeries(METRIC_STRING, tags, Aggregators.SUM, true, ro);
+    final DataPoints[] dps = query.run();
+    assertMeta(dps, 0, false);
+
+    assertEquals(1.0, dps[0].doubleValue(0), 0.001);
+    assertEquals(1356998460000L, dps[0].timestamp(0));
+    assertEquals(1, dps[0].doubleValue(1), 0.001);
+    assertEquals(1356998520000L, dps[0].timestamp(1));
+    assertEquals(2, dps[0].size());
+  }
+  
+  @Test
   public void runMultiCompact() throws Exception {
     final byte[] qual1 = { 0x00, 0x17 };
     final byte[] val1 = Bytes.fromLong(1L);

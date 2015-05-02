@@ -604,14 +604,15 @@ final class QueryRpc implements HttpRpc {
                + parts.length + " parts");
      }
 
-     final boolean counter = "counter".equals(parts[0]);
+     final boolean counter = parts[0].endsWith("counter");
      try {
        final long max = (parts.length >= 2 && parts[1].length() > 0 ? Long
            .parseLong(parts[1]) : Long.MAX_VALUE);
        try {
          final long reset = (parts.length >= 3 && parts[2].length() > 0 ? Long
              .parseLong(parts[2]) : RateOptions.DEFAULT_RESET_VALUE);
-         return new RateOptions(counter, max, reset);
+         final boolean drop_counter = parts[0].equals("dropcounter");
+         return new RateOptions(counter, max, reset, drop_counter);
        } catch (NumberFormatException e) {
          throw new BadRequestException(
              "Reset value of counter was not a number, received '" + parts[2]

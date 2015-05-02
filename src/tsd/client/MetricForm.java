@@ -335,9 +335,14 @@ final class MetricForm extends HorizontalPanel implements Focusable {
     if (rate.getValue()) {
       url.append(":rate");
       if (rate_counter.getValue()) {
-        url.append('{').append("counter");
+        url.append('{');//.append("counter");
         final String max = counter_max.getValue().trim();
         final String reset = counter_reset_value.getValue().trim();
+        if (max.isEmpty() && (reset.equals("0") || reset.isEmpty())) {
+          url.append("dropcounter");
+        } else {
+          url.append("counter");
+        }
         if (max.length() > 0 && reset.length() > 0) {
           url.append(',').append(max).append(',').append(reset);
         } else if (max.length() > 0 && reset.length() == 0) {
@@ -605,7 +610,7 @@ final class MetricForm extends HorizontalPanel implements Focusable {
 
     try {
       LocalRateOptions options = new LocalRateOptions();
-      options.is_counter = "counter".equals(parts[0]);
+      options.is_counter = parts[0].endsWith("counter");
       options.counter_max = (parts.length >= 2 && parts[1].length() > 0 ? Long
           .parseLong(parts[1]) : Long.MAX_VALUE);
       options.reset_value = (parts.length >= 3 && parts[2].length() > 0 ? Long

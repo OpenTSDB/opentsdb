@@ -33,6 +33,9 @@ public class RateOptions {
    * some maximum
    */
   private boolean counter;
+  
+  /** Whether or not to simply drop rolled-over or reset data points */
+  private boolean drop_resets;
 
   /**
    * If calculating a rate of change over a metric that is a counter, then this
@@ -55,6 +58,7 @@ public class RateOptions {
     this.counter = false;
     this.counter_max = Long.MAX_VALUE;
     this.reset_value = DEFAULT_RESET_VALUE;
+    this.drop_resets = false;
   }
   
   /**
@@ -69,14 +73,32 @@ public class RateOptions {
    */
   public RateOptions(final boolean counter, final long counter_max,
       final long reset_value) {
+    this(counter, counter_max, reset_value, false);
+  }
+  
+  /**
+   * Ctor
+   * @param counter If true, indicates that the rate calculation should assume
+   * that the underlying data is from a counter
+   * @param counter_max Specifies the maximum value for the counter before it
+   * will roll over and restart at 0
+   * @param reset_value Specifies the largest rate change that is considered
+   * acceptable, if a rate change is seen larger than this value then the
+   * counter is assumed to have been reset
+   * @param drop_resets Whether or not to drop rolled-over or reset counters
+   * @since 2.2
+   */
+  public RateOptions(final boolean counter, final long counter_max,
+      final long reset_value, final boolean drop_resets) {
     this.counter = counter;
     this.counter_max = counter_max;
     this.reset_value = reset_value;
+    this.drop_resets = drop_resets;
   }
   
   @Override
   public int hashCode() {
-    return Objects.hashCode(counter, counter_max, reset_value);
+    return Objects.hashCode(counter, counter_max, reset_value, drop_resets);
   }
   
   @Override
@@ -93,7 +115,8 @@ public class RateOptions {
     final RateOptions options = (RateOptions)obj;
     return Objects.equal(counter, options.counter) 
         && Objects.equal(counter_max, options.counter_max) 
-        && Objects.equal(reset_value, options.reset_value);
+        && Objects.equal(reset_value, options.reset_value)
+        && Objects.equal(drop_resets, options.drop_resets);
   }
   
   /** @return Whether or not the counter flag is set */
@@ -111,6 +134,11 @@ public class RateOptions {
     return reset_value;
   }
 
+  /** @return Whether or not to drop rolled-over or reset counters */
+  public boolean getDropResets() {
+    return drop_resets;
+  }
+  
   /** @param counter Whether or not the time series should be considered counters */
   public void setIsCounter(boolean counter) {
     this.counter = counter;
@@ -124,6 +152,11 @@ public class RateOptions {
   /** @param reset_value A difference that may be an anomaly so suppress it */
   public void setResetValue(long reset_value) {
     this.reset_value = reset_value;
+  }
+  
+  /** @param drop_resets Whether or not to drop rolled-over or reset counters */
+  public void setDropResets(boolean drop_resets) {
+    this.drop_resets = drop_resets;
   }
   
   /**
