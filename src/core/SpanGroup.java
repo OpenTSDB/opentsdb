@@ -114,9 +114,8 @@ final class SpanGroup implements DataPoints {
             final boolean rate,
             final Aggregator aggregator,
             final long interval, final Aggregator downsampler) {
-    this(tsdb, start_time, end_time, spans, rate, new RateOptions(false,
-        Long.MAX_VALUE, RateOptions.DEFAULT_RESET_VALUE), aggregator, interval,
-        downsampler);
+    this(tsdb, start_time, end_time, spans, rate, new RateOptions(false),
+        aggregator, interval, downsampler);
   }
 
   /**

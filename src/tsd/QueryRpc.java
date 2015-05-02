@@ -509,8 +509,7 @@ final class QueryRpc implements HttpRpc {
    static final public RateOptions parseRateOptions(final boolean rate,
        final String spec) {
      if (!rate || spec.length() == 4) {
-       return new RateOptions(false, Long.MAX_VALUE,
-           RateOptions.DEFAULT_RESET_VALUE);
+       return new RateOptions(false);
      }
 
      if (spec.length() < 6) {
@@ -528,22 +527,7 @@ final class QueryRpc implements HttpRpc {
      }
 
      final boolean counter = "counter".equals(parts[0]);
-     try {
-       final long max = (parts.length >= 2 && parts[1].length() > 0 ? Long
-           .parseLong(parts[1]) : Long.MAX_VALUE);
-       try {
-         final long reset = (parts.length >= 3 && parts[2].length() > 0 ? Long
-             .parseLong(parts[2]) : RateOptions.DEFAULT_RESET_VALUE);
-         return new RateOptions(counter, max, reset);
-       } catch (NumberFormatException e) {
-         throw new BadRequestException(
-             "Reset value of counter was not a number, received '" + parts[2]
-                 + "'");
-       }
-     } catch (NumberFormatException e) {
-       throw new BadRequestException(
-           "Max value of counter was not a number, received '" + parts[1] + "'");
-     }
+     return new RateOptions(counter);
    }
 
   /**
