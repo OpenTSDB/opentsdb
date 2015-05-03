@@ -395,25 +395,31 @@ public final class TSDB {
         .joinUninterruptibly();
       
       collectUidStats(metrics, collector);
-      collector.record("uid.ids-used", used_uids.get(METRICS_QUAL), 
-          "kind=" + METRICS_QUAL);
-      collector.record("uid.ids-available", 
-          (metrics.maxPossibleId() - used_uids.get(METRICS_QUAL)), 
-          "kind=" + METRICS_QUAL);
+      if (config.getBoolean("tsd.core.uid.random_metrics")) {
+        collector.record("uid.ids-used", 0, "kind=" + METRICS_QUAL);
+        collector.record("uid.ids-available", 0, "kind=" + METRICS_QUAL);
+      } else {
+        collector.record("uid.ids-used", used_uids.get(METRICS_QUAL), 
+            "kind=" + METRICS_QUAL);
+        collector.record("uid.ids-available", 
+            (Internal.getMaxUnsignedValueOnBytes(metrics.width()) - 
+                used_uids.get(METRICS_QUAL)), "kind=" + METRICS_QUAL);
+      }
       
       collectUidStats(tag_names, collector);
       collector.record("uid.ids-used", used_uids.get(TAG_NAME_QUAL), 
           "kind=" + TAG_NAME_QUAL);
       collector.record("uid.ids-available", 
-          (tag_names.maxPossibleId() - used_uids.get(TAG_NAME_QUAL)), 
+          (Internal.getMaxUnsignedValueOnBytes(tag_names.width()) - 
+              used_uids.get(TAG_NAME_QUAL)), 
           "kind=" + TAG_NAME_QUAL);
       
       collectUidStats(tag_values, collector);
       collector.record("uid.ids-used", used_uids.get(TAG_VALUE_QUAL), 
           "kind=" + TAG_VALUE_QUAL);
       collector.record("uid.ids-available", 
-          (tag_values.maxPossibleId() - used_uids.get(TAG_VALUE_QUAL)), 
-          "kind=" + TAG_VALUE_QUAL);
+          (Internal.getMaxUnsignedValueOnBytes(tag_values.width()) - 
+              used_uids.get(TAG_VALUE_QUAL)), "kind=" + TAG_VALUE_QUAL);
       
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
