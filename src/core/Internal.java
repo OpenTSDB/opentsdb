@@ -525,7 +525,7 @@ public final class Internal {
    * @since 2.0
    */
   public static boolean inMilliseconds(final byte[] qualifier, 
-      final byte offset) {
+      final int offset) {
     return inMilliseconds(qualifier[offset]);
   }
   
