@@ -989,17 +989,20 @@ public final class MockBase {
         new ArrayList<ArrayList<KeyValue>>();
       for (Map.Entry<byte[], ByteMap<ByteMap<TreeMap<Long, byte[]>>>> row : 
         storage.entrySet()) {
-        
+      
         // if it's before the start row, after the end row or doesn't
         // match the given regex, continue on to the next row
         if (start != null && Bytes.memcmp(row.getKey(), start) < 0) {
           continue;
         }
         // asynchbase Scanner's logic:
-        // - start_key is inclusive, stop key is exclusive,
-        // - when start key is equal to the stop key, include the key in scan result,
-        if (stop != null && Bytes.memcmp(row.getKey(), stop) >= 0
-            && Bytes.memcmp(start, stop) != 0) {
+        // - start_key is inclusive, stop key is exclusive
+        // - when start key is equal to the stop key, 
+        //   include the key in scan result
+        // - if stop key is empty, scan till the end
+        if (stop != null && stop.length > 0 && 
+            Bytes.memcmp(row.getKey(), stop) >= 0 && 
+            Bytes.memcmp(start, stop) != 0) {
           continue;
         }
         if (pattern != null) {
@@ -1008,7 +1011,7 @@ public final class MockBase {
             continue;
           }
         }
-        
+
         // loop on the column families
         final ArrayList<KeyValue> kvs = 
           new ArrayList<KeyValue>(row.getValue().size());
