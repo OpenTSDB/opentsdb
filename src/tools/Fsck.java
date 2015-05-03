@@ -183,8 +183,20 @@ final class Fsck {
     reporter.start();
     
     for (final Query query : queries) {
-      final FsckWorker worker = new FsckWorker(query, 0);
-      worker.run();
+      final List<Scanner> scanners = Internal.getScanners(query);
+      final List<Thread> threads = new ArrayList<Thread>(scanners.size());
+      int i = 0;
+      for (final Scanner scanner : scanners) {
+        final FsckWorker worker = new FsckWorker(scanner, i++);
+        worker.setName("Fsck #" + i);
+        worker.start();
+        threads.add(worker);
+      }
+
+      for (final Thread thread : threads) {
+        thread.join();
+        LOG.info("Thread [" + thread + "] Finished");
+      }
     }
     reporter.interrupt();
     
@@ -247,18 +259,6 @@ final class Fsck {
       this.scanner = scanner;
       this.thread_id = thread_id;
       query = null;
-    }
-    
-    /**
-     * Ctor for running an FSCK over a specific query, scanning only rows that
-     * match the filter.
-     * @param query The query to execute
-     * @param thread_id Id of the thread this worker is assigned for logging
-     */
-    FsckWorker(final Query query, final int thread_id) {
-      this.thread_id = thread_id;
-      this.query = query;
-      scanner = Internal.getScanner(query);
     }
     
     /**

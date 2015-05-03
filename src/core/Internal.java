@@ -86,6 +86,22 @@ public final class Internal {
     return ((TsdbQuery) query).getScanner();
   }
 
+  /** Returns a set of scanners, one for each bucket if salted, or one scanner
+   * if salting is disabled. 
+   * @see TsdbQuery#getScanner() */
+  public static List<Scanner> getScanners(final Query query) {
+    final List<Scanner> scanners = new ArrayList<Scanner>(
+        Const.SALT_WIDTH() > 0 ? Const.SALT_BUCKETS() : 1);
+    if (Const.SALT_WIDTH() > 0) {
+      for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
+        scanners.add(((TsdbQuery) query).getScanner(i));
+      }
+    } else {
+      scanners.add(((TsdbQuery) query).getScanner());
+    }
+    return scanners;
+  }
+  
   /** @see RowKey#metricName */
   public static String metricName(final TSDB tsdb, final byte[] id) {
     return RowKey.metricName(tsdb, id);
