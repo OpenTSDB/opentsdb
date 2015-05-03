@@ -32,6 +32,8 @@ import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
 
+import com.stumbleupon.async.Deferred;
+
 import net.opentsdb.core.Const;
 import net.opentsdb.core.IllegalDataException;
 import net.opentsdb.core.Internal;
@@ -698,17 +700,30 @@ final class Fsck {
         // the delete list so double check before we delete everything
         if (unique_columns.containsKey(new_qualifier)) {
           if (Bytes.memcmp(unique_columns.get(new_qualifier), new_value) != 0) {
-            LOG.info("Overwriting column " + Bytes.pretty(new_qualifier) + 
-                " with new value " + 
-                Bytes.pretty(put.value()) + ". Old value " +
-                Bytes.pretty(unique_columns.get(new_qualifier)));
+            final StringBuilder buf = new StringBuilder();
+            buf.append("Overwriting compacted column with new value: ")
+            .append("\n    row key: (")
+            .append(UniqueId.uidToString(key))
+            .append(")\n    qualifier: ")
+            .append(Bytes.pretty(new_qualifier))
+            .append("\n    value: ")
+            .append(Bytes.pretty(new_value));
+            LOG.info(buf.toString());
             // Important: Make sure to wait for the write to complete before
             // proceeding with the deletes.
             tsdb.getClient().put(put).joinUninterruptibly();
-          } else {
-            LOG.debug("Column " + Bytes.pretty(new_qualifier) + 
-                " had the same value after repair: " + 
-                Bytes.pretty(put.value()) + ". Skipping deletion.");
+          } else if (has_duplicates) {
+            if (LOG.isDebugEnabled()) {
+              final StringBuilder buf = new StringBuilder();
+              buf.append("Re-compacted column is the same as the existing column: ")
+                 .append("\n    row key: (")
+                 .append(UniqueId.uidToString(key))
+                 .append(")\n    qualifier: ")
+                 .append(Bytes.pretty(new_qualifier))
+                 .append("\n    value: ")
+                 .append(Bytes.pretty(new_value));
+              LOG.debug(buf.toString());
+            }
           }
           unique_columns.remove(new_qualifier);
         } else {
@@ -717,11 +732,23 @@ final class Fsck {
           tsdb.getClient().put(put).joinUninterruptibly();
         }
         
+        final List<Deferred<Object>> deletes = 
+            new ArrayList<Deferred<Object>>(unique_columns.size());
         for (byte[] qualifier : unique_columns.keySet()) {
           final DeleteRequest delete = new DeleteRequest(tsdb.dataTable(), key, 
               TSDB.FAMILY(), qualifier);
-          tsdb.getClient().delete(delete);
+          if (LOG.isDebugEnabled()) {
+            final StringBuilder buf = new StringBuilder();
+            buf.append("Deleting column: ")
+               .append("\n    row key: (")
+               .append(UniqueId.uidToString(key))
+               .append(")\n    qualifier: ")
+               .append(Bytes.pretty(qualifier));
+            LOG.debug(buf.toString());
+          }
+          deletes.add(tsdb.getClient().delete(delete));
         }
+        Deferred.group(deletes).joinUninterruptibly();
         duplicates_fixed.getAndAdd(duplicates_fixed_comp.longValue());
         duplicates_fixed_comp.set(0);
       }

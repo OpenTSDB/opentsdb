@@ -3204,6 +3204,92 @@ storage.dumpToSystemOut();
   }
   
   @Test
+  public void compactedAndSinglesDeleteFailed() throws Exception {
+    when(options.resolveDupes()).thenReturn(true);
+    final byte[] qual1 = { 0x0, 0x00 };
+    final byte[] val1 = { 4 };
+    final byte[] qual2 = { 0x0, 0x20 };
+    final byte[] val2 = { 5 };
+    final byte[] qual3 = { 0x0, 0x30 };
+    final byte[] val3 = { 7 };
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2, qual3), 
+        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+    storage.addColumn(ROW, qual1, val1);
+    storage.addColumn(ROW, qual2, val2);
+    storage.addColumn(ROW, qual3, val3);
+
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(4, fsck.kvs_processed.get());
+    assertEquals(3, fsck.duplicates.get());
+    assertEquals(3, fsck.totalErrors());
+    assertEquals(3, fsck.correctable());
+    assertArrayEquals(val1, storage.getColumn(ROW, qual1));
+    assertArrayEquals(val2, storage.getColumn(ROW, qual2));
+    assertArrayEquals(val3, storage.getColumn(ROW, qual3));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, 
+        new byte[] { 0 }), storage.getColumn(ROW, 
+            MockBase.concatByteArrays(qual1, qual2, qual3)));
+  }
+  
+  @Test
+  public void compactedAndSinglesDeleteFailedFix() throws Exception {
+    when(options.fix()).thenReturn(true);
+    when(options.resolveDupes()).thenReturn(true);
+    final byte[] qual1 = { 0x0, 0x00 };
+    final byte[] val1 = { 4 };
+    final byte[] qual2 = { 0x0, 0x20 };
+    final byte[] val2 = { 5 };
+    final byte[] qual3 = { 0x0, 0x30 };
+    final byte[] val3 = { 7 };
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2, qual3), 
+        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+    storage.addColumn(ROW, qual1, val1);
+    storage.addColumn(ROW, qual2, val2);
+    storage.addColumn(ROW, qual3, val3);
+
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(4, fsck.kvs_processed.get());
+    assertEquals(3, fsck.duplicates.get());
+    assertEquals(3, fsck.totalErrors());
+    assertEquals(3, fsck.correctable());
+    assertNull(storage.getColumn(ROW, qual1));
+    assertNull(storage.getColumn(ROW, qual2));
+    assertNull(storage.getColumn(ROW, qual3));
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, 
+        new byte[] { 0 }), storage.getColumn(ROW, 
+            MockBase.concatByteArrays(qual1, qual2, qual3)));
+  }
+  
+  @Test
+  public void compactedNoErrors() throws Exception {
+    when(options.fix()).thenReturn(true);
+    when(options.resolveDupes()).thenReturn(true);
+    final byte[] qual1 = { 0x0, 0x00 };
+    final byte[] val1 = { 4 };
+    final byte[] qual2 = { 0x0, 0x20 };
+    final byte[] val2 = { 5 };
+    final byte[] qual3 = { 0x0, 0x30 };
+    final byte[] val3 = { 7 };
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2, qual3), 
+        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(1, fsck.kvs_processed.get());
+    assertEquals(0, fsck.duplicates.get());
+    assertEquals(0, fsck.totalErrors());
+    assertEquals(0, fsck.correctable());
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, 
+        new byte[] { 0 }), storage.getColumn(ROW, 
+            MockBase.concatByteArrays(qual1, qual2, qual3)));
+  }
+  
+  @Test
   public void tripleCompactedColumnsWSameTS() throws Exception {
     when(options.resolveDupes()).thenReturn(true);
     final byte[] qual1 = { 0x0, 0x00 };
