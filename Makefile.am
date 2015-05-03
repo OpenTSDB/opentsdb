@@ -201,6 +201,7 @@ test_SRC := \
 	test/storage/MockBase.java	\
 	test/storage/MockDataPoints.java	\
 	test/tools/TestDumpSeries.java	\
+	test/tools/TestCliUtils.java	\
 	test/tools/TestFsck.java	\
 	test/tools/TestTextImporter.java	\
 	test/tools/TestUID.java	\
