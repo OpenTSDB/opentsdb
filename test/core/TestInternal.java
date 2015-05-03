@@ -15,7 +15,9 @@ package net.opentsdb.core;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 
@@ -810,6 +812,32 @@ public final class TestInternal {
         Internal.extractQualifier(qual, 2));
   }
  
+  @Test
+  public void getMaxUnsignedValueOnBytes() throws Exception {
+    assertEquals(0, Internal.getMaxUnsignedValueOnBytes(0));
+    assertEquals(255, Internal.getMaxUnsignedValueOnBytes(1));
+    assertEquals(65535, Internal.getMaxUnsignedValueOnBytes(2));
+    assertEquals(16777215, Internal.getMaxUnsignedValueOnBytes(3));
+    assertEquals(4294967295L, Internal.getMaxUnsignedValueOnBytes(4));
+    assertEquals(1099511627775L, Internal.getMaxUnsignedValueOnBytes(5));
+    assertEquals(281474976710655L, Internal.getMaxUnsignedValueOnBytes(6));
+    assertEquals(72057594037927935L, Internal.getMaxUnsignedValueOnBytes(7));
+    
+    try {
+      Internal.getMaxUnsignedValueOnBytes(8);
+      fail("Expected an IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      assertNotNull(e);
+    }
+    
+    try {
+      Internal.getMaxUnsignedValueOnBytes(-1);
+      fail("Expected an IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      assertNotNull(e);
+    }
+  }
+  
   /** Shorthand to create a {@link KeyValue}.  */
   private static KeyValue makekv(final byte[] qualifier, final byte[] value) {
     return new KeyValue(KEY, FAMILY, qualifier, value);

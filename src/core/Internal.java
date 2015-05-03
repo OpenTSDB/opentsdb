@@ -860,4 +860,18 @@ public final class Internal {
     scanner.setKeyRegexp(buf.toString(), Charset.forName("ISO-8859-1"));
   }
 
+  /**
+   * Simple helper to calculate the max value for any width of long from 0 to 7
+   * bytes. 
+   * @param width The width of the byte array we're comparing
+   * @return The maximum unsigned integer value on {@link width} bytes.
+   * @since 2.2
+   */
+  public static long getMaxUnsignedValueOnBytes(final int width) {
+    if (width < 0 || width > 7) {
+      throw new IllegalArgumentException("Width must be from 1 to 7 bytes: " 
+          + width);
+    }
+    return ((long) 1 << width * Byte.SIZE) - 1;
+  }
 }

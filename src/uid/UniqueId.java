@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.core.Const;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.stats.StatsCollector;
@@ -190,9 +191,12 @@ public final class UniqueId implements UniqueIdInterface {
     this.tsdb = tsdb;
   }
   
-  /** The largest possible ID given the number of bytes the IDs are represented on. */
+  /** The largest possible ID given the number of bytes the IDs are 
+   * represented on.
+   * @deprecated Use {@link Internal.getMaxUnsignedValueOnBytes}
+   */
   public long maxPossibleId() {
-    return ((long) 1 << id_width * Byte.SIZE) - 1;
+    return Internal.getMaxUnsignedValueOnBytes(id_width);
   }
   
   /**
