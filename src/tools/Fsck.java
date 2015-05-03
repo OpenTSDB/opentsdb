@@ -112,8 +112,8 @@ final class Fsck {
   final AtomicLong vle_fixed = new AtomicLong();
   
   /** Length of the metric + timestamp for key validation */
-  private static int key_prefix_length = TSDB.metrics_width() + 
-      Const.TIMESTAMP_BYTES;
+  private static int key_prefix_length = Const.SALT_WIDTH() + 
+      TSDB.metrics_width() + Const.TIMESTAMP_BYTES;
   
   /** Length of a tagk + tagv pair for key validation */
   private static int key_tags_length = TSDB.tagk_width() + TSDB.tagv_width();
@@ -140,30 +140,25 @@ final class Fsck {
   public void runFullTable() throws Exception {
     LOG.info("Starting full table scan");
     final long start_time = System.currentTimeMillis() / 1000;
-    final long max_id = CliUtils.getMaxMetricID(tsdb);
-    
     final int workers = options.threads() > 0 ? options.threads() :
       Runtime.getRuntime().availableProcessors() * 2;
-    final double quotient = (double)max_id / (double)workers;
-    LOG.info("Max metric ID is [" + max_id + "]");
-    LOG.info("Spooling up [" + workers + "] worker threads");
-    long index = 1;
-    final Thread[] threads = new Thread[workers];
-    for (int i = 0; i < workers; i++) {
-      threads[i] = new FsckWorker(index, quotient, i);
-      threads[i].setName("Fsck #" + i);
-      threads[i].start();
-      index += quotient;
-      if (index < max_id) {
-        index++;
-      }
+    
+    final List<Scanner> scanners = CliUtils.getDataTableScanners(tsdb, workers);
+    LOG.info("Spooling up [" + scanners.size() + "] worker threads");
+    final List<Thread> threads = new ArrayList<Thread>(scanners.size());
+    int i = 0;
+    for (final Scanner scanner : scanners) {
+      final FsckWorker worker = new FsckWorker(scanner, i++);
+      worker.setName("Fsck #" + i);
+      worker.start();
+      threads.add(worker);
     }
 
     final Thread reporter = new ProgressReporter();
     reporter.start();
-    for (int i = 0; i < workers; i++) {
-      threads[i].join();
-      LOG.info("Thread [" + i + "] Finished");
+    for (final Thread thread : threads) {
+      thread.join();
+      LOG.info("Thread [" + thread + "] Finished");
     }
     reporter.interrupt();
     
@@ -224,15 +219,12 @@ final class Fsck {
    * performs the actual FSCK process.
    */
   final class FsckWorker extends Thread {
-    /** Optional value of the first metric this worker should start on, should 
-     * be >0 */
-    final long start_id;
-    /** Value of the metric this worker should end on */
-    final long end_id;
     /** Id of the thread this worker belongs to */
     final int thread_id;
     /** Optional query to execute instead of a full table scan */
     final Query query;
+    /** The scanner to use for iterating over a chunk of the table */
+    final Scanner scanner;
     /** Set of TSUIDs this worker has seen. Used to avoid UID resolution for
      * previously processed row keys */
     final Set<String> tsuids = new HashSet<String>();
@@ -248,13 +240,11 @@ final class Fsck {
     
     /**
      * Ctor for running a worker on a chunk of the data table
-     * @param start_id The first metric this worker should start on
-     * @param quotient How many metrics the worker should cover
+     * @param scanner The scanner to use for iterationg
      * @param thread_id Id of the thread this worker is assigned for logging
      */
-    FsckWorker(final long start_id, final double quotient, final int thread_id) {
-      this.start_id = start_id;
-      this.end_id = start_id + (long) quotient + 1; // teensy bit of overlap
+    FsckWorker(final Scanner scanner, final int thread_id) {
+      this.scanner = scanner;
       this.thread_id = thread_id;
       query = null;
     }
@@ -266,10 +256,9 @@ final class Fsck {
      * @param thread_id Id of the thread this worker is assigned for logging
      */
     FsckWorker(final Query query, final int thread_id) {
-      start_id = 0;
-      end_id = 0;
       this.thread_id = thread_id;
       this.query = query;
+      scanner = Internal.getScanner(query);
     }
     
     /**
@@ -279,9 +268,6 @@ final class Fsck {
      * appropriate.
      */
     public void run() {
-      final Scanner scanner = query != null ? Internal.getScanner(query) :
-        CliUtils.getDataTableScanner(tsdb, start_id, end_id);
-      
       // store every data point for the row in here 
       final TreeMap<Long, ArrayList<DP>> datapoints = 
         new TreeMap<Long, ArrayList<DP>>();
@@ -348,7 +334,7 @@ final class Fsck {
       }
       
       final long base_time = Bytes.getUnsignedInt(row.get(0).key(), 
-          TSDB.metrics_width());
+          Const.SALT_WIDTH() + TSDB.metrics_width());
       
       for (final KeyValue kv : row) {
         kvs_processed.getAndIncrement();
@@ -512,7 +498,7 @@ final class Fsck {
       }
       
       // Process the time series ID by resolving the UIDs to names if we haven't
-      // already seen this particular TSUID
+      // already seen this particular TSUID. Note that getTSUID accounts for salt
       final byte[] tsuid = UniqueId.getTSUIDFromKey(key, TSDB.metrics_width(), 
           Const.TIMESTAMP_BYTES);
       if (!tsuids.contains(tsuid)) {

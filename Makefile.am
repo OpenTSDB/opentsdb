@@ -203,6 +203,7 @@ test_SRC := \
 	test/tools/TestDumpSeries.java	\
 	test/tools/TestCliUtils.java	\
 	test/tools/TestFsck.java	\
+	test/tools/TestFsckSalted.java	\
 	test/tools/TestTextImporter.java	\
 	test/tools/TestUID.java	\
 	test/tree/TestBranch.java	\
