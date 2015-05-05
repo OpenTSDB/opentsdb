@@ -364,7 +364,7 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
                  + "</iframe>");
       query.sendReply(HttpQuery.makePage(
         "<script type=text/javascript language=javascript"
-        + " src=/s/queryui.nocache.js></script>",
+        + " src=s/queryui.nocache.js></script>",
         "TSD", "Time Series Database", buf.toString()));
     }
   }
