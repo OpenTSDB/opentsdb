@@ -2938,6 +2938,63 @@ public final class TestFsck {
   }
   
   @Test
+  public void compactedAndSingleWSameTSFloat() throws Exception {
+    when(options.resolveDupes()).thenReturn(true);
+    
+    final byte[] qual1 = { 0x0, 0x0B };
+    final byte[] val1 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
+    final byte[] qual2 = { 0x0, 0x20 };
+    final byte[] val2 = { 5 };
+    final byte[] qual3 = { 0x0, 0x30 };
+    final byte[] val3 = { 6 };
+    final byte[] qual4 = { 0x0, 0x0B };
+    final byte[] val4 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2, qual3), 
+        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+    storage.addColumn(ROW, qual4, val4);
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(2, fsck.kvs_processed.get());
+    assertEquals(1, fsck.duplicates.get());
+    assertEquals(1, fsck.totalErrors());
+    assertEquals(1, fsck.correctable());
+    storage.dumpToSystemOut();
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
+        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertArrayEquals(val4, storage.getColumn(ROW, qual4));
+  }
+  
+  @Test
+  public void compactedAndSingleWSameTSFloatFix() throws Exception {
+    when(options.fix()).thenReturn(true);
+    when(options.resolveDupes()).thenReturn(true);
+    
+    final byte[] qual1 = { 0x0, 0x0B };
+    final byte[] val1 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
+    final byte[] qual2 = { 0x0, 0x20 };
+    final byte[] val2 = { 5 };
+    final byte[] qual3 = { 0x0, 0x30 };
+    final byte[] val3 = { 6 };
+    final byte[] qual4 = { 0x0, 0x0B };
+    final byte[] val4 = Bytes.fromInt(Float.floatToRawIntBits(500.8F));
+    storage.addColumn(ROW, 
+        MockBase.concatByteArrays(qual1, qual2, qual3), 
+        MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }));
+    storage.addColumn(ROW, qual4, val4);
+    final Fsck fsck = new Fsck(tsdb, options);
+    fsck.runFullTable();
+    assertEquals(2, fsck.kvs_processed.get());
+    assertEquals(1, fsck.duplicates.get());
+    assertEquals(1, fsck.totalErrors());
+    assertEquals(1, fsck.correctable());
+    storage.dumpToSystemOut();
+    assertArrayEquals(MockBase.concatByteArrays(val1, val2, val3, new byte[] { 0 }), 
+        storage.getColumn(ROW, MockBase.concatByteArrays(qual1, qual2, qual3)));
+    assertNull(storage.getColumn(ROW, qual4));
+  }
+  
+  @Test
   public void compactedAndSingleWSameTSLWW() throws Exception {
     when(options.lastWriteWins()).thenReturn(true);
     
@@ -3460,7 +3517,7 @@ public final class TestFsck {
     assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual3, qual4)));
     assertNull(storage.getColumn(ROW, MockBase.concatByteArrays(qual5, qual6)));
   }
-
+  
   // MULTIPLE ISSUES ----------------------------
   // check for interactions between flags, e.g. compact + delete bad values
   // + resolve duplicates, etc

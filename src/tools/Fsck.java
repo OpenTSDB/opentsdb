@@ -894,6 +894,10 @@ final class Fsck {
         } else {
           return true;
         }
+      } else {
+        if (compact_row || options.compact()) {
+          appendDP(qual, value, value.length);
+        }
       }
       return false;
     }
