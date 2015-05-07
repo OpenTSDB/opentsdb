@@ -26,6 +26,7 @@ import java.util.TreeMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.hbase.async.Bytes;
+import org.hbase.async.DeleteRequest;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -74,6 +75,9 @@ final class TsdbQuery implements Query {
 
   /** End time (UNIX timestamp in seconds) on 32 bits ("unsigned" int). */
   private long end_time = UNSET;
+
+  /** Whether or not to delete the queried data */
+  private boolean delete;
 
   /** ID of the metric being looked up. */
   private byte[] metric;
@@ -197,6 +201,24 @@ final class TsdbQuery implements Query {
     return end_time;
   }
 
+  /**
+   * Sets whether or not the data queried will be deleted.
+   * @param delete True if data should be deleted, false otherwise.
+   */
+  @Override
+  public void setDelete(boolean delete) {
+    this.delete = delete;
+  }
+
+  /**
+   * Returns whether or not the data queried will be deleted.
+   * @return A boolean
+   */
+  @Override
+  public boolean getDelete() {
+    return delete;
+  }
+
   @Override
   public void setTimeSeries(final String metric,
       final Map<String, String> tags,
@@ -280,6 +302,7 @@ final class TsdbQuery implements Query {
     final TSSubQuery sub_query = query.getQueries().get(index);
     setStartTime(query.startTime());
     setEndTime(query.endTime());
+    setDelete(query.getDelete());
     query_index = index;
     
     // set common options
@@ -678,17 +701,22 @@ final class TsdbQuery implements Query {
                    + " our scanner (" + scanner + ")! " + row + " does not start"
                    + " with " + Arrays.toString(metric));
              }
-             Span datapoints = spans.get(key);
-             if (datapoints == null) {
-               datapoints = new Span(tsdb);
-               spans.put(key, datapoints);
-             }
-             final KeyValue compacted = 
-               tsdb.compact(row, datapoints.getAnnotations());
-             seenAnnotation |= !datapoints.getAnnotations().isEmpty();
-             if (compacted != null) { // Can be null if we ignored all KVs.
-               datapoints.addRow(compacted);
-               nrows++;
+             if (delete) {
+               final DeleteRequest del = new DeleteRequest(tsdb.dataTable(), key);
+               tsdb.getClient().delete(del);
+             } else {
+               Span datapoints = spans.get(key);
+               if (datapoints == null) {
+                 datapoints = new Span(tsdb);
+                 spans.put(key, datapoints);
+               }
+               final KeyValue compacted = 
+                 tsdb.compact(row, datapoints.getAnnotations());
+               seenAnnotation |= !datapoints.getAnnotations().isEmpty();
+               if (compacted != null) { // Can be null if we ignored all KVs.
+                 datapoints.addRow(compacted);
+                 nrows++;
+               }
              }
            }
 

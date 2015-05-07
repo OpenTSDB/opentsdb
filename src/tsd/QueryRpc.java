@@ -22,6 +22,10 @@ import java.util.Map;
 
 import org.hbase.async.Bytes.ByteMap;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.hbase.async.DeleteRequest;
+import org.hbase.async.HBaseClient;
+import org.hbase.async.KeyValue;
+import org.hbase.async.Scanner;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -33,6 +37,7 @@ import com.stumbleupon.async.DeferredGroupException;
 
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.IncomingDataPoint;
+import net.opentsdb.core.Internal;
 import net.opentsdb.core.Query;
 import net.opentsdb.core.QueryException;
 import net.opentsdb.core.RateOptions;
@@ -46,6 +51,8 @@ import net.opentsdb.stats.QueryStats;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.DateTime;
+import net.opentsdb.uid.UniqueId.UniqueIdType;
+import net.opentsdb.utils.JSON;
 
 /**
  * Handles queries for timeseries datapoints. Each request is parsed into a
@@ -70,11 +77,17 @@ final class QueryRpc implements HttpRpc {
   public void execute(final TSDB tsdb, final HttpQuery query) 
     throws IOException {
     
-    // only accept GET/POST
-    if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST) {
+    // only accept GET/POST/DELETE
+    if (query.method() != HttpMethod.GET && query.method() != HttpMethod.POST &&
+        query.method() != HttpMethod.DELETE) {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
           "Method not allowed", "The HTTP method [" + query.method().getName() +
           "] is not permitted for this endpoint");
+    }
+    if (query.method() == HttpMethod.DELETE && !tsdb.getConfig().allow_delete()) {
+       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
+           "Bad request",
+           "Deleting data is not enabled (tsd.http.query.allow_delete=false)");
     }
     
     final String[] uri = query.explodeAPIPath();
@@ -109,7 +122,7 @@ final class QueryRpc implements HttpRpc {
     } else {
       data_query = this.parseQuery(tsdb, query);
     }
-    
+
     // validate and then compile the queries
     try {
       LOG.debug(data_query.toString());
@@ -228,6 +241,11 @@ final class QueryRpc implements HttpRpc {
         globals.addAll(annotations);
         return data_query.buildQueriesAsync(tsdb).addCallback(new BuildCB());
       }
+    }
+
+    if (query.method() == HttpMethod.DELETE &&
+          tsdb.getConfig().allow_delete()) {
+       data_query.setDelete(true);
     }
  
     // if we the caller wants to search for global annotations, fire that off 
