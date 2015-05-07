@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tools;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -28,7 +27,6 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 
 import org.hbase.async.Bytes;
-import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
 import org.slf4j.Logger;
@@ -54,13 +52,7 @@ final class MetaSync extends Thread {
   
   /** TSDB to use for storage access */
   final TSDB tsdb;
-  
-  /** The ID to start the sync with for this thread */
-  final long start_id;
-  
-  /** The end of the ID block to work on */
-  final long end_id;
-  
+
   /** A shared list of TSUIDs that have been processed by this or other 
    * threads. It stores hashes instead of the bytes or strings to save
    * on space */
@@ -78,22 +70,27 @@ final class MetaSync extends Thread {
   /** Diagnostic ID for this thread */
   final int thread_id;
   
+  /** The scanner for this worker */
+  final Scanner scanner;
+  
   /**
    * Constructor that sets local variables
    * @param tsdb The TSDB to process with
-   * @param start_id The starting ID of the block we'll work on
-   * @param quotient The total number of IDs in our block
+   * @param scanner The scanner to use for this worker
+   * @param processed_tsuids TSUIDs that have been processed already
+   * @param metric_uids List of metric UIDs
+   * @param tagk_uids List of tag key UIDs
+   * @param tagv_uids List of tag value UIDs
    * @param thread_id The ID of this thread (starts at 0)
    */
-  public MetaSync(final TSDB tsdb, final long start_id, final double quotient, 
+  public MetaSync(final TSDB tsdb, final Scanner scanner, 
       final Set<Integer> processed_tsuids,
       ConcurrentHashMap<String, Long> metric_uids,
       ConcurrentHashMap<String, Long> tagk_uids,
       ConcurrentHashMap<String, Long> tagv_uids,
       final int thread_id) {
     this.tsdb = tsdb;
-    this.start_id = start_id;
-    this.end_id = start_id + (long) quotient + 1; // teensy bit of overlap
+    this.scanner = scanner;
     this.processed_tsuids = processed_tsuids;
     this.metric_uids = metric_uids;
     this.tagk_uids = tagk_uids;
@@ -342,17 +339,9 @@ final class MetaSync extends Thread {
     final class MetaScanner implements Callback<Object, 
       ArrayList<ArrayList<KeyValue>>> {
       
-      private final Scanner scanner;
       private byte[] last_tsuid = null;
       private String tsuid_string = "";
-      
-      /**
-       * Default constructor that initializes the data row scanner
-       */
-      public MetaScanner() {
-        scanner = getScanner();
-      }
-      
+
       /**
        * Fetches the next set of rows from the scanner and adds this class as
        * a callback
@@ -396,14 +385,14 @@ final class MetaSync extends Thread {
           // row for use as the "created" time. Depending on speed we could 
           // parse datapoints, but for now the hourly row time is enough
           final long timestamp = Bytes.getUnsignedInt(row.get(0).key(), 
-              TSDB.metrics_width());
+              Const.SALT_WIDTH() + TSDB.metrics_width());
           
           LOG.debug("[" + thread_id + "] Processing TSUID: " + tsuid_string + 
               "  row timestamp: " + timestamp);
           
           // now process the UID metric meta data
           final byte[] metric_uid_bytes = 
-            Arrays.copyOfRange(tsuid, 0, TSDB.metrics_width()); 
+            Arrays.copyOfRange(tsuid, 0, Const.SALT_WIDTH() + TSDB.metrics_width()); 
           final String metric_uid = UniqueId.uidToString(metric_uid_bytes);
           Long last_get = metric_uids.get(metric_uid);
           
@@ -557,27 +546,6 @@ final class MetaSync extends Thread {
       LOG.error("[" + thread_id + "] Scanner Exception", e);
       throw new RuntimeException("[" + thread_id + "] Scanner exception", e);
     }
-  }
-  
-  /**
-   * Returns a scanner set to scan the range configured for this thread
-   * @return A scanner on the "t" CF configured for the specified range
-   * @throws HBaseException if something goes boom
-   */
-  private Scanner getScanner() throws HBaseException {
-    final short metric_width = TSDB.metrics_width();
-    final byte[] start_row = 
-      Arrays.copyOfRange(Bytes.fromLong(start_id), 8 - metric_width, 8);
-    final byte[] end_row = 
-      Arrays.copyOfRange(Bytes.fromLong(end_id), 8 - metric_width, 8);
-
-    LOG.debug("[" + thread_id + "] Start row: " + UniqueId.uidToString(start_row));
-    LOG.debug("[" + thread_id + "] End row: " + UniqueId.uidToString(end_row));
-    final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
-    scanner.setStartKey(start_row);
-    scanner.setStopKey(end_row);
-    scanner.setFamily("t".getBytes(Charset.forName("ISO-8859-1")));
-    return scanner;
   }
 
 }

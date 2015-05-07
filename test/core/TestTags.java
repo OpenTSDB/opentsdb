@@ -25,13 +25,16 @@ import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Pair;
 
+import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
+import org.hbase.async.Bytes.ByteMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -51,7 +54,8 @@ import static org.powermock.api.mockito.PowerMockito.mock;
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
-  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class})
+  GetRequest.class, PutRequest.class, DeleteRequest.class, KeyValue.class, 
+  Const.class})
 public final class TestTags {
   private TSDB tsdb;
   private Config config;
@@ -687,5 +691,89 @@ public final class TestTags {
     when(tag_values.getId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getId("invalidhost"))
       .thenThrow(new NoSuchUniqueName("tagk", "invalidhost"));
+  }
+
+  @Test
+  public void getTagUids() throws Exception {
+    byte[] row = new byte[] { 0, 0, 1,  0x50, (byte)0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    ByteMap<byte[]> uids = Tags.getTagUids(row);
+    assertEquals(1, uids.size());
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 1 }, uids.firstKey()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 2 }, uids.firstEntry()
+        .getValue()));
+    
+    row = new byte[] { 0, 0, 1,  0x50, (byte)0xE2, 0x27, 0, 
+       0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4};
+    uids = Tags.getTagUids(row);
+    assertEquals(2, uids.size());
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 1 }, uids.firstKey()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 2 }, uids.firstEntry()
+        .getValue()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 3 }, uids.lastKey()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 4 }, uids.lastEntry()
+        .getValue()));
+    
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    
+    row = new byte[] { 1, 0, 0, 1,  0x50, (byte)0xE2, 0x27, 0, 
+        0, 0, 1, 0, 0, 2};
+    uids = Tags.getTagUids(row);
+    assertEquals(1, uids.size());
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 1 }, uids.firstKey()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 2 }, uids.firstEntry()
+        .getValue()));
+    
+    row = new byte[] { 1, 0, 0, 1,  0x50, (byte)0xE2, 0x27, 0, 
+       0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4};
+    uids = Tags.getTagUids(row);
+    assertEquals(2, uids.size());
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 1 }, uids.firstKey()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 2 }, uids.firstEntry()
+        .getValue()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 3 }, uids.lastKey()));
+    assertEquals(0, Bytes.memcmp(new byte[] { 0, 0, 4 }, uids.lastEntry()
+        .getValue()));
+  }
+  
+  @Test (expected = ArrayIndexOutOfBoundsException.class)
+  public void getTagUidsMissingTagV() throws Exception {
+    byte[] row = new byte[] { 0, 0, 1,  0x50, (byte)0xE2, 0x27, 0, 0, 0, 1 };
+    Tags.getTagUids(row);
+  }
+  
+  @Test (expected = ArrayIndexOutOfBoundsException.class)
+  public void getTagUidsMissingTagVSalted() throws Exception {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    
+    byte[] row = new byte[] { 1, 0, 0, 1,  0x50, (byte)0xE2, 0x27, 0, 0, 0, 1 };
+    Tags.getTagUids(row);
+  }
+  
+  @Test
+  public void getTagUidsMissingTags() throws Exception {
+    byte[] row = new byte[] { 0, 0, 1,  0x50, (byte)0xE2, 0x27, 0 };
+    ByteMap<byte[]> uids = Tags.getTagUids(row);
+    assertEquals(0, uids.size());
+    
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    
+    row = new byte[] { 1, 0, 0, 1,  0x50, (byte)0xE2, 0x27, 0 };
+    uids = Tags.getTagUids(row);
+    assertEquals(0, uids.size());
+  }
+  
+  @Test (expected = NullPointerException.class)
+  public void getTagUidsNullRow() throws Exception {
+    Tags.getTagUids(null);
+  }
+  
+  @Test
+  public void getTagUidsEmptyRow() throws Exception {
+    final ByteMap<byte[]> uids = Tags.getTagUids(new byte[] {});
+    assertEquals(0, uids.size());
   }
 }

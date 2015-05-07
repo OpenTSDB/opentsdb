@@ -18,14 +18,13 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
 
-import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -33,10 +32,10 @@ import java.util.regex.PatternSyntaxException;
 import javax.xml.bind.DatatypeConverter;
 
 import net.opentsdb.core.TSDB;
-import net.opentsdb.utils.Config;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
+import org.hbase.async.Bytes.ByteMap;
 import org.hbase.async.DeleteRequest;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
@@ -46,6 +45,7 @@ import org.hbase.async.Scanner;
 import org.junit.Ignore;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.reflect.Whitebox;
 
 import com.stumbleupon.async.Deferred;
 
@@ -84,8 +84,8 @@ public final class MockBase {
   private TSDB tsdb;
   
   //      KEY           Column Family Qualifier     Timestamp     Value
-  private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> 
-  storage = new Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>();
+  private ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>> 
+  storage = new ByteMap<ByteMap<ByteMap<TreeMap<Long, byte[]>>>>();
   private HashSet<MockScanner> scanners = new HashSet<MockScanner>(2);
   private byte[] default_family;
   
@@ -116,21 +116,7 @@ public final class MockBase {
     default_family = "t".getBytes(ASCII);  // set a default
     
     // replace the "real" field objects with mocks
-    Field cl;
-    try {
-      cl = tsdb.getClass().getDeclaredField("client");
-      cl.setAccessible(true);
-      cl.set(tsdb, client);
-      cl.setAccessible(false);
-    } catch (SecurityException e) {
-      e.printStackTrace();
-    } catch (NoSuchFieldException e) {
-      e.printStackTrace();
-    } catch (IllegalArgumentException e) {
-      e.printStackTrace();
-    } catch (IllegalAccessException e) {
-      e.printStackTrace();
-    }
+    Whitebox.setInternalState(tsdb, "client", client);
 
     // Default get answer will return one or more columns from the requested row
     if (default_get) {
@@ -232,15 +218,15 @@ public final class MockBase {
       throw new NullPointerException();
     }
     
-    Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = storage.get(key);
+    ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = storage.get(key);
     if (row == null) {
-      row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
+      row = new ByteMap<ByteMap<TreeMap<Long, byte[]>>>();
       storage.put(key, row);
     }
     
-    Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
+    ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
     if (cf == null) {
-      cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
+      cf = new ByteMap<TreeMap<Long, byte[]>>();
       row.put(family, cf);
     }
     TreeMap<Long, byte[]> column = cf.get(qualifier);
@@ -263,7 +249,7 @@ public final class MockBase {
    * @return -1 if the row did not exist, otherwise the number of column families.
    */
   public int numColumnFamilies(final byte[] key) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
         storage.get(key);
     if (row == null) {
       return -1;
@@ -277,13 +263,13 @@ public final class MockBase {
    * @return -1 if the row did not exist, otherwise the number of columns.
    */
   public long numColumns(final byte[] key) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
         storage.get(key);
     if (row == null) {
       return -1;
     }
     long size = 0;
-    for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> entry : row) {
+    for (Map.Entry<byte[], ByteMap<TreeMap<Long, byte[]>>> entry : row) {
       size += entry.getValue().size();
     }
     return size;
@@ -296,12 +282,12 @@ public final class MockBase {
    * @return -1 if the row did not exist, otherwise the number of columns.
    */
   public int numColumnsInFamily(final byte[] key, final byte[] family) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
         storage.get(key);
     if (row == null) {
       return -1;
     }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
+    final ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
     if (cf == null) {
       return -1;
     }
@@ -327,12 +313,12 @@ public final class MockBase {
    */
   public byte[] getColumn(final byte[] key, final byte[] family, 
       final byte[] qualifier) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
         storage.get(key);
     if (row == null) {
       return null;
     }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
+    final ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
     if (cf == null) {
       return null;
     }
@@ -364,12 +350,12 @@ public final class MockBase {
    */
   public TreeMap<Long, byte[]> getFullColumn(final byte[] key, 
       final byte[] family, final byte[] qualifier) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
         storage.get(key);
     if (row == null) {
       return null;
     }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
+    final ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
     if (cf == null) {
       return null;
     }
@@ -386,24 +372,29 @@ public final class MockBase {
    * @param family The column family ID
    * @return A map of columns if the CF was found, null if no such CF
    */
-  public Bytes.ByteMap<byte[]> getColumnFamily(final byte[] key, 
+  public ByteMap<byte[]> getColumnFamily(final byte[] key, 
       final byte[] family) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
         storage.get(key);
     if (row == null) {
       return null;
     }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
+    final ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
     if (cf == null) {
       return null;
     }
     // convert to a <qualifier, value> byte map
-    final Bytes.ByteMap<byte[]> columns = new Bytes.ByteMap<byte[]>();
+    final ByteMap<byte[]> columns = new ByteMap<byte[]>();
     for (Map.Entry<byte[], TreeMap<Long, byte[]>> entry : cf.entrySet()) {
       // the <timestamp, value> map should never be null
       columns.put(entry.getKey(), entry.getValue().firstEntry().getValue());
     }
     return columns;
+  }
+  
+  /** @return the list of keys stored in the table */
+  public Set<byte[]> getKeys() {
+    return storage.keySet();
   }
   
   /**
@@ -412,6 +403,42 @@ public final class MockBase {
    */
   public TSDB getTSDB() {
     return tsdb;
+  }
+  
+  /**
+   * Runs through all rows in the table and compacts them by making a call to
+   * the {@link TSDB.compact} method. It will delete any columns that were
+   * compacted and leave others untouched, just as the normal method does.
+   * Note, assumes only one column family
+   * @throws Exception if Whitebox couldn't access the compact method
+   */
+  public void tsdbCompactAllRows() throws Exception {
+    for (Map.Entry<byte[], ByteMap<ByteMap<TreeMap<Long, byte[]>>>> entry : 
+      storage.entrySet()) {
+      final byte[] key = entry.getKey();
+      
+      final ByteMap<TreeMap<Long, byte[]>> row = entry.getValue().firstEntry().getValue();
+      ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(row.size());
+      final Set<byte[]> deletes = new HashSet<byte[]>();
+      for (Map.Entry<byte[], TreeMap<Long, byte[]>> column : row.entrySet()) {
+        if (column.getKey().length % 2 == 0) {
+          kvs.add(new KeyValue(key, default_family, column.getKey(), 
+              column.getValue().firstKey(),
+              column.getValue().firstEntry().getValue()));
+          deletes.add(column.getKey());
+        }
+      }
+      if (kvs.size() > 0) {
+        for (final byte[] k : deletes) {
+          row.remove(k);
+        }
+        final KeyValue compacted = 
+            Whitebox.invokeMethod(tsdb, "compact", kvs, Collections.EMPTY_LIST);
+        final TreeMap<Long, byte[]> compacted_value = new TreeMap<Long, byte[]>();
+        compacted_value.put(current_timestamp++, compacted.value());
+        row.put(compacted.qualifier(), compacted_value);
+      }
+    }
   }
   
   /**
@@ -434,7 +461,7 @@ public final class MockBase {
    * @param family The family to remove
    */
   public void flushFamily(final byte[] family) {
-    for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> row : 
+    for (Map.Entry<byte[], ByteMap<ByteMap<TreeMap<Long, byte[]>>>> row : 
       storage.entrySet()) {
       row.getValue().remove(family);
     }
@@ -448,12 +475,12 @@ public final class MockBase {
    */
   public void flushColumn(final byte[] key, final byte[] family, 
       final byte[] qualifier) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+    final ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
         storage.get(key);
     if (row == null) {
       return;
     }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
+    final ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
     if (cf == null) {
       return;
     }
@@ -478,12 +505,12 @@ public final class MockBase {
       return;
     }
     
-    for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> row : 
+    for (Map.Entry<byte[], ByteMap<ByteMap<TreeMap<Long, byte[]>>>> row : 
       storage.entrySet()) {
       System.out.println("[Row] " + (ascii ? new String(row.getKey(), ASCII) : 
           bytesToString(row.getKey())));
       
-      for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf : 
+      for (Map.Entry<byte[], ByteMap<TreeMap<Long, byte[]>>> cf : 
         row.getValue().entrySet()) {
         
         final String family = ascii ? new String(cf.getKey(), ASCII) :
@@ -562,7 +589,7 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       final GetRequest get = (GetRequest)args[0];
       
-      final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+      final ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
           storage.get(get.key());
 
       if (row == null) {
@@ -577,7 +604,7 @@ public final class MockBase {
       }
       
       // compile a set of qualifiers to use as a filter if necessary
-      Bytes.ByteMap<Object> qualifiers = new Bytes.ByteMap<Object>();
+      ByteMap<Object> qualifiers = new ByteMap<Object>();
       if (get.qualifiers() != null && get.qualifiers().length > 0) { 
         for (byte[] q : get.qualifiers()) {
           qualifiers.put(q, null);
@@ -585,7 +612,7 @@ public final class MockBase {
       }
       
       final ArrayList<KeyValue> kvs = new ArrayList<KeyValue>(row.size());
-      for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf : 
+      for (Map.Entry<byte[], ByteMap<TreeMap<Long, byte[]>>> cf : 
         row.entrySet()) {
         
         // column family filter
@@ -603,12 +630,9 @@ public final class MockBase {
           
           // TODO - if we want to support multiple values, iterate over the 
           // tree map. Otherwise Get returns just the latest value.
-          KeyValue kv = mock(KeyValue.class);
-          when(kv.timestamp()).thenReturn(column.getValue().firstKey());
-          when(kv.value()).thenReturn(column.getValue().firstEntry().getValue());
-          when(kv.qualifier()).thenReturn(column.getKey());
-          when(kv.key()).thenReturn(get.key());
-          kvs.add(kv);
+          kvs.add(new KeyValue(get.key(), default_family, column.getKey(),
+              column.getValue().firstKey(),
+              column.getValue().firstEntry().getValue()));
         }
       }
       return Deferred.fromResult(kvs);
@@ -626,16 +650,16 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       final PutRequest put = (PutRequest)args[0];
 
-      Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+      ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
           storage.get(put.key());
       if (row == null) {
-        row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
+        row = new ByteMap<ByteMap<TreeMap<Long, byte[]>>>();
         storage.put(put.key(), row);
       }
       
-      Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(put.family());
+      ByteMap<TreeMap<Long, byte[]>> cf = row.get(put.family());
       if (cf == null) {
-        cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
+        cf = new ByteMap<TreeMap<Long, byte[]>>();
         row.put(put.family(), cf);
       }
       
@@ -672,24 +696,24 @@ public final class MockBase {
       final PutRequest put = (PutRequest)args[0];
       final byte[] expected = (byte[])args[1];
       
-      Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+      ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
           storage.get(put.key());
       if (row == null) {
         if (expected != null && expected.length > 0) {
           return Deferred.fromResult(false);
         }
         
-        row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
+        row = new ByteMap<ByteMap<TreeMap<Long, byte[]>>>();
         storage.put(put.key(), row);
       }
       
-      Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(put.family());
+      ByteMap<TreeMap<Long, byte[]>> cf = row.get(put.family());
       if (cf == null) {
         if (expected != null && expected.length > 0) {
           return Deferred.fromResult(false);
         }
         
-        cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
+        cf = new ByteMap<TreeMap<Long, byte[]>>();
         row.put(put.family(), cf);
       }
       
@@ -739,7 +763,7 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       final DeleteRequest delete = (DeleteRequest)args[0];
       
-      Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+      ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
           storage.get(delete.key());
       if (row == null) {
         return Deferred.fromResult(null);
@@ -761,7 +785,7 @@ public final class MockBase {
       }
       
       // compile a set of qualifiers to use as a filter if necessary
-      Bytes.ByteMap<Object> qualifiers = new Bytes.ByteMap<Object>();
+      ByteMap<Object> qualifiers = new ByteMap<Object>();
       if (delete.qualifiers() != null || delete.qualifiers().length > 0) { 
         for (byte[] q : delete.qualifiers()) {
           qualifiers.put(q, null);
@@ -779,7 +803,7 @@ public final class MockBase {
       }
       
       List<byte[]> cf_removals = new ArrayList<byte[]>(row.entrySet().size());
-      for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf : 
+      for (Map.Entry<byte[], ByteMap<TreeMap<Long, byte[]>>> cf : 
         row.entrySet()) {
         
         // column family filter
@@ -963,19 +987,22 @@ public final class MockBase {
       // return all matches
       ArrayList<ArrayList<KeyValue>> results = 
         new ArrayList<ArrayList<KeyValue>>();
-      for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> row : 
+      for (Map.Entry<byte[], ByteMap<ByteMap<TreeMap<Long, byte[]>>>> row : 
         storage.entrySet()) {
-        
+      
         // if it's before the start row, after the end row or doesn't
         // match the given regex, continue on to the next row
         if (start != null && Bytes.memcmp(row.getKey(), start) < 0) {
           continue;
         }
         // asynchbase Scanner's logic:
-        // - start_key is inclusive, stop key is exclusive,
-        // - when start key is equal to the stop key, include the key in scan result,
-        if (stop != null && Bytes.memcmp(row.getKey(), stop) >= 0
-            && Bytes.memcmp(start, stop) != 0) {
+        // - start_key is inclusive, stop key is exclusive
+        // - when start key is equal to the stop key, 
+        //   include the key in scan result
+        // - if stop key is empty, scan till the end
+        if (stop != null && stop.length > 0 && 
+            Bytes.memcmp(row.getKey(), stop) >= 0 && 
+            Bytes.memcmp(start, stop) != 0) {
           continue;
         }
         if (pattern != null) {
@@ -984,11 +1011,11 @@ public final class MockBase {
             continue;
           }
         }
-        
+
         // loop on the column families
         final ArrayList<KeyValue> kvs = 
           new ArrayList<KeyValue>(row.getValue().size());
-        for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf : 
+        for (Map.Entry<byte[], ByteMap<TreeMap<Long, byte[]>>> cf : 
           row.getValue().entrySet()) {
           
           // column family filter
@@ -1006,16 +1033,9 @@ public final class MockBase {
               continue;
             }
             
-            KeyValue kv = mock(KeyValue.class);
-            when(kv.key()).thenReturn(row.getKey());
-            when(kv.value()).thenReturn(column.getValue().firstEntry().getValue());
-            when(kv.qualifier()).thenReturn(column.getKey());
-            when(kv.timestamp()).thenReturn(column.getValue().firstKey());
-            when(kv.family()).thenReturn(cf.getKey());
-            when(kv.toString()).thenReturn("[k '" + bytesToString(row.getKey()) + 
-                "' q '" + bytesToString(column.getKey()) + "' v '" + 
-                bytesToString(column.getValue().firstEntry().getValue()) + "']");
-            kvs.add(kv);
+            kvs.add(new KeyValue(row.getKey(), cf.getKey(), column.getKey(),
+                column.getValue().firstKey(),
+                column.getValue().firstEntry().getValue()));
           }
         
         }
@@ -1044,16 +1064,16 @@ public final class MockBase {
       final Object[] args = invocation.getArguments();
       final AtomicIncrementRequest air = (AtomicIncrementRequest)args[0];
       final long amount = air.getAmount();
-      Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = 
+      ByteMap<ByteMap<TreeMap<Long, byte[]>>> row = 
           storage.get(air.key());
       if (row == null) {
-        row = new Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>();
+        row = new ByteMap<ByteMap<TreeMap<Long, byte[]>>>();
         storage.put(air.key(), row);
       }
       
-      Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(air.family());
+      ByteMap<TreeMap<Long, byte[]>> cf = row.get(air.family());
       if (cf == null) {
-        cf = new Bytes.ByteMap<TreeMap<Long, byte[]>>();
+        cf = new ByteMap<TreeMap<Long, byte[]>>();
         row.put(air.family(), cf);
       }
       

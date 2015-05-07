@@ -36,7 +36,7 @@ import org.hbase.async.PutRequest;
 
 import net.opentsdb.tree.TreeBuilder;
 import net.opentsdb.tsd.RTPublisher;
-import net.opentsdb.tsd.RpcPlugin;
+import net.opentsdb.tsd.StorageExceptionHandler;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
@@ -107,9 +107,9 @@ public final class TSDB {
   /** Optional real time pulblisher plugin to use if configured */
   private RTPublisher rt_publisher = null;
   
-  /** List of activated RPC plugins */
-  private List<RpcPlugin> rpc_plugins = null;
-
+  /** Plugin for dealing with data points that can't be stored */
+  private StorageExceptionHandler storage_exception_handler = null;
+  
   /**
    * Constructor
    * @param client An initialized HBase client object
@@ -126,7 +126,11 @@ public final class TSDB {
     treetable = config.getString("tsd.storage.hbase.tree_table").getBytes(CHARSET);
     meta_table = config.getString("tsd.storage.hbase.meta_table").getBytes(CHARSET);
 
-    metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    if (config.getBoolean("tsd.core.uid.random_metrics")) {
+      metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH, true);
+    } else {
+      metrics = new UniqueId(client, uidtable, METRICS_QUAL, METRICS_WIDTH);
+    }
     tag_names = new UniqueId(client, uidtable, TAG_NAME_QUAL, TAG_NAME_WIDTH);
     tag_values = new UniqueId(client, uidtable, TAG_VALUE_QUAL, TAG_VALUE_WIDTH);
     compactionq = new CompactionQueue(this);
@@ -151,7 +155,7 @@ public final class TSDB {
     }
     LOG.debug(config.dumpConfiguration());
   }
-
+  
   /**
    * Constructor
    * @param config An initialized configuration object
@@ -232,30 +236,25 @@ public final class TSDB {
       rt_publisher = null;
     }
     
-    if (init_rpcs && config.hasProperty("tsd.rpc.plugins")) {
-      final String[] plugins = config.getString("tsd.rpc.plugins").split(",");
-      for (final String plugin : plugins) {
-        final RpcPlugin rpc = PluginLoader.loadSpecificPlugin(plugin.trim(), 
-            RpcPlugin.class);
-        if (rpc == null) {
-          throw new IllegalArgumentException(
-              "Unable to locate RPC plugin: " + plugin.trim());
-        }
-        try {
-          rpc.initialize(this);
-        } catch (Exception e) {
-          throw new RuntimeException(
-              "Failed to initialize RPC plugin", e);
-        }
-        
-        if (rpc_plugins == null) {
-          rpc_plugins = new ArrayList<RpcPlugin>(1);
-        }
-        rpc_plugins.add(rpc);
-        LOG.info("Successfully initialized RPC plugin [" + 
-            rpc.getClass().getCanonicalName() + "] version: " 
-            + rpc.version());
+    // load the storage exception plugin if enabled
+    if (config.getBoolean("tsd.core.storage_exception_handler.enable")) {
+      storage_exception_handler = PluginLoader.loadSpecificPlugin(
+          config.getString("tsd.core.storage_exception_handler.plugin"), 
+          StorageExceptionHandler.class);
+      if (storage_exception_handler == null) {
+        throw new IllegalArgumentException(
+            "Unable to locate storage exception handler plugin: " + 
+            config.getString("tsd.core.storage_exception_handler.plugin"));
       }
+      try {
+        storage_exception_handler.initialize(this);
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "Failed to initialize storage exception handler plugin", e);
+      }
+      LOG.info("Successfully initialized storage exception handler plugin [" + 
+          storage_exception_handler.getClass().getCanonicalName() + "] version: " 
+          + storage_exception_handler.version());
     }
   }
   
@@ -275,6 +274,15 @@ public final class TSDB {
    */
   public final Config getConfig() {
     return this.config;
+  }
+  
+  /**
+   * Returns the storage exception handler. May be null if not enabled
+   * @return The storage exception handler
+   * @since 2.2
+   */
+  public final StorageExceptionHandler getStorageExceptionHandler() {
+    return storage_exception_handler;
   }
 
   /**
@@ -387,25 +395,31 @@ public final class TSDB {
         .joinUninterruptibly();
       
       collectUidStats(metrics, collector);
-      collector.record("uid.ids-used", used_uids.get(METRICS_QUAL), 
-          "kind=" + METRICS_QUAL);
-      collector.record("uid.ids-available", 
-          (metrics.maxPossibleId() - used_uids.get(METRICS_QUAL)), 
-          "kind=" + METRICS_QUAL);
+      if (config.getBoolean("tsd.core.uid.random_metrics")) {
+        collector.record("uid.ids-used", 0, "kind=" + METRICS_QUAL);
+        collector.record("uid.ids-available", 0, "kind=" + METRICS_QUAL);
+      } else {
+        collector.record("uid.ids-used", used_uids.get(METRICS_QUAL), 
+            "kind=" + METRICS_QUAL);
+        collector.record("uid.ids-available", 
+            (Internal.getMaxUnsignedValueOnBytes(metrics.width()) - 
+                used_uids.get(METRICS_QUAL)), "kind=" + METRICS_QUAL);
+      }
       
       collectUidStats(tag_names, collector);
       collector.record("uid.ids-used", used_uids.get(TAG_NAME_QUAL), 
           "kind=" + TAG_NAME_QUAL);
       collector.record("uid.ids-available", 
-          (tag_names.maxPossibleId() - used_uids.get(TAG_NAME_QUAL)), 
+          (Internal.getMaxUnsignedValueOnBytes(tag_names.width()) - 
+              used_uids.get(TAG_NAME_QUAL)), 
           "kind=" + TAG_NAME_QUAL);
       
       collectUidStats(tag_values, collector);
       collector.record("uid.ids-used", used_uids.get(TAG_VALUE_QUAL), 
           "kind=" + TAG_VALUE_QUAL);
       collector.record("uid.ids-available", 
-          (tag_values.maxPossibleId() - used_uids.get(TAG_VALUE_QUAL)), 
-          "kind=" + TAG_VALUE_QUAL);
+          (Internal.getMaxUnsignedValueOnBytes(tag_values.width()) - 
+              used_uids.get(TAG_VALUE_QUAL)), "kind=" + TAG_VALUE_QUAL);
       
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
@@ -455,30 +469,28 @@ public final class TSDB {
     // Collect Stats from Plugins
     if (rt_publisher != null) {
       try {
-	collector.addExtraTag("plugin", "publish");
+        collector.addExtraTag("plugin", "publish");
         rt_publisher.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
+        collector.clearExtraTag("plugin");
       }                        
     }
     if (search != null) {
       try {
-	collector.addExtraTag("plugin", "search");
-	search.collectStats(collector);
+        collector.addExtraTag("plugin", "search");
+        search.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
+        collector.clearExtraTag("plugin");
       }                        
     }
-    if (rpc_plugins != null) {
+    if (storage_exception_handler != null) {
       try {
-	collector.addExtraTag("plugin", "rpc");
-	for(RpcPlugin rpc: rpc_plugins) {
-		rpc.collectStats(collector);
-	}                                
+        collector.addExtraTag("plugin", "storageExceptionHandler");
+        storage_exception_handler.collectStats(collector);
       } finally {
-	collector.clearExtraTag("plugin");
-      }                        
-    }        
+        collector.clearExtraTag("plugin");
+      }
+    }
   }
 
   /** Returns a latency histogram for Put RPCs used to store data points. */
@@ -501,6 +513,8 @@ public final class TSDB {
     collector.record("uid.cache-hit", uid.cacheHits(), "kind=" + uid.kind());
     collector.record("uid.cache-miss", uid.cacheMisses(), "kind=" + uid.kind());
     collector.record("uid.cache-size", uid.cacheSize(), "kind=" + uid.kind());
+    collector.record("uid.random-collisions", uid.randomIdCollisions(), 
+        "kind=" + uid.kind());
   }
 
   /** @return the width, in bytes, of metric UIDs */
@@ -533,6 +547,17 @@ public final class TSDB {
    */
   public WritableDataPoints newDataPoints() {
     return new IncomingDataPoints(this);
+  }
+
+  /**
+   * Returns a new {@link BatchedDataPoints} instance suitable for this TSDB.
+   * 
+   * @param metric Every data point that gets appended must be associated to this metric.
+   * @param tags The associated tags for all data points being added.
+   * @return data structure which can have data points appended.
+   */
+  public WritableDataPoints newBatch(String metric, Map<String, String> tags) {
+    return new BatchedDataPoints(this, metric, tags);
   }
 
   /**
@@ -672,7 +697,9 @@ public final class TSDB {
       base_time = (timestamp - (timestamp % Const.MAX_TIMESPAN));
     }
     
-    Bytes.setInt(row, (int) base_time, metrics.width());
+    Bytes.setInt(row, (int) base_time, metrics.width() + Const.SALT_WIDTH());
+    RowKey.prefixKeyWithSalt(row);
+    
     scheduleForCompaction(row, (int) base_time);
     final PutRequest point = new PutRequest(table, row, FAMILY, qualifier, value);
     
@@ -799,13 +826,10 @@ public final class TSDB {
           rt_publisher.getClass().getCanonicalName());
       deferreds.add(rt_publisher.shutdown());
     }
-    
-    if (rpc_plugins != null && !rpc_plugins.isEmpty()) {
-      for (final RpcPlugin rpc : rpc_plugins) {
-        LOG.info("Shutting down RPC plugin: " + 
-            rpc.getClass().getCanonicalName());
-        deferreds.add(rpc.shutdown());
-      }
+    if (storage_exception_handler != null) {
+      LOG.info("Shutting down storage exception handler plugin: " + 
+          storage_exception_handler.getClass().getCanonicalName());
+      deferreds.add(storage_exception_handler.shutdown());
     }
     
     // wait for plugins to shutdown before we close the client

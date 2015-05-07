@@ -68,6 +68,9 @@ def main(argv):
     parser.add_option('-I', '--ignore-recent', default=0, type='int',
             metavar='SECONDS', help='Ignore data points that are that'
             ' are that recent.')
+    parser.add_option('-P', '--bad-percent', default=None, type='float',
+            metavar='PCT', help='Do not alarm if less than PCT% bad values'
+            ' are found.')
     parser.add_option('-S', '--ssl', default=False, action='store_true',
             help='Make queries to OpenTSDB via SSL (https)')
     (options, args) = parser.parse_args(args=argv[1:])
@@ -173,6 +176,7 @@ def main(argv):
     badval = None  # Value of the bad value we found, if any.
     npoints = 0    # How many values have we seen?
     nbad = 0       # How many bad values have we seen?
+    bad_pct = 0    # Percent of bad values we've found
     for datapoint in datapoints:
         datapoint = datapoint.split()
         ts = int(datapoint[1])
@@ -211,6 +215,15 @@ def main(argv):
             print ('worse data point value=%s at ts=%s' % (badval, badts))
         badts = time.asctime(time.localtime(badts))
 
+    bad_pct = nbad * 100.0 / npoints
+
+    if options.bad_percent is not None and rv > 0 \
+        and bad_pct < options.bad_percent:
+            if options.verbose:
+                print 'ignoring alarm, less than %.1f%% bad values (found %.1f%%)' % \
+                    (options.bad_percent, bad_pct)
+            rv = 0
+
     # in nrpe, pipe character is something special, but it's used in tag
     # searches.  Translate it to something else for the purposes of output.
     ttags = tags.replace("|",":")
@@ -226,7 +239,7 @@ def main(argv):
             threshold = options.critical
         print ('%s: %s%s %s %s: %d/%d bad values (%.1f%%) worst: %r @ %s'
                % (level, options.metric, ttags, options.comparator, threshold,
-                  nbad, npoints, nbad * 100.0 / npoints, badval, badts))
+                  nbad, npoints, bad_pct, badval, badts))
     return rv
 
 

@@ -19,8 +19,16 @@ package tsd.client;
  */
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import net.opentsdb.graph.Plot;
 
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.dom.client.Style;
@@ -80,6 +88,7 @@ import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Image;
 import com.google.gwt.user.client.ui.InlineLabel;
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.RadioButton;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.TextBox;
@@ -91,6 +100,18 @@ import com.google.gwt.user.client.ui.Widget;
  * Manages the entire UI, forms to query the TSDB and other misc panels.
  */
 public class QueryUi implements EntryPoint, HistoryListener {
+
+  /** Map of available gnuplot data styles. */
+  public static Map<String, Integer> stylesMap = new HashMap<String, Integer>();
+  static {
+      Map<String, Integer> map = new HashMap<String, Integer>();
+      map.put("linespoint", 0);
+      map.put("points", 1);
+      map.put("circles", 3);
+      map.put("dots", 4);
+      stylesMap = Collections.unmodifiableMap(map);
+  }
+
   // Some URLs we use to fetch data from the TSD.
   private static final String AGGREGATORS_URL = "/aggregators";
   private static final String LOGS_URL = "/logs?json";
@@ -125,6 +146,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
   // Styling options.
   private final CheckBox smooth = new CheckBox();
+  private final ListBox styles = new ListBox();
 
   /**
    * Handles every change to the query form and gets a new graph.
@@ -176,7 +198,14 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
   /** List of known aggregation functions.  Fetched once from the server. */
   private final ArrayList<String> aggregators = new ArrayList<String>();
-
+  
+  /**
+   * List of known downsampling fill policies.
+   * TODO: fetch from server.
+   */
+  private final List<String> fill_policies = Arrays.asList("none", "nan",
+    "zero", "null");
+  
   private final DecoratedTabPanel metrics = new DecoratedTabPanel();
 
   /** Panel to place generated graphs and a box for zoom highlighting. */
@@ -260,6 +289,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     keybox.addClickHandler(refreshgraph);
     nokey.addClickHandler(refreshgraph);
     smooth.addClickHandler(refreshgraph);
+    styles.addChangeHandler(refreshgraph);
 
     yrange.setValidationRegexp("^("                            // Nothing or
                                + "|\\[([-+.0-9eE]+|\\*)?"      // "[start
@@ -455,9 +485,14 @@ public class QueryUi implements EntryPoint, HistoryListener {
 
   /** Additional styling options.  */
   private Grid makeStylePanel() {
+    for (Entry<String, Integer> item : stylesMap.entrySet()) {
+      styles.insertItem(item.getKey(), item.getValue());
+    }
     final Grid grid = new Grid(5, 3);
     grid.setText(0, 1, "Smooth");
     grid.setWidget(0, 2, smooth);
+    grid.setText(1, 1, "Style");
+    grid.setWidget(1, 2, styles);
     return grid;
   }
 
@@ -491,6 +526,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     metric.x1y2().addClickHandler(updatey2range);
     metric.setMetricChangeHandler(metric_change_handler);
     metric.setAggregators(aggregators);
+    metric.setFillPolicies(fill_policies);
     metrics.insert(metric, label, item);
     return metric;
   }
@@ -812,6 +848,9 @@ public class QueryUi implements EntryPoint, HistoryListener {
     }
     nokey.setValue(qs.containsKey("nokey"));
     smooth.setValue(qs.containsKey("smooth"));
+    if (stylesMap.containsKey(qs.getFirst("style"))) {
+      styles.setSelectedIndex(stylesMap.get(qs.getFirst("style")));
+    }
   }
 
   private void refreshGraph() {
@@ -879,6 +918,7 @@ public class QueryUi implements EntryPoint, HistoryListener {
     if (smooth.getValue()) {
       url.append("&smooth=csplines");
     }
+    url.append("&style=").append(styles.getValue(styles.getSelectedIndex()));
     final String unencodedUri = url.toString();
     final String uri = URL.encode(unencodedUri);
     if (uri.equals(lastgraphuri)) {

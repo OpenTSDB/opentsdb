@@ -41,6 +41,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
   private static final AtomicLong invalid_values = new AtomicLong();
   private static final AtomicLong illegal_arguments = new AtomicLong();
   private static final AtomicLong unknown_metrics = new AtomicLong();
+  private static final AtomicLong writes_blocked = new AtomicLong();
 
   public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
                                   final String[] cmd) {
@@ -49,11 +50,18 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     try {
       final class PutErrback implements Callback<Exception, Exception> {
         public Exception call(final Exception arg) {
+          // we handle the storage exceptions here so as to avoid creating yet
+          // another callback object on every data point.
+          handleStorageException(tsdb, getDataPointFromString(cmd), arg);
           if (chan.isConnected()) {
-            chan.write("put: HBase error: " + arg.getMessage() + '\n');
+            if (chan.isWritable()) {
+              chan.write("put: HBase error: " + arg.getMessage() + '\n');
+            } else {
+              writes_blocked.incrementAndGet();
+            }
           }
           hbase_errors.incrementAndGet();
-          return arg;
+          return null;
         }
         public String toString() {
           return "report error to channel";
@@ -73,7 +81,11 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     if (errmsg != null) {
       LOG.debug(errmsg);
       if (chan.isConnected()) {
-        chan.write(errmsg);
+        if (chan.isWritable()) {
+          chan.write(errmsg);
+        } else {
+          writes_blocked.incrementAndGet();
+        }
       }
     }
     return Deferred.fromResult(null);
@@ -111,7 +123,21 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     long success = 0;
     long total = 0;
     
-    for (IncomingDataPoint dp : dps) {
+    for (final IncomingDataPoint dp : dps) {
+
+      /** Handles passing a data point to the storage exception handler if 
+       * we were unable to store it for any reason */
+      final class PutErrback implements Callback<Object, Exception> {
+        public Object call(final Exception arg) {
+          handleStorageException(tsdb, dp, arg);
+          hbase_errors.incrementAndGet();
+          return null;
+        }
+        public String toString() {
+          return "HTTP Put exception";
+        }
+      }
+      
       total++;
       try {
         if (dp.getMetric() == null || dp.getMetric().isEmpty()) {
@@ -119,6 +145,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
             details.add(this.getHttpDetails("Metric name was empty", dp));
           }
           LOG.warn("Metric name was empty: " + dp);
+          illegal_arguments.incrementAndGet();
           continue;
         }
         if (dp.getTimestamp() <= 0) {
@@ -126,6 +153,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
             details.add(this.getHttpDetails("Invalid timestamp", dp));
           }
           LOG.warn("Invalid timestamp: " + dp);
+          illegal_arguments.incrementAndGet();
           continue;
         }
         if (dp.getValue() == null || dp.getValue().isEmpty()) {
@@ -133,6 +161,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
             details.add(this.getHttpDetails("Empty value", dp));
           }
           LOG.warn("Empty value: " + dp);
+          invalid_values.incrementAndGet();
           continue;
         }
         if (dp.getTags() == null || dp.getTags().size() < 1) {
@@ -140,14 +169,17 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
             details.add(this.getHttpDetails("Missing tags", dp));
           }
           LOG.warn("Missing tags: " + dp);
+          illegal_arguments.incrementAndGet();
           continue;
         }
         if (Tags.looksLikeInteger(dp.getValue())) {
           tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
-              Tags.parseLong(dp.getValue()), dp.getTags());
+              Tags.parseLong(dp.getValue()), dp.getTags())
+              .addErrback(new PutErrback());
         } else {
           tsdb.addPoint(dp.getMetric(), dp.getTimestamp(), 
-              Float.parseFloat(dp.getValue()), dp.getTags());
+              Float.parseFloat(dp.getValue()), dp.getTags())
+              .addErrback(new PutErrback());
         }
         success++;
       } catch (NumberFormatException x) {
@@ -208,6 +240,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     collector.record("rpc.errors", invalid_values, "type=invalid_values");
     collector.record("rpc.errors", illegal_arguments, "type=illegal_arguments");
     collector.record("rpc.errors", unknown_metrics, "type=unknown_metrics");
+    collector.record("rpc.errors", writes_blocked, "type=socket_writes_blocked");
   }
 
   /**
@@ -257,6 +290,37 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     }
   }
 
+
+  /**
+   * Converts the string array to an IncomingDataPoint. WARNING: This method
+   * does not perform validation. It should only be used by the Telnet style
+   * {@code execute} above within the error callback. At that point it means
+   * the array parsed correctly as per {@code importDataPoint}.
+   * @param words The array of strings representing a data point
+   * @return An incoming data point object.
+   */
+  final private IncomingDataPoint getDataPointFromString(final String[] words) {
+    final IncomingDataPoint dp = new IncomingDataPoint();
+    dp.setMetric(words[1]);
+    
+    if (words[2].contains(".")) {
+      dp.setTimestamp(Tags.parseLong(words[2].replace(".", ""))); 
+    } else {
+      dp.setTimestamp(Tags.parseLong(words[2]));
+    }
+    
+    dp.setValue(words[3]);
+    
+    final HashMap<String, String> tags = new HashMap<String, String>();
+    for (int i = 4; i < words.length; i++) {
+      if (!words[i].isEmpty()) {
+        Tags.parse(tags, words[i]);
+      }
+    }
+    dp.setTags(tags);
+    return dp;
+  }
+  
   /**
    * Simple helper to format an error trying to save a data point
    * @param message The message to return to the user
@@ -270,5 +334,20 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
     map.put("error", message);
     map.put("datapoint", dp);
     return map;
+  }
+  
+  /**
+   * Passes a data point off to the storage handler plugin if it has been
+   * configured. 
+   * @param tsdb The TSDB from which to grab the SEH plugin
+   * @param dp The data point to process
+   * @param e The exception that caused this
+   */
+  void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
+      final Exception e) {
+    final StorageExceptionHandler handler = tsdb.getStorageExceptionHandler();
+    if (handler != null) {
+      handler.handleError(dp, e);
+    }
   }
 }

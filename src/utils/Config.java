@@ -72,7 +72,7 @@ public class Config {
   
   /** tsd.storage.enable_compaction */
   private boolean enable_compactions = true;
-
+  
   /** tsd.core.meta.enable_realtime_ts */
   private boolean enable_realtime_ts = false;
   
@@ -87,7 +87,7 @@ public class Config {
   
   /** tsd.http.request.enable_chunked */
   private boolean enable_chunked_requests = false;
-
+  
   /** tsd.storage.fix_duplicates */
   private boolean fix_duplicates = false;
 
@@ -207,7 +207,7 @@ public class Config {
   public int max_chunked_requests() {
     return max_chunked_requests;
   }
-
+  
   /** @return true if duplicate values should be fixed */
   public boolean fix_duplicates() {
     return fix_duplicates;
@@ -347,6 +347,9 @@ public class Config {
    */
   public final String getDirectoryName(final String property) {
     String directory = properties.get(property);
+    if (directory == null || directory.isEmpty()){
+      return null;
+    }
     if (IS_WINDOWS) {
       // Windows swings both ways. If a forward slash was already used, we'll
       // add one at the end if missing. Otherwise use the windows default of \
@@ -419,6 +422,20 @@ public class Config {
   public final Map<String, String> getMap() {
     return ImmutableMap.copyOf(properties);
   }
+
+  /**
+   * set enable_compactions to true
+   */
+  public final void enableCompactions() {
+    this.enable_compactions = true;
+  }
+
+  /**
+   * set enable_compactions to false
+   */
+  public final void disableCompactions() {
+    this.enable_compactions = false;
+  }
   
   /**
    * Loads default entries that were not provided by a file or command line
@@ -449,6 +466,8 @@ public class Config {
     default_map.put("tsd.core.tree.enable_processing", "false");
     default_map.put("tsd.core.preload_uid_cache", "false");
     default_map.put("tsd.core.preload_uid_cache.max_entries", "300000");
+    default_map.put("tsd.core.storage_exception_handler.enable", "false");
+    default_map.put("tsd.core.uid.random_metrics", "false");
     default_map.put("tsd.rtpublisher.enable", "false");
     default_map.put("tsd.rtpublisher.plugin", "");
     default_map.put("tsd.search.enable", "false");
@@ -463,6 +482,10 @@ public class Config {
     default_map.put("tsd.storage.hbase.zk_quorum", "localhost");
     default_map.put("tsd.storage.hbase.zk_basedir", "/hbase");
     default_map.put("tsd.storage.enable_compaction", "true");
+    default_map.put("tsd.storage.compaction.flush_interval", "10");
+    default_map.put("tsd.storage.compaction.min_flush_threshold", "100");
+    default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
+    default_map.put("tsd.storage.compaction.flush_speed", "2");
     default_map.put("tsd.http.show_stack_trace", "true");
     default_map.put("tsd.http.request.enable_chunked", "false");
     default_map.put("tsd.http.request.max_chunk", "4096");
@@ -470,6 +493,7 @@ public class Config {
     default_map.put("tsd.http.request.cors_headers", "Authorization, "
       + "Content-Type, Accept, Origin, User-Agent, DNT, Cache-Control, "
       + "X-Mx-ReqToken, Keep-Alive, X-Requested-With, If-Modified-Since");
+    default_map.put("tsd.query.timeout", "0");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))

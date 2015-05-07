@@ -4,7 +4,7 @@
 %define _sourcedir %(echo $PWD)
 
 Name:		@PACKAGE@
-Version:	@VERSION@
+Version:	%(echo @VERSION@ | sed 's/-/_/g')
 Release:	1
 Summary:	A scalable, distributed Time Series Database
 Packager:	@PACKAGE_BUGREPORT@
@@ -45,7 +45,7 @@ seconds). OpenTSDB will never delete or downsample data and can easily store
 billions of data points.
 
 %prep
-%setup -q
+%setup -q -n @PACKAGE@-@VERSION@
 
 
 %build

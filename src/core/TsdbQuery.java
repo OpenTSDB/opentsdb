@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -28,15 +29,16 @@ import org.hbase.async.Bytes;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
+import org.hbase.async.Bytes.ByteMap;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
-import static org.hbase.async.Bytes.ByteMap;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
+import net.opentsdb.utils.DateTime;
 
 /**
  * Non-synchronized implementation of {@link Query}.
@@ -117,13 +119,22 @@ final class TsdbQuery implements Query {
 
   /** Minimum time interval (in milliseconds) wanted between each data point. */
   private long sample_interval_ms;
+  
+  /** Downsampling fill policy. */
+  private FillPolicy fill_policy;
 
   /** Optional list of TSUIDs to fetch and aggregate instead of a metric */
   private List<String> tsuids;
   
+  /** An index that links this query to the original sub query */
+  private int query_index;
+  
   /** Constructor. */
   public TsdbQuery(final TSDB tsdb) {
     this.tsdb = tsdb;
+    
+    // By default, we should interpolate.
+    fill_policy = DownsamplingSpecification.DEFAULT_FILL_POLICY;
   }
 
   /**
@@ -181,7 +192,7 @@ final class TsdbQuery implements Query {
   @Override
   public long getEndTime() {
     if (end_time == UNSET) {
-      setEndTime(System.currentTimeMillis());
+      setEndTime(DateTime.currentTimeMillis());
     }
     return end_time;
   }
@@ -201,9 +212,19 @@ final class TsdbQuery implements Query {
         final boolean rate,
         final RateOptions rate_options)
   throws NoSuchUniqueName {
-    findGroupBys(tags);
+    final Map<String, String> tags_copy = new HashMap<String, String>(tags.size());
+    tags_copy.putAll(tags);
+    try {
+      findGroupBys(tags_copy).join();
+    } catch (final InterruptedException e) {
+      LOG.warn("Interrupted", e);
+      Thread.currentThread().interrupt();
+    } catch (final Exception e) {
+      LOG.error("Unexpected exception processing group bys", e);
+      throw new RuntimeException(e);
+    }
     this.metric = tsdb.metrics.getId(metric);
-    this.tags = Tags.resolveAll(tsdb, tags);
+    this.tags = Tags.resolveAll(tsdb, tags_copy);
     aggregator = function;
     this.rate = rate;
     this.rate_options = rate_options;
@@ -247,15 +268,138 @@ final class TsdbQuery implements Query {
     this.rate_options = rate_options;
   }
   
-  /**
-   * Sets an optional downsampling function on this query
-   * @param interval The interval, in milliseconds to rollup data points
-   * @param downsampler An aggregation function to use when rolling up data points
-   * @throws NullPointerException if the aggregation function is null
-   * @throws IllegalArgumentException if the interval is not greater than 0
-   */
+  public Deferred<Object> configureFromQuery(final TSQuery query, 
+      final int index) {
+    if (query.getQueries() == null || query.getQueries().isEmpty()) {
+      throw new IllegalArgumentException("Missing sub queries");
+    }
+    if (index < 0 || index > query.getQueries().size()) {
+      throw new IllegalArgumentException("Query index was out of range");
+    }
+    
+    final TSSubQuery sub_query = query.getQueries().get(index);
+    setStartTime(query.startTime());
+    setEndTime(query.endTime());
+    query_index = index;
+    
+    // set common options
+    aggregator = sub_query.aggregator();
+    rate = sub_query.getRate();
+    rate_options = sub_query.getRateOptions();
+    if (rate_options == null) {
+      rate_options = new RateOptions();
+    }
+    downsampler = sub_query.downsampler();
+    sample_interval_ms = sub_query.downsampleInterval();
+    fill_policy = sub_query.fillPolicy();
+    
+    // if we have tsuids set, that takes precedence
+    if (sub_query.getTsuids() != null && !sub_query.getTsuids().isEmpty()) {
+      tsuids = new ArrayList<String>(sub_query.getTsuids());
+      String first_metric = "";
+      for (final String tsuid : tsuids) {
+        if (first_metric.isEmpty()) {
+          first_metric = tsuid.substring(0, TSDB.metrics_width() * 2)
+            .toUpperCase();
+          continue;
+        }
+        
+        final String metric = tsuid.substring(0, TSDB.metrics_width() * 2)
+          .toUpperCase();
+        if (!first_metric.equals(metric)) {
+          throw new IllegalArgumentException(
+            "One or more TSUIDs did not share the same metric [" + first_metric + 
+            "] [" + metric + "]");
+        }
+      }
+      return Deferred.fromResult(null);
+    } else {
+      // copy the tags to a new map as the groupby method will modify the map
+      // and doing so would cause the TSQuery to change it's hash code, making
+      // it impossible to remove from the query stats.
+      final Map<String, String> tags_copy = 
+          new HashMap<String, String>(sub_query.getTags());
+      
+      /** Adds the tagk and tagv in the array list in the proper order */
+      class TagVCB implements Callback<Object, byte[]> {
+        final byte[] tagk;
+        public TagVCB(final byte[] tagk) {
+          this.tagk = tagk;
+        }
+        @Override
+        public Object call(final byte[] tagv) {
+          // multiple threads can call us back so make sure we lock the array
+          // to avoid concurrent modifications or add keys and values out of
+          // order
+          synchronized(tags) {
+            final byte[] pair = new byte[tagk.length + tagv.length];
+            System.arraycopy(tagk, 0, pair, 0, tagk.length);
+            System.arraycopy(tagv, 0, pair, tagk.length, tagv.length);
+            tags.add(pair);
+          }
+          return null;
+        }
+      }
+      
+      /** Triggers the tagv resolution after resolving a tagk */
+      class TagKCB implements Callback<Deferred<Object>, byte[]> {
+        final String tagv;
+        public TagKCB(final String tagv) {
+          this.tagv = tagv;
+        }
+        @Override
+        public Deferred<Object> call(final byte[] tagk) {
+          return tsdb.tag_values.getIdAsync(tagv).addCallback(new TagVCB(tagk));
+        }
+      }
+
+      /** Resolves explicit tagk/tagv pairs after group bys */
+      class GroupBy implements Callback<Deferred<ArrayList<Object>>, 
+        ArrayList<byte[]>> {
+        @Override
+        public Deferred<ArrayList<Object>> call(final ArrayList<byte[]> group) {
+          final List<Deferred<Object>> tags = 
+              new ArrayList<Deferred<Object>>(tags_copy.size());
+          TsdbQuery.this.tags = new ArrayList<byte[]>(tags.size());
+          for (Map.Entry<String, String> entry : tags_copy.entrySet()) {
+            tags.add(tsdb.tag_names.getIdAsync(entry.getKey())
+              .addCallbackDeferring(new TagKCB(entry.getValue())));
+          }
+          return Deferred.group(tags);
+        }
+      }
+
+      /** Sort the tag array after resolution is complete */
+      class SortTags implements Callback<Deferred<Object>, ArrayList<Object>> {
+        @Override
+        public Deferred<Object> call(final ArrayList<Object> notused) 
+            throws Exception {
+          Collections.sort(tags, Bytes.MEMCMP);
+          return null;
+        }
+      }
+      
+      /** Resolve and group by tags after resolving the metric */
+      class MetricCB implements Callback<Object, byte[]> {
+        @Override
+        public Object call(final byte[] uid) throws Exception {
+          metric = uid;
+          return findGroupBys(tags_copy)
+              .addCallbackDeferring(new GroupBy())
+              .addCallback(new SortTags());
+        }
+      }
+      
+      // fire off the callback chain by resolving the metric first
+      return tsdb.metrics.getIdAsync(sub_query.getMetric())
+          .addCallback(new MetricCB());
+    }
+  }
+  
+  
   @Override
-  public void downsample(final long interval, final Aggregator downsampler) {
+  public void downsample(final long interval, final Aggregator downsampler,
+      final FillPolicy fill_policy) {
     if (downsampler == null) {
       throw new NullPointerException("downsampler");
     } else if (interval <= 0) {
@@ -263,6 +407,19 @@ final class TsdbQuery implements Query {
     }
     this.downsampler = downsampler;
     this.sample_interval_ms = interval;
+    this.fill_policy = fill_policy;
+  }
+
+  /**
+   * Sets an optional downsampling function with interpolation on this query.
+   * @param interval The interval, in milliseconds to rollup data points
+   * @param downsampler An aggregation function to use when rolling up data points
+   * @throws NullPointerException if the aggregation function is null
+   * @throws IllegalArgumentException if the interval is not greater than 0
+   */
+  @Override
+  public void downsample(final long interval, final Aggregator downsampler) {
+    downsample(interval, downsampler, FillPolicy.NONE);
   }
 
   /**
@@ -280,8 +437,94 @@ final class TsdbQuery implements Query {
    * @param tags The tags from which to extract the 'GROUP BY's.
    * Each tag that represents a 'GROUP BY' will be removed from the map
    * passed in argument.
+   * @return A deferred to wait on, the results are not important and should be
+   * discarded.
    */
-  private void findGroupBys(final Map<String, String> tags) {
+  private Deferred<ArrayList<byte[]>> findGroupBys(final Map<String, String> tags) {
+    
+    /**
+     * Used to continue processing when we have a tag value that wasn't assigned
+     * a UID and the config explicitly allows unknown tags.
+     */
+    class Errback implements Callback<byte[], Exception> {
+      final boolean is_tagv;
+      public Errback(final boolean is_tagv) {
+        this.is_tagv = is_tagv;
+      }
+      
+      @Override
+      public byte[] call(final Exception e) throws Exception {
+        if (is_tagv && 
+            tsdb.getConfig().getBoolean("tsd.query.skip_unresolved_tagvs")) {
+          LOG.warn("Query tag value not found: " + e.getMessage());
+          return null;
+        } else {
+          throw e;
+        }
+      }
+    }
+    
+    /** Adds the tagk to the group bys and passes along the UID */
+    class ResolveTagKCB implements Callback<byte[], byte[]> {
+      @Override
+      public byte[] call(final byte[] uid) {
+        group_bys.add(uid);
+        return uid;
+      }
+    }
+    
+    /** Writes the resolved tagv to the proper group_by_values array */
+    class ResoveTagVCB implements Callback<byte[], byte[]> {
+      final byte[] tagk;
+      final int index;
+      public ResoveTagVCB(final byte[] tagk, final int index) {
+        this.tagk = tagk;
+        this.index = index;
+      }
+      @Override
+      public byte[] call(final byte[] uid) {
+        final byte[][] value_ids = group_by_values.get(tagk);
+        System.arraycopy(uid, 0, value_ids[index], 0, tsdb.tag_values.width());
+        return null;
+      }
+    }
+    
+    /** 
+     * Only here to cast the {@code ArrayList<byte[]>} to a {@code byte[]} for 
+     * typing purposes.
+     */
+    class PipedGroupCB implements Callback<byte[], ArrayList<byte[]>> {
+      @Override
+      public byte[] call(final ArrayList<byte[]> tagvs) {
+        return null;
+      }
+    }
+    
+    /** Resolves a piped list of tag values after resolving the tagk */
+    class ResolvePipedGroupBy implements Callback<Deferred<byte[]>, byte[]> {
+      final String[] values;
+      public ResolvePipedGroupBy(final String[] values) {
+        this.values = values;
+      }
+      @Override
+      public Deferred<byte[]> call(final byte[] uid) {
+        final byte[][] value_ids = new byte[values.length][tsdb.tag_values.width()];
+        group_by_values.put(uid, value_ids);
+        
+        final List<Deferred<byte[]>> tagvs = 
+            new ArrayList<Deferred<byte[]>>(values.length);
+        for (int j = 0; j < values.length; j++) {
+          tagvs.add(tsdb.tag_values.getIdAsync(values[j])
+              .addCallback(new ResoveTagVCB(uid, j))
+              .addErrback(new Errback(true)));
+        }
+        return Deferred.group(tagvs).addCallback(new PipedGroupCB());
+      }
+    }
+    
+    final List<Deferred<byte[]>> deferreds = !tags.isEmpty() ? 
+        new ArrayList<Deferred<byte[]>>(tags.size()) : null;
+    
     final Iterator<Map.Entry<String, String>> i = tags.entrySet().iterator();
     while (i.hasNext()) {
       final Map.Entry<String, String> tag = i.next();
@@ -291,31 +534,39 @@ final class TsdbQuery implements Query {
         if (group_bys == null) {
           group_bys = new ArrayList<byte[]>();
         }
-        group_bys.add(tsdb.tag_names.getId(tag.getKey()));
+        final Deferred<byte[]> resolve_tagk = 
+            tsdb.tag_names.getIdAsync(tag.getKey())
+              .addCallback(new ResolveTagKCB())
+              .addErrback(new Errback(false));
+        deferreds.add(resolve_tagk);
         i.remove();
         if (tagvalue.charAt(0) == '*') {
           continue;  // For a 'GROUP BY' with any value, we're done.
         }
+        
         // 'GROUP BY' with specific values.  Need to split the values
         // to group on and store their IDs in group_by_values.
         final String[] values = Tags.splitString(tagvalue, '|');
         if (group_by_values == null) {
           group_by_values = new ByteMap<byte[][]>();
         }
-        final short value_width = tsdb.tag_values.width();
-        final byte[][] value_ids = new byte[values.length][value_width];
-        group_by_values.put(tsdb.tag_names.getId(tag.getKey()),
-                            value_ids);
-        for (int j = 0; j < values.length; j++) {
-          final byte[] value_id = tsdb.tag_values.getId(values[j]);
-          System.arraycopy(value_id, 0, value_ids[j], 0, value_width);
-        }
+        resolve_tagk.addCallback(new ResolvePipedGroupBy(values));
       }
+    }
+    
+    if (deferreds == null) {
+      return Deferred.fromResult(null);
+    } else {
+      return Deferred.group(deferreds);
     }
   }
 
   /**
-   * Executes the query
+   * Executes the query.
+   * NOTE: Do not run the same query multiple times. Construct a new query with
+   * the same parameters again if needed
+   * TODO(cl) There are some strange occurrences when unit testing where the end
+   * time, if not set, can change between calls to run()
    * @return An array of data points with one time series per array value
    */
   @Override
@@ -348,7 +599,17 @@ final class TsdbQuery implements Query {
   private Deferred<TreeMap<byte[], Span>> findSpans() throws HBaseException {
     final short metric_width = tsdb.metrics.width();
     final TreeMap<byte[], Span> spans = // The key is a row key from HBase.
-      new TreeMap<byte[], Span>(new SpanCmp(metric_width));
+      new TreeMap<byte[], Span>(new SpanCmp(
+          (short)(Const.SALT_WIDTH() + metric_width)));
+    
+    if (Const.SALT_WIDTH() > 0) {
+      final List<Scanner> scanners = new ArrayList<Scanner>(Const.SALT_BUCKETS());
+      for (int i = 0; i < Const.SALT_BUCKETS(); i++) {
+        scanners.add(getScanner(i));
+      }
+      return new SaltScanner(tsdb, metric, scanners, spans).scan();
+    }
+    
     final Scanner scanner = getScanner();
     final Deferred<TreeMap<byte[], Span>> results =
       new Deferred<TreeMap<byte[], Span>>();
@@ -367,6 +628,7 @@ final class TsdbQuery implements Query {
       boolean seenAnnotation = false;
       int hbase_time = 0; // milliseconds.
       long starttime = System.nanoTime();
+      long timeout = tsdb.getConfig().getLong("tsd.query.timeout");
       
       /**
       * Starts the scanner and is called recursively to fetch the next set of
@@ -401,6 +663,10 @@ final class TsdbQuery implements Query {
              }
              scanner.close();
              return null;
+           }
+           
+           if (timeout > 0 && hbase_time > timeout) {
+             throw new InterruptedException("Query timeout exceeded!");
            }
            
            for (final ArrayList<KeyValue> row : rows) {
@@ -467,7 +733,8 @@ final class TsdbQuery implements Query {
                                               spans.values(),
                                               rate, rate_options,
                                               aggregator,
-                                              sample_interval_ms, downsampler);
+                                              sample_interval_ms, downsampler,
+                                              query_index, fill_policy);
         return new SpanGroup[] { group };
       }
   
@@ -511,7 +778,8 @@ final class TsdbQuery implements Query {
           thegroup = new SpanGroup(tsdb, getScanStartTimeSeconds(),
                                    getScanEndTimeSeconds(),
                                    null, rate, rate_options, aggregator,
-                                   sample_interval_ms, downsampler);
+                                   sample_interval_ms, downsampler, query_index, 
+                                   fill_policy);
           // Copy the array because we're going to keep `group' and overwrite
           // its contents. So we want the collection to have an immutable copy.
           final byte[] group_copy = new byte[group.length];
@@ -536,33 +804,54 @@ final class TsdbQuery implements Query {
    * @return A scanner to use for fetching data points
    */
   protected Scanner getScanner() throws HBaseException {
+    return getScanner(0);
+  }
+  
+  /**
+   * Returns a scanner set for the given metric (from {@link #metric} or from
+   * the first TSUID in the {@link #tsuids}s list. If one or more tags are 
+   * provided, it calls into {@link #createAndSetFilter} to setup a row key 
+   * filter. If one or more TSUIDs have been provided, it calls into
+   * {@link #createAndSetTSUIDFilter} to setup a row key filter.
+   * @param salt_bucket The salt bucket to scan over when salting is enabled.
+   * @return A scanner to use for fetching data points
+   */
+  protected Scanner getScanner(final int salt_bucket) throws HBaseException {
     final short metric_width = tsdb.metrics.width();
-    final byte[] start_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
-    final byte[] end_row = new byte[metric_width + Const.TIMESTAMP_BYTES];
+    final int metric_salt_width = metric_width + Const.SALT_WIDTH();
+    final byte[] start_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
+    final byte[] end_row = new byte[metric_salt_width + Const.TIMESTAMP_BYTES];
+    
+    if (Const.SALT_WIDTH() > 0) {
+      final byte[] salt = RowKey.getSaltBytes(salt_bucket);
+      System.arraycopy(salt, 0, start_row, 0, Const.SALT_WIDTH());
+      System.arraycopy(salt, 0, end_row, 0, Const.SALT_WIDTH());
+    }
+    
     // We search at least one row before and one row after the start & end
     // time we've been given as it's quite likely that the exact timestamp
     // we're looking for is in the middle of a row.  Plus, a number of things
     // rely on having a few extra data points before & after the exact start
     // & end dates in order to do proper rate calculation or downsampling near
     // the "edges" of the graph.
-    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(), metric_width);
+    Bytes.setInt(start_row, (int) getScanStartTimeSeconds(), metric_salt_width);
     Bytes.setInt(end_row, (end_time == UNSET
                            ? -1  // Will scan until the end (0xFFF...).
                            : (int) getScanEndTimeSeconds()),
-                 metric_width);
+                           metric_salt_width);
     
     // set the metric UID based on the TSUIDs if given, or the metric UID
     if (tsuids != null && !tsuids.isEmpty()) {
       final String tsuid = tsuids.get(0);
-      final String metric_uid = tsuid.substring(0, TSDB.metrics_width() * 2);
+      final String metric_uid = tsuid.substring(0, metric_width * 2);
       metric = UniqueId.stringToUid(metric_uid);
-      System.arraycopy(metric, 0, start_row, 0, metric_width);
-      System.arraycopy(metric, 0, end_row, 0, metric_width); 
+      System.arraycopy(metric, 0, start_row, Const.SALT_WIDTH(), metric_width);
+      System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width); 
     } else {
-      System.arraycopy(metric, 0, start_row, 0, metric_width);
-      System.arraycopy(metric, 0, end_row, 0, metric_width);
+      System.arraycopy(metric, 0, start_row, Const.SALT_WIDTH(), metric_width);
+      System.arraycopy(metric, 0, end_row, Const.SALT_WIDTH(), metric_width);
     }
-
+    
     final Scanner scanner = tsdb.client.newScanner(tsdb.table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
@@ -577,42 +866,80 @@ final class TsdbQuery implements Query {
 
   /** Returns the UNIX timestamp from which we must start scanning.  */
   private long getScanStartTimeSeconds() {
-    // The reason we look before by `MAX_TIMESPAN * 2' seconds is because of
-    // the following.  Let's assume MAX_TIMESPAN = 600 (10 minutes) and the
-    // start_time = ... 12:31:00.  If we initialize the scanner to look
-    // only 10 minutes before, we'll start scanning at time=12:21, which will
-    // give us the row that starts at 12:30 (remember: rows are always aligned
-    // on MAX_TIMESPAN boundaries -- so in this example, on 10m boundaries).
-    // But we need to start scanning at least 1 row before, so we actually
-    // look back by twice MAX_TIMESPAN.  Only when start_time is aligned on a
-    // MAX_TIMESPAN boundary then we'll mistakenly scan back by an extra row,
-    // but this doesn't really matter.
-    // Additionally, in case our sample_interval_ms is large, we need to look
-    // even further before/after, so use that too.
+    // Begin with the raw query start time.
     long start = getStartTime();
-    // down cast to seconds if we have a query in ms
-    if ((start & Const.SECOND_MASK) != 0) {
-      start /= 1000;
+
+    // Convert to seconds if we have a query in ms.
+    if ((start & Const.SECOND_MASK) != 0L) {
+      start /= 1000L;
     }
-    final long ts = start - Const.MAX_TIMESPAN * 2 - sample_interval_ms / 1000;
-    return ts > 0 ? ts : 0;
+
+    // First, we align the start timestamp to its representative value for the
+    // interval in which it appears, if downsampling.
+    long interval_aligned_ts = start;
+    if (0L != sample_interval_ms) {
+      // Downsampling enabled.
+      final long interval_offset = (1000L * start) % sample_interval_ms;
+      interval_aligned_ts -= interval_offset / 1000L;
+    }
+
+    // Then snap that timestamp back to its representative value for the
+    // timespan in which it appears.
+    final long timespan_offset = interval_aligned_ts % Const.MAX_TIMESPAN;
+    final long timespan_aligned_ts = interval_aligned_ts - timespan_offset;
+
+    // Don't return negative numbers.
+    return timespan_aligned_ts > 0L ? timespan_aligned_ts : 0L;
   }
 
   /** Returns the UNIX timestamp at which we must stop scanning.  */
   private long getScanEndTimeSeconds() {
-    // For the end_time, we have a different problem.  For instance if our
-    // end_time = ... 12:30:00, we'll stop scanning when we get to 12:40, but
-    // once again we wanna try to look ahead one more row, so to avoid this
-    // problem we always add 1 second to the end_time.  Only when the end_time
-    // is of the form HH:59:59 then we will scan ahead an extra row, but once
-    // again that doesn't really matter.
-    // Additionally, in case our sample_interval_ms is large, we need to look
-    // even further before/after, so use that too.
+    // Begin with the raw query end time.
     long end = getEndTime();
-    if ((end & Const.SECOND_MASK) != 0) {
-      end /= 1000;
+
+    // Convert to seconds if we have a query in ms.
+    if ((end & Const.SECOND_MASK) != 0L) {
+      end /= 1000L;
     }
-    return end + Const.MAX_TIMESPAN + 1 + sample_interval_ms / 1000;
+
+    // The calculation depends on whether we're downsampling.
+    if (0L != sample_interval_ms) {
+      // Downsampling enabled.
+      //
+      // First, we align the end timestamp to its representative value for the
+      // interval FOLLOWING the one in which it appears.
+      //
+      // OpenTSDB's query bounds are inclusive, but HBase scan bounds are half-
+      // open. The user may have provided an end bound that is already
+      // interval-aligned (i.e., its interval offset is zero). If so, the user
+      // wishes for that interval to appear in the output. In that case, we
+      // skip forward an entire extra interval.
+      //
+      // This can be accomplished by simply not testing for zero offset.
+      final long interval_offset = (1000L * end) % sample_interval_ms;
+      final long interval_aligned_ts = end +
+        (sample_interval_ms - interval_offset) / 1000L;
+
+      // Then, if we're now aligned on a timespan boundary, then we need no
+      // further adjustment: we are guaranteed to have always moved the end time
+      // forward, so the scan will find the data we need.
+      //
+      // Otherwise, we need to align to the NEXT timespan to ensure that we scan
+      // the needed data.
+      final long timespan_offset = interval_aligned_ts % Const.MAX_TIMESPAN;
+      return (0L == timespan_offset) ?
+        interval_aligned_ts :
+        interval_aligned_ts + (Const.MAX_TIMESPAN - timespan_offset);
+    } else {
+      // Not downsampling.
+      //
+      // Regardless of the end timestamp's position within the current timespan,
+      // we must always align to the beginning of the next timespan. This is
+      // true even if it's already aligned on a timespan boundary. Again, the
+      // reason for this is OpenTSDB's closed interval vs. HBase's half-open.
+      final long timespan_offset = end % Const.MAX_TIMESPAN;
+      return end + (Const.MAX_TIMESPAN - timespan_offset);
+    }
   }
 
   /**
@@ -641,7 +968,7 @@ final class TsdbQuery implements Query {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append(Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
        .append("}");
     final Iterator<byte[]> tags = this.tags.iterator();
     final Iterator<byte[]> group_bys = (this.group_bys == null
@@ -717,7 +1044,7 @@ final class TsdbQuery implements Query {
     buf.append("(?s)"  // Ensure we use the DOTALL flag.
                + "^.{")
        // ... start by skipping the metric ID and timestamp.
-       .append(tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
+       .append(Const.SALT_WIDTH() + tsdb.metrics.width() + Const.TIMESTAMP_BYTES)
        .append("}(");
     
     for (final byte[] tags : uids) {
@@ -865,18 +1192,38 @@ final class TsdbQuery implements Query {
   static class ForTesting {
 
     /** @return the start time of the HBase scan for unit tests. */
-    static long getScanStartTimeSeconds(TsdbQuery query) {
+    static long getScanStartTimeSeconds(final TsdbQuery query) {
       return query.getScanStartTimeSeconds();
     }
 
     /** @return the end time of the HBase scan for unit tests. */
-    static long getScanEndTimeSeconds(TsdbQuery query) {
+    static long getScanEndTimeSeconds(final TsdbQuery query) {
       return query.getScanEndTimeSeconds();
     }
 
     /** @return the downsampling interval for unit tests. */
-    static long getDownsampleIntervalMs(TsdbQuery query) {
+    static long getDownsampleIntervalMs(final TsdbQuery query) {
       return query.sample_interval_ms;
+    }
+  
+    static byte[] getMetric(final TsdbQuery query) {
+      return query.metric;
+    }
+    
+    static RateOptions getRateOptions(final TsdbQuery query) {
+      return query.rate_options;
+    }
+    
+    static ArrayList<byte[]> getTags(final TsdbQuery query) {
+      return query.tags;
+    }
+    
+    static ArrayList<byte[]> getGroupBys(final TsdbQuery query) {
+      return query.group_bys;
+    }
+    
+    static ByteMap<byte[][]> getGroupByValues(final TsdbQuery query) {
+      return query.group_by_values;
     }
   }
 }

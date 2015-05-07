@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 
 import net.opentsdb.core.Query;
-import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
@@ -36,7 +35,6 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
 
-import org.apache.zookeeper.proto.DeleteRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
 import org.hbase.async.HBaseClient;
@@ -57,17 +55,16 @@ import com.stumbleupon.async.Deferred;
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
-@PrepareForTest({TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
+@PrepareForTest({ TSDB.class, Config.class, UniqueId.class, HBaseClient.class, 
   GetRequest.class, PutRequest.class, KeyValue.class, Fsck.class,
-  FsckOptions.class, Scanner.class, DeleteRequest.class, Annotation.class,
-  RowKey.class, Tags.class})
-public final class TestFsck {
-  private final static byte[] ROW = 
-    MockBase.stringToBytes("00000150E22700000001000001");
-  private final static byte[] ROW2 = 
-      MockBase.stringToBytes("00000150E23510000001000001");
-  private final static byte[] ROW3 = 
-      MockBase.stringToBytes("00000150E24320000001000001");
+  FsckOptions.class, Scanner.class, Annotation.class, Tags.class })
+public class TestFsck {
+  protected byte[] GLOBAL_ROW = 
+      new byte[] {0, 0, 0, 0x52, (byte)0xC3, 0x5A, (byte)0x80};
+  protected byte[] ROW = MockBase.stringToBytes("00000150E22700000001000001");
+  protected byte[] ROW2 = MockBase.stringToBytes("00000150E23510000001000001");
+  protected byte[] ROW3 = MockBase.stringToBytes("00000150E24320000001000001");
+  protected byte[] BAD_KEY = { 0x00, 0x00, 0x01 };
   private Config config;
   private TSDB tsdb = null;
   private HBaseClient client = mock(HBaseClient.class);
@@ -119,7 +116,8 @@ public final class TestFsck {
     
     // mock UniqueId
     when(metrics.getId("sys.cpu.user")).thenReturn(new byte[] { 0, 0, 1 });
-    when(metrics.getName(new byte[] { 0, 0, 1 })).thenReturn("sys.cpu.user");
+    when(metrics.getNameAsync(new byte[] { 0, 0, 1 }))
+      .thenReturn(Deferred.fromResult("sys.cpu.user"));
     when(metrics.getId("sys.cpu.system"))
       .thenThrow(new NoSuchUniqueName("sys.cpu.system", "metric"));
     when(metrics.getId("sys.cpu.nice")).thenReturn(new byte[] { 0, 0, 2 });
@@ -136,19 +134,11 @@ public final class TestFsck {
     when(tag_values.getOrCreateId("web02")).thenReturn(new byte[] { 0, 0, 2 });
     when(tag_values.getId("web03"))
       .thenThrow(new NoSuchUniqueName("web03", "metric"));
-    
-    PowerMockito.mockStatic(RowKey.class);
-    when(RowKey.metricNameAsync((TSDB)any(), (byte[])any()))
-      .thenReturn(Deferred.fromResult("sys.cpu.user"));
 
     PowerMockito.mockStatic(Tags.class);
     when(Tags.resolveIds((TSDB)any(), (ArrayList<byte[]>)any()))
       .thenReturn(null); // don't care
-    
-//    PowerMockito.mockStatic(Thread.class);
-//    PowerMockito.doNothing().when(Thread.class);
-//    Thread.sleep(anyLong());
-    
+
     when(metrics.width()).thenReturn((short)3);
     when(tag_names.width()).thenReturn((short)3);
     when(tag_values.width()).thenReturn((short)3);
@@ -156,10 +146,7 @@ public final class TestFsck {
 
   @Test
   public void globalAnnotation() throws Exception {
-    // make sure we don't catch this during a query. We should start with
-    // the first metric (0, 0, 1) whereas globals are on metric (0, 0, 0).
-    storage.addColumn(new byte[] {0, 0, 0, 0x52, (byte)0xC3, 0x5A, (byte)0x80}, 
-        new byte[] {1, 0, 0}, "{}".getBytes());
+    storage.addColumn(GLOBAL_ROW, new byte[] {1, 0, 0}, "{}".getBytes());
     
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
@@ -204,6 +191,7 @@ public final class TestFsck {
     storage.addColumn(ROW2, qual2, val2);
     storage.addColumn(ROW3, qual1, val1);
     storage.addColumn(ROW3, qual2, val2);
+storage.dumpToSystemOut();
     final Fsck fsck = new Fsck(tsdb, options);
     fsck.runFullTable();
     assertEquals(6, fsck.kvs_processed.get());
@@ -410,7 +398,7 @@ public final class TestFsck {
   @Test
   public void noSuchMetricId() throws Exception {
     when(options.fix()).thenReturn(true);
-    when(RowKey.metricNameAsync((TSDB)any(), (byte[])any()))
+    when(metrics.getNameAsync((byte[])any()))
       .thenThrow(new NoSuchUniqueId("metric", new byte[] { 0, 0, 1 }));
     
     final byte[] qual1 = { 0x00, 0x07 };
@@ -433,7 +421,7 @@ public final class TestFsck {
   public void noSuchMetricIdFix() throws Exception {
     when(options.fix()).thenReturn(true);
     when(options.deleteOrphans()).thenReturn(true);
-    when(RowKey.metricNameAsync((TSDB)any(), (byte[])any()))
+    when(metrics.getNameAsync((byte[])any()))
       .thenThrow(new NoSuchUniqueId("metric", new byte[] { 0, 0, 1 }));
     
     final byte[] qual1 = { 0x00, 0x07 };
@@ -506,11 +494,11 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] bad_key = { 0x00, 0x00, 0x01 };
+    
     storage.addColumn(ROW, qual1, val1);
     storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(bad_key, qual1, val1);
-    storage.addColumn(bad_key, qual2, val2);
+    storage.addColumn(BAD_KEY, qual1, val1);
+    storage.addColumn(BAD_KEY, qual2, val2);
     storage.addColumn(ROW3, qual1, val1);
     storage.addColumn(ROW3, qual2, val2);
     
@@ -520,7 +508,7 @@ public final class TestFsck {
     assertEquals(3, fsck.rows_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(2, storage.numColumns(ROW));
-    assertEquals(2, storage.numColumns(bad_key));
+    assertEquals(2, storage.numColumns(BAD_KEY));
     assertEquals(2, storage.numColumns(ROW3));
   }
   
@@ -533,11 +521,11 @@ public final class TestFsck {
     final byte[] val1 = Bytes.fromLong(4L);
     final byte[] qual2 = { 0x00, 0x27 };
     final byte[] val2 = Bytes.fromLong(5L);
-    final byte[] bad_key = { 0x00, 0x00, 0x01 };
+
     storage.addColumn(ROW, qual1, val1);
     storage.addColumn(ROW, qual2, val2);
-    storage.addColumn(bad_key, qual1, val1);
-    storage.addColumn(bad_key, qual2, val2);
+    storage.addColumn(BAD_KEY, qual1, val1);
+    storage.addColumn(BAD_KEY, qual2, val2);
     storage.addColumn(ROW3, qual1, val1);
     storage.addColumn(ROW3, qual2, val2);
     
@@ -547,7 +535,7 @@ public final class TestFsck {
     assertEquals(3, fsck.rows_processed.get());
     assertEquals(1, fsck.totalErrors());
     assertEquals(2, storage.numColumns(ROW));
-    assertEquals(-1, storage.numColumns(bad_key));
+    assertEquals(-1, storage.numColumns(BAD_KEY));
     assertEquals(2, storage.numColumns(ROW3));
   }
   

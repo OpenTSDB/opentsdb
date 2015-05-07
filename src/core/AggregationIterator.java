@@ -222,6 +222,42 @@ final class AggregationIterator implements SeekableView, DataPoint,
                                            final long sample_interval_ms,
                                            final boolean rate,
                                            final RateOptions rate_options) {
+    return create(spans, start_time, end_time, aggregator, method, downsampler,
+        sample_interval_ms, rate, rate_options, null);
+  }
+  
+  /**
+   * Creates a new iterator for a {@link SpanGroup}.
+   * @param spans Spans in a group.
+   * @param start_time Any data point strictly before this timestamp will be
+   * ignored.
+   * @param end_time Any data point strictly after this timestamp will be
+   * ignored.
+   * @param aggregator The aggregation function to use.
+   * @param method Interpolation method to use when aggregating time series
+   * @param downsampler Aggregation function to use to group data points
+   * within an interval.
+   * @param sample_interval_ms Number of milliseconds wanted between each data
+   * point.
+   * @param rate If {@code true}, the rate of the series will be used instead
+   * of the actual values.
+   * @param rate_options Specifies the optional additional rate calculation
+   * options.
+   * @param fill_policy Policy specifying whether to interpolate or to fill
+   * missing intervals with special values.
+   * @return An {@link AggregationIterator} object.
+   * @since 2.2
+   */
+  public static AggregationIterator create(final List<Span> spans,
+                                           final long start_time,
+                                           final long end_time,
+                                           final Aggregator aggregator,
+                                           final Interpolation method,
+                                           final Aggregator downsampler,
+                                           final long sample_interval_ms,
+                                           final boolean rate,
+                                           final RateOptions rate_options,
+                                           final FillPolicy fill_policy) {
     final int size = spans.size();
     final SeekableView[] iterators = new SeekableView[size];
     for (int i = 0; i < size; i++) {
@@ -229,7 +265,8 @@ final class AggregationIterator implements SeekableView, DataPoint,
       if (downsampler == null) {
         it = spans.get(i).spanIterator();
       } else {
-        it = spans.get(i).downsampler(sample_interval_ms, downsampler);
+        it = spans.get(i).downsampler(start_time, end_time, sample_interval_ms, 
+            downsampler, fill_policy);
       }
       if (rate) {
         it = new RateSpan(it, rate_options);
@@ -281,7 +318,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
       } catch (NoSuchElementException e) {
         // It should be rare but could happen after downsampling when
         // we throw away some data points at the beginning after aligning
-        // start time by downsmpling interval and there are no data points
+        // start time by downsampling interval and there are no data points
         // left for the current span.
         ++num_empty_spans;
         endReached(i);
@@ -492,8 +529,8 @@ final class AggregationIterator implements SeekableView, DataPoint,
       pos = -1;
       final double value = aggregator.runDouble(this);
       //LOG.debug("aggregator returned " + value);
-      if (value != value || Double.isInfinite(value)) {
-        throw new IllegalStateException("Got NaN or Infinity: "
+      if (Double.isInfinite(value)) {
+        throw new IllegalStateException("Got Infinity: "
            + value + " in this " + this);
       }
       return value;
@@ -573,7 +610,7 @@ final class AggregationIterator implements SeekableView, DataPoint,
           r = Long.MIN_VALUE;
           break;
         default:
-          throw new IllegalDataException("Invalid interploation somehow??");
+          throw new IllegalDataException("Invalid interpolation somehow??");
       }
       return r;
     }

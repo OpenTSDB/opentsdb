@@ -18,17 +18,17 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
+import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
+import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-
-import net.opentsdb.BuildData;
+import net.opentsdb.tools.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Const;
 import net.opentsdb.tsd.PipelineFactory;
+import net.opentsdb.tsd.RpcManager;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.FileSystem;
 import net.opentsdb.graph.Plot;
@@ -50,7 +50,9 @@ final class TSDMain {
   }
 
   private static final short DEFAULT_FLUSH_INTERVAL = 1000;
-
+  
+  private static TSDB tsdb = null;
+  
   public static void main(String[] args) throws IOException {
     Logger log = LoggerFactory.getLogger(TSDMain.class);
     log.info("Starting.");
@@ -136,18 +138,21 @@ final class TSDMain {
           Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
     }
     
-    TSDB tsdb = null;
     try {
       tsdb = new TSDB(config);
       tsdb.initializePlugins(true);
       
       // Make sure we don't even start if we can't find our tables.
       tsdb.checkNecessaryTablesExist().joinUninterruptibly();
-
-      registerShutdownHook(tsdb);
+      
+      registerShutdownHook();
       final ServerBootstrap server = new ServerBootstrap(factory);
+      
+      // This manager is capable of lazy init, but we force an init
+      // here to fail fast.
+      final RpcManager manager = RpcManager.instance(tsdb);
 
-      server.setPipelineFactory(new PipelineFactory(tsdb));
+      server.setPipelineFactory(new PipelineFactory(tsdb, manager));
       if (config.hasProperty("tsd.network.backlog")) {
         server.setOption("backlog", config.getInt("tsd.network.backlog")); 
       }
@@ -182,14 +187,21 @@ final class TSDMain {
     // The server is now running in separate threads, we can exit main.
   }
 
-  private static void registerShutdownHook(final TSDB tsdb) {
+  private static void registerShutdownHook() {
     final class TSDBShutdown extends Thread {
       public TSDBShutdown() {
         super("TSDBShutdown");
       }
       public void run() {
         try {
-          tsdb.shutdown().join();
+          if (RpcManager.isInitialized()) {
+            // Check that its actually been initialized.  We don't want to
+            // create a new instance only to shutdown!
+            RpcManager.instance(tsdb).shutdown().join();
+          }
+          if (tsdb != null) {
+            tsdb.shutdown().join();
+          }
         } catch (Exception e) {
           LoggerFactory.getLogger(TSDBShutdown.class)
             .error("Uncaught exception during shutdown", e);

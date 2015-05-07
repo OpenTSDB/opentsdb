@@ -28,6 +28,7 @@ import org.hbase.async.KeyValue;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -43,7 +44,7 @@ import com.stumbleupon.async.Deferred;
              "ch.qos.*", "org.slf4j.*",
              "com.sum.*", "org.xml.*"})
 @PrepareForTest({ RowSeq.class, TSDB.class, UniqueId.class, KeyValue.class, 
-Config.class, RowKey.class })
+  Config.class, RowKey.class, Const.class })
 public final class TestSpan {
   private TSDB tsdb = mock(TSDB.class);
   private Config config = mock(Config.class);
@@ -83,6 +84,31 @@ public final class TestSpan {
         MockBase.concatByteArrays(val1, val2, ZERO)));
     
     assertEquals(2, span.size());
+  }
+  
+  @Test
+  public void addRowSalted() {
+    PowerMockito.mockStatic(Const.class);
+    PowerMockito.when(Const.SALT_WIDTH()).thenReturn(1);
+    PowerMockito.when(Const.SALT_BUCKETS()).thenReturn(2);
+    
+    final byte[] qual1 = { 0x00, 0x07 };
+    final byte[] val1 = Bytes.fromLong(4L);
+    final byte[] qual2 = { 0x00, 0x27 };
+    final byte[] val2 = Bytes.fromLong(5L);
+    final byte[] qual12 = MockBase.concatByteArrays(qual1, qual2);
+    
+    final byte[] hour1 = { 0, 0, 0, 1, 0x50, (byte)0xE2, 0x27, 
+        0, 0, 0, 1, 0, 0, 2 };
+    final byte[] hour2 = { 1, 0, 0, 1, 0x50, (byte)0xE2, 0x35, 
+        0x10, 0, 0, 1, 0, 0, 2 };
+    final Span span = new Span(tsdb);
+    span.addRow(new KeyValue(hour1, FAMILY, qual12, 
+        MockBase.concatByteArrays(val1, val2, ZERO)));
+    span.addRow(new KeyValue(hour2, FAMILY, qual12, 
+        MockBase.concatByteArrays(val1, val2, ZERO)));
+    
+    assertEquals(4, span.size());
   }
   
   @Test (expected = NullPointerException.class)
@@ -331,7 +357,8 @@ public final class TestSpan {
     assertEquals(6, span.size());
     long interval_ms = 1000000;
     Aggregator downsampler = Aggregators.get("avg");
-    final SeekableView it = span.downsampler(interval_ms, downsampler);
+    final SeekableView it = span.downsampler(1356998000L, 1357007000L, 
+        interval_ms, downsampler, FillPolicy.NONE);
     List<Double> values = Lists.newArrayList();
     List<Long> timestamps_in_millis = Lists.newArrayList();
     while (it.hasNext()) {

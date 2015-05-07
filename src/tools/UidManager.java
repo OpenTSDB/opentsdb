@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -24,7 +25,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
 import org.hbase.async.DeleteRequest;
@@ -955,11 +955,9 @@ final class UidManager {
    */
   private static int metaSync(final TSDB tsdb) throws Exception {
     final long start_time = System.currentTimeMillis() / 1000;
-    final long max_id = CliUtils.getMaxMetricID(tsdb);
-    
+
     // now figure out how many IDs to divy up between the workers
     final int workers = Runtime.getRuntime().availableProcessors() * 2;
-    final double quotient = (double)max_id / (double)workers;
     final Set<Integer> processed_tsuids = 
       Collections.synchronizedSet(new HashSet<Integer>());
     final ConcurrentHashMap<String, Long> metric_uids = 
@@ -968,27 +966,22 @@ final class UidManager {
       new ConcurrentHashMap<String, Long>();
     final ConcurrentHashMap<String, Long> tagv_uids = 
       new ConcurrentHashMap<String, Long>();
-    
-    long index = 1;
-    
-    LOG.info("Max metric ID is [" + max_id + "]");
-    LOG.info("Spooling up [" + workers + "] worker threads");
-    final Thread[] threads = new Thread[workers];
-    for (int i = 0; i < workers; i++) {
-      threads[i] = new MetaSync(tsdb, index, quotient, processed_tsuids, 
-          metric_uids, tagk_uids, tagv_uids, i);
-      threads[i].setName("MetaSync # " + i);
-      threads[i].start();
-      index += quotient;
-      if (index < max_id) {
-        index++;
-      }
+
+    final List<Scanner> scanners = CliUtils.getDataTableScanners(tsdb, workers);
+    LOG.info("Spooling up [" + scanners.size() + "] worker threads");
+    final List<Thread> threads = new ArrayList<Thread>(scanners.size());
+    int i = 0;
+    for (final Scanner scanner : scanners) {
+      final MetaSync worker = new MetaSync(tsdb, scanner, processed_tsuids, 
+          metric_uids, tagk_uids, tagv_uids, i++);
+      worker.setName("Sync #" + i);
+      worker.start();
+      threads.add(worker);
     }
-    
-    // wait till we're all done
-    for (int i = 0; i < workers; i++) {
-      threads[i].join();
-      LOG.info("[" + i + "] Finished");
+
+    for (final Thread thread : threads) {
+      thread.join();
+      LOG.info("Thread [" + thread + "] Finished");
     }
     
     // make sure buffered data is flushed to storage before exiting

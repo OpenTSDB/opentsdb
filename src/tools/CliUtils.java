@@ -17,12 +17,17 @@ import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
+import net.opentsdb.core.Const;
+import net.opentsdb.core.Internal;
+import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.uid.UniqueId;
 
 import org.hbase.async.Bytes;
 import org.hbase.async.GetRequest;
+import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.Scanner;
@@ -138,6 +143,96 @@ final class CliUtils {
     scanner.setStopKey(end_row);
     scanner.setFamily(TSDB.FAMILY());
     return scanner;
+  }
+  
+  /**
+   * Generates a list of Scanners to use for iterating over the full TSDB 
+   * data table. If salting is enabled then {@link Const.SaltBukets()} scanners
+   * will be returned. If salting is disabled then {@link num_scanners} 
+   * scanners will be returned.
+   * @param tsdb The TSDB to generate scanners from
+   * @param num_scanners The max number of scanners if salting is disabled
+   * @return A list of scanners to use for scanning the table.
+   */
+  static final List<Scanner> getDataTableScanners(final TSDB tsdb, 
+      final int num_scanners) {
+    if (num_scanners < 1) {
+      throw new IllegalArgumentException(
+          "Number of scanners must be 1 or more: " + num_scanners);
+    }
+    // TODO - It would be neater to get a list of regions then create scanners
+    // on those boundaries. We'll have to modify AsyncHBase for that to avoid
+    // creating lots of custom HBase logic in here.
+    final short metric_width = TSDB.metrics_width();
+    final List<Scanner> scanners = new ArrayList<Scanner>();    
+    
+    if (Const.SALT_WIDTH() > 0) {
+      // salting is enabled so we'll create one scanner per salt for now
+      byte[] start_key = HBaseClient.EMPTY_ARRAY;
+      byte[] stop_key = HBaseClient.EMPTY_ARRAY;
+      
+      for (int i = 1; i < Const.SALT_BUCKETS() + 1; i++) {
+        // move stop key to start key
+        if (i > 1) {
+          start_key = Arrays.copyOf(stop_key, stop_key.length);
+        }
+        
+        if (i >= Const.SALT_BUCKETS()) {
+          stop_key = HBaseClient.EMPTY_ARRAY;
+        } else {
+          stop_key = RowKey.getSaltBytes(i);
+        }
+        final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+        scanner.setStartKey(Arrays.copyOf(start_key, start_key.length));
+        scanner.setStopKey(Arrays.copyOf(stop_key, stop_key.length));
+        scanner.setFamily(TSDB.FAMILY());
+        scanners.add(scanner);
+      }
+      
+    } else {
+      // No salt, just go by the max metric ID
+      long max_id = CliUtils.getMaxMetricID(tsdb);
+      if (max_id < 1) {
+        max_id = Internal.getMaxUnsignedValueOnBytes(metric_width);
+      }
+      final long quotient = max_id % num_scanners == 0 ? max_id / num_scanners : 
+        (max_id / num_scanners) + 1;
+      
+      byte[] start_key = HBaseClient.EMPTY_ARRAY;
+      byte[] stop_key = new byte[metric_width];
+
+      for (int i = 0; i < num_scanners; i++) {
+        // move stop key to start key
+        if (i > 0) {
+          start_key = Arrays.copyOf(stop_key, stop_key.length);
+        }
+        
+        // setup the next stop key
+        final byte[] stop_id;
+        if ((i +1) * quotient > max_id) {
+          stop_id = null;
+        } else {
+          stop_id = Bytes.fromLong((i + 1) * quotient);
+        }
+        if ((i +1) * quotient >= max_id) {
+          stop_key = HBaseClient.EMPTY_ARRAY;
+        } else {
+          System.arraycopy(stop_id, stop_id.length - metric_width, stop_key, 
+              0, metric_width);
+        }
+        
+        final Scanner scanner = tsdb.getClient().newScanner(tsdb.dataTable());
+        scanner.setStartKey(Arrays.copyOf(start_key, start_key.length));
+        if (stop_key != null) {
+          scanner.setStopKey(Arrays.copyOf(stop_key, stop_key.length));
+        }
+        scanner.setFamily(TSDB.FAMILY());
+        scanners.add(scanner);
+      }
+      
+    }
+    
+    return scanners;
   }
   
   /**
