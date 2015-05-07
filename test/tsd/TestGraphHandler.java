@@ -16,6 +16,7 @@ import java.io.File;
 
 import org.jboss.netty.channel.Channel;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import static org.junit.Assert.assertFalse;
@@ -39,6 +40,13 @@ import static org.powermock.api.mockito.PowerMockito.mock;
                   "com.sum.*", "org.xml.*"})
 @PrepareForTest({ GraphHandler.class, HttpQuery.class })
 public final class TestGraphHandler {
+
+  @BeforeClass
+  public static void setUpClass() throws Exception {
+    // This is pure voodoo. It ensures the GraphHelper is initialized on time
+    // for all other tests.
+    staleCacheFile(null, 0, 10, fakeFile("voodoo"));
+  }
 
   @Test  // If the file doesn't exist, we don't use it, obviously.
   public void staleCacheFileDoesntExist() throws Exception {

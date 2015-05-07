@@ -13,24 +13,36 @@
 package net.opentsdb.tsd;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyChar;
+import static org.mockito.Matchers.anyList;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import net.opentsdb.core.RowKey;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
+import net.opentsdb.search.TimeSeriesLookup;
+import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.JSON;
+import net.opentsdb.utils.Pair;
 
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
 import org.jboss.netty.handler.codec.http.HttpMethod;
@@ -42,18 +54,27 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import com.stumbleupon.async.Deferred;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSDB.class, Config.class, HttpQuery.class})
+@PrepareForTest({TSDB.class, Config.class, HttpQuery.class, UniqueId.class, 
+  RowKey.class, Tags.class, TimeSeriesLookup.class, SearchRpc.class})
 public final class TestSearchRpc {
   private TSDB tsdb = null;
   private SearchRpc rpc = new SearchRpc();
   private SearchQuery search_query = null;
+  private TimeSeriesLookup mock_lookup = null;
   private static final Charset UTF = Charset.forName("UTF-8");
+  private static List<byte[]> test_tsuids = new ArrayList<byte[]>(3);
+  static {
+    test_tsuids.add(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
+    test_tsuids.add(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 });
+    test_tsuids.add(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1 });
+  }
   
   @Before
   public void before() throws Exception {
@@ -67,7 +88,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchTSMeta() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/search/tsmeta?query=*");
     rpc.execute(tsdb, query);
@@ -79,7 +100,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchTSMeta_Summary() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/search/tsmeta_summary?query=*");
     rpc.execute(tsdb, query);
@@ -91,7 +112,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchTSUIDs() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/search/tsuids?query=*");
     rpc.execute(tsdb, query);
@@ -103,7 +124,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchUIDMeta() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/search/uidmeta?query=*");
     rpc.execute(tsdb, query);
@@ -115,7 +136,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchAnnotation() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/search/annotation?query=*");
     rpc.execute(tsdb, query);
@@ -127,7 +148,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchEmptyResultSet() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/search/annotation?query=EMTPY");
     rpc.execute(tsdb, query);
@@ -139,7 +160,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchQSParseLimit() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/search/tsmeta?query=*&limit=42");
     rpc.execute(tsdb, query);
@@ -149,7 +170,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchQSParseStartIndex() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.getQuery(tsdb, 
       "/api/search/tsmeta?query=*&start_index=4");
     rpc.execute(tsdb, query);
@@ -159,7 +180,7 @@ public final class TestSearchRpc {
   
   @Test
   public void searchPOST() throws Exception {
-    setupAnswerQuery();
+    setupAnswerSearchQuery();
     final HttpQuery query = NettyMocks.postQuery(tsdb, 
       "/api/search/tsmeta", "{\"query\":\"*\",\"limit\":42,\"startIndex\":2}");
     rpc.execute(tsdb, query);
@@ -222,12 +243,57 @@ public final class TestSearchRpc {
     rpc.execute(tsdb, query);
   }
   
+  @Test
+  public void searchLookup() throws Exception {
+    setupAnswerLookupQuery();
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/search/lookup?m={host=}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    final String result = query.response().getContent().toString(UTF);
+    assertTrue(result.contains("\"host\":\"web01\""));
+    assertTrue(result.contains("\"totalResults\":3"));
+  }
+  
+  @Test
+  public void searchLookupPOST() throws Exception {
+    setupAnswerLookupQuery();    
+    SearchQuery q = new SearchQuery();
+    q.setTags(new ArrayList<Pair<String, String>>(2));
+    q.getTags().add(new Pair<String, String>("host", "web01"));
+    q.getTags().add(new Pair<String, String>("dc", "phx"));
+
+    final HttpQuery query = NettyMocks.postQuery(tsdb, 
+      "/api/search/lookup", "{\"tags\":[{\"key\":\"host\",\"value\":\"web01\"}]}");
+    rpc.execute(tsdb, query);
+    assertEquals(HttpResponseStatus.OK, query.response().getStatus());
+    final String result = query.response().getContent().toString(UTF);
+    assertTrue(result.contains("\"host\":\"web01\""));
+    assertTrue(result.contains("\"totalResults\":3"));
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void searchLookupMissingQuery() throws Exception {
+    setupAnswerLookupQuery();
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/search/lookup");
+    rpc.execute(tsdb, query);
+  }
+  
+  @Test (expected = BadRequestException.class)
+  public void searchLookupBadQuery() throws Exception {
+    setupAnswerLookupQuery();
+    final HttpQuery query = NettyMocks.getQuery(tsdb, 
+      "/api/search/lookup?m={");
+    rpc.execute(tsdb, query);
+  }
+  
   /**
    * Configures an Answer to respond with when the tests call 
    * tsdb.executeSearch(), responding to the type of query requested with valid
    * responses for parsing tests.
    */
-  private void setupAnswerQuery() {
+  private void setupAnswerSearchQuery() {
     when(tsdb.executeSearch((SearchQuery)any())).thenAnswer(
       new Answer<Deferred<SearchQuery>>() {
 
@@ -275,7 +341,8 @@ public final class TestSearchRpc {
               tags_field.set(meta, tags);
               results.add(meta);
               break;
-              
+            
+            case LOOKUP:
             case TSMETA_SUMMARY:
               final HashMap<String, Object> ts = new HashMap<String, Object>(1);
               ts.put("metric", "sys.cpu.0");
@@ -284,6 +351,7 @@ public final class TestSearchRpc {
               tag_map.put("host", "web01");
               tag_map.put("owner", "ops");
               ts.put("tags", tag_map);
+              ts.put("tsuid", "000001000001000001");
               results.add(ts);
               break;
               
@@ -312,6 +380,7 @@ public final class TestSearchRpc {
               note.setTSUID("000001000001000001");
               results.add(note);
               break;
+              
           }
           
           search_query.setResults(results);
@@ -322,5 +391,57 @@ public final class TestSearchRpc {
         }
 
     });
+  }
+  
+  @SuppressWarnings("unchecked")
+  private void setupAnswerLookupQuery() throws Exception {
+    PowerMockito.mockStatic(RowKey.class);
+    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(0)))
+      .thenReturn(Deferred.fromResult("sys.cpu.user"));
+    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(1)))
+      .thenReturn(Deferred.fromResult("sys.cpu.user"));
+    when(RowKey.metricNameAsync(tsdb, test_tsuids.get(2)))
+      .thenReturn(Deferred.fromResult("sys.cpu.nice"));
+
+    PowerMockito.mockStatic(UniqueId.class);
+    final List<byte[]> pair_a = new ArrayList<byte[]>(2);
+    pair_a.add(new byte[] { 0, 0, 1 });
+    pair_a.add(new byte[] { 0, 0, 1 });
+    
+    final List<byte[]> pair_b = new ArrayList<byte[]>(2);
+    pair_b.add(new byte[] { 0, 0, 1 });
+    pair_b.add(new byte[] { 0, 0, 2 });
+    
+    when(UniqueId.getTagPairsFromTSUID(test_tsuids.get(0)))
+      .thenReturn(pair_a);
+    when(UniqueId.getTagPairsFromTSUID(test_tsuids.get(1)))
+      .thenReturn(pair_b);
+    when(UniqueId.getTagPairsFromTSUID(test_tsuids.get(2)))
+      .thenReturn(pair_a);
+    when(UniqueId.uidToString((byte[])any())).thenCallRealMethod();
+    
+    PowerMockito.mockStatic(Tags.class);
+    final HashMap<String, String> tags_a = new HashMap<String, String>(1);
+    tags_a.put("host", "web01");
+    
+    final HashMap<String, String> tags_b = new HashMap<String, String>(1);
+    tags_b.put("host", "web02");
+    
+    when(Tags.resolveIdsAsync(tsdb, pair_a))
+      .thenReturn(Deferred.fromResult(tags_a));
+    when(Tags.resolveIdsAsync(tsdb, pair_b))
+      .thenReturn(Deferred.fromResult(tags_b));
+    
+    when(Tags.parseWithMetric(anyString(), anyList())).thenCallRealMethod();
+    when(Tags.splitString(anyString(), anyChar())).thenCallRealMethod();
+    PowerMockito.doCallRealMethod().when(Tags.class, "parse", 
+        anyList(), anyString());
+
+    mock_lookup = mock(TimeSeriesLookup.class);
+    PowerMockito.whenNew(TimeSeriesLookup.class)
+      .withArguments((TSDB)any(), (SearchQuery)any())
+      .thenReturn(mock_lookup);
+    
+    when(mock_lookup.lookup()).thenReturn(test_tsuids);
   }
 }

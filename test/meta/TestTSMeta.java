@@ -128,6 +128,15 @@ public final class TestTSMeta {
         NAME_FAMILY,
         "ts_ctr".getBytes(MockBase.ASCII()),
         Bytes.fromLong(1L));
+
+    storage.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 },
+        NAME_FAMILY,
+        "ts_meta".getBytes(MockBase.ASCII()),
+        ("{\"tsuid\":\"000001000001000002\",\"" +
+        "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
+        "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
+        "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}")
+        .getBytes(MockBase.ASCII()));
   }
   
   @Test
@@ -332,7 +341,7 @@ public final class TestTSMeta {
   public void incrementAndGetCounter() throws Exception {
     final byte[] tsuid = { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
     TSMeta.incrementAndGetCounter(tsdb, tsuid).joinUninterruptibly();
-    verify(client).bufferAtomicIncrement((AtomicIncrementRequest)any());
+    verify(client).atomicIncrement((AtomicIncrementRequest)any());
   }
   
   @Test (expected = NoSuchUniqueId.class)
@@ -352,7 +361,7 @@ public final class TestTSMeta {
     TSMeta.incrementAndGetCounter(tsdb, tsuid).addErrback(new ErrBack())
     .joinUninterruptibly();
   }
-
+  
   @Test
   public void META_QUALIFIER() throws Exception {
     assertArrayEquals("ts_meta".getBytes(MockBase.ASCII()), 

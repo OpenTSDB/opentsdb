@@ -16,6 +16,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mock;
+
+import java.util.List;
+
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.utils.Config;
@@ -30,6 +33,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
+import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 
 @RunWith(PowerMockRunner.class)
@@ -299,6 +303,55 @@ public final class TestSpan {
     assertFalse(it.hasNext());
  
     
+  }
+
+  @Test
+  public void downsampler() throws Exception {
+    final byte[] val40 = Bytes.fromLong(40L);
+    final byte[] val50 = Bytes.fromLong(50L);
+    // For a value at the offset 0 seconds from a base timestamp.
+    final byte[] qual0 = { 0x00, 0x07 };
+    // For a value at the offset 5 seconds from a base timestamp.
+    final byte[] qual5 = { 0x00, 0x57 };
+    // For a value at the offset 2000 (0x7D0) seconds from a base timestamp.
+    final byte[] qual2000 = { 0x7D, 0x07 };
+    // For values at the offsets 0 and 2000 seconds from a base timestamp.
+    final byte[] qual02000 = MockBase.concatByteArrays(qual0, qual2000);
+    // For values at the offsets 0 and 5 seconds from a base timestamp.
+    final byte[] qual05 = MockBase.concatByteArrays(qual0, qual5);
+
+    final Span span = new Span(tsdb);
+    span.addRow(new KeyValue(HOUR1, FAMILY, qual02000,
+        MockBase.concatByteArrays(val40, val50, ZERO)));
+    span.addRow(new KeyValue(HOUR2, FAMILY, qual05,
+        MockBase.concatByteArrays(val40, val50, ZERO)));
+    span.addRow(new KeyValue(HOUR3, FAMILY, qual02000,
+        MockBase.concatByteArrays(val40, val50, ZERO)));
+
+    assertEquals(6, span.size());
+    long interval_ms = 1000000;
+    Aggregator downsampler = Aggregators.get("avg");
+    final SeekableView it = span.downsampler(interval_ms, downsampler);
+    List<Double> values = Lists.newArrayList();
+    List<Long> timestamps_in_millis = Lists.newArrayList();
+    while (it.hasNext()) {
+      DataPoint dp = it.next();
+      assertFalse(dp.isInteger());
+      values.add(dp.doubleValue());
+      timestamps_in_millis.add(dp.timestamp());
+    }
+
+    assertEquals(5, values.size());
+    assertEquals(40, values.get(0).longValue());
+    assertEquals(1356998000000L, timestamps_in_millis.get(0).longValue());
+    assertEquals(50, values.get(1).longValue());
+    assertEquals(1357000000000L, timestamps_in_millis.get(1).longValue());
+    assertEquals(45, values.get(2).longValue());
+    assertEquals(1357002000000L, timestamps_in_millis.get(2).longValue());
+    assertEquals(40, values.get(3).longValue());
+    assertEquals(1357005000000L, timestamps_in_millis.get(3).longValue());
+    assertEquals(50, values.get(4).longValue());
+    assertEquals(1357007000000L, timestamps_in_millis.get(4).longValue());
   }
 
   @Test

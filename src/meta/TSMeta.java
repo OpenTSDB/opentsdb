@@ -251,8 +251,7 @@ public final class TSMeta {
     }
     
     // parse out the tags from the tsuid
-    final List<byte[]> parsed_tags = UniqueId.getTagPairsFromTSUID(tsuid, 
-        TSDB.metrics_width(), TSDB.tagk_width(), TSDB.tagv_width());
+    final List<byte[]> parsed_tags = UniqueId.getTagsFromTSUID(tsuid);
     
     // Deferred group used to accumulate UidCB callbacks so the next call
     // can wait until all of the UIDs have been verified
@@ -406,24 +405,21 @@ public final class TSMeta {
     if (column.value() == null || column.value().length < 1) {
       throw new IllegalArgumentException("Empty column value");
     }
-    
-    final TSMeta meta = JSON.parseToObject(column.value(), TSMeta.class);
+
+    final TSMeta parsed_meta = JSON.parseToObject(column.value(), TSMeta.class);
     
     // fix in case the tsuid is missing
-    if (meta.tsuid == null || meta.tsuid.isEmpty()) {
-      meta.tsuid = UniqueId.uidToString(column.key());
+    if (parsed_meta.tsuid == null || parsed_meta.tsuid.isEmpty()) {
+      parsed_meta.tsuid = UniqueId.uidToString(column.key());
     }
+
+    Deferred<TSMeta> meta = getFromStorage(tsdb, UniqueId.stringToUid(parsed_meta.tsuid));
     
     if (!load_uidmetas) {
-      return Deferred.fromResult(meta);
+      return meta;
     }
     
-    final LoadUIDs deferred = new LoadUIDs(tsdb, meta.tsuid);
-    try {
-      return deferred.call(meta);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return meta.addCallbackDeferring(new LoadUIDs(tsdb, parsed_meta.tsuid));
   }
   
   /**
@@ -529,7 +525,7 @@ public final class TSMeta {
       @Override
       public Deferred<Long> call(final Long incremented_value) 
         throws Exception {
-        
+LOG.info("Value: " + incremented_value);
         if (incremented_value > 1) {
           // TODO - maybe update the search index every X number of increments?
           // Otherwise the search engine would only get last_updated/count 
@@ -612,9 +608,9 @@ public final class TSMeta {
     // if the user has disabled real time TSMeta tracking (due to OOM issues)
     // then we only want to increment the data point count.
     if (!tsdb.getConfig().enable_realtime_ts()) {
-      return tsdb.getClient().bufferAtomicIncrement(inc);
+      return tsdb.getClient().atomicIncrement(inc);
     }
-    return tsdb.getClient().bufferAtomicIncrement(inc).addCallbackDeferring(
+    return tsdb.getClient().atomicIncrement(inc).addCallbackDeferring(
         new TSMetaCB());
   }
   
@@ -840,8 +836,7 @@ public final class TSMeta {
       }
       
       // split up the tags
-      final List<byte[]> tags = UniqueId.getTagPairsFromTSUID(tsuid, 
-          TSDB.metrics_width(), TSDB.tagk_width(), TSDB.tagv_width());
+      final List<byte[]> tags = UniqueId.getTagsFromTSUID(tsuid);
       meta.tags = new ArrayList<UIDMeta>(tags.size());
       
       // initialize with empty objects, otherwise the "set" operations in 
@@ -1034,6 +1029,11 @@ public final class TSMeta {
       changed.put("created", true);
       this.created = created;
     }
+  }
+  
+  /** @param tsuid The TSUID of the timeseries. */
+  public final void setTSUID(final String tsuid) {
+    this.tsuid = tsuid;
   }
   
   /** @param custom optional key/value map */

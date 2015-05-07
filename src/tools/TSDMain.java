@@ -22,15 +22,16 @@ import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.core.Const;
 import net.opentsdb.tsd.PipelineFactory;
 import net.opentsdb.utils.Config;
-
+import net.opentsdb.utils.FileSystem;
+import net.opentsdb.graph.Plot;
 /**
  * Main class of the TSD, the Time Series Daemon.
  */
@@ -49,9 +50,6 @@ final class TSDMain {
   }
 
   private static final short DEFAULT_FLUSH_INTERVAL = 1000;
-  private static final boolean DONT_CREATE = false;
-  private static final boolean CREATE_IF_NEEDED = true;
-  private static final boolean MUST_BE_WRITEABLE = true;
 
   public static void main(String[] args) throws IOException {
     Logger log = LoggerFactory.getLogger(TSDMain.class);
@@ -112,10 +110,10 @@ final class TSDMain {
 
     // validate the cache and staticroot directories
     try {
-      checkDirectory(config.getString("tsd.http.staticroot"), 
-          !MUST_BE_WRITEABLE, DONT_CREATE);
-      checkDirectory(config.getString("tsd.http.cachedir"),
-          MUST_BE_WRITEABLE, CREATE_IF_NEEDED);
+      FileSystem.checkDirectory(config.getString("tsd.http.staticroot"), 
+          !Const.MUST_BE_WRITEABLE, Const.DONT_CREATE);
+      FileSystem.checkDirectory(config.getString("tsd.http.cachedir"),
+          Const.MUST_BE_WRITEABLE, Const.CREATE_IF_NEEDED);
     } catch (IllegalArgumentException e) {
       usage(argp, e.getMessage(), 3);
     }
@@ -199,31 +197,5 @@ final class TSDMain {
       }
     }
     Runtime.getRuntime().addShutdownHook(new TSDBShutdown());
-  }
-
-  /**
-   * Verifies a directory and checks to see if it's writeable or not if
-   * configured
-   * @param dir The path to check on
-   * @param need_write Set to true if the path needs write access
-   * @param create Set to true if the directory should be created if it does not
-   *          exist
-   * @throws IllegalArgumentException if the path is empty, if it's not there
-   *           and told not to create it or if it needs write access and can't
-   *           be written to
-   */
-  private static void checkDirectory(final String dir,
-      final boolean need_write, final boolean create) {
-    if (dir.isEmpty())
-      throw new IllegalArgumentException("Directory path is empty");
-    final File f = new File(dir);
-    if (!f.exists() && !(create && f.mkdirs())) {
-      throw new IllegalArgumentException("No such directory [" + dir + "]");
-    } else if (!f.isDirectory()) {
-      throw new IllegalArgumentException("Not a directory [" + dir + "]");
-    } else if (need_write && !f.canWrite()) {
-      throw new IllegalArgumentException("Cannot write to directory [" + dir
-          + "]");
-    }
   }
 }

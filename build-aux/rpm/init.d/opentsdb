@@ -28,18 +28,14 @@
 # Source init functions
 . /etc/init.d/functions
 
-# Set this so that you can run as many opentsdb instances you want as long as
-# the name of this script is changed (or a symlink is used)
-NAME=`basename $0`
-
 # Maximum number of open files
 MAX_OPEN_FILES=65535
 
 # Default program options
+NAME=opentsdb
 PROG=/usr/bin/tsdb
 HOSTNAME=$(hostname --fqdn)
 USER=root
-CONFIG=/etc/opentsdb/${NAME}.conf
 
 # Default directories
 LOG_DIR=/var/log/opentsdb
@@ -48,12 +44,13 @@ PID_DIR=/var/run/opentsdb
 
 # Global and Local sysconfig files
 [ -e /etc/sysconfig/opentsdb ] && . /etc/sysconfig/opentsdb
-[ -e /etc/sysconfig/$NAME ] && . /etc/sysconfig/$NAME
+[ "`basename $0`" != "$NAME" ] && [ -e /etc/sysconfig/`basename $0` ] && . /etc/sysconfig/`basename $0`
 
 # Set file names
 LOG_FILE=$LOG_DIR/$NAME-$HOSTNAME-
 LOCK_FILE=$LOCK_DIR/$NAME
 PID_FILE=$PID_DIR/$NAME.pid
+CONFIG=/etc/opentsdb/${NAME}.conf
 
 # Create dirs if they don't exist
 [ -e $LOG_DIR ] || (mkdir -p $LOG_DIR && chown $USER: $LOG_DIR)

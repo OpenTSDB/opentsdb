@@ -30,19 +30,25 @@ dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
   build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
 tsdb_SRC := \
+	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
 	src/core/Aggregators.java	\
+	src/core/ByteBufferList.java	\
+	src/core/ColumnDatapointIterator.java	\
 	src/core/CompactionQueue.java	\
 	src/core/Const.java	\
 	src/core/DataPoint.java	\
 	src/core/DataPoints.java	\
 	src/core/DataPointsIterator.java	\
+	src/core/Downsampler.java \
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
 	src/core/IllegalDataException.java	\
 	src/core/Internal.java	\
+	src/core/MutableDataPoint.java \
 	src/core/Query.java	\
 	src/core/RateOptions.java  \
+	src/core/RateSpan.java  \
 	src/core/RowKey.java	\
 	src/core/RowSeq.java	\
 	src/core/SeekableView.java	\
@@ -57,18 +63,23 @@ tsdb_SRC := \
 	src/graph/Plot.java	\
 	src/meta/Annotation.java	\
 	src/meta/TSMeta.java	\
+	src/meta/TSUIDQuery.java	\
 	src/meta/UIDMeta.java	\
 	src/search/SearchPlugin.java	\
 	src/search/SearchQuery.java	\
+	src/search/TimeSeriesLookup.java	\
 	src/stats/Histogram.java	\
 	src/stats/StatsCollector.java	\
 	src/tools/ArgP.java	\
 	src/tools/CliOptions.java	\
 	src/tools/CliQuery.java	\
+	src/tools/CliUtils.java	\
 	src/tools/DumpSeries.java	\
 	src/tools/Fsck.java	\
+	src/tools/FsckOptions.java	\
 	src/tools/MetaPurge.java	\
 	src/tools/MetaSync.java	\
+	src/tools/Search.java	\
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
@@ -107,10 +118,13 @@ tsdb_SRC := \
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java \
+	src/utils/ByteArrayPair.java \
 	src/utils/Config.java \
 	src/utils/DateTime.java \
+	src/utils/FileSystem.java \
 	src/utils/JSON.java \
 	src/utils/JSONException.java	\
+	src/utils/Pair.java	\
 	src/utils/PluginLoader.java
 
 tsdb_DEPS = \
@@ -129,9 +143,14 @@ tsdb_DEPS = \
 	$(ZOOKEEPER)
 
 test_SRC := \
+	test/core/SeekableViewsForTest.java \
+	test/core/TestAggregationIterator.java \
 	test/core/TestAggregators.java \
 	test/core/TestCompactionQueue.java	\
+	test/core/TestDownsampler.java \
 	test/core/TestInternal.java	\
+	test/core/TestMutableDataPoint.java	\
+	test/core/TestRateSpan.java	\
 	test/core/TestRowSeq.java	\
 	test/core/TestSpan.java	\
 	test/core/TestTags.java	\
@@ -143,14 +162,17 @@ test_SRC := \
 	test/plugin/DummyPlugin.java \
 	test/meta/TestAnnotation.java	\
 	test/meta/TestTSMeta.java	\
+	test/meta/TestTSUIDQuery.java	\
 	test/meta/TestUIDMeta.java	\
 	test/search/TestSearchPlugin.java	\
 	test/search/TestSearchQuery.java	\
+	test/search/TestTimeSeriesLookup.java	\
 	test/stats/TestHistogram.java	\
 	test/storage/MockBase.java	\
 	test/tools/TestDumpSeries.java	\
 	test/tools/TestFsck.java	\
 	test/tools/TestTextImporter.java	\
+	test/tools/TestUID.java	\
 	test/tree/TestBranch.java	\
 	test/tree/TestLeaf.java	\
 	test/tree/TestTree.java	\
@@ -172,9 +194,11 @@ test_SRC := \
 	test/tsd/TestUniqueIdRpc.java	\
 	test/uid/TestNoSuchUniqueId.java	\
 	test/uid/TestUniqueId.java \
+	test/utils/TestByteArrayPair.java \
 	test/utils/TestConfig.java \
 	test/utils/TestDateTime.java \
 	test/utils/TestJSON.java \
+	test/utils/TestPair.java \
 	test/utils/TestPluginLoader.java
 	
 test_plugin_SRC := \

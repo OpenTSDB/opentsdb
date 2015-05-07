@@ -13,24 +13,18 @@
 package net.opentsdb.uid;
 
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.stumbleupon.async.Callback;
-import com.stumbleupon.async.Deferred;
 import javax.xml.bind.DatatypeConverter;
 
-import net.opentsdb.core.TSDB;
-import net.opentsdb.meta.UIDMeta;
-
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.stumbleupon.async.Callback;
+import com.stumbleupon.async.Deferred;
 
 import org.hbase.async.AtomicIncrementRequest;
 import org.hbase.async.Bytes;
@@ -41,6 +35,12 @@ import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
 import org.hbase.async.Scanner;
+import org.hbase.async.Bytes.ByteMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.opentsdb.core.TSDB;
+import net.opentsdb.meta.UIDMeta;
 
 /**
  * Represents a table of Unique IDs, manages the lookup and creation of IDs.
@@ -51,7 +51,6 @@ import org.hbase.async.Scanner;
  */
 @SuppressWarnings("deprecation")  // Dunno why even with this, compiler warns.
 public final class UniqueId implements UniqueIdInterface {
-
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
   /** Enumerator for different types of UIDS @since 2.0 */
@@ -162,7 +161,7 @@ public final class UniqueId implements UniqueIdInterface {
   
   /** The largest possible ID given the number of bytes the IDs are represented on. */
   public long maxPossibleId() {
-    return (1 << id_width * Byte.SIZE) - 1;
+    return ((long) 1 << id_width * Byte.SIZE) - 1;
   }
   
   /**
@@ -528,6 +527,12 @@ public final class UniqueId implements UniqueIdInterface {
         pending_assignments.remove(name);
       }
       assignment.callback(row);
+      synchronized(pending_assignments) {
+        if (pending_assignments.containsKey(name)) {
+          pending_assignments.remove(name);
+          LOG.info("Completed pending assignment for: " + name);
+        }
+      }
       return assignment;
     }
 
@@ -728,7 +733,7 @@ public final class UniqueId implements UniqueIdInterface {
 
     SuggestCB(final String search, final int max_results) {
       this.max_results = max_results;
-      this.scanner = getSuggestScanner(search, max_results);
+      this.scanner = getSuggestScanner(client, table, search, kind, max_results);
     }
 
     @SuppressWarnings("unchecked")
@@ -872,11 +877,15 @@ public final class UniqueId implements UniqueIdInterface {
 
   /**
    * Creates a scanner that scans the right range of rows for suggestions.
+   * @param client The HBase client to use.
+   * @param tsd_uid_table Table where IDs are stored.
    * @param search The string to start searching at
+   * @param kind_or_null The kind of UID to search or null for any kinds.
    * @param max_results The max number of results to return
    */
-  private Scanner getSuggestScanner(final String search, 
-      final int max_results) {
+  private static Scanner getSuggestScanner(final HBaseClient client,
+      final byte[] tsd_uid_table, final String search,
+      final byte[] kind_or_null, final int max_results) {
     final byte[] start_row;
     final byte[] end_row;
     if (search.isEmpty()) {
@@ -887,11 +896,13 @@ public final class UniqueId implements UniqueIdInterface {
       end_row = Arrays.copyOf(start_row, start_row.length);
       end_row[start_row.length - 1]++;
     }
-    final Scanner scanner = client.newScanner(table);
+    final Scanner scanner = client.newScanner(tsd_uid_table);
     scanner.setStartKey(start_row);
     scanner.setStopKey(end_row);
     scanner.setFamily(ID_FAMILY);
-    scanner.setQualifier(kind);
+    if (kind_or_null != null) {
+      scanner.setQualifier(kind_or_null);
+    }
     scanner.setMaxNumRows(max_results <= 4096 ? max_results : 4096);
     return scanner;
   }
@@ -991,6 +1002,86 @@ public final class UniqueId implements UniqueIdInterface {
   public static byte[] stringToUid(final String uid) {
     return stringToUid(uid, (short)0);
   }
+
+  /**
+   * Converts a UID to an integer value. The array must be the same length as
+   * uid_length or an exception will be thrown.
+   * @param uid The hex encoded UID to convert
+   * @param uid_length Length the array SHOULD be according to the UID config
+   * @return The UID converted to an integer
+   * @throws IllegalArgumentException if the length of the byte array does not
+   * match the uid_length value
+   * @since 2.1
+   */
+  public static long uidToLong(final String uid, final short uid_length) {
+    return uidToLong(stringToUid(uid), uid_length);
+  }
+  
+  /**
+   * Converts a UID to an integer value. The array must be the same length as
+   * uid_length or an exception will be thrown.
+   * @param uid The byte array to convert
+   * @param uid_length Length the array SHOULD be according to the UID config
+   * @return The UID converted to an integer
+   * @throws IllegalArgumentException if the length of the byte array does not
+   * match the uid_length value
+   * @since 2.1
+   */
+  public static long uidToLong(final byte[] uid, final short uid_length) {
+    if (uid.length != uid_length) {
+      throw new IllegalArgumentException("UID was " + uid.length 
+          + " bytes long but expected to be " + uid_length);
+    }
+    
+    final byte[] uid_raw = new byte[8];
+    System.arraycopy(uid, 0, uid_raw, 8 - uid_length, uid_length);
+    return Bytes.getLong(uid_raw);
+  }
+ 
+  /**
+   * Converts a Long to a byte array with the proper UID width
+   * @param uid The UID to convert
+   * @param width The width of the UID in bytes
+   * @return The UID as a byte array
+   * @throws IllegalStateException if the UID is larger than the width would
+   * allow
+   * @since 2.1
+   */
+  public static byte[] longToUID(final long uid, final short width) {
+    // Verify that we're going to drop bytes that are 0.
+    final byte[] padded = Bytes.fromLong(uid);
+    for (int i = 0; i < padded.length - width; i++) {
+      if (padded[i] != 0) {
+        final String message = "UID " + Long.toString(uid) + 
+          " was too large for " + width + " bytes";
+        LOG.error("OMG " + message);
+        throw new IllegalStateException(message);
+      }
+    }
+    // Shrink the ID on the requested number of bytes.
+    return Arrays.copyOfRange(padded, padded.length - width, padded.length);
+  }
+  
+  /**
+   * Appends the given UID to the given string buffer, followed by "\\E".
+   * @param buf The buffer to append
+   * @param id The UID to add as a binary regex pattern
+   * @since 2.1
+   */
+  public static void addIdToRegexp(final StringBuilder buf, final byte[] id) {
+    boolean backslash = false;
+    for (final byte b : id) {
+      buf.append((char) (b & 0xFF));
+      if (b == 'E' && backslash) {  // If we saw a `\' and now we have a `E'.
+        // So we just terminated the quoted section because we just added \E
+        // to `buf'.  So let's put a literal \E now and start quoting again.
+        buf.append("\\\\E\\Q");
+      } else {
+        backslash = b == '\\';
+      }
+    }
+    buf.append("\\E");
+  }
   
   /**
    * Attempts to convert the given string to a type enumerator
@@ -1067,41 +1158,98 @@ public final class UniqueId implements UniqueIdInterface {
   }
   
   /**
-   * Extracts a list of tagk/tagv pairs from a tsuid
+   * Extracts a list of tagks and tagvs as individual values in a list
    * @param tsuid The tsuid to parse
-   * @param metric_width The width of the metric tag in bytes
-   * @param tagk_width The width of tagks in bytes
-   * @param tagv_width The width of tagvs in bytes
-   * @return A list of tagk/tagv pairs alternating with tagk, tagv, tagk, tagv
+   * @return A list of tagk/tagv UIDs alternating with tagk, tagv, tagk, tagv
    * @throws IllegalArgumentException if the TSUID is malformed
+   * @since 2.1
    */
-   public static List<byte[]> getTagPairsFromTSUID(final String tsuid,
-      final short metric_width, final short tagk_width, 
-      final short tagv_width) {
+  public static List<byte[]> getTagsFromTSUID(final String tsuid) {
     if (tsuid == null || tsuid.isEmpty()) {
       throw new IllegalArgumentException("Missing TSUID");
     }
-    if (tsuid.length() <= metric_width * 2) {
+    if (tsuid.length() <= TSDB.metrics_width() * 2) {
       throw new IllegalArgumentException(
           "TSUID is too short, may be missing tags");
     }
      
     final List<byte[]> tags = new ArrayList<byte[]>();
-    final int pair_width = (tagk_width * 2) + (tagv_width * 2);
+    final int pair_width = (TSDB.tagk_width() * 2) + (TSDB.tagv_width() * 2);
     
     // start after the metric then iterate over each tagk/tagv pair
-    for (int i = metric_width * 2; i < tsuid.length(); i+= pair_width) {
+    for (int i = TSDB.metrics_width() * 2; i < tsuid.length(); i+= pair_width) {
       if (i + pair_width > tsuid.length()){
         throw new IllegalArgumentException(
             "The TSUID appears to be malformed, improper tag width");
       }
-      String tag = tsuid.substring(i, i + (tagk_width * 2));
+      String tag = tsuid.substring(i, i + (TSDB.tagk_width() * 2));
       tags.add(UniqueId.stringToUid(tag));
-      tag = tsuid.substring(i + (tagk_width * 2), i + pair_width);
+      tag = tsuid.substring(i + (TSDB.tagk_width() * 2), i + pair_width);
       tags.add(UniqueId.stringToUid(tag));
     }
     return tags;
+  }
+   
+  /**
+   * Extracts a list of tagk/tagv pairs from a tsuid
+   * @param tsuid The tsuid to parse
+   * @return A list of tagk/tagv UID pairs
+   * @throws IllegalArgumentException if the TSUID is malformed
+   * @since 2.0
+   */
+  public static List<byte[]> getTagPairsFromTSUID(final String tsuid) {
+     if (tsuid == null || tsuid.isEmpty()) {
+       throw new IllegalArgumentException("Missing TSUID");
+     }
+     if (tsuid.length() <= TSDB.metrics_width() * 2) {
+       throw new IllegalArgumentException(
+           "TSUID is too short, may be missing tags");
+     }
+      
+     final List<byte[]> tags = new ArrayList<byte[]>();
+     final int pair_width = (TSDB.tagk_width() * 2) + (TSDB.tagv_width() * 2);
+     
+     // start after the metric then iterate over each tagk/tagv pair
+     for (int i = TSDB.metrics_width() * 2; i < tsuid.length(); i+= pair_width) {
+       if (i + pair_width > tsuid.length()){
+         throw new IllegalArgumentException(
+             "The TSUID appears to be malformed, improper tag width");
+       }
+       String tag = tsuid.substring(i, i + pair_width);
+       tags.add(UniqueId.stringToUid(tag));
+     }
+     return tags;
    }
+  
+  /**
+   * Extracts a list of tagk/tagv pairs from a tsuid
+   * @param tsuid The tsuid to parse
+   * @return A list of tagk/tagv UID pairs
+   * @throws IllegalArgumentException if the TSUID is malformed
+   * @since 2.0
+   */
+  public static List<byte[]> getTagPairsFromTSUID(final byte[] tsuid) {
+    if (tsuid == null) {
+      throw new IllegalArgumentException("Missing TSUID");
+    }
+    if (tsuid.length <= TSDB.metrics_width()) {
+      throw new IllegalArgumentException(
+          "TSUID is too short, may be missing tags");
+    }
+     
+    final List<byte[]> tags = new ArrayList<byte[]>();
+    final int pair_width = TSDB.tagk_width() + TSDB.tagv_width();
+    
+    // start after the metric then iterate over each tagk/tagv pair
+    for (int i = TSDB.metrics_width(); i < tsuid.length; i+= pair_width) {
+      if (i + pair_width > tsuid.length){
+        throw new IllegalArgumentException(
+            "The TSUID appears to be malformed, improper tag width");
+      }
+      tags.add(Arrays.copyOfRange(tsuid, i, i + pair_width));
+    }
+    return tags;
+  }
   
   /**
    * Returns a map of max UIDs from storage for the given list of UID types 
@@ -1157,5 +1305,70 @@ public final class UniqueId implements UniqueIdInterface {
     get.family(ID_FAMILY);
     get.qualifiers(kinds);
     return tsdb.getClient().get(get).addCallback(new GetCB());
+  }
+
+  /**
+   * Pre-load UID caches, scanning up to "tsd.core.preload_uid_cache.max_entries"
+   * rows from the UID table.
+   * @param tsdb The TSDB to use 
+   * @param uid_cache_map A map of {@link UniqueId} objects keyed on the kind.
+   * @throws HBaseException Passes any HBaseException from HBase scanner.
+   * @throws RuntimeException Wraps any non HBaseException from HBase scanner.
+   * @2.1
+   */
+  public static void preloadUidCache(final TSDB tsdb,
+      final ByteMap<UniqueId> uid_cache_map) throws HBaseException {
+    int max_results = tsdb.getConfig().getInt(
+        "tsd.core.preload_uid_cache.max_entries");
+    LOG.info("Preloading uid cache with max_results=" + max_results);
+    if (max_results <= 0) {
+      return;
+    }
+    Scanner scanner = null;
+    try {
+      int num_rows = 0;
+      scanner = getSuggestScanner(tsdb.getClient(), tsdb.uidTable(), "", null, 
+          max_results);
+      for (ArrayList<ArrayList<KeyValue>> rows = scanner.nextRows().join();
+          rows != null;
+          rows = scanner.nextRows().join()) {
+        for (final ArrayList<KeyValue> row : rows) {
+          for (KeyValue kv: row) {
+            final String name = fromBytes(kv.key());
+            final byte[] kind = kv.qualifier();
+            final byte[] id = kv.value();
+            LOG.debug("id='{}', name='{}', kind='{}'", Arrays.toString(id),
+                name, fromBytes(kind));
+            UniqueId uid_cache = uid_cache_map.get(kind);
+            if (uid_cache != null) {
+              uid_cache.cacheMapping(name, id);
+            }
+          }
+          num_rows += row.size();
+          row.clear();  // free()
+          if (num_rows >= max_results) {
+            break;
+          }
+        }
+      }
+      for (UniqueId unique_id_table : uid_cache_map.values()) {
+        LOG.info("After preloading, uid cache '{}' has {} ids and {} names.",
+                 unique_id_table.kind(),
+                 unique_id_table.id_cache.size(),
+                 unique_id_table.name_cache.size());
+      }
+    } catch (Exception e) {
+      if (e instanceof HBaseException) {
+        throw (HBaseException)e;
+      } else if (e instanceof RuntimeException) {
+        throw (RuntimeException)e;
+      } else {
+        throw new RuntimeException("Error while preloading IDs", e);
+      }
+    } finally {
+      if (scanner != null) {
+        scanner.close();
+      }
+    }
   }
 }

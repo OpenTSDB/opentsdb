@@ -12,6 +12,7 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.graph;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -23,9 +24,11 @@ import java.util.TimeZone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.utils.FileSystem;
 
 /**
  * Produces files to generate graphs with Gnuplot.
@@ -194,6 +197,8 @@ public final class Plot {
     int npoints = 0;
     final int nseries = datapoints.size();
     final String datafiles[] = nseries > 0 ? new String[nseries] : null;
+    FileSystem.checkDirectory(new File(basepath).getParent(),
+        Const.MUST_BE_WRITEABLE, Const.CREATE_IF_NEEDED);
     for (int i = 0; i < nseries; i++) {
       datafiles[i] = basepath + "_" + i + ".dat";
       final PrintWriter datafile = new PrintWriter(datafiles[i]);
@@ -393,5 +398,4 @@ public final class Plot {
       return "%Y/%m/%d";
     }
   }
-
 }

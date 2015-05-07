@@ -16,6 +16,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
+import static org.powermock.api.mockito.PowerMockito.mock;
 
 import java.util.regex.PatternSyntaxException;
 
@@ -23,6 +25,7 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.tree.TreeRule;
 import net.opentsdb.tree.TreeRule.TreeRuleType;
+import net.opentsdb.utils.Config;
 import net.opentsdb.utils.JSON;
 
 import org.hbase.async.DeleteRequest;
@@ -34,6 +37,7 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -46,11 +50,18 @@ import org.powermock.modules.junit4.PowerMockRunner;
   PutRequest.class, KeyValue.class, Scanner.class, DeleteRequest.class, 
   Tree.class})
 public final class TestTreeRule {
+  private TSDB tsdb;
+  private HBaseClient client = mock(HBaseClient.class);
   private MockBase storage;
   private TreeRule rule;
   
   @Before
-  public void before() {
+  public void before() throws Exception {
+    final Config config = new Config(false);
+    PowerMockito.whenNew(HBaseClient.class)
+      .withArguments(anyString(), anyString()).thenReturn(client);
+    tsdb = new TSDB(config);
+    
     rule = new TreeRule();
   }
   
@@ -405,7 +416,7 @@ public final class TestTreeRule {
    * Mocks classes for testing the storage calls
    */
   private void setupStorage() throws Exception {
-    storage = new MockBase(true, true, true, true);
+    storage = new MockBase(tsdb, client, true, true, true, true);
 
     final TreeRule stored_rule = new TreeRule(1);
     stored_rule.setLevel(2);

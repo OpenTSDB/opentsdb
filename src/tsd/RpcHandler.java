@@ -28,10 +28,12 @@ import org.slf4j.LoggerFactory;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.timeout.IdleState;
+import org.jboss.netty.handler.timeout.IdleStateAwareChannelUpstreamHandler;
+import org.jboss.netty.handler.timeout.IdleStateEvent;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.Aggregators;
@@ -42,7 +44,7 @@ import net.opentsdb.utils.JSON;
 /**
  * Stateless handler for RPCs (telnet-style or HTTP).
  */
-final class RpcHandler extends SimpleChannelUpstreamHandler {
+final class RpcHandler extends IdleStateAwareChannelUpstreamHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(RpcHandler.class);
 
@@ -59,6 +61,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   /** List of domains to allow access to HTTP. By default this will be empty and
    * all CORS headers will be ignored. */
   private final HashSet<String> cors_domains;
+  /** List of headers allowed for access to HTTP. By default this will contain a
+   * set of known-to-work headers */
+  private final String cors_headers;
 
   /** The TSDB to use. */
   private final TSDB tsdb;
@@ -74,6 +79,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
     this.tsdb = tsdb;
 
     final String cors = tsdb.getConfig().getString("tsd.http.request.cors_domains");
+    final String mode = tsdb.getConfig().getString("tsd.mode");
+
+    LOG.info("TSD is in " + mode + " mode");
+
     if (cors == null || cors.isEmpty()) {
       cors_domains = null;
       LOG.info("CORS domain list was empty, CORS will not be enabled");
@@ -90,24 +99,64 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         LOG.info("Loaded CORS domain (" + domain + ")");
       }
     }
-    
-    telnet_commands = new HashMap<String, TelnetRpc>(7);
-    http_commands = new HashMap<String, HttpRpc>(11);
-    {
-      final DieDieDie diediedie = new DieDieDie();
-      telnet_commands.put("diediedie", diediedie);
-      http_commands.put("diediedie", diediedie);
+
+    cors_headers = tsdb.getConfig().getString("tsd.http.request.cors_headers")
+        .trim();
+    if ((cors_headers == null) || !cors_headers.matches("^([a-zA-Z0-9_.-]+,\\s*)*[a-zA-Z0-9_.-]+$")) {
+      throw new IllegalArgumentException(
+          "tsd.http.request.cors_headers must be a list of validly-formed "
+          + "HTTP header names. No wildcards are allowed.");
+    } else {
+      LOG.info("Loaded CORS headers (" + cors_headers + ")");
     }
-    {
+
+    telnet_commands = new HashMap<String, TelnetRpc>();
+    http_commands = new HashMap<String, HttpRpc>();
+    if (mode.equals("rw") || mode.equals("wo")) {
+      final PutDataPointRpc put = new PutDataPointRpc();
+      telnet_commands.put("put", put);
+      http_commands.put("api/put", put);
+    }
+
+    if (mode.equals("rw") || mode.equals("ro")) {
+      http_commands.put("", new HomePage());
       final StaticFileRpc staticfile = new StaticFileRpc();
       http_commands.put("favicon.ico", staticfile);
       http_commands.put("s", staticfile);
-    }
-    {
+
       final StatsRpc stats = new StatsRpc();
       telnet_commands.put("stats", stats);
       http_commands.put("stats", stats);
       http_commands.put("api/stats", stats);
+
+      final DropCaches dropcaches = new DropCaches();
+      telnet_commands.put("dropcaches", dropcaches);
+      http_commands.put("dropcaches", dropcaches);
+      http_commands.put("api/dropcaches", dropcaches);
+
+      final ListAggregators aggregators = new ListAggregators();
+      http_commands.put("aggregators", aggregators);
+      http_commands.put("api/aggregators", aggregators);
+
+      final SuggestRpc suggest_rpc = new SuggestRpc();
+      http_commands.put("suggest", suggest_rpc);
+      http_commands.put("api/suggest", suggest_rpc);
+
+      http_commands.put("logs", new LogsRpc());
+      http_commands.put("q", new GraphHandler());
+      http_commands.put("api/serializers", new Serializers());
+      http_commands.put("api/uid", new UniqueIdRpc());
+      http_commands.put("api/query", new QueryRpc());
+      http_commands.put("api/tree", new TreeRpc());
+      http_commands.put("api/annotation", new AnnotationRpc());
+      http_commands.put("api/search", new SearchRpc());
+      http_commands.put("api/config", new ShowConfig());
+    }
+
+    if (tsdb.getConfig().getString("tsd.no_diediedie").equals("false")) {
+      final DieDieDie diediedie = new DieDieDie();
+      telnet_commands.put("diediedie", diediedie);
+      http_commands.put("diediedie", diediedie);
     }
     {
       final Version version = new Version();
@@ -115,41 +164,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       http_commands.put("version", version);
       http_commands.put("api/version", version);
     }
-    {
-      final DropCaches dropcaches = new DropCaches();
-      telnet_commands.put("dropcaches", dropcaches);
-      http_commands.put("dropcaches", dropcaches);
-      http_commands.put("api/dropcaches", dropcaches);
-    }
 
     telnet_commands.put("exit", new Exit());
     telnet_commands.put("help", new Help());
-    {
-      final PutDataPointRpc put = new PutDataPointRpc();
-      telnet_commands.put("put", put);
-      http_commands.put("api/put", put);
-    }
-
-    http_commands.put("", new HomePage());
-    {
-      final ListAggregators aggregators = new ListAggregators();
-      http_commands.put("aggregators", aggregators);
-      http_commands.put("api/aggregators", aggregators);
-    }
-    http_commands.put("logs", new LogsRpc());
-    http_commands.put("q", new GraphHandler());
-    {
-      final SuggestRpc suggest_rpc = new SuggestRpc();
-      http_commands.put("suggest", suggest_rpc);
-      http_commands.put("api/suggest", suggest_rpc);
-    }
-    http_commands.put("api/serializers", new Serializers());
-    http_commands.put("api/uid", new UniqueIdRpc());
-    http_commands.put("api/query", new QueryRpc());
-    http_commands.put("api/tree", new TreeRpc());
-    http_commands.put("api/annotation", new AnnotationRpc());
-    http_commands.put("api/search", new SearchRpc());
-    http_commands.put("api/config", new ShowConfig());
   }
 
   @Override
@@ -208,57 +225,57 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       return;
     }
     try {
-      try {        
-        final String route = query.getQueryBaseRoute();
-        query.setSerializer();
-        
-        final String domain = req.headers().get("Origin");
-        
-        // catch CORS requests and add the header or refuse them if the domain
-        // list has been configured
-        if (query.method() == HttpMethod.OPTIONS || 
-            (cors_domains != null && domain != null && !domain.isEmpty())) {          
-          if (cors_domains == null || domain == null || domain.isEmpty()) {
-            throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
-                "Method not allowed", "The HTTP method [" + 
-                query.method().getName() + "] is not permitted");
-          }
-          
-          if (cors_domains.contains("*") || 
-              cors_domains.contains(domain.toUpperCase())) {
+      final String route = query.getQueryBaseRoute();
+      query.setSerializer();
 
-            // when a domain has matched successfully, we need to add the header
-            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
-                domain);
-            query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
-                "GET, POST, PUT, DELETE");
+      final String domain = req.headers().get("Origin");
 
-            // if the method requested was for OPTIONS then we'll return an OK
-            // here and no further processing is needed.
-            if (query.method() == HttpMethod.OPTIONS) {
-              query.sendStatusOnly(HttpResponseStatus.OK);
-              return;
-            }
-          } else {
-            // You'd think that they would want the server to return a 403 if
-            // the Origin wasn't in the CORS domain list, but they want a 200
-            // without the allow origin header. We'll return an error in the
-            // body though.
-            throw new BadRequestException(HttpResponseStatus.OK, 
-                "CORS domain not allowed", "The domain [" + domain + 
-                "] is not permitted access");
-          }
+      // catch CORS requests and add the header or refuse them if the domain
+      // list has been configured
+      if (query.method() == HttpMethod.OPTIONS ||
+          (cors_domains != null && domain != null && !domain.isEmpty())) {
+        if (cors_domains == null || domain == null || domain.isEmpty()) {
+          throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED,
+              "Method not allowed", "The HTTP method [" +
+              query.method().getName() + "] is not permitted");
         }
         
-        final HttpRpc rpc = http_commands.get(route);
-        if (rpc != null) {
-          rpc.execute(tsdb, query);
+        if (cors_domains.contains("*") ||
+            cors_domains.contains(domain.toUpperCase())) {
+
+          // when a domain has matched successfully, we need to add the header
+          query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN,
+              domain);
+          query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_METHODS,
+              "GET, POST, PUT, DELETE");
+          query.response().headers().add(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS,
+              cors_headers);
+
+          // if the method requested was for OPTIONS then we'll return an OK
+          // here and no further processing is needed.
+          if (query.method() == HttpMethod.OPTIONS) {
+            query.sendStatusOnly(HttpResponseStatus.OK);
+            return;
+          }
         } else {
-          query.notFound();
+          // You'd think that they would want the server to return a 403 if
+          // the Origin wasn't in the CORS domain list, but they want a 200
+          // without the allow origin header. We'll return an error in the
+          // body though.
+          throw new BadRequestException(HttpResponseStatus.OK,
+              "CORS domain not allowed", "The domain [" + domain +
+              "] is not permitted access");
         }
-      } catch (BadRequestException ex) {
-        query.badRequest(ex);
       }
+
+      final HttpRpc rpc = http_commands.get(route);
+      if (rpc != null) {
+        rpc.execute(tsdb, query);
+      } else {
+        query.notFound();
+      }
+    } catch (BadRequestException ex) {
+      query.badRequest(ex);
     } catch (Exception ex) {
       query.internalError(ex);
       exceptions_caught.incrementAndGet();
@@ -558,6 +575,16 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       }
     }
     
+  }
+
+  @Override
+  public void channelIdle(ChannelHandlerContext ctx, IdleStateEvent e) {
+    if (e.getState() == IdleState.ALL_IDLE) {
+      final String channel_info = e.getChannel().toString();
+      LOG.debug("Closing idle socket: " + channel_info);
+      e.getChannel().close();
+      LOG.info("Closed idle socket: " + channel_info);
+    }
   }
   
   // ---------------- //

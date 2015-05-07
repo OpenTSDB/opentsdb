@@ -13,7 +13,7 @@
 package tsd.client;
 
 import java.util.ArrayList;
-
+import java.util.Arrays;
 import com.google.gwt.event.dom.client.BlurEvent;
 import com.google.gwt.event.dom.client.BlurHandler;
 import com.google.gwt.event.dom.client.ClickEvent;
@@ -275,9 +275,11 @@ final class MetricForm extends HorizontalPanel implements Focusable {
   }
 
   public void setAggregators(final ArrayList<String> aggs) {
-    for (final String agg : aggs) {
-      aggregators.addItem(agg);
-      downsampler.addItem(agg);
+    Object[] aggsSortedArray = aggs.toArray();
+    Arrays.sort(aggsSortedArray);
+    for (final Object agg : aggsSortedArray) {
+      aggregators.addItem((String)agg);
+      downsampler.addItem((String)agg);
     }
     setSelectedItem(aggregators, "sum");
     setSelectedItem(downsampler, "avg");

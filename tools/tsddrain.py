@@ -65,7 +65,7 @@ class Handler(SocketServer.StreamRequestHandler):
 
 def main(args):
   if len(args) != 3:
-    print >> sys.stderr, "Usage: %s <port> <directory>" % args[0]
+    sys.stderr.write("Usage: %s <port> <directory>" % args[0])
     return 1
   global DRAINDIR
   port = int(args[1])
@@ -74,7 +74,7 @@ def main(args):
     os.makedirs(DRAINDIR)
   server = ThreadedTCPServer(("0.0.0.0", port), Handler)
   try:
-    print "Use Ctrl-C to stop me."
+    print ("Use Ctrl-C to stop me.")
     server.serve_forever()
   except KeyboardInterrupt:
     pass

@@ -93,7 +93,7 @@ final class IncomingDataPoints implements WritableDataPoints {
    */
   static void checkMetricAndTags(final String metric, final Map<String, String> tags) {
     if (tags.size() <= 0) {
-      throw new IllegalArgumentException("Need at least one tags (metric="
+      throw new IllegalArgumentException("Need at least one tag (metric="
           + metric + ", tags=" + tags + ')');
     } else if (tags.size() > Const.MAX_NUM_TAGS) {
       throw new IllegalArgumentException("Too many tags: " + tags.size()
