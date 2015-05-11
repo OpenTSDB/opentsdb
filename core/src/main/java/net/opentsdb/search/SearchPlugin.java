@@ -14,12 +14,13 @@ package net.opentsdb.search;
 
 import net.opentsdb.core.Plugin;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.UniqueIdType;
 
 import java.util.List;
 
@@ -64,24 +65,25 @@ public abstract class SearchPlugin extends Plugin {
   public abstract Deferred<Object> deleteTSMeta(final String tsuid);
   
   /**
-   * Indexes a UID metadata object for a metric, tagk or tagv
-   * <b>Note:</b> Unique Document ID = UID and the Type "TYPEUID"
-   * @param meta The UIDMeta to index
+   * Called when we want to add or update the information of a LabelMeta object.
+   *
+   * @param meta A validated {@link LabelMeta} instance to index
    * @return A deferred object that indicates the completion of the request.
-   * The {@link Object} has not special meaning and can be {@code null}
-   * (think of it as {@code Deferred<Void>}).
    */
-  public abstract Deferred<Object> indexUIDMeta(final UIDMeta meta);
+  public abstract Deferred<Void> indexLabelMeta(final LabelMeta meta);
 
   /**
-   * Called when we need to remove a UID meta object from the engine
-   * <b>Note:</b> Unique Document ID = UID and the Type "TYPEUID"
-   * @param meta The UIDMeta to remove
+   * Called when we need to remove a LabelMeta from the store that backs this
+   * search plugin.
+   *
+   * @param id   The identifier that together with the provided type identifies
+   *             a {@link LabelMeta} to remove
+   * @param type The type that together with the provided id identifies a {@link
+   *             LabelMeta} to remove
    * @return A deferred object that indicates the completion of the request.
-   * The {@link Object} has not special meaning and can be {@code null}
-   * (think of it as {@code Deferred<Void>}).
    */
-  public abstract Deferred<Object> deleteUIDMeta(final UIDMeta meta);
+  public abstract Deferred<Void> deleteLabelMeta(final byte[] id,
+                                                   final UniqueIdType type);
 
   /**
    * Indexes an annotation object

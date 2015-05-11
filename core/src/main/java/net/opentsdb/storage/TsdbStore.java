@@ -20,7 +20,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.meta.LabelMeta;
 
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
@@ -101,8 +101,6 @@ public interface TsdbStore {
    */
   Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
 
-  Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query);
-
   //
   // Annotations
   //
@@ -132,17 +130,12 @@ public interface TsdbStore {
   Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation);
 
   //
-  // UIDMeta
+  // LabelMeta
   //
-  public Deferred<Object> add(final UIDMeta meta);
+  public Deferred<LabelMeta> getMeta(final byte[] uid,
+                                     final UniqueIdType type);
 
-  Deferred<Object> delete(UIDMeta meta);
-
-  public Deferred<UIDMeta> getMeta(byte[] uid, String name,
-                                   UniqueIdType type);
-
-  public Deferred<Boolean> updateMeta(final UIDMeta meta,
-                                      final boolean overwrite);
+  public Deferred<Boolean> updateMeta(final LabelMeta meta);
 
   //
   // TSMeta

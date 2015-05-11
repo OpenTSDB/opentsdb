@@ -1,13 +1,12 @@
 package net.opentsdb.storage.json;
 
-import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import org.junit.Before;
 import org.junit.Test;
@@ -18,17 +17,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 
-public class UIDMetaMixInTest {
+public class LabelMetaMixInTest {
   private ObjectMapper jsonMapper;
-  private UIDMeta uidMeta;
+  private LabelMeta labelMeta;
 
   @Before
   public void before() throws Exception {
-    uidMeta = new UIDMeta(METRIC, new byte[] {0, 0, 1}, "sys.cpu.0");
-    uidMeta.setDescription("Description");
-    uidMeta.setNotes("MyNotes");
-    uidMeta.setCreated(1328140801);
-    uidMeta.setDisplayName("System CPU");
+    labelMeta = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());
@@ -36,7 +31,7 @@ public class UIDMetaMixInTest {
 
   @Test
   public void serializeFieldSet() throws Exception {
-    final byte[] json = jsonMapper.writeValueAsBytes(uidMeta);
+    final byte[] json = jsonMapper.writeValueAsBytes(labelMeta);
 
     ObjectNode rootNode = jsonMapper.readValue(json, ObjectNode.class);
 
@@ -51,25 +46,19 @@ public class UIDMetaMixInTest {
 
   @Test
   public void serializeCustomSet() throws Exception {
-    final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-    builder.put("A", "B");
-    uidMeta.setCustom(builder.build());
-    final byte[] json = jsonMapper.writeValueAsBytes(uidMeta);
+    final byte[] json = jsonMapper.writeValueAsBytes(labelMeta);
 
     ObjectNode rootNode = jsonMapper.readValue(json, ObjectNode.class);
 
-    assertEquals(6, Iterators.size(rootNode.fields()));
+    assertEquals(3, Iterators.size(rootNode.fields()));
     assertEquals("METRIC", rootNode.get("type").asText());
-    assertEquals("System CPU", rootNode.get("displayName").textValue());
     assertEquals("Description", rootNode.get("description").textValue());
-    assertEquals("MyNotes", rootNode.get("notes").textValue());
-    assertEquals("A", rootNode.get("custom").fieldNames().next());
     assertEquals(1328140801, rootNode.get("created").longValue());
   }
 
   @Test
   public void deserialize() throws Exception {
-    String json = "{\"uid\":\"ABCD\",\"type\":\"MeTriC\",\"name\":\"MyName\"," +
+    String json = "{\"identifier\":\"ABCD\",\"type\":\"MeTriC\",\"name\":\"MyName\"," +
     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
     "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
 
@@ -80,22 +69,20 @@ public class UIDMetaMixInTest {
             .addValue(UniqueIdType.class, UniqueIdType.METRIC)
             .addValue(String.class, "MyOtherName");
 
-    UIDMeta meta = jsonMapper.reader(UIDMeta.class)
+    LabelMeta meta = jsonMapper.reader(LabelMeta.class)
             .with(vals)
             .readValue(json);
 
     assertNotNull(meta);
-    assertArrayEquals(uid, meta.getUID());
-    assertEquals(UniqueIdType.METRIC, meta.getType());
-    assertEquals("MyOtherName", meta.getName());
-    assertEquals("Description", meta.getDescription());
-    assertEquals("MyNotes", meta.getNotes());
-    assertEquals(1328140801, meta.getCreated());
-    assertEquals("Empty", meta.getDisplayName());
+    assertArrayEquals(uid, meta.identifier());
+    assertEquals(UniqueIdType.METRIC, meta.type());
+    assertEquals("MyOtherName", meta.name());
+    assertEquals("Description", meta.description());
+    assertEquals(1328140801, meta.created());
   }
 
   /**
-   * This method tests what happens when you try to deserialize a UIDMeta
+   * This method tests what happens when you try to deserialize a {@link LabelMeta}
    * object from JSON. It should throw an IllegalArgumentException due to how
    * {@link UniqueIdTypeDeserializer} parses types.
    * This conforms to opentsdb/opentsdb as of commit
@@ -103,7 +90,7 @@ public class UIDMetaMixInTest {
    */
   @Test (expected = IllegalArgumentException.class)
   public void deserializeWithNullType() throws Exception {
-    String json = "{\"uid\":\"ABCD\",\"type\":\"null\",\"name\":\"MyName\"," +
+    String json = "{\"identifier\":\"ABCD\",\"type\":\"null\",\"name\":\"MyName\"," +
             "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
             "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
 
@@ -113,7 +100,7 @@ public class UIDMetaMixInTest {
             .addValue(byte[].class, uid)
             .addValue(String.class, "MyOtherName");
 
-    jsonMapper.reader(UIDMeta.class)
+    jsonMapper.reader(LabelMeta.class)
             .with(vals)
             .readValue(json);
   }

@@ -2,13 +2,14 @@ package net.opentsdb.search;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.UniqueIdType;
 
 import java.util.List;
 
@@ -46,12 +47,12 @@ public class DefaultSearchPlugin extends SearchPlugin {
   }
 
   @Override
-  public Deferred<Object> indexUIDMeta(final UIDMeta meta) {
+  public Deferred<Void> indexLabelMeta(final LabelMeta meta) {
     return Deferred.fromResult(null);
   }
 
   @Override
-  public Deferred<Object> deleteUIDMeta(final UIDMeta meta) {
+  public Deferred<Void> deleteLabelMeta(final byte[] id, final UniqueIdType type) {
     return Deferred.fromResult(null);
   }
 

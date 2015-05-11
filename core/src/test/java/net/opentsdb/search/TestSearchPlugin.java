@@ -15,9 +15,11 @@ package net.opentsdb.search;
 import com.stumbleupon.async.Callback;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.uid.UniqueIdType;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertNotNull;
 
 public abstract class TestSearchPlugin {
@@ -59,23 +61,23 @@ public abstract class TestSearchPlugin {
   }
   
   @Test
-  public void indexUIDMetaNull() {
-    assertNotNull(search.indexUIDMeta(null));
+  public void indexLabelMetaNull() {
+    assertNotNull(search.indexLabelMeta(null));
   }
   
   @Test
-  public void IndexUIDMetaNullErrBack() {
-    assertNotNull(search.indexUIDMeta(null).addErrback(new Errback()));
+  public void IndexLabelMetaNullErrBack() {
+    assertNotNull(search.indexLabelMeta(null).addErrback(new Errback()));
   }
   
   @Test
-  public void deleteUIDMetaNull() {
-    assertNotNull(search.deleteUIDMeta(null));
+  public void deleteLabelMetaNullId() {
+    assertNotNull(search.deleteLabelMeta(null, METRIC));
   }
-  
+
   @Test
-  public void deleteUIDMetaNullErrBack() {
-    assertNotNull(search.deleteUIDMeta(null).addErrback(new Errback()));
+  public void deleteLabelMetaNullType() {
+    assertNotNull(search.deleteLabelMeta(new byte[] {0, 0, 1}, null));
   }
   
   @Test

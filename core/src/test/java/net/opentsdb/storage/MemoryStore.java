@@ -21,13 +21,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
@@ -79,7 +78,7 @@ public class MemoryStore implements TsdbStore {
   private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
     storage = new Bytes.ByteMap<>();
 
-  private final Table<Long, String, UIDMeta> uid_table;
+  private final Table<Long, String, LabelMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
   private final Map<TimeseriesId, NavigableMap<Long, Number>> datapoints;
@@ -122,7 +121,7 @@ public class MemoryStore implements TsdbStore {
   public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final long value) {
-    return addPoint(tsuid, (Number)value, timestamp);
+    return addPoint(tsuid, (Number) value, timestamp);
   }
 
   private Deferred<Object> addPoint(final TimeseriesId tsuid,
@@ -178,85 +177,24 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> add(final UIDMeta meta) {
-    uid_table.put(
-        IdUtils.uidToLong(meta.getUID()),
-        meta.getType().toString().toLowerCase() + "_meta",
-        meta);
-
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> delete(final UIDMeta meta) {
-    uid_table.remove(
-            IdUtils.uidToLong(meta.getUID()),
-            meta.getType().toString().toLowerCase() + "_meta");
-
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<UIDMeta> getMeta(final byte[] uid,
-                                   final String name,
-                                   final UniqueIdType type) {
+  public Deferred<LabelMeta> getMeta(final byte[] uid,
+                                     final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final long s_uid = IdUtils.uidToLong(uid);
 
-    final UIDMeta meta = uid_table.get(s_uid, qualifier);
+    final LabelMeta meta = uid_table.get(s_uid, qualifier);
 
-    if (meta == null) {
-      // return the default
-      return Deferred.fromResult(new UIDMeta(type, uid, name, false));
-    }
-
-    UniqueIdType effective_type = type;
-    if (effective_type == null) {
-      effective_type = UniqueIdType.fromValue(qualifier.substring(0,
-              qualifier.indexOf("_meta")));
-    }
-
-    return Deferred.fromResult(new UIDMeta(uid, effective_type, name,
-        meta.getDisplayName(), meta.getDescription(), meta.getNotes(),
-        meta.getCustom(), meta.getCreated()));
-  }
-
-  private Deferred<UIDMeta> getMeta(final byte[] uid,
-                                    final UniqueIdType type,
-                                    final String name) {
-    final String qualifier = type.toString().toLowerCase() + "_meta";
-    UIDMeta meta = uid_table.get(IdUtils.uidToLong(uid), qualifier);
-
-    if (meta == null) {
-      return Deferred.fromResult(null);
-    }
-
-    return Deferred.fromResult(new UIDMeta(uid, type, name,
-        meta.getDisplayName(), meta.getDescription(), meta.getNotes(),
-        meta.getCustom(), meta.getCreated()));
+    return Deferred.fromResult(meta);
   }
 
   @Override
-  public Deferred<Boolean> updateMeta(final UIDMeta meta,
-                                      final boolean overwrite) {
-    return getMeta(meta.getUID(), meta.getType(), meta.getName())
-            .addCallbackDeferring(
-            new Callback<Deferred<Boolean>, UIDMeta>() {
-              @Override
-              public Deferred<Boolean> call(UIDMeta meta2) throws Exception {
-                if (null != meta2) {
-                  meta.syncMeta(meta2, overwrite);
-                  add(meta);
-                }
+  public Deferred<Boolean> updateMeta(final LabelMeta meta) {
+    uid_table.put(
+        IdUtils.uidToLong(meta.identifier()),
+        meta.type().toString().toLowerCase() + "_meta",
+        meta);
 
-                // The MemoryStore is not expected to run in multiple threads
-                // and because of this there won't be multiple clients that
-                // can change the value between #updateMeta's initial
-                // #getMeta and the subsequent #add(meta) above. Because of
-                // this we can safely always return TRUE here.
-                return Deferred.fromResult(Boolean.TRUE);
-              }
-            });
+    return Deferred.fromResult(Boolean.TRUE);
   }
 
   @Override
@@ -723,11 +661,6 @@ public class MemoryStore implements TsdbStore {
    */
   @Override
   public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

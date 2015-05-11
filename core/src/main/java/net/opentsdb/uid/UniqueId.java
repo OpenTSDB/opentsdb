@@ -268,7 +268,7 @@ public class UniqueId {
           pending_assignments.remove(name);
         }
 
-        idEventBus.post(new IdCreatedEvent(uid, name, type));
+        idEventBus.post(new LabelCreatedEvent(uid, name, type));
 
         return uid;
       }

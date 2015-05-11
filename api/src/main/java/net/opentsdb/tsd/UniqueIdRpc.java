@@ -30,6 +30,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import net.opentsdb.core.MetaClient;
 import net.opentsdb.core.UniqueIdClient;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.utils.Pair;
@@ -42,7 +43,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
@@ -173,7 +173,7 @@ final class UniqueIdRpc implements HttpRpc {
       final UniqueIdType type = UniqueIdType.fromValue(
               query.getRequiredQueryStringParam("type"));
       try {
-        final UIDMeta meta = metaClient.getUIDMeta(type, uid)
+        final LabelMeta meta = metaClient.getLabelMeta(type, uid)
         .joinUninterruptibly();
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (NoSuchUniqueId e) {
@@ -184,39 +184,33 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // POST
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-      
-      final UIDMeta meta;
-      if (query.hasContent()) {
-        meta = query.serializer().parseUidMetaV1();
-      } else {
-        meta = this.parseUIDMetaQS(query);
-      }
+      final LabelMeta meta = query.serializer().parseUidMetaV1();
       
       /**
        * Storage callback used to determine if the storage call was successful
        * or not. Also returns the updated object from storage.
        */
-      class SyncCB implements Callback<Deferred<UIDMeta>, Boolean> {
+      class SyncCB implements Callback<Deferred<LabelMeta>, Boolean> {
         
         @Override
-        public Deferred<UIDMeta> call(Boolean success) throws Exception {
+        public Deferred<LabelMeta> call(Boolean success) throws Exception {
           if (!success) {
             throw new BadRequestException(
                 HttpResponseStatus.INTERNAL_SERVER_ERROR,
                 "Failed to save the UIDMeta to storage", 
                 "This may be caused by another process modifying storage data");
           }
-          
-          return metaClient.getUIDMeta(meta.getType(), meta.getUID());
+
+          return metaClient.getLabelMeta(meta.type(), meta.identifier());
         }
         
       }
       
       try {
-        final Deferred<UIDMeta> process_meta = metaClient.syncUIDMetaToStorage(meta,
-            method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
-        final UIDMeta updated_meta = process_meta.joinUninterruptibly();
-        metaClient.indexUIDMeta(updated_meta);
+        final Deferred<LabelMeta> process_meta = metaClient.update(meta
+        ).addCallbackDeferring(new SyncCB());
+        final LabelMeta updated_meta = process_meta.joinUninterruptibly();
+        metaClient.update(updated_meta);
         query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -228,28 +222,6 @@ final class UniqueIdRpc implements HttpRpc {
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
-    // DELETE    
-    } else if (method == HttpMethod.DELETE) {
-      
-      final UIDMeta meta;
-      if (query.hasContent()) {
-        meta = query.serializer().parseUidMetaV1();
-      } else {
-        meta = this.parseUIDMetaQS(query);
-      }
-      try {
-        metaClient.delete(meta).joinUninterruptibly();
-        metaClient.deleteUIDMeta(meta);
-      } catch (IllegalArgumentException e) {
-        throw new BadRequestException("Unable to delete UIDMeta information", e);
-      } catch (NoSuchUniqueId e) {
-        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-            "Could not find the requested UID", e);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-      query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
-      
     } else {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
           "Method not allowed", "The HTTP method [" + method.getName() +
@@ -440,35 +412,6 @@ final class UniqueIdRpc implements HttpRpc {
           "Method not allowed", "The HTTP method [" + method.getName() +
           "] is not permitted for this endpoint");
     }
-  }
-  
-  /**
-   * Used with verb overrides to parse out values from a query string
-   * @param query The query to parse
-   * @return An UIDMeta object with configured values
-   * @throws BadRequestException if a required value was missing or could not
-   * be parsed
-   */
-  private UIDMeta parseUIDMetaQS(final HttpQuery query) {
-    final byte[] uid = IdUtils.stringToUid(query.getRequiredQueryStringParam("uid"));
-    final String type = query.getRequiredQueryStringParam("type");
-    final UIDMeta meta = new UIDMeta(UniqueIdType.fromValue(type), uid);
-    final String display_name = query.getQueryStringParam("display_name");
-    if (display_name != null) {
-      meta.setDisplayName(display_name);
-    }
-    
-    final String description = query.getQueryStringParam("description");
-    if (description != null) {
-      meta.setDescription(description);
-    }
-    
-    final String notes = query.getQueryStringParam("notes");
-    if (notes != null) {
-      meta.setNotes(notes);
-    }
-    
-    return meta;
   }
   
   /**

@@ -1,6 +1,5 @@
 package net.opentsdb.core;
 
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.DeferredGroupException;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
@@ -14,7 +13,6 @@ import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -27,7 +25,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
           "ch.qos.*", "org.slf4j.*",
@@ -51,7 +48,7 @@ import static org.mockito.Mockito.when;
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
             toBytes("metric_meta"),
-            toBytes("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
+            toBytes("{\"identifier\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
                     "1328140801,\"displayName\":\"System CPU\"}"));
 
@@ -62,7 +59,7 @@ import static org.mockito.Mockito.when;
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
             toBytes("tagk_meta"),
-            toBytes("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
+            toBytes("{\"identifier\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
                     "1328140801,\"displayName\":\"Host server name\"}"));
 
@@ -73,7 +70,7 @@ import static org.mockito.Mockito.when;
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
             toBytes("tagv_meta"),
-            toBytes("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
+            toBytes("{\"identifier\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
                     "1328140801,\"displayName\":\"Web server 1\"}"));
 
@@ -142,10 +139,10 @@ import static org.mockito.Mockito.when;
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
-    assertEquals("sys.cpu.0", meta.getMetric().getName());
+    assertEquals("sys.cpu.0", meta.getMetric().name());
     assertEquals(2, meta.getTags().size());
-    assertEquals("host", meta.getTags().get(0).getName());
-    assertEquals("web01", meta.getTags().get(1).getName());
+    assertEquals("host", meta.getTags().get(0).name());
+    assertEquals("web01", meta.getTags().get(1).name());
     assertEquals(1, meta.getTotalDatapoints());
     // no support for timestamps in mockbase yet
     //assertEquals(1328140801L, meta.getLastReceived());
@@ -242,59 +239,5 @@ import static org.mockito.Mockito.when;
     tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
     final TSMeta meta = new TSMeta(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1357300800000L);
     metaClient.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-
-  @Test
-  public void parseFromColumn() throws Exception {
-    final KeyValue column = PowerMockito.mock(KeyValue.class);
-    when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
-    when(column.value()).thenReturn(tsdb_store.getColumn(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
-            NAME_FAMILY,
-            toBytes("ts_meta")));
-    final TSMeta meta = metaClient.parseFromColumn(column.key(), column.value(), false)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertNotNull(meta);
-    assertEquals("000001000001000001", meta.getTSUID());
-    assertNull(meta.getMetric());
-  }
-
-  @Test
-  public void parseFromColumnWithUIDMeta() throws Exception {
-    final KeyValue column = PowerMockito.mock(KeyValue.class);
-    when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 });
-    when(column.value()).thenReturn(tsdb_store.getColumn(
-            new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
-            NAME_FAMILY,
-            toBytes("ts_meta")));
-    final TSMeta meta = metaClient.parseFromColumn(column.key(), column.value(), true)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertNotNull(meta);
-    assertEquals("000001000001000001", meta.getTSUID());
-    assertNotNull(meta.getMetric());
-    assertEquals("sys.cpu.0", meta.getMetric().getName());
-  }
-
-  @Test (expected = NoSuchUniqueId.class)
-  public void parseFromColumnWithUIDMetaNSU() throws Exception {
-    class ErrBack implements Callback<Object, Exception> {
-      @Override
-      public Object call(Exception e) throws Exception {
-        Throwable ex = e;
-        while (ex.getClass().equals(DeferredGroupException.class)) {
-          ex = ex.getCause();
-        }
-        throw (Exception)ex;
-      }
-    }
-
-    final KeyValue column = PowerMockito.mock(KeyValue.class);
-    when(column.key()).thenReturn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 2 });
-    when(column.value()).thenReturn(toBytes("{\"tsuid\":\"000001000001000002\",\"" +
-            "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
-            "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-            "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
-    metaClient.parseFromColumn(column.key(), column.value(), true).addErrback(new ErrBack())
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 }

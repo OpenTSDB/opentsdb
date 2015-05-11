@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import com.google.common.base.Throwables;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.uid.IdentifierDecorator;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferOutputStream;
@@ -42,7 +43,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
@@ -237,7 +237,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws BadRequestException if the content was missing or parsing failed
    */
   @Override
-  public UIDMeta parseUidMetaV1() {
+  public LabelMeta parseUidMetaV1() {
     final String json = query.getContent();
     if (json == null || json.isEmpty()) {
       throw new BadRequestException(HttpResponseStatus.BAD_REQUEST,
@@ -245,7 +245,7 @@ class HttpJsonSerializer extends HttpSerializer {
           "Supply valid JSON formatted data in the body of your request");
     }
     try {
-      return JSON.parseToObject(json, UIDMeta.class);
+      return JSON.parseToObject(json, LabelMeta.class);
     } catch (IllegalArgumentException iae) {
       throw new BadRequestException("Unable to parse the given JSON", iae);
     }
@@ -601,7 +601,7 @@ class HttpJsonSerializer extends HttpSerializer {
    * @throws JSONException if serialization failed
    */
   @Override
-  public ChannelBuffer formatUidMetaV1(final UIDMeta meta) {
+  public ChannelBuffer formatUidMetaV1(final LabelMeta meta) {
     return this.serializeJSON(meta);
   }
   

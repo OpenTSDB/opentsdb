@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.uid.IdentifierDecorator;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -34,7 +35,6 @@ import net.opentsdb.core.TSDB;
 import net.opentsdb.core.TSQuery;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.tsd.AnnotationRpc.AnnotationBulkDelete;
 import net.opentsdb.tsd.QueryRpc.LastPointQuery;
@@ -236,7 +236,7 @@ public abstract class HttpSerializer {
    * @return the parsed meta data object
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public UIDMeta parseUidMetaV1() {
+  public LabelMeta parseUidMetaV1() {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 
@@ -426,7 +426,7 @@ public abstract class HttpSerializer {
    * @return A ChannelBuffer object to pass on to the caller
    * @throws BadRequestException if the plugin has not implemented this method
    */
-  public ChannelBuffer formatUidMetaV1(final UIDMeta meta) {
+  public ChannelBuffer formatUidMetaV1(final LabelMeta meta) {
     throw new BadRequestException(HttpResponseStatus.NOT_IMPLEMENTED, 
         "The requested API endpoint has not been implemented", 
         this.getClass().getCanonicalName() + 

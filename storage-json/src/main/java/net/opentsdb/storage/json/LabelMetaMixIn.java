@@ -15,15 +15,15 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)
 @JsonPropertyOrder({"type", "displayName", "description", "notes", "created", "custom"})
-abstract class UIDMetaMixIn {
-  UIDMetaMixIn(@JacksonInject final byte[] uid,
-               @JsonProperty("type") final UniqueIdType type,
-               @JacksonInject final String name,
-               @JsonProperty("displayName") final String display_name,
-               @JsonProperty("description") final String description,
-               @JsonProperty("notes") final String notes,
-               @JsonProperty("custom") final Map<String, String> custom,
-               @JsonProperty("created") final long created) {
+abstract class LabelMetaMixIn {
+  LabelMetaMixIn(@JacksonInject final byte[] uid,
+                 @JsonProperty("type") final UniqueIdType type,
+                 @JacksonInject final String name,
+                 @JsonProperty("displayName") final String display_name,
+                 @JsonProperty("description") final String description,
+                 @JsonProperty("notes") final String notes,
+                 @JsonProperty("custom") final Map<String, String> custom,
+                 @JsonProperty("created") final long created) {
   }
 
   @JsonIgnore abstract byte[] getUID();

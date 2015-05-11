@@ -1,2 +1,7 @@
 
 project.ext.distFiles = files("src/main/dist")
+
+dependencies {
+    // Should be compile only
+    compile group: 'com.google.auto.value', name: 'auto-value', version: '1.0'
+}

@@ -18,10 +18,10 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 
@@ -39,13 +39,14 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import static net.opentsdb.core.StringCoder.toBytes;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.*;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSMeta.class, UIDMeta.class,
+@PrepareForTest({TSMeta.class, LabelMeta.class,
   RowLock.class, UniqueIdRpc.class, KeyValue.class,
   Scanner.class})
 public final class TestUniqueIdRpc {
@@ -1079,7 +1080,7 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupAssign() {
-    tsdb_store.allocateUID("sys.cpu.0", UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", METRIC);
     tsdb_store.allocateUID("myserver", UniqueIdType.TAGV);
     tsdb_store.allocateUID("datacenter", UniqueIdType.TAGK);
   }
@@ -1089,19 +1090,17 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupUID() {
-    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
 
-    UIDMeta meta = new UIDMeta(
-            UniqueIdType.METRIC,
-            new byte[]{0, 0, 1},
-            "sys.cpu.0");
-    meta.setDisplayName("System CPU");
-    meta.setDescription("Description");
-    meta.setNotes("MyNotes");
-    meta.setCreated(1328140801);
+    LabelMeta meta = LabelMeta.create(
+        new byte[]{0, 0, 1},
+        METRIC,
+        "sys.cpu.0",
+        "Description",
+        1328140801);
 
-    tsdb_store.add(meta);
+    tsdb_store.updateMeta(meta);
   }
 
   /**
@@ -1109,8 +1108,8 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupTSUID() {
-    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.2", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[] {0, 0, 2}, METRIC);
 
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
     tsdb_store.allocateUID("datacenter", new byte[] {0, 0, 2}, UniqueIdType.TAGK);
