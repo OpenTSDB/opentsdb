@@ -217,8 +217,8 @@ public class MemoryStore implements TsdbStore {
     }
 
     return Deferred.fromResult(new UIDMeta(uid, effective_type, name,
-        meta.getDisplayName(), meta.getDescription(), meta.getNotes(),
-        meta.getCustom(), meta.getCreated()));
+        meta.getDescription(),
+        meta.getCreated()));
   }
 
   private Deferred<UIDMeta> getMeta(final byte[] uid,
@@ -232,8 +232,8 @@ public class MemoryStore implements TsdbStore {
     }
 
     return Deferred.fromResult(new UIDMeta(uid, type, name,
-        meta.getDisplayName(), meta.getDescription(), meta.getNotes(),
-        meta.getCustom(), meta.getCreated()));
+        meta.getDescription(),
+        meta.getCreated()));
   }
 
   @Override

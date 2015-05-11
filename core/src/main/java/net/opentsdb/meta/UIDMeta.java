@@ -12,8 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
 
 import com.google.common.base.Objects;
@@ -61,24 +59,12 @@ public final class UIDMeta {
    */
   private String name;
   
-  /** 
-   * An optional, user supplied name used for display purposes only
-   * If this field is empty, the {@link name} field should be used
-   */
-  private String display_name;
-  
   /** A short description of what this object represents */
   private String description;
   
-  /** Optional, detailed notes about what the object represents */
-  private String notes;
-  
   /** A timestamp of when this UID was first recorded by OpenTSDB in seconds */
-  private long created = 0;
-  
-  /** Optional user supplied key/values */
-  private Map<String, String> custom;
-  
+  private long created;
+
   /** Tracks fields that have changed by the user to avoid overwrites */
   private final Set<String> changed = Sets.newHashSetWithExpectedSize(5);
 
@@ -100,7 +86,7 @@ public final class UIDMeta {
    * @param name Name of the UID
    */
   public UIDMeta(final UniqueIdType type, final byte[] uid, final String name) {
-    this(uid, type, name, null, null, null, null, System.currentTimeMillis() / 1000);
+    this(uid, type, name, null, System.currentTimeMillis() / 1000);
     changed.add("created");
   }
 
@@ -131,10 +117,7 @@ public final class UIDMeta {
   public UIDMeta(final byte[] uid,
                  final UniqueIdType type,
                  final String name,
-                 final String display_name,
                  final String description,
-                 final String notes,
-                 final Map<String, String> custom,
                  final long created) {
     this.type = checkNotNull(type);
 
@@ -143,10 +126,7 @@ public final class UIDMeta {
     this.uid = uid;
 
     this.name = name;
-    this.display_name = display_name;
     this.description = description;
-    this.notes = notes;
-    this.custom = custom;
     this.created = created;
   }
 
@@ -174,19 +154,9 @@ public final class UIDMeta {
     if (meta.created > 0 && (meta.created < created || created == 0)) {
       created = meta.created;
     }
-    
-    // handle user-accessible stuff
-    if (!overwrite && !changed.contains("display_name")) {
-      display_name = meta.display_name;
-    }
+
     if (!overwrite && !changed.contains("description")) {
       description = meta.description;
-    }
-    if (!overwrite && !changed.contains("notes")) {
-      notes = meta.notes;
-    }
-    if (!overwrite && !changed.contains("custom")) {
-      custom = meta.custom;
     }
 
     // reset changed flags
@@ -217,19 +187,9 @@ public final class UIDMeta {
     return name;
   }
 
-  /** @return optional display name, use {@code name} if empty */
-  public String getDisplayName() {
-    return display_name;
-  }
-
   /** @return optional description */
   public String getDescription() {
     return description;
-  }
-
-  /** @return optional notes */
-  public String getNotes() {
-    return notes;
   }
 
   /** @return when the UID was first assigned, may be 0 if unknown */
@@ -237,45 +197,11 @@ public final class UIDMeta {
     return created;
   }
 
-  /** @return optional map of custom values from the user */
-  public Map<String, String> getCustom() {
-    return custom;
-  }
-
-  /**
-   * @param display_name an optional descriptive name for the UID
-   */
-  public void setDisplayName(final String display_name) {
-    if (!Objects.equal(this.display_name, display_name)) {
-      changed.add("display_name");
-      this.display_name = display_name;
-    }
-  }
-
   /** @param description an optional description of the UID */
   public void setDescription(final String description) {
     if (!Objects.equal(this.description, description)) {
       changed.add("description");
       this.description = description;
-    }
-  }
-
-  /** @param notes optional notes */
-  public void setNotes(final String notes) {
-    if (!Objects.equal(this.notes, notes)) {
-      changed.add("notes");
-      this.notes = notes;
-    }
-  }
-
-  /** @param custom the custom to set */
-  public void setCustom(final Map<String, String> custom) {
-    // equivalency of maps is a pain, users have to submit the whole map
-    // anyway so we'll just mark it as changed every time we have a non-null
-    // value
-    if (this.custom != null || custom != null) {
-      changed.add("custom");
-      this.custom = new HashMap<>(custom);
     }
   }
 

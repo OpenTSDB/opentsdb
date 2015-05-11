@@ -1096,9 +1096,7 @@ public final class TestUniqueIdRpc {
             UniqueIdType.METRIC,
             new byte[]{0, 0, 1},
             "sys.cpu.0");
-    meta.setDisplayName("System CPU");
     meta.setDescription("Description");
-    meta.setNotes("MyNotes");
     meta.setCreated(1328140801);
 
     tsdb_store.add(meta);

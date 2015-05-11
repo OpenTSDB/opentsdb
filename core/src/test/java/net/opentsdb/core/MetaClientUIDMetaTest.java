@@ -50,9 +50,7 @@ public class MetaClientUIDMetaTest {
 
     UIDMeta uidMeta = new UIDMeta(METRIC, new byte[] {0, 0, 1}, "sys.cpu.0");
     uidMeta.setDescription("Description");
-    uidMeta.setNotes("MyNotes");
     uidMeta.setCreated(1328140801);
-    uidMeta.setDisplayName("System CPU");
 
     store.add(uidMeta);
   }
@@ -103,7 +101,6 @@ public class MetaClientUIDMetaTest {
     assertEquals(METRIC, meta.getType());
     assertEquals("sys.cpu.0", meta.getName());
     assertArrayEquals(new byte[]{0, 0, 1}, meta.getUID());
-    assertEquals("MyNotes", meta.getNotes());
   }
 
   @Test (expected = NoSuchUniqueId.class)
@@ -122,20 +119,15 @@ public class MetaClientUIDMetaTest {
   @Test
   public void syncToStorage() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 1});
-    meta.setDisplayName("New Display Name");
     metaClient.syncUIDMetaToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertEquals("New Display Name", meta.getDisplayName());
-    assertEquals("MyNotes", meta.getNotes());
     assertEquals(1328140801, meta.getCreated());
   }
 
   @Test
   public void syncToStorageOverwrite() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 1});
-    meta.setDisplayName("New Display Name");
     metaClient.syncUIDMetaToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertEquals("New Display Name", meta.getDisplayName());
-    assertNull(meta.getNotes());
+    assertNull(meta.getDescription());
   }
 
   @Test (expected = IllegalStateException.class)
@@ -148,7 +140,6 @@ public class MetaClientUIDMetaTest {
   @Test (expected = NoSuchUniqueId.class)
   public void syncToStorageNoSuch() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 2});
-    meta.setDisplayName("Testing");
     metaClient.syncUIDMetaToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 

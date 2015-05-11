@@ -64,11 +64,11 @@ public abstract class TestTsdbStore {
   @Test
   public void storeNew() throws Exception {
     meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
-    meta.setDisplayName("System CPU");
+    meta.setDescription("System CPU");
     tsdb_store.add(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    meta = tsdb_store.getMeta(new byte[] { 0, 0, 1 },meta.getName() ,METRIC)
+    final UIDMeta newMeta = tsdb_store.getMeta(new byte[] { 0, 0, 1 },meta.getName() ,METRIC)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    assertEquals("System CPU", meta.getDisplayName());
+    assertEquals("System CPU", newMeta.getDescription());
   }
 }

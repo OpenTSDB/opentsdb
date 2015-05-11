@@ -26,9 +26,7 @@ public class UIDMetaMixInTest {
   public void before() throws Exception {
     uidMeta = new UIDMeta(METRIC, new byte[] {0, 0, 1}, "sys.cpu.0");
     uidMeta.setDescription("Description");
-    uidMeta.setNotes("MyNotes");
     uidMeta.setCreated(1328140801);
-    uidMeta.setDisplayName("System CPU");
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());
@@ -51,19 +49,13 @@ public class UIDMetaMixInTest {
 
   @Test
   public void serializeCustomSet() throws Exception {
-    final ImmutableMap.Builder<String, String> builder = ImmutableMap.builder();
-    builder.put("A", "B");
-    uidMeta.setCustom(builder.build());
     final byte[] json = jsonMapper.writeValueAsBytes(uidMeta);
 
     ObjectNode rootNode = jsonMapper.readValue(json, ObjectNode.class);
 
-    assertEquals(6, Iterators.size(rootNode.fields()));
+    assertEquals(3, Iterators.size(rootNode.fields()));
     assertEquals("METRIC", rootNode.get("type").asText());
-    assertEquals("System CPU", rootNode.get("displayName").textValue());
     assertEquals("Description", rootNode.get("description").textValue());
-    assertEquals("MyNotes", rootNode.get("notes").textValue());
-    assertEquals("A", rootNode.get("custom").fieldNames().next());
     assertEquals(1328140801, rootNode.get("created").longValue());
   }
 
@@ -89,9 +81,7 @@ public class UIDMetaMixInTest {
     assertEquals(UniqueIdType.METRIC, meta.getType());
     assertEquals("MyOtherName", meta.getName());
     assertEquals("Description", meta.getDescription());
-    assertEquals("MyNotes", meta.getNotes());
     assertEquals(1328140801, meta.getCreated());
-    assertEquals("Empty", meta.getDisplayName());
   }
 
   /**

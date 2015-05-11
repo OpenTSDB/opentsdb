@@ -453,19 +453,10 @@ final class UniqueIdRpc implements HttpRpc {
     final byte[] uid = IdUtils.stringToUid(query.getRequiredQueryStringParam("uid"));
     final String type = query.getRequiredQueryStringParam("type");
     final UIDMeta meta = new UIDMeta(UniqueIdType.fromValue(type), uid);
-    final String display_name = query.getQueryStringParam("display_name");
-    if (display_name != null) {
-      meta.setDisplayName(display_name);
-    }
     
     final String description = query.getQueryStringParam("description");
     if (description != null) {
       meta.setDescription(description);
-    }
-    
-    final String notes = query.getQueryStringParam("notes");
-    if (notes != null) {
-      meta.setNotes(notes);
     }
     
     return meta;
