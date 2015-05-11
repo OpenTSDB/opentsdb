@@ -540,39 +540,28 @@ public class MetaClient {
   }
 
   /**
-   * Attempts a CompareAndSet storage call, loading the object from storage,
-   * synchronizing changes, and attempting a put.
-   * <b>Note:</b> If the local object didn't have any fields set by the caller
-   * then the data will not be written.
+   * Attempts to update the stored LabelMeta object. The LabelMeta will be
+   * fetched first and checked for equality before it tried to save anything.
    *
-   * @param meta      The UIDMeta to store.
-   * @param overwrite When the RPC method is PUT, will overwrite all user
-   *                  accessible fields
-   * @return True if the storage call was successful, false if the object
-   * was
-   * modified in storage during the CAS call. If false, retry the call. Other
-   * failures will result in an exception being thrown.
-   * @throws org.hbase.async.HBaseException     If there was an issue fetching
-   * @throws IllegalArgumentException           If parsing failed
-   * @throws net.opentsdb.uid.NoSuchUniqueId    If the UID does not exist
-   * @throws IllegalStateException              If the data hasn't changed. This is OK!
-   * @throws net.opentsdb.utils.JSONException   If the object could not be serialized
+   * @param meta The LabelMeta to store.
+   * @return True if the updates were saved successfully. False if there were no
+   * changes to make.
+   * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
-  public Deferred<Boolean> syncUIDMetaToStorage(final UIDMeta meta,
-                                                final boolean overwrite) {
-    if (!meta.hasChanges()) {
-      LOG.debug("{} does not have changes, skipping sync to storage", meta);
-      throw new IllegalStateException("No changes detected in UID meta data");
-    }
+  public Deferred<Boolean> updateLabelMeta(final UIDMeta meta,
+                                           final boolean overwrite) {
+    return getUIDMeta(meta.getType(), meta.getUID()).addCallbackDeferring(
+        new Callback<Deferred<Boolean>, UIDMeta>() {
+          @Override
+          public Deferred<Boolean> call(final UIDMeta storedMeta) {
+            if (!storedMeta.equals(meta)) {
+              return store.updateMeta(meta, overwrite);
+            }
 
-    return uniqueIdClient.getUidName(meta.getType(), meta.getUID()).addCallbackDeferring(
-      new Callback<Deferred<Boolean>, String>() {
-        @Override
-        public Deferred<Boolean> call(String arg) {
-          return store.updateMeta(meta, overwrite);
-        }
-      }
-    );
+            LOG.debug("{} does not have any changes, skipping update", meta);
+            return Deferred.fromResult(Boolean.FALSE);
+          }
+        });
   }
 
 

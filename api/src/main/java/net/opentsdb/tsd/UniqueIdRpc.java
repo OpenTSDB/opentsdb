@@ -213,7 +213,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
       
       try {
-        final Deferred<UIDMeta> process_meta = metaClient.syncUIDMetaToStorage(meta,
+        final Deferred<UIDMeta> process_meta = metaClient.updateLabelMeta(meta,
             method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
         final UIDMeta updated_meta = process_meta.joinUninterruptibly();
         metaClient.indexUIDMeta(updated_meta);

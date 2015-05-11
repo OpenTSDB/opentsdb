@@ -119,14 +119,14 @@ public class MetaClientUIDMetaTest {
   @Test
   public void syncToStorage() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 1});
-    metaClient.syncUIDMetaToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.updateLabelMeta(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(1328140801, meta.getCreated());
   }
 
   @Test
   public void syncToStorageOverwrite() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 1});
-    metaClient.syncUIDMetaToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.updateLabelMeta(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(meta.getDescription());
   }
 
@@ -134,13 +134,13 @@ public class MetaClientUIDMetaTest {
   public void syncToStorageNoChanges() throws Exception {
     final UIDMeta meta = metaClient.getUIDMeta(METRIC, "000001")
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    metaClient.syncUIDMetaToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.updateLabelMeta(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test (expected = NoSuchUniqueId.class)
   public void syncToStorageNoSuch() throws Exception {
     final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 2});
-    metaClient.syncUIDMetaToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    metaClient.updateLabelMeta(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 
   @Test (expected = IllegalArgumentException.class)

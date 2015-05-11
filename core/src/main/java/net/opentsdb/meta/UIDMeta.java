@@ -65,9 +65,6 @@ public final class UIDMeta {
   /** A timestamp of when this UID was first recorded by OpenTSDB in seconds */
   private long created;
 
-  /** Tracks fields that have changed by the user to avoid overwrites */
-  private final Set<String> changed = Sets.newHashSetWithExpectedSize(5);
-
   /**
    * Constructor used for overwriting. Will not reset the name or created values
    * in storage.
@@ -87,7 +84,6 @@ public final class UIDMeta {
    */
   public UIDMeta(final UniqueIdType type, final byte[] uid, final String name) {
     this(uid, type, name, null, System.currentTimeMillis() / 1000);
-    changed.add("created");
   }
 
   /**
@@ -110,7 +106,6 @@ public final class UIDMeta {
 
     if (created) {
       this.created = System.currentTimeMillis() / 1000;
-      changed.add("created");
     }
   }
 
@@ -136,38 +131,6 @@ public final class UIDMeta {
   @Override
   public String toString() {
     return "'" + type + ":" + IdUtils.uidToLong(uid) + "'";
-  }
-
-  /**
-   * Syncs the local object with the stored object for atomic writes, 
-   * overwriting the stored data if the user issued a PUT request
-   * <b>Note:</b> This method also resets the {@code changed} map to false
-   * for every field
-   * @param meta The stored object to sync from
-   * @param overwrite Whether or not all user mutable data in storage should be
-   * replaced by the local object
-   */
-  public void syncMeta(final UIDMeta meta, final boolean overwrite) {
-    if (meta.name != null && !meta.name.isEmpty()) {
-      name = meta.name;
-    }
-    if (meta.created > 0 && (meta.created < created || created == 0)) {
-      created = meta.created;
-    }
-
-    if (!overwrite && !changed.contains("description")) {
-      description = meta.description;
-    }
-
-    // reset changed flags
-    resetChangedMap();
-  }
-  
-  /**
-   * Sets or resets the changed map flags
-   */
-  public void resetChangedMap() {
-    changed.clear();
   }
   
   // Getters and Setters --------------
@@ -200,7 +163,6 @@ public final class UIDMeta {
   /** @param description an optional description of the UID */
   public void setDescription(final String description) {
     if (!Objects.equal(this.description, description)) {
-      changed.add("description");
       this.description = description;
     }
   }
@@ -208,12 +170,7 @@ public final class UIDMeta {
   /** @param created the created timestamp Unix epoch in seconds */
   public final void setCreated(final long created) {
     if (this.created != created) {
-      changed.add("created");
       this.created = created;
     }
-  }
-
-  public boolean hasChanges() {
-    return !changed.isEmpty();
   }
 }

@@ -239,24 +239,8 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Boolean> updateMeta(final UIDMeta meta,
                                       final boolean overwrite) {
-    return getMeta(meta.getUID(), meta.getType(), meta.getName())
-            .addCallbackDeferring(
-            new Callback<Deferred<Boolean>, UIDMeta>() {
-              @Override
-              public Deferred<Boolean> call(UIDMeta meta2) throws Exception {
-                if (null != meta2) {
-                  meta.syncMeta(meta2, overwrite);
-                  add(meta);
-                }
-
-                // The MemoryStore is not expected to run in multiple threads
-                // and because of this there won't be multiple clients that
-                // can change the value between #updateMeta's initial
-                // #getMeta and the subsequent #add(meta) above. Because of
-                // this we can safely always return TRUE here.
-                return Deferred.fromResult(Boolean.TRUE);
-              }
-            });
+    add(meta);
+    return Deferred.fromResult(Boolean.TRUE);
   }
 
   @Override
