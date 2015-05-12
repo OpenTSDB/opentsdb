@@ -48,7 +48,7 @@ public interface TsdbStore {
                                final byte[] uid,
                                final UniqueIdType type);
 
-  Deferred<Object> deleteUID(byte[] name, UniqueIdType type);
+  Deferred<Void> deleteUID(byte[] name, UniqueIdType type);
 
   /**
    * Lookup time series related to a metric, tagk, tagv or any combination
@@ -79,15 +79,15 @@ public interface TsdbStore {
   //
   // Datapoints
   //
-  Deferred<Object> addPoint(final TimeseriesId tsuid,
+  Deferred<Void> addPoint(final TimeseriesId tsuid,
                             final long timestamp,
                             final float value);
 
-  Deferred<Object> addPoint(final TimeseriesId tsuid,
+  Deferred<Void> addPoint(final TimeseriesId tsuid,
                             final long timestamp,
                             final double value);
 
-  Deferred<Object> addPoint(final TimeseriesId tsuid,
+  Deferred<Void> addPoint(final TimeseriesId tsuid,
                             final long timestamp,
                             final long value);
 
@@ -112,7 +112,7 @@ public interface TsdbStore {
    * @param annotation@return A meaningless Deferred for the caller to wait on until the call is
    * complete. The value may be null.
    */
-  Deferred<Object> delete(Annotation annotation);
+  Deferred<Void> delete(Annotation annotation);
 
   Deferred<Integer> deleteAnnotationRange(final byte[] tsuid, final long start_time, final long end_time);
 
@@ -144,7 +144,7 @@ public interface TsdbStore {
 
   Deferred<Boolean> create(final TSMeta tsMeta);
 
-  Deferred<Object> delete(final TSMeta tsMeta);
+  Deferred<Void> delete(final TSMeta tsMeta);
 
   Deferred<TSMeta> getTSMeta(final byte[] tsuid);
 
@@ -155,5 +155,5 @@ public interface TsdbStore {
   //
   // Misc
   //
-  public Deferred<Object> shutdown();
+  public Deferred<Void> shutdown();
 }

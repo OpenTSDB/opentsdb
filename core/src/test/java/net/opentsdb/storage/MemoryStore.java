@@ -97,27 +97,27 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final float value) {
     return addPoint(tsuid, value, timestamp);
   }
 
   @Override
-  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final double value) {
     return addPoint(tsuid, value, timestamp);
   }
 
   @Override
-  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final long value) {
     return addPoint(tsuid, (Number) value, timestamp);
   }
 
-  private Deferred<Object> addPoint(final TimeseriesId tsuid,
+  private Deferred<Void> addPoint(final TimeseriesId tsuid,
                                     final Number value,
                                     final long timestamp) {
     /*
@@ -138,8 +138,8 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> shutdown() {
-    throw new UnsupportedOperationException("Not implemented yet");
+  public Deferred<Void> shutdown() {
+    return Deferred.fromResult(null);
   }
 
   @Override
@@ -191,7 +191,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> deleteUID(byte[] name, UniqueIdType type) {
+  public Deferred<Void> deleteUID(byte[] name, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -259,11 +259,12 @@ public class MemoryStore implements TsdbStore {
    * annoation does not exist in storage, this delete call will not throw an
    * error.
    *
-   * @param annotation@return A meaningless Deferred for the caller to wait on until the call is
+   * @param annotation
+   * @return A meaningless Deferred for the caller to wait on until the call is
    * complete. The value may be null.
    */
   @Override
-  public Deferred<Object> delete(Annotation annotation) {
+  public Deferred<Void> delete(Annotation annotation) {
 
     final String tsuid = annotation.getTSUID() != null && !annotation.getTSUID().isEmpty() ?
             annotation.getTSUID() : "";
@@ -274,8 +275,9 @@ public class MemoryStore implements TsdbStore {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }
 
-    return Deferred.fromResult(
-            (Object) annotation_table.remove(tsuid, start));
+    annotation_table.remove(tsuid, start);
+
+    return Deferred.fromResult(null);
   }
 
   @Override
@@ -358,7 +360,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> delete(TSMeta tsMeta) {
+  public Deferred<Void> delete(TSMeta tsMeta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

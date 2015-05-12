@@ -27,7 +27,7 @@ public class DefaultSearchPlugin extends SearchPlugin {
   }
 
   @Override
-  public Deferred<Object> shutdown() {
+  public Deferred<Void> shutdown() {
     return Deferred.fromResult(null);
   }
 

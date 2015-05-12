@@ -96,7 +96,7 @@ public class MetaClient {
    * only be used to track completion.
    * @throws IllegalArgumentException if data was missing (identifier and type)
    */
-  public Deferred<Object> delete(final TSMeta tsMeta) {
+  public Deferred<Void> delete(final TSMeta tsMeta) {
     tsMeta.checkTSUI();
     return store.delete(tsMeta);
   }
@@ -177,7 +177,7 @@ public class MetaClient {
    * @return A meaningless Deferred for the caller to wait on until the call is
    * complete. The value may be null.
    */
-  public Deferred<Object> delete(Annotation annotation) {
+  public Deferred<Void> delete(Annotation annotation) {
     if (annotation.getStartTime() < 1) {
       throw new IllegalArgumentException("The start timestamp has not been set");
     }

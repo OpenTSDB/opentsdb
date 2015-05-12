@@ -150,13 +150,12 @@ public class TSDB {
    * this instance have been released.  The value of the deferred object
    * return is meaningless and unspecified, and can be {@code null}.
    */
-  public Deferred<Object> shutdown() {
-    final ArrayList<Deferred<Object>> deferreds = 
-      new ArrayList<Deferred<Object>>();
+  public Deferred<Void> shutdown() {
+    final ArrayList<Deferred<Void>> deferreds = new ArrayList<>();
     
-    final class StoreShutdown implements Callback<Object, ArrayList<Object>> {
+    final class StoreShutdown implements Callback<Deferred<Void>, ArrayList<Void>> {
       @Override
-      public Object call(final ArrayList<Object> args) {
+      public Deferred<Void> call(final ArrayList<Void> args) {
         return tsdb_store.shutdown();
       }
       public String toString() {
@@ -164,9 +163,9 @@ public class TSDB {
       }
     }
     
-    final class ShutdownErrback implements Callback<Object, Exception> {
+    final class ShutdownErrback implements Callback<Deferred<Void>, Exception> {
       @Override
-      public Object call(final Exception e) {
+      public Deferred<Void> call(final Exception e) {
         final Logger LOG = LoggerFactory.getLogger(ShutdownErrback.class);
         if (e instanceof DeferredGroupException) {
           final DeferredGroupException ge = (DeferredGroupException) e;
@@ -193,7 +192,8 @@ public class TSDB {
 
     // wait for plugins to shutdown before we close the TsdbStore
     return Deferred.group(deferreds)
-            .addCallbacks(new StoreShutdown(), new ShutdownErrback());
+            .addCallbackDeferring(new StoreShutdown())
+            .addErrback(new ShutdownErrback());
   }
 
   /** @return the name of the UID table as a byte array for TsdbStore requests */

@@ -154,7 +154,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final float value) {
     final BoundStatement addPointStatement = addFloatStatement.bind()
@@ -163,7 +163,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final double value) {
     final BoundStatement addPointStatement = addDoubleStatement.bind()
@@ -172,7 +172,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final long value) {
     final BoundStatement addPointStatement = addLongStatement.bind()
@@ -180,7 +180,7 @@ public class CassandraStore implements TsdbStore {
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
-  private Deferred<Object> addPoint(final BoundStatement addPointStatement,
+  private Deferred<Void> addPoint(final BoundStatement addPointStatement,
                                     final byte[] metric,
                                     final List<byte[]> tags,
                                     final long timestamp) {
@@ -202,7 +202,7 @@ public class CassandraStore implements TsdbStore {
 
     final ResultSetFuture future = session.executeAsync(addPointStatement);
 
-    final Deferred<Object> d = new Deferred<>();
+    final Deferred<Void> d = new Deferred<>();
 
     Futures.addCallback(future, new FutureCallback<ResultSet>() {
       @Override
@@ -242,12 +242,12 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> shutdown() {
+  public Deferred<Void> shutdown() {
     List<CloseFuture> close = new ArrayList<>();
     close.add(session.closeAsync());
     close.add(cluster.closeAsync());
 
-    final Deferred<Object> d = new Deferred<>();
+    final Deferred<Void> d = new Deferred<>();
 
     Futures.addCallback(Futures.allAsList(close), new
         FutureCallback<List<Void>>() {
@@ -346,7 +346,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> deleteUID(byte[] name, UniqueIdType type) {
+  public Deferred<Void> deleteUID(byte[] name, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -542,7 +542,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> delete(Annotation annotation) {
+  public Deferred<Void> delete(Annotation annotation) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -577,7 +577,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> delete(TSMeta tsMeta) {
+  public Deferred<Void> delete(TSMeta tsMeta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

@@ -56,7 +56,7 @@ public final class StatsRpc implements TelnetRpc, HttpRpc {
    * @param cmd call parameters
    */
   @Override
-  public Deferred<Object> execute(final TSDB tsdb, final Channel chan,
+  public Deferred<Void> execute(final TSDB tsdb, final Channel chan,
       final String[] cmd) {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final ConsoleReporter consoleReporter = textReporterBuilder

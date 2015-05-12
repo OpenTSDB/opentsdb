@@ -292,18 +292,18 @@ public class UniqueId {
    * @throws NoSuchUniqueName if {@code oldname} wasn't assigned.
    * @throws IllegalArgumentException if {@code newname} was already assigned.
    */
-  public Deferred<Object> rename(final String oldname, final String newname) {
-    return checkUidExists(newname).addCallback(new Callback<Object, Boolean>() {
+  public Deferred<Void> rename(final String oldname, final String newname) {
+    return checkUidExists(newname).addCallbackDeferring(new Callback<Deferred<Void>, Boolean>() {
       @Override
-      public Object call(final Boolean exists) {
+      public Deferred<Void> call(final Boolean exists) {
         if (exists) {
           throw new IllegalArgumentException("An UID with name " + newname + " " +
-                  "for " + type + " already exists");
+              "for " + type + " already exists");
         }
 
-        return getId(oldname).addCallbackDeferring(new Callback<Deferred<Object>, byte[]>() {
+        return getId(oldname).addCallbackDeferring(new Callback<Deferred<Void>, byte[]>() {
           @Override
-          public Deferred<Object> call(final byte[] old_uid) {
+          public Deferred<Void> call(final byte[] old_uid) {
             tsdb_store.allocateUID(newname, old_uid, type);
 
             // Update cache.

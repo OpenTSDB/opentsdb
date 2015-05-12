@@ -106,17 +106,17 @@ public class DataPointsClient {
    * @throws IllegalArgumentException if the tags list is empty or one of the
    * elements contains illegal characters.
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred<Void> addPoint(final String metric,
                                    final long timestamp,
                                    final float value,
                                    final Map<String, String> tags) {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Object>, TimeseriesId> {
+    class RowKeyCB implements Callback<Deferred<Void>, TimeseriesId> {
       @Override
-      public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
-        Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
+      public Deferred<Void> call(final TimeseriesId tsuid) throws Exception {
+        Deferred<Void> result = store.addPoint(tsuid, timestamp, value);
 
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
             .addErrback(new PluginError(realtimePublisher));
@@ -129,7 +129,7 @@ public class DataPointsClient {
 
     return uniqueIdClient.getTSUID(metric, tags)
         .addCallbackDeferring(new RowKeyCB())
-        .addBoth(new StopTimerCallback<Object>(time));
+        .addBoth(new StopTimerCallback<Void>(time));
   }
 
   /**
@@ -152,17 +152,17 @@ public class DataPointsClient {
    * elements contains illegal characters.
    * @since 1.2
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred<Void> addPoint(final String metric,
                                    final long timestamp,
                                    final double value,
                                    final Map<String, String> tags) {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Object>, TimeseriesId> {
+    class RowKeyCB implements Callback<Deferred<Void>, TimeseriesId> {
       @Override
-      public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
-        Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
+      public Deferred<Void> call(final TimeseriesId tsuid) throws Exception {
+        Deferred<Void> result = store.addPoint(tsuid, timestamp, value);
 
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
             .addErrback(new PluginError(realtimePublisher));
@@ -175,7 +175,7 @@ public class DataPointsClient {
 
     return uniqueIdClient.getTSUID(metric, tags)
         .addCallbackDeferring(new RowKeyCB())
-        .addBoth(new StopTimerCallback<Object>(time));
+        .addBoth(new StopTimerCallback<Void>(time));
   }
 
   /**
@@ -196,17 +196,17 @@ public class DataPointsClient {
    * @throws IllegalArgumentException if the tags list is empty or one of the
    * elements contains illegal characters.
    */
-  public Deferred<Object> addPoint(final String metric,
+  public Deferred<Void> addPoint(final String metric,
                                    final long timestamp,
                                    final long value,
                                    final Map<String, String> tags) {
     checkTimestamp(timestamp);
     checkMetricAndTags(metric, tags);
 
-    class RowKeyCB implements Callback<Deferred<Object>, TimeseriesId> {
+    class RowKeyCB implements Callback<Deferred<Void>, TimeseriesId> {
       @Override
-      public Deferred<Object> call(final TimeseriesId tsuid) throws Exception {
-        Deferred<Object> result = store.addPoint(tsuid, timestamp, value);
+      public Deferred<Void> call(final TimeseriesId tsuid) throws Exception {
+        Deferred<Void> result = store.addPoint(tsuid, timestamp, value);
 
         realtimePublisher.publishDataPoint(metric, timestamp, value, tags, tsuid)
             .addErrback(new PluginError(realtimePublisher));
@@ -219,7 +219,7 @@ public class DataPointsClient {
 
     return uniqueIdClient.getTSUID(metric, tags)
         .addCallbackDeferring(new RowKeyCB())
-        .addBoth(new StopTimerCallback<Object>(time));
+        .addBoth(new StopTimerCallback<Void>(time));
   }
 
   /**

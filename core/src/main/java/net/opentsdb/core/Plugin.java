@@ -18,7 +18,7 @@ public abstract class Plugin {
    * The {@link Object} has not special meaning and can be {@code null}
    * (think of it as {@code Deferred<Void>}).
    */
-  public abstract Deferred<Object> shutdown();
+  public abstract Deferred<Void> shutdown();
 
   /**
    * Should return the version of this plugin in the format:
