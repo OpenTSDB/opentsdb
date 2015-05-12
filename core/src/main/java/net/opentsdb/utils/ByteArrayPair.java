@@ -14,7 +14,7 @@ package net.opentsdb.utils;
 
 import java.util.Arrays;
 
-import org.hbase.async.Bytes;
+import com.google.common.primitives.SignedBytes;
 
 /**
  * Simple helper class to store a pair of byte arrays for use in situations
@@ -44,11 +44,23 @@ public class ByteArrayPair extends Pair<byte[], byte[]>
    */
   @Override
   public int compareTo(ByteArrayPair a) {
-    final int key_compare = Bytes.memcmpMaybeNull(this.key, a.key);
+    final int key_compare = cmpMaybeNull(this.key, a.key);
     if (key_compare == 0) {
-      return Bytes.memcmpMaybeNull(this.value, a.value);
+      return cmpMaybeNull(this.value, a.value);
     }
     return key_compare;
+  }
+
+  private static int cmpMaybeNull(final byte[] a, final byte[] b) {
+    if (a == null) {
+      if (b == null) {
+        return 0;
+      }
+      return -1;
+    } else if (b == null) {
+      return 1;
+    }
+    return SignedBytes.lexicographicalComparator().compare(a, b);
   }
 
   /** @return a descriptive string in the format "key=K, value=V" */
@@ -70,10 +82,10 @@ public class ByteArrayPair extends Pair<byte[], byte[]>
     if (object instanceof ByteArrayPair) {
       final ByteArrayPair other_pair = (ByteArrayPair)object;
       return
-        (key == null ? other_pair.getKey() == null : 
-          Bytes.memcmp(key, other_pair.key) == 0)
-        && (value == null ? other_pair.getValue() == null : 
-          Bytes.memcmp(value, other_pair.value) == 0);
+        (key == null ? other_pair.getKey() == null :
+            SignedBytes.lexicographicalComparator().compare(key, other_pair.key) == 0)
+        && (value == null ? other_pair.getValue() == null :
+            SignedBytes.lexicographicalComparator().compare(value, other_pair.value) == 0);
     }
     return false;
   }

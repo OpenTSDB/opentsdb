@@ -27,6 +27,8 @@ import net.opentsdb.tools.ArgP;
 import net.opentsdb.tools.CliOptions;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.oio.OioServerSocketChannelFactory;
+import org.jboss.netty.logging.InternalLoggerFactory;
+import org.jboss.netty.logging.Slf4JLoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,9 +45,12 @@ import com.typesafe.config.Config;
 final class TSDMain {
   private static final Logger LOG = LoggerFactory.getLogger(TSDMain.class);
 
+
   private static final short DEFAULT_FLUSH_INTERVAL = 1000;
 
   public static void main(String[] args) throws IOException {
+    InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
+
     LOG.info("Starting {} {}", BuildData.name(), BuildData.version());
     LOG.info("Built by {}@{} on {}", BuildData.user(), BuildData.host(),
         BuildData.date());

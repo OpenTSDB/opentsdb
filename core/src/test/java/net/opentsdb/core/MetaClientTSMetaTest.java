@@ -1,79 +1,27 @@
 package net.opentsdb.core;
 
-import com.google.common.primitives.Longs;
-import com.stumbleupon.async.DeferredGroupException;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
-import net.opentsdb.uid.NoSuchUniqueId;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.inject.Inject;
 
-import static net.opentsdb.core.StringCoder.toBytes;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
  public class MetaClientTSMetaTest {
-  private static byte[] NAME_FAMILY = toBytes("name");
-
   @Inject MetaClient metaClient;
   @Inject MemoryStore tsdb_store;
 
   @Before
   public void before() throws Exception {
     ObjectGraph.create(new TestModuleMemoryStore()).inject(this);
-
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-            NAME_FAMILY,
-            toBytes("metrics"),
-            toBytes("sys.cpu.0"));
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-            NAME_FAMILY,
-            toBytes("metric_meta"),
-            toBytes("{\"identifier\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
-                    "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-                    "1328140801,\"displayName\":\"System CPU\"}"));
-
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-            NAME_FAMILY,
-            toBytes("tagk"),
-            toBytes("host"));
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-            NAME_FAMILY,
-            toBytes("tagk_meta"),
-            toBytes("{\"identifier\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
-                    "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-                    "1328140801,\"displayName\":\"Host server name\"}"));
-
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-            NAME_FAMILY,
-            toBytes("tagv"),
-            toBytes("web01"));
-    tsdb_store.addColumn(new byte[]{0, 0, 1},
-            NAME_FAMILY,
-            toBytes("tagv_meta"),
-            toBytes("{\"identifier\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
-                    "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
-                    "1328140801,\"displayName\":\"Web server 1\"}"));
-
-    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
-            NAME_FAMILY,
-            toBytes("ts_meta"),
-            toBytes("{\"tsuid\":\"000001000001000001\",\"" +
-                    "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
-                    "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
-    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
-        NAME_FAMILY,
-        toBytes("ts_ctr"),
-        Longs.toByteArray(1L));
   }
 
   @Test
@@ -116,13 +64,6 @@ import static org.junit.Assert.assertTrue;
   }
 
   @Test
-  public void metaExistsInStorageNot() throws Exception {
-    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
-    assertFalse(metaClient.TSMetaExists("000001000001000001")
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-  }
-
-  @Test
   public void getTSMeta() throws Exception {
     final TSMeta meta = metaClient.getTSMeta("000001000001000001", true)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
@@ -142,55 +83,6 @@ import static org.junit.Assert.assertTrue;
     final TSMeta meta = metaClient.getTSMeta("000002000001000001", true)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNull(meta);
-  }
-
-  @Test (expected = NoSuchUniqueId.class)
-  public void getTSMetaNSUMetric() throws Throwable {
-    tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 1, 0, 0, 1},
-            NAME_FAMILY,
-            toBytes("ts_meta"),
-            toBytes("{\"tsuid\":\"000002000001000001\",\"" +
-                    "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
-                    "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
-    try {
-      metaClient.getTSMeta( "000002000001000001", true)
-              .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    } catch (DeferredGroupException e) {
-      throw e.getCause();
-    }
-  }
-
-  @Test (expected = NoSuchUniqueId.class)
-  public void getTSMetaNSUTagk() throws Throwable {
-    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 2, 0, 0, 1},
-            NAME_FAMILY,
-            toBytes("ts_meta"),
-            toBytes("{\"tsuid\":\"000001000002000001\",\"" +
-                    "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
-                    "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
-    try {
-      metaClient.getTSMeta( "000001000002000001", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    } catch (DeferredGroupException e) {
-      throw e.getCause();
-    }
-  }
-
-  @Test (expected = NoSuchUniqueId.class)
-  public void getTSMetaNSUTagv() throws Throwable {
-    tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 2},
-            NAME_FAMILY,
-            toBytes("ts_meta"),
-            toBytes("{\"tsuid\":\"000001000001000002\",\"" +
-                    "description\":\"Description\",\"notes\":\"Notes\",\"created\":1328140800," +
-                    "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
-                    "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
-    try {
-      metaClient.getTSMeta( "000001000001000002", true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    } catch (DeferredGroupException e) {
-      throw e.getCause();
-    }
   }
 
   @Test
@@ -221,12 +113,5 @@ import static org.junit.Assert.assertTrue;
   public void syncToStorageNullTSUID() throws Exception {
     final TSMeta meta = new TSMeta();
     metaClient.syncToStorage(meta, true).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-
-  @Test (expected = IllegalArgumentException.class)
-  public void syncToStorageDoesNotExist() throws Exception {
-    tsdb_store.flushRow(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1});
-    final TSMeta meta = new TSMeta(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1}, 1357300800000L);
-    metaClient.syncToStorage(meta, false).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }
 }

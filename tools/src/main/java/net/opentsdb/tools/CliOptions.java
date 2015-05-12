@@ -24,15 +24,8 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import org.slf4j.LoggerFactory;
 
-import org.jboss.netty.logging.InternalLoggerFactory;
-import org.jboss.netty.logging.Slf4JLoggerFactory;
-
 /** Helper functions to parse arguments passed to {@code main}.  */
 public final class CliOptions {
-
-  static {
-    InternalLoggerFactory.setDefaultFactory(new Slf4JLoggerFactory());
-  }
 
   /** Adds common TSDB options to the given {@code argp}.  */
   public static void addCommon(final ArgP argp) {

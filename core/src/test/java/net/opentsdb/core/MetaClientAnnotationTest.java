@@ -51,13 +51,6 @@ public class MetaClientAnnotationTest {
     note = new Annotation("000001000001000001", 1388450563, 1419984000, "Note2",
         "Nothing", null);
     store.updateAnnotation(null, note);
-
-    // add some data points too maybe not relevant any more
-    store.addColumn(tsuid_row_key,
-        new byte[]{0x50, 0x10}, new byte[]{1});
-
-    store.addColumn(tsuid_row_key,
-        new byte[]{0x50, 0x18}, new byte[]{2});
   }
 
   @Test
@@ -154,12 +147,6 @@ public class MetaClientAnnotationTest {
         IdUtils.stringToUid(note.getTSUID()),
         note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-
-
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x10}));
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x18}));
   }
 
   @Test
@@ -180,11 +167,6 @@ public class MetaClientAnnotationTest {
         IdUtils.stringToUid(note.getTSUID()),
         note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x10}));
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x18}));
   }
 
   // this doesn't throw an error or anything, just issues the delete request
@@ -207,11 +189,6 @@ public class MetaClientAnnotationTest {
         IdUtils.stringToUid(note.getTSUID()),
         note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x10}));
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x18}));
   }
 
   @Test (expected = IllegalArgumentException.class)
@@ -346,11 +323,6 @@ public class MetaClientAnnotationTest {
         IdUtils.stringToUid(note.getTSUID()),
         note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x10}));
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x18}));
   }
 
   @Test
@@ -372,11 +344,6 @@ public class MetaClientAnnotationTest {
         IdUtils.stringToUid(note.getTSUID()),
         note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x10}));
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x18}));
   }
 
   @Test
@@ -398,11 +365,6 @@ public class MetaClientAnnotationTest {
         IdUtils.stringToUid(note.getTSUID()),
         note.getStartTime()
     ).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x10}));
-    assertNotNull(store.getColumn(tsuid_row_key,
-        new byte[]{0x50, 0x18}));
   }
 
   @Test

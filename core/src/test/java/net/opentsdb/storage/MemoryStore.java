@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
+import com.google.common.primitives.Longs;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
@@ -33,20 +34,16 @@ import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.TimeseriesId;
 
-import javax.xml.bind.DatatypeConverter;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.uid.UniqueIdType;
-import org.hbase.async.Bytes;
 
 import static net.opentsdb.core.StringCoder.fromBytes;
 import static net.opentsdb.uid.IdUtils.uidToString;
@@ -73,10 +70,6 @@ import static net.opentsdb.uid.IdUtils.uidToString;
  */
 public class MemoryStore implements TsdbStore {
   private static final Charset ASCII = Charsets.ISO_8859_1;
-
-  //      KEY           Column Family Qualifier     Timestamp     Value
-  private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
-    storage = new Bytes.ByteMap<>();
 
   private final Table<Long, String, LabelMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
@@ -210,7 +203,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<byte[]> allocateUID(final String name,
                                       final UniqueIdType type) {
-    final byte[] row = Bytes.fromLong(uid_max.get(type).getAndIncrement());
+    final byte[] row = Longs.toByteArray(uid_max.get(type).getAndIncrement());
 
     // row.length should actually be 8.
     if (row.length < type.width) {
@@ -259,237 +252,6 @@ public class MemoryStore implements TsdbStore {
     uid_forward_mapping.put(name, type, uid);
 
     return Deferred.fromResult(uid);
-  }
-
-  /**
-   * Helper to convert an array of bytes to a hexadecimal encoded string.
-   * @param bytes The byte array to convert
-   * @return A hex string
-   */
-  public static String bytesToString(final byte[] bytes) {
-    return DatatypeConverter.printHexBinary(bytes);
-  }
-
-  /**
-   * Add a column to the hash table using the default column family.
-   * The proper row will be created if it doesn't exist. If the column already
-   * exists, the original value will be overwritten with the new data
-   * @param key The row key
-   * @param qualifier The qualifier
-   * @param value The value to store
-   */
-  public void addColumn(final byte[] key, final byte[] qualifier,
-                        final byte[] value) {
-    addColumn(key, default_family, qualifier, value, current_timestamp++);
-  }
-
-  /**
-   * Add a column to the hash table
-   * The proper row will be created if it doesn't exist. If the column already
-   * exists, the original value will be overwritten with the new data
-   * @param key The row key
-   * @param family The column family to store the value in
-   * @param qualifier The qualifier
-   * @param value The value to store
-   */
-  public void addColumn(final byte[] key, final byte[] family,
-                        final byte[] qualifier, final byte[] value) {
-    addColumn(key, family, qualifier, value, current_timestamp++);
-  }
-
-  /**
-   * Add a column to the hash table
-   * The proper row will be created if it doesn't exist. If the column already
-   * exists, the original value will be overwritten with the new data
-   * @param key The row key
-   * @param family The column family to store the value in
-   * @param qualifier The qualifier
-   * @param value The value to store
-   * @param timestamp The timestamp to store
-   */
-  public void addColumn(final byte[] key, final byte[] family,
-                        final byte[] qualifier, final byte[] value, final long timestamp) {
-    // AsyncHBase will throw an NPE if the user tries to write a NULL value
-    // so we better do the same. An empty value is ok though, i.e. new byte[] {}
-    if (value == null) {
-      throw new NullPointerException();
-    }
-
-    Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row = storage.get(key);
-    if (row == null) {
-      row = new Bytes.ByteMap<>();
-      storage.put(key, row);
-    }
-
-    Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      cf = new Bytes.ByteMap<>();
-      row.put(family, cf);
-    }
-    TreeMap<Long, byte[]> column = cf.get(qualifier);
-    if (column == null) {
-      // remember, most recent at the top!
-      column = new TreeMap<>(Collections.reverseOrder());
-      cf.put(qualifier, column);
-    }
-    column.put(timestamp, value);
-  }
-
-  /** @return TTotal number of rows in the hash table */
-  public int numRows() {
-    return storage.size();
-  }
-
-  /**
-   * Total number of columns in the given row on the data table.
-   * @param row The row to search for
-   * @return -1 if the row did not exist, otherwise the number of columns.
-   */
-  public long numColumnsDataTable(final byte[] row) {
-    return 1;
-  }
-
-  /**
-   * Total number of columns in the given row across all column families
-   * @param key The row to search for
-   * @return -1 if the row did not exist, otherwise the number of columns.
-   */
-  public long numColumns(final byte[] key) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return -1;
-    }
-    long size = 0;
-    for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> entry : row) {
-      size += entry.getValue().size();
-    }
-    return size;
-  }
-
-  /**
-   * Retrieve the most recent contents of a single column with the default family
-   * @param key The row key of the column
-   * @param qualifier The column qualifier
-   * @return The byte array of data or null if not found
-   */
-  public byte[] getColumn(final byte[] key, final byte[] qualifier) {
-    return getColumn(key, default_family, qualifier);
-  }
-
-  /**
-   * Retrieve the most recent contents of a single column
-   * @param key The row key of the column
-   * @param family The column family
-   * @param qualifier The column qualifier
-   * @return The byte array of data or null if not found
-   */
-  public byte[] getColumn(final byte[] key, final byte[] family,
-                          final byte[] qualifier) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return null;
-    }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      return null;
-    }
-    final TreeMap<Long, byte[]> column = cf.get(qualifier);
-    if (column == null) {
-      return null;
-    }
-    return column.firstEntry().getValue();
-  }
-
-  /**
-   * Retrieve a column from the data table.
-   * @param key The row key of the column
-   * @param qualifier The column qualifier
-   * @return The byte array of data or null if not found
-   */
-  public byte[] getColumnDataTable(final byte[] key,
-                          final byte[] qualifier) {
-    return new byte[] {};
-  }
-
-  /**
-   * Clears the entire hash table. Use it if your unit test needs to start fresh
-   */
-  public void flushStorage() {
-    storage.clear();
-  }
-
-  /**
-   * Removes the entire row from the hash table
-   * @param key The row to remove
-   */
-  public void flushRow(final byte[] key) {
-    storage.remove(key);
-  }
-
-  /**
-   * Removes the given column from the hash map
-   * @param key Row key
-   * @param family Column family
-   * @param qualifier Column qualifier
-   */
-  public void flushColumn(final byte[] key, final byte[] family,
-                          final byte[] qualifier) {
-    final Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>> row =
-      storage.get(key);
-    if (row == null) {
-      return;
-    }
-    final Bytes.ByteMap<TreeMap<Long, byte[]>> cf = row.get(family);
-    if (cf == null) {
-      return;
-    }
-    cf.remove(qualifier);
-  }
-
-  /**
-   * Dumps the entire storage hash to stdout in a sort of tree style format with
-   * all byte arrays hex encoded
-   */
-  public void dumpToSystemOut() {
-    dumpToSystemOut(false);
-  }
-
-  /**
-   * Dumps the entire storage hash to stdout in a sort of tree style format
-   * @param ascii Whether or not the values should be converted to ascii
-   */
-  public void dumpToSystemOut(final boolean ascii) {
-    if (storage.isEmpty()) {
-      System.out.println("Storage is Empty");
-      return;
-    }
-
-    for (Map.Entry<byte[], Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>> row :
-      storage.entrySet()) {
-      System.out.println("[Row] " + (ascii ? new String(row.getKey(), ASCII) :
-        bytesToString(row.getKey())));
-
-      for (Map.Entry<byte[], Bytes.ByteMap<TreeMap<Long, byte[]>>> cf :
-        row.getValue().entrySet()) {
-
-        final String family = ascii ? new String(cf.getKey(), ASCII) :
-          bytesToString(cf.getKey());
-        System.out.println("  [CF] " + family);
-
-        for (Map.Entry<byte[], TreeMap<Long, byte[]>> column : cf.getValue().entrySet()) {
-          System.out.println("    [Qual] " + (ascii ?
-            "\"" + new String(column.getKey(), ASCII) + "\""
-            : bytesToString(column.getKey())));
-          for (Map.Entry<Long, byte[]> cell : column.getValue().entrySet()) {
-            System.out.println("      [TS] " + cell.getKey() + "  [Value] " +
-              (ascii ?  new String(cell.getValue(), ASCII)
-                : bytesToString(cell.getValue())));
-          }
-        }
-      }
-    }
   }
 
   /**

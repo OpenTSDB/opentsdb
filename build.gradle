@@ -32,16 +32,8 @@ subprojects {
         compile group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-guava', version: '2.4.3'
         compile group: 'com.stumbleupon', name: 'async', version: '1.4.0'
         compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.7'
-        compile group: 'org.hbase', name: 'asynchbase', version: '1.6.0'
         compile group: 'io.dropwizard.metrics', name: 'metrics-core', version: '3.1.0'
         compile group: 'io.dropwizard.metrics', name: 'metrics-jvm', version: '3.1.0'
-
-        compile(group: 'org.apache.zookeeper', name: 'zookeeper', version: '3.3.6') {
-            exclude group: 'log4j', module: 'log4j'
-            exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-            exclude group: 'jline', module: 'jline'
-            exclude group: 'junit', module: 'junit'
-        }
 
         // Should be compile only
         compile group: 'com.google.auto.service', name: 'auto-service', version: '1.0-rc2'

@@ -4,7 +4,6 @@ import com.typesafe.config.ConfigFactory;
 import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.CoreModule;
-import net.opentsdb.core.DataPointsClientExecuteQueryTest;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientTSMetaTest;
 import net.opentsdb.core.PluginsModule;
@@ -42,7 +41,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
         },
         overrides = true,
         injects = {
-            DataPointsClientExecuteQueryTest.class,
             MetaClientAnnotationTest.class,
             MemoryStore.class,
             MetaClientTSMetaTest.class,
