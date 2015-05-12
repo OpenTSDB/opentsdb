@@ -51,7 +51,7 @@ import static org.mockito.Mockito.when;
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
             toBytes("metric_meta"),
-            toBytes("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
+            toBytes("{\"identifier\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
                     "1328140801,\"displayName\":\"System CPU\"}"));
 
@@ -62,7 +62,7 @@ import static org.mockito.Mockito.when;
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
             toBytes("tagk_meta"),
-            toBytes("{\"uid\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
+            toBytes("{\"identifier\":\"000001\",\"type\":\"TAGK\",\"name\":\"host\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
                     "1328140801,\"displayName\":\"Host server name\"}"));
 
@@ -73,7 +73,7 @@ import static org.mockito.Mockito.when;
     tsdb_store.addColumn(new byte[]{0, 0, 1},
             NAME_FAMILY,
             toBytes("tagv_meta"),
-            toBytes("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
+            toBytes("{\"identifier\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
                     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
                     "1328140801,\"displayName\":\"Web server 1\"}"));
 

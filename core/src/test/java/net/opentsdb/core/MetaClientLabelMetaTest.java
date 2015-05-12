@@ -80,7 +80,7 @@ public class MetaClientLabelMetaTest {
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());
-    assertArrayEquals(new byte[]{0, 0, 3}, meta.uid());
+    assertArrayEquals(new byte[]{0, 0, 3}, meta.identifier());
   }
 
   @Test
@@ -89,7 +89,7 @@ public class MetaClientLabelMetaTest {
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());
-    assertArrayEquals(new byte[]{0, 0, 3}, meta.uid());
+    assertArrayEquals(new byte[]{0, 0, 3}, meta.identifier());
   }
 
   @Test
@@ -98,7 +98,7 @@ public class MetaClientLabelMetaTest {
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.0", meta.name());
-    assertArrayEquals(new byte[]{0, 0, 1}, meta.uid());
+    assertArrayEquals(new byte[]{0, 0, 1}, meta.identifier());
   }
 
   @Test (expected = NoSuchUniqueId.class)

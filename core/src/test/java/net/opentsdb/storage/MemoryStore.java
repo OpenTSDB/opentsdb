@@ -179,7 +179,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> add(final LabelMeta meta) {
     uid_table.put(
-        IdUtils.uidToLong(meta.uid()),
+        IdUtils.uidToLong(meta.identifier()),
         meta.type().toString().toLowerCase() + "_meta",
         meta);
 
@@ -189,7 +189,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(final LabelMeta meta) {
     uid_table.remove(
-            IdUtils.uidToLong(meta.uid()),
+            IdUtils.uidToLong(meta.identifier()),
             meta.type().toString().toLowerCase() + "_meta");
 
     return Deferred.fromResult(null);

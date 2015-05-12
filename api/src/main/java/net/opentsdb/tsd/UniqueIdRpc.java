@@ -201,7 +201,7 @@ final class UniqueIdRpc implements HttpRpc {
                 "This may be caused by another process modifying storage data");
           }
 
-          return metaClient.getUIDMeta(meta.type(), meta.uid());
+          return metaClient.getUIDMeta(meta.type(), meta.identifier());
         }
         
       }

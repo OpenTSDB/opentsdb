@@ -118,7 +118,7 @@ public class MetaClient {
    * @param tsMeta The TSMeta to be removed.
    * @return A deferred without meaning. The response may be null and should
    * only be used to track completion.
-   * @throws IllegalArgumentException if data was missing (uid and type)
+   * @throws IllegalArgumentException if data was missing (identifier and type)
    */
   public Deferred<Object> delete(final TSMeta tsMeta) {
     tsMeta.checkTSUI();
@@ -131,7 +131,6 @@ public class MetaClient {
    * @param meta The meta object to delete
    * @return A deferred without meaning. The response may be null and should
    * only be used to track completion.
-   * @throws IllegalArgumentException if data was missing (uid and type)
    */
   public Deferred<Object> delete(final LabelMeta meta) {
     return store.delete(meta);
@@ -271,7 +270,7 @@ public class MetaClient {
    * Verifies the UID object exists, then attempts to fetch the meta from
    * storage and if not found, returns a default object.
    * <p>
-   * The reason for returning a default object (with the type, uid and name set)
+   * The reason for returning a default object (with the type, identifier and name set)
    * is due to users who may have just enabled meta data or have upgraded; we
    * want to return valid data. If they modify the entry, it will write to
    * storage. You can tell it's a default if the {@code created} value is 0. If
@@ -340,7 +339,7 @@ public class MetaClient {
    * Parses a TSMeta object from the given column, optionally loading the
    * UIDMeta objects
    *
-   * @param column_key The KeyValue.key() of the column to parse also know as uid
+   * @param column_key The KeyValue.key() of the column to parse also know as identifier
    * @param column_value The KeyValue.value() of the column to parse
    * @param load_uidmetas Whether or not UIDmeta objects should be loaded
    * @return A TSMeta if parsed successfully
@@ -540,7 +539,7 @@ public class MetaClient {
 
   /**
    * Attempts to update the information of the stored LabelMeta object with the
-   * same {@code uid} and {@type} as the provided meta object. The stored
+   * same {@code identifier} and {@type} as the provided meta object. The stored
    * LabelMeta will be fetched first and checked for equality before it tried to
    * save anything.
    *
@@ -550,7 +549,7 @@ public class MetaClient {
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<Boolean> update(final LabelMeta meta) {
-    return getUIDMeta(meta.type(), meta.uid()).addCallbackDeferring(
+    return getUIDMeta(meta.type(), meta.identifier()).addCallbackDeferring(
         new Callback<Deferred<Boolean>, LabelMeta>() {
           @Override
           public Deferred<Boolean> call(final LabelMeta storedMeta) {

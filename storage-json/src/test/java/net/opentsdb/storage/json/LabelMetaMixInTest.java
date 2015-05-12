@@ -58,7 +58,7 @@ public class LabelMetaMixInTest {
 
   @Test
   public void deserialize() throws Exception {
-    String json = "{\"uid\":\"ABCD\",\"type\":\"MeTriC\",\"name\":\"MyName\"," +
+    String json = "{\"identifier\":\"ABCD\",\"type\":\"MeTriC\",\"name\":\"MyName\"," +
     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
     "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
 
@@ -74,7 +74,7 @@ public class LabelMetaMixInTest {
             .readValue(json);
 
     assertNotNull(meta);
-    assertArrayEquals(uid, meta.uid());
+    assertArrayEquals(uid, meta.identifier());
     assertEquals(UniqueIdType.METRIC, meta.type());
     assertEquals("MyOtherName", meta.name());
     assertEquals("Description", meta.description());
@@ -90,7 +90,7 @@ public class LabelMetaMixInTest {
    */
   @Test (expected = IllegalArgumentException.class)
   public void deserializeWithNullType() throws Exception {
-    String json = "{\"uid\":\"ABCD\",\"type\":\"null\",\"name\":\"MyName\"," +
+    String json = "{\"identifier\":\"ABCD\",\"type\":\"null\",\"name\":\"MyName\"," +
             "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
             "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
 
