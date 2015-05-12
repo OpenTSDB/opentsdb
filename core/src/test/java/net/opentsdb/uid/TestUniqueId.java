@@ -176,6 +176,6 @@ public final class TestUniqueId {
   public void createIdPublishesEventOnSuccess() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
     uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    verify(idEventBus).post(any(IdCreatedEvent.class));
+    verify(idEventBus).post(any(LabelCreatedEvent.class));
   }
 }

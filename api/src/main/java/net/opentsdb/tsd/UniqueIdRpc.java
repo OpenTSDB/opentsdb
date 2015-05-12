@@ -173,7 +173,7 @@ final class UniqueIdRpc implements HttpRpc {
       final UniqueIdType type = UniqueIdType.fromValue(
               query.getRequiredQueryStringParam("type"));
       try {
-        final LabelMeta meta = metaClient.getUIDMeta(type, uid)
+        final LabelMeta meta = metaClient.getLabelMeta(type, uid)
         .joinUninterruptibly();
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (NoSuchUniqueId e) {
@@ -201,7 +201,7 @@ final class UniqueIdRpc implements HttpRpc {
                 "This may be caused by another process modifying storage data");
           }
 
-          return metaClient.getUIDMeta(meta.type(), meta.identifier());
+          return metaClient.getLabelMeta(meta.type(), meta.identifier());
         }
         
       }
@@ -210,7 +210,7 @@ final class UniqueIdRpc implements HttpRpc {
         final Deferred<LabelMeta> process_meta = metaClient.update(meta
         ).addCallbackDeferring(new SyncCB());
         final LabelMeta updated_meta = process_meta.joinUninterruptibly();
-        metaClient.indexUIDMeta(updated_meta);
+        metaClient.update(updated_meta);
         query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
       } catch (IllegalStateException e) {
         query.sendStatusOnly(HttpResponseStatus.NOT_MODIFIED);
@@ -222,23 +222,6 @@ final class UniqueIdRpc implements HttpRpc {
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
-    // DELETE    
-    } else if (method == HttpMethod.DELETE) {
-      final LabelMeta meta = query.serializer().parseUidMetaV1();
-
-      try {
-        metaClient.delete(meta).joinUninterruptibly();
-        metaClient.deleteUIDMeta(meta);
-      } catch (IllegalArgumentException e) {
-        throw new BadRequestException("Unable to delete UIDMeta information", e);
-      } catch (NoSuchUniqueId e) {
-        throw new BadRequestException(HttpResponseStatus.NOT_FOUND, 
-            "Could not find the requested UID", e);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-      query.sendStatusOnly(HttpResponseStatus.NO_CONTENT);
-      
     } else {
       throw new BadRequestException(HttpResponseStatus.METHOD_NOT_ALLOWED, 
           "Method not allowed", "The HTTP method [" + method.getName() +

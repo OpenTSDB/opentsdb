@@ -8,7 +8,7 @@ import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdCreatedEvent;
+import net.opentsdb.uid.LabelCreatedEvent;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
@@ -22,7 +22,6 @@ import javax.inject.Inject;
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -50,42 +49,12 @@ public class MetaClientLabelMetaTest {
 
     LabelMeta labelMeta = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
 
-    store.add(labelMeta);
-  }
-
-  @Test
-  public void createdIdEventCreatesUIDMetaWhenEnabled() {
-    config = config.withValue("tsd.core.meta.enable_realtime_uid",
-            ConfigValueFactory.fromAnyRef(true));
-
-    store = mock(TsdbStore.class);
-    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, realtimePublisher);
-    idEventBus.post(new IdCreatedEvent(new byte[]{0, 0, 1}, "test", UniqueIdType.METRIC));
-    verify(store).add(any(LabelMeta.class));
-    verify(searchPlugin).indexUIDMeta(any(LabelMeta.class));
-  }
-
-  @Test
-  public void createdIdEventCreatesUIDMetaWhenDisabled() {
-    store = mock(TsdbStore.class);
-    new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, realtimePublisher);
-    idEventBus.post(new IdCreatedEvent(new byte[] {0, 0, 1}, "test", UniqueIdType.METRIC));
-    verify(store, never()).add(any(LabelMeta.class));
-    verify(searchPlugin, never()).indexUIDMeta(any(LabelMeta.class));
+    store.updateMeta(labelMeta);
   }
 
   @Test
   public void getUIDMeta() throws Exception {
-    final LabelMeta meta = metaClient.getUIDMeta(METRIC, "000003")
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertEquals(METRIC, meta.type());
-    assertEquals("sys.cpu.2", meta.name());
-    assertArrayEquals(new byte[]{0, 0, 3}, meta.identifier());
-  }
-
-  @Test
-  public void getUIDMetaByte() throws Exception {
-    final LabelMeta meta = metaClient.getUIDMeta(METRIC, new byte[]{0, 0, 3})
+    final LabelMeta meta = metaClient.getLabelMeta(METRIC, new byte[]{0, 0, 3})
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());
@@ -94,7 +63,7 @@ public class MetaClientLabelMetaTest {
 
   @Test
   public void getUIDMetaExists() throws Exception {
-    final LabelMeta meta = metaClient.getUIDMeta(METRIC, "000001")
+    final LabelMeta meta = metaClient.getLabelMeta(METRIC, "000001")
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.0", meta.name());
@@ -103,15 +72,8 @@ public class MetaClientLabelMetaTest {
 
   @Test (expected = NoSuchUniqueId.class)
   public void getUIDMetaNoSuch() throws Exception {
-    metaClient.getUIDMeta(METRIC, "000002")
+    metaClient.getLabelMeta(METRIC, "000002")
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-
-  @Test
-  public void delete() throws Exception {
-    final LabelMeta meta = metaClient.getUIDMeta(METRIC, "000001")
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    metaClient.delete(meta);
   }
 
   /*
@@ -133,7 +95,7 @@ public class MetaClientLabelMetaTest {
 
   @Test (expected = IllegalStateException.class)
   public void syncToStorageNoChanges() throws Exception {
-    final UIDMeta meta = metaClient.getUIDMeta(METRIC, "000001")
+    final UIDMeta meta = metaClient.getLabelMeta(METRIC, "000001")
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     metaClient.update(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
   }

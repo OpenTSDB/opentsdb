@@ -336,16 +336,6 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> add(LabelMeta meta) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Object> delete(LabelMeta meta) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
   public Deferred<LabelMeta> getMeta(byte[] uid, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
@@ -573,11 +563,6 @@ public class CassandraStore implements TsdbStore {
 
   @Override
   public Deferred<ImmutableList<DataPoints>> executeQuery(Query query) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

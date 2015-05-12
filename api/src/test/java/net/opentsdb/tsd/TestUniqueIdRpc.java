@@ -1100,7 +1100,7 @@ public final class TestUniqueIdRpc {
         "Description",
         1328140801);
 
-    tsdb_store.add(meta);
+    tsdb_store.updateMeta(meta);
   }
 
   /**

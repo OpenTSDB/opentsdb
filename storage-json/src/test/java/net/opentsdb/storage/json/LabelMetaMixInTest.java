@@ -82,7 +82,7 @@ public class LabelMetaMixInTest {
   }
 
   /**
-   * This method tests what happens when you try to deserialize a UIDMeta
+   * This method tests what happens when you try to deserialize a {@link LabelMeta}
    * object from JSON. It should throw an IllegalArgumentException due to how
    * {@link UniqueIdTypeDeserializer} parses types.
    * This conforms to opentsdb/opentsdb as of commit

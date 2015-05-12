@@ -237,27 +237,6 @@ public class DataPointsClient {
   }
 
   /**
-   * Fetches a list of TSUIDs given the metric and optional tag pairs. The query
-   * format is similar to TsdbQuery but doesn't support grouping operators for
-   * tags. Only TSUIDs that had "ts_counter" qualifiers will be returned.
-   * @return A map of TSUIDs to the last timestamp (in milliseconds) when the
-   * "ts_counter" was updated. Note that the timestamp will be the time stored
-   * by HBase, not the actual timestamp of the data point
-   * @throws IllegalArgumentException if the metric was not set or the tag map
-   * was null
-   * TODO Fixme
-   */
-  public Deferred<Map<byte[], Long>> getLastWriteTimes(final SearchQuery query) {
-    return uniqueIdClient.resolve(query)
-        .addCallbackDeferring(new Callback<Deferred<Map<byte[], Long>>, ResolvedSearchQuery>() {
-          @Override
-          public Deferred<Map<byte[], Long>> call(final ResolvedSearchQuery resolvedQuery) {
-            return store.getLastWriteTimes(resolvedQuery);
-          }
-        });
-  }
-
-  /**
    * Callback that should be attached the the output of
    * {@link net.opentsdb.storage.TsdbStore#executeQuery} to group and sort the results.
    */

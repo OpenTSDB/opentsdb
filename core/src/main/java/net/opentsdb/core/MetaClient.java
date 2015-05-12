@@ -5,17 +5,15 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.EventBus;
-import com.google.common.eventbus.Subscribe;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.search.IdChangeIndexerListener;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.IdCreatedEvent;
 import net.opentsdb.uid.IdUtils;
 
 import com.google.common.base.Strings;
@@ -23,7 +21,6 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
-import net.opentsdb.utils.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,9 +56,8 @@ public class MetaClient {
 
     checkNotNull(idEventBus);
 
-    if (config.getBoolean("tsd.core.meta.enable_realtime_uid")) {
-      idEventBus.register(new IdChangeListener(store, searchPlugin));
-    }
+    // TODO this should be registered in a dagger module
+    idEventBus.register(new IdChangeIndexerListener(store, searchPlugin));
   }
 
   /**
@@ -75,25 +71,6 @@ public class MetaClient {
    */
   public Deferred<Boolean> TSMetaExists(final String tsuid) {
     return store.TSMetaExists(tsuid);
-  }
-
-  /**
-   * Attempts to store a blank, new UID meta object in the proper location.
-   * <b>Warning:</b> This should not be called by user accessible methods as it
-   * will overwrite any data already in the column. This method does not use
-   * a CAS, instead it uses a PUT to overwrite anything in the column.
-   * @param meta The meta object to store
-   * @return A deferred without meaning. The response may be null and should
-   * only be used to track completion.
-   * @throws IllegalArgumentException if data was missing
-   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
-   */
-  public Deferred<Object> add(final LabelMeta meta) {
-    if (Strings.isNullOrEmpty(meta.name())) {
-      throw new IllegalArgumentException("Missing name");
-    }
-
-    return store.add(meta);
   }
 
   /**
@@ -126,17 +103,6 @@ public class MetaClient {
   }
 
   /**
-   * Attempts to delete the meta object from storage
-   *
-   * @param meta The meta object to delete
-   * @return A deferred without meaning. The response may be null and should
-   * only be used to track completion.
-   */
-  public Deferred<Object> delete(final LabelMeta meta) {
-    return store.delete(meta);
-  }
-
-  /**
    * Delete the annotation object from the search index
    * @param note The annotation object to delete
    * @since 2.0
@@ -152,15 +118,6 @@ public class MetaClient {
    */
   public void deleteTSMeta(final String tsuid) {
     searchPlugin.deleteTSMeta(tsuid).addErrback(new PluginError(searchPlugin));
-  }
-
-  /**
-   * Delete the UID meta object from the search index
-   * @param meta The UID meta object to delete
-   * @since 2.0
-   */
-  public void deleteUIDMeta(final LabelMeta meta) {
-    searchPlugin.deleteUIDMeta(meta).addErrback(new PluginError(searchPlugin));
   }
 
   /**
@@ -254,16 +211,14 @@ public class MetaClient {
   }
 
   /**
-   * Convenience overload of {@code getUIDMeta(UniqueIdType, byte[])}
-   * @param type The type of UID to fetch
-   * @param uid The ID of the meta to fetch
-   * @return A UIDMeta from storage or a default
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
-   * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
+   * Convenience overload of {@code getLabelMeta(UniqueIdType, byte[])}
+   *
+   * @see #getLabelMeta(UniqueIdType, byte[])
    */
-  public Deferred<LabelMeta> getUIDMeta(final UniqueIdType type,
-                                      final String uid) {
-    return getUIDMeta(type, IdUtils.stringToUid(uid));
+  @Deprecated
+  public Deferred<LabelMeta> getLabelMeta(final UniqueIdType type,
+                                          final String uid) {
+    return getLabelMeta(type, IdUtils.stringToUid(uid));
   }
 
   /**
@@ -282,8 +237,8 @@ public class MetaClient {
    * @throws org.hbase.async.HBaseException if there was an issue fetching
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
-  public Deferred<LabelMeta> getUIDMeta(final UniqueIdType type,
-                                      final byte[] uid) {
+  public Deferred<LabelMeta> getLabelMeta(final UniqueIdType type,
+                                          final byte[] uid) {
     /**
      * Callback used to verify that the UID to name mapping exists. Uses the TSD
      * for verification so the name may be cached. If the name does not exist
@@ -324,51 +279,6 @@ public class MetaClient {
    */
   public void indexTSMeta(final TSMeta meta) {
     searchPlugin.indexTSMeta(meta).addErrback(new PluginError(searchPlugin));
-  }
-
-  /**
-   * Index the given UID meta object via the configured search plugin
-   * @param meta The meta data object to index
-   * @since 2.0
-   */
-  public void indexUIDMeta(final LabelMeta meta) {
-    searchPlugin.indexUIDMeta(meta).addErrback(new PluginError(searchPlugin));
-  }
-
-  /**
-   * Parses a TSMeta object from the given column, optionally loading the
-   * UIDMeta objects
-   *
-   * @param column_key The KeyValue.key() of the column to parse also know as identifier
-   * @param column_value The KeyValue.value() of the column to parse
-   * @param load_uidmetas Whether or not UIDmeta objects should be loaded
-   * @return A TSMeta if parsed successfully
-   * @throws net.opentsdb.utils.JSONException if the data was corrupted
-   */
-  public Deferred<TSMeta> parseFromColumn(final byte[] column_key,
-                                          final byte[] column_value,
-                                          final boolean load_uidmetas) {
-    if (column_value == null || column_value.length < 1) {
-      throw new IllegalArgumentException("Empty column value");
-    }
-
-    final TSMeta meta = JSON.parseToObject(column_value, TSMeta.class);
-
-    // fix in case the tsuid is missing
-    if (meta.getTSUID() == null || meta.getTSUID().isEmpty()) {
-      meta.setTSUID(IdUtils.uidToString(column_key));
-    }
-
-    if (!load_uidmetas) {
-      return Deferred.fromResult(meta);
-    }
-
-    final LoadUIDs deferred = new LoadUIDs(meta.getTSUID());
-    try {
-      return deferred.call(meta);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 
   /**
@@ -549,7 +459,7 @@ public class MetaClient {
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<Boolean> update(final LabelMeta meta) {
-    return getUIDMeta(meta.type(), meta.identifier()).addCallbackDeferring(
+    return getLabelMeta(meta.type(), meta.identifier()).addCallbackDeferring(
         new Callback<Deferred<Boolean>, LabelMeta>() {
           @Override
           public Deferred<Boolean> call(final LabelMeta storedMeta) {
@@ -597,8 +507,8 @@ public class MetaClient {
       Iterator<byte[]> tag_iter = tags.iterator();
 
       while(tag_iter.hasNext()) {
-        uid_group.add(getUIDMeta(UniqueIdType.TAGK, tag_iter.next()));
-        uid_group.add(getUIDMeta(UniqueIdType.TAGV, tag_iter.next()));
+        uid_group.add(getLabelMeta(UniqueIdType.TAGK, tag_iter.next()));
+        uid_group.add(getLabelMeta(UniqueIdType.TAGV, tag_iter.next()));
       }
 
       /**
@@ -631,41 +541,8 @@ public class MetaClient {
         }
       }
 
-      return getUIDMeta(UniqueIdType.METRIC, metric_uid)
+      return getLabelMeta(UniqueIdType.METRIC, metric_uid)
               .addCallbackDeferring(new UIDMetaMetricCB());
-    }
-  }
-
-
-  /**
-   * A Guava {@link com.google.common.eventbus.EventBus} listener that listens
-   * for ID changes and creates UIDMeta objects and indexes them with the
-   * {@link net.opentsdb.search.SearchPlugin} when appropriate.
-   */
-  private static class IdChangeListener {
-    private final TsdbStore store;
-    private SearchPlugin searchPlugin;
-
-    public IdChangeListener(final TsdbStore store,
-                            final SearchPlugin searchPlugin) {
-      this.store = store;
-      this.searchPlugin = searchPlugin;
-    }
-
-    /**
-     * The method that subscribes to {@link net.opentsdb.uid.IdCreatedEvent}s.
-     * You should not call this directly, post messages to the event bus that
-     * this listener is registered to instead.
-     * @param event The published event.
-     */
-    @Subscribe
-    @AllowConcurrentEvents
-    public final void recordIdCreated(IdCreatedEvent event) {
-      // todo
-      LabelMeta meta = LabelMeta.create(event.getId(), event.getType(), event.getName(), "Set me", 0);
-      store.add(meta);
-      LOG.info("Wrote UIDMeta for: {}", event.getName());
-      searchPlugin.indexUIDMeta(meta);
     }
   }
 }

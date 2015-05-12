@@ -177,27 +177,8 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> add(final LabelMeta meta) {
-    uid_table.put(
-        IdUtils.uidToLong(meta.identifier()),
-        meta.type().toString().toLowerCase() + "_meta",
-        meta);
-
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> delete(final LabelMeta meta) {
-    uid_table.remove(
-            IdUtils.uidToLong(meta.identifier()),
-            meta.type().toString().toLowerCase() + "_meta");
-
-    return Deferred.fromResult(null);
-  }
-
-  @Override
   public Deferred<LabelMeta> getMeta(final byte[] uid,
-                                   final UniqueIdType type) {
+                                     final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final long s_uid = IdUtils.uidToLong(uid);
 
@@ -208,7 +189,11 @@ public class MemoryStore implements TsdbStore {
 
   @Override
   public Deferred<Boolean> updateMeta(final LabelMeta meta) {
-    add(meta);
+    uid_table.put(
+        IdUtils.uidToLong(meta.identifier()),
+        meta.type().toString().toLowerCase() + "_meta",
+        meta);
+
     return Deferred.fromResult(Boolean.TRUE);
   }
 
@@ -676,11 +661,6 @@ public class MemoryStore implements TsdbStore {
    */
   @Override
   public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

@@ -101,8 +101,6 @@ public interface TsdbStore {
    */
   Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
 
-  Deferred<Map<byte[], Long>> getLastWriteTimes(final ResolvedSearchQuery query);
-
   //
   // Annotations
   //
@@ -132,14 +130,10 @@ public interface TsdbStore {
   Deferred<Boolean> updateAnnotation(Annotation original, Annotation annotation);
 
   //
-  // UIDMeta
+  // LabelMeta
   //
-  public Deferred<Object> add(final LabelMeta meta);
-
-  Deferred<Object> delete(LabelMeta meta);
-
   public Deferred<LabelMeta> getMeta(final byte[] uid,
-                                   final UniqueIdType type);
+                                     final UniqueIdType type);
 
   public Deferred<Boolean> updateMeta(final LabelMeta meta);
 

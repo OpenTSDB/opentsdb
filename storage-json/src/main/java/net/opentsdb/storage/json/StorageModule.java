@@ -13,7 +13,7 @@ public class StorageModule extends SimpleModule {
 
   @Override
   public void setupModule(SetupContext context) {
-    context.setMixInAnnotations(LabelMeta.class, UIDMetaMixIn.class);
+    context.setMixInAnnotations(LabelMeta.class, LabelMetaMixIn.class);
     context.setMixInAnnotations(Annotation.class, AnnotationMixIn.class);
     context.setMixInAnnotations(TSMeta.class, TSMetaMixIn.class);
   }
