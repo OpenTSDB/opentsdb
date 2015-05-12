@@ -2,11 +2,14 @@
 package net.opentsdb;
 
 import net.opentsdb.idmanager.Assign;
+import net.opentsdb.utils.KillingUncaughtHandler;
 
 import java.util.Arrays;
 
 public class TSDB {
   public static void main(final String[] args) {
+    KillingUncaughtHandler.install();
+
     if (args.length < 1) {
       usage(args);
       return;
