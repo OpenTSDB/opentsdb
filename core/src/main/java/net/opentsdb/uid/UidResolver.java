@@ -4,15 +4,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 
+import com.google.common.primitives.SignedBytes;
 import com.typesafe.config.Config;
 
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.UniqueIdClient;
-import org.hbase.async.Bytes;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 public class UidResolver {
   private final UniqueIdClient idClient;
@@ -70,7 +68,7 @@ public class UidResolver {
     @Override
     public ArrayList<byte[]> call(final ArrayList<byte[]> tags) {
       // Now sort the tags.
-      Collections.sort(tags, Bytes.MEMCMP);
+      Collections.sort(tags, SignedBytes.lexicographicalComparator());
       return tags;
     }
   }

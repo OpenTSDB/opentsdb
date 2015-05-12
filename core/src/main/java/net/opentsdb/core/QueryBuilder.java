@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.SignedBytes;
 import com.typesafe.config.Config;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UidResolver;
@@ -23,7 +25,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.util.Map.Entry;
 import static net.opentsdb.core.DataPointsClient.checkTimestamp;
 import static net.opentsdb.uid.UniqueIdType.TAGV;
-import static org.hbase.async.Bytes.ByteMap;
 
 public class QueryBuilder {
   private final UniqueIdClient idClient;
@@ -379,7 +380,7 @@ public class QueryBuilder {
         List<byte[]> group_by = Lists.newArrayList();
         group_by.addAll(group_bys.values());
 
-        ByteMap<ArrayList<byte[]>> group_by_vals = new ByteMap<ArrayList<byte[]>>();
+        TreeMap<byte[], ArrayList<byte[]>> group_by_vals = new TreeMap<>(SignedBytes.lexicographicalComparator());
         for (Entry<String, ArrayList<byte[]>> group_by_val_entry : group_by_values.entrySet()) {
           byte[] tagk_id = group_bys.get(group_by_val_entry.getKey());
           group_by_vals.put(tagk_id, group_by_val_entry.getValue());

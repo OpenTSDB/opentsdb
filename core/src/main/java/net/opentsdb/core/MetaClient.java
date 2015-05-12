@@ -67,7 +67,6 @@ public class MetaClient {
    * valid, just checks to see if something is stored in the proper column.
    * @param tsuid The UID of the meta to verify
    * @return True if data was found, false if not
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
    */
   public Deferred<Boolean> TSMetaExists(final String tsuid) {
     return store.TSMetaExists(tsuid);
@@ -197,7 +196,6 @@ public class MetaClient {
    * @param tsuid The UID of the meta to fetch
    * @param load_uids Set this you true if you also want to load the UIDs
    * @return A TSMeta object if found, null if not
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
    * @throws IllegalArgumentException if parsing failed
    * @throws net.opentsdb.utils.JSONException if the data was corrupted
    */
@@ -234,7 +232,6 @@ public class MetaClient {
    * @param type The type of UID to fetch
    * @param uid The ID of the meta to fetch
    * @return A UIDMeta from storage or a default
-   * @throws org.hbase.async.HBaseException if there was an issue fetching
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<LabelMeta> getLabelMeta(final UniqueIdType type,
@@ -492,7 +489,6 @@ public class MetaClient {
 
     /**
      * @return A TSMeta object loaded with UIDMetas if successful
-     * @throws org.hbase.async.HBaseException if there was a storage issue
      * @throws net.opentsdb.utils.JSONException if the data was corrupted
      */
     @Override

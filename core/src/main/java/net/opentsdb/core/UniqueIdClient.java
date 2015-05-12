@@ -15,6 +15,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
+import com.google.common.primitives.SignedBytes;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
@@ -40,7 +41,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.utils.ByteArrayPair;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.stats.StopTimerCallback;
-import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -401,7 +401,7 @@ public class UniqueIdClient {
     @Override
     public ArrayList<byte[]> call(final ArrayList<byte[]> tags) {
       // Now sort the tags.
-      Collections.sort(tags, Bytes.MEMCMP);
+      Collections.sort(tags, SignedBytes.lexicographicalComparator());
       return tags;
     }
   }

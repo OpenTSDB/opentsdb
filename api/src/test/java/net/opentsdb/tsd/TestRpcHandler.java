@@ -26,7 +26,6 @@ import net.opentsdb.core.TSDB;
 import com.typesafe.config.Config;
 
 import com.codahale.metrics.MetricRegistry;
-import org.hbase.async.HBaseClient;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -54,7 +53,7 @@ import javax.inject.Inject;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({ TSDB.class, Config.class, HBaseClient.class, RpcHandler.class,
+@PrepareForTest({ TSDB.class, Config.class, RpcHandler.class,
   HttpQuery.class, MessageEvent.class, DefaultHttpResponse.class, 
   ChannelHandlerContext.class })
 public final class TestRpcHandler {

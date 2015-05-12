@@ -26,8 +26,8 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import org.hbase.async.Bytes;
 
+import com.google.common.primitives.SignedBytes;
 import net.opentsdb.meta.Annotation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -154,7 +154,7 @@ final class SpanGroup implements DataPoints {
       return;
     }
 
-    final Set<byte[]> discarded_tags = Sets.newTreeSet(Bytes.MEMCMP);
+    final Set<byte[]> discarded_tags = Sets.newTreeSet(SignedBytes.lexicographicalComparator());
 
     final Iterator<Span> it = spans.iterator();
     Map<byte[], byte[]> tags2 = it.next().tags();

@@ -1,5 +1,6 @@
 package net.opentsdb.core;
 
+import com.google.common.primitives.Longs;
 import com.stumbleupon.async.DeferredGroupException;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
@@ -7,15 +8,8 @@ import net.opentsdb.meta.TSMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import javax.inject.Inject;
 
@@ -26,11 +20,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-          "ch.qos.*", "org.slf4j.*",
-          "com.sum.*", "org.xml.*"})
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({KeyValue.class, Scanner.class, TSMeta.class})
  public class MetaClientTSMetaTest {
   private static byte[] NAME_FAMILY = toBytes("name");
 
@@ -82,9 +71,9 @@ import static org.junit.Assert.assertTrue;
                     "\"custom\":null,\"units\":\"\",\"retention\":42,\"max\":1.0,\"min\":" +
                     "\"NaN\",\"displayName\":\"Display\",\"dataType\":\"Data\"}"));
     tsdb_store.addColumn(new byte[]{0, 0, 1, 0, 0, 1, 0, 0, 1},
-            NAME_FAMILY,
-            toBytes("ts_ctr"),
-            Bytes.fromLong(1L));
+        NAME_FAMILY,
+        toBytes("ts_ctr"),
+        Longs.toByteArray(1L));
   }
 
   @Test

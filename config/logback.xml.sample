@@ -26,8 +26,6 @@ automatically since it uses the root project dir as a working directory).
     <MaxSize>1024</MaxSize>
   </appender>
 
-  <logger name="org.apache.zookeeper" level="INFO"/>
-  <logger name="org.hbase.async" level="INFO"/>
   <logger name="com.stumbleupon.async" level="INFO"/>
   <root level="INFO">
     <appender-ref ref="STDOUT"/>

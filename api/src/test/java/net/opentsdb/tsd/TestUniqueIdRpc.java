@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import java.nio.charset.Charset;
 
+import com.google.common.primitives.Longs;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
@@ -26,10 +27,6 @@ import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.RowLock;
-import org.hbase.async.Scanner;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.junit.Before;
 import org.junit.Test;
@@ -47,8 +44,7 @@ import static org.junit.Assert.*;
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({TSMeta.class, LabelMeta.class,
-  RowLock.class, UniqueIdRpc.class, KeyValue.class,
-  Scanner.class})
+  UniqueIdRpc.class})
 public final class TestUniqueIdRpc {
   private static byte[] NAME_FAMILY = toBytes("name");
   private TSDB tsdb;
@@ -1117,12 +1113,12 @@ public final class TestUniqueIdRpc {
     tsdb_store.allocateUID("web01", new byte[]{0, 0, 1}, UniqueIdType.TAGV);
     tsdb_store.allocateUID("web02", new byte[]{0, 0, 3}, UniqueIdType.TAGV);
 
-    tsdb_store.addColumn(new byte[] { 0, 0, 1 },
+    tsdb_store.addColumn(new byte[]{0, 0, 1},
         NAME_FAMILY,
         toBytes("metric_meta"),
         toBytes("{\"uid\":\"000001\",\"type\":\"METRIC\",\"name\":\"sys.cpu.0\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"System CPU\"}"));
+            "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
+            "1328140801,\"displayName\":\"System CPU\"}"));
     tsdb_store.addColumn(new byte[] { 0, 0, 2 },
         toBytes("metric_meta"),
         toBytes("{\"uid\":\"000002\",\"type\":\"METRIC\",\"name\":\"sys.cpu.2\"," +
@@ -1145,17 +1141,17 @@ public final class TestUniqueIdRpc {
         toBytes("{\"uid\":\"000001\",\"type\":\"TAGV\",\"name\":\"web01\"," +
         "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
         "1328140801,\"displayName\":\"Web server 1\"}"));
-    tsdb_store.addColumn(new byte[] { 0, 0, 3 },
+    tsdb_store.addColumn(new byte[]{0, 0, 3},
         toBytes("tagv_meta"),
         toBytes("{\"uid\":\"000003\",\"type\":\"TAGV\",\"name\":\"web02\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"Web server 1\"}"));
+            "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
+            "1328140801,\"displayName\":\"Web server 1\"}"));
     tsdb_store.allocateUID("dc01", new byte[]{0, 0, 2}, UniqueIdType.TAGV);
-    tsdb_store.addColumn(new byte[] { 0, 0, 2 },
+    tsdb_store.addColumn(new byte[]{0, 0, 2},
         toBytes("tagv_meta"),
         toBytes("{\"uid\":\"000002\",\"type\":\"TAGV\",\"name\":\"dc01\"," +
-        "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" + 
-        "1328140801,\"displayName\":\"Web server 1\"}"));
+            "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
+            "1328140801,\"displayName\":\"Web server 1\"}"));
 
     tsdb_store.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
         NAME_FAMILY,
@@ -1167,7 +1163,7 @@ public final class TestUniqueIdRpc {
     tsdb_store.addColumn(new byte[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 },
         NAME_FAMILY,
         toBytes("ts_ctr"),
-        Bytes.fromLong(1L));
+        Longs.toByteArray(1L));
     tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
         NAME_FAMILY,
         toBytes("ts_meta"),
@@ -1178,7 +1174,7 @@ public final class TestUniqueIdRpc {
     tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 1, 0, 0, 2, 0, 0, 2 },
         NAME_FAMILY,
         toBytes("ts_ctr"),
-        Bytes.fromLong(1L));
+        Longs.toByteArray(1L));
     tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
         NAME_FAMILY,
         toBytes("ts_meta"),
@@ -1186,10 +1182,10 @@ public final class TestUniqueIdRpc {
             "\"description\":\"Description\",\"notes\":\"Notes\",\"created" +
             "\":1366671600,\"custom\":null,\"units\":\"\",\"dataType\":" +
             "\"Data\",\"retention\":42,\"max\":1.0,\"min\":\"NaN\"}"));
-    tsdb_store.addColumn(new byte[] { 0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2 },
+    tsdb_store.addColumn(new byte[]{0, 0, 2, 0, 0, 1, 0, 0, 3, 0, 0, 2, 0, 0, 2},
         NAME_FAMILY,
         toBytes("ts_ctr"),
-        Bytes.fromLong(1L));
+        Longs.toByteArray(1L));
   }
   private boolean hasNoTagK(JsonNode jsonNode) {
     return (jsonNode.findPath("tagk").isMissingNode() &&

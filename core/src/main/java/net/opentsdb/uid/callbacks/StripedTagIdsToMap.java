@@ -1,8 +1,8 @@
 package net.opentsdb.uid.callbacks;
 
 import com.google.common.collect.Maps;
+import com.google.common.primitives.SignedBytes;
 import com.stumbleupon.async.Callback;
-import org.hbase.async.Bytes;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -19,7 +19,7 @@ import java.util.Map;
 public class StripedTagIdsToMap implements Callback<Map<byte[], byte[]>, ArrayList<byte[]>> {
   @Override
   public Map<byte[], byte[]> call(final ArrayList<byte[]> stripedTagIds) {
-    final Map<byte[], byte[]> tagIdMap = Maps.newTreeMap(Bytes.MEMCMP);
+    final Map<byte[], byte[]> tagIdMap = Maps.newTreeMap(SignedBytes.lexicographicalComparator());
 
     Iterator<byte[]> tagIterator = stripedTagIds.iterator();
 

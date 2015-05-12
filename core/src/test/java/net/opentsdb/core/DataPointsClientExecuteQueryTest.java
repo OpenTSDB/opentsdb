@@ -16,6 +16,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
+import com.google.common.primitives.Shorts;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
@@ -26,15 +29,8 @@ import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueId;
 import com.typesafe.config.Config;
 
-import org.hbase.async.Bytes;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
 
@@ -52,11 +48,6 @@ import static org.junit.Assert.*;
  * - downsampling
  * - compactions (read and write);
  */
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-        "ch.qos.*", "org.slf4j.*",
-        "com.sum.*", "org.xml.*"})
-@PrepareForTest({KeyValue.class, Scanner.class, Query.class})
 public final class DataPointsClientExecuteQueryTest {
   public static final int START_TIME_1 = 1356998400;
   public static final int END_TIME_1 = 1357041600;
@@ -1226,21 +1217,21 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runMultiCompact() throws Exception {
     final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(1L);
+    final byte[] val1 = Longs.toByteArray(1L);
     final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(2L);
+    final byte[] val2 = Longs.toByteArray(2L);
 
     // 2nd compaction
     final byte[] qual3 = { 0x00, 0x37 };
-    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] val3 = Longs.toByteArray(3L);
     final byte[] qual4 = { 0x00, 0x47 };
-    final byte[] val4 = Bytes.fromLong(4L);
+    final byte[] val4 = Longs.toByteArray(4L);
 
     // 3rd compaction
     final byte[] qual5 = { 0x00, 0x57 };
-    final byte[] val5 = Bytes.fromLong(5L);
+    final byte[] val5 = Longs.toByteArray(5L);
     final byte[] qual6 = { 0x00, 0x67 };
-    final byte[] val6 = Bytes.fromLong(6L);
+    final byte[] val6 = Longs.toByteArray(6L);
 
     final byte[] KEY = { 0, 0, 1, 0x50, (byte) 0xE2,
             0x27, 0x00, 0, 0, 1, 0, 0, 1 };
@@ -1281,21 +1272,21 @@ public final class DataPointsClientExecuteQueryTest {
   @Test
   public void runMultiCompactAndSingles() throws Exception {
     final byte[] qual1 = { 0x00, 0x07 };
-    final byte[] val1 = Bytes.fromLong(1L);
+    final byte[] val1 = Longs.toByteArray(1L);
     final byte[] qual2 = { 0x00, 0x27 };
-    final byte[] val2 = Bytes.fromLong(2L);
+    final byte[] val2 = Longs.toByteArray(2L);
 
     // 2nd compaction
     final byte[] qual3 = { 0x00, 0x37 };
-    final byte[] val3 = Bytes.fromLong(3L);
+    final byte[] val3 = Longs.toByteArray(3L);
     final byte[] qual4 = { 0x00, 0x47 };
-    final byte[] val4 = Bytes.fromLong(4L);
+    final byte[] val4 = Longs.toByteArray(4L);
 
     // 3rd compaction
     final byte[] qual5 = { 0x00, 0x57 };
-    final byte[] val5 = Bytes.fromLong(5L);
+    final byte[] val5 = Longs.toByteArray(5L);
     final byte[] qual6 = { 0x00, 0x67 };
-    final byte[] val6 = Bytes.fromLong(6L);
+    final byte[] val6 = Longs.toByteArray(6L);
 
     final byte[] KEY = { 0, 0, 1, 0x50, (byte) 0xE2,
             0x27, 0x00, 0, 0, 1, 0, 0, 1 };
@@ -2693,14 +2684,14 @@ public final class DataPointsClientExecuteQueryTest {
     for (int index = 0; index < qualifier.length; index += 2) {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column =
-              Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
+              Shorts.toByteArray((short) (offset << Const.FLAG_BITS | 0x7));
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
     }
 
     byte[] column_qualifier = new byte[119 * 8];
     for (int index = 0; index < column_qualifier.length; index += 8) {
-      System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
+      System.arraycopy(Longs.toByteArray(value), 0, column_qualifier, index, 8);
       value++;
     }
     store.addColumn(MockBase.stringToBytes(E22700000001000001),
@@ -2712,14 +2703,14 @@ public final class DataPointsClientExecuteQueryTest {
     for (int index = 0; index < qualifier.length; index += 2) {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column =
-              Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
+              Shorts.toByteArray((short)(offset << Const.FLAG_BITS | 0x7));
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
     }
 
     column_qualifier = new byte[120 * 8];
     for (int index = 0; index < column_qualifier.length; index += 8) {
-      System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
+      System.arraycopy(Longs.toByteArray(value), 0, column_qualifier, index, 8);
       value++;
     }
     store.addColumn(MockBase.stringToBytes(E23510000001000001),
@@ -2731,14 +2722,14 @@ public final class DataPointsClientExecuteQueryTest {
     for (int index = 0; index < qualifier.length; index += 2) {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column =
-              Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
+              Shorts.toByteArray((short)(offset << Const.FLAG_BITS | 0x7));
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
     }
 
     column_qualifier = new byte[61 * 8];
     for (int index = 0; index < column_qualifier.length; index += 8) {
-      System.arraycopy(Bytes.fromLong(value), 0, column_qualifier, index, 8);
+      System.arraycopy(Longs.toByteArray(value), 0, column_qualifier, index, 8);
       value++;
     }
     store.addColumn(MockBase.stringToBytes(E24320000001000001),
@@ -2753,14 +2744,14 @@ public final class DataPointsClientExecuteQueryTest {
     for (int index = 0; index < qualifier.length; index += 2) {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column =
-              Bytes.fromShort((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
+              Shorts.toByteArray((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
     }
 
     byte[] column_qualifier = new byte[119 * 4];
     for (int index = 0; index < column_qualifier.length; index += 4) {
-      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0,
+      System.arraycopy(Ints.toByteArray(Float.floatToRawIntBits(value)), 0,
               column_qualifier, index, 4);
       value += 0.25F;
     }
@@ -2773,14 +2764,14 @@ public final class DataPointsClientExecuteQueryTest {
     for (int index = 0; index < qualifier.length; index += 2) {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column =
-              Bytes.fromShort((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
+              Shorts.toByteArray((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
     }
 
     column_qualifier = new byte[120 * 4];
     for (int index = 0; index < column_qualifier.length; index += 4) {
-      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0,
+      System.arraycopy(Ints.toByteArray(Float.floatToRawIntBits(value)), 0,
               column_qualifier, index, 4);
       value += 0.25F;
     }
@@ -2793,14 +2784,14 @@ public final class DataPointsClientExecuteQueryTest {
     for (int index = 0; index < qualifier.length; index += 2) {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column =
-              Bytes.fromShort((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
+              Shorts.toByteArray((short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       System.arraycopy(column, 0, qualifier, index, 2);
       timestamp += 30;
     }
 
     column_qualifier = new byte[61 * 4];
     for (int index = 0; index < column_qualifier.length; index += 4) {
-      System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0,
+      System.arraycopy(Ints.toByteArray(Float.floatToRawIntBits(value)), 0,
               column_qualifier, index, 4);
       value += 0.25F;
     }
@@ -2817,9 +2808,9 @@ public final class DataPointsClientExecuteQueryTest {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column;
       if (q_counter % 1 == 0) {
-        column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
+        column = Shorts.toByteArray((short)(offset << Const.FLAG_BITS | 0x7));
       } else {
-        column = Bytes.fromShort(
+        column = Shorts.toByteArray(
                 (short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       }
       System.arraycopy(column, 0, qualifier, index, 2);
@@ -2833,10 +2824,10 @@ public final class DataPointsClientExecuteQueryTest {
     int idx = 0;
     while (idx < column_qualifier.length) {
       if (value % 1 == 0) {
-        System.arraycopy(Bytes.fromLong((long)value), 0, column_qualifier, idx, 8);
+        System.arraycopy(Longs.toByteArray((long)value), 0, column_qualifier, idx, 8);
         idx += 8;
       } else {
-        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0,
+        System.arraycopy(Ints.toByteArray(Float.floatToRawIntBits(value)), 0,
                 column_qualifier, idx, 4);
         idx += 4;
       }
@@ -2852,9 +2843,9 @@ public final class DataPointsClientExecuteQueryTest {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column;
       if (q_counter % 1 == 0) {
-        column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
+        column = Shorts.toByteArray((short)(offset << Const.FLAG_BITS | 0x7));
       } else {
-        column = Bytes.fromShort(
+        column = Shorts.toByteArray(
                 (short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       }
       System.arraycopy(column, 0, qualifier, index, 2);
@@ -2867,10 +2858,10 @@ public final class DataPointsClientExecuteQueryTest {
     idx = 0;
     while (idx < column_qualifier.length) {
       if (value % 1 == 0) {
-        System.arraycopy(Bytes.fromLong((long)value), 0, column_qualifier, idx, 8);
+        System.arraycopy(Longs.toByteArray((long)value), 0, column_qualifier, idx, 8);
         idx += 8;
       } else {
-        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0,
+        System.arraycopy(Ints.toByteArray(Float.floatToRawIntBits(value)), 0,
                 column_qualifier, idx, 4);
         idx += 4;
       }
@@ -2886,9 +2877,9 @@ public final class DataPointsClientExecuteQueryTest {
       final int offset = (int) (timestamp - base_timestamp);
       final byte[] column;
       if (q_counter % 1 == 0) {
-        column = Bytes.fromShort((short)(offset << Const.FLAG_BITS | 0x7));
+        column = Shorts.toByteArray((short)(offset << Const.FLAG_BITS | 0x7));
       } else {
-        column = Bytes.fromShort(
+        column = Shorts.toByteArray(
                 (short)(offset << Const.FLAG_BITS | Const.FLAG_FLOAT | 0x3));
       }
       System.arraycopy(column, 0, qualifier, index, 2);
@@ -2902,10 +2893,10 @@ public final class DataPointsClientExecuteQueryTest {
     idx = 0;
     while (idx < column_qualifier.length) {
       if (value % 1 == 0) {
-        System.arraycopy(Bytes.fromLong((long)value), 0, column_qualifier, idx, 8);
+        System.arraycopy(Longs.toByteArray((long)value), 0, column_qualifier, idx, 8);
         idx += 8;
       } else {
-        System.arraycopy(Bytes.fromInt(Float.floatToRawIntBits(value)), 0,
+        System.arraycopy(Ints.toByteArray(Float.floatToRawIntBits(value)), 0,
                 column_qualifier, idx, 4);
         idx += 4;
       }

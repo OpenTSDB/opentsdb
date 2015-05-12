@@ -20,14 +20,8 @@ import net.opentsdb.TestModuleMemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import net.opentsdb.uid.UniqueIdType;
 
@@ -38,11 +32,6 @@ import static org.junit.Assert.*;
 /**
  * Tests downsampling with query.
  */
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@PrepareForTest({KeyValue.class, Scanner.class})
 public class TestTsdbQueryDownsample {
   private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
   private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};

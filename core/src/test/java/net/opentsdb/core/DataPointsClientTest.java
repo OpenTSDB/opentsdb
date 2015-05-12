@@ -1,5 +1,8 @@
 package net.opentsdb.core;
 
+import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
+import com.google.common.primitives.Shorts;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
@@ -9,7 +12,6 @@ import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.uid.NoSuchUniqueName;
 import com.typesafe.config.Config;
-import org.hbase.async.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -78,7 +80,7 @@ public class DataPointsClientTest {
             0, 0, 1, 0, 0, 1};
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 1 });
     assertNotNull(value);
-    assertEquals(257, Bytes.getShort(value));
+    assertEquals(257, Shorts.fromByteArray(value));
   }
 
   @Test
@@ -91,7 +93,7 @@ public class DataPointsClientTest {
             0, 0, 1, 0, 0, 1};
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 1 });
     assertNotNull(value);
-    assertEquals(-257, Bytes.getShort(value));
+    assertEquals(-257, Shorts.fromByteArray(value));
   }
 
   @Test
@@ -104,7 +106,7 @@ public class DataPointsClientTest {
             0, 0, 1, 0, 0, 1};
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 3 });
     assertNotNull(value);
-    assertEquals(65537, Bytes.getInt(value));
+    assertEquals(65537, Ints.fromByteArray(value));
   }
 
   @Test
@@ -117,7 +119,7 @@ public class DataPointsClientTest {
             0, 0, 1, 0, 0, 1};
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 3 });
     assertNotNull(value);
-    assertEquals(-65537, Bytes.getInt(value));
+    assertEquals(-65537, Ints.fromByteArray(value));
   }
 
   @Test
@@ -130,7 +132,7 @@ public class DataPointsClientTest {
             0, 0, 1, 0, 0, 1};
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 7 });
     assertNotNull(value);
-    assertEquals(4294967296L, Bytes.getLong(value));
+    assertEquals(4294967296L, Longs.fromByteArray(value));
   }
 
   @Test
@@ -143,7 +145,7 @@ public class DataPointsClientTest {
             0, 0, 1, 0, 0, 1};
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 7 });
     assertNotNull(value);
-    assertEquals(-4294967296L, Bytes.getLong(value));
+    assertEquals(-4294967296L, Longs.fromByteArray(value));
   }
 
   @Test
@@ -359,7 +361,7 @@ public class DataPointsClientTest {
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+    assertEquals(42.5F, Float.intBitsToFloat(Ints.fromByteArray(value)), 0.0000001);
   }
 
   @Test
@@ -373,7 +375,7 @@ public class DataPointsClientTest {
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(-42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+    assertEquals(-42.5F, Float.intBitsToFloat(Ints.fromByteArray(value)), 0.0000001);
   }
 
   @Test
@@ -388,7 +390,7 @@ public class DataPointsClientTest {
             new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+    assertEquals(42.5F, Float.intBitsToFloat(Ints.fromByteArray(value)), 0.0000001);
   }
 
   @Test
@@ -403,7 +405,7 @@ public class DataPointsClientTest {
             (byte) 0xFB });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+    assertEquals(42.5F, Float.intBitsToFloat(Ints.fromByteArray(value)), 0.0000001);
   }
 
   @Test
@@ -418,7 +420,7 @@ public class DataPointsClientTest {
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(42.512345F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+    assertEquals(42.512345F, Float.intBitsToFloat(Ints.fromByteArray(value)), 0.0000001);
   }
 
   @Test
@@ -433,7 +435,7 @@ public class DataPointsClientTest {
     final byte[] value = store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(25.4F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+    assertEquals(25.4F, Float.intBitsToFloat(Ints.fromByteArray(value)), 0.0000001);
   }
 
   @Test
@@ -455,7 +457,7 @@ public class DataPointsClientTest {
     value = store.getColumnDataTable(row, new byte[] { 0, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+    assertEquals(42.5F, Float.intBitsToFloat(Ints.fromByteArray(value)), 0.0000001);
   }
 
   @Test
@@ -477,7 +479,7 @@ public class DataPointsClientTest {
     value = store.getColumnDataTable(row, new byte[] { (byte) 0xF0, 0, 0x7D, 11 });
     assertNotNull(value);
     // should have 7 digits of precision
-    assertEquals(42.5F, Float.intBitsToFloat(Bytes.getInt(value)), 0.0000001);
+    assertEquals(42.5F, Float.intBitsToFloat(Ints.fromByteArray(value)), 0.0000001);
   }
 
   @Test

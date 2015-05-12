@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
+import com.google.common.primitives.SignedBytes;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.search.ResolvedSearchQuery;
@@ -14,7 +15,6 @@ import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
 import com.typesafe.config.Config;
 import net.opentsdb.uid.TimeseriesId;
-import org.hbase.async.Bytes;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -295,7 +296,7 @@ public class DataPointsClient {
       // then the map will have two keys:
       // - one for the LOL-OMG combination: [0, 0, 1, 0, 0, 4] and,
       // - one for the LOL-WTF combination: [0, 0, 1, 0, 0, 3].
-      final Bytes.ByteMap<SpanGroup> groups = new Bytes.ByteMap<SpanGroup>();
+      final TreeMap<byte[], SpanGroup> groups = new TreeMap<>(SignedBytes.lexicographicalComparator());
       final byte[] group = new byte[group_bys.size() * Const.TAG_VALUE_WIDTH];
 
       for (final Span span : spans) {

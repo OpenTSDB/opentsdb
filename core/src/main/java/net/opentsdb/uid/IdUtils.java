@@ -1,7 +1,7 @@
 package net.opentsdb.uid;
 
+import com.google.common.primitives.Longs;
 import net.opentsdb.core.Const;
-import org.hbase.async.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,7 +115,7 @@ public class IdUtils {
   public static byte[] longToUID(final long uid, final short width) {
     checkArgument(width > 0, "width can't be negative");
 
-    final byte[] padded = Bytes.fromLong(uid);
+    final byte[] padded = Longs.toByteArray(uid);
 
     // Verify that we're going to drop bytes that are 0.
     for (int i = 0; i < padded.length - width; i++) {
@@ -203,7 +203,7 @@ public class IdUtils {
 
     final byte[] uid_raw = new byte[8];
     System.arraycopy(uid, 0, uid_raw, 8 - uid_length, uid_length);
-    return Bytes.getLong(uid_raw);
+    return Longs.fromByteArray(uid_raw);
   }
 
   /**
@@ -219,7 +219,7 @@ public class IdUtils {
   public static long uidToLong(final byte[] uid) {
     final byte[] uid_raw = new byte[8];
     System.arraycopy(uid, 0, uid_raw, 8 - uid.length, uid.length);
-    return Bytes.getLong(uid_raw);
+    return Longs.fromByteArray(uid_raw);
   }
 
   /**
