@@ -346,12 +346,12 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<UIDMeta> getMeta(byte[] uid, String name, UniqueIdType type) {
+  public Deferred<UIDMeta> getMeta(byte[] uid, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<Boolean> updateMeta(UIDMeta meta, boolean overwrite) {
+  public Deferred<Boolean> updateMeta(UIDMeta meta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

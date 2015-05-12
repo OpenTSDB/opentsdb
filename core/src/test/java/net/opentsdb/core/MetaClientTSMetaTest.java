@@ -142,10 +142,10 @@ import static org.mockito.Mockito.when;
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
-    assertEquals("sys.cpu.0", meta.getMetric().getName());
+    assertEquals("sys.cpu.0", meta.getMetric().name());
     assertEquals(2, meta.getTags().size());
-    assertEquals("host", meta.getTags().get(0).getName());
-    assertEquals("web01", meta.getTags().get(1).getName());
+    assertEquals("host", meta.getTags().get(0).name());
+    assertEquals("web01", meta.getTags().get(1).name());
     assertEquals(1, meta.getTotalDatapoints());
     // no support for timestamps in mockbase yet
     //assertEquals(1328140801L, meta.getLastReceived());
@@ -272,7 +272,7 @@ import static org.mockito.Mockito.when;
     assertNotNull(meta);
     assertEquals("000001000001000001", meta.getTSUID());
     assertNotNull(meta.getMetric());
-    assertEquals("sys.cpu.0", meta.getMetric().getName());
+    assertEquals("sys.cpu.0", meta.getMetric().name());
   }
 
   @Test (expected = NoSuchUniqueId.class)

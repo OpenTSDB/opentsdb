@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
-import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
@@ -180,8 +179,8 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> add(final UIDMeta meta) {
     uid_table.put(
-        IdUtils.uidToLong(meta.getUID()),
-        meta.getType().toString().toLowerCase() + "_meta",
+        IdUtils.uidToLong(meta.uid()),
+        meta.type().toString().toLowerCase() + "_meta",
         meta);
 
     return Deferred.fromResult(null);
@@ -190,55 +189,25 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Object> delete(final UIDMeta meta) {
     uid_table.remove(
-            IdUtils.uidToLong(meta.getUID()),
-            meta.getType().toString().toLowerCase() + "_meta");
+            IdUtils.uidToLong(meta.uid()),
+            meta.type().toString().toLowerCase() + "_meta");
 
     return Deferred.fromResult(null);
   }
 
   @Override
   public Deferred<UIDMeta> getMeta(final byte[] uid,
-                                   final String name,
                                    final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final long s_uid = IdUtils.uidToLong(uid);
 
     final UIDMeta meta = uid_table.get(s_uid, qualifier);
 
-    if (meta == null) {
-      // return the default
-      return Deferred.fromResult(new UIDMeta(type, uid, name, false));
-    }
-
-    UniqueIdType effective_type = type;
-    if (effective_type == null) {
-      effective_type = UniqueIdType.fromValue(qualifier.substring(0,
-              qualifier.indexOf("_meta")));
-    }
-
-    return Deferred.fromResult(new UIDMeta(uid, effective_type, name,
-        meta.getDescription(),
-        meta.getCreated()));
-  }
-
-  private Deferred<UIDMeta> getMeta(final byte[] uid,
-                                    final UniqueIdType type,
-                                    final String name) {
-    final String qualifier = type.toString().toLowerCase() + "_meta";
-    UIDMeta meta = uid_table.get(IdUtils.uidToLong(uid), qualifier);
-
-    if (meta == null) {
-      return Deferred.fromResult(null);
-    }
-
-    return Deferred.fromResult(new UIDMeta(uid, type, name,
-        meta.getDescription(),
-        meta.getCreated()));
+    return Deferred.fromResult(meta);
   }
 
   @Override
-  public Deferred<Boolean> updateMeta(final UIDMeta meta,
-                                      final boolean overwrite) {
+  public Deferred<Boolean> updateMeta(final UIDMeta meta) {
     add(meta);
     return Deferred.fromResult(Boolean.TRUE);
   }

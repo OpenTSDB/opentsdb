@@ -39,6 +39,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import static net.opentsdb.core.StringCoder.toBytes;
+import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.*;
 
 @PowerMockIgnore({"javax.management.*", "javax.xml.*",
@@ -1079,7 +1080,7 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupAssign() {
-    tsdb_store.allocateUID("sys.cpu.0", UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", METRIC);
     tsdb_store.allocateUID("myserver", UniqueIdType.TAGV);
     tsdb_store.allocateUID("datacenter", UniqueIdType.TAGK);
   }
@@ -1089,15 +1090,15 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupUID() {
-    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
 
-    UIDMeta meta = new UIDMeta(
-            UniqueIdType.METRIC,
-            new byte[]{0, 0, 1},
-            "sys.cpu.0");
-    meta.setDescription("Description");
-    meta.setCreated(1328140801);
+    UIDMeta meta = UIDMeta.create(
+        new byte[]{0, 0, 1},
+        METRIC,
+        "sys.cpu.0",
+        "Description",
+        1328140801);
 
     tsdb_store.add(meta);
   }
@@ -1107,8 +1108,8 @@ public final class TestUniqueIdRpc {
    * @throws Exception if something goes pear shaped
    */
   private void setupTSUID() {
-    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.2", new byte[] {0, 0, 2}, UniqueIdType.METRIC);
+    tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
+    tsdb_store.allocateUID("sys.cpu.2", new byte[] {0, 0, 2}, METRIC);
 
     tsdb_store.allocateUID("host", new byte[]{0, 0, 1}, UniqueIdType.TAGK);
     tsdb_store.allocateUID("datacenter", new byte[] {0, 0, 2}, UniqueIdType.TAGK);

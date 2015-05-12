@@ -12,6 +12,9 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import static net.opentsdb.uid.UniqueIdType.METRIC;
+import static net.opentsdb.uid.UniqueIdType.TAGK;
+import static net.opentsdb.uid.UniqueIdType.TAGV;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyChar;
 import static org.mockito.Matchers.anyList;
@@ -318,21 +321,16 @@ public final class TestSearchRpc {
               meta.setCreated(1356998400);
               meta.setDescription("System CPU metric");
               
-              UIDMeta uid = new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 1});
-              final Field uid_name = UIDMeta.class.getDeclaredField("name");
-              uid_name.setAccessible(true);
-              uid_name.set(uid, "sys.cpu.0");
+              UIDMeta uid = UIDMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 11111);
               
               final Field metric = TSMeta.class.getDeclaredField("metric");
               metric.setAccessible(true);
               metric.set(meta, uid);
               
               final ArrayList<UIDMeta> tags = new ArrayList<UIDMeta>(2);
-              uid = new UIDMeta(UniqueIdType.TAGK, new byte[] {0, 0, 1});
-              uid_name.set(uid, "host");
+              uid = UIDMeta.create(new byte[]{0, 0, 1}, TAGK, "host", "Description", 11111);
               tags.add(uid);
-              uid = new UIDMeta(UniqueIdType.TAGV, new byte[] {0, 0, 1});
-              uid_name.set(uid, "web01");
+              uid = UIDMeta.create(new byte[]{0, 0, 1}, TAGV, "web01", "Description", 11111);
               tags.add(uid);
               
               final Field tags_field = TSMeta.class.getDeclaredField("tags");
@@ -360,14 +358,10 @@ public final class TestSearchRpc {
               break;
               
             case UIDMETA:
-              UIDMeta uid2 = new UIDMeta(UniqueIdType.METRIC, new byte[] {0, 0, 1});
-              final Field name_field = UIDMeta.class.getDeclaredField("name");
-              name_field.setAccessible(true);
-              name_field.set(uid2, "sys.cpu.0");
+              UIDMeta uid2 = UIDMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 11111);
               results.add(uid2);
-              
-              uid2 = new UIDMeta(UniqueIdType.TAGK, new byte[] {0, 0, 1});
-              name_field.set(uid2, "host");
+
+              uid2 = UIDMeta.create(new byte[]{0, 0, 1}, TAGK, "host", "Description", 11111);
               results.add(uid2);
               break;
               

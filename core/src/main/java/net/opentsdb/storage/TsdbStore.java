@@ -138,11 +138,10 @@ public interface TsdbStore {
 
   Deferred<Object> delete(UIDMeta meta);
 
-  public Deferred<UIDMeta> getMeta(byte[] uid, String name,
-                                   UniqueIdType type);
+  public Deferred<UIDMeta> getMeta(final byte[] uid,
+                                   final UniqueIdType type);
 
-  public Deferred<Boolean> updateMeta(final UIDMeta meta,
-                                      final boolean overwrite);
+  public Deferred<Boolean> updateMeta(final UIDMeta meta);
 
   //
   // TSMeta

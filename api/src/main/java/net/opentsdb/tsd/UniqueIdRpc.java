@@ -184,13 +184,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // POST
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-      
-      final UIDMeta meta;
-      if (query.hasContent()) {
-        meta = query.serializer().parseUidMetaV1();
-      } else {
-        meta = this.parseUIDMetaQS(query);
-      }
+      final UIDMeta meta = query.serializer().parseUidMetaV1();
       
       /**
        * Storage callback used to determine if the storage call was successful
@@ -206,15 +200,15 @@ final class UniqueIdRpc implements HttpRpc {
                 "Failed to save the UIDMeta to storage", 
                 "This may be caused by another process modifying storage data");
           }
-          
-          return metaClient.getUIDMeta(meta.getType(), meta.getUID());
+
+          return metaClient.getUIDMeta(meta.type(), meta.uid());
         }
         
       }
       
       try {
-        final Deferred<UIDMeta> process_meta = metaClient.updateLabelMeta(meta,
-            method == HttpMethod.PUT).addCallbackDeferring(new SyncCB());
+        final Deferred<UIDMeta> process_meta = metaClient.update(meta
+        ).addCallbackDeferring(new SyncCB());
         final UIDMeta updated_meta = process_meta.joinUninterruptibly();
         metaClient.indexUIDMeta(updated_meta);
         query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
@@ -230,13 +224,8 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // DELETE    
     } else if (method == HttpMethod.DELETE) {
-      
-      final UIDMeta meta;
-      if (query.hasContent()) {
-        meta = query.serializer().parseUidMetaV1();
-      } else {
-        meta = this.parseUIDMetaQS(query);
-      }
+      final UIDMeta meta = query.serializer().parseUidMetaV1();
+
       try {
         metaClient.delete(meta).joinUninterruptibly();
         metaClient.deleteUIDMeta(meta);
@@ -440,26 +429,6 @@ final class UniqueIdRpc implements HttpRpc {
           "Method not allowed", "The HTTP method [" + method.getName() +
           "] is not permitted for this endpoint");
     }
-  }
-  
-  /**
-   * Used with verb overrides to parse out values from a query string
-   * @param query The query to parse
-   * @return An UIDMeta object with configured values
-   * @throws BadRequestException if a required value was missing or could not
-   * be parsed
-   */
-  private UIDMeta parseUIDMetaQS(final HttpQuery query) {
-    final byte[] uid = IdUtils.stringToUid(query.getRequiredQueryStringParam("uid"));
-    final String type = query.getRequiredQueryStringParam("type");
-    final UIDMeta meta = new UIDMeta(UniqueIdType.fromValue(type), uid);
-    
-    final String description = query.getQueryStringParam("description");
-    if (description != null) {
-      meta.setDescription(description);
-    }
-    
-    return meta;
   }
   
   /**

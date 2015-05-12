@@ -12,16 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
-import java.util.Set;
+import com.google.auto.value.AutoValue;
 
-import com.google.common.base.Objects;
-import com.google.common.collect.Sets;
-
-import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueIdType;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * UIDMeta objects are associated with the UniqueId of metrics, tag names
@@ -47,130 +42,31 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * Note that the HBase specific storage code will be removed once we have a DAL
  * @since 2.0
  */
-public final class UIDMeta {
-  /** A hexadecimal representation of the UID this metadata is associated with */
-  private byte[] uid;
-
-  private UniqueIdType type;
-  
-  /** 
-   * This is the identical name of what is stored in the UID table
-   * It cannot be overridden 
-   */
-  private String name;
-  
-  /** A short description of what this object represents */
-  private String description;
-  
-  /** A timestamp of when this UID was first recorded by OpenTSDB in seconds */
-  private long created;
-
-  /**
-   * Constructor used for overwriting. Will not reset the name or created values
-   * in storage.
-   * @param type Type of UID object
-   * @param uid UID of the object
-   */
-  public UIDMeta(final UniqueIdType type, final byte[] uid) {
-    this(type, uid, null, false);
-  }
-  
-  /**
-   * Constructor used by TSD only to create a new UID with the given data and 
-   * the current system time for {@code createdd}
-   * @param type Type of UID object
-   * @param uid UID of the object
-   * @param name Name of the UID
-   */
-  public UIDMeta(final UniqueIdType type, final byte[] uid, final String name) {
-    this(uid, type, name, null, System.currentTimeMillis() / 1000);
+@AutoValue
+public abstract class UIDMeta {
+  public static UIDMeta create(final byte[] uid,
+                               final UniqueIdType type,
+                               final String name,
+                               final String description,
+                               final long created) {
+    checkArgument(type.width == uid.length, "UID length must match the UID type width");
+    checkArgument(!name.isEmpty(), "Name may not be empty");
+    checkArgument(!description.isEmpty(), "Description may not be empty");
+    return new AutoValue_UIDMeta(uid, type, name, description, created);
   }
 
-  /**
-   * Constructor used by TSD only to create a new UID with the given data and
-   * the current system time for {@code createdd}
-   * @param type Type of UID object
-   * @param uid UID of the object
-   * @param name Name of the UID
-   * @param created If this object should be considered newly created.
-   */
-  public UIDMeta(final UniqueIdType type, final byte[] uid,
-                 final String name, final boolean created) {
-    this.type = checkNotNull(type);
+  /** The id of this label */
+  public abstract byte[] uid();
 
-    checkArgument(type.width == uid.length, "UID length must match the UID " +
-            "type width");
-    this.uid = uid;
+  /** What type of label this is */
+  public abstract UniqueIdType type();
 
-    this.name = name;
+  /** The name of the label */
+  public abstract String name();
 
-    if (created) {
-      this.created = System.currentTimeMillis() / 1000;
-    }
-  }
+  /** A free-form description of what this label represents */
+  public abstract String description();
 
-  public UIDMeta(final byte[] uid,
-                 final UniqueIdType type,
-                 final String name,
-                 final String description,
-                 final long created) {
-    this.type = checkNotNull(type);
-
-    checkArgument(type.width == uid.length, "UID length must match the UID " +
-            "type width");
-    this.uid = uid;
-
-    this.name = name;
-    this.description = description;
-    this.created = created;
-  }
-
-  /**
-   * @return a string with details about this object
-   */
-  @Override
-  public String toString() {
-    return "'" + type + ":" + IdUtils.uidToLong(uid) + "'";
-  }
-  
-  // Getters and Setters --------------
-  
-  /** @return the uid as a hex encoded string */
-  public byte[] getUID() {
-    return uid;
-  }
-
-  /** @return the type of UID represented */
-  public UniqueIdType getType() {
-    return type;
-  }
-
-  /** @return the name of the UID object */
-  public String getName() {
-    return name;
-  }
-
-  /** @return optional description */
-  public String getDescription() {
-    return description;
-  }
-
-  /** @return when the UID was first assigned, may be 0 if unknown */
-  public long getCreated() {
-    return created;
-  }
-
-  /** @param description an optional description of the UID */
-  public void setDescription(final String description) {
-    if (!Objects.equal(this.description, description)) {
-      this.description = description;
-    }
-  }
-
-  /** @param created the created timestamp Unix epoch in seconds */
-  public final void setCreated(final long created) {
-    if (this.created != created) {
-      this.created = created;
-    }
-  }
+  /** The timestamp in milliseconds at which this label was created */
+  public abstract long created();
 }

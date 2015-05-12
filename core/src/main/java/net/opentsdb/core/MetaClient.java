@@ -89,7 +89,7 @@ public class MetaClient {
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
   public Deferred<Object> add(final UIDMeta meta) {
-    if (Strings.isNullOrEmpty(meta.getName())) {
+    if (Strings.isNullOrEmpty(meta.name())) {
       throw new IllegalArgumentException("Missing name");
     }
 
@@ -296,12 +296,11 @@ public class MetaClient {
 
       /**
        * Called after verifying that the name mapping exists
-       * @return The results of {@link net.opentsdb.storage.TsdbStore#getMeta(
-       *      byte[], String, net.opentsdb.uid.UniqueIdType)}
+       * @return The results of {@link TsdbStore#getMeta(byte[], UniqueIdType)}
        */
       @Override
       public Deferred<UIDMeta> call(final String name) throws Exception {
-        return store.getMeta(uid, name, type);
+        return store.getMeta(uid, type);
       }
     }
 
@@ -540,22 +539,23 @@ public class MetaClient {
   }
 
   /**
-   * Attempts to update the stored LabelMeta object. The LabelMeta will be
-   * fetched first and checked for equality before it tried to save anything.
+   * Attempts to update the information of the stored LabelMeta object with the
+   * same {@code uid} and {@type} as the provided meta object. The stored
+   * LabelMeta will be fetched first and checked for equality before it tried to
+   * save anything.
    *
-   * @param meta The LabelMeta to store.
+   * @param meta The LabelMeta with the updated information.
    * @return True if the updates were saved successfully. False if there were no
    * changes to make.
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
-  public Deferred<Boolean> updateLabelMeta(final UIDMeta meta,
-                                           final boolean overwrite) {
-    return getUIDMeta(meta.getType(), meta.getUID()).addCallbackDeferring(
+  public Deferred<Boolean> update(final UIDMeta meta) {
+    return getUIDMeta(meta.type(), meta.uid()).addCallbackDeferring(
         new Callback<Deferred<Boolean>, UIDMeta>() {
           @Override
           public Deferred<Boolean> call(final UIDMeta storedMeta) {
             if (!storedMeta.equals(meta)) {
-              return store.updateMeta(meta, overwrite);
+              return store.updateMeta(meta);
             }
 
             LOG.debug("{} does not have any changes, skipping update", meta);
@@ -563,9 +563,6 @@ public class MetaClient {
           }
         });
   }
-
-
-
 
   /**
    * Asynchronously loads the UIDMeta objects into the given TSMeta object. Used
@@ -665,7 +662,8 @@ public class MetaClient {
     @Subscribe
     @AllowConcurrentEvents
     public final void recordIdCreated(IdCreatedEvent event) {
-      UIDMeta meta = new UIDMeta(event.getType(), event.getId(), event.getName());
+      // todo
+      UIDMeta meta = UIDMeta.create(event.getId(), event.getType(), event.getName(), "Set me", 0);
       store.add(meta);
       LOG.info("Wrote UIDMeta for: {}", event.getName());
       searchPlugin.indexUIDMeta(meta);

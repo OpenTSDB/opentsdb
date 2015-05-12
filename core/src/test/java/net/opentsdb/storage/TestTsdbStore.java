@@ -26,11 +26,13 @@ public abstract class TestTsdbStore {
 
   protected static boolean STORE_DATA = true;
 
+  private static long UIDMETA_CREATED = 100;
+
   /*META TESTS*/
 
   @Test
   public void testGetMetaNullCell() throws IOException {
-    tsdb_store.getMeta(new byte[]{0, 0, 1}, "derp", UniqueIdType.TAGK);
+    tsdb_store.getMeta(new byte[]{0, 0, 1}, UniqueIdType.TAGK);
   }
 
   /* COUNTER TESTS */
@@ -63,12 +65,11 @@ public abstract class TestTsdbStore {
 
   @Test
   public void storeNew() throws Exception {
-    meta = new UIDMeta(METRIC, new byte[] { 0, 0, 1 }, "sys.cpu.1");
-    meta.setDescription("System CPU");
+    meta = UIDMeta.create(new byte[] { 0, 0, 1 }, METRIC, "sys.cpu.1", "System CPU", UIDMETA_CREATED);
     tsdb_store.add(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    final UIDMeta newMeta = tsdb_store.getMeta(new byte[] { 0, 0, 1 },meta.getName() ,METRIC)
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    assertEquals("System CPU", newMeta.getDescription());
+    final UIDMeta newMeta = tsdb_store.getMeta(new byte[] { 0, 0, 1 }, METRIC)
+            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals("System CPU", newMeta.description());
   }
 }

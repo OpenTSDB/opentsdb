@@ -12,70 +12,65 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.meta;
 
+import net.opentsdb.core.IllegalDataException;
+import net.opentsdb.uid.UniqueIdType;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static net.opentsdb.uid.UniqueIdType.TAGK;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
 
-@PowerMockIgnore({"javax.management.*", "javax.xml.*",
-  "ch.qos.*", "org.slf4j.*",
-  "com.sum.*", "org.xml.*"})
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(UIDMeta.class)
 public final class TestUIDMeta {
-  @Test
-  public void constructor2() {
-    final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 5});
-    assertNotNull(meta);
-    assertEquals(METRIC, meta.getType());
-    assertArrayEquals(new byte[]{0, 0, 5}, meta.getUID());
-  }
-  
-  @Test
-  public void constructor3() {
-    final UIDMeta meta = new UIDMeta(METRIC, new byte[]{0, 0, 5}, "sys.cpu.5");
-    assertNotNull(meta);
-    assertEquals(METRIC, meta.getType());
-    assertArrayEquals(new byte[]{0, 0, 5}, meta.getUID());
-    assertEquals("sys.cpu.5", meta.getName());
-    assertEquals(System.currentTimeMillis() / 1000, meta.getCreated());
+  private final byte[] VALID_UID = new byte[] {0, 0, 1};
+  private final UniqueIdType VALID_TYPE = METRIC;
+  private final String VALID_NAME = "valid_name";
+  private final String VALID_DESCRIPTION = "valid_description";
+  private final long VALID_CREATED = 100;
+
+  @Test(expected = NullPointerException.class)
+  public void testCtorNoUID() {
+    UIDMeta.create(null, VALID_TYPE, VALID_NAME, VALID_DESCRIPTION, VALID_CREATED);
   }
 
-  @Test
-  public void createConstructor() {
-    PowerMockito.mockStatic(System.class);
-    when(System.currentTimeMillis()).thenReturn(1357300800000L);
-    final UIDMeta meta = new UIDMeta(TAGK, new byte[]{1, 0, 0}, "host");
-    assertEquals(1357300800000L / 1000, meta.getCreated());
-    assertArrayEquals(new byte[]{1, 0, 0}, meta.getUID());
-    assertEquals("host", meta.getName());
+  @Test(expected = IllegalArgumentException.class)
+  public void testCtorWrongUIDLength() {
+    final byte[] wrong_length_uid = new byte[] {0, 1};
+    UIDMeta.create(wrong_length_uid, VALID_TYPE, VALID_NAME, VALID_DESCRIPTION, VALID_CREATED);
   }
 
-  @Test (expected = NullPointerException.class)
-  public void ctorNullType() throws Exception {
-    new UIDMeta(null, new byte[]{0}, null, false);
+  @Test(expected = NullPointerException.class)
+  public void testCtorNoType() {
+    UIDMeta.create(VALID_UID, null, VALID_NAME, VALID_DESCRIPTION, VALID_CREATED);
   }
 
-  @Test (expected = NullPointerException.class)
-  public void ctorNullUID() throws Exception {
-    new UIDMeta(METRIC, null, null, false);
+  @Test(expected = NullPointerException.class)
+  public void testCtorNoName() {
+    UIDMeta.create(VALID_UID, VALID_TYPE, null, VALID_DESCRIPTION, VALID_CREATED);
   }
 
-  @Test (expected = IllegalArgumentException.class)
-  public void ctorEmptyUID() throws Exception {
-    new UIDMeta(METRIC, new byte[] {}, null, false);
+  @Test(expected = NullPointerException.class)
+  public void testCtorEmptyName() {
+    UIDMeta.create(VALID_UID, VALID_TYPE, "", VALID_DESCRIPTION, VALID_CREATED);
   }
 
-  @Test (expected = IllegalArgumentException.class)
-  public void ctorWrongUIDLength() throws Exception {
-    new UIDMeta(METRIC, new byte[] {0}, null, false);
-    new UIDMeta(METRIC, new byte[] {0, 1, 2, 3}, null, false);
+  @Test(expected = NullPointerException.class)
+  public void testCtorNoDescription() {
+    UIDMeta.create(VALID_UID, VALID_TYPE, VALID_NAME, null, VALID_CREATED);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testCtorEmptyDescription() {
+    UIDMeta.create(VALID_UID, VALID_TYPE, VALID_NAME, "", VALID_CREATED);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testCtorArgumentOrder() {
+    final UIDMeta meta = UIDMeta.create(VALID_UID, VALID_TYPE, VALID_NAME, VALID_DESCRIPTION, VALID_CREATED);
+    assertArrayEquals(VALID_UID, meta.uid());
+    assertEquals(VALID_TYPE, meta.type());
+    assertEquals(VALID_NAME, meta.name());
+    assertEquals(VALID_DESCRIPTION, meta.description());
+    assertEquals(VALID_CREATED, meta.created());
   }
 }

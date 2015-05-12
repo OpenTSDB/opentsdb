@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import org.junit.Before;
 import org.junit.Test;
@@ -24,9 +23,7 @@ public class UIDMetaMixInTest {
 
   @Before
   public void before() throws Exception {
-    uidMeta = new UIDMeta(METRIC, new byte[] {0, 0, 1}, "sys.cpu.0");
-    uidMeta.setDescription("Description");
-    uidMeta.setCreated(1328140801);
+    uidMeta = UIDMeta.create(new byte[] {0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());
@@ -77,11 +74,11 @@ public class UIDMetaMixInTest {
             .readValue(json);
 
     assertNotNull(meta);
-    assertArrayEquals(uid, meta.getUID());
-    assertEquals(UniqueIdType.METRIC, meta.getType());
-    assertEquals("MyOtherName", meta.getName());
-    assertEquals("Description", meta.getDescription());
-    assertEquals(1328140801, meta.getCreated());
+    assertArrayEquals(uid, meta.uid());
+    assertEquals(UniqueIdType.METRIC, meta.type());
+    assertEquals("MyOtherName", meta.name());
+    assertEquals("Description", meta.description());
+    assertEquals(1328140801, meta.created());
   }
 
   /**
