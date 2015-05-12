@@ -1,6 +1,6 @@
 package net.opentsdb.storage.json;
 
-import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.databind.InjectableValues;
@@ -17,13 +17,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 
-public class UIDMetaMixInTest {
+public class LabelMetaMixInTest {
   private ObjectMapper jsonMapper;
-  private UIDMeta uidMeta;
+  private LabelMeta labelMeta;
 
   @Before
   public void before() throws Exception {
-    uidMeta = UIDMeta.create(new byte[] {0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
+    labelMeta = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new StorageModule());
@@ -31,7 +31,7 @@ public class UIDMetaMixInTest {
 
   @Test
   public void serializeFieldSet() throws Exception {
-    final byte[] json = jsonMapper.writeValueAsBytes(uidMeta);
+    final byte[] json = jsonMapper.writeValueAsBytes(labelMeta);
 
     ObjectNode rootNode = jsonMapper.readValue(json, ObjectNode.class);
 
@@ -46,7 +46,7 @@ public class UIDMetaMixInTest {
 
   @Test
   public void serializeCustomSet() throws Exception {
-    final byte[] json = jsonMapper.writeValueAsBytes(uidMeta);
+    final byte[] json = jsonMapper.writeValueAsBytes(labelMeta);
 
     ObjectNode rootNode = jsonMapper.readValue(json, ObjectNode.class);
 
@@ -69,7 +69,7 @@ public class UIDMetaMixInTest {
             .addValue(UniqueIdType.class, UniqueIdType.METRIC)
             .addValue(String.class, "MyOtherName");
 
-    UIDMeta meta = jsonMapper.reader(UIDMeta.class)
+    LabelMeta meta = jsonMapper.reader(LabelMeta.class)
             .with(vals)
             .readValue(json);
 
@@ -100,7 +100,7 @@ public class UIDMetaMixInTest {
             .addValue(byte[].class, uid)
             .addValue(String.class, "MyOtherName");
 
-    jsonMapper.reader(UIDMeta.class)
+    jsonMapper.reader(LabelMeta.class)
             .with(vals)
             .readValue(json);
   }

@@ -30,6 +30,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import net.opentsdb.core.MetaClient;
 import net.opentsdb.core.UniqueIdClient;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.utils.Pair;
@@ -42,7 +43,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.NoSuchUniqueId;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueIdType;
@@ -173,7 +173,7 @@ final class UniqueIdRpc implements HttpRpc {
       final UniqueIdType type = UniqueIdType.fromValue(
               query.getRequiredQueryStringParam("type"));
       try {
-        final UIDMeta meta = metaClient.getUIDMeta(type, uid)
+        final LabelMeta meta = metaClient.getUIDMeta(type, uid)
         .joinUninterruptibly();
         query.sendReply(query.serializer().formatUidMetaV1(meta));
       } catch (NoSuchUniqueId e) {
@@ -184,16 +184,16 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // POST
     } else if (method == HttpMethod.POST || method == HttpMethod.PUT) {
-      final UIDMeta meta = query.serializer().parseUidMetaV1();
+      final LabelMeta meta = query.serializer().parseUidMetaV1();
       
       /**
        * Storage callback used to determine if the storage call was successful
        * or not. Also returns the updated object from storage.
        */
-      class SyncCB implements Callback<Deferred<UIDMeta>, Boolean> {
+      class SyncCB implements Callback<Deferred<LabelMeta>, Boolean> {
         
         @Override
-        public Deferred<UIDMeta> call(Boolean success) throws Exception {
+        public Deferred<LabelMeta> call(Boolean success) throws Exception {
           if (!success) {
             throw new BadRequestException(
                 HttpResponseStatus.INTERNAL_SERVER_ERROR,
@@ -207,9 +207,9 @@ final class UniqueIdRpc implements HttpRpc {
       }
       
       try {
-        final Deferred<UIDMeta> process_meta = metaClient.update(meta
+        final Deferred<LabelMeta> process_meta = metaClient.update(meta
         ).addCallbackDeferring(new SyncCB());
-        final UIDMeta updated_meta = process_meta.joinUninterruptibly();
+        final LabelMeta updated_meta = process_meta.joinUninterruptibly();
         metaClient.indexUIDMeta(updated_meta);
         query.sendReply(query.serializer().formatUidMetaV1(updated_meta));
       } catch (IllegalStateException e) {
@@ -224,7 +224,7 @@ final class UniqueIdRpc implements HttpRpc {
       }
     // DELETE    
     } else if (method == HttpMethod.DELETE) {
-      final UIDMeta meta = query.serializer().parseUidMetaV1();
+      final LabelMeta meta = query.serializer().parseUidMetaV1();
 
       try {
         metaClient.delete(meta).joinUninterruptibly();

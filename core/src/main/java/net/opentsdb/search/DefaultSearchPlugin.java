@@ -2,8 +2,8 @@ package net.opentsdb.search;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
@@ -46,12 +46,12 @@ public class DefaultSearchPlugin extends SearchPlugin {
   }
 
   @Override
-  public Deferred<Object> indexUIDMeta(final UIDMeta meta) {
+  public Deferred<Object> indexUIDMeta(final LabelMeta meta) {
     return Deferred.fromResult(null);
   }
 
   @Override
-  public Deferred<Object> deleteUIDMeta(final UIDMeta meta) {
+  public Deferred<Object> deleteUIDMeta(final LabelMeta meta) {
     return Deferred.fromResult(null);
   }
 

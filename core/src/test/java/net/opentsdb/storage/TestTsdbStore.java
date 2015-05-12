@@ -1,6 +1,6 @@
 package net.opentsdb.storage;
 
-import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.typesafe.config.Config;
@@ -21,7 +21,7 @@ public abstract class TestTsdbStore {
   protected static final boolean SAME_TSUID = true;
   protected static final boolean NOT_SAME_TSUID = false;
   protected TsdbStore tsdb_store;
-  protected UIDMeta meta;
+  protected LabelMeta meta;
   protected Config config;
 
   protected static boolean STORE_DATA = true;
@@ -65,10 +65,10 @@ public abstract class TestTsdbStore {
 
   @Test
   public void storeNew() throws Exception {
-    meta = UIDMeta.create(new byte[] { 0, 0, 1 }, METRIC, "sys.cpu.1", "System CPU", UIDMETA_CREATED);
+    meta = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.1", "System CPU", UIDMETA_CREATED);
     tsdb_store.add(meta).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
 
-    final UIDMeta newMeta = tsdb_store.getMeta(new byte[] { 0, 0, 1 }, METRIC)
+    final LabelMeta newMeta = tsdb_store.getMeta(new byte[] { 0, 0, 1 }, METRIC)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals("System CPU", newMeta.description());
   }

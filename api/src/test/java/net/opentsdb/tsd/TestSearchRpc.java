@@ -34,12 +34,11 @@ import com.google.common.base.Charsets;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Tags;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.UniqueId;
-import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 import net.opentsdb.utils.Pair;
 
@@ -321,16 +320,16 @@ public final class TestSearchRpc {
               meta.setCreated(1356998400);
               meta.setDescription("System CPU metric");
               
-              UIDMeta uid = UIDMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 11111);
+              LabelMeta uid = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 11111);
               
               final Field metric = TSMeta.class.getDeclaredField("metric");
               metric.setAccessible(true);
               metric.set(meta, uid);
               
-              final ArrayList<UIDMeta> tags = new ArrayList<UIDMeta>(2);
-              uid = UIDMeta.create(new byte[]{0, 0, 1}, TAGK, "host", "Description", 11111);
+              final ArrayList<LabelMeta> tags = new ArrayList<LabelMeta>(2);
+              uid = LabelMeta.create(new byte[]{0, 0, 1}, TAGK, "host", "Description", 11111);
               tags.add(uid);
-              uid = UIDMeta.create(new byte[]{0, 0, 1}, TAGV, "web01", "Description", 11111);
+              uid = LabelMeta.create(new byte[]{0, 0, 1}, TAGV, "web01", "Description", 11111);
               tags.add(uid);
               
               final Field tags_field = TSMeta.class.getDeclaredField("tags");
@@ -358,10 +357,10 @@ public final class TestSearchRpc {
               break;
               
             case UIDMETA:
-              UIDMeta uid2 = UIDMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 11111);
+              LabelMeta uid2 = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 11111);
               results.add(uid2);
 
-              uid2 = UIDMeta.create(new byte[]{0, 0, 1}, TAGK, "host", "Description", 11111);
+              uid2 = LabelMeta.create(new byte[]{0, 0, 1}, TAGK, "host", "Description", 11111);
               results.add(uid2);
               break;
               

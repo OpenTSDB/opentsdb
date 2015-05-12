@@ -20,7 +20,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.meta.LabelMeta;
 
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
@@ -134,14 +134,14 @@ public interface TsdbStore {
   //
   // UIDMeta
   //
-  public Deferred<Object> add(final UIDMeta meta);
+  public Deferred<Object> add(final LabelMeta meta);
 
-  Deferred<Object> delete(UIDMeta meta);
+  Deferred<Object> delete(LabelMeta meta);
 
-  public Deferred<UIDMeta> getMeta(final byte[] uid,
+  public Deferred<LabelMeta> getMeta(final byte[] uid,
                                    final UniqueIdType type);
 
-  public Deferred<Boolean> updateMeta(final UIDMeta meta);
+  public Deferred<Boolean> updateMeta(final LabelMeta meta);
 
   //
   // TSMeta

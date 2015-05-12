@@ -49,10 +49,10 @@ public final class TSMeta {
   private String tsuid = "";
 
   /** The metric associated with this timeseries */
-  private UIDMeta metric = null;
+  private LabelMeta metric = null;
   
   /** A list of tagk/tagv pairs of UIDMetadata associated with this timeseries */
-  private ArrayList<UIDMeta> tags = null;
+  private ArrayList<LabelMeta> tags = null;
   
   /** An optional, user supplied descriptive name */
   private String display_name = "";
@@ -236,12 +236,12 @@ public final class TSMeta {
   }
 
   /** @return the metric UID meta object */
-  public final UIDMeta getMetric() {
+  public final LabelMeta getMetric() {
     return metric;
   }
 
   /** @return the tag UID meta objects in an array, tagk first, then tagv, etc */
-  public final List<UIDMeta> getTags() {
+  public final List<LabelMeta> getTags() {
     return tags;
   }
 
@@ -415,7 +415,7 @@ public final class TSMeta {
    *
    * @param tags Sets the tags of this object to parameter.
    */
-  public void setTags(ArrayList<UIDMeta> tags) {
+  public void setTags(ArrayList<LabelMeta> tags) {
     this.tags = tags;
   }
 
@@ -424,7 +424,7 @@ public final class TSMeta {
    *
    * @param metric Sets the metircs of this object to parameter.
    */
-  public void setMetric(UIDMeta metric) {
+  public void setMetric(LabelMeta metric) {
     this.metric = metric;
   }
 

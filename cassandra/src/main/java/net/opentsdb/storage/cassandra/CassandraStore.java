@@ -25,7 +25,7 @@ import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.storage.cassandra.functions.FirstOrAbsentFunction;
@@ -336,22 +336,22 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> add(UIDMeta meta) {
+  public Deferred<Object> add(LabelMeta meta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<Object> delete(UIDMeta meta) {
+  public Deferred<Object> delete(LabelMeta meta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<UIDMeta> getMeta(byte[] uid, UniqueIdType type) {
+  public Deferred<LabelMeta> getMeta(byte[] uid, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
-  public Deferred<Boolean> updateMeta(UIDMeta meta) {
+  public Deferred<Boolean> updateMeta(LabelMeta meta) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

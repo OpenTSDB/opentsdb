@@ -18,10 +18,10 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 
@@ -46,7 +46,7 @@ import static org.junit.Assert.*;
   "ch.qos.*", "org.slf4j.*",
   "com.sum.*", "org.xml.*"})
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({TSMeta.class, UIDMeta.class,
+@PrepareForTest({TSMeta.class, LabelMeta.class,
   RowLock.class, UniqueIdRpc.class, KeyValue.class,
   Scanner.class})
 public final class TestUniqueIdRpc {
@@ -1093,7 +1093,7 @@ public final class TestUniqueIdRpc {
     tsdb_store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
     tsdb_store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
 
-    UIDMeta meta = UIDMeta.create(
+    LabelMeta meta = LabelMeta.create(
         new byte[]{0, 0, 1},
         METRIC,
         "sys.cpu.0",

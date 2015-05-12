@@ -9,8 +9,8 @@ import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
@@ -88,7 +88,7 @@ public class MetaClient {
    * @throws IllegalArgumentException if data was missing
    * @throws net.opentsdb.utils.JSONException if the object could not be serialized
    */
-  public Deferred<Object> add(final UIDMeta meta) {
+  public Deferred<Object> add(final LabelMeta meta) {
     if (Strings.isNullOrEmpty(meta.name())) {
       throw new IllegalArgumentException("Missing name");
     }
@@ -133,7 +133,7 @@ public class MetaClient {
    * only be used to track completion.
    * @throws IllegalArgumentException if data was missing (uid and type)
    */
-  public Deferred<Object> delete(final UIDMeta meta) {
+  public Deferred<Object> delete(final LabelMeta meta) {
     return store.delete(meta);
   }
 
@@ -160,7 +160,7 @@ public class MetaClient {
    * @param meta The UID meta object to delete
    * @since 2.0
    */
-  public void deleteUIDMeta(final UIDMeta meta) {
+  public void deleteUIDMeta(final LabelMeta meta) {
     searchPlugin.deleteUIDMeta(meta).addErrback(new PluginError(searchPlugin));
   }
 
@@ -262,7 +262,7 @@ public class MetaClient {
    * @throws org.hbase.async.HBaseException if there was an issue fetching
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
-  public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
+  public Deferred<LabelMeta> getUIDMeta(final UniqueIdType type,
                                       final String uid) {
     return getUIDMeta(type, IdUtils.stringToUid(uid));
   }
@@ -283,7 +283,7 @@ public class MetaClient {
    * @throws org.hbase.async.HBaseException if there was an issue fetching
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
-  public Deferred<UIDMeta> getUIDMeta(final UniqueIdType type,
+  public Deferred<LabelMeta> getUIDMeta(final UniqueIdType type,
                                       final byte[] uid) {
     /**
      * Callback used to verify that the UID to name mapping exists. Uses the TSD
@@ -292,14 +292,14 @@ public class MetaClient {
      * This helps in case the user deletes a UID but the meta data is still
      * stored. The fsck utility can be used later to cleanup orphaned objects.
      */
-    class NameCB implements Callback<Deferred<UIDMeta>, String> {
+    class NameCB implements Callback<Deferred<LabelMeta>, String> {
 
       /**
        * Called after verifying that the name mapping exists
        * @return The results of {@link TsdbStore#getMeta(byte[], UniqueIdType)}
        */
       @Override
-      public Deferred<UIDMeta> call(final String name) throws Exception {
+      public Deferred<LabelMeta> call(final String name) throws Exception {
         return store.getMeta(uid, type);
       }
     }
@@ -332,7 +332,7 @@ public class MetaClient {
    * @param meta The meta data object to index
    * @since 2.0
    */
-  public void indexUIDMeta(final UIDMeta meta) {
+  public void indexUIDMeta(final LabelMeta meta) {
     searchPlugin.indexUIDMeta(meta).addErrback(new PluginError(searchPlugin));
   }
 
@@ -549,11 +549,11 @@ public class MetaClient {
    * changes to make.
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
-  public Deferred<Boolean> update(final UIDMeta meta) {
+  public Deferred<Boolean> update(final LabelMeta meta) {
     return getUIDMeta(meta.type(), meta.uid()).addCallbackDeferring(
-        new Callback<Deferred<Boolean>, UIDMeta>() {
+        new Callback<Deferred<Boolean>, LabelMeta>() {
           @Override
-          public Deferred<Boolean> call(final UIDMeta storedMeta) {
+          public Deferred<Boolean> call(final LabelMeta storedMeta) {
             if (!storedMeta.equals(meta)) {
               return store.updateMeta(meta);
             }
@@ -592,8 +592,8 @@ public class MetaClient {
         return Deferred.fromResult(null);
       }
 
-      final ArrayList<Deferred<UIDMeta>> uid_group =
-              new ArrayList<Deferred<UIDMeta>>(tags.size());
+      final ArrayList<Deferred<LabelMeta>> uid_group =
+              new ArrayList<Deferred<LabelMeta>>(tags.size());
 
       Iterator<byte[]> tag_iter = tags.iterator();
 
@@ -606,9 +606,9 @@ public class MetaClient {
        * A callback that will place the loaded UIDMeta objects for the tags in
        * order on meta.tags.
        */
-      final class UIDMetaTagsCB implements Callback<TSMeta, ArrayList<UIDMeta>> {
+      final class UIDMetaTagsCB implements Callback<TSMeta, ArrayList<LabelMeta>> {
         @Override
-        public TSMeta call(final ArrayList<UIDMeta> uid_metas) {
+        public TSMeta call(final ArrayList<LabelMeta> uid_metas) {
           meta.setTags(uid_metas);
           return meta;
         }
@@ -618,9 +618,9 @@ public class MetaClient {
        * A callback that will place the loaded UIDMeta object for the metric
        * UID on meta.metric.
        */
-      class UIDMetaMetricCB implements Callback<Deferred<TSMeta>, UIDMeta> {
+      class UIDMetaMetricCB implements Callback<Deferred<TSMeta>, LabelMeta> {
         @Override
-        public Deferred<TSMeta> call(UIDMeta uid_meta) {
+        public Deferred<TSMeta> call(LabelMeta uid_meta) {
           meta.setMetric(uid_meta);
 
           // This will chain the UIDMetaTagsCB on this callback which is what
@@ -663,7 +663,7 @@ public class MetaClient {
     @AllowConcurrentEvents
     public final void recordIdCreated(IdCreatedEvent event) {
       // todo
-      UIDMeta meta = UIDMeta.create(event.getId(), event.getType(), event.getName(), "Set me", 0);
+      LabelMeta meta = LabelMeta.create(event.getId(), event.getType(), event.getName(), "Set me", 0);
       store.add(meta);
       LOG.info("Wrote UIDMeta for: {}", event.getName());
       searchPlugin.indexUIDMeta(meta);

@@ -14,8 +14,8 @@ package net.opentsdb.search;
 
 import net.opentsdb.core.Plugin;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.IdQuery;
@@ -71,7 +71,7 @@ public abstract class SearchPlugin extends Plugin {
    * The {@link Object} has not special meaning and can be {@code null}
    * (think of it as {@code Deferred<Void>}).
    */
-  public abstract Deferred<Object> indexUIDMeta(final UIDMeta meta);
+  public abstract Deferred<Object> indexUIDMeta(final LabelMeta meta);
 
   /**
    * Called when we need to remove a UID meta object from the engine
@@ -81,7 +81,7 @@ public abstract class SearchPlugin extends Plugin {
    * The {@link Object} has not special meaning and can be {@code null}
    * (think of it as {@code Deferred<Void>}).
    */
-  public abstract Deferred<Object> deleteUIDMeta(final UIDMeta meta);
+  public abstract Deferred<Object> deleteUIDMeta(final LabelMeta meta);
 
   /**
    * Indexes an annotation object

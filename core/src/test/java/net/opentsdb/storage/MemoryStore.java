@@ -25,8 +25,8 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.meta.UIDMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
@@ -78,7 +78,7 @@ public class MemoryStore implements TsdbStore {
   private Bytes.ByteMap<Bytes.ByteMap<Bytes.ByteMap<TreeMap<Long, byte[]>>>>
     storage = new Bytes.ByteMap<>();
 
-  private final Table<Long, String, UIDMeta> uid_table;
+  private final Table<Long, String, LabelMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
   private final Map<TimeseriesId, NavigableMap<Long, Number>> datapoints;
@@ -121,7 +121,7 @@ public class MemoryStore implements TsdbStore {
   public Deferred<Object> addPoint(final TimeseriesId tsuid,
                                    final long timestamp,
                                    final long value) {
-    return addPoint(tsuid, (Number)value, timestamp);
+    return addPoint(tsuid, (Number) value, timestamp);
   }
 
   private Deferred<Object> addPoint(final TimeseriesId tsuid,
@@ -177,7 +177,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> add(final UIDMeta meta) {
+  public Deferred<Object> add(final LabelMeta meta) {
     uid_table.put(
         IdUtils.uidToLong(meta.uid()),
         meta.type().toString().toLowerCase() + "_meta",
@@ -187,7 +187,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Object> delete(final UIDMeta meta) {
+  public Deferred<Object> delete(final LabelMeta meta) {
     uid_table.remove(
             IdUtils.uidToLong(meta.uid()),
             meta.type().toString().toLowerCase() + "_meta");
@@ -196,18 +196,18 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<UIDMeta> getMeta(final byte[] uid,
+  public Deferred<LabelMeta> getMeta(final byte[] uid,
                                    final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
     final long s_uid = IdUtils.uidToLong(uid);
 
-    final UIDMeta meta = uid_table.get(s_uid, qualifier);
+    final LabelMeta meta = uid_table.get(s_uid, qualifier);
 
     return Deferred.fromResult(meta);
   }
 
   @Override
-  public Deferred<Boolean> updateMeta(final UIDMeta meta) {
+  public Deferred<Boolean> updateMeta(final LabelMeta meta) {
     add(meta);
     return Deferred.fromResult(Boolean.TRUE);
   }

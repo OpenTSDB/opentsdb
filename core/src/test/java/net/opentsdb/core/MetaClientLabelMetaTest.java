@@ -4,7 +4,7 @@ import com.google.common.eventbus.EventBus;
 import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
-import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
@@ -28,7 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-public class MetaClientUIDMetaTest {
+public class MetaClientLabelMetaTest {
   @Inject Config config;
   @Inject EventBus idEventBus;
   @Inject TsdbStore store;
@@ -48,9 +48,9 @@ public class MetaClientUIDMetaTest {
     store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
     store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
 
-    UIDMeta uidMeta = UIDMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
+    LabelMeta labelMeta = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
 
-    store.add(uidMeta);
+    store.add(labelMeta);
   }
 
   @Test
@@ -61,8 +61,8 @@ public class MetaClientUIDMetaTest {
     store = mock(TsdbStore.class);
     new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, realtimePublisher);
     idEventBus.post(new IdCreatedEvent(new byte[]{0, 0, 1}, "test", UniqueIdType.METRIC));
-    verify(store).add(any(UIDMeta.class));
-    verify(searchPlugin).indexUIDMeta(any(UIDMeta.class));
+    verify(store).add(any(LabelMeta.class));
+    verify(searchPlugin).indexUIDMeta(any(LabelMeta.class));
   }
 
   @Test
@@ -70,13 +70,13 @@ public class MetaClientUIDMetaTest {
     store = mock(TsdbStore.class);
     new MetaClient(store, idEventBus, searchPlugin, config, uniqueIdClient, realtimePublisher);
     idEventBus.post(new IdCreatedEvent(new byte[] {0, 0, 1}, "test", UniqueIdType.METRIC));
-    verify(store, never()).add(any(UIDMeta.class));
-    verify(searchPlugin, never()).indexUIDMeta(any(UIDMeta.class));
+    verify(store, never()).add(any(LabelMeta.class));
+    verify(searchPlugin, never()).indexUIDMeta(any(LabelMeta.class));
   }
 
   @Test
   public void getUIDMeta() throws Exception {
-    final UIDMeta meta = metaClient.getUIDMeta(METRIC, "000003")
+    final LabelMeta meta = metaClient.getUIDMeta(METRIC, "000003")
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());
@@ -85,7 +85,7 @@ public class MetaClientUIDMetaTest {
 
   @Test
   public void getUIDMetaByte() throws Exception {
-    final UIDMeta meta = metaClient.getUIDMeta(METRIC, new byte[]{0, 0, 3})
+    final LabelMeta meta = metaClient.getUIDMeta(METRIC, new byte[]{0, 0, 3})
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());
@@ -94,7 +94,7 @@ public class MetaClientUIDMetaTest {
 
   @Test
   public void getUIDMetaExists() throws Exception {
-    final UIDMeta meta = metaClient.getUIDMeta(METRIC, "000001")
+    final LabelMeta meta = metaClient.getUIDMeta(METRIC, "000001")
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.0", meta.name());
@@ -109,7 +109,7 @@ public class MetaClientUIDMetaTest {
 
   @Test
   public void delete() throws Exception {
-    final UIDMeta meta = metaClient.getUIDMeta(METRIC, "000001")
+    final LabelMeta meta = metaClient.getUIDMeta(METRIC, "000001")
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     metaClient.delete(meta);
   }
