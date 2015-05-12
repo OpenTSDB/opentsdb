@@ -6,7 +6,7 @@ import dagger.Provides;
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientTSMetaTest;
-import net.opentsdb.core.PluginsModule;
+import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.core.TestTsdbQueryDownsample;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.StoreModule;

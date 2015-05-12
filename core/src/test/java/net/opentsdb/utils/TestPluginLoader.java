@@ -16,6 +16,7 @@ import java.util.List;
 
 import net.opentsdb.plugin.DummyPlugin;
 
+import net.opentsdb.plugins.PluginLoader;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -25,7 +26,7 @@ public final class TestPluginLoader {
   @Test
   public void loadSpecificPlugin() throws Exception {
     DummyPlugin plugin = PluginLoader.loadSpecificPlugin(
-        "net.opentsdb.plugin.DummyPluginA", 
+        "net.opentsdb.plugin.DummyPluginA",
         DummyPlugin.class);
     assertNotNull(plugin);
     assertEquals("Dummy Plugin A", plugin.myname);

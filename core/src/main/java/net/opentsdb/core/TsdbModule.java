@@ -5,6 +5,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigParseOptions;
 import dagger.Module;
 import dagger.Provides;
+import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.storage.StoreModule;
 
 import javax.inject.Singleton;

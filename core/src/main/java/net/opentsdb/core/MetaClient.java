@@ -9,6 +9,7 @@ import com.google.common.eventbus.EventBus;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.plugins.PluginError;
 import net.opentsdb.search.IdChangeIndexerListener;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;

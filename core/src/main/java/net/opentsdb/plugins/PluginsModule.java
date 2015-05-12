@@ -1,13 +1,15 @@
-package net.opentsdb.core;
+package net.opentsdb.plugins;
 
 import com.typesafe.config.Config;
 import dagger.Module;
 import dagger.Provides;
+import net.opentsdb.core.DefaultRealtimePublisher;
+import net.opentsdb.core.RTPublisher;
+import net.opentsdb.core.RTPublisherDescriptor;
 import net.opentsdb.search.DefaultSearchPlugin;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchPluginDescriptor;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.utils.PluginLoader;
 
 import javax.inject.Singleton;
 

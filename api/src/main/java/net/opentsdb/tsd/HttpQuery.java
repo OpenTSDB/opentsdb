@@ -56,7 +56,7 @@ import org.jboss.netty.util.CharsetUtil;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.graph.Plot;
-import net.opentsdb.utils.PluginLoader;
+import net.opentsdb.plugins.PluginLoader;
 
 /**
  * Binds together an HTTP request and the channel on which it was received.

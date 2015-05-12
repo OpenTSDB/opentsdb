@@ -17,6 +17,7 @@ import java.util.Map;
 import net.opentsdb.meta.Annotation;
 
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.plugins.Plugin;
 import net.opentsdb.uid.TimeseriesId;
 
 /**

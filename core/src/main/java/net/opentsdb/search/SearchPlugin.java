@@ -12,7 +12,6 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.search;
 
-import net.opentsdb.core.Plugin;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
@@ -21,6 +20,7 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.UniqueIdType;
+import net.opentsdb.plugins.Plugin;
 
 import java.util.List;
 

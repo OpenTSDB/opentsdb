@@ -1,4 +1,4 @@
-package net.opentsdb.core;
+package net.opentsdb.plugins;
 
 import com.stumbleupon.async.Callback;
 import org.slf4j.Logger;
