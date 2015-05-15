@@ -1,6 +1,11 @@
 package net.opentsdb.core;
 
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.jvm.ClassLoadingGaugeSet;
+import com.codahale.metrics.jvm.FileDescriptorRatioGauge;
+import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
+import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
+import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import dagger.Module;
@@ -27,6 +32,12 @@ public class CoreModule {
   @Provides
   @Singleton
   MetricRegistry provideMetricRegistry() {
-    return new MetricRegistry();
+    MetricRegistry registry = new MetricRegistry();
+    registry.registerAll(new ClassLoadingGaugeSet());
+    registry.registerAll(new GarbageCollectorMetricSet());
+    registry.registerAll(new MemoryUsageGaugeSet());
+    registry.registerAll(new ThreadStatesGaugeSet());
+    registry.register("descriptor-usage", new FileDescriptorRatioGauge());
+    return registry;
   }
 }

@@ -9,24 +9,18 @@
 # in and most IDE's can be configured to be use it too (IntelliJ uses this file
 # automatically since it uses the root project dir as a working directory).
 
-# --------- NETWORK ----------
-# The TCP port TSD should use for communications
-tsd.network.port = 4242
-
-# The IPv4 network address to bind to, defaults to all addresses
-tsd.network.bind = 127.0.0.1
-
-# ----------- HTTP -----------
-# The location of static files for the HTTP GUI interface.
-tsd.http.staticroot = static
-
-# Where TSD should write it's cache files to
-tsd.http.cachedir = tmp
-
-# --------- CORE ----------
-# Whether or not to automatically create UIDs for new metric types, default
-# is False
+#
+# Core
+#
+# Whether or not to automatically create UIDs for new metric types, the default
+# is false.
 tsd.core.auto_create_metrics = false
 
-# Which storage adapter to use
+# The fully qualified name of the storage adapter to use.
 tsd.storage.adapter = net.opentsdb.storage.cassandra.CassandraStoreDescriptor
+
+#
+# Web
+#
+# The port that the web server should bind to.
+tsdb.web.port = 8080

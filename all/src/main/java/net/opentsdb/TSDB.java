@@ -3,6 +3,7 @@ package net.opentsdb;
 
 import net.opentsdb.idmanager.Assign;
 import net.opentsdb.utils.KillingUncaughtHandler;
+import net.opentsdb.web.HttpServer;
 
 import java.util.Arrays;
 
@@ -15,8 +16,15 @@ public class TSDB {
       return;
     }
 
-    if ("id".equals(args[0])) {
-      handleIdManager(args);
+    switch (args[0]) {
+      case "id":
+        handleIdManager(args);
+        break;
+      case "web":
+        handleWeb(args);
+        break;
+      default:
+        usage(args);
     }
   }
 
@@ -27,5 +35,9 @@ public class TSDB {
     if ("assign".equals(args[1])) {
       Assign.main(Arrays.copyOfRange(args, 2, args.length));
     }
+  }
+
+  private static void handleWeb(final String[] args) {
+    HttpServer.main(Arrays.copyOfRange(args, 1, args.length));
   }
 }

@@ -3,15 +3,16 @@ apply plugin: 'application'
 
 mainClassName = "net.opentsdb.TSDB"
 applicationName = "tsdb"
+applicationDefaultJvmArgs = [ "-XX:+UseG1GC" ]
 
 dependencies {
     compile project(":tsdb-core")
     compile project(":tsdb-cassandra")
-    compile project(":tsdb-api")
     compile project(":tsdb-tools")
     compile project(":tsdb-storage-json")
 
     compile project(":idmanager:tsdb-assign")
+    compile project(":tsdb-web")
 }
 
 run {
@@ -32,15 +33,6 @@ distributions {
         baseName = rootProject.name
 
         contents {
-            exclude ".gitkeep"
-
-            // Add the start scripts for all sibling projects that are
-            // applications.
-            into('bin') {
-                from { project(':tsdb-api').startScripts.outputs.files }
-                fileMode = 0755
-            }
-
             into('') {
                 from { project(':tsdb-core').distFiles }
                 from { project(':tsdb-cassandra').distFiles }

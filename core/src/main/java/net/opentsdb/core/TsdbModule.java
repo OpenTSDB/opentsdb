@@ -1,5 +1,6 @@
 package net.opentsdb.core;
 
+import com.codahale.metrics.MetricRegistry;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigParseOptions;
@@ -7,6 +8,8 @@ import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.storage.StoreModule;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Singleton;
 import java.io.File;
@@ -28,9 +31,12 @@ import java.io.File;
             TSDB.class,
             UniqueIdClient.class,
             MetaClient.class,
-            DataPointsClient.class
+            DataPointsClient.class,
+            MetricRegistry.class
         })
 public class TsdbModule {
+  private static final Logger LOG = LoggerFactory.getLogger(TsdbModule.class);
+
   private final Config config;
 
   @Deprecated
@@ -51,6 +57,7 @@ public class TsdbModule {
   private TsdbModule(final Config config) {
     this.config = config.withFallback(
         ConfigFactory.parseResourcesAnySyntax("reference"));
+    LOG.info("Loaded config from {}", config.origin());
   }
 
   private TsdbModule(final Config config, final Config overrides) {
