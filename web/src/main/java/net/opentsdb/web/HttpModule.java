@@ -53,7 +53,7 @@ public class HttpModule {
     final Resource defaultResource = new NotFoundResource();
 
     // http://lmgtfy.com/?q=facepalm
-    final List<String> corsHeaders = config.getStringList("tsd.http.request.cors_headers");
+    final List<String> corsHeaders = config.getStringList("tsdb.web.cors.request.headers");
     final String[] corsHeadersArray = corsHeaders.toArray(new String[corsHeaders.size()]);
 
     final List<String> corsDomains = config.getStringList("tsdb.web.cors_domains");
