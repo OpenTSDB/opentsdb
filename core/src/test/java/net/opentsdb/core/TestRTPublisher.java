@@ -26,11 +26,6 @@ public abstract class TestRTPublisher {
   protected RTPublisher rt_publisher;
 
   @Test
-  public void shutdown() {
-    assertNotNull(rt_publisher.shutdown());
-  }
-
-  @Test
   public void sinkLongDataPoint() {
     assertNotNull(rt_publisher.publishDataPoint("sys.cpu.user", 123123123, 123,
         ImmutableMap.of("host", "east"), mock(TimeseriesId.class)));

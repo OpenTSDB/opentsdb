@@ -16,8 +16,7 @@ import net.opentsdb.uid.TimeseriesId;
  */
 public class DefaultRealtimePublisher extends RTPublisher {
   @Override
-  public Deferred<Void> shutdown() {
-    return Deferred.fromResult(null);
+  public void close() {
   }
 
   @Override

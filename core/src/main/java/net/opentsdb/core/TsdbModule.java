@@ -28,7 +28,6 @@ import java.io.File;
         },
         injects = {
             Config.class,
-            TSDB.class,
             UniqueIdClient.class,
             MetaClient.class,
             DataPointsClient.class,

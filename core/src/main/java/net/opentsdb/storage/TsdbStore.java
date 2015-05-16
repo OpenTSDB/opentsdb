@@ -1,15 +1,4 @@
-// This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.storage;
 
 import com.google.common.base.Optional;
@@ -26,9 +15,9 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
@@ -37,7 +26,7 @@ import net.opentsdb.uid.UniqueIdType;
  * A interface defining the functions any database used with TSDB must implement.
  * Another requirement is tha the database connection has to be asynchronous.
  */
-public interface TsdbStore {
+public interface TsdbStore extends Closeable {
   //
   // Identifier management
   //
@@ -151,9 +140,4 @@ public interface TsdbStore {
   Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
 
   Deferred<List<TSMeta>> executeTimeseriesMetaQuery(ResolvedSearchQuery query);
-
-  //
-  // Misc
-  //
-  public Deferred<Void> shutdown();
 }

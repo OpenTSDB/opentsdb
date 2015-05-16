@@ -17,7 +17,6 @@ import javax.inject.Singleton;
         library = true,
         injects = {
             Config.class,
-            TSDB.class,
             UniqueIdClient.class,
             MetaClient.class,
             DataPointsClient.class

@@ -1,7 +1,6 @@
 package net.opentsdb.storage.cassandra;
 
 import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.CloseFuture;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.PreparedStatement;
@@ -242,26 +241,8 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Void> shutdown() {
-    List<CloseFuture> close = new ArrayList<>();
-    close.add(session.closeAsync());
-    close.add(cluster.closeAsync());
-
-    final Deferred<Void> d = new Deferred<>();
-
-    Futures.addCallback(Futures.allAsList(close), new
-        FutureCallback<List<Void>>() {
-          @Override
-          public void onSuccess(List<Void> voids) {
-            d.callback(null);
-          }
-
-          @Override
-          public void onFailure(Throwable throwable) {
-            d.callback(throwable);
-          }
-        });
-    return d;
+  public void close() {
+    cluster.close();
   }
 
   @Override

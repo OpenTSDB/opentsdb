@@ -109,7 +109,7 @@ public final class Assign {
       }
 
       Deferred.group(assignments).joinUninterruptibly();
-      store.shutdown().joinUninterruptibly();
+      store.close();
     } catch (IllegalArgumentException | OptionException e) {
       printError(e.getMessage());
       System.exit(42);

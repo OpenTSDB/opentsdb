@@ -49,17 +49,6 @@ import static net.opentsdb.stats.Metrics.tag;
 public class UniqueId {
   private static final Logger LOG = LoggerFactory.getLogger(UniqueId.class);
 
-  /** The single column family used by this class. */
-  private static final byte[] ID_FAMILY = toBytes("id");
-  /** The single column family used by this class. */
-  private static final byte[] NAME_FAMILY = toBytes("name");
-  /** Row key of the special row used to track the max ID already assigned. */
-  private static final byte[] MAXID_ROW = { 0 };
-  /** How many time do we try to assign an ID before giving up. */
-  private static final short MAX_ATTEMPTS_ASSIGN_ID = 3;
-  /** Maximum number of results to return in suggest(). */
-  private static final short MAX_SUGGESTIONS = 25;
-
   /** The TsdbStore to use.  */
   private final TsdbStore tsdb_store;
 
@@ -68,7 +57,7 @@ public class UniqueId {
 
   /** Cache for forward mappings (name to ID). */
   private final ConcurrentHashMap<String, byte[]> name_cache =
-      new ConcurrentHashMap<String, byte[]>();
+      new ConcurrentHashMap<>();
 
   /**
    * Cache for backward mappings (ID to name). The ID in the key is a byte[]

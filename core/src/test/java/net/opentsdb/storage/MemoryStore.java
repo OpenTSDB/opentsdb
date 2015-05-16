@@ -138,8 +138,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Void> shutdown() {
-    return Deferred.fromResult(null);
+  public void close() {
   }
 
   @Override

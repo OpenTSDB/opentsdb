@@ -15,7 +15,6 @@ package net.opentsdb.search;
 import com.stumbleupon.async.Callback;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
-import net.opentsdb.uid.UniqueIdType;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -24,11 +23,6 @@ import static org.junit.Assert.assertNotNull;
 
 public abstract class TestSearchPlugin {
   protected SearchPlugin search;
-  
-  @Test
-  public void shutdown() {
-    assertNotNull(search.shutdown());
-  }
   
   @Test
   public void indexTSMeta() {

@@ -5,21 +5,13 @@ import com.codahale.metrics.MetricSet;
 import com.google.common.collect.ImmutableMap;
 import com.stumbleupon.async.Deferred;
 
+import java.io.Closeable;
 import java.util.Map;
 
 /**
  * Base plugin interface for all plugin types used by TSDB.
  */
-public abstract class Plugin {
-  /**
-   * Called to gracefully shutdown the plugin. Implementations should close
-   * any IO they have open
-   * @return A deferred object that indicates the completion of the request.
-   * The {@link Object} has not special meaning and can be {@code null}
-   * (think of it as {@code Deferred<Void>}).
-   */
-  public abstract Deferred<Void> shutdown();
-
+public abstract class Plugin implements Closeable {
   /**
    * Should return the version of this plugin in the format:
    * MAJOR.MINOR.MAINT, e.g. 2.0.1. The MAJOR version should match the major
