@@ -8,7 +8,6 @@ applicationDefaultJvmArgs = [ "-XX:+UseG1GC" ]
 dependencies {
     compile project(":tsdb-core")
     compile project(":tsdb-cassandra")
-    compile project(":tsdb-tools")
     compile project(":tsdb-storage-json")
 
     compile project(":idmanager:tsdb-assign")
