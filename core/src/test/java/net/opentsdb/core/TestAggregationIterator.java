@@ -19,7 +19,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import net.opentsdb.core.Aggregators.Interpolation;
-import net.opentsdb.utils.DateTime;
+import net.opentsdb.time.DateTime;
 import org.junit.Before;
 import org.junit.Test;
 

@@ -3,7 +3,7 @@ package net.opentsdb.storage;
 import com.codahale.metrics.MetricRegistry;
 import dagger.Module;
 import dagger.Provides;
-import net.opentsdb.core.InvalidConfigException;
+import net.opentsdb.utils.InvalidConfigException;
 import com.typesafe.config.Config;
 
 import javax.inject.Singleton;

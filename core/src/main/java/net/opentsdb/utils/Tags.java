@@ -10,12 +10,13 @@
 // General Public License for more details.  You should have received a copy
 // of the GNU Lesser General Public License along with this program.  If not,
 // see <http://www.gnu.org/licenses/>.
-package net.opentsdb.core;
+package net.opentsdb.utils;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
+import net.opentsdb.core.Const;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.utils.Pair;
 

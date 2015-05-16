@@ -24,7 +24,7 @@ import java.util.List;
 
 import com.google.common.collect.Lists;
 
-import net.opentsdb.utils.DateTime;
+import net.opentsdb.time.DateTime;
 
 import org.junit.Before;
 import org.junit.Test;

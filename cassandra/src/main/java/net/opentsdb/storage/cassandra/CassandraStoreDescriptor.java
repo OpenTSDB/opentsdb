@@ -7,7 +7,7 @@ import com.datastax.driver.core.Session;
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
-import net.opentsdb.core.InvalidConfigException;
+import net.opentsdb.utils.InvalidConfigException;
 import net.opentsdb.storage.StoreDescriptor;
 import com.typesafe.config.Config;
 
@@ -23,7 +23,7 @@ public class CassandraStoreDescriptor extends StoreDescriptor {
    * @return A new {@link com.datastax.driver.core.Cluster} instance
    * @throws com.typesafe.config.ConfigException      if the config key was
    *                                                  missing or is malformed
-   * @throws net.opentsdb.core.InvalidConfigException if one of the addresses
+   * @throws InvalidConfigException if one of the addresses
    *                                                  could not be parsed
    */
   @VisibleForTesting

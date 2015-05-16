@@ -15,7 +15,7 @@ package net.opentsdb.core;
 import com.google.common.collect.Lists;
 import com.stumbleupon.async.Deferred;
 import com.typesafe.config.Config;
-import net.opentsdb.utils.DateTime;
+import net.opentsdb.time.DateTime;
 
 import java.util.ArrayList;
 import java.util.HashMap;

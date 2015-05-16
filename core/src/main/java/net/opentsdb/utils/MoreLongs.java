@@ -1,4 +1,4 @@
-package net.opentsdb.core;
+package net.opentsdb.utils;
 
 public class MoreLongs {
   /**

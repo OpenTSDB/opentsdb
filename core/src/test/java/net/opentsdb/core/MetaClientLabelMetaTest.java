@@ -1,16 +1,14 @@
 package net.opentsdb.core;
 
 import com.google.common.eventbus.EventBus;
-import com.typesafe.config.ConfigValueFactory;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModule;
 import net.opentsdb.meta.LabelMeta;
+import net.opentsdb.plugins.RTPublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
-import net.opentsdb.uid.LabelCreatedEvent;
 import net.opentsdb.uid.NoSuchUniqueId;
-import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 import org.junit.Before;
 import org.junit.Test;
@@ -24,7 +22,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 public class MetaClientLabelMetaTest {
@@ -35,7 +32,8 @@ public class MetaClientLabelMetaTest {
   @Inject UniqueIdClient uniqueIdClient;
   @Inject MetaClient metaClient;
 
-  @Inject RTPublisher realtimePublisher;
+  @Inject
+  RTPublisher realtimePublisher;
 
   @Mock private SearchPlugin searchPlugin;
 

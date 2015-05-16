@@ -27,7 +27,7 @@ import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.core.StringCoder;
+import net.opentsdb.utils.StringCoder;
 
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
@@ -36,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.core.StringCoder.toBytes;
+import static net.opentsdb.utils.StringCoder.toBytes;
 import static net.opentsdb.stats.Metrics.name;
 import static net.opentsdb.stats.Metrics.tag;
 

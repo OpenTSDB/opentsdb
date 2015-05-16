@@ -12,7 +12,7 @@ import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import net.opentsdb.core.InvalidConfigException;
+import net.opentsdb.utils.InvalidConfigException;
 import net.opentsdb.core.TsdbModule;
 import net.opentsdb.core.UniqueIdClient;
 import net.opentsdb.storage.TsdbStore;

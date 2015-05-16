@@ -1,5 +1,6 @@
-package net.opentsdb.core;
+package net.opentsdb.utils;
 
+import net.opentsdb.utils.MoreLongs;
 import org.junit.Test;
 
 import static org.junit.Assert.*;

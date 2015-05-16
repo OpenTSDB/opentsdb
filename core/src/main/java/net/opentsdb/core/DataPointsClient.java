@@ -10,6 +10,7 @@ import com.google.common.primitives.SignedBytes;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.plugins.PluginError;
+import net.opentsdb.plugins.RTPublisher;
 import net.opentsdb.stats.StopTimerCallback;
 import net.opentsdb.storage.TsdbStore;
 import com.typesafe.config.Config;

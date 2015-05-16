@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
-import net.opentsdb.utils.DateTime;
+import net.opentsdb.time.DateTime;
 
 /**
  * Represents the parameters for an individual sub query on a metric or specific

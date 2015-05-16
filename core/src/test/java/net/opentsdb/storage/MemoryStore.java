@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.uid.UniqueIdType;
 
-import static net.opentsdb.core.StringCoder.fromBytes;
+import static net.opentsdb.utils.StringCoder.fromBytes;
 import static net.opentsdb.uid.IdUtils.uidToString;
 
 /**

@@ -14,7 +14,7 @@ import io.netty.handler.logging.LoggingHandler;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
-import net.opentsdb.core.InvalidConfigException;
+import net.opentsdb.utils.InvalidConfigException;
 import net.opentsdb.core.TsdbModule;
 
 import java.io.File;
