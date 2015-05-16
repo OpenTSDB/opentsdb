@@ -1,4 +1,4 @@
-package net.opentsdb.storage.json;
+package net.opentsdb.web.jackson;
 
 import java.util.Map;
 
@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)
-@JsonPropertyOrder({"type", "displayName", "description", "notes", "created", "custom"})
 abstract class LabelMetaMixIn {
   LabelMetaMixIn(@JacksonInject final byte[] uid,
                  @JsonProperty("type") final UniqueIdType type,

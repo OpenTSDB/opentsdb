@@ -1,4 +1,4 @@
-package net.opentsdb.storage.json;
+package net.opentsdb.web.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.opentsdb.meta.Annotation;
@@ -9,13 +9,14 @@ import static org.junit.Assert.*;
 
 public class AnnotationMixInTest {
   private ObjectMapper jsonMapper;
+
   private Annotation note;
   private String note_json;
 
   @Before
   public void setUp() throws Exception {
     jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
+    jsonMapper.registerModule(new JacksonModule());
 
     note = new Annotation("000001000001000001", 1328140800, 1328140801,
         "Description", "Notes", null);

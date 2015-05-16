@@ -1,4 +1,4 @@
-package net.opentsdb.storage.json;
+package net.opentsdb.web.jackson;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
@@ -6,8 +6,8 @@ import net.opentsdb.meta.TSMeta;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
 
-public class StorageModule extends SimpleModule {
-  public StorageModule() {
+public class JacksonModule extends SimpleModule {
+  public JacksonModule() {
     super("StorageModule");
   }
 

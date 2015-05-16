@@ -1,4 +1,4 @@
-package net.opentsdb.storage.json;
+package net.opentsdb.web.jackson;
 
 import net.opentsdb.meta.TSMeta;
 
@@ -17,7 +17,7 @@ public class TSMetaMixInTest {
   public void setUp() throws Exception {
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new GuavaModule());
-    jsonMapper.registerModule(new StorageModule());
+    jsonMapper.registerModule(new JacksonModule());
 
     meta = new TSMeta();
   }

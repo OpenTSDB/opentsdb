@@ -1,4 +1,4 @@
-package net.opentsdb.storage.json;
+package net.opentsdb.web.jackson;
 
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.uid.UniqueIdType;
@@ -26,7 +26,7 @@ public class LabelMetaMixInTest {
     labelMeta = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
 
     jsonMapper = new ObjectMapper();
-    jsonMapper.registerModule(new StorageModule());
+    jsonMapper.registerModule(new JacksonModule());
   }
 
   @Test

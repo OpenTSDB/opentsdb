@@ -1,4 +1,4 @@
-package net.opentsdb.storage.json;
+package net.opentsdb.web.jackson;
 
 import java.util.Map;
 
@@ -11,8 +11,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)
-@JsonPropertyOrder({"tsuid", "displayName", "description", "notes",
-        "created", "custom", "units", "dataType", "retention", "max", "min"})
 abstract class TSMetaMixIn {
   TSMetaMixIn(@JsonProperty("tsuid") String tsuid,
               @JsonProperty("displayName") String displayName,

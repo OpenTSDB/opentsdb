@@ -1,4 +1,4 @@
-package net.opentsdb.storage.json;
+package net.opentsdb.web.jackson;
 
 import java.util.Map;
 
@@ -12,7 +12,6 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.PUBLIC_ONLY)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonPropertyOrder({"tsuid", "startTime", "endTime", "description", "notes", "custom"})
 abstract class AnnotationMixIn {
   AnnotationMixIn(@JsonProperty("tsuid") final String tsuid,
                   @JsonProperty("startTime") final long start_time,
