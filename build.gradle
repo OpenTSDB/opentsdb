@@ -8,6 +8,7 @@ subprojects {
     apply plugin: 'checkstyle'
     apply plugin: "signing"
     apply plugin: "jacoco"
+    apply plugin: "findbugs"
 
     apply plugin: "idea"
 
