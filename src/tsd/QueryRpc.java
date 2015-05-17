@@ -124,7 +124,7 @@ final class QueryRpc implements HttpRpc {
     final QueryStats query_stats = 
         new QueryStats(query.getRemoteAddress(), data_query);
     data_query.setQueryStats(query_stats);
-    }
+    
     final int nqueries = data_query.getQueries().size();
     final ArrayList<DataPoints[]> results = new ArrayList<DataPoints[]>(nqueries);
     final List<Annotation> globals = new ArrayList<Annotation>();
