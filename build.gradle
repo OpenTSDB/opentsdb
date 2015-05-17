@@ -7,6 +7,9 @@ subprojects {
     apply plugin: 'java'
     apply plugin: 'checkstyle'
     apply plugin: "signing"
+    apply plugin: "jacoco"
+
+    apply plugin: "idea"
 
     sourceCompatibility = JavaVersion.VERSION_1_7
     targetCompatibility = JavaVersion.VERSION_1_7
@@ -92,9 +95,9 @@ subprojects {
         }
     }
 
-    compileJava {
-        options.compilerArgs << "-Xlint"
-        options.encoding = "UTF-8"
+    [compileJava, compileTestJava].each() {
+        it.options.compilerArgs += ["-Xlint"]
+        it.options.encoding = "UTF-8"
     }
 
     test {
@@ -123,8 +126,22 @@ subprojects {
     }
 
     checkstyle {
-        configFile = new File(rootDir, "checkstyle.xml")
-        toolVersion = 6.3
+        configFile = file("$rootDir/checkstyle.xml")
+        toolVersion = "6.5"
+    }
+
+    // Configure intellij to add the generated sources folders to its build path
+    idea {
+        module {
+            // Intellij exludes the whole build directory by default. This makes
+            // sure the generates sources dir is still excluded but the generated
+            // sources gets included.
+            excludeDirs = [file('.gradle')]
+            if (buildDir.exists()) {
+                excludeDirs += files(buildDir.listFiles())
+                excludeDirs -= file("$buildDir/generated-sources")
+            }
+        }
     }
 }
 
