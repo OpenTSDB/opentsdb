@@ -2,6 +2,22 @@
 project.ext.distFiles = files("src/main/dist")
 
 dependencies {
-    // Should be compile only
-    compile group: 'com.google.auto.value', name: 'auto-value', version: '1.0'
+    compile libraries.config,
+            libraries.dagger,
+            libraries.metrics_core,
+            libraries.metrics_jvm,
+
+            libraries.jackson_core,
+            libraries.jackson_databind,
+            libraries.jackson_annotation,
+            libraries.jackson_guava,
+
+            // Should be compile only
+            libraries.auto_value,
+            libraries.auto_service
+
+    testCompile libraries.javassist,
+                libraries.objenesis,
+                libraries.powermock_api_mockito,
+                libraries.powermock_module_junit
 }

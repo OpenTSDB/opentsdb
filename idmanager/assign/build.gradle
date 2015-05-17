@@ -2,5 +2,5 @@
 dependencies {
     compile project(':tsdb-core')
 
-    compile group: 'net.sf.jopt-simple', name: 'jopt-simple', version: '4.9-beta-1'
+    compile libraries.jopt
 }

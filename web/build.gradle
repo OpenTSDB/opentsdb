@@ -4,11 +4,11 @@ dependencies {
 
     runtime project(':tsdb-cassandra')
 
-    compile group: 'io.netty', name: 'netty-all', version: '4.1.0.Beta4'
-    compile group: 'org.javassist', name: 'javassist', version: '3.19.0-GA'
-
-    compile group: 'net.sf.jopt-simple', name: 'jopt-simple', version: '4.9-beta-1'
-    compile group: 'io.dropwizard.metrics', name: 'metrics-json', version: '3.1.0'
+    compile libraries.jopt,
+            libraries.logback,
+            libraries.netty,
+            libraries.javassist,
+            libraries.metrics_json
 
     testCompile project(':tsdb-core').sourceSets.test.output
 }
