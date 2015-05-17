@@ -1,4 +1,8 @@
 
+plugins {
+    id "me.champeau.gradle.jmh" version "0.2.0"
+}
+
 project.ext.distFiles = files("src/main/dist")
 
 dependencies {
@@ -20,4 +24,13 @@ dependencies {
                 libraries.objenesis,
                 libraries.powermock_api_mockito,
                 libraries.powermock_module_junit
+}
+
+jmh {
+    jmhVersion = '1.9.3'
+    failOnError = true
+    warmupIterations = 10
+    iterations = 10
+    fork = 1
+    jvmArgs = "-server -XX:+UseG1GC -XX:+AggressiveOpts -XX:+UseFastAccessorMethods"
 }

@@ -3,7 +3,7 @@ apply plugin: 'application'
 
 mainClassName = "net.opentsdb.TSDB"
 applicationName = "tsdb"
-applicationDefaultJvmArgs = [ "-XX:+UseG1GC" ]
+applicationDefaultJvmArgs = [ "-server", "-XX:+UseG1GC", "-XX:+AggressiveOpts", "-XX:+UseFastAccessorMethods" ]
 
 dependencies {
     compile project(":tsdb-core")
