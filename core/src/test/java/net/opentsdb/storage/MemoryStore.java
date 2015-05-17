@@ -45,6 +45,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.uid.UniqueIdType;
 
+import javax.annotation.Nonnull;
+
 import static net.opentsdb.utils.StringCoder.fromBytes;
 import static net.opentsdb.uid.IdUtils.uidToString;
 
@@ -96,22 +98,25 @@ public class MemoryStore implements TsdbStore {
     datapoints = Maps.newHashMap();
   }
 
+  @Nonnull
   @Override
-  public Deferred<Void> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
                                    final long timestamp,
                                    final float value) {
     return addPoint(tsuid, value, timestamp);
   }
 
+  @Nonnull
   @Override
-  public Deferred<Void> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
                                    final long timestamp,
                                    final double value) {
     return addPoint(tsuid, value, timestamp);
   }
 
+  @Nonnull
   @Override
-  public Deferred<Void> addPoint(final TimeseriesId tsuid,
+  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
                                    final long timestamp,
                                    final long value) {
     return addPoint(tsuid, (Number) value, timestamp);

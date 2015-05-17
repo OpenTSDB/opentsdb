@@ -31,6 +31,7 @@ subprojects {
                 auto_value: 'com.google.auto.value:auto-value:1.0',
                 auto_service: 'com.google.auto.service:auto-service:1.0-rc2',
                 jopt: 'net.sf.jopt-simple:jopt-simple:4.9-beta-1',
+                jsr305: 'com.google.code.findbugs:jsr305:3.0.0',
 
                 dagger: 'com.squareup.dagger:dagger:1.2.2',
                 dagger_compiler: 'com.squareup.dagger:dagger-compiler:1.2.2',
@@ -66,7 +67,13 @@ subprojects {
     dependencies {
         compile libraries.guava,
                 libraries.slf4j,
-                libraries.async
+                libraries.async,
+
+                // It would be nice if we could specify this as compile only but
+                // the annotations it provides have their retention set to source
+                // so at the moment we can't. Is there any way to remove the
+                // annotations after compiling using gradle?
+                libraries.jsr305
 
         // Compile only
         provided libraries.dagger_compiler

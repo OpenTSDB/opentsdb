@@ -38,6 +38,7 @@ import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
+import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Date;
@@ -152,28 +153,31 @@ public class CassandraStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Nonnull
   @Override
-  public Deferred<Void> addPoint(final TimeseriesId tsuid,
-                                   final long timestamp,
-                                   final float value) {
+  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                 final long timestamp,
+                                 final float value) {
     final BoundStatement addPointStatement = addFloatStatement.bind()
         .setFloat(3, value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
+  @Nonnull
   @Override
-  public Deferred<Void> addPoint(final TimeseriesId tsuid,
-                                   final long timestamp,
-                                   final double value) {
+  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                 final long timestamp,
+                                 final double value) {
     final BoundStatement addPointStatement = addDoubleStatement.bind()
         .setDouble(3, value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
+  @Nonnull
   @Override
-  public Deferred<Void> addPoint(final TimeseriesId tsuid,
-                                   final long timestamp,
-                                   final long value) {
+  public Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                                 final long timestamp,
+                                 final long value) {
     final BoundStatement addPointStatement = addLongStatement.bind()
         .setLong(3, value);
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);

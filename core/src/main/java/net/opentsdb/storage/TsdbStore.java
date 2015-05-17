@@ -22,6 +22,8 @@ import java.util.List;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
+import javax.annotation.Nonnull;
+
 /**
  * A interface defining the functions any database used with TSDB must implement.
  * Another requirement is tha the database connection has to be asynchronous.
@@ -68,17 +70,20 @@ public interface TsdbStore extends Closeable {
   //
   // Datapoints
   //
-  Deferred<Void> addPoint(final TimeseriesId tsuid,
-                            final long timestamp,
-                            final float value);
+  @Nonnull
+  Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                          final long timestamp,
+                          final float value);
 
-  Deferred<Void> addPoint(final TimeseriesId tsuid,
-                            final long timestamp,
-                            final double value);
+  @Nonnull
+  Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                          final long timestamp,
+                          final double value);
 
-  Deferred<Void> addPoint(final TimeseriesId tsuid,
-                            final long timestamp,
-                            final long value);
+  @Nonnull
+  Deferred<Void> addPoint(@Nonnull final TimeseriesId tsuid,
+                          final long timestamp,
+                          final long value);
 
   /**
    * Should execute the provided {@link net.opentsdb.core.Query} and
