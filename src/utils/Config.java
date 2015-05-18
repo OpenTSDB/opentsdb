@@ -151,6 +151,11 @@ public class Config {
     setDefaults();
   }
 
+  /** @return The file that generated this config. May be null */
+  public String configLocation() {
+    return config_location;
+  }
+  
   /** @return the auto_metric value */
   public boolean auto_metric() {
     return auto_metric;

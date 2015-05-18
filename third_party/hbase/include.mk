@@ -13,9 +13,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-ASYNCHBASE_VERSION := 1.6.0
+ASYNCHBASE_VERSION := 1.7.0-20150517.200244-1
 ASYNCHBASE := third_party/hbase/asynchbase-$(ASYNCHBASE_VERSION).jar
-ASYNCHBASE_BASE_URL := http://central.maven.org/maven2/org/hbase/asynchbase/$(ASYNCHBASE_VERSION)
+ASYNCHBASE_BASE_URL := https://oss.sonatype.org/content/repositories/snapshots/org/hbase/asynchbase/1.7.0-SNAPSHOT/
 
 $(ASYNCHBASE): $(ASYNCHBASE).md5
 	set dummy "$(ASYNCHBASE_BASE_URL)" "$(ASYNCHBASE)"; shift; $(FETCH_DEPENDENCY)
