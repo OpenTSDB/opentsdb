@@ -1,6 +1,6 @@
 
 task wrapper(type: Wrapper) {
-    gradleVersion = '2.3'
+    gradleVersion = '2.4'
 }
 
 subprojects {
@@ -16,7 +16,7 @@ subprojects {
     targetCompatibility = JavaVersion.VERSION_1_7
 
     group = 'net.opentsdb'
-    version = "2.1.0+${getGitAbbreviatedHash()}"
+    version = "2.1.0"
 
     repositories {
         mavenCentral()
@@ -114,7 +114,7 @@ subprojects {
             attributes(
                     "Implementation-Title": "OpenTSDB",
                     "Implementation-Vendor": "The OpenTSDB Authors",
-                    "Implementation-Version": version,
+                    "Implementation-Version": "$version+${getGitAbbreviatedHash()}",
                     "Build-User": System.getenv("USER"),
                     "Build-Host": InetAddress.getLocalHost().getHostName(),
                     "Build-Date": new Date())
