@@ -3,7 +3,6 @@ package net.opentsdb.core;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,14 +90,6 @@ public class UniqueIdClient {
     metrics = new UniqueId(tsdbStore, UniqueIdType.METRIC, metricsRegistry, idEventBus);
     tag_names = new UniqueId(tsdbStore, UniqueIdType.TAGK, metricsRegistry, idEventBus);
     tag_values = new UniqueId(tsdbStore, UniqueIdType.TAGV, metricsRegistry, idEventBus);
-
-    if (config.getBoolean("tsd.core.preload_uid_cache.enabled")) {
-      final Map<UniqueIdType, UniqueId> uid_cache_map = new EnumMap<UniqueIdType, UniqueId>(UniqueIdType.class);
-      uid_cache_map.put(UniqueIdType.METRIC, metrics);
-      uid_cache_map.put(UniqueIdType.TAGK, tag_names);
-      uid_cache_map.put(UniqueIdType.TAGV, tag_values);
-      UniqueId.preloadUidCache(config, tsdbStore, uid_cache_map);
-    }
 
     tsuidQueryTimer = metricsRegistry.timer(name("tsuid.query-time"));
   }

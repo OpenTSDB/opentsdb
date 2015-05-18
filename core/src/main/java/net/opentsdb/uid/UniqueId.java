@@ -14,8 +14,6 @@ package net.opentsdb.uid;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.codahale.metrics.Counter;
@@ -23,7 +21,6 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
@@ -31,7 +28,6 @@ import net.opentsdb.utils.StringCoder;
 
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
-import com.typesafe.config.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,11 +60,11 @@ public class UniqueId {
    * converted to a String to be Comparable.
    */
   private final ConcurrentHashMap<String, String> id_cache =
-      new ConcurrentHashMap<String, String>();
+      new ConcurrentHashMap<>();
 
   /** Map of pending UID assignments */
   private final HashMap<String, Deferred<byte[]>> pending_assignments =
-      new HashMap<String, Deferred<byte[]>>();
+      new HashMap<>();
 
   /** Number of times we avoided reading from TsdbStore thanks to the cache. */
   private final Counter cache_hits;
@@ -330,42 +326,5 @@ public class UniqueId {
     return MoreObjects.toStringHelper(this)
             .add("type", type)
             .toString();
-  }
-
-  /**
-   * Pre-load UID caches, scanning up to "tsd.core.preload_uid_cache.max_entries"
-   * rows from the UID table.
-   * @param uniqueIdInstances A map of {@link net.opentsdb.uid.UniqueId} objects keyed on the kind.
-   * @2.1
-   */
-  public static void preloadUidCache(final Config config,
-                                     final TsdbStore store,
-                                     final Map<UniqueIdType,UniqueId> uniqueIdInstances) {
-    int max_results = config.getInt("tsd.core.preload_uid_cache.max_entries");
-    LOG.info("Preloading uid cache with max_results={}", max_results);
-
-    if (max_results <= 0) {
-      return;
-    }
-
-    try {
-      IdQuery idQuery = new IdQuery(null, null, max_results);
-      List<IdentifierDecorator> ids = store.executeIdQuery(idQuery).join();
-
-      for (final IdentifierDecorator id : ids) {
-        LOG.debug("Preloaded {}", id);
-        UniqueId uid_cache = uniqueIdInstances.get(id.getType());
-        uid_cache.cacheMapping(id.getName(), id.getId());
-      }
-
-      for (UniqueId unique_id_table : uniqueIdInstances.values()) {
-        LOG.info("After preloading, uid cache '{}' has {} ids and {} names.",
-                unique_id_table.type,
-                unique_id_table.id_cache.size(),
-                unique_id_table.name_cache.size());
-      }
-    } catch (Exception e) {
-      Throwables.propagate(e);
-    }
   }
 }
