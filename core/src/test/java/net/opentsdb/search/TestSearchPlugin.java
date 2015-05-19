@@ -15,11 +15,13 @@ package net.opentsdb.search;
 import com.stumbleupon.async.Callback;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
+import net.opentsdb.uid.LabelId;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
 
 public abstract class TestSearchPlugin {
   protected SearchPlugin search;
@@ -71,7 +73,7 @@ public abstract class TestSearchPlugin {
 
   @Test
   public void deleteLabelMetaNullType() {
-    assertNotNull(search.deleteLabelMeta(new byte[] {0, 0, 1}, null));
+    assertNotNull(search.deleteLabelMeta(mock(LabelId.class), null));
   }
   
   @Test

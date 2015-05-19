@@ -133,8 +133,9 @@ public interface TsdbStore extends Closeable {
   //
   // LabelMeta
   //
-  public Deferred<LabelMeta> getMeta(final byte[] uid,
-                                     final UniqueIdType type);
+  @Nonnull
+  public Deferred<LabelMeta> getMeta(@Nonnull final LabelId uid,
+                                     @Nonnull final UniqueIdType type);
 
   public Deferred<Boolean> updateMeta(final LabelMeta meta);
 

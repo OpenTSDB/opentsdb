@@ -22,11 +22,6 @@ class CassandraLabelId implements LabelId<CassandraLabelId> {
     this.id = id;
   }
 
-  @Override
-  public byte[] bytes() {
-    return Longs.toByteArray(id);
-  }
-
   long toLong() {
     return id;
   }

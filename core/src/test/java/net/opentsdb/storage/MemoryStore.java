@@ -138,20 +138,18 @@ public class MemoryStore implements TsdbStore {
 
   @Nonnull
   @Override
-  public Deferred<com.google.common.base.Optional<String>> getName(@Nonnull final LabelId id,
-                                                                   @Nonnull final UniqueIdType type) {
+  public Deferred<Optional<String>> getName(@Nonnull final LabelId id,
+                                            @Nonnull final UniqueIdType type) {
     final String name = uid_reverse_mapping.get(id, type);
     return Deferred.fromResult(Optional.fromNullable(name));
   }
 
+  @Nonnull
   @Override
-  public Deferred<LabelMeta> getMeta(final byte[] uid,
-                                     final UniqueIdType type) {
+  public Deferred<LabelMeta> getMeta(@Nonnull final LabelId uid,
+                                     @Nonnull final UniqueIdType type) {
     final String qualifier = type.toString().toLowerCase() + "_meta";
-    final long s_uid = IdUtils.uidToLong(uid);
-
-    final LabelMeta meta = uid_table.get(s_uid, qualifier);
-
+    final LabelMeta meta = uid_table.get(uid, qualifier);
     return Deferred.fromResult(meta);
   }
 
@@ -435,13 +433,6 @@ public class MemoryStore implements TsdbStore {
 
     MemoryLabelId(@Nonnull final UUID uuid) {
       this.uuid = checkNotNull(uuid);
-    }
-
-    @Override
-    public byte[] bytes() {
-      return Bytes.concat(
-          Longs.toByteArray(uuid.getLeastSignificantBits()),
-          Longs.toByteArray(uuid.getMostSignificantBits()));
     }
 
     @Override

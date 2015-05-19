@@ -238,7 +238,7 @@ public class MetaClient {
        */
       @Override
       public Deferred<LabelMeta> call(final String name) throws Exception {
-        return store.getMeta(uid.bytes(), type);
+        return store.getMeta(uid, type);
       }
     }
 

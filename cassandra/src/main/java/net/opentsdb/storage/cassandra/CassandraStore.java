@@ -190,10 +190,10 @@ public class CassandraStore implements TsdbStore {
                                   @Nonnull final List<LabelId> tags,
                                   final long timestamp) {
     Hasher tsidHasher = Hashing.murmur3_128().newHasher()
-        .putBytes(metric.bytes());
+        .putLong(toLong(metric));
 
     for (final LabelId tag : tags) {
-      tsidHasher.putBytes(tag.bytes());
+      tsidHasher.putLong(toLong(tag));
     }
 
     final ByteBuffer tsid = ByteBuffer.wrap(tsidHasher.hash().asBytes());
@@ -325,8 +325,10 @@ public class CassandraStore implements TsdbStore {
     });
   }
 
+  @Nonnull
   @Override
-  public Deferred<LabelMeta> getMeta(byte[] uid, UniqueIdType type) {
+  public Deferred<LabelMeta> getMeta(@Nonnull final LabelId uid,
+                                     @Nonnull final UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

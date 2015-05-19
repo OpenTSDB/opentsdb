@@ -38,7 +38,7 @@ public class IdChangeIndexerListener {
   @Subscribe
   @AllowConcurrentEvents
   public final void recordLabelCreated(LabelCreatedEvent event) {
-    store.getMeta(event.getId().bytes(), event.getType()).addCallback(
+    store.getMeta(event.getId(), event.getType()).addCallback(
         new Callback<Void, LabelMeta>() {
           @Override
           public Void call(final LabelMeta meta) {
@@ -62,7 +62,7 @@ public class IdChangeIndexerListener {
   public final void recordLabelDeleted(LabelDeletedEvent event) {
     LOG.info("Removing label with id {}, type {} and name {} from search index",
         event.getId(), event.getType(), event.getName());
-    searchPlugin.deleteLabelMeta(event.getId().bytes(), event.getType())
+    searchPlugin.deleteLabelMeta(event.getId(), event.getType())
         .addErrback(new PluginError(searchPlugin));
   }
 }

@@ -42,7 +42,7 @@ public class IdChangeIndexerListenerTest {
   public void createdLabelEventIndexesLabelMeta() {
     final LabelId id = mock(LabelId.class);
     LabelMeta labelMeta = LabelMeta.create(id, METRIC, "sys.cpu.0", "Description", 1328140801);
-    when(store.getMeta(any(byte[].class), METRIC)).thenReturn(Deferred.fromResult(labelMeta));
+    when(store.getMeta(any(LabelId.class), METRIC)).thenReturn(Deferred.fromResult(labelMeta));
 
     idEventBus.post(new LabelCreatedEvent(id, "test", UniqueIdType.METRIC));
     verify(searchPlugin).indexLabelMeta(labelMeta);
@@ -53,6 +53,6 @@ public class IdChangeIndexerListenerTest {
     final LabelDeletedEvent event =
         new LabelDeletedEvent(mock(LabelId.class), "test", UniqueIdType.METRIC);
     idEventBus.post(event);
-    verify(searchPlugin).deleteLabelMeta(any(byte[].class), event.getType());
+    verify(searchPlugin).deleteLabelMeta(any(LabelId.class), event.getType());
   }
 }
