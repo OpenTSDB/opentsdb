@@ -8,6 +8,7 @@ import net.opentsdb.plugins.RTPublisher;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.NoSuchUniqueId;
 import com.typesafe.config.Config;
 import org.junit.Before;
@@ -32,46 +33,33 @@ public class MetaClientLabelMetaTest {
   @Inject UniqueIdClient uniqueIdClient;
   @Inject MetaClient metaClient;
 
-  @Inject
-  RTPublisher realtimePublisher;
+  @Inject RTPublisher realtimePublisher;
 
   @Mock private SearchPlugin searchPlugin;
+
+  private LabelId sysCpu0;
+  private LabelId sysCpu2;
 
   @Before
   public void setUp() throws Exception {
     ObjectGraph.create(new TestModule()).inject(this);
     MockitoAnnotations.initMocks(this);
 
-    store.allocateUID("sys.cpu.0", new byte[]{0, 0, 1}, METRIC);
-    store.allocateUID("sys.cpu.2", new byte[]{0, 0, 3}, METRIC);
+    sysCpu0 = store.allocateUID("sys.cpu.0", METRIC).join();
+    sysCpu2 = store.allocateUID("sys.cpu.2", METRIC).join();
 
-    LabelMeta labelMeta = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
+    LabelMeta labelMeta = LabelMeta.create(sysCpu0, METRIC, "sys.cpu.0", "Description", 1328140801);
 
     store.updateMeta(labelMeta);
   }
 
   @Test
   public void getUIDMeta() throws Exception {
-    final LabelMeta meta = metaClient.getLabelMeta(METRIC, new byte[]{0, 0, 3})
+    final LabelMeta meta = metaClient.getLabelMeta(METRIC, sysCpu2)
             .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
     assertEquals(METRIC, meta.type());
     assertEquals("sys.cpu.2", meta.name());
-    assertArrayEquals(new byte[]{0, 0, 3}, meta.identifier());
-  }
-
-  @Test
-  public void getUIDMetaExists() throws Exception {
-    final LabelMeta meta = metaClient.getLabelMeta(METRIC, "000001")
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    assertEquals(METRIC, meta.type());
-    assertEquals("sys.cpu.0", meta.name());
-    assertArrayEquals(new byte[]{0, 0, 1}, meta.identifier());
-  }
-
-  @Test (expected = NoSuchUniqueId.class)
-  public void getUIDMetaNoSuch() throws Exception {
-    metaClient.getLabelMeta(METRIC, "000002")
-            .joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    assertEquals(sysCpu2, meta.identifier());
   }
 
   /*

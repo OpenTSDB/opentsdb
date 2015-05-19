@@ -12,6 +12,8 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.utils;
 
+import com.google.auto.value.AutoValue;
+
 /**
  * Simple key/value pair class where either of the values may be null.
  * Pairs are particularly useful in lists where you may have duplicate keys,
@@ -33,86 +35,16 @@ package net.opentsdb.utils;
  * @param <K> Object type for the key
  * @param <V> Object type for the value
  */
-public class Pair<K, V> {
-
-  /** The key or left hand value */
-  protected K key;
-  
-  /** The value or right hand value */
-  protected V value;
-  
-  /**
-   * Default ctor that leaves the key and value objects as null
-   */
-  public Pair() {
-  }
-  
-  /**
-   * Ctor that stores references to the objects
-   * @param key The key or left hand value to store
-   * @param value The value or right hand value to store
-   */
-  public Pair(final K key, final V value) {
-    this.key = key;
-    this.value = value;
-  }
-  
-  /**
-   * Calculates the hash by ORing the key and value hash codes
-   * @return a hash code for this pair
-   */
-  @Override
-  public int hashCode() {
-    return (key == null ? 0 : key.hashCode()) ^
-           (value == null ? 0 : value.hashCode());
-  }
-  
-  /** @return a descriptive string in the format "key=K, value=V" */
-  @Override
-  public String toString() {
-    return "key=" + key + ", value=" + value;
-  }
-  
-  /**
-   * Compares the two pairs for equality. If the incoming object reference is
-   * the same, the result is true. Then {@code .equals} is called on both
-   * objects (if they are not null) 
-   * @return true if the objects refer to the same address or both objects are
-   * equal
-   */
-  @Override
-  public boolean equals(final Object object) {
-    if (object == this) {
-      return true;
-    }
-    if (object instanceof Pair<?, ?>) {
-      final Pair<?, ?> other_pair = (Pair<?, ?>)object;
-      return
-        (key == null ? other_pair.getKey() == null : 
-          key.equals(other_pair.key))
-        && (value == null ? other_pair.getValue() == null : 
-          value.equals(other_pair.value));
-    }
-    return false;
+@Deprecated
+@AutoValue
+public abstract class Pair<K, V> {
+  public static <K,V> Pair<K,V> create(final K key, final V value) {
+    return new AutoValue_Pair(key, value);
   }
   
   /** @return The stored key/left value, may be null */
-  public K getKey() {
-    return key;
-  }
+  public abstract K getKey();
   
   /** @return The stored value/right value, may be null */
-  public V getValue() {
-    return value;
-  }
-  
-  /** @param key The key/left value to store, may be null */
-  public void setKey(final K key) {
-    this.key = key;
-  }
-  
-  /** @param value The value/right value to store, may be null */
-  public void setValue(final V value) {
-    this.value = value;
-  }
+  public abstract V getValue();
 }

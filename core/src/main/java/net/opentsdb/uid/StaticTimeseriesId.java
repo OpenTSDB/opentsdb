@@ -1,5 +1,6 @@
 package net.opentsdb.uid;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -12,22 +13,24 @@ import java.util.List;
  */
 @Deprecated
 public class StaticTimeseriesId extends TimeseriesId {
-  private final byte[] metric;
-  private final List<byte[]> tags;
+  private final LabelId metric;
+  private final List<LabelId> tags;
 
-  public StaticTimeseriesId(final byte[] metric,
-                            final List<byte[]> tags) {
+  public StaticTimeseriesId(final LabelId metric,
+                            final List<LabelId> tags) {
     this.metric = metric;
     this.tags = tags;
   }
 
+  @Nonnull
   @Override
-  public byte[] metric() {
+  public LabelId metric() {
     return metric;
   }
 
+  @Nonnull
   @Override
-  public List<byte[]> tags() {
+  public List<LabelId> tags() {
     return tags;
   }
 }

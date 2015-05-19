@@ -1,30 +1,20 @@
-// This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
+import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Longs;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.meta.TSMeta;
@@ -32,22 +22,23 @@ import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.uid.UniqueIdType;
 
 import javax.annotation.Nonnull;
 
-import static net.opentsdb.utils.StringCoder.fromBytes;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static net.opentsdb.uid.IdUtils.uidToString;
 
 /**
@@ -73,22 +64,13 @@ import static net.opentsdb.uid.IdUtils.uidToString;
 public class MemoryStore implements TsdbStore {
   private static final Charset ASCII = Charsets.ISO_8859_1;
 
-  private final Table<Long, String, LabelMeta> uid_table;
+  private final Table<LabelId, String, LabelMeta> uid_table;
   private final Table<String, Long, Annotation> annotation_table;
 
   private final Map<TimeseriesId, NavigableMap<Long, Number>> datapoints;
 
-  private final Map<UniqueIdType, AtomicLong> uid_max = ImmutableMap.of(
-          UniqueIdType.METRIC, new AtomicLong(1),
-          UniqueIdType.TAGK, new AtomicLong(1),
-          UniqueIdType.TAGV, new AtomicLong(1));
-  private final Table<String, UniqueIdType, byte[]> uid_forward_mapping;
-  private final Table<String, UniqueIdType, String> uid_reverse_mapping;
-
-  private byte[] default_family = "t".getBytes(ASCII);
-
-  /** Incremented every time a new value is stored (without a timestamp) */
-  private long current_timestamp = 1388534400000L;
+  private final Table<String, UniqueIdType, LabelId> uid_forward_mapping;
+  private final Table<LabelId, UniqueIdType, String> uid_reverse_mapping;
 
   public MemoryStore() {
     uid_table = HashBasedTable.create();
@@ -146,30 +128,19 @@ public class MemoryStore implements TsdbStore {
   public void close() {
   }
 
+  @Nonnull
   @Override
-  public Deferred<com.google.common.base.Optional<byte[]>> getId(String name, UniqueIdType type) {
-    byte[] id = uid_forward_mapping.get(name, type);
-
-    if (id != null && id.length != type.width) {
-      throw new IllegalStateException("Found id.length = " + id.length
-              + " which is != " + type.width
-              + " required for '" + type + '\'');
-    }
-
+  public Deferred<Optional<LabelId>> getId(@Nonnull String name,
+                                           @Nonnull UniqueIdType type) {
+    LabelId id = uid_forward_mapping.get(name, type);
     return Deferred.fromResult(Optional.fromNullable(id));
   }
 
+  @Nonnull
   @Override
-  public Deferred<com.google.common.base.Optional<String>> getName(byte[] id, UniqueIdType type) {
-    if (id.length != type.width) {
-      throw new IllegalArgumentException("Wrong id.length = " + id.length
-              + " which is != " + type.width
-              + " required for '" + type + '\'');
-    }
-
-    String str_uid = fromBytes(id);
-
-    final String name = uid_reverse_mapping.get(str_uid, type);
+  public Deferred<com.google.common.base.Optional<String>> getName(@Nonnull final LabelId id,
+                                                                   @Nonnull final UniqueIdType type) {
+    final String name = uid_reverse_mapping.get(id, type);
     return Deferred.fromResult(Optional.fromNullable(name));
   }
 
@@ -187,7 +158,7 @@ public class MemoryStore implements TsdbStore {
   @Override
   public Deferred<Boolean> updateMeta(final LabelMeta meta) {
     uid_table.put(
-        IdUtils.uidToLong(meta.identifier()),
+        meta.identifier(),
         meta.type().toString().toLowerCase() + "_meta",
         meta);
 
@@ -195,7 +166,7 @@ public class MemoryStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Void> deleteUID(byte[] name, UniqueIdType type) {
+  public Deferred<Void> deleteUID(final String name, UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -204,58 +175,38 @@ public class MemoryStore implements TsdbStore {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
+  @Nonnull
   @Override
-  public Deferred<byte[]> allocateUID(final String name,
-                                      final UniqueIdType type) {
-    final byte[] row = Longs.toByteArray(uid_max.get(type).getAndIncrement());
+  public Deferred<LabelId> allocateUID(@Nonnull final String name,
+                                       @Nonnull final UniqueIdType type) {
+    LabelId id;
 
-    // row.length should actually be 8.
-    if (row.length < type.width) {
-      throw new IllegalStateException("row.length = " + row.length
-              + " which is less than " + type.width
-              + " for id=" + uid_max
-              + " row=" + Arrays.toString(row));
-    }
+    do {
+      id = new MemoryLabelId();
+      // Make sure the new id is unique
+    } while (uid_reverse_mapping.containsRow(id));
 
-    // Verify that the indices in the row array that won't be used in the
-    // uid with the current length are zero so we haven't reached the upper
-    // limits.
-    for (int i = 0; i < row.length - type.width; i++) {
-      if (row[i] != 0) {
-        throw new IllegalArgumentException("All Unique IDs for " + type
-                + " on " + type.width + " bytes are already assigned!");
-      }
-    }
-
-    // Shrink the ID on the requested number of bytes.
-    final byte[] uid = Arrays.copyOfRange(row, row.length - type.width,
-            row.length);
-
-    return allocateUID(name, uid, type);
+    return allocateUID(name, id, type);
   }
 
+  @Nonnull
   @Override
-  public Deferred<byte[]> allocateUID(final String name,
-                                      final byte[] uid,
-                                      final UniqueIdType type) {
-    uid_max.get(type).set(Math.max(uid_max.get(type).get(),
-            (IdUtils.uidToLong(uid, (short) uid.length) + 1)));
-
-    String str_uid = fromBytes(uid);
-
-    if (uid_reverse_mapping.contains(str_uid, type)) {
-      throw new IllegalArgumentException("A UID with " + str_uid + " already exists");
+  public Deferred<LabelId> allocateUID(@Nonnull final String name,
+                                       @Nonnull final LabelId id,
+                                       @Nonnull final UniqueIdType type) {
+    if (uid_reverse_mapping.contains(id, type)) {
+      throw new IllegalArgumentException("An ID with " + id + " already exists");
     }
 
-    uid_reverse_mapping.put(str_uid, type, name);
+    uid_reverse_mapping.put(id, type, name);
 
     if (uid_forward_mapping.contains(name, type)) {
       return Deferred.fromResult(uid_forward_mapping.get(name,type));
     }
 
-    uid_forward_mapping.put(name, type, uid);
+    uid_forward_mapping.put(name, type, id);
 
-    return Deferred.fromResult(uid);
+    return Deferred.fromResult(id);
   }
 
   /**
@@ -428,34 +379,34 @@ public class MemoryStore implements TsdbStore {
    * @param query
    */
   @Override
-  public Deferred<ImmutableList<DataPoints>> executeQuery(final Query query) {
+  public Deferred<ImmutableList<DataPoints>> executeQuery(final Object query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
   @Override
   public Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query) {
-    Function<UniqueIdType, Boolean> typeMatchFunction = new Function<UniqueIdType, Boolean>() {
+    Predicate<UniqueIdType> typeMatchFunction = new Predicate<UniqueIdType>() {
       @Override
-      public Boolean apply(final UniqueIdType input) {
+      public boolean apply(final UniqueIdType input) {
         return query.getType() == null || query.getType() == input;
       }
     };
 
-    Function<String, Boolean> nameMatchFunction = new Function<String, Boolean>() {
+    Predicate<String> nameMatchFunction = new Predicate<String>() {
       @Override
-      public Boolean apply(final String name) {
+      public boolean apply(final String name) {
         return query.getQuery() == null || name.startsWith(query.getQuery());
       }
     };
 
     final List<IdentifierDecorator> result = new ArrayList<>();
 
-    for (final Table.Cell<String, UniqueIdType, byte[]> cell : uid_forward_mapping.cellSet()) {
+    for (final Table.Cell<String, UniqueIdType, LabelId> cell : uid_forward_mapping.cellSet()) {
       if (typeMatchFunction.apply(cell.getColumnKey()) &&
           nameMatchFunction.apply(cell.getRowKey())) {
         result.add(new IdentifierDecorator() {
           @Override
-          public byte[] getId() {
+          public LabelId getId() {
             return cell.getValue();
           }
 
@@ -473,5 +424,41 @@ public class MemoryStore implements TsdbStore {
     }
 
     return Deferred.fromResult(result);
+  }
+
+  private static class MemoryLabelId implements LabelId<MemoryLabelId> {
+    private final UUID uuid;
+
+    MemoryLabelId() {
+      this(UUID.randomUUID());
+    }
+
+    MemoryLabelId(@Nonnull final UUID uuid) {
+      this.uuid = checkNotNull(uuid);
+    }
+
+    @Override
+    public byte[] bytes() {
+      return Bytes.concat(
+          Longs.toByteArray(uuid.getLeastSignificantBits()),
+          Longs.toByteArray(uuid.getMostSignificantBits()));
+    }
+
+    @Override
+    public int compareTo(@Nonnull final MemoryLabelId other) {
+      return uuid.compareTo(other.uuid);
+    }
+
+    @Override
+    public boolean equals(final Object that) {
+      if (that == this)
+        return true;
+
+      if (that instanceof MemoryLabelId) {
+        return ((MemoryLabelId) that).uuid.equals(uuid);
+      }
+
+      return false;
+    }
   }
 }

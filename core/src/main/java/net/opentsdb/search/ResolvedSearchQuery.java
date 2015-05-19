@@ -1,24 +1,25 @@
 package net.opentsdb.search;
 
-import net.opentsdb.utils.ByteArrayPair;
+import net.opentsdb.uid.LabelId;
+import net.opentsdb.utils.Pair;
 
 import java.util.SortedSet;
 
 public class ResolvedSearchQuery {
-  private final byte[] metric;
-  private final SortedSet<ByteArrayPair> tags;
+  private final LabelId metric;
+  private final SortedSet<Pair<LabelId,LabelId>> tags;
 
-  public ResolvedSearchQuery(final byte[] metric,
-                             final SortedSet<ByteArrayPair> tags) {
+  public ResolvedSearchQuery(final LabelId metric,
+                             final SortedSet<Pair<LabelId,LabelId>> tags) {
     this.metric = metric;
     this.tags = tags;
   }
 
-  public byte[] getMetric() {
+  public LabelId getMetric() {
     return metric;
   }
 
-  public SortedSet<ByteArrayPair> getTags() {
+  public SortedSet<Pair<LabelId,LabelId>> getTags() {
     return tags;
   }
 }

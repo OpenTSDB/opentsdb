@@ -33,6 +33,13 @@ public final class NoSuchUniqueId extends NoSuchElementException {
    * @param type The type of unique ID that triggered the exception.
    * @param id The ID that couldn't be found.
    */
+  public NoSuchUniqueId(final UniqueIdType type, final LabelId id) {
+    super("No such unique ID for '" + type + "': " + id);
+    this.type = type;
+    this.id = id.bytes();
+  }
+
+  @Deprecated
   public NoSuchUniqueId(final UniqueIdType type, final byte[] id) {
     super("No such unique ID for '" + type + "': " + Arrays.toString(id));
     this.type = type;

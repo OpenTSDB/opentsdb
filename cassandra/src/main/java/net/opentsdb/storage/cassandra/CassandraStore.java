@@ -13,7 +13,6 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -21,7 +20,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.LabelMeta;
@@ -35,6 +33,7 @@ import net.opentsdb.uid.IdException;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
@@ -48,6 +47,8 @@ import java.util.Map;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.util.concurrent.Futures.transform;
 import static net.opentsdb.storage.cassandra.CassandraConst.CHARSET;
+import static net.opentsdb.storage.cassandra.CassandraLabelId.fromLong;
+import static net.opentsdb.storage.cassandra.CassandraLabelId.toLong;
 import static net.opentsdb.storage.cassandra.MoreFutures.wrap;
 
 /**
@@ -88,7 +89,7 @@ public class CassandraStore implements TsdbStore {
    * The statement used when trying to get name or id.
    */
   private PreparedStatement get_name_statement;
-  private PreparedStatement get_id_statement;
+  private PreparedStatement getIdStatement;
 
 
   /**
@@ -138,7 +139,7 @@ public class CassandraStore implements TsdbStore {
     get_name_statement = session.prepare(CQL);
 
     CQL = "SELECT * FROM tsdb." + Tables.NAME_TO_ID + " WHERE name = ? AND type = ? LIMIT 2;";
-    get_id_statement = session.prepare(CQL);
+    getIdStatement = session.prepare(CQL);
 
     CQL = "INSERT INTO tsdb." + Tables.TS_INVERTED_INDEX + " (label_id, type, timeseries_id) VALUES (?, ?, ?);";
     insert_tags_statement = session.prepare(CQL);
@@ -183,15 +184,16 @@ public class CassandraStore implements TsdbStore {
     return addPoint(addPointStatement, tsuid.metric(), tsuid.tags(), timestamp);
   }
 
-  private Deferred<Void> addPoint(final BoundStatement addPointStatement,
-                                    final byte[] metric,
-                                    final List<byte[]> tags,
-                                    final long timestamp) {
-    Hasher tsidHasher = Hashing.murmur3_128().newHasher();
-    tsidHasher.putBytes(metric);
+  @Nonnull
+  private Deferred<Void> addPoint(@Nonnull final BoundStatement addPointStatement,
+                                  @Nonnull final LabelId metric,
+                                  @Nonnull final List<LabelId> tags,
+                                  final long timestamp) {
+    Hasher tsidHasher = Hashing.murmur3_128().newHasher()
+        .putBytes(metric.bytes());
 
-    for (final byte[] tag : tags) {
-      tsidHasher.putBytes(tag);
+    for (final LabelId tag : tags) {
+      tsidHasher.putBytes(tag.bytes());
     }
 
     final ByteBuffer tsid = ByteBuffer.wrap(tsidHasher.hash().asBytes());
@@ -215,7 +217,7 @@ public class CassandraStore implements TsdbStore {
       }
 
       @Override
-      public void onFailure(Throwable throwable) {
+      public void onFailure(@Nonnull Throwable throwable) {
         d.callback(throwable);
       }
     });
@@ -249,11 +251,12 @@ public class CassandraStore implements TsdbStore {
     cluster.close();
   }
 
+  @Nonnull
   @Override
-  public Deferred<Optional<byte[]>> getId(final String name,
-                                          final UniqueIdType type) {
-    ListenableFuture<List<byte[]>> idsFuture = getIds(name, type);
-    return wrap(transform(idsFuture, new FirstOrAbsentFunction<byte[]>()));
+  public Deferred<Optional<LabelId>> getId(@Nonnull final String name,
+                                           @Nonnull final UniqueIdType type) {
+    ListenableFuture<List<LabelId>> idsFuture = getIds(name, type);
+    return wrap(transform(idsFuture, new FirstOrAbsentFunction<LabelId>()));
   }
 
   /**
@@ -264,19 +267,20 @@ public class CassandraStore implements TsdbStore {
    * @param type The type of IDs to fetch
    * @return A future with a list of the first two found IDs
    */
-  ListenableFuture<List<byte[]>> getIds(final String name,
-                                        final UniqueIdType type) {
+  @Nonnull
+  ListenableFuture<List<LabelId>> getIds(@Nonnull final String name,
+                                         @Nonnull final UniqueIdType type) {
     ResultSetFuture idsFuture = session.executeAsync(
-        get_id_statement.bind(name, type.toValue()));
+        getIdStatement.bind(name, type.toValue()));
 
-    return transform(idsFuture, new Function<ResultSet, List<byte[]>>() {
+    return transform(idsFuture, new Function<ResultSet, List<LabelId>>() {
       @Override
-      public List<byte[]> apply(final ResultSet result) {
-        ImmutableList.Builder<byte[]> builder = ImmutableList.builder();
+      public List<LabelId> apply(final ResultSet result) {
+        ImmutableList.Builder<LabelId> builder = ImmutableList.builder();
 
         for (final Row row : result) {
           final long id = row.getLong("label_id");
-          builder.add(Longs.toByteArray(id));
+          builder.add(fromLong(id));
         }
 
         return builder.build();
@@ -284,11 +288,11 @@ public class CassandraStore implements TsdbStore {
     });
   }
 
+  @Nonnull
   @Override
-  public Deferred<Optional<String>> getName(final byte[] id,
-                                            final UniqueIdType type) {
-    final long longId = Longs.fromByteArray(id);
-    ListenableFuture<List<String>> namesFuture = getNames(longId, type);
+  public Deferred<Optional<String>> getName(@Nonnull final LabelId id,
+                                            @Nonnull final UniqueIdType type) {
+    ListenableFuture<List<String>> namesFuture = getNames(id, type);
     return wrap(transform(namesFuture, new FirstOrAbsentFunction<String>()));
   }
 
@@ -300,8 +304,9 @@ public class CassandraStore implements TsdbStore {
    * @param type The type of names to fetch
    * @return A future with a list of the first two found names
    */
-  ListenableFuture<List<String>> getNames(final long id,
-                                          final UniqueIdType type) {
+  @Nonnull
+  ListenableFuture<List<String>> getNames(@Nonnull final LabelId id,
+                                          @Nonnull final UniqueIdType type) {
     ResultSetFuture namesFuture = session.executeAsync(
         get_name_statement.bind(id, type.toValue()));
 
@@ -331,7 +336,8 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<Void> deleteUID(byte[] name, UniqueIdType type) {
+  public Deferred<Void> deleteUID(final String name,
+                                  final UniqueIdType type) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 
@@ -346,7 +352,7 @@ public class CassandraStore implements TsdbStore {
    */
   private ListenableFuture<Boolean> isIdAvailable(final long id,
                                                   final UniqueIdType type) {
-    return transform(getNames(id, type), new IsEmptyFunction());
+    return transform(getNames(fromLong(id), type), new IsEmptyFunction());
   }
 
   /**
@@ -415,22 +421,22 @@ public class CassandraStore implements TsdbStore {
    * @param type The type of id to save
    * @return A future containing the newly saved identifier
    */
-  private ListenableFuture<byte[]> createId(final long id,
-                                            final String name,
-                                            final UniqueIdType type) {
+  private ListenableFuture<LabelId> createId(final long id,
+                                             final String name,
+                                             final UniqueIdType type) {
     final Date createTimestamp = timeProvider.now();
     final ResultSetFuture save = session.executeAsync(
         createIdStatement.bind(createTimestamp.getTime(),
             id, type.toValue(), createTimestamp, name,
             name, type.toValue(), createTimestamp, id));
 
-    return transform(save, new AsyncFunction<ResultSet, byte[]>() {
+    return transform(save, new AsyncFunction<ResultSet, LabelId>() {
       @Override
-      public ListenableFuture<byte[]> apply(final ResultSet result) {
+      public ListenableFuture<LabelId> apply(@Nonnull final ResultSet result) {
         // The Cassandra driver will have thrown an exception if the insertion
         // failed in which case we would not be here so just return the id we
         // sent to Cassandra.
-        return Futures.immediateFuture(Longs.toByteArray(id));
+        return Futures.immediateFuture(fromLong(id));
       }
     });
   }
@@ -447,9 +453,10 @@ public class CassandraStore implements TsdbStore {
    * @return A future that contains the newly allocated ID if successful,
    * otherwise the future will contain a {@link net.opentsdb.uid.IdException}.
    */
+  @Nonnull
   @Override
-  public Deferred<byte[]> allocateUID(final String name,
-                                      final UniqueIdType type) {
+  public Deferred<LabelId> allocateUID(@Nonnull final String name,
+                                       @Nonnull final UniqueIdType type) {
     // This discards half the hash but it should still work ok with murmur3.
     final long id = Hashing.murmur3_128().hashString(name, CHARSET).asLong();
 
@@ -459,9 +466,9 @@ public class CassandraStore implements TsdbStore {
     // information we are trying to allocate now.
     ListenableFuture<Void> availableFuture = checkAvailable(id, name, type);
 
-    return wrap(transform(availableFuture, new AsyncFunction<Void, byte[]>() {
+    return wrap(transform(availableFuture, new AsyncFunction<Void, LabelId>() {
       @Override
-      public ListenableFuture<byte[]> apply(final Void available) {
+      public ListenableFuture<LabelId> apply(final Void available) {
         // #checkAvailable will have thrown an exception if the id or name was
         // not available and if it did we would not be there. Thus we are now
         // free to create the id.
@@ -485,41 +492,41 @@ public class CassandraStore implements TsdbStore {
    * @param type The type of UID
    * @return The uid that was used.
    */
+  @Nonnull
   @Override
-  public Deferred<byte[]> allocateUID(final String name, final byte[] uid,
-                                      final UniqueIdType type) {
-
+  public Deferred<LabelId> allocateUID(@Nonnull final String name,
+                                       @Nonnull final LabelId uid,
+                                       @Nonnull final UniqueIdType type) {
     // Get old name, we do this manually because the other method returns
     // a deferred and we want to avoid to mix deferreds between functions.
     ResultSetFuture f = session.executeAsync(get_name_statement.bind(
-            IdUtils.uidToLong(uid), type.toValue()));
+        toLong(uid), type.toValue()));
 
-    final Deferred<byte[]> d = new Deferred<>();
+    final Deferred<LabelId> d = new Deferred<>();
 
     //CQL = "UPDATE tsdb." + Tables.ID_TO_NAME + " SET name = ? WHERE uid = ? AND type = ?;";
     final BoundStatement s1 = new BoundStatement(update_uid_name_statement)
-            .bind(name, IdUtils.uidToLong(uid), type.toValue());
+            .bind(name, toLong(uid), type.toValue());
 
     Futures.addCallback(f, new FutureCallback<ResultSet>() {
       @Override
       public void onSuccess(ResultSet rows) {
         final String old_name = rows.one().getString("name");
         session.executeAsync(s1);
-        BoundStatement s = new BoundStatement
-                (update_name_uid_statement);
+        BoundStatement s = new BoundStatement(update_name_uid_statement);
         // CQL =
         // BEGIN BATCH
         // DELETE FROM tsdb.name_to_id WHERE name = ? AND type = ?
         // INSERT INTO tsdb.name_to_id (name, type, uid) VALUES (?, ?, ?)
         // APPLY BATCH;
         session.executeAsync(s.bind(old_name, type.toValue(),
-                name, type.toValue(), IdUtils.uidToLong(uid)));
+                name, type.toValue(), toLong(uid)));
         //TODO (zeeck) maybe check if this was ok
         d.callback(uid);
       }
 
       @Override
-      public void onFailure(Throwable throwable) {
+      public void onFailure(@Nonnull Throwable throwable) {
         d.callback(throwable);
       }
     });
@@ -547,7 +554,7 @@ public class CassandraStore implements TsdbStore {
   }
 
   @Override
-  public Deferred<ImmutableList<DataPoints>> executeQuery(Query query) {
+  public Deferred<ImmutableList<DataPoints>> executeQuery(Object query) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

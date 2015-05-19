@@ -1,5 +1,6 @@
 package net.opentsdb.uid;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -16,10 +17,12 @@ public abstract class TimeseriesId {
   /**
    * The metric behind this timeseries ID.
    */
-  public abstract byte[] metric();
+  @Nonnull
+  public abstract LabelId metric();
 
   /**
    * The tags behind this timeseries ID.
    */
-  public abstract List<byte[]> tags();
+  @Nonnull
+  public abstract List<LabelId> tags();
 }

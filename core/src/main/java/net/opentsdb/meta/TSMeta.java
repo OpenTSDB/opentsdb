@@ -22,6 +22,7 @@ import com.google.common.base.Strings;
 import net.opentsdb.uid.IdUtils;
 
 import com.google.common.collect.Sets;
+import net.opentsdb.uid.LabelId;
 
 /**
  * Timeseries Metadata is associated with a particular series of data points
@@ -235,9 +236,19 @@ public final class TSMeta {
     return tsuid;
   }
 
+  // TODO
+  public LabelId metric() {
+    return null;
+  }
+
   /** @return the metric UID meta object */
   public final LabelMeta getMetric() {
     return metric;
+  }
+
+  // TODO
+  public Map<LabelId,LabelId> tags() {
+    return null;
   }
 
   /** @return the tag UID meta objects in an array, tagk first, then tagv, etc */

@@ -13,7 +13,7 @@ public class LabelDeletedEvent extends LabelEvent {
    * @param name The name of the label that has been deleted
    * @param type The type of the label that has been deleted
    */
-  public LabelDeletedEvent(final byte[] id,
+  public LabelDeletedEvent(final LabelId id,
                            final String name,
                            final UniqueIdType type) {
     super(id, name, type);

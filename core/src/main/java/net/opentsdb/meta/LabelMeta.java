@@ -3,6 +3,7 @@ package net.opentsdb.meta;
 
 import com.google.auto.value.AutoValue;
 
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -17,19 +18,18 @@ import static com.google.common.base.Preconditions.checkArgument;
  */
 @AutoValue
 public abstract class LabelMeta {
-  public static LabelMeta create(final byte[] identifier,
+  public static LabelMeta create(final LabelId identifier,
                                final UniqueIdType type,
                                final String name,
                                final String description,
                                final long created) {
-    checkArgument(type.width == identifier.length, "UID length must match the UID type width");
     checkArgument(!name.isEmpty(), "Name may not be empty");
     checkArgument(!description.isEmpty(), "Description may not be empty");
     return new AutoValue_LabelMeta(identifier, type, name, description, created);
   }
 
   /** The id of this label */
-  public abstract byte[] identifier();
+  public abstract LabelId identifier();
 
   /** What type of label this is */
   public abstract UniqueIdType type();
