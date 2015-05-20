@@ -1,6 +1,7 @@
 package net.opentsdb.web.jackson;
 
 import net.opentsdb.meta.LabelMeta;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
 import com.fasterxml.jackson.databind.InjectableValues;
@@ -15,6 +16,7 @@ import static net.opentsdb.uid.UniqueIdType.METRIC;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.mock;
 
 
 public class LabelMetaMixInTest {
@@ -23,7 +25,7 @@ public class LabelMetaMixInTest {
 
   @Before
   public void before() throws Exception {
-    labelMeta = LabelMeta.create(new byte[]{0, 0, 1}, METRIC, "sys.cpu.0", "Description", 1328140801);
+    labelMeta = LabelMeta.create(mock(LabelId.class), METRIC, "sys.cpu.0", "Description", 1328140801);
 
     jsonMapper = new ObjectMapper();
     jsonMapper.registerModule(new JacksonModule());
@@ -62,10 +64,10 @@ public class LabelMetaMixInTest {
     "\"description\":\"Description\",\"notes\":\"MyNotes\",\"created\":" +
     "1328140801,\"displayName\":\"Empty\",\"unknownkey\":null}";
 
-    final byte[] uid = {0, (byte) 16, (byte) -125};
+    final LabelId uid = mock(LabelId.class);
 
     InjectableValues vals = new InjectableValues.Std()
-            .addValue(byte[].class, uid)
+            .addValue(LabelId.class, uid)
             .addValue(UniqueIdType.class, UniqueIdType.METRIC)
             .addValue(String.class, "MyOtherName");
 
@@ -74,7 +76,7 @@ public class LabelMetaMixInTest {
             .readValue(json);
 
     assertNotNull(meta);
-    assertArrayEquals(uid, meta.identifier());
+    assertEquals(uid, meta.identifier());
     assertEquals(UniqueIdType.METRIC, meta.type());
     assertEquals("MyOtherName", meta.name());
     assertEquals("Description", meta.description());

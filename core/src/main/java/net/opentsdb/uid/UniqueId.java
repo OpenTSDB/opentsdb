@@ -1,18 +1,6 @@
-// This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.uid;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,15 +12,16 @@ import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
-import net.opentsdb.utils.StringCoder;
 
 import net.opentsdb.stats.Metrics;
 import net.opentsdb.storage.TsdbStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import static com.google.common.base.Preconditions.checkNotNull;
-import static net.opentsdb.utils.StringCoder.toBytes;
 import static net.opentsdb.stats.Metrics.name;
 import static net.opentsdb.stats.Metrics.tag;
 
@@ -52,18 +41,17 @@ public class UniqueId {
   private final UniqueIdType type;
 
   /** Cache for forward mappings (name to ID). */
-  private final ConcurrentHashMap<String, byte[]> name_cache =
+  private final ConcurrentHashMap<String, LabelId> name_cache =
       new ConcurrentHashMap<>();
 
   /**
-   * Cache for backward mappings (ID to name). The ID in the key is a byte[]
-   * converted to a String to be Comparable.
+   * Cache for backward mappings (ID to name).
    */
-  private final ConcurrentHashMap<String, String> id_cache =
+  private final ConcurrentHashMap<LabelId, String> id_cache =
       new ConcurrentHashMap<>();
 
   /** Map of pending UID assignments */
-  private final HashMap<String, Deferred<byte[]>> pending_assignments =
+  private final HashMap<String, Deferred<LabelId>> pending_assignments =
       new HashMap<>();
 
   /** Number of times we avoided reading from TsdbStore thanks to the cache. */
@@ -131,7 +119,8 @@ public class UniqueId {
    * on the wrong number of bytes.
    * @since 1.1
    */
-  public Deferred<String> getName(final byte[] id) {
+  @Nonnull
+  public Deferred<String> getName(@Nonnull final LabelId id) {
     final String name = getNameFromCache(id);
     if (name != null) {
       cache_hits.inc();
@@ -153,32 +142,34 @@ public class UniqueId {
     return tsdb_store.getName(id, type).addCallback(new GetNameCB());
   }
 
-  private String getNameFromCache(final byte[] id) {
-    return id_cache.get(StringCoder.fromBytes(id));
+  @Nullable
+  private String getNameFromCache(@Nonnull final LabelId id) {
+    return id_cache.get(id);
   }
 
-  private void addNameToCache(final byte[] id, final String name) {
-    final String key = StringCoder.fromBytes(id);
-    String found = id_cache.get(key);
+  private void addNameToCache(@Nonnull final LabelId id,
+                              @Nonnull final String name) {
+    String found = id_cache.get(id);
     if (found == null) {
-      found = id_cache.putIfAbsent(key, name);
+      found = id_cache.putIfAbsent(id, name);
     }
     if (found != null && !found.equals(name)) {
-      throw new IllegalStateException("id=" + Arrays.toString(id) + " => name="
+      throw new IllegalStateException("id=" + id + " => name="
           + name + ", already mapped to " + found);
     }
   }
 
-  public Deferred<byte[]> getId(final String name) {
-    final byte[] id = getIdFromCache(name);
+  @Nonnull
+  public Deferred<LabelId> getId(@Nonnull final String name) {
+    final LabelId id = getIdFromCache(name);
     if (id != null) {
       cache_hits.inc();
       return Deferred.fromResult(id);
     }
     cache_misses.inc();
-    class GetIdCB implements Callback<byte[], Optional<byte[]>> {
+    class GetIdCB implements Callback<LabelId, Optional<LabelId>> {
       @Override
-      public byte[] call(final Optional<byte[]> id) {
+      public LabelId call(final Optional<LabelId> id) {
         if (id.isPresent()) {
           addIdToCache(name, id.get());
           addNameToCache(id.get(), name);
@@ -191,28 +182,26 @@ public class UniqueId {
     return tsdb_store.getId(name, type).addCallback(new GetIdCB());
   }
 
-  private byte[] getIdFromCache(final String name) {
+  @Nullable
+  private LabelId getIdFromCache(@Nonnull final String name) {
     return name_cache.get(name);
   }
 
-  private void addIdToCache(final String name, final byte[] id) {
-    byte[] found = name_cache.get(name);
+  private void addIdToCache(@Nonnull final String name,
+                            @Nonnull final LabelId id) {
+    LabelId found = name_cache.get(name);
     if (found == null) {
-      found = name_cache.putIfAbsent(name,
-                                    // Must make a defensive copy to be immune
-                                    // to any changes the caller may do on the
-                                    // array later on.
-                                    Arrays.copyOf(id, id.length));
+      found = name_cache.putIfAbsent(name, id);
     }
-    if (found != null && !Arrays.equals(found, id)) {
+    if (found != null && !found.equals(id)) {
       throw new IllegalStateException("name=" + name + " => id="
-          + Arrays.toString(id) + ", already mapped to "
-          + Arrays.toString(found));
+          + id + ", already mapped to " + found);
     }
   }
 
   /** Adds the bidirectional mapping in the cache. */
-  private void cacheMapping(final String name, final byte[] id) {
+  private void cacheMapping(@Nonnull final String name,
+                            @Nonnull final LabelId id) {
     addIdToCache(name, id);
     addNameToCache(id, name);
   }
@@ -222,8 +211,9 @@ public class UniqueId {
    * @param name The name of the new id
    * @return A deferred with the byte uid if the id was successfully created
    */
-  public Deferred<byte[]> createId(final String name) {
-    Deferred<byte[]> assignment;
+  @Nonnull
+  public Deferred<LabelId> createId(@Nonnull final String name) {
+    Deferred<LabelId> assignment;
     synchronized (pending_assignments) {
       assignment = pending_assignments.get(name);
       if (assignment == null) {
@@ -232,7 +222,7 @@ public class UniqueId {
         // deferred to the pending map as quickly as possible. Then we can
         // start the assignment process after we've stashed the deferred
         // and released the lock
-        assignment = new Deferred<byte[]>();
+        assignment = new Deferred<>();
         pending_assignments.put(name, assignment);
       } else {
         LOG.info("Already waiting for UID assignment: {}", name);
@@ -241,11 +231,11 @@ public class UniqueId {
     }
 
     // start the assignment dance after stashing the deferred
-    Deferred<byte[]> uid = tsdb_store.allocateUID(name, type);
+    Deferred<LabelId> uid = tsdb_store.allocateUID(name, type);
 
-    uid.addCallback(new Callback<Object, byte[]>() {
+    uid.addCallback(new Callback<Object, LabelId>() {
       @Override
-      public byte[] call(byte[] uid) throws Exception {
+      public LabelId call(final LabelId uid) throws Exception {
         cacheMapping(name, uid);
 
         LOG.info("Completed pending assignment for: {}", name);
@@ -286,18 +276,18 @@ public class UniqueId {
               "for " + type + " already exists");
         }
 
-        return getId(oldname).addCallbackDeferring(new Callback<Deferred<Void>, byte[]>() {
+        return getId(oldname).addCallbackDeferring(new Callback<Deferred<Void>, LabelId>() {
           @Override
-          public Deferred<Void> call(final byte[] old_uid) {
+          public Deferred<Void> call(final LabelId old_uid) {
             tsdb_store.allocateUID(newname, old_uid, type);
 
             // Update cache.
-            addIdToCache(newname, old_uid);            // add     new name -> ID
-            id_cache.put(StringCoder.fromBytes(old_uid), newname);  // update  ID -> new name
-            name_cache.remove(oldname);             // remove  old name -> ID
+            addIdToCache(newname, old_uid);  // add     new name -> ID
+            id_cache.put(old_uid, newname);  // update  ID -> new name
+            name_cache.remove(oldname);      // remove  old name -> ID
 
             // Delete the old forward mapping.
-            return tsdb_store.deleteUID(toBytes(oldname), type);
+            return tsdb_store.deleteUID(oldname, type);
           }
         });
       }
@@ -305,14 +295,15 @@ public class UniqueId {
   }
 
   private Deferred<Boolean> checkUidExists(String newname) {
-    class NoId implements Callback<Boolean, byte[]> {
+    class NoId implements Callback<Boolean, LabelId> {
       @Override
-      public Boolean call(byte[] uid) throws Exception {
+      public Boolean call(LabelId uid) throws Exception {
         return uid != null;
       }
     }
 
     class NoSuchId implements Callback<Object, Exception> {
+      @Nullable
       @Override
       public Object call(Exception e) throws Exception {
         return null;

@@ -31,7 +31,7 @@ public class TestPair {
 
   @Test
   public void defaultCtor() {
-    final Pair<String, String> pair = new Pair<>();
+    final Pair<String, String> pair = Pair.create(null, null);
     assertNotNull(pair);
     assertNull(pair.getKey());
     assertNull(pair.getValue());
@@ -39,7 +39,7 @@ public class TestPair {
   
   @Test
   public void ctorWithArgs() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
+    final Pair<String, String> pair = Pair.create("host", "web01");
     assertNotNull(pair);
     assertEquals("host", pair.getKey());
     assertEquals("web01", pair.getValue());
@@ -47,7 +47,7 @@ public class TestPair {
   
   @Test
   public void ctorWithNullKey() {
-    final Pair<String, String> pair = new Pair<>(null, "web01");
+    final Pair<String, String> pair = Pair.create(null, "web01");
     assertNotNull(pair);
     assertNull(pair.getKey());
     assertEquals("web01", pair.getValue());
@@ -55,7 +55,7 @@ public class TestPair {
   
   @Test
   public void ctorWithNullValue() {
-    final Pair<String, String> pair = new Pair<>("host", null);
+    final Pair<String, String> pair = Pair.create("host", null);
     assertNotNull(pair);
     assertEquals("host", pair.getKey());
     assertNull(pair.getValue());
@@ -63,7 +63,7 @@ public class TestPair {
   
   @Test
   public void ctorWithNulls() {
-    final Pair<String, String> pair = new Pair<>(null, null);
+    final Pair<String, String> pair = Pair.create(null, null);
     assertNotNull(pair);
     assertNull(pair.getKey());
     assertNull(pair.getValue());
@@ -71,119 +71,119 @@ public class TestPair {
   
   @Test
   public void hashcodeTest() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
+    final Pair<String, String> pair = Pair.create("host", "web01");
     assertEquals(109885949, pair.hashCode());
   }
   
   @Test
   public void hashcodeTestNullKey() {
-    final Pair<String, String> pair = new Pair<>(null, "web01");
+    final Pair<String, String> pair = Pair.create(null, "web01");
     assertEquals(113003605, pair.hashCode());
   }
   
   @Test
   public void hashcodeTestNullValue() {
-    final Pair<String, String> pair = new Pair<>("host", null);
+    final Pair<String, String> pair = Pair.create("host", null);
     assertEquals(3208616, pair.hashCode());
   }
   
   @Test
   public void hashcodeTestNulls() {
-    final Pair<String, String> pair = new Pair<>();
+    final Pair<String, String> pair = Pair.create(null, null);
     assertEquals(0, pair.hashCode());
   }
   
   @Test
   public void equalsTest() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
-    final Pair<String, String> pair2 = new Pair<>("host", "web01");
+    final Pair<String, String> pair = Pair.create("host", "web01");
+    final Pair<String, String> pair2 = Pair.create("host", "web01");
     assertTrue(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestSameReference() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
+    final Pair<String, String> pair = Pair.create("host", "web01");
     final Pair<String, String> pair2 = pair;
     assertTrue(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestDiffKey() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
-    final Pair<String, String> pair2 = new Pair<>("diff", "web01");
+    final Pair<String, String> pair = Pair.create("host", "web01");
+    final Pair<String, String> pair2 = Pair.create("diff", "web01");
     assertFalse(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestDiffVal() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
-    final Pair<String, String> pair2 = new Pair<>("host", "diff");
+    final Pair<String, String> pair = Pair.create("host", "web01");
+    final Pair<String, String> pair2 = Pair.create("host", "diff");
     assertFalse(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestDiffNullKey() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
-    final Pair<String, String> pair2 = new Pair<>(null, "web01");
+    final Pair<String, String> pair = Pair.create("host", "web01");
+    final Pair<String, String> pair2 = Pair.create(null, "web01");
     assertFalse(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestDiffNullVal() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
-    final Pair<String, String> pair2 = new Pair<>("host", null);
+    final Pair<String, String> pair = Pair.create("host", "web01");
+    final Pair<String, String> pair2 = Pair.create("host", null);
     assertFalse(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestNullKeys() {
-    final Pair<String, String> pair = new Pair<>(null, "web01");
-    final Pair<String, String> pair2 = new Pair<>(null, "web01");
+    final Pair<String, String> pair = Pair.create(null, "web01");
+    final Pair<String, String> pair2 = Pair.create(null, "web01");
     assertTrue(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestNullValues() {
-    final Pair<String, String> pair = new Pair<>("host", null);
-    final Pair<String, String> pair2 = new Pair<>("host", null);
+    final Pair<String, String> pair = Pair.create("host", null);
+    final Pair<String, String> pair2 = Pair.create("host", null);
     assertTrue(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestNulls() {
-    final Pair<String, String> pair = new Pair<>();
-    final Pair<String, String> pair2 = new Pair<>();
+    final Pair<String, String> pair = Pair.create(null, null);
+    final Pair<String, String> pair2 = Pair.create(null, null);
     assertTrue(pair.equals(pair2));
   }
   
   @Test
   public void equalsTestDiffTypes() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
-    final Pair<Integer, Integer> pair2 = new Pair<>(1, 42);
+    final Pair<String, String> pair = Pair.create("host", "web01");
+    final Pair<Integer, Integer> pair2 = Pair.create(1, 42);
     assertFalse(pair.equals(pair2));
   }
   
   @Test
   public void toStringTest() {
-    final Pair<String, String> pair = new Pair<>("host", "web01");
+    final Pair<String, String> pair = Pair.create("host", "web01");
     assertEquals("key=host, value=web01", pair.toString());
   }
   
   @Test
   public void toStringTestNulls() {
-    final Pair<String, String> pair = new Pair<>();
+    final Pair<String, String> pair = Pair.create(null, null);
     assertEquals("key=null, value=null", pair.toString());
   }
   
   @Test
   public void toStringTestNumbers() {
-    final Pair<Integer, Long> pair = new Pair<>(1, 42L);
+    final Pair<Integer, Long> pair = Pair.create(1, 42L);
     assertEquals("key=1, value=42", pair.toString());
   }
   
   @Test
   public void serdes() throws IOException {
-    final Pair<String, String> ser = new Pair<>("host", "web01");
+    final Pair<String, String> ser = Pair.create("host", "web01");
     ObjectMapper jsonMapper = new ObjectMapper();
 
     final String json = jsonMapper.writeValueAsString(ser);
@@ -199,7 +199,7 @@ public class TestPair {
   
   @Test
   public void serdesNulls() throws IOException {
-    final Pair<String, String> ser = new Pair<>();
+    final Pair<String, String> ser = Pair.create(null, null);
     ObjectMapper jsonMapper = new ObjectMapper();
     final String json = jsonMapper.writeValueAsString(ser);
     assertEquals("{\"key\":null,\"value\":null}", json);
@@ -213,8 +213,8 @@ public class TestPair {
   @Test
   public void serdesList() throws IOException {
     final List<Pair<String, String>> ser = new ArrayList<>(2);
-    ser.add(new Pair<>("host", "web01"));
-    ser.add(new Pair<String, String>(null, "keyisnull"));
+    ser.add(Pair.create("host", "web01"));
+    ser.add(Pair.<String, String>create(null, "keyisnull"));
 
     ObjectMapper jsonMapper = new ObjectMapper();
 
@@ -234,7 +234,7 @@ public class TestPair {
   
   @Test
   public void rawObjects() {
-    final Pair<Object, Object> pair = new Pair<Object, Object>("host", "web01");
+    final Pair<?, ?> pair = Pair.create("host", "web01");
     assertNotNull(pair);
     assertEquals("host", pair.getKey());
     assertEquals("web01", pair.getValue());

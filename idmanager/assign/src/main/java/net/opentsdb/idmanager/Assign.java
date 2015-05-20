@@ -12,6 +12,7 @@ import joptsimple.ArgumentAcceptingOptionSpec;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.utils.InvalidConfigException;
 import net.opentsdb.core.TsdbModule;
 import net.opentsdb.core.UniqueIdClient;
@@ -140,7 +141,7 @@ public final class Assign {
         .addCallbacks(new LogNewIdCB(name, type), new LogErrorCB(name, type));
   }
 
-  private static class LogNewIdCB implements Callback<Void, byte[]> {
+  private static class LogNewIdCB implements Callback<Void, LabelId> {
     private final String name;
     private final UniqueIdType type;
 
@@ -150,8 +151,8 @@ public final class Assign {
     }
 
     @Override
-    public Void call(final byte[] id) {
-      LOG.info("{} {}: {}", type, name, IdUtils.uidToLong(id));
+    public Void call(final LabelId id) {
+      LOG.info("{} {}: {}", type, name, id);
       return null;
     }
   }

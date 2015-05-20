@@ -1,15 +1,4 @@
-// This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.uid;
 
 import java.io.IOException;
@@ -20,14 +9,15 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
 
 import dagger.ObjectGraph;
-import net.opentsdb.TestModuleMemoryStore;
+import net.opentsdb.TestModule;
 import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.junit.Assert.assertArrayEquals;
+import javax.inject.Inject;
+
 import static org.junit.Assert.assertEquals;
 
 import static org.mockito.Mockito.any;
@@ -35,18 +25,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 public final class TestUniqueId {
-  private TsdbStore client;
+  @Inject TsdbStore client;
+  @Inject MetricRegistry metrics;
+  @Inject EventBus idEventBus;
+
   private UniqueId uid;
-  private MetricRegistry metrics;
-  private EventBus idEventBus;
 
   @Before
   public void setUp() throws IOException{
-    ObjectGraph objectGraph = ObjectGraph.create(new TestModuleMemoryStore());
-    client = objectGraph.get(TsdbStore.class);
-
-    metrics = new MetricRegistry();
-    idEventBus = mock(EventBus.class);
+    ObjectGraph.create(new TestModule()).inject(this);
   }
 
   @Test(expected=NullPointerException.class)
@@ -68,17 +55,16 @@ public final class TestUniqueId {
   public void testCtorNoEventbus() {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, null);
   }
-  
-  @Test
+
+  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getNameSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
-    final byte[] id = { 0, 'a', 0x42 };
-    client.allocateUID("foo", id, UniqueIdType.METRIC);
+    final LabelId id = client.allocateUID("foo", UniqueIdType.METRIC).join();
 
-    assertEquals("foo", uid.getName(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
+    assertEquals("foo", uid.getName(id).join());
     // Should be a cache hit ...
-    assertEquals("foo", uid.getName(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
+    assertEquals("foo", uid.getName(id).join());
 
     final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(1, counters.get("uid.cache-hit:kind=metrics").getCount());
@@ -86,30 +72,23 @@ public final class TestUniqueId {
     assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
-  @Test(expected=NoSuchUniqueId.class)
+  @Test(expected=NoSuchUniqueId.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getNameForNonexistentId() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    uid.getName(new byte[]{1, 2, 3}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
+    uid.getName(mock(LabelId.class)).join();
   }
 
-  @Test(expected=IllegalArgumentException.class)
-  public void getNameWithInvalidId() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    uid.getName(new byte[]{1}).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-
-  @Test
+  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void getIdSuccessfulLookup() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
 
-    final byte[] id = { 0, 'a', 0x42 };
-    client.allocateUID("foo", id, UniqueIdType.METRIC);
+    final LabelId id = client.allocateUID("foo", UniqueIdType.METRIC).join();
 
-    assertArrayEquals(id, uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
+    assertEquals(id, uid.getId("foo").join());
     // Should be a cache hit ...
-    assertArrayEquals(id, uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
+    assertEquals(id, uid.getId("foo").join());
     // Should be a cache hit too ...
-    assertArrayEquals(id, uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
+    assertEquals(id, uid.getId("foo").join());
 
     final SortedMap<String, Counter> counters = metrics.getCounters();
     assertEquals(2, counters.get("uid.cache-hit:kind=metrics").getCount());
@@ -117,59 +96,10 @@ public final class TestUniqueId {
     assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
   }
 
-  // The table contains IDs encoded on 2 bytes but the instance wants 3.
-  @Test(expected=IllegalStateException.class)
-  public void getIdMisconfiguredWidth() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-
-    final byte[] id = { 'a', 0x42 };
-    client.allocateUID("foo", id, UniqueIdType.METRIC);
-
-    uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-
-  @Test(expected=NoSuchUniqueName.class)
+  @Test(expected=NoSuchUniqueName.class, timeout = MockBase.DEFAULT_TIMEOUT)
   public void getIdForNonexistentName() throws Exception {
     uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-  }
-
-  @Test
-  public void createIdWithExistingId() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-
-    final byte[] id = { 0, 0, 1};
-    uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-
-    try {
-      uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT);
-    } catch(Exception e) {
-      assertEquals("A UID with name foo already exists", e.getMessage());
-    }
-    // Should be a cache hit ...
-    assertArrayEquals(id, uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-    final SortedMap<String, Counter> counters = metrics.getCounters();
-    assertEquals(1, counters.get("uid.cache-hit:kind=metrics").getCount());
-    assertEquals(2, metrics.getGauges().get("uid.cache-size:kind=metrics").getValue());
-  }
-
-  @Test  // Test the creation of an ID with no problem.
-  public void createIdIdWithSuccess() throws Exception {
-    uid = new UniqueId(client, UniqueIdType.METRIC, metrics, idEventBus);
-    // Due to the implementation in the memoryStore used for testing the first
-    // call will always return 1
-    final byte[] id = { 0, 0, 1 };
-
-    assertArrayEquals(id, uid.createId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-
-    // Should be a cache hit since we created that entry.
-    assertArrayEquals(id, uid.getId("foo").joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-    // Should be a cache hit too for the same reason.
-    assertEquals("foo", uid.getName(id).joinUninterruptibly(MockBase.DEFAULT_TIMEOUT));
-
-    final SortedMap<String, Counter> counters = metrics.getCounters();
-    assertEquals(2, counters.get("uid.cache-hit:kind=metrics").getCount());
-    assertEquals(0, counters.get("uid.cache-miss:kind=metrics").getCount());
+    uid.getId("foo").join();
   }
 
   @Test

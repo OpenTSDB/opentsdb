@@ -1,23 +1,14 @@
-// This file is part of OpenTSDB.
-// Copyright (C) 2014  The OpenTSDB Authors.
-//
-// This program is free software: you can redistribute it and/or modify it
-// under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 2.1 of the License, or (at your
-// option) any later version.  This program is distributed in the hope that it
-// will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
-// General Public License for more details.  You should have received a copy
-// of the GNU Lesser General Public License along with this program.  If not,
-// see <http://www.gnu.org/licenses/>.
+
 package net.opentsdb.storage;
 
 import java.util.List;
 
 import com.google.common.collect.ImmutableSortedSet;
+import com.stumbleupon.async.Deferred;
 import net.opentsdb.search.ResolvedSearchQuery;
-import net.opentsdb.utils.ByteArrayPair;
 
+import net.opentsdb.uid.LabelId;
+import net.opentsdb.utils.Pair;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -30,16 +21,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 public abstract class TsdbStoreTimeSeriesQueryTest {
-  private static final byte[] SYS_CPU_USER_ID = new byte[]{0, 0, 1};
-  private static final byte[] SYS_CPU_NICE_ID = new byte[]{0, 0, 2};
-  private static final byte[] SYS_CPU_IDLE_ID = new byte[]{0, 0, 3};
-  private static final byte[] NO_VALUES_ID = new byte[]{0, 0, 11};
+  private LabelId sysCpuUserId;
+  private LabelId sysCpuNiceId;
+  private LabelId sysCpuIdleId;
+  private LabelId noValuesId;
 
-  private static final byte[] TAGK_HOST_ID = new byte[]{0, 0, 1};
-  private static final byte[] TAGK_OWNER_ID = new byte[]{0, 0, 4};
+  private LabelId tagkHostId;
+  private LabelId tagkOwnerId;
 
-  private static final byte[] TAGV_WEB01_ID = new byte[]{0, 0, 1};
-  private static final byte[] TAGV_WEB02_ID = new byte[]{0, 0, 2};
+  private LabelId tagvWeb01Id;
+  private LabelId tagvWeb02Id;
 
   // tsuids
   private static final byte[][] test_tsuids = {
@@ -52,27 +43,29 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
       new byte[]{0, 0, 3, 0, 0, 6, 0, 0, 7, 0, 0, 8, 0, 0, 10, 0, 0, 9, 0, 0, 3}
   };
 
-  @Inject TsdbStore tsdb_store;
+  @Inject TsdbStore store;
 
   @Before
   public void setUp() throws Exception {
-    tsdb_store.allocateUID("sys.cpu.user", SYS_CPU_USER_ID, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.nice", SYS_CPU_NICE_ID, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("sys.cpu.idle", SYS_CPU_IDLE_ID, UniqueIdType.METRIC);
-    tsdb_store.allocateUID("no.values", NO_VALUES_ID, UniqueIdType.METRIC);
+    sysCpuUserId = store.allocateUID("sys.cpu.user", UniqueIdType.METRIC).join();
+    sysCpuNiceId = store.allocateUID("sys.cpu.nice", UniqueIdType.METRIC).join();
+    sysCpuIdleId = store.allocateUID("sys.cpu.idle", UniqueIdType.METRIC).join();
+    noValuesId = store.allocateUID("no.values", UniqueIdType.METRIC).join();
 
-    tsdb_store.allocateUID("host", TAGK_HOST_ID, UniqueIdType.TAGK);
-    tsdb_store.allocateUID("owner", TAGK_OWNER_ID, UniqueIdType.TAGK);
+    tagkHostId = store.allocateUID("host", UniqueIdType.TAGK).join();
+    tagkOwnerId = store.allocateUID("owner", UniqueIdType.TAGK).join();
 
-    tsdb_store.allocateUID("web01", TAGV_WEB01_ID, UniqueIdType.TAGV);
-    tsdb_store.allocateUID("web02", TAGV_WEB02_ID, UniqueIdType.TAGV);
+    tagvWeb01Id = store.allocateUID("web01", UniqueIdType.TAGV).join();
+    tagvWeb02Id = store.allocateUID("web02", UniqueIdType.TAGV).join();
   }
 
   @Test
   public void metricOnlyMeta() throws Exception {
+    final ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of();
     final ResolvedSearchQuery query =
-        new ResolvedSearchQuery(SYS_CPU_USER_ID, ImmutableSortedSet.<ByteArrayPair>of());
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+        new ResolvedSearchQuery(sysCpuUserId, tags);
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -84,9 +77,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   // returns everything
   @Test
   public void metricOnlyMetaStar() throws Exception {
+    final ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of();
     final ResolvedSearchQuery query =
-        new ResolvedSearchQuery(null, ImmutableSortedSet.<ByteArrayPair>of());
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+        new ResolvedSearchQuery(null, tags);
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -95,9 +90,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void metricOnly2Meta() throws Exception {
+    final ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of();
     final ResolvedSearchQuery query =
-        new ResolvedSearchQuery(SYS_CPU_NICE_ID, ImmutableSortedSet.<ByteArrayPair>of());
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+        new ResolvedSearchQuery(sysCpuNiceId, tags);
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -107,9 +104,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void metricOnlyNoValuesMeta() throws Exception {
+    final ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of();
     final ResolvedSearchQuery query =
-        new ResolvedSearchQuery(NO_VALUES_ID, ImmutableSortedSet.<ByteArrayPair>of());
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+        new ResolvedSearchQuery(noValuesId, tags);
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -118,11 +117,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void tagkOnlyMeta() throws Exception {
-    ImmutableSortedSet<ByteArrayPair> tags =
-        ImmutableSortedSet.of(new ByteArrayPair(TAGK_HOST_ID, null));
+    final ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of(Pair.<LabelId,LabelId>create(tagkHostId, null));
 
     final ResolvedSearchQuery query = new ResolvedSearchQuery(null, tags);
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -134,11 +133,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void tagkOnly2Meta() throws Exception {
-    ImmutableSortedSet<ByteArrayPair> tags =
-        ImmutableSortedSet.of(new ByteArrayPair(TAGK_OWNER_ID, null));
+    ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of(Pair.<LabelId,LabelId>create(tagkOwnerId, null));
 
     final ResolvedSearchQuery query = new ResolvedSearchQuery(null, tags);
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -149,11 +148,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void tagvOnlyMeta() throws Exception {
-    ImmutableSortedSet<ByteArrayPair> tags =
-        ImmutableSortedSet.of(new ByteArrayPair(null, TAGV_WEB01_ID));
+    ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of(Pair.<LabelId,LabelId>create(null, tagvWeb01Id));
 
     final ResolvedSearchQuery query = new ResolvedSearchQuery(null, tags);
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -166,11 +165,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void tagvOnly2Meta() throws Exception {
-    ImmutableSortedSet<ByteArrayPair> tags =
-        ImmutableSortedSet.of(new ByteArrayPair(null, TAGV_WEB02_ID));
+    ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of(Pair.<LabelId,LabelId>create(null, tagvWeb02Id));
 
     final ResolvedSearchQuery query = new ResolvedSearchQuery(null, tags);
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -181,11 +180,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void metricAndTagkMeta() throws Exception {
-    ImmutableSortedSet<ByteArrayPair> tags =
-        ImmutableSortedSet.of(new ByteArrayPair(TAGK_HOST_ID, null));
+    ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of(Pair.<LabelId,LabelId>create(tagkHostId, null));
 
-    final ResolvedSearchQuery query = new ResolvedSearchQuery(SYS_CPU_NICE_ID, tags);
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+    final ResolvedSearchQuery query = new ResolvedSearchQuery(sysCpuNiceId, tags);
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -195,11 +194,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void metricAndTagvMeta() throws Exception {
-    ImmutableSortedSet<ByteArrayPair> tags =
-        ImmutableSortedSet.of(new ByteArrayPair(null, TAGV_WEB02_ID));
+    ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of(Pair.<LabelId,LabelId>create(null, tagvWeb02Id));
 
-    final ResolvedSearchQuery query = new ResolvedSearchQuery(SYS_CPU_IDLE_ID, tags);
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+    final ResolvedSearchQuery query = new ResolvedSearchQuery(sysCpuIdleId, tags);
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -209,11 +208,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void metricAndTagPairMeta() throws Exception {
-    ImmutableSortedSet<ByteArrayPair> tags =
-        ImmutableSortedSet.of(new ByteArrayPair(TAGK_HOST_ID, TAGV_WEB01_ID));
+    ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of(Pair.create(tagkHostId, tagvWeb01Id));
 
-    final ResolvedSearchQuery query = new ResolvedSearchQuery(SYS_CPU_IDLE_ID, tags);
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+    final ResolvedSearchQuery query = new ResolvedSearchQuery(sysCpuIdleId, tags);
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);
@@ -223,11 +222,11 @@ public abstract class TsdbStoreTimeSeriesQueryTest {
   
   @Test
   public void tagPairOnlyMeta() throws Exception {
-    ImmutableSortedSet<ByteArrayPair> tags =
-        ImmutableSortedSet.of(new ByteArrayPair(TAGK_HOST_ID, TAGV_WEB01_ID));
+    ImmutableSortedSet<Pair<LabelId,LabelId>> tags =
+        ImmutableSortedSet.of(Pair.create(tagkHostId, tagvWeb01Id));
 
     final ResolvedSearchQuery query = new ResolvedSearchQuery(null, tags);
-    final List<byte[]> tsuids = tsdb_store.executeTimeSeriesQuery(query)
+    final List<byte[]> tsuids = store.executeTimeSeriesQuery(query)
         .joinUninterruptibly();
 
     assertNotNull(tsuids);

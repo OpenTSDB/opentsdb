@@ -4,13 +4,14 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.eventbus.EventBus;
 import dagger.ObjectGraph;
 import net.opentsdb.TestModuleMemoryStore;
+import net.opentsdb.storage.MockBase;
 import net.opentsdb.storage.TsdbStore;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
@@ -45,11 +46,10 @@ public class WildcardIdLookupStrategyTest {
     assertNull(lookupStrategy.getId(uid, "*").joinUninterruptibly());
   }
 
-  @Test
+  @Test(timeout = MockBase.DEFAULT_TIMEOUT)
   public void testResolveIdGetsId() throws Exception {
-    byte[] id = client.allocateUID("nameexists", UniqueIdType.METRIC)
-        .joinUninterruptibly();
-    assertArrayEquals(id, lookupStrategy.getId(uid, "*").joinUninterruptibly());
+    LabelId id = client.allocateUID("nameexists", UniqueIdType.METRIC).join();
+    assertEquals(id, lookupStrategy.getId(uid, "*").joinUninterruptibly());
   }
 
   @Test(expected = NoSuchUniqueName.class)

@@ -13,7 +13,7 @@ public class LabelCreatedEvent extends LabelEvent {
    * @param name The name of the label that has been created
    * @param type The type of the label that has been created
    */
-  public LabelCreatedEvent(final byte[] id,
+  public LabelCreatedEvent(final LabelId id,
                            final String name,
                            final UniqueIdType type) {
     super(id, name, type);

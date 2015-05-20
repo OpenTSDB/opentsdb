@@ -4,6 +4,8 @@ import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
+import javax.annotation.Nonnull;
+
 /**
  * An IdLookupStrategy defines some custom behavior to use when attempting to
  * lookup the ID behind a name.
@@ -18,17 +20,21 @@ public interface IdLookupStrategy {
    * @return A deferred that contains the byte representation of the ID behind
    * the name
    */
-  Deferred<byte[]> getId(final UniqueId uniqueId, final String name);
+  @Nonnull
+  Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
+                          @Nonnull final String name);
 
   /**
    * The most basic id lookup strategy that just fetches the ID behind the
    * provided name without providing any special behavior.
    */
-  static class SimpleIdLookupStrategy implements IdLookupStrategy {
+  class SimpleIdLookupStrategy implements IdLookupStrategy {
     public static final IdLookupStrategy instance = new SimpleIdLookupStrategy();
 
+    @Nonnull
     @Override
-    public Deferred<byte[]> getId(final UniqueId uniqueId, final String name) {
+    public Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
+                                   @Nonnull final String name) {
       return uniqueId.getId(name);
     }
   }
@@ -37,11 +43,13 @@ public interface IdLookupStrategy {
    * An ID lookup strategy that will create an ID for the provided name if it
    * does not already exist.
    */
-  static class CreatingIdLookupStrategy implements IdLookupStrategy {
+  class CreatingIdLookupStrategy implements IdLookupStrategy {
     public static final IdLookupStrategy instance = new CreatingIdLookupStrategy();
 
+    @Nonnull
     @Override
-    public Deferred<byte[]> getId(final UniqueId uniqueId, final String name) {
+    public Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
+                                   @Nonnull final String name) {
       return uniqueId.getId(name).addErrback(new Callback<Object, Exception>() {
         @Override
         public Object call(final Exception e) throws Exception {
@@ -65,11 +73,13 @@ public interface IdLookupStrategy {
    * If the provided name is not {@code null} then a regular lookup will be
    * done.
    */
-  static class WildcardIdLookupStrategy implements IdLookupStrategy {
+  class WildcardIdLookupStrategy implements IdLookupStrategy {
     public static final IdLookupStrategy instance = new WildcardIdLookupStrategy();
 
+    @Nonnull
     @Override
-    public Deferred<byte[]> getId(final UniqueId uniqueId, final String name) {
+    public Deferred<LabelId> getId(@Nonnull final UniqueId uniqueId,
+                                   @Nonnull final String name) {
       if (Strings.isNullOrEmpty(name) || "*".equals(name)) {
         return Deferred.fromResult(null);
       }

@@ -7,12 +7,10 @@ import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.MetaClientAnnotationTest;
 import net.opentsdb.core.MetaClientTSMetaTest;
 import net.opentsdb.plugins.PluginsModule;
-import net.opentsdb.core.TestTsdbQueryDownsample;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.StoreModule;
 import net.opentsdb.storage.TsdbStore;
 import com.typesafe.config.Config;
-import net.opentsdb.uid.TestUidResolver;
 
 import javax.inject.Singleton;
 
@@ -42,9 +40,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
         injects = {
             MetaClientAnnotationTest.class,
             MemoryStore.class,
-            MetaClientTSMetaTest.class,
-            TestUidResolver.class,
-            TestTsdbQueryDownsample.class
+            MetaClientTSMetaTest.class
         })
 public class TestModuleMemoryStore {
   private final Config config;

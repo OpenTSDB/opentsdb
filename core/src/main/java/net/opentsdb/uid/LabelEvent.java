@@ -1,12 +1,14 @@
 package net.opentsdb.uid;
 
+import javax.annotation.Nonnull;
+
 /**
  * Implementations of this class should be published to a
  * {@link com.google.common.eventbus.EventBus} on an implementation specified
  * event.
  */
 public class LabelEvent {
-  private final byte[] id;
+  private final LabelId id;
   private final String name;
   private final UniqueIdType type;
 
@@ -18,25 +20,28 @@ public class LabelEvent {
    * @param name The name of the label that has had an event
    * @param type The type of the label that has had an event
    */
-  public LabelEvent(final byte[] id,
-                    final String name,
-                    final UniqueIdType type) {
+  public LabelEvent(@Nonnull final LabelId id,
+                    @Nonnull final String name,
+                    @Nonnull final UniqueIdType type) {
     this.id = id;
     this.name = name;
     this.type = type;
   }
 
   /** The ID of the label that has had an event */
-  public byte[] getId() {
+  @Nonnull
+  public LabelId getId() {
     return id;
   }
 
   /** The name of the label that has had an event */
+  @Nonnull
   public String getName() {
     return name;
   }
 
   /** The type of the label that has had an event */
+  @Nonnull
   public UniqueIdType getType() {
     return type;
   }

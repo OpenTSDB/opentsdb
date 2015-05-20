@@ -9,8 +9,10 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -50,8 +52,10 @@ public class DefaultSearchPlugin extends SearchPlugin {
     return Deferred.fromResult(null);
   }
 
+  @Nonnull
   @Override
-  public Deferred<Void> deleteLabelMeta(final byte[] id, final UniqueIdType type) {
+  public Deferred<Void> deleteLabelMeta(@Nonnull final LabelId id,
+                                        @Nonnull final UniqueIdType type) {
     return Deferred.fromResult(null);
   }
 

@@ -19,9 +19,11 @@ import net.opentsdb.meta.TSMeta;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 import net.opentsdb.plugins.Plugin;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
 /**
@@ -82,8 +84,9 @@ public abstract class SearchPlugin extends Plugin {
    *             LabelMeta} to remove
    * @return A deferred object that indicates the completion of the request.
    */
-  public abstract Deferred<Void> deleteLabelMeta(final byte[] id,
-                                                   final UniqueIdType type);
+  @Nonnull
+  public abstract Deferred<Void> deleteLabelMeta(@Nonnull final LabelId id,
+                                                 @Nonnull final UniqueIdType type);
 
   /**
    * Indexes an annotation object

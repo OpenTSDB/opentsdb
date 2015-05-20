@@ -1,9 +1,8 @@
 package net.opentsdb.core;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import com.google.common.eventbus.EventBus;
 import net.opentsdb.meta.Annotation;
@@ -21,6 +20,7 @@ import net.opentsdb.uid.IdUtils;
 import com.google.common.base.Strings;
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.UniqueIdType;
 import com.typesafe.config.Config;
 import org.slf4j.Logger;
@@ -202,23 +202,8 @@ public class MetaClient {
    * @throws net.opentsdb.utils.JSONException if the data was corrupted
    */
   public Deferred<TSMeta> getTSMeta(final String tsuid, final boolean load_uids) {
-    if (load_uids)
-    return store.getTSMeta(IdUtils.stringToUid(tsuid))
-            .addCallbackDeferring(new LoadUIDs(tsuid));
-
     return  store.getTSMeta(IdUtils.stringToUid(tsuid));
 
-  }
-
-  /**
-   * Convenience overload of {@code getLabelMeta(UniqueIdType, byte[])}
-   *
-   * @see #getLabelMeta(UniqueIdType, byte[])
-   */
-  @Deprecated
-  public Deferred<LabelMeta> getLabelMeta(final UniqueIdType type,
-                                          final String uid) {
-    return getLabelMeta(type, IdUtils.stringToUid(uid));
   }
 
   /**
@@ -237,7 +222,7 @@ public class MetaClient {
    * @throws net.opentsdb.uid.NoSuchUniqueId If the UID does not exist
    */
   public Deferred<LabelMeta> getLabelMeta(final UniqueIdType type,
-                                          final byte[] uid) {
+                                          final LabelId uid) {
     /**
      * Callback used to verify that the UID to name mapping exists. Uses the TSD
      * for verification so the name may be cached. If the name does not exist
@@ -404,24 +389,16 @@ public class MetaClient {
     // Deferred group used to accumulate UidCB callbacks so the next call
     // can wait until all of the UIDs have been verified
     ArrayList<Deferred<Object>> uid_group =
-            new ArrayList<Deferred<Object>>(parsed_tags.size() + 1);
+        new ArrayList<>(parsed_tags.size() + 1);
 
-    // calculate the metric UID and fetch it's name mapping
-    final byte[] metric_uid = IdUtils.stringToUid(
-        tsMeta.getTSUID().substring(0, Const.METRICS_WIDTH * 2));
-    uid_group.add(uniqueIdClient.getUidName(UniqueIdType.METRIC, metric_uid)
+    final LabelId metric = tsMeta.metric();
+    uid_group.add(uniqueIdClient.getUidName(UniqueIdType.METRIC, metric)
             .addCallback(new UidCB()));
 
-    int idx = 0;
-    for (byte[] tag : parsed_tags) {
-      if (idx % 2 == 0) {
-        uid_group.add(uniqueIdClient.getUidName(UniqueIdType.TAGK, tag)
-                .addCallback(new UidCB()));
-      } else {
-        uid_group.add(uniqueIdClient.getUidName(UniqueIdType.TAGV, tag)
-                .addCallback(new UidCB()));
-      }
-      idx++;
+    for (final Map.Entry<LabelId, LabelId> tag : tsMeta.tags().entrySet()) {
+      // TODO
+      //uid_group.add(uniqueIdClient.getUidName(UniqueIdType.TAGK, tag.getKey()));
+      //uid_group.add(uniqueIdClient.getUidName(UniqueIdType.TAGV, tag.getValue()));
     }
 
     return store.syncToStorage(tsMeta, Deferred.group(uid_group), overwrite);
@@ -470,77 +447,5 @@ public class MetaClient {
             return Deferred.fromResult(Boolean.FALSE);
           }
         });
-  }
-
-  /**
-   * Asynchronously loads the UIDMeta objects into the given TSMeta object. Used
-   * by multiple methods so it's broken into it's own class here.
-   */
-  private class LoadUIDs implements Callback<Deferred<TSMeta>, TSMeta> {
-
-    private final byte[] metric_uid;
-    private final List<byte[]> tags;
-
-    public LoadUIDs(final String tsuid) {
-
-      final byte[] byte_tsuid = IdUtils.stringToUid(tsuid);
-
-      metric_uid = Arrays.copyOfRange(byte_tsuid, 0, Const.METRICS_WIDTH);
-      tags = IdUtils.getTagsFromTSUID(tsuid);
-    }
-
-    /**
-     * @return A TSMeta object loaded with UIDMetas if successful
-     * @throws net.opentsdb.utils.JSONException if the data was corrupted
-     */
-    @Override
-    public Deferred<TSMeta> call(final TSMeta meta) throws Exception {
-      if (meta == null) {
-        return Deferred.fromResult(null);
-      }
-
-      final ArrayList<Deferred<LabelMeta>> uid_group =
-              new ArrayList<Deferred<LabelMeta>>(tags.size());
-
-      Iterator<byte[]> tag_iter = tags.iterator();
-
-      while(tag_iter.hasNext()) {
-        uid_group.add(getLabelMeta(UniqueIdType.TAGK, tag_iter.next()));
-        uid_group.add(getLabelMeta(UniqueIdType.TAGV, tag_iter.next()));
-      }
-
-      /**
-       * A callback that will place the loaded UIDMeta objects for the tags in
-       * order on meta.tags.
-       */
-      final class UIDMetaTagsCB implements Callback<TSMeta, ArrayList<LabelMeta>> {
-        @Override
-        public TSMeta call(final ArrayList<LabelMeta> uid_metas) {
-          meta.setTags(uid_metas);
-          return meta;
-        }
-      }
-
-      /**
-       * A callback that will place the loaded UIDMeta object for the metric
-       * UID on meta.metric.
-       */
-      class UIDMetaMetricCB implements Callback<Deferred<TSMeta>, LabelMeta> {
-        @Override
-        public Deferred<TSMeta> call(LabelMeta uid_meta) {
-          meta.setMetric(uid_meta);
-
-          // This will chain the UIDMetaTagsCB on this callback which is what
-          // allows us to just return the result of the callback chain bellow
-          // . groupInOrder is used so that the resulting list will be in the
-          // same order as they were added to uid_group.
-          return Deferred.groupInOrder(uid_group)
-                  .addCallback(new UIDMetaTagsCB());
-        }
-      }
-
-      return getLabelMeta(UniqueIdType.METRIC, metric_uid)
-              .addCallbackDeferring(new UIDMetaMetricCB());
-    }
   }
 }

@@ -6,7 +6,6 @@ import com.google.common.collect.ImmutableList;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
-import net.opentsdb.core.Query;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.LabelMeta;
@@ -19,6 +18,7 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
 import net.opentsdb.uid.UniqueIdType;
 
@@ -32,14 +32,16 @@ public interface TsdbStore extends Closeable {
   //
   // Identifier management
   //
-  public Deferred<byte[]> allocateUID(final String name,
-                                      final UniqueIdType type);
+  @Nonnull
+  public Deferred<LabelId> allocateUID(@Nonnull final String name,
+                                       @Nonnull final UniqueIdType type);
 
-  Deferred<byte[]> allocateUID(final String name,
-                               final byte[] uid,
-                               final UniqueIdType type);
+  @Nonnull
+  Deferred<LabelId> allocateUID(@Nonnull final String name,
+                                @Nonnull final LabelId uid,
+                                @Nonnull final UniqueIdType type);
 
-  Deferred<Void> deleteUID(byte[] name, UniqueIdType type);
+  Deferred<Void> deleteUID(String name, UniqueIdType type);
 
   /**
    * Lookup time series related to a metric, tagk, tagv or any combination
@@ -63,9 +65,13 @@ public interface TsdbStore extends Closeable {
    */
   Deferred<List<IdentifierDecorator>> executeIdQuery(final IdQuery query);
 
-  public Deferred<Optional<byte[]>> getId(final String name, final UniqueIdType type);
+  @Nonnull
+  public Deferred<Optional<LabelId>> getId(@Nonnull final String name,
+                                           @Nonnull final UniqueIdType type);
 
-  public Deferred<Optional<String>> getName(final byte[] id, final UniqueIdType type);
+  @Nonnull
+  public Deferred<Optional<String>> getName(@Nonnull final LabelId id,
+                                            @Nonnull final UniqueIdType type);
 
   //
   // Datapoints
@@ -93,7 +99,8 @@ public interface TsdbStore extends Closeable {
    * iterator may return multiple items for the same TSUID.
    * @param query The query to execute
    */
-  Deferred<ImmutableList<DataPoints>> executeQuery(final Query query);
+  // TODO
+  Deferred<ImmutableList<DataPoints>> executeQuery(final Object query);
 
   //
   // Annotations
@@ -126,8 +133,9 @@ public interface TsdbStore extends Closeable {
   //
   // LabelMeta
   //
-  public Deferred<LabelMeta> getMeta(final byte[] uid,
-                                     final UniqueIdType type);
+  @Nonnull
+  public Deferred<LabelMeta> getMeta(@Nonnull final LabelId uid,
+                                     @Nonnull final UniqueIdType type);
 
   public Deferred<Boolean> updateMeta(final LabelMeta meta);
 

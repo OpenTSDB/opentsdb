@@ -12,20 +12,20 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.uid;
 
-import java.util.Arrays;
 import java.util.NoSuchElementException;
 
 /**
  * Exception used when a Unique ID can't be found.
  *
- * @see UniqueId
+ * @see IdException
  */
+@Deprecated
 public final class NoSuchUniqueId extends NoSuchElementException {
 
   /** The 'type' of the table.  */
   private final UniqueIdType type;
   /** The ID that couldn't be found.  */
-  private final byte[] id;
+  private final LabelId id;
 
   /**
    * Constructor.
@@ -33,8 +33,8 @@ public final class NoSuchUniqueId extends NoSuchElementException {
    * @param type The type of unique ID that triggered the exception.
    * @param id The ID that couldn't be found.
    */
-  public NoSuchUniqueId(final UniqueIdType type, final byte[] id) {
-    super("No such unique ID for '" + type + "': " + Arrays.toString(id));
+  public NoSuchUniqueId(final UniqueIdType type, final LabelId id) {
+    super("No such unique ID for '" + type + "': " + id);
     this.type = type;
     this.id = id;
   }
@@ -45,7 +45,7 @@ public final class NoSuchUniqueId extends NoSuchElementException {
   }
 
   /** Returns the unique ID that couldn't be found.  */
-  public byte[] id() {
+  public LabelId id() {
     return id;
   }
 
