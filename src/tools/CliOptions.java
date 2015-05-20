@@ -77,7 +77,7 @@ final class CliOptions {
       args = argp.parse(args);
     } catch (IllegalArgumentException e) {
       System.err.println("Invalid usage.  " + e.getMessage());
-      return null;
+      System.exit(2);
     }
     honorVerboseFlag(argp);
     return args;
