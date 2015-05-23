@@ -54,7 +54,7 @@ import static net.opentsdb.uid.IdUtils.uidToString;
  * <p>
  * @since 2.0
  */
-public class MemoryStore implements TsdbStore {
+public class MemoryStore extends TsdbStore {
   private static final Charset ASCII = Charsets.ISO_8859_1;
 
   private final Table<LabelId, String, LabelMeta> uid_table;

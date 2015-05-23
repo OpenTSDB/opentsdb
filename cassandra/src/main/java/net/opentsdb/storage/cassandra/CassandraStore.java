@@ -52,7 +52,7 @@ import static net.opentsdb.storage.cassandra.MoreFutures.wrap;
 /**
  * The CassandraStore that implements the client interface required by TSDB.
  */
-public class CassandraStore implements TsdbStore {
+public class CassandraStore extends TsdbStore {
   /**
    * The Cassandra cluster that we are connected to.
    */
