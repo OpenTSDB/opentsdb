@@ -14,6 +14,7 @@ import io.netty.handler.logging.LoggingHandler;
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
+import net.opentsdb.utils.EventLoopGroups;
 import net.opentsdb.utils.InvalidConfigException;
 import net.opentsdb.core.TsdbModule;
 
@@ -39,9 +40,9 @@ public final class HttpServer extends CommandLineApplication {
 
       final Config config = objectGraph.get(Config.class);
 
-      final EventLoopGroup bossGroup = new EpollEventLoopGroup(
+      final EventLoopGroup bossGroup = EventLoopGroups.sharedBossGroup(
           config.getInt("tsdb.web.threads.boss_group"));
-      final EventLoopGroup workerGroup = new EpollEventLoopGroup(
+      final EventLoopGroup workerGroup = EventLoopGroups.sharedWorkerGroup(
           config.getInt("tsdb.web.threads.worker_group"));
 
       try {
