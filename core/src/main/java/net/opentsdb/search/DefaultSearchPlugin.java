@@ -3,7 +3,6 @@ package net.opentsdb.search;
 import net.opentsdb.BuildData;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
-import net.opentsdb.meta.TSMeta;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.storage.TsdbStore;
@@ -35,16 +34,6 @@ public class DefaultSearchPlugin extends SearchPlugin {
   @Override
   public String version() {
     return BuildData.version();
-  }
-
-  @Override
-  public Deferred<Object> indexTSMeta(final TSMeta meta) {
-    return Deferred.fromResult(null);
-  }
-
-  @Override
-  public Deferred<Object> deleteTSMeta(final String tsuid) {
-    return Deferred.fromResult(null);
   }
 
   @Override

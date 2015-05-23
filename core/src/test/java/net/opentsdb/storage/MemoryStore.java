@@ -2,25 +2,19 @@
 package net.opentsdb.storage;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
-import com.google.common.primitives.Bytes;
-import com.google.common.primitives.Longs;
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
-import net.opentsdb.meta.TSMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.uid.IdQuery;
-import net.opentsdb.uid.IdUtils;
 import net.opentsdb.uid.IdentifierDecorator;
 import net.opentsdb.uid.LabelId;
 import net.opentsdb.uid.TimeseriesId;
@@ -32,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 
 import net.opentsdb.uid.UniqueIdType;
 
@@ -310,36 +303,6 @@ public class MemoryStore implements TsdbStore {
     }
     return Deferred.fromResult(del_list.size());
 
-  }
-
-  @Override
-  public Deferred<Void> delete(TSMeta tsMeta) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> create(TSMeta tsMeta) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<TSMeta> getTSMeta(byte[] tsuid) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> syncToStorage(TSMeta tsMeta, Deferred<ArrayList<Object>> uid_group, boolean overwrite) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final ResolvedSearchQuery query) {
-    throw new UnsupportedOperationException("Not implemented yet!");
-  }
-
-  @Override
-  public Deferred<Boolean> TSMetaExists(String tsuid) {
-    throw new UnsupportedOperationException("Not implemented yet");
   }
 
     /**

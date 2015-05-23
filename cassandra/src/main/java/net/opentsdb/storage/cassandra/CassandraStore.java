@@ -21,7 +21,6 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.core.Const;
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.LabelMeta;
 import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.storage.TsdbStore;
@@ -39,7 +38,6 @@ import net.opentsdb.uid.UniqueIdType;
 
 import javax.annotation.Nonnull;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -567,36 +565,6 @@ public class CassandraStore implements TsdbStore {
 
   @Override
   public Deferred<List<byte[]>> executeTimeSeriesQuery(final ResolvedSearchQuery query) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Void> delete(TSMeta tsMeta) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> create(TSMeta tsMeta) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<TSMeta> getTSMeta(byte[] tsuid) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<Boolean> syncToStorage(TSMeta tsMeta, Deferred<ArrayList<Object>> uid_group, boolean overwrite) {
-    throw new UnsupportedOperationException("Not implemented yet");
-  }
-
-  @Override
-  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final ResolvedSearchQuery query) {
-    throw new UnsupportedOperationException("Not implemented yet!");
-  }
-
-  @Override
-  public Deferred<Boolean> TSMetaExists(String tsuid) {
     throw new UnsupportedOperationException("Not implemented yet");
   }
 

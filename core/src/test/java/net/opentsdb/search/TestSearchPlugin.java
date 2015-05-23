@@ -14,7 +14,6 @@ package net.opentsdb.search;
 
 import com.stumbleupon.async.Callback;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.TSMeta;
 import net.opentsdb.uid.LabelId;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -25,36 +24,6 @@ import static org.mockito.Mockito.mock;
 
 public abstract class TestSearchPlugin {
   protected SearchPlugin search;
-  
-  @Test
-  public void indexTSMeta() {
-    assertNotNull(search.indexTSMeta(new TSMeta()));
-  }
-  
-  @Test
-  public void indexTSMetaNull() {
-    assertNotNull(search.indexTSMeta(null));
-  }
-  
-  @Test
-  public void indexTSMetaNullErrBack() {
-    assertNotNull(search.indexTSMeta(null).addErrback(new Errback()));
-  }
-  
-  @Test
-  public void deleteTSMeta() {
-    assertNotNull(search.deleteTSMeta("hello"));
-  }
-  
-  @Test
-  public void deleteTSMetaNull() {
-    assertNotNull(search.deleteTSMeta(null));
-  }
-  
-  @Test
-  public void deleteTSMetaNullErrBack() {
-    assertNotNull(search.deleteTSMeta(null).addErrback(new Errback()));
-  }
   
   @Test
   public void indexLabelMetaNull() {

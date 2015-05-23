@@ -14,7 +14,6 @@ package net.opentsdb.search;
 
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
-import net.opentsdb.meta.TSMeta;
 
 import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.IdQuery;
@@ -46,26 +45,6 @@ import java.util.List;
  * @since 2.0
  */
 public abstract class SearchPlugin extends Plugin {
-  /**
-   * Indexes a timeseries metadata object in the search engine
-   * <b>Note:</b> Unique Document ID = TSUID 
-   * @param meta The TSMeta to index
-   * @return A deferred object that indicates the completion of the request.
-   * The {@link Object} has not special meaning and can be {@code null}
-   * (think of it as {@code Deferred<Void>}).
-   */
-  public abstract Deferred<Object> indexTSMeta(final TSMeta meta);
-  
-  /**
-   * Called when we need to remove a timeseries meta object from the engine
-   * <b>Note:</b> Unique Document ID = TSUID 
-   * @param tsuid The hex encoded TSUID to remove
-   * @return A deferred object that indicates the completion of the request.
-   * The {@link Object} has not special meaning and can be {@code null}
-   * (think of it as {@code Deferred<Void>}).
-   */
-  public abstract Deferred<Object> deleteTSMeta(final String tsuid);
-  
   /**
    * Called when we want to add or update the information of a LabelMeta object.
    *

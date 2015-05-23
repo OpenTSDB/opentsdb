@@ -1,17 +1,13 @@
 package net.opentsdb.core;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import com.google.common.eventbus.EventBus;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.LabelMeta;
-import net.opentsdb.meta.TSMeta;
 import net.opentsdb.plugins.PluginError;
 import net.opentsdb.plugins.RTPublisher;
 import net.opentsdb.search.IdChangeIndexerListener;
-import net.opentsdb.search.ResolvedSearchQuery;
 import net.opentsdb.search.SearchPlugin;
 import net.opentsdb.search.SearchQuery;
 import net.opentsdb.storage.TsdbStore;
@@ -63,62 +59,12 @@ public class MetaClient {
   }
 
   /**
-   * Determines if an entry exists in storage or not.
-   * This is used by the UID Manager tool to determine if we need to write a
-   * new TSUID entry or not. It will not attempt to verify if the stored data is
-   * valid, just checks to see if something is stored in the proper column.
-   * @param tsuid The UID of the meta to verify
-   * @return True if data was found, false if not
-   */
-  public Deferred<Boolean> TSMetaExists(final String tsuid) {
-    return store.TSMetaExists(tsuid);
-  }
-
-  /**
-   * Attempts to store a new, blank timeseries meta object via a Put
-   * <b>Note:</b> This should not be called by user accessible methods as it will
-   * overwrite any data already in the column.
-   * <b>Note:</b> This call does not guarantee that the UIDs exist before
-   * storing as it should only be called *after* a data point has been recorded
-   * or during a meta sync.
-   * @param tsMeta The TSMeta to be stored in the database
-   * @return A meaningless deferred.
-   * @throws IllegalArgumentException if parsing failed
-   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
-   */
-  public Deferred<Boolean> create(final TSMeta tsMeta) {
-    tsMeta.checkTSUI();
-    return store.create(tsMeta);
-  }
-
-  /**
-   * Attempts to delete the meta object from storage
-   * @param tsMeta The TSMeta to be removed.
-   * @return A deferred without meaning. The response may be null and should
-   * only be used to track completion.
-   * @throws IllegalArgumentException if data was missing (identifier and type)
-   */
-  public Deferred<Void> delete(final TSMeta tsMeta) {
-    tsMeta.checkTSUI();
-    return store.delete(tsMeta);
-  }
-
-  /**
    * Delete the annotation object from the search index
    * @param note The annotation object to delete
    * @since 2.0
    */
   public void deleteAnnotation(final Annotation note) {
     searchPlugin.deleteAnnotation(note).addErrback(new PluginError(searchPlugin));
-  }
-
-  /**
-   * Delete the timeseries meta object from the search index
-   * @param tsuid The TSUID to delete
-   * @since 2.0
-   */
-  public void deleteTSMeta(final String tsuid) {
-    searchPlugin.deleteTSMeta(tsuid).addErrback(new PluginError(searchPlugin));
   }
 
   /**
@@ -188,25 +134,6 @@ public class MetaClient {
   }
 
   /**
-   * Attempts to fetch the timeseries meta data from storage.
-   * This method will fetch the {@code counter} and {@code meta} columns.
-   * If load_uids is false this method will not load the UIDMeta objects.
-   * <b>Note:</b> Until we have a caching layer implemented, this will make at
-   * least 4 reads to the storage system, 1 for the TSUID meta, 1 for the
-   * metric UIDMeta and 1 each for every tagk/tagv UIDMeta object.
-   * <p>
-   * @param tsuid The UID of the meta to fetch
-   * @param load_uids Set this you true if you also want to load the UIDs
-   * @return A TSMeta object if found, null if not
-   * @throws IllegalArgumentException if parsing failed
-   * @throws net.opentsdb.utils.JSONException if the data was corrupted
-   */
-  public Deferred<TSMeta> getTSMeta(final String tsuid, final boolean load_uids) {
-    return  store.getTSMeta(IdUtils.stringToUid(tsuid));
-
-  }
-
-  /**
    * Verifies the UID object exists, then attempts to fetch the meta from
    * storage and if not found, returns a default object.
    * <p>
@@ -254,15 +181,6 @@ public class MetaClient {
   public void indexAnnotation(final Annotation note) {
     searchPlugin.indexAnnotation(note).addErrback(new PluginError(searchPlugin));
     realtimePublisher.publishAnnotation(note).addErrback(new PluginError(realtimePublisher));
-  }
-
-  /**
-   * Index the given timeseries meta object via the configured search plugin
-   * @param meta The meta data object to index
-   * @since 2.0
-   */
-  public void indexTSMeta(final TSMeta meta) {
-    searchPlugin.indexTSMeta(meta).addErrback(new PluginError(searchPlugin));
   }
 
   /**
@@ -335,92 +253,6 @@ public class MetaClient {
     }
 
     return store.deleteAnnotationRange(tsuid, start_time, end_time);
-  }
-
-  /**
-   * Attempts a CompareAndSet storage call, loading the object from storage,
-   * synchronizing changes, and attempting a put. Also verifies that associated
-   * UID name mappings exist before merging.
-   * <b>Note:</b> If the local object didn't have any fields set by the caller
-   * or there weren't any changes, then the data will not be written and an
-   * exception will be thrown.
-   * <b>Note:</b> We do not store the UIDMeta information with TSMeta's since
-   * users may change a single UIDMeta object and we don't want to update every
-   * TSUID that includes that object with the new data. Instead, UIDMetas are
-   * merged into the TSMeta on retrieval so we always have canonical data. This
-   * also saves space in storage.
-   * @param tsMeta The TSMeta to stored
-   * @param overwrite When the RPC method is PUT, will overwrite all user
-   * accessible fields
-   * @return True if the storage call was successful, false if the object was
-   * modified in storage during the CAS call. If false, retry the call. Other
-   * failures will result in an exception being thrown.
-   * @throws IllegalArgumentException if parsing failed
-   * @throws IllegalStateException if the data hasn't changed. This is OK!
-   * @throws net.opentsdb.utils.JSONException if the object could not be serialized
-   */
-  public Deferred<Boolean> syncToStorage(final TSMeta tsMeta,
-                                         final boolean overwrite) {
-    tsMeta.checkTSUI();
-
-    if (!tsMeta.hasChanges()) {
-      LOG.debug("{} does not have changes, skipping sync to storage", tsMeta);
-      throw new IllegalStateException("No changes detected in TSUID meta data");
-    }
-
-    /**
-     * Callback used to verify that the UID name mappings exist. We don't need
-     * to process the actual name, we just want it to throw an error if any
-     * of the UIDs don't exist.
-     */
-    class UidCB implements Callback<Object, String> {
-
-      @Override
-      public Object call(String name) throws Exception {
-        // nothing to do as missing mappings will throw a NoSuchUniqueId
-        return null;
-      }
-
-    }
-
-    // parse out the tags from the tsuid
-    final List<byte[]> parsed_tags = IdUtils.getTagsFromTSUID(tsMeta.getTSUID());
-
-    // Deferred group used to accumulate UidCB callbacks so the next call
-    // can wait until all of the UIDs have been verified
-    ArrayList<Deferred<Object>> uid_group =
-        new ArrayList<>(parsed_tags.size() + 1);
-
-    final LabelId metric = tsMeta.metric();
-    uid_group.add(uniqueIdClient.getUidName(UniqueIdType.METRIC, metric)
-            .addCallback(new UidCB()));
-
-    for (final Map.Entry<LabelId, LabelId> tag : tsMeta.tags().entrySet()) {
-      // TODO
-      //uid_group.add(uniqueIdClient.getUidName(UniqueIdType.TAGK, tag.getKey()));
-      //uid_group.add(uniqueIdClient.getUidName(UniqueIdType.TAGV, tag.getValue()));
-    }
-
-    return store.syncToStorage(tsMeta, Deferred.group(uid_group), overwrite);
-  }
-
-  /**
-   * Returns all TSMeta objects stored for timeseries defined by this query. The
-   * query is similar to TsdbQuery without any aggregations. Returns an empty
-   * list, when no TSMetas are found. Only returns stored TSMetas.
-   *
-   * @return A list of existing TSMetas for the timeseries covered by the query.
-   * @throws IllegalArgumentException When either no metric was specified or the
-   *                                  tag map was null (Empty map is OK).
-   */
-  public Deferred<List<TSMeta>> executeTimeseriesMetaQuery(final SearchQuery query) {
-    return uniqueIdClient.resolve(query).addCallbackDeferring(
-        new Callback<Deferred<List<TSMeta>>, ResolvedSearchQuery>() {
-          @Override
-          public Deferred<List<TSMeta>> call(final ResolvedSearchQuery arg) {
-            return store.executeTimeseriesMetaQuery(arg);
-          }
-        });
   }
 
   /**

@@ -7,7 +7,6 @@ import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.core.DataPoints;
 import net.opentsdb.meta.Annotation;
-import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.LabelMeta;
 
 import net.opentsdb.search.ResolvedSearchQuery;
@@ -15,7 +14,6 @@ import net.opentsdb.uid.IdQuery;
 import net.opentsdb.uid.IdentifierDecorator;
 
 import java.io.Closeable;
-import java.util.ArrayList;
 import java.util.List;
 
 import net.opentsdb.uid.LabelId;
@@ -138,19 +136,4 @@ public interface TsdbStore extends Closeable {
                                      @Nonnull final UniqueIdType type);
 
   public Deferred<Boolean> updateMeta(final LabelMeta meta);
-
-  //
-  // TSMeta
-  //
-  Deferred<Boolean> TSMetaExists(final String tsuid);
-
-  Deferred<Boolean> create(final TSMeta tsMeta);
-
-  Deferred<Void> delete(final TSMeta tsMeta);
-
-  Deferred<TSMeta> getTSMeta(final byte[] tsuid);
-
-  Deferred<Boolean> syncToStorage(final TSMeta tsMeta, final Deferred<ArrayList<Object>> uid_group, final boolean overwrite);
-
-  Deferred<List<TSMeta>> executeTimeseriesMetaQuery(ResolvedSearchQuery query);
 }

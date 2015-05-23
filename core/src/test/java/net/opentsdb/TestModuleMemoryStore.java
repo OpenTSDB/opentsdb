@@ -5,7 +5,6 @@ import dagger.Module;
 import dagger.Provides;
 import net.opentsdb.core.CoreModule;
 import net.opentsdb.core.MetaClientAnnotationTest;
-import net.opentsdb.core.MetaClientTSMetaTest;
 import net.opentsdb.plugins.PluginsModule;
 import net.opentsdb.storage.MemoryStore;
 import net.opentsdb.storage.StoreModule;
@@ -39,8 +38,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
         overrides = true,
         injects = {
             MetaClientAnnotationTest.class,
-            MemoryStore.class,
-            MetaClientTSMetaTest.class
+            MemoryStore.class
         })
 public class TestModuleMemoryStore {
   private final Config config;
